@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// Repository providers (docs/extensions/repository-providers.md): an extension's repository_providers contribution is
+// Repository providers: an extension's repository_providers contribution is
 // a code-hosting source on the exact hosts it names, for the repository catalog and a to-do's repositories and links.
 // The registry says which installed extension claims a host and whether it is on; calling it (repo.parse, repo.check,
 // repo.link, repo.describe) is the manager's (extmgr/repository_providers.go).

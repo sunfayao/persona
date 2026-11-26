@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// Plans and conversation feed items for tasks dispatched from an assistant conversation (docs/assistant/unified-entry.md).
+// Plans and conversation feed items for tasks dispatched from an assistant conversation.
 
 var ErrTaskPlanNotFound = errors.New("task plan not found")
 

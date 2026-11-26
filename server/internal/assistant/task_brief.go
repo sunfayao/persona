@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Task briefs (#3822, docs/assistant/unified-entry.md "Briefs"). A brief is one record per piece of work, made when the
+// Task briefs (#3822). A brief is one record per piece of work, made when the
 // work is handed out and never rewritten: the owner's message that led to it, verbatim (or who started it when it was
 // not the owner, and why), the goal in a sentence, what done means, how long it should take and what is out of bounds.
 // A task's notes are the prompt its agent got, and a take-over's notes are the hand-over prompt; the brief is what all

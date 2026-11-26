@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// A transcription job (docs/assistant/meeting-minutes.md "The `transcription` extension point", "The built-in
+// A transcription job ("The built-in
 // adapter"): the manager's frames in (start, audio, seek, flush, reference, end), sentences out, in order and in
 // recording seconds.
 //
@@ -83,7 +83,7 @@ var (
 	trPreviousMost     = 3 // sentences of the previous window a replay window's sessions are told
 )
 
-// The glossary's limits (docs/assistant/meeting-minutes.md "The `transcription` extension point").
+// The glossary's limits.
 const (
 	trGlossaryMost     = 256
 	trGlossaryTermMost = 80

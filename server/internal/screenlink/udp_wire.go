@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-// The video over UDP (#7873, docs/extensions/computer-use.md "Video over UDP (#7873)"): on a direct route the phone may
+// The video over UDP (#7873): on a direct route the phone may
 // open one UDP flow beside its TLS connection, and the video channel's node → phone bytes then go as packets, each
 // video message cut into fragments with Reed-Solomon parity, so a lost packet never holds back the frames after it.
 // Everything else (RFB, the phone's video messages, every link message) stays on the TLS connection.

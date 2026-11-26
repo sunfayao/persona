@@ -1,4 +1,4 @@
-// The page's checks on an html card's drawing (#4215, docs/assistant/assistant-views.md "Security boundaries"): the
+// The page's checks on an html card's drawing (#4215): the
 // display frame's sandbox, CSP and nonce, and what the sanitizer lets through to it.
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";

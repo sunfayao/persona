@@ -12,7 +12,7 @@ import { t } from "../../i18n";
 import { useScope, scoped } from "../../lib/current-assistant";
 import { sameManager } from "../../lib/manager-choice";
 
-// A hand-off conversation's write-back as a card in the chat (#5932, docs/assistant/inbox.md "Item actions"): the
+// A hand-off conversation's write-back as a card in the chat (#5932): the
 // item's summary, the reply or conclusion, and Send / OK, which confirm the item's suggestion. The item is the one home
 // of the request: the card reads it for whether it can still be sent and how it ended, and is not counted in Needs you.
 

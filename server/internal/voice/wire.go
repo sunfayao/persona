@@ -146,7 +146,7 @@ func (liveWire) reply(delegation, s string, final bool, id string) []any {
 }
 
 // The service echoes a client frame's event_id as client_event_id on its session.commentary.appended and on an error
-// about it (docs/lessons/voice.md "Errors").
+// about it.
 func (liveWire) acks() bool { return true }
 
 func withEventID(frame any, id string) any {
@@ -233,7 +233,7 @@ func (liveWire) decode(raw []byte) []event {
 
 // liveResponseEvent reads the Responses event a response.event carries: a function call (bare, or as the finished
 // item of response.output_item.done), the model's text, the start and end of its reply. A reply's events come on its
-// own (responses) delegation: delegation names the reply (docs/lessons/voice.md "Other behavior").
+// own (responses) delegation: delegation names the reply.
 func liveResponseEvent(delegation string, raw json.RawMessage) []event {
 	var e struct {
 		Type   string `json:"type"`
@@ -415,7 +415,7 @@ func inputContent(s string) []contentPart { return []contentPart{{Type: "input_t
 
 const (
 	appendTokens     = 450  // GPT-Live: a thinking's content is limited to 500 tokens
-	commentaryRunes  = 3900 // GPT-Live: a commentary's to 4000 characters (docs/lessons/voice.md "Errors")
+	commentaryRunes  = 3900 // GPT-Live: a commentary's to 4000 characters
 	codexAppendBytes = 500  // Codex splits its context appends at 500 bytes
 )
 

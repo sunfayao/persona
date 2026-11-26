@@ -9,8 +9,8 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// The hub's built-in writer quiesce for a Web development snapshot
-// (docs/operations/hub-update.md "Web development updates"): the hub is the only
+// The hub's built-in writer quiesce for a Web development snapshot:
+// the hub is the only
 // writer of its own database (with the built-in child manager), so it can pause
 // itself instead of requiring operator hooks. Requests that write are refused
 // for the duration, writes already under way are waited for, the built-in

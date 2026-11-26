@@ -1,4 +1,4 @@
-// Reviewing a session's changes (docs/web/review.md, #151): every file the session changed, each with its diff, drawn
+// Reviewing a session's changes (#151): every file the session changed, each with its diff, drawn
 // by the same code review an extension's code page has (views/extensions/DiffReview.tsx: words that changed, whitespace,
 // viewed marks, folded generated and big files, keys, ranges, suggestions). A comment on lines waits in the review
 // (kept per session in this browser) or goes to the message box at once; Send review sends the summary and every

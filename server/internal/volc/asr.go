@@ -16,7 +16,7 @@ import (
 	"github.com/coder/websocket"
 )
 
-// Streaming recognition (docs/extensions/volcengine-speech.md "Recognition"): one WebSocket session of the service per
+// Streaming recognition: one WebSocket session of the service per
 // stretch of audio. Live jobs use the optimized two-way endpoint with the second pass on (bigmodel_async with
 // enable_nonstream: interim text as it is heard, and each sentence recognized again by the non-streaming model once it
 // ends, marked definite); the final pass uses the streaming-input endpoint (bigmodel_nostream, more accurate, results

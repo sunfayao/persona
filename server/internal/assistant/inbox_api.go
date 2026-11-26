@@ -152,7 +152,7 @@ func (s *Service) inboxRoutes() {
 			return
 		}
 		if !fullRole(r) {
-			// Posted as the user, a "/agent …" comes back as their request and starts an agent (docs/extensions/lark-agent.md).
+			// Posted as the user, a "/agent …" comes back as their request and starts an agent.
 			if len(in.Changes) > 0 || assistantwire.AsksAgent(in.Text) {
 				apierr.Write(w, http.StatusForbidden, i18n.ErrEnglish("inbox-errors.reply_text_only"))
 				return

@@ -1,4 +1,4 @@
-// The web pages a finished reply used (#9132; docs/web/web.md "Sources"): a quiet line under the reply, "Sources" and a
+// The web pages a finished reply used (#9132): a quiet line under the reply, "Sources" and a
 // chip per page, three of them, then +N for the rest. A chip names the page's site, as ChatGPT and Perplexity do (where
 // it came from is what a reader checks first, and a site fits where a title is cut); its title and address are its
 // tooltip and spoken name. Two pages of one site are told apart by their titles. What it

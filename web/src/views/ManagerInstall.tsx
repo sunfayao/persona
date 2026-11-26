@@ -1,4 +1,4 @@
-// Making an assistant and installing it (docs/assistant/managers.md "Install codes"): the dialog that asks for its name, and the
+// Making an assistant and installing it: the dialog that asks for its name, and the
 // one-time install code with its countdown (and the install commands when the hub gives them). Settings › Assistants
 // and the sidebar's switcher both open them, so they live outside the settings chunk.
 import { useEffect, useState } from "react";

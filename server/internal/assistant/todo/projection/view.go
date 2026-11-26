@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The decision table (docs/assistant/todo-status-sop.md 6.3): the first row that holds places the to-do, except
+// The decision table: the first row that holds places the to-do, except
 // row 13, which only sets the Inactive mark on a to-do row 14 places. Closed work comes first (rows 6 and 7), so an
 // open to-do never reads as done (6.2 invariant 1). Each function below is one row family and says which rows; the
 // fields each sets, and every line key, are listed in spec/fixtures/todo-view/README.md. next_change_at is worked out

@@ -247,7 +247,6 @@ var (
 
 // relatedKeys are the keys that make two to-dos the same piece of work: the same PR, the same issue number in the
 // title, the same title without case, spaces and punctuation (six characters or more), the same plan
-// (docs/assistant/todo-status-sop.md "Related to-dos").
 func relatedKeys(f Facts) []string {
 	var keys []string
 	if pr := normalizePRURL(f.PRURL); pr != "" {

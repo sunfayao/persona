@@ -1,4 +1,4 @@
-// When the web looks at the hub's to-do view at all (#10226; docs/web/web.md "Developing Persona"). Everyone else runs
+// When the web looks at the hub's to-do view at all (#10226). Everyone else runs
 // exactly today's code: the shadow compares only while gates 1 and 2 hold, and the To-dos page draws from the view
 // only with gate 3 as well.
 

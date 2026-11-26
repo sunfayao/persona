@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Task leaders (#3656, docs/assistant/unified-entry.md "Task leaders"). A task the main conversation or a leader
+// Task leaders (#3656). A task the main conversation or a leader
 // conversation hands out with task_plan role "leader" has a coding agent that leads it: it gets a restricted task_plan
 // of its own and hands workers to its task, and what the workers report goes to it. Depth stops there: dot (a leader
 // conversation) → task leader → worker; a worker hands out nothing (workerRefusal).

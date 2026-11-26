@@ -1,4 +1,4 @@
-// UI version 6's components on the web (docs/extensions/extensions.md "UI version 6"), drawn by ViewBody.tsx: a picture (image), a
+// UI version 6's components on the web, drawn by ViewBody.tsx: a picture (image), a
 // row's or a tile's switch / slider / stepper, a row's extra actions (right click, a long press, the … button), grids
 // and carousels of tiles, sparklines, a named color's badge, and the new fields (date, time, datetime, multichoice,
 // multiline). The readings and the arithmetic are in lib/extension-ui-v6.ts; what a control's change does (shown at

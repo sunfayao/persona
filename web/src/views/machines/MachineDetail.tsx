@@ -1,4 +1,4 @@
-// Machine details (/machines/<id>, docs/server/machines.md "App", iOS MachineDetailView): one page, the most used on top — how the
+// Machine details (/machines/<id>, iOS MachineDetailView): one page, the most used on top — how the
 // computer is (online, system, which hub when there are several), its agents by herdr space (a row opens the chat),
 // its values now, CPU / memory / network / load over 1, 6 or 24 hours (hover a chart to read a moment, all follow) and
 // each core now (Linux), the system, the launchers. Its engine (which one the agents come from) follows the agents. A Mac the hub's extension cua is on for gets "Computer control" after that, and "Browser" (ego lite) while ego is on; then "iPhone control" while the extension iphone is on (a Mac or a Linux computer).
@@ -64,7 +64,7 @@ import { UsageSection } from "./UsageSection";
 import { MachineExtensionSections } from "../extensions/ExtensionSlots";
 import { t } from "../../i18n";
 
-// MACHINE_RENAME_FEATURE: the hub renames computers (PUT /api/v1/machines/{id}/name, docs/server/machines.md
+// MACHINE_RENAME_FEATURE: the hub renames computers (PUT /api/v1/machines/{id}/name
 // "Renaming a computer"); an older one keeps the name its hub.json has.
 const MACHINE_RENAME_FEATURE = "machine_rename";
 
@@ -434,7 +434,7 @@ export function MachineDetail({ mid, onToggleSidebar }: { mid: string; onToggleS
       {/* which engine the agents above come from (iOS engineRow) */}
       <EngineSection machine={m} heading={<Heading title={t("machines-machinedetail.engine")} />} />
 
-      {/* what this computer can do for Persona, from the node's self-check (docs/server/machines.md "Doctor: what this computer can do") */}
+      {/* what this computer can do for Persona, from the node's self-check */}
       <NodeHealth machine={m} heading={<Heading title={t("node-health.title")} />} />
 
       {m.computer && <ComputerSection mid={mid} computer={m.computer} online={online} manager={m.manager} />}

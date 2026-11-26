@@ -23,7 +23,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Managers (docs/assistant/managers.md): every bus identity of role manager is one, all equal, each a whole assistant. The
+// Managers: every bus identity of role manager is one, all equal, each a whole assistant. The
 // hub keeps the roster (bus_identities, migration 0419: name, its token's hash, where it said it runs, when it was
 // last connected), the one-time install codes a new manager trades for its token, and which manager answers what
 // belongs to none (the default, at first the assistant the hub starts). All of it is the hub's own: identities,
@@ -238,7 +238,7 @@ func (h *Hub) tellManagers() {
 	}
 }
 
-// The inbox's "Needs you" count of each manager (docs/assistant/managers.md "What the hub keeps of each manager"): the
+// The inbox's "Needs you" count of each manager: the
 // inbox is the manager's, so it counts and says the number (inbox.needs_you, after its handshake and on every change),
 // and the hub keeps the last one of the connection for the roster. A number that differs from the one before tells
 // the apps to read the roster again, once for the numbers that change within inboxNeedsYouPushDelay: a round's items

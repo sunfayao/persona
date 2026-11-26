@@ -1,6 +1,6 @@
 package proto
 
-// A computer's diagnosis and cache cleanup (#8037, docs/server/machines.md "Diagnosis and cleanup"): the node answers a
+// A computer's diagnosis and cache cleanup (#8037): the node answers a
 // fixed, bounded question about what uses its memory, CPU and disk, and empties caches from its own catalog. Nothing in
 // these types names a caller-chosen path or command: sections and ids are closed lists, and every path is the node's.
 

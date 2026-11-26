@@ -1,4 +1,4 @@
-// Fixture-only data and in-memory sources for the configuration showcase (web/e2e/configuration-showcase.html, docs/web/web.md
+// Fixture-only data and in-memory sources for the configuration showcase (web/e2e/configuration-showcase.html
 // "Configuration forms"): several independent mock module documents, drawn by the real ConfigurationForm so a person can
 // open, operate and compare them with no hub, server or real setting. Every source keeps its values in this page's memory
 // and reads or writes no storage; no file here is part of a build.

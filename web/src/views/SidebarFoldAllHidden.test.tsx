@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The sidebar's Expand all, from the Agents title row's button or the keyboard shortcut, opens every group of a list
-// folded under its title (docs/web/web.md, DESIGN_SYSTEM.md 3.4), though a folded block holds none of its groups
+// folded under its title (DESIGN_SYSTEM.md 3.4), though a folded block holds none of its groups
 // (#7440): they take the fold-all they missed when the block opens.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";

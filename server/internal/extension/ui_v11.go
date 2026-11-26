@@ -6,7 +6,7 @@ import (
 	"github.com/nwverse/persona/sdk/go/wire"
 )
 
-// UI version 11 (docs/extensions/extensions.md "UI version 11", #12544): a scene, a small 3D model the person turns,
+// UI version 11 (#12544): a scene, a small 3D model the person turns,
 // zooms and taps. downgrade11 draws it with version 10's for an older app, and for a native stream (whose components
 // never include a scene).
 

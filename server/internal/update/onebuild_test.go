@@ -10,7 +10,7 @@ import (
 )
 
 // There is one personad: no file of persona's builds differently for the published binaries, so every hub can update
-// to the release, ours included (docs/operations/hub-update.md "Taking the skill out of the binary"). The release is
+// to the release, ours included. The release is
 // built with the tags of server/build-tags.txt (the public marker for the privacy scan and ts_omit_ tags that leave
 // tailscale.com features out), while tests and plain builds use none: a persona file whose build constraint names
 // any of them would compile one way in the release and another everywhere else.

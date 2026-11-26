@@ -15,7 +15,7 @@ import (
 // desktops are connected (the desktops event, docs/protocol/protocol.md), and a phone that turned on "Phone Muted"
 // (NotifyPrefs.MuteWhileDesktop) gets no alert pushes while one is.
 //
-// A computer whose Persona Link says the user is at it (its manager's devices.desktops, docs/operations/link.md
+// A computer whose Persona Link says the user is at it (its manager's devices.desktops
 // "Presence") counts as a desktop too, for the one alert Persona Link shows: "Phone Muted" holds back only the "Needs
 // you" cards of that computer's manager while only such desktops are there (notifyInteraction): its Persona Link shows
 // that manager's summary, never another's. The desktops event lists them only to clients that asked for

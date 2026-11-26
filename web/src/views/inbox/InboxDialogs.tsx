@@ -1,4 +1,4 @@
-// What can be done with one item besides reading it (docs/assistant/inbox.md "Item actions"): "AI draft reply" (a reply in the
+// What can be done with one item besides reading it: "AI draft reply" (a reply in the
 // user's voice, edited and sent from here) and "Hand to AI" (the item as <persona-context> to Persona or a running agent;
 // Persona's main conversation may then write back to the item).
 import { ownerHeaders } from "../../lib/manager-choice";
@@ -140,7 +140,7 @@ function DraftEditor({ item, onClose }: { item: InboxItem; onClose: () => void }
               type="button"
               onClick={() => {
                 onClose();
-                // The AI twin runs as the assistant (docs/assistant/inbox.md): its conversation is one of Persona's.
+                // The AI twin runs as the assistant: its conversation is one of Persona's.
                 navigate(agent.machine_id === assistant?.machine_id ? { name: "persona" } : conversationRoute(agent.machine_id!, agent.session_id!, sessions, assistant));
               }}
               className="mt-1.5 flex items-center gap-1 text-[12px] font-medium whitespace-nowrap text-accent-ink hover:underline"
@@ -335,7 +335,7 @@ export function HandOffDialog({ item, onClose }: { item: InboxItem; onClose: () 
         });
         return;
       }
-      // Persona here is the item's own manager's (docs/assistant/managers.md "Clients"), whatever assistant is current;
+      // Persona here is the item's own manager's, whatever assistant is current;
       // the conversation opens as itself and the current assistant stays
       const r = await startConversation({ prompt: text }, ownerHeaders(item.manager));
       void recordHandOff(item, r.session, "conversation", r.session.title);

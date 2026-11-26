@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Reported steps in the handling chain (docs/web/web.md "Inbox"; the shared contract in
+// Reported steps in the handling chain (the shared contract in
 // spec/fixtures/inbox/timeline.json): the localized "Assistant says" tag plus the entry's own words (`detail`, single line in the
 // row, whole when opened), the server's `text` ("Assistant says: …", written for older apps) only when there are no words.
 import { act } from "react";

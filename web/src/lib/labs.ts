@@ -1,4 +1,4 @@
-// Settings › Labs' terminal renderer as this browser keeps it (#9877, docs/web/web.md "Labs"). The Labs page shows it
+// Settings › Labs' terminal renderer as this browser keeps it (#9877). The Labs page shows it
 // through the generic configuration form (lib/labs-terminal.ts turns it into a Document); Single pane terminals read it
 // here, once, when they open (views/session/terminal/feed.ts).
 //

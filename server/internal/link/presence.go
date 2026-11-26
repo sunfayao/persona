@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Presence through Persona Link (docs/operations/link.md "Presence"): the menu bar app says on persona-link's stdin
+// Presence through Persona Link: the menu bar app says on persona-link's stdin
 // whether the user is at this computer and its notifications show, and which cards' notifications it handed to
 // Notification Center; persona-link passes both on to the hub's manager over the link (active mode only), which then
 // lets a phone with "Phone Muted" leave those cards to this computer. Only the menu bar app says them: the command-line

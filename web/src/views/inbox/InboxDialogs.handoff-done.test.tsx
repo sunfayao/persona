@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// "Hand to AI" › "Also mark as done" (docs/assistant/inbox.md "Item actions"): off by default for every target — the main
+// "Hand to AI" › "Also mark as done": off by default for every target — the main
 // chat, a new Persona chat, a running agent and "New agent…", whose agent files nothing unless the user asked; a box the
 // user set keeps its value when the target changes.
 import { act } from "react";

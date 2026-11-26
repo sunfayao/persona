@@ -13,7 +13,7 @@ import (
 // browser loads the app over HTTPS before any script reads a stored token. Everything else, health included, gets
 // 403 tls_required,
 // as public plaintext does in gate. Loopback stays plaintext: the built-in manager, the local assistant, an SSH
-// tunnel and a reverse proxy on this host that terminates TLS (docs/operations/network.md).
+// tunnel and a reverse proxy on this host that terminates TLS.
 func (h *Hub) plaintextLoopbackOnly(next http.Handler) http.Handler {
 	if !h.cfg.Security.PlaintextLoopbackOnly {
 		return next

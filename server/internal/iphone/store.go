@@ -1,6 +1,6 @@
 // Package iphone keeps this computer's paired iPhones: the pairing records made once over trusted USB, finding each
 // phone again on the network (Bonjour, a manual address) and one resident session per phone through the device
-// bridge (docs/extensions/iphone-pairing.md). The node's phone capability calls it; it knows nothing of the hub.
+// bridge. The node's phone capability calls it; it knows nothing of the hub.
 package iphone
 
 import (

@@ -9,7 +9,7 @@ recover client operations, expire interactions and drain the outbox, which is th
 
 It takes no hub URL, database URL, runtime directory or bundle: everything it touches it creates, on an `--internal`
 Docker network with no published ports, and removes again on success, failure, timeout and interruption. The printed
-report has phase timings, check results and state counts only (docs/server/server.md "Restore drill").
+report has phase timings, check results and state counts only.
 """
 import argparse
 import datetime

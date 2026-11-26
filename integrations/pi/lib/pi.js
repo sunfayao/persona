@@ -2,7 +2,7 @@ import { assistantState, recordAssistant, assistantBeforeTurn } from './assistan
 import { extractShellGates, matchShellGate } from '../../runtime-sdk/lib/shell-gates.js'
 import { wirePackageName } from '../../runtime-sdk/lib/compat.js'
 import { customTypeMatches, legacyCustomType, LEGACY_RELOAD, piHostKind } from './compat.js'
-// The pi runtime (docs/integrations/pi.md): the sessions of one pi process — a pi in a terminal, `pi --mode rpc`, or pi-web's
+// The pi runtime: the sessions of one pi process — a pi in a terminal, `pi --mode rpc`, or pi-web's
 // server, which hosts many — in Persona through the runtime SDK (docs/integrations/runtimes.md). pi loads the extension once per
 // session, but there is one runtime connection per process: index.js registers each session's API with the host made
 // here, once per process.
@@ -22,7 +22,7 @@ import { ALLOW_ENTRY, alwaysAllowed, branchItems, branchKey, entryItems, firstTe
 export const RUNTIME_VERSION = '0.4.0'
 const DISK_EVERY = 30_000 // ms: list the sessions on disk at most this often (pi-web)
 const TERMINAL_HOSTS = new Set(['herdr', 'terminal']) // resumed in the machine's terminal engine, not in pi-web
-const RELOAD_COMMAND = 'persona-reload' // the command a session runs on itself to load a new version (docs/integrations/pi.md "Automatic updates")
+const RELOAD_COMMAND = 'persona-reload' // the command a session runs on itself to load a new version
 const IDLE_EVERY = 5000 // ms: how often to look whether the process is idle enough to switch versions
 const INTERRUPT_SETTLE = 10_000 // ms: how long an interrupt waits for the turn to end before it reports failure
 const BROWSERS_EVERY = 10_000 // ms: how often pi-web is asked which sessions a browser has open
@@ -46,7 +46,7 @@ const BROWSERS_EVERY = 10_000 // ms: how often pi-web is asked which sessions a 
  *   agent?: string, name?: string, instancePrefix?: string, interactionPrefix?: string, resumeCommand?: string[],
  *   instance?: string, update?: { name: string, hash: string, store: string, exit?: (hash: string) => void } }} [options]
  *   listDisk: list the recent sessions on disk too, and start new ones (the companion; needs web). update: this code
- *   runs from a version in a store (selfPackage), so it takes the node's version (docs/integrations/pi.md "Automatic updates"): installs it
+ *   runs from a version in a store (selfPackage), so it takes the node's version: installs it
  *   as the store's current, then — exit given (the companion) — calls exit for its supervisor to start the new code,
  *   or reloads this process's sessions onto it once they are all idle and no card of theirs is on the phone.
  *   instance: this process's identity on the node, kept by the next version's host in the same process.
@@ -644,7 +644,7 @@ export function createPiHost(deps, options = {}) {
     return { block: true, reason: '没有人批准（没有界面，手机也没回答）' }
   }
 
-  // ---- the node's version (docs/integrations/pi.md "Automatic updates") ----
+  // ---- the node's version ----
 
   /** Every session of this process is between turns and no card of this runtime waits on the phone. */
   function idle() {

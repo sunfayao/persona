@@ -1,4 +1,4 @@
-// What differs from pi for this package (docs/integrations/omp.md): omp's agent directory and its one-shot runs. The
+// What differs from pi for this package: omp's agent directory and its one-shot runs. The
 // extension API and the host itself are pi's (integrations/pi/lib), loaded by omp's pi compatibility layer.
 
 import { homedir } from 'node:os'

@@ -1,5 +1,5 @@
-// Package tokenuse is the one model of an agent's token usage and the parsers of the records agents keep it in
-// (docs/server/machines.md "Token usage"). The node's usage meter and backfill (node/usage.go), the usage on a chat's
+// Package tokenuse is the one model of an agent's token usage and the parsers of the records agents keep it in.
+// The node's usage meter and backfill (node/usage.go), the usage on a chat's
 // replies (transcript/item_usage.go) and the subagent summaries (node/agent_usage.go) all read usage through it, so a
 // request counts the same everywhere.
 //

@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Token usage backfill (docs/server/machines.md "Backfill", #9484): once a machine and agent, its node reads the
+// Token usage backfill (#9484): once a machine and agent, its node reads the
 // records from before the history began and sends the hours (node/usage_backfill.go). The manager says where to read
 // (usage.backfill.status), stores the hours that have no usage of the agent yet and records how far it got
 // (usage.backfill), a record per agent (#9984).

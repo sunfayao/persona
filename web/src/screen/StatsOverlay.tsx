@@ -1,4 +1,4 @@
-// The live screen's connection stats on the web (#6558, docs/extensions/computer-use.md "Connection stats on the web"):
+// The live screen's connection stats on the web (#6558):
 // the bar's toggle and the small panel it shows over the picture, as the iOS app's ⋯ › Connection Stats and
 // ScreenStatsOverlay do. Off by default and kept per Mac (video.ts statsShown). ScreenView loads this chunk once the
 // screen is live, so its words (screen-video) stay out of the first screen's catalog, which every page of the app sends.

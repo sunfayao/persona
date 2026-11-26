@@ -1,4 +1,4 @@
-// The Inbox's section bar (docs/assistant/inbox.md "Section bar", #9053): one row of choices over the list, drawn as the
+// The Inbox's section bar (#9053): one row of choices over the list, drawn as the
 // Agents list's quick filters are (Sidebar's FilterBar; a pixel less padding, so all five fit the wide page's 380px list
 // column in English and Chinese), with Needs you's count in its blue, In progress's and FYI's in the neutral tone, and
 // the grouping in a menu at the row's end. The sections scroll sideways when they don't fit, faded at the edge with more

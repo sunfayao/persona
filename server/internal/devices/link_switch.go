@@ -27,7 +27,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Switching an ssh computer to Persona Link (#10662, docs/operations/link.md "Switching from SSH"): POST
+// Switching an ssh computer to Persona Link (#10662): POST
 // /api/v1/machines/{mid}/link-switch from a full device, or the hub's admin page through its twin route. The manager
 // does it over its own ssh access to the computer, in the background (the answer is 202 at once), one switch per
 // computer at a time:

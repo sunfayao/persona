@@ -9,7 +9,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// The kind of work a task's stage strip follows (#3380, #11590, docs/assistant/todos.md "Data model"): code is a change
+// The kind of work a task's stage strip follows (#3380, #11590): code is a change
 // on its way to production, drawn as the six steps (plan → develop → review → merge → deploy → verified); general is
 // anything else (research, a verification, an errand), whose status already says how it goes, so no strip is drawn.
 // Evidence outranks words, and a doubt reads general: a strip drawn for work that changes no code stays on Develop for

@@ -6,7 +6,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// ---- the assistant's settings, and the conversations the hub's features start (docs/assistant/assistant.md "Boundary with hub") ----
+// ---- the assistant's settings, and the conversations the hub's features start ----
 
 // Profile is the assistant's settings (settings `assistant`, its own) as the hub's own features need them, in every
 // snapshot: a phone's message to the main conversation is told apart, the model configuration's main chat runs on its
@@ -86,7 +86,7 @@ const (
 	// it answers "unknown method": no guest conversation starts there.
 	DeviceAssistantGuestPrepare = "assistant.guest_prepare"
 	// DeviceAssistantGuestDelete: {dir, session_id} → {deleted}: a meeting's room removed at its transcript's cut or
-	// with its recording (docs/assistant/meeting-minutes.md "Deletion"): its process, transcript and directory. With
+	// with its recording: its process, transcript and directory. With
 	// kind meeting, assistant.guest_prepare answers {cwd, kind, start_ids} on a node that starts rooms; an older node
 	// answers {cwd} only, or "unknown method" for this one.
 	DeviceAssistantGuestDelete = "assistant.guest_delete"
@@ -130,7 +130,7 @@ type StartParams struct {
 	ServiceTier string `json:"service_tier,omitempty"`
 	Purpose     string `json:"purpose,omitempty"`    // the model configuration's purpose; "" is the main chat's
 	MachineID   string `json:"machine_id,omitempty"` // "" is the assistant's machine
-	// Space: "health" starts it in the health space (its own directory, instructions and memory, docs/assistant/tracks.md);
+	// Space: "health" starts it in the health space (its own directory, instructions and memory);
 	// "" is the assistant's own.
 	Space string `json:"space,omitempty"`
 	// Main: it becomes the main conversation (what the old one left goes before Text).
@@ -225,7 +225,7 @@ const (
 	// counts), their command lines (name → connector id), and whether hub.json sets up lark-cli.
 	ConnectorsSignedIn = "connectors.signed_in"
 
-	// AppPlugins is the hub's plugins (docs/extensions/extensions.md "Assistant").
+	// AppPlugins is the hub's plugins.
 	AppPlugins = "plugins"
 	// PluginsAssistant: {machine_id} → {instructions, skills}: the plugins' parts of the assistant's instructions, and
 	// their skills for that machine (files only with those it was not sent yet).

@@ -423,7 +423,7 @@ body {
 /* The machine page's load chart (iOS MetricColor.load): its own hue, apart from CPU / memory / network. */
 :root { --chart-load: #e87ba4; }
 .dark { --chart-load: #d55181; }
-/* Token usage's four kinds (docs/server/machines.md "Token usage charts", #4973): the categorical palette's light and dark
+/* Token usage's four kinds (#4973): the categorical palette's light and dark
    steps, validated in the stacking order (input, output, cache write, cache read) for colour-blind readers. Light
    teal is under 3:1 on a light card, so the legend always writes the numbers. Same values as the apps' UsageColor. */
 :root { --usage-input: #2a78d6; --usage-output: #eb6834; --usage-cache-write: #6250d6; --usage-cache-read: #1baf7a; }
@@ -452,7 +452,7 @@ body {
 html, body, #root { height: 100%; }
 /* Pulling down at the top of a scroller must not reload the app. Vertical only: the drawer's sideways drags are unaffected. */
 html, body { overscroll-behavior-y: none; }
-/* Installed on a phone (PWA, docs/web/web.md "Install as an app"): the page runs under the home indicator and, in landscape, the
+/* Installed on a phone (PWA): the page runs under the home indicator and, in landscape, the
    notch (viewport-fit=cover); the status bar keeps its own strip (apple-mobile-web-app-status-bar-style: default). */
 #root { padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left); }
 @media (display-mode: standalone) { #root { padding-bottom: env(safe-area-inset-bottom); } }

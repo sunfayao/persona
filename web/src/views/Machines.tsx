@@ -1,4 +1,4 @@
-// Machines: every computer's CPU / memory / network now and over the last hour (docs/server/machines.md), as Insight Cards. "Add computer"
+// Machines: every computer's CPU / memory / network now and over the last hour, as Insight Cards. "Add computer"
 // (feature machines_add) adds one from here, and a computer waiting to be confirmed (trust pending) says so on its card.
 import { memo, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { storedValue, storeValue } from "../lib/compatibility";
@@ -51,7 +51,7 @@ const StoragePanel = lazyPage(() => import("./machines/StoragePanel").then((m) =
 const ResourcesPanel = lazyPage(() => import("./machines/ResourcesPanel").then((m) => m.ResourcesPanel));
 
 export function Machines({ onToggleSidebar }: { onToggleSidebar: () => void }) {
-  // with several assistants, the current one's computers (docs/assistant/managers.md "Clients"); one: as before
+  // with several assistants, the current one's computers; one: as before
   const machines = useScopedMachines();
   const roster = useRoster();
   const loaded = useStore((s) => s.loaded);
@@ -299,7 +299,7 @@ type CardProps = {
   agents: number;
   working: number;
   known: AgentsKnown;
-  /** Launchers failing or blocked on it (docs/server/launcher-health.md). */
+  /** Launchers failing or blocked on it. */
   launcherIssues: number;
   /** Opens the alert sheet on one of its alerts. */
   onAlert: (mid: string, kind: AlertKind) => void;

@@ -20,7 +20,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// The north-star readout (docs/assistant/north-star.md): how often the owner was interrupted, and how often the main
+// The north-star readout: how often the owner was interrupted, and how often the main
 // conversation and the leader conversations could be started or resumed. Read-only over what the manager records anyway:
 // the interactions' first-dispatch markers (#4443, confirmation_metrics.go), the work events (session_work_events) and
 // the scheduled runs. Recording adds two work events and one setting, no table:
@@ -380,7 +380,7 @@ type Availability struct {
 	// FailuresByRole is the command's internal weekly aggregation seam; the daily JSON keeps its existing shape.
 	FailuresByRole map[string]map[string]int `json:"-"`
 	Split          *AvailabilitySplit        `json:"split,omitempty"`
-	// Gaps name what the window cannot see (docs/assistant/north-star.md "Coverage").
+	// Gaps name what the window cannot see.
 	Gaps []string `json:"gaps"`
 }
 

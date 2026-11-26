@@ -42,8 +42,8 @@ func (b *closeoutBriefs) put(id, text string) {
 	b.told[id] = text
 }
 
-// closeoutStart is what a SessionStart hook answers so that the agent knows the closeout's form before it works
-// (docs/assistant/agent-work.md "Closeout"): the manager's text as the session's additional context, or nil. Only
+// closeoutStart is what a SessionStart hook answers so that the agent knows the closeout's form before it works:
+// the manager's text as the session's additional context, or nil. Only
 // for an agent in a pane with Persona's own hooks: never a session that only reports (its hook is async and prints
 // nothing), a subagent, or an assistant conversation (headless, or in an assistant directory). The manager decides
 // by its switch and is asked until it gives a text, then no more for that session; no answer in closeoutStartWait is no context, and is asked again at

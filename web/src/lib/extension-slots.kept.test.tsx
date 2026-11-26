@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The extensions' places on reload (docs/web/web.md "Extension pages on reload"): the list this browser was last given is
+// The extensions' places on reload: the list this browser was last given is
 // drawn from the first paint, before the hello, its badges too, and replaced by the hub's answer; it is kept under the
 // feed cache's hub and sign-in scope with the default manager it was read under, so signing out, new credentials, another
 // hub or another default never show it.

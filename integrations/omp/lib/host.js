@@ -1,4 +1,4 @@
-// The omp host (docs/integrations/omp.md): the pi host (integrations/pi/lib/pi.js) saying it serves omp. omp's pi
+// The omp host: the pi host (integrations/pi/lib/pi.js) saying it serves omp. omp's pi
 // compatibility layer loads this package the way pi loads its extension, so the sessions, the conversation, the control
 // (send, interrupt, cards) and the cards' ids are all the pi host's; only the identity and the resume command differ.
 

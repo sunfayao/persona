@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Candidate models for model.complete (#10398, docs/extensions/extensions.md "Model calls"). A call may name models
+// Candidate models for model.complete (#10398). A call may name models
 // to try in order; one that fails, runs out of time, answers with nothing or does not match json_schema hands over
 // to the next. The extension only names models: each runs on a provider the user configured in Settings › Model
 // providers that offers it, and the user keeps the extension's lists, switches them off or replaces them with a list

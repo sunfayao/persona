@@ -16,11 +16,11 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// An extension's token (docs/extensions/extensions.md "Permissions"): it opens the routes of the scopes the user granted the
+// An extension's token: it opens the routes of the scopes the user granted the
 // extension (permissions.hub) and no other. The manager makes one each time it starts the extension and drops the one
 // before; it drops them all when the extension is switched off, upgraded, uninstalled or reconfigured (apply). Only the
-// tokens in memory open anything: an extension's process is the manager's child and starts again with a new manager
-// (docs/operations/hub-restart.md), so a token never outlives the run that made it. What is issued and revoked is also
+// tokens in memory open anything: an extension's process is the manager's child and starts again with a new manager,
+// so a token never outlives the run that made it. What is issued and revoked is also
 // written to the manager's database (extension_tokens, #1156: the hash, never the token), and a start revokes there
 // what its last run left live (revokeLastRun); nothing there is read back as a credential.
 

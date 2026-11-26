@@ -35,7 +35,7 @@ import "./stream/stream.css";
 import { CodeBar, ReplyQuote, ReplyStreaming, copyInlineCode, rehypeLinkedCode } from "./ReplyBlocks";
 
 // A link ends at whitespace or any non-ASCII character (Chinese text, full-width punctuation), without trailing
-// .,;:!? or an unbalanced ) ] (docs/lessons/ios.md: where a link ends). GFM's autolinks only end at whitespace, so
+// .,;:!? or an unbalanced) ] (where a link ends). GFM's autolinks only end at whitespace, so
 // bare URLs are written as <url> before markdown sees them. Code is left alone.
 const BARE = /(^|[^\x21-\x7e]|[\s(])(https?:\/\/[\x21-\x7e]+)/g;
 

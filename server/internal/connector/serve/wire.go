@@ -68,7 +68,7 @@ type SnapshotParams struct {
 	TZ string `json:"tz,omitempty"` // the user's time zone ("" the program's own)
 }
 
-// Namespace is the connector extension point's (docs/extensions/extensions.md): under the plugin protocol every method above is
+// Namespace is the connector extension point's: under the plugin protocol every method above is
 // Namespace + "." + method, with the connector's id as the contribution.
 const Namespace = "connector"
 

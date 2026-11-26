@@ -34,7 +34,7 @@ func RenderTaskContinuation(t TaskContinuation) string { return render("agents/t
 func RenderPlanFirstTaskConstraint() string { return render("agents/plan_first_task", nil) }
 
 // AgentTriage is the system prompt that reads a stopped agent's last reply and says where its work stands
-// (agents/triage, docs/assistant/agent-work.md).
+// (agents/triage).
 type AgentTriage struct {
 	Owner    string // "" is the user
 	Language string // Owner language for instructions and generated line; empty preserves Chinese.
@@ -45,7 +45,7 @@ func RenderAgentTriage(t AgentTriage) string { return render("agents/triage", t)
 func RenderAgentToolLoop() string { return render("agents/tool_loop", nil) }
 
 // AgentReportLine is the system prompt that paraphrases a supervised task's agent's report in one line for the
-// Progress row (agents/report_line, #3181, docs/assistant/unified-entry.md "Progress tray").
+// Progress row (agents/report_line, #3181).
 type AgentReportLine struct {
 	Language string // Owner language for instructions and generated line; empty preserves Chinese.
 	Max      int    // at most this many characters
@@ -115,7 +115,7 @@ func RenderAgentWake(w AgentWake) string {
 }
 
 // RenderAgentLimitContinue is what the manager sends an agent a subscription's usage limit stopped, once the limit has
-// reset and its CLI did not say it goes on by itself (agents/limit_continue, docs/assistant/agent-work.md "Usage limits").
+// reset and its CLI did not say it goes on by itself (agents/limit_continue).
 func RenderAgentLimitContinue(language string) string {
 	return render("agents/limit_continue", struct{ Language string }{language})
 }
@@ -124,7 +124,7 @@ func RenderAgentLimitContinue(language string) string {
 type AgentAnswer struct {
 	Language string // Owner language; empty preserves legacy Chinese bytes.
 	Items    []AgentAnswerItem
-	// ByAssistant: the assistant answered for the user (docs/assistant/assistant.md "Assistant answers questions first"), Reason says why.
+	// ByAssistant: the assistant answered for the user, Reason says why.
 	ByAssistant bool
 	Reason      string
 }
@@ -136,7 +136,7 @@ type AgentAnswerItem struct {
 func RenderAgentAnswer(a AgentAnswer) string { return render("agents/answer", a) }
 
 // AgentAuthRelayed tells an agent an extension authorized the link it stopped at with the user's account
-// (agents/auth_relayed, docs/operations/auth-relay.md).
+// (agents/auth_relayed).
 type AgentAuthRelayed struct {
 	Language string // Owner language; empty preserves legacy Chinese bytes.
 	App      string // the app, as the authorization page names it; "" when it was not read
@@ -165,7 +165,7 @@ type LauncherRepairItem struct {
 func RenderLauncherRepair(r LauncherRepair) string { return render("agents/launcher_repair", r) }
 
 // AgentReanswer is the user's answers to questions the assistant answered for them, sent on to the agent, which went
-// on with the assistant's (agents/reanswer, docs/assistant/assistant.md "Assistant answers questions first").
+// on with the assistant's (agents/reanswer).
 type AgentReanswer struct {
 	Language string // Owner language; empty preserves legacy Chinese bytes.
 	Items    []AgentReanswerItem
@@ -178,7 +178,7 @@ type AgentReanswerItem struct {
 func RenderAgentReanswer(a AgentReanswer) string { return render("agents/reanswer", a) }
 
 // AgentDelegate is the system prompt that decides whether the assistant answers an agent's question for the user
-// (agents/delegate, docs/assistant/assistant.md "Assistant answers questions first").
+// (agents/delegate).
 type AgentDelegate struct {
 	Language string // Owner language; empty preserves legacy Chinese bytes.
 	Owner    string // "" is the user
@@ -222,7 +222,7 @@ func RenderAgentDelegateInput(in AgentDelegateInput) string {
 }
 
 // AgentReview is the first message of the independent reviewer of a supervised task's finished change (agents/review,
-// #2173, docs/assistant/unified-entry.md "Independent review"): it sees the task's ask, its criteria and the change,
+// #2173): it sees the task's ask, its criteria and the change,
 // never the agent that did the work, and ends with a machine-readable count line.
 type AgentReview struct {
 	Language string   // the language to answer in by its own name ("" is Chinese)

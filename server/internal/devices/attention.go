@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/link"
 )
 
-// The "Needs you" summary for Persona Link (internal/link/attention.go, docs/operations/link.md "Needs you"): the
+// The "Needs you" summary for Persona Link (internal/link/attention.go): the
 // assistant works it out and hands it over (SetAttention); this file sends it to the computers whose Persona Link
 // takes it. Active mode: an attention message on the link, after its endpoints and on every change. Passive mode: a
 // POST to the connector by the machine's own sender on every change, and again after an info read that says the

@@ -1,5 +1,5 @@
 import { conversationDeletionScope, deletedConversationID, onConversationDeleted } from "./conversation-deleted";
-// Tasks dispatched from an assistant conversation (docs/assistant/unified-entry.md, iOS TasksStore / Shared/Tasks.swift): the plans,
+// Tasks dispatched from an assistant conversation (iOS TasksStore / Shared/Tasks.swift): the plans,
 // each conversation's feed (what the hub inserted into it), where those go among the chat's lines, the day lines and
 // the quick results. A task is a todo whose `origin` is the conversation; its state is the todo's (lib/todos.ts).
 import { useSyncExternalStore } from "react";
@@ -313,7 +313,7 @@ export function shownFeed(feed: FeedItem[], now = new Date()): FeedItem[] {
   return hidden.size === 0 ? feed : feed.filter((it) => !hidden.has(it.id));
 }
 
-/** What a Persona conversation draws of its feed (#8237, docs/assistant/unified-entry.md "Receipts"): a task's card comes
+/** What a Persona conversation draws of its feed (#8237): a task's card comes
  *  once, when it is handed out, and updates in place; how it goes on (a receipt for each stretch of work, its Agent's
  *  reports, its reviews) is its row in Needs you / In progress, never another card. The hub keeps writing them all: the
  *  trays read them, and a hub-side reader (the "Today" card) still does. */
@@ -874,7 +874,7 @@ export async function sendMessage(card: FeedItem, text: string) {
   set({ busy: { ...st.busy, [card.id]: true } });
   try {
     // the item is in the inbox of the card's conversation's manager (the one its page noted), else of the one manager
-    // whose list has that id (docs/assistant/managers.md "Clients"); none: the default's
+    // whose list has that id; none: the default's
     const listed = getInbox().items.filter((it) => it.id === itemId);
     const manager = conversationManager(card.conversation) ?? (listed.length === 1 ? listed[0].manager : undefined);
     await api(`${itemPath(itemId)}/reply`, { method: "POST", json: { text, card: card.id }, headers: draftHeaders(card, manager) });

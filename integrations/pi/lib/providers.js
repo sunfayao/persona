@@ -1,4 +1,4 @@
-// Persona's model providers in pi (docs/integrations/pi.md "Persona's model providers", #8194): the providers of
+// Persona's model providers in pi (#8194): the providers of
 // Settings › Model providers that this computer is in scope for and that speak a protocol pi has, asked of the node
 // on this machine (node.sock, `launcher.pi`, with the machine's launch key as `personad launch` sends it) and
 // registered with pi.registerProvider(). Their keys stay in this process's memory: nothing is written to disk.

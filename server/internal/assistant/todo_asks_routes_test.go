@@ -264,8 +264,8 @@ func TestTodoAskAnswerFixtures(t *testing.T) {
 
 // Two answers to one decision at once, from two devices: one is taken and reaches the Agent once, the other is told
 // it is stale; neither waits on the other's lock for good. Don't handle against an option: when the option goes first,
-// Don't handle is stale; when Don't handle goes first, the option is the owner handling it after all and is taken
-// (docs/assistant/todos.md "Don't handle and Later"). Either way the decision is answered once. -race runs it.
+// Don't handle is stale; when Don't handle goes first, the option is the owner handling it after all and is taken.
+// Either way the decision is answered once. -race runs it.
 func TestTodoAskAnswersOnce(t *testing.T) {
 	for _, c := range []struct {
 		second  string

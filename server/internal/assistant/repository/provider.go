@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/repositorywire"
 )
 
-// Providers (docs/extensions/repository-providers.md): GitHub and GitLab are built in and work offline as before; an
+// Providers: GitHub and GitLab are built in and work offline as before; an
 // extension's repository_providers contribution is the source of the hosts it claims, with the provider id
 // ext:<extension>/<contribution>. The manager asks the extension (extmgr/repository_providers.go) and re-checks every
 // answer here. A transaction never waits on an extension: the service resolves an extension's links first (ResolvedLink).

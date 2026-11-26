@@ -1,4 +1,4 @@
-// A launcher's health on one computer (#1643, docs/server/launcher-health.md) and why "New agent" grays it out. Only a
+// A launcher's health on one computer (#1643) and why "New agent" grays it out. Only a
 // blocked record does (the decision in #1643: gray out with the reason, never hide): failing and repairing ones are still
 // the hub's to retry. Choosing a grayed-out launcher shows how to fix it; "Try anyway" there picks it after all, as a
 // start with it that works clears the record. Pure: the dialog and the menus draw it.

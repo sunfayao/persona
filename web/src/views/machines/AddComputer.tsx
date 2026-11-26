@@ -71,7 +71,7 @@ export function AddComputer({ open, onClose, again, confirm }: { open: boolean; 
   // where a reused one is
   const listed = useStore((s) => s.machines);
   const canAdd = useStore((s) => canAddComputer(s.features));
-  // A new computer is the current assistant's (docs/assistant/managers.md "Clients"): its real id, the default's too,
+  // A new computer is the current assistant's: its real id, the default's too,
   // once the roster said which that is; until then (the first moments after a reload) nothing is added, and a hub
   // without a roster gets the request it always got. A roster that failed to read (not a 404, which clears the pick)
   // leaves the kept pick, which is the one named. An offline one can't take one now.

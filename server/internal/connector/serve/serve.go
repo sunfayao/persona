@@ -9,7 +9,7 @@
 // A write (actions.do) comes only once the hub's gate let it through; the program never starts one itself.
 //
 // A program answers two openings: init and the bare method names (connector protocol 2 on its own), and the plugin
-// protocol's initialize with the same methods in the connector namespace (connector.status, …; docs/extensions/extensions.md).
+// protocol's initialize with the same methods in the connector namespace (connector.status, …).
 // The extension manager runs connector programs as plugins (connector/proc with a Link). Only connector/proc's own tests
 // still start a program with init (Config.Path), and the conformance kit checks both openings, so both stay.
 package serve
@@ -43,7 +43,7 @@ type Init struct {
 	Declared map[string]string
 	// DataDir is the plugin's own directory for caches (plugin protocol only).
 	DataDir string
-	// Channel is the hub for a connector that is also a channel (docs/extensions/channels.md): it hands the owner's messages
+	// Channel is the hub for a connector that is also a channel: it hands the owner's messages
 	// over. Plugin protocol only; nil under the bare opening.
 	Channel channel.Hub
 	// Locale is the user's language as the hub said it at this start (plugin protocol only; "" under the bare
@@ -52,7 +52,7 @@ type Init struct {
 }
 
 // Listener is a connector that also hears the hub's events: a plugin that contributes the events extension point
-// (docs/extensions/extensions.md "Events") next to its connector. Hear gets the event's name without its namespace
+// next to its connector. Hear gets the event's name without its namespace
 // ("agent.needs_you") and its parameters, on a goroutine of its own; nothing is answered.
 type Listener interface {
 	Hear(ctx context.Context, event string, params json.RawMessage)

@@ -7,7 +7,7 @@ import { cx } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
 import { Markdown } from "../../ui/Markdown";
 
-// How a supervised task's review stands (#3124, docs/assistant/unified-entry.md "Supervision"): a chip and the count of criteria met
+// How a supervised task's review stands (#3124): a chip and the count of criteria met
 // on its card (a review is no line in the conversation since #8237: its task's row says how it went). The existing
 // checklist stays with the lazy to-do detail.
 

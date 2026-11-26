@@ -40,7 +40,7 @@ type MachineConfig struct {
 	Trust string `json:"trust,omitempty"`
 	// Kind: local | service (the hub dials the computer's connector, service.go) | link (the computer's persona-link
 	// dials the hub, link.go) | ssh | tailcat (tailcat only, no ssh). ssh and tailcat are kept for hub.json files that
-	// have them (docs/server/mesh.md 4).
+	// have them.
 	Kind    string `json:"kind"`
 	SSHHost string `json:"ssh_host,omitempty"`
 	// Address is a service computer's connector, host:port (its pin and credential are in Postgres); Proxy an optional
@@ -48,7 +48,7 @@ type MachineConfig struct {
 	Address string `json:"address,omitempty"`
 	Proxy   string `json:"proxy,omitempty"`
 	// TailcatAddr is the machine's tailcat address (`personad node tailcat init` there): the way in when ssh does not
-	// work, e.g. a computer behind NAT (tailcat.go, docs/server/server.md "tailcat hole punching"). A secret, like the token.
+	// work, e.g. a computer behind NAT (tailcat.go). A secret, like the token.
 	TailcatAddr string `json:"tailcat_addr,omitempty"`
 	Icon        string `json:"icon,omitempty"`
 	// RemoteBin is the personad path on the remote machine (default ~/.persona/bin/personad).
@@ -63,21 +63,21 @@ type MachineConfig struct {
 	Launchers []assistantwire.ConfiguredLauncher `json:"launchers,omitempty"`
 	// LauncherRecovery bounds rediscovery of a missing Assistant launcher and names its only permitted substitutes.
 	LauncherRecovery *assistantwire.LauncherRecovery `json:"launcher_recovery,omitempty"`
-	// Botmux false: the machine's node does not list botmux's sessions and never runs botmux (docs/integrations/engines.md "botmux");
+	// Botmux false: the machine's node does not list botmux's sessions and never runs botmux;
 	// unset lists them, as before.
 	Botmux *bool `json:"botmux,omitempty"`
-	// HerdrAutostart false: the machine's node never starts herdr's server itself when it is not running
-	// (docs/integrations/engines.md "When herdr is not running"); unset starts it when needed.
+	// HerdrAutostart false: the machine's node never starts herdr's server itself when it is not running;
+	// unset starts it when needed.
 	HerdrAutostart *bool `json:"herdr_autostart,omitempty"`
 	// HerdrAutoinstall true: when the machine has no herdr, the node's own starts (at node start, before a start or
-	// resume) install the pinned herdr first (docs/integrations/engines.md "When herdr is not installed"); unset only the Agents list's "Start" does.
+	// resume) install the pinned herdr first; unset only the Agents list's "Start" does.
 	HerdrAutoinstall bool `json:"herdr_autoinstall,omitempty"`
 	// ClaudeGlobalHooks true: the machine's node puts report-only hooks into its default claude config directory's
 	// settings.json, so the sessions Persona did not start report their turns and cards too (docs/integrations/claude-integration.md
 	// "Global report-only hooks"). Off unless set; false (or removing the key) takes them out again.
 	ClaudeGlobalHooks bool `json:"claude_global_hooks,omitempty"`
 	// UsageWindows false: the machine's node does not read the agents' subscription rate-limit windows (Codex's
-	// rollouts, a Claude Code status line drop) and the manager does not ask it (docs/server/usage-windows.md, #2432); unset
+	// rollouts, a Claude Code status line drop) and the manager does not ask it (#2432); unset
 	// reads them. hub.json's usage section (the account-pool gateways) is the manager's: it reads and writes it itself.
 	UsageWindows *bool `json:"usage_windows,omitempty"`
 
@@ -86,7 +86,7 @@ type MachineConfig struct {
 	// home. Unset, claude uses its default. Launchers (a ~/.zshrc alias, a managed one) keep their own.
 	ClaudeStartDir string `json:"claude_start_dir,omitempty"`
 	// InboxDir is where files sent to this machine to keep land (dest=inbox, phone to computer and computer to
-	// computer, docs/protocol/file-transfer.md): "~/" is the remote home, or an absolute folder in it. Unset,
+	// computer): "~/" is the remote home, or an absolute folder in it. Unset,
 	// proto.DefaultInboxDir. The node refuses a folder the phone may not write to.
 	InboxDir string `json:"inbox_dir,omitempty"`
 	// ExtraPath are directories the machine's node puts in front of its PATH, for the tools a service's PATH lacks
@@ -95,7 +95,7 @@ type MachineConfig struct {
 }
 
 // NodePackagesConfig is where the manager fetches the node builds for the computers that the hub has none of its own
-// for (docs/operations/node-update.md "Node packages", docs/operations/config.md "Node builds"): URL is a release's dl/ (a mirror of the
+// for (docs/operations/config.md "Node builds"): URL is a release's dl/ (a mirror of the
 // publisher's), "" the hub build's own update URL, "off" never; Proxy an http://[user:pass@]host:port proxy for it
 // (internal/netproxy; "" direct, the environment's proxies are not used).
 type NodePackagesConfig struct {
@@ -103,7 +103,7 @@ type NodePackagesConfig struct {
 	Proxy string `json:"proxy,omitempty"`
 }
 
-// UpdateConfig is where the hub looks for its own releases (docs/operations/hub-update.md "Update source"): URL a
+// UpdateConfig is where the hub looks for its own releases: URL a
 // release's download directory (latest.json and the files it lists, e.g. a GitHub repository's
 // releases/latest/download) in place of the one the build was made with; "" that one. Proxy an
 // http://[user:pass@]host:port proxy for the update's checks and downloads only (internal/netproxy); "" the
@@ -129,10 +129,10 @@ type AssistantProfile struct {
 	// Mode is how the built-in manager runs on this machine: "child" (or "", the default) the hub starts it beside
 	// itself; "service" it is a service of its own (persona-manager assistant), bound to this hub once with a
 	// one-time code (`persona-hub manager-code`, `persona-manager join --builtin`): the hub neither starts it nor gives
-	// it a new token (docs/assistant/managers.md "The built-in manager as its own service").
+	// it a new token.
 	Mode string `json:"mode,omitempty"`
 	// assistant.persona_view and assistant.html_views are no longer read: the assistant's cards, HTML ones included,
-	// are always on (#5509, docs/assistant/assistant-views.md "Prompts"); sayRetiredKeys logs a hub.json that still has them.
+	// are always on (#5509); sayRetiredKeys logs a hub.json that still has them.
 }
 
 // Built-in manager modes (AssistantProfile.Mode).
@@ -197,7 +197,7 @@ type Config struct {
 	Public PublicConfig `json:"public,omitempty"`
 
 	Security SecurityConfig `json:"security,omitempty"`
-	// Admin is who may open the admin UI (docs/operations/admin.md).
+	// Admin is who may open the admin UI.
 	Admin AdminConfig `json:"admin,omitempty"`
 	// Tailcat tunes reaching machines over tailcat (tailcat.go).
 	Tailcat TailcatConfig `json:"tailcat,omitempty"`
@@ -205,11 +205,11 @@ type Config struct {
 	NodePackages NodePackagesConfig `json:"node_packages,omitzero"`
 	// Update is where the hub's own releases come from, and through which proxy (selfupdate_source.go).
 	Update UpdateConfig `json:"update,omitzero"`
-	// Mesh tunes the links to other hubs (docs/server/mesh.md, config_mesh.go).
+	// Mesh tunes the links to other hubs (config_mesh.go).
 	Mesh MeshConfig `json:"mesh,omitempty"`
-	// Link tunes the heartbeat with the computers' Persona Links (config_link.go, docs/operations/link.md "Heartbeat").
+	// Link tunes the heartbeat with the computers' Persona Links (config_link.go).
 	Link LinkConfig `json:"link,omitzero"`
-	// Personas tunes the looks: whose level a tiered look shows (persona_tiers.go, docs/apple/persona.md).
+	// Personas tunes the looks: whose level a tiered look shows (persona_tiers.go).
 	Personas PersonasConfig `json:"personas,omitempty"`
 
 	dir string
@@ -432,7 +432,7 @@ func (c *Config) printPair(ctx context.Context, legacy bool, out io.Writer, andr
 	return nil
 }
 
-// PairMachine prints a pairing link for one link machine's persona-link (docs/operations/link.md): the link alone on stdout,
+// PairMachine prints a pairing link for one link machine's persona-link: the link alone on stdout,
 // so it can be piped (`… | persona-link pair -`), what to do with it on stderr. add: hub.json gets the machine first
 // when it has none of that id (named name; confirmed: the master token over loopback added it). ctx is the command's.
 func PairMachine(ctx context.Context, machine string, add bool, name string) error {

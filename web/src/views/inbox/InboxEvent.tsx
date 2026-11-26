@@ -1,4 +1,4 @@
-// An inbox item as an event (docs/assistant/inbox.md "Events and handling chain", docs/web/web.md "Inbox"): the row's mark (the
+// An inbox item as an event: the row's mark (the
 // manager's current state, or an older hub's handling / suggestion line) and the detail's body — ✦ summary, the suggestion card
 // with its buttons right under it, any recap, then the handling chain folded to its three newest entries, each entry going where its link says.
 // Drawn only for an item that carries this phase's fields (lib/inbox-events.ts `hasEvent`).

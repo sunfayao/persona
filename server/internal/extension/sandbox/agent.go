@@ -1,6 +1,6 @@
 package sandbox
 
-// The agent sandbox (docs/server/agent-sandbox.md, #5357): the coding agents Persona starts on a machine whose data
+// The agent sandbox (#5357): the coding agents Persona starts on a machine whose data
 // directory holds keys (the assistant's Claude, a managed launcher, a Codex started from the phone) run under
 // sandbox-exec on macOS or bubblewrap on Linux with everything allowed but the data directory's secrets. Its shape is
 // the opposite of the extension sandbox: the network, the home directory, git, ssh and the compilers stay as they are,

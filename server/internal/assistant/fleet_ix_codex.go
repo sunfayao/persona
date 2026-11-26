@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/screen"
 )
 
-// ---- Codex cards (docs/integrations/codex.md "Questions and approvals") ----
+// ---- Codex cards ----
 
 // A node lists the Codex questions and approvals open on its machine whenever the list changes (codex.interactions,
 // node/codexask.go); the manager keeps a card for each — a new one is announced, one no longer listed (answered at

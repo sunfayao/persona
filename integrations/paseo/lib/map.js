@@ -1,4 +1,4 @@
-// Pure mapping between Paseo's shapes and Persona's (docs/integrations/paseo.md "Mapping"): an agent → a session row, its timeline →
+// Pure mapping between Paseo's shapes and Persona's: an agent → a session row, its timeline →
 // items, its providers → launchers, a permission request ↔ an interaction and its answer. No I/O: the bridge
 // (bridge.js) hands in what the daemon said; the tests feed recorded shapes.
 
@@ -358,7 +358,7 @@ export function rowStatus(agent, o = {}) {
 // ---- spaces ----
 
 /**
- * The Paseo project of a placement (docs/integrations/paseo.md "Which sessions appear"): a repository's checkout and all its worktrees, as
+ * The Paseo project of a placement: a repository's checkout and all its worktrees, as
  * in Paseo's sidebar. The placement's projectKey is Paseo's project record id (its buildProjectPlacementForWorkspace),
  * not the project's own key. Undefined without a placement.
  */

@@ -3,7 +3,7 @@ package prompts
 import "strings"
 
 // TodoDecisions is the context a handoff to an agent carries for a todo's decisions in effect (todo/decisions,
-// #1618, docs/assistant/todos.md "Decision records"). The caller leaves out the closing tags
+// #1618). The caller leaves out the closing tags
 // ("</persona-context>") from the texts.
 type TodoDecisions struct {
 	Language  string
@@ -40,7 +40,7 @@ func RenderTodoDecisions(d TodoDecisions) string {
 }
 
 // TodoThreadReply is what the user said in the chat thread a todo is bound to, as it goes to the todo's agent (todo/thread_reply,
-// #5279, docs/assistant/todos.md "Chat thread"): one line saying whose decision it is, then the words as they were said. Title
+// #5279): one line saying whose decision it is, then the words as they were said. Title
 // is the todo's, on one line, with nothing in it that closes a context block; Recorded: the words were written into
 // the todo's decisions (it is not said when they were not: a message of only a picture, no database, a failed write).
 type TodoThreadReply struct {
@@ -52,7 +52,7 @@ type TodoThreadReply struct {
 func RenderTodoThreadReply(r TodoThreadReply) string { return render("todo/thread_reply", r) }
 
 // TodoThreadOpen is what the main conversation gets when the owner opens a new topic in a registered group chat and the
-// hub opens a to-do for it (todo/thread_open, #5279, docs/assistant/todos.md "Opening a to-do from a topic"): whose to-do it is,
+// hub opens a to-do for it (todo/thread_open, #5279): whose to-do it is,
 // the first words as said, and that task_plan takes the to-do's id. Title and Text carry nothing that closes a context
 // block.
 type TodoThreadOpen struct {
@@ -90,7 +90,7 @@ func RenderTodoTitleInput(prompt, language string) string {
 }
 
 // TodoOutcome is the system prompt pulling what a finished task came to out of its agents' last replies: a one-line
-// outcome, links, decisions, pitfalls (todo/outcome, docs/assistant/todos.md "Record conclusions on completion", #2820).
+// outcome, links, decisions, pitfalls (todo/outcome, #2820).
 type TodoOutcome struct {
 	Language string
 	Owner    string

@@ -13,7 +13,7 @@ import (
 // variables (LISTEN_PID, LISTEN_FDS, LISTEN_FDNAMES) when they were meant for another process. Call it first thing in
 // a long-running process that starts others and was handed nothing past stderr on purpose (a manager, a node): a
 // descriptor a parent left inheritable, such as an older hub's listening socket, then stays here instead of reaching
-// every program this process starts, and through them every program those start (docs/operations/hub-restart.md).
+// every program this process starts, and through them every program those start.
 //
 // This process keeps using what it holds; only an exec drops it. A descriptor handed to a child on purpose through
 // exec.Cmd.ExtraFiles still reaches it: the child gets a copy whatever the flag says. Never call it in a process that

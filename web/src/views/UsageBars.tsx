@@ -1,4 +1,4 @@
-// The sidebar's bottom (#2432, docs/server/usage-windows.md): compact quota meters; a click opens
+// The sidebar's bottom (#2432): compact quota meters; a click opens
 // a popover with every window of every account, its reset countdown, when it was sampled and whether use is ahead of or
 // behind an even pace. Hidden when there are no readings or unconnected providers.
 import { type ComponentType, useEffect, useId, useRef, useState } from "react";

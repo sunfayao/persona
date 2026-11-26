@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// A new Codex start's goal (docs/integrations/agent-goal.md "A goal set at the start"): Codex's `/goal <objective>`,
+// A new Codex start's goal: Codex's `/goal <objective>`,
 // typed into its terminal once the start found its thread, whose first message is the task (startCodex). Codex takes
 // the command at once, mid-turn too, and writes thread_goal_updated to the rollout; with the goal active it starts
 // another turn toward it each time one ends. When the command cannot set the goal (an older Codex, a screen that is

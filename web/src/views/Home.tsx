@@ -59,7 +59,7 @@ function greeting() {
 export function Home({ onNewAgent, onToggleSidebar }: { onNewAgent: () => void; onToggleSidebar: () => void }) {
   // stamp the opened overview before its first rows are read: a row arriving later is judged against the open-grace
   useTapGuardView(overviewTapSurface, currentViewId());
-  // with several assistants, the current one's computers, cards, agents and tasks (docs/assistant/managers.md "Clients")
+  // with several assistants, the current one's computers, cards, agents and tasks
   const machines = useScopedMachines();
   const interactions = useScopedInteractions();
   const answered = useStore((s) => s.answered);

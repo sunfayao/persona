@@ -54,7 +54,7 @@ let load = uuid();
 let nextEntry = 0;
 
 function emptyState(): ViewState {
-  // every visit opens on Needs you (docs/assistant/inbox.md "Section bar")
+  // every visit opens on Needs you
   return { query: "", bar: { chosen: "action", saved: null, landedFrom: null }, toggled: new Set(), scrollTop: 0, chain: null, original: null };
 }
 

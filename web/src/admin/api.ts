@@ -1,5 +1,5 @@
 import { CSRF_HEADERS } from "../lib/compatibility";
-// The admin API client (docs/operations/admin.md "API"): a session cookie, not the web client's bearer token. Writes carry the
+// The admin API client: a session cookie, not the web client's bearer token. Writes carry the
 // session's CSRF token, which lives in memory only (GET state hands it out again after a reload).
 import { currentLanguage, t } from "../i18n";
 import { previewConsent } from "../lib/extension-model";
@@ -53,7 +53,7 @@ export async function adminApi<T>(path: string, method: Method = "GET", json?: u
 }
 
 // adminUpload posts a file as it is (application/octet-stream): the one admin write whose body is not JSON (an extension
-// package, docs/operations/admin.md "Extensions"). query carries what the body cannot.
+// package). query carries what the body cannot.
 async function adminUpload<T>(path: string, file: Blob, query: Record<string, string>): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/octet-stream", "Accept-Language": currentLanguage() };
   if (csrf) CSRF_HEADERS.forEach(name => headers[name] = csrf);
@@ -131,7 +131,7 @@ export function errorText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-// ── the center and connectors (docs/server/mesh.md 6) ──
+// ── the center and connectors ──
 
 const enc = encodeURIComponent;
 
@@ -154,9 +154,9 @@ export const linkPair = (id: string) => adminApi<LinkPair>(`/machines/${enc(id)}
 export const repairConnector = (id: string, pairLink: string, address?: string) =>
   adminApi<ConnectorRepair>(`/machines/${enc(id)}/connector`, "POST", { pair_link: pairLink, address: address || undefined });
 
-// ── extensions (docs/operations/admin.md "Extensions"): install, upgrade, roll back, uninstall, switch ──
+// ── extensions: install, upgrade, roll back, uninstall, switch ──
 
-// The routes' root: /extensions, or /plugins on a hub from before #1844 (docs/extensions/extensions.md "Naming and compatibility"). Found out once,
+// The routes' root: /extensions, or /plugins on a hub from before #1844. Found out once,
 // by the list: a 404 there means the older hub, and every call after uses its routes.
 type Root = "/extensions" | "/plugins";
 type ListAnswer = AdminExtensions & { plugins?: AdminExtension[] };
@@ -211,7 +211,7 @@ export const upgradeExtension = async (id: string, pv: ExtensionPreview) =>
 export const rollbackExtension = async (id: string) => adminApi<AdminExtension>(`${await extRoot()}/${enc(id)}/rollback`, "POST");
 
 export const setExtensionEnabled = async (id: string, enabled: boolean) => adminApi<AdminExtension>(`${await extRoot()}/${enc(id)}/enabled`, "PUT", { enabled });
-/** On, off, or null back to the default for its source (docs/extensions/extensions.md "Sandbox"); the answer is the extension. */
+/** On, off, or null back to the default for its source; the answer is the extension. */
 export const setExtensionSandbox = async (id: string, enabled: boolean | null) => adminApi<AdminExtension>(`${await extRoot()}/${enc(id)}/sandbox`, "PUT", { enabled });
 /** Let a sandboxed extension reach one more host (#5697): host, host:port or an http(s) URL; the answer is the extension. */
 export const allowExtensionHost = async (id: string, host: string) => adminApi<AdminExtension>(`${await extRoot()}/${enc(id)}/egress/allow`, "POST", { host });
@@ -220,7 +220,7 @@ export const revokeExtensionHost = async (id: string, host: string) => adminApi<
 export const uninstallExtension = async (id: string, keepData: boolean) =>
   adminApi<ExtensionRemovalResult>(`${await extRoot()}/${enc(id)}`, "DELETE", { keep_data: keepData });
 
-// ── extension markets (docs/extensions/extensions.md "Extension marketplace"): the apps' routes under /extensions/-/, behind the admin session. Installing
+// ── extension markets: the apps' routes under /extensions/-/, behind the admin session. Installing
 // and upgrading from a market's preview go through installExtension / upgradeExtension above (the preview's id and digest).
 
 const markets = async () => `${await extRoot()}/-/markets`;
@@ -235,7 +235,7 @@ export const getCatalog = async (q?: string, market?: string, refresh?: boolean)
 export const previewFromMarket = async (market: string, extension: string) =>
   adminApi<ExtensionPreview>(`${await extRoot()}/-/catalog/preview`, "POST", { market, extension, plugin: extension });
 
-// ── how the extensions run (docs/extensions/extensions.md "Runtime status"): counts and logs, on a hub from #1857 on (older ones 404) ──
+// ── how the extensions run: counts and logs, on a hub from #1857 on (older ones 404) ──
 
 export const getMetricsOverview = (window: MetricsWindow = "24h") => adminApi<MetricsOverview>(`/extensions/-/metrics?window=${window}`);
 
@@ -274,7 +274,7 @@ export function setLogFollower(f: LogFollower) {
 
 export const followExtensionLogs: LogFollower = (...args) => follower(...args);
 
-// ── usage sources (docs/server/usage-windows.md "Account-pool gateways"): the gateways whose usage windows join the sidebar's ──
+// ── usage sources: the gateways whose usage windows join the sidebar's ──
 
 export const getUsageSources = () => adminApi<UsageSources>("/usage-sources");
 export const saveUsageSettings = (s: { enabled?: boolean; poll_minutes?: number; hidden_providers?: string[] }) => adminApi<UsageSources>("/usage-sources", "PUT", s);

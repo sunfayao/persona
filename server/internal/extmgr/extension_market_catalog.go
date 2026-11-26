@@ -26,7 +26,7 @@ type MarketView struct {
 	AddedAt            time.Time  `json:"added_at"`
 	// Official: the market every hub has without adding it (extension.Official), listed first.
 	Official bool `json:"official,omitempty"`
-	// Signature is the index's signature (docs/extensions/extensions.md "Signing"): signed / unsigned / invalid / key_changed,
+	// Signature is the index's signature: signed / unsigned / invalid / key_changed,
 	// and the key it is signed by.
 	Signature MarketSignatureView `json:"signature"`
 }

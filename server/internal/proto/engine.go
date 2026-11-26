@@ -1,7 +1,7 @@
 package proto
 
 // Terminal engines: the terminal host(s) a machine's node drives, chosen per machine. EngineHerdrBoth runs classic
-// herdr and herdr-core side by side (docs/integrations/engines.md "Host sets"): a machine used both locally and through the Herdr
+// herdr and herdr-core side by side: a machine used both locally and through the Herdr
 // app's remote sessions.
 const (
 	EngineHerdr     = "herdr"      // the classic herdr CLI
@@ -17,7 +17,7 @@ const (
 	// EnginePaseo is not a terminal: the Paseo daemon's agents, through its runtime (node/runtimecontrol.go,
 	// docs/integrations/paseo.md). New sessions and sessions to continue go to Paseo.
 	EnginePaseo = "paseo"
-	// EngineCindy is Cindy's agents, through its runtime bridge (node/cindybridge.go, docs/integrations/engines.md).
+	// EngineCindy is Cindy's agents, through its runtime bridge (node/cindybridge.go).
 	EngineCindy = "cindy"
 	// EngineT3Code is T3 Code's threads, through its runtime bridge to the local T3 server (node/t3codebridge.go,
 	// docs/integrations/engines.md "T3 Code").

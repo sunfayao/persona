@@ -1,4 +1,4 @@
-// Screenshots and checks of the inbox's folders (#2463, docs/assistant/inbox.md "Folders"): the folder bar's crumbs and
+// Screenshots and checks of the inbox's folders (#2463): the folder bar's crumbs and
 // subfolders, picking a folder (the list keeps what is in it and under it), a row's "Move to folder…" and the folder
 // settings.
 //

@@ -1,4 +1,4 @@
-// Shapes of the hub's admin API (docs/operations/admin.md "API", docs/server/mesh.md 2.7 for peers).
+// Shapes of the hub's admin API (docs/server/mesh.md 2.7 for peers).
 import type { MachineLinkSwitch } from "../lib/types";
 
 export type Access = "loopback" | "lan" | "cidrs" | "any";
@@ -71,7 +71,7 @@ export interface DoctorReport {
 
 type MachineState = "active" | "pending_add" | "pending_remove";
 
-// How a hub reaches a computer (docs/server/mesh.md 4, 5). service: the hub dials the computer's connector; link:
+// How a hub reaches a computer (5). service: the hub dials the computer's connector; link:
 // the computer's persona-link dials the hub; hub: through a member hub of the group (configured on that member only).
 type Via = "local" | "service" | "link" | "ssh" | "tailcat" | "hub";
 
@@ -183,7 +183,7 @@ export interface Peer {
   role?: Role;
 }
 
-// The group of hubs (docs/server/mesh.md 2, 6): exactly one center serves every client and keeps all state;
+// The group of hubs (6): exactly one center serves every client and keeps all state;
 // members pass requests and their computers on to it. A lone hub is its own center.
 type Role = "center" | "member";
 
@@ -231,7 +231,7 @@ export interface PeerProbe {
   version?: string;
 }
 
-// ── extensions (docs/extensions/extensions.md "The hub's API", docs/operations/admin.md "Extensions") ──
+// ── extensions ──
 
 export interface PermissionLine {
   key: string; // runs_code | network | hub_api | launcher_keys | secrets
@@ -288,11 +288,11 @@ export interface ExtensionPreview {
   from?: string;
   more_permissions?: boolean;
   added_permissions?: PermissionLine[];
-  /** The market it comes from, when previewed from one (docs/extensions/extensions.md "Extension marketplace"). */
+  /** The market it comes from, when previewed from one. */
   market?: string;
 }
 
-// ── how the extensions run (docs/extensions/extensions.md "Runtime status") ──
+// ── how the extensions run ──
 
 export type MetricsWindow = "1h" | "24h" | "7d";
 
@@ -363,7 +363,7 @@ export interface LogsPage {
   kept: number;
 }
 
-// ── usage sources (docs/server/usage-windows.md "Account-pool gateways", docs/operations/admin.md): account-pool gateways feeding the sidebar's usage bars ──
+// ── usage sources: account-pool gateways feeding the sidebar's usage bars ──
 
 /** relay: a relay's management API (management key); relay_key: the same relay's key self-service usage, read with
  *  an ordinary API key (#12311); generic: Persona's own JSON shape. */

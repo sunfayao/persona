@@ -33,7 +33,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Plugins (docs/extensions/extensions.md): one registry of every plugin — built into personad, written in hub.json, installed on
+// Plugins: one registry of every plugin — built into personad, written in hub.json, installed on
 // this machine — and the plugin host running them. A plugin's contributions plug into the hub where they belong: a
 // connector into the connector registry, a voice plugin into the app's voice conversation (relayed under
 // /api/v1/plugins/<id>/…).
@@ -54,7 +54,7 @@ type ExtensionConfig struct {
 	Dir      string            `json:"dir,omitempty"` // working directory; "~/" is the hub machine's home
 	Disabled bool              `json:"disabled,omitempty"`
 	// Config is the plugin's own settings, handed over as JSON in PERSONA_PLUGIN_CONFIG (the built-in voice plugin's
-	// providers, docs/extensions/extensions.md "Built-in voice extension").
+	// providers).
 	Config json.RawMessage `json:"config,omitempty"`
 }
 
@@ -103,7 +103,7 @@ type ExtensionView struct {
 	Attached *ExtensionAttached `json:"attached,omitempty"`
 }
 
-// ExtensionAttached is how an attached extension is connected (docs/extensions/extensions.md "Attached extensions").
+// ExtensionAttached is how an attached extension is connected.
 type ExtensionAttached struct {
 	Online bool `json:"online"`
 	// Since is when it came online or went offline (none while it is switched off or nothing needs it), in the user's
@@ -1110,7 +1110,7 @@ func (ps *extensions) specOf(ctx context.Context, p *extension.Extension, hp *hu
 		for _, c := range m.Channels() {
 			params.Active["channel"] = append(params.Active["channel"], c.ID)
 		}
-		for point := range m.Contributes { // the rest, without what the user switched off (docs/extensions/extensions.md "Turning contributions on and off")
+		for point := range m.Contributes { // the rest, without what the user switched off
 			if ids := m.Items(point); len(ids) > 0 && point != "connectors" && point != "channel" {
 				params.Active[point] = ids
 			}

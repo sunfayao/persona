@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds persona-iphone-bridge (docs/extensions/iphone-bridge.md). Not part of personad's build or CI: the node
+# Builds persona-iphone-bridge. Not part of personad's build or CI: the node
 # treats the binary as an optional external program, like the Cua Driver.
 #
 #   native/iphone-bridge/build.sh               test, lint and build a release binary

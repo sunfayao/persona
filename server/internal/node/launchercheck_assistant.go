@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The readiness probe's check ("Try it", docs/assistant/onboarding.md "Main-chat readiness") asks launchers.check with
+// The readiness probe's check ("Try it") asks launchers.check with
 // assistant_turn: a Claude Code launcher then runs the one-word check as the assistant runs a turn of the conversation
 // (assistant_start.go), so the check meets what the chat meets. The plain check said the launcher's default model
 // answered in the login shell's profile, with no tools, while the chat ran another model in its own profile with

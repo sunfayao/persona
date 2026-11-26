@@ -1,7 +1,7 @@
 import { stateOf } from "./format";
 import type { Session } from "./types";
 
-/** A Codex opened with no first message (docs/integrations/codex.md "Starting without a first message"). */
+/** A Codex opened with no first message. */
 export function waitsForFirstMessage(s: Pick<Session, "awaiting_first_message"> | undefined): boolean {
   return s?.awaiting_first_message === true;
 }

@@ -1,4 +1,4 @@
-// Making an avatar from an image (#2404, docs/apple/persona.md "Uploading an image"): the user picks an image, crops it
+// Making an avatar from an image (#2404): the user picks an image, crops it
 // square (with the circle the avatar shows), names it, and the hub makes a package of it (POST /looks/uploads), which
 // it then chooses. Uploaded looks can be deleted again (DELETE /looks/uploads/{id}). The crop's geometry, the export's
 // size and encoding and the requests are here; the dialog is views/assistant/LookUpload.tsx.

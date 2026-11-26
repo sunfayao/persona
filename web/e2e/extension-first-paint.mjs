@@ -1,4 +1,4 @@
-// Extension pages on reload (#9283, docs/web/web.md "Extension pages on reload") in a real browser against the mock hub:
+// Extension pages on reload (#9283) in a real browser against the mock hub:
 // every request the hub relays to the manager (/api/v1/extensions…) is held for a second here, as a hub far away takes.
 // The first load has nothing kept: no sidebar entry, the page's id in the header, the loading state. The second load
 // draws the sidebar's "Today", the header's title and icon and the page's last view before those answers come back,

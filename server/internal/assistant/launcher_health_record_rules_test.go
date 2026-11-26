@@ -417,7 +417,7 @@ func TestUsageLimitRuleDuplicateTurnWithUnknownSibling(t *testing.T) {
 	}
 }
 
-// The fold rows of the design table (docs/server/launcher-health.md, "Usage-limit record rules"), one case each.
+// The fold rows of the design table, one case each.
 func TestUsageLimitRuleFoldTable(t *testing.T) {
 	now := time.Now().UTC()
 	past, h1, d3 := now.Add(-time.Minute), now.Add(time.Hour), now.Add(72*time.Hour)

@@ -1,4 +1,4 @@
-// What the sidebar's usage panel shows for a prepaid balance (#11825, docs/server/usage-windows.md "Prepaid balances"):
+// What the sidebar's usage panel shows for a prepaid balance (#11825):
 // the provider's amount and currency, never a percentage. Loaded with the popover, not with the first screen; the strip
 // keeps only the few checks it needs inline.
 import { isBalanceAccount, type UsageAccount, type UsageBalance } from "./usage-windows";

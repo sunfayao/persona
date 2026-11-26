@@ -1,4 +1,4 @@
-// Dev server previews (docs/web/preview.md, #150): the logic of the side panel that shows a session's dev server, which a
+// Dev server previews (#150): the logic of the side panel that shows a session's dev server, which a
 // headless browser on that computer draws (the node's preview.go). The pictures and messages it sends, the input
 // the panel sends back, the servers it offers, and a picked element as a comment for the agent. Drawn by
 // views/session/PreviewPanel.tsx.
@@ -251,7 +251,7 @@ export function safeExternal(url: string): string | null {
 }
 
 /** The address a localhost link of a reply stands for on the session's computer: its port and path; null for one that
- *  is not a port of that computer (docs/operations/ports.md "Recognizing links in replies"). `hostnames`: that
+ *  is not a port of that computer. `hostnames`: that
  *  computer's own name, which counts as well. */
 export function localhostLink(url: string, hostnames: readonly string[] = []): { port: number; path: string } | null {
   const l = portLink(/^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : `http://${url}`, hostnames);

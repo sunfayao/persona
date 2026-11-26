@@ -13,7 +13,7 @@ import (
 
 // A turn of a session in Claude's desktop app that ended while nobody looked at it is Unread: its row says done (not
 // idle) until it is seen, so the phone shows Unread and the hub's finished push follows its usual rules, as for the
-// Codex App's chats (codex_desktop.go) and a Claude in Tern (agent_status.go). #6477, docs/integrations/claude-integration.md
+// Codex App's chats (codex_desktop.go) and a Claude in Tern (agent_status.go). #6477
 // ("Unread when a turn ends unseen").
 //
 // The app keeps no read state on disk. It takes a person to be attending a session when its window is focused, the

@@ -5,7 +5,7 @@ import { chatLines, type ChatLine } from "./turns";
 import type { Todo } from "./todos";
 import type { Item } from "./types";
 
-// Background rounds in the main conversation (#4314, docs/assistant/assistant.md "Background rounds").
+// Background rounds in the main conversation (#4314).
 
 const source = (meta: Record<string, string>) => `<persona-context kind="message-source">${JSON.stringify(meta)}</persona-context>\n`;
 const relayed = (seq: number, text = "Check the fictional release notes."): Item => ({

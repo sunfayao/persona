@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// The transcription sessions' wire (docs/assistant/meeting-minutes.md "The built-in adapter"): the live dialect's
+// The transcription sessions' wire: the live dialect's
 // session.start with text-only output (the service writes the sentences, it synthesizes no audio) and the upstream's
 // interim-caption extension, on every session: the caption session's captions are the interim ones, and with it the
 // measured service ends a verbatim session's turn at each sentence (without it, it wrote several sentences in one

@@ -60,7 +60,7 @@ func (f proxyFlag) save(e *env) error {
 }
 
 // proxyCmd is `persona-link proxy [<url> | --off | --env] [--always | --no-always]`: show or set active mode's
-// outbound proxy in link.json, and whether the link always uses it (docs/operations/link.md "Outbound proxy").
+// outbound proxy in link.json, and whether the link always uses it.
 // Nothing it prints carries the proxy's user name or password.
 func proxyCmd(e *env, args []string) error {
 	var raw string

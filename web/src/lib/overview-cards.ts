@@ -1,4 +1,4 @@
-// Overview as the user arranged it (#9745, #10905; docs/web/web.md "Overview's extension cards"): the extensions' cards
+// Overview as the user arranged it (#9745, #10905): the extensions' cards
 // (their order, the ones hidden, and each one's width, half a row, the default, as they always were, or the whole row)
 // and Overview's own sections among them (their order, and the ones hidden where that is safe). Kept on the hub for
 // every device of the user (`overview` of GET / PUT /api/v1/navigation; lib/navigation-sync.ts reads it at the hello and

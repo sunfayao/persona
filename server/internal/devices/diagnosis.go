@@ -1,6 +1,6 @@
 package devices
 
-// A computer's diagnosis and cache cleanup (#8037, docs/server/machines.md "Diagnosis and cleanup"): the routes the
+// A computer's diagnosis and cache cleanup (#8037): the routes the
 // machine page's alert sheets read, relayed to the node's machine.diagnose and machine.cleanup. The manager checks
 // what it can before the node is asked (the role, the sections and ids against the fixed lists, the capability), and
 // passes the node's answer through with the machine's id. Only a device with full credentials gets here: the hub keeps

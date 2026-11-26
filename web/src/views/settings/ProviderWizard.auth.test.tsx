@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Settings › Model providers › a custom gateway's sign-in method (#5329, docs/integrations/launchers.md): on a hub with
+// Settings › Model providers › a custom gateway's sign-in method (#5329): on a hub with
 // launcher_auth_auto a new gateway starts on Automatic, the Connect step's check finds Bearer or x-api-key, a line names
 // it and the save stores it; the choice waits under "More options". A saved provider shows its method and keeps it unless
 // it is changed; an older hub keeps the two-way choice on the step and is never sent "auto".

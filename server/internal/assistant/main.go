@@ -58,7 +58,7 @@ type MainHooks struct {
 
 // MainWith is Main with h.
 func MainWith(ctx context.Context, build update.Build, stdin io.Reader, h MainHooks) error {
-	errs := newErrorTee(build) // its log's error lines become error reports (docs/extensions/extensions.md "Error reports")
+	errs := newErrorTee(build) // its log's error lines become error reports
 	logger := log.New(errs, "assistant: ", log.LstdFlags)
 	cfg, err := readHubConfig()
 	if err != nil {
@@ -328,7 +328,7 @@ func run(ctx context.Context, build update.Build, o runOptions) error {
 		stop()
 		<-keyDone
 	}()
-	// The user's computers are the manager's: it connects them itself (internal/devices, docs/server/machines.md "Who connects to computers").
+	// The user's computers are the manager's: it connects them itself (internal/devices).
 	var bh *BusHub
 	var svc *Service
 	var ext *extmgr.Manager
@@ -513,7 +513,7 @@ func readHubConfig() (hubConfig, error) {
 
 // externalHub is the hub an assistant the hub didn't bind connects to, and its TLS pin. PERSONA_ASSISTANT_HUB is the
 // hub (the one on this machine, from listen, without it). PERSONA_ASSISTANT_FINGERPRINT pins an https hub's public key,
-// the fp `personad hub pair` prints (docs/operations/network.md): what an assistant elsewhere (assistant.external)
+// the fp `personad hub pair` prints: what an assistant elsewhere (assistant.external)
 // needs to reach a hub with its own self-signed certificate, as a manager's manager.json has it (#1255). Without it
 // the system's CAs are trusted. The hub's own child dials its local address and takes no pin.
 func externalHub(deploy, listen string) (hub, fingerprint string, err error) {

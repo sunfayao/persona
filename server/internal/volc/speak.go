@@ -13,8 +13,8 @@ import (
 	"unicode/utf8"
 )
 
-// Reading a text aloud (the `speech` point, docs/extensions/extensions.md "Speech"): POST /speech/{cid}/speak takes the
-// voice extension's read-aloud request ({text, voice?, lang?}, docs/assistant/voice.md "Reading a text aloud") and
+// Reading a text aloud (the `speech` point): POST /speech/{cid}/speak takes the
+// voice extension's read-aloud request ({text, voice?, lang?}) and
 // answers the same way: nothing before the first audio, then 200 audio/pcm with X-Persona-Audio-Rate, the audio as it
 // comes. The iPhone says a meeting answer this way, and falls back to its own voice on any error status.
 

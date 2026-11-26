@@ -22,7 +22,7 @@ import (
 	"github.com/nwverse/persona/server/internal/transcript"
 )
 
-// What an extension granted assistant.read reads of the assistant's conversations (#1288, docs/extensions/extensions.md
+// What an extension granted assistant.read reads of the assistant's conversations (#1288
 // "Assistant conversations"): the conversations of the assistant's own space (never the health space's, never a
 // guest's), and of each only the words, the user's and the assistant's. The hub checked the grant; this only reads.
 

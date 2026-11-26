@@ -12,7 +12,7 @@ import (
 	"unicode/utf8"
 )
 
-// Synthesis (docs/extensions/volcengine-speech.md "Synthesis"): the service's one-way HTTP endpoint, which takes a
+// Synthesis: the service's one-way HTTP endpoint, which takes a
 // whole text and streams its audio back as lines of JSON, each with a piece of base64 audio, until code 20000000.
 
 // ttsURL is the service's synthesis address; tests point it at a fake.

@@ -1,5 +1,5 @@
 // The page's voice call: at most one at a time, bound to the conversation page that started it (docs/assistant/voice.md
-// 6.3, 6.5; docs/web/web.md "Voice chat"). A new call ends the one before; leaving the conversation (or closing the tab)
+// 6.3, 6.5). A new call ends the one before; leaving the conversation (or closing the tab)
 // ends it; a hidden tab keeps it (desktop multitasking) unless the browser suspends its audio. ChatView reads only whether
 // a call is on here; the bar and the thread's tail read the call itself.
 //

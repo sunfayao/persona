@@ -57,7 +57,7 @@ func (pl *Plugin) forgoTools(id string) bool {
 	return !known
 }
 
-// Handler is the plugin's API (docs/extensions/extensions.md "Voice"): /health, /info, /models, /voices, /speak, /ws.
+// Handler is the plugin's API: /health, /info, /models, /voices, /speak, /ws.
 func (pl *Plugin) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
@@ -102,7 +102,7 @@ func (pl *Plugin) Handler() http.Handler {
 			return
 		}
 		c.SetReadLimit(1 << 20)
-		// Who is calling, as the hub found it (docs/extensions/extensions.md "The caller on forwarded requests"): the role decides the tools, the
+		// Who is calling, as the hub found it: the role decides the tools, the
 		// language the words the model is told.
 		role, lang := r.Header.Get(extwire.HeaderRole), i18n.Resolve(r.Header.Get(extwire.HeaderLang))
 		pl.converse(context.WithoutCancel(r.Context()), c, role, lang)

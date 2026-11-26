@@ -9,7 +9,7 @@ import (
 	"io"
 )
 
-// The speech service's WebSocket binary protocol (streaming recognition, docs/extensions/volcengine-speech.md "Recognition"):
+// The speech service's WebSocket binary protocol (streaming recognition):
 // every frame is a 4-byte header, then by its type a sequence number, a payload size and the payload. Integers are
 // big-endian. Byte 0: version (1) and header size in 4-byte words (1); byte 1: message type and its flags; byte 2:
 // serialization and compression; byte 3: reserved.

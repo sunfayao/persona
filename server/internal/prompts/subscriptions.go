@@ -1,6 +1,6 @@
 package prompts
 
-// Drafting a source subscription's recipe with a model (subscriptions/*, #2040, docs/extensions/subscriptions.md
+// Drafting a source subscription's recipe with a model (subscriptions/*, #2040
 // "Drafting with a model"): the model picks a tool and its arguments from the tools alone, then maps fields from a
 // cut sample of what it answered. Both are structured calls; the JSON Schema of the answer goes with each.
 

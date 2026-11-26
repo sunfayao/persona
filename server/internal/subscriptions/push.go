@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Push sources (#3848, docs/extensions/subscriptions.md "Push sources"): a subscription its device fills itself, from
+// Push sources (#3848): a subscription its device fills itself, from
 // the iOS Shortcuts action Handle Notification, instead of a recipe pulling a connector. Its connector is PushConnector
 // and its source the device; it has no recipe, interval or runs on a schedule, and goes through the same destinations,
 // triage and history as any other subscription.

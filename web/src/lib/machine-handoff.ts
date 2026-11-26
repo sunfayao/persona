@@ -1,4 +1,4 @@
-// "Hand work to another computer" (#8037, docs/web/web.md "Machines"): the user picks Agents on a busy computer and a
+// "Hand work to another computer" (#8037): the user picks Agents on a busy computer and a
 // target; the request goes to the assistant's main chat as one message in the user's language, and the assistant
 // carries it out with its task tools (a task whose plan `continues` the earlier one starts a new Agent on the target
 // with the earlier brief), stopping each source Agent only after its successor started. Nothing is moved here: a live

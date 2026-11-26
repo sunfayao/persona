@@ -1,6 +1,6 @@
 package link
 
-// The "Needs you" summary (docs/operations/link.md "Needs you"): the manager that carries this computer tells its
+// The "Needs you" summary: the manager that carries this computer tells its
 // Persona Link which agents wait for the user, so the menu bar app and the Windows tray can show and notify them while
 // no web page is open. A full snapshot each time, never a delta. Active mode: an attention message on the link, to a
 // link whose hello listed FeatureAttention. Passive mode: POST ConnectorAttentionPath, to a connector whose info

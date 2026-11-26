@@ -1,4 +1,4 @@
-// The unified entry in the assistant's conversation (docs/assistant/unified-entry.md; iOS Views/Assistant/Tasks): the plan card,
+// The unified entry in the assistant's conversation (iOS Views/Assistant/Tasks): the plan card,
 // task cards that follow their agents, the hub's lines (answered, routed; receipts, reviews and reports are not drawn,
 // #8237), the "Today" card, message cards about
 // a task, quick results, the dock above the composer, the tasks' questions, the route chip, and a task's detail in the

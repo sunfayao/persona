@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the web's pages with several assistants (docs/assistant/managers.md "Clients") against the mock hub's three managers.
+"""Check the web's pages with several assistants against the mock hub's three managers.
 
 Run with a dedicated fake hub and the web dev server pointing to it (the default roster: 助手 default, 工作 online,
 家里 offline; MOCK_EXTENSIONS=1 for the extensions page, MOCK_MANAGER_NAS=1 gives 家里 the NAS, offline with it, which the
@@ -407,7 +407,7 @@ def check(browser, base, width, theme, shots, single, outdated):
 
 def agents_waiting(request, base, auth, manager):
     """The agents waiting at manager, counted here from the hub's lists by the rule every client shares
-    (docs/assistant/managers.md "The current assistant"): its sessions that are not a quiet task's and not muted, with
+   : its sessions that are not a quiet task's and not muted, with
     a pending card or in Needs you, once each; a pending card on no session, each."""
     sessions = request.get(base + "/api/v1/sessions", headers=auth).json()["sessions"]
     cards = request.get(base + "/api/v1/interactions", headers=auth).json()["interactions"]
@@ -442,7 +442,7 @@ def agents_waiting(request, base, auth, manager):
 
 
 def check_settings(browser, base, width, theme, shots, single):
-    """Settings' three groups (docs/assistant/managers.md "The current assistant"): "<name>'s settings" with the current
+    """Settings' three groups: "<name>'s settings" with the current
     assistant's avatar and Switch, This device and Hub, in that order with their lines; Switch opens the sidebar's list
     and the first group then follows the new assistant (its pages' requests name it, Connectors and Extensions list its
     copies only), and with an offline one Connectors says it is offline; one assistant shows the title and Switch too."""

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end check of the provider wizard's two other ways in (#5193, docs/integrations/launchers.md): "Found on your
+"""End-to-end check of the provider wizard's two other ways in (#5193): "Found on your
 computers" lists the rc-file aliases not in Persona yet and opens the import for one of them (only that alias is
 previewed), and "Paste a configuration" reads what was pasted by itself: two shell aliases (a choice between them, the
 alias that is not Claude Code named), one on a stored provider's address with its key (add its models: the edit wizard

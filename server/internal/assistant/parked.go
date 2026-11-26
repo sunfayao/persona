@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// Parked tasks (docs/assistant/todos.md "Parked tasks"). New parks require a typed external wait and source-backed
+// Parked tasks. New parks require a typed external wait and source-backed
 // evidence (park_evidence.go). An owner decision belongs in needs_user, never a new owner_priority park. Existing
 // records remain readable without inventing contacts. A parked task stays open: no new ask, push or conclusion card.
 // A verified interaction_id instead keeps the worker's existing pending request in Needs you, without another card.

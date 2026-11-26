@@ -288,7 +288,7 @@ function RestartBanner() {
   );
 }
 
-// MemberBanner: on a member hub every page says the group is the center's to run (docs/server/mesh.md 3).
+// MemberBanner: on a member hub every page says the group is the center's to run.
 function MemberBanner() {
   const { mesh } = useShared();
   const page = usePage();

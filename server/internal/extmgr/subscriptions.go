@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/subscriptions"
 )
 
-// Source subscriptions (#2038, docs/extensions/subscriptions.md): the core is internal/subscriptions; here it gets the
+// Source subscriptions (#2038): the core is internal/subscriptions; here it gets the
 // manager's connectors, database, audit and broadcasts, and answers /api/v1/subscriptions. Reading is for every
 // device; changing anything needs full access (read_only_device otherwise).
 

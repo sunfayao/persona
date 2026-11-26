@@ -1,4 +1,4 @@
-// Package usagesource reads subscription usage windows from an account-pool gateway (#2595, docs/server/usage-windows.md
+// Package usagesource reads subscription usage windows from an account-pool gateway (#2595
 // "Account-pool gateways"): a service that holds several agent accounts and already knows how much of each one's 5-hour and
 // weekly allowance is used. The hub asks it, read-only, and turns the answer into the proto.UsageAccount list the
 // sidebar draws; the node-local collectors (#2432) and the gateway's numbers meet in devices/usagewindows.go.

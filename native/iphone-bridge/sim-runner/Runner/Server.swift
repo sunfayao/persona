@@ -1,4 +1,4 @@
-// The bridge's way into the simulator (docs/extensions/iphone-bridge.md "Simulator backend"): one test that
+// The bridge's way into the simulator: one test that
 // listens on 127.0.0.1 at the port the bridge chose, takes one connection that first sends the bridge's token,
 // answers its requests as JSON lines, and ends when that connection closes, on `quit`, or when nobody
 // connects in time. Every UI call runs on the main thread, where the test keeps the run loop going.

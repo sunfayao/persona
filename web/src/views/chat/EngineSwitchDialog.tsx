@@ -1,4 +1,4 @@
-// "Switch Agent?" (#5054, docs/web/web.md "Model pill and model panel"): what an Agent's model panel asks before a pick
+// "Switch Agent?" (#5054): what an Agent's model panel asks before a pick
 // moves the conversation to the other engine (Claude Code ↔ Codex), in Cindy's confirmation layout and words
 // (confirm-dialog.tsx, agentSwitchConfirmation.ts) drawn with Persona's Dialog and Button: the title, why a handoff may
 // lose something, "Don't remind me again", then Switch Agent before Keep Current Agent. Keep Current Agent, Escape, the

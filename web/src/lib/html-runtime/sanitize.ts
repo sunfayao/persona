@@ -1,4 +1,4 @@
-// The page's side of an html card's drawing (#4215, docs/assistant/assistant-views.md "Security boundaries"): every
+// The page's side of an html card's drawing (#4215): every
 // operation the card's worker sends is checked here before it reaches the display frame. Only allowlisted elements
 // and attributes pass, and no URL that could load anything gets through: no href, no src but an inline image, no
 // url() in CSS but a reference inside the card. The frame draws them with createElement / setAttribute / textContent

@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// References in an extension's secrets (docs/extensions/secret-providers.md "References in an extension's secrets"):
+// References in an extension's secrets:
 // saving one in Settings is the owner's standing approval for that extension, so it is resolved, without a card, each
 // time the manager hands the extension its secrets, and the extension gets the value as if it had been typed in.
 

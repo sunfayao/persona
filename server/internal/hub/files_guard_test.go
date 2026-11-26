@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// The built-in manager's files are its own (managerconf.OwnFiles, docs/assistant/managers.md "The built-in manager's own files"): the identity the
+// The built-in manager's files are its own (managerconf.OwnFiles): the identity the
 // computers trust over tailcat (the manager dials them). The hub opens none of them,
 // in the data directory or the manager's; the copies left in the data directory are for an older build only. The hub's
 // own secret.key (secretkey.go) is the hub's.

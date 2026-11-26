@@ -8,7 +8,7 @@ import (
 )
 
 // A space conversation's card says on the lock screen only that there is news, not what it is about nor the
-// conversation's title (docs/assistant/tracks.md "Outbound"); other cards are as before.
+// conversation's title; other cards are as before.
 func TestSpaceCardPushHidesContent(t *testing.T) {
 	alert := func(ix proto.Interaction) map[string]any {
 		return interactionPayload(ix, "server")["aps"].(map[string]any)["alert"].(map[string]any)

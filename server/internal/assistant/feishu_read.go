@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// Reading a group with /read (#11803, docs/extensions/bots.md "Reading a group with /read"). The owner writes
+// Reading a group with /read (#11803). The owner writes
 // "@bot /read <task>" in an alert or problem group; the main conversation reads the group as the owner with lark-cli
 // on its own computer (the last readGroupDefault messages, or the range the task names), downloads its images and
 // files into a directory of their own, does the task, and the answer goes back as a reply under that message.

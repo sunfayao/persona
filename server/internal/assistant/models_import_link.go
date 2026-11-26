@@ -20,7 +20,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// Provider import links (#5420, #5428, docs/integrations/launchers.md "Import links"): cindy's
+// Provider import links (#5420, #5428): cindy's
 // cindy://provider/import?v=1&data=…, Persona's persona://provider/import?v=1&data=… and the web's
 // <web address>/settings?tab=models#import=…[&v=1] carry one provider in cindy's v1 JSON, base64url-encoded.
 // parsePaste reads a pasted or opened link here. A link comes from

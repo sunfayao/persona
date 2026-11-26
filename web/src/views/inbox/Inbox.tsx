@@ -1,4 +1,4 @@
-// Inbox (docs/assistant/inbox.md): Feishu messages, mail, Feishu documents and Moments in one list, sorted by the AI's triage,
+// Inbox: Feishu messages, mail, Feishu documents and Moments in one list, sorted by the AI's triage,
 // with the agents waiting on you at the head of "Needs you". Wide: the list (380px) and the opened item side by side;
 // narrow: the opened item takes the list's place, with a way back. "Select" (top right) picks several items to mark them
 // done at once (#2059).
@@ -37,7 +37,7 @@ export function Inbox({ id, manager, onToggleSidebar }: { id?: string; manager?:
   useEffect(() => {
     if (id && loaded && !item) loadRoutedItem(id, manager);
   }, [id, manager, loaded, item]);
-  // a new mail is the current assistant's (docs/assistant/managers.md "Clients"): its own mail accounts, sent through it
+  // a new mail is the current assistant's: its own mail accounts, sent through it
   const scope = useScope();
   const composer = scope.several ? otherManager(scope.id) : undefined;
   const accounts = useMailAccounts({ manager: composer });

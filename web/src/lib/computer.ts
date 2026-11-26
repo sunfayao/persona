@@ -1,4 +1,4 @@
-// "Computer control" on a Mac's page (docs/extensions/computer-use.md, iOS ComputerSection): what the hub says the Mac has of Cua Driver
+// "Computer control" on a Mac's page (iOS ComputerSection): what the hub says the Mac has of Cua Driver
 // (GET/PUT /api/v1/machines/{mid}/computer, POST …/computer/{install|grant|cancel}), and what the section shows for it.
 import { BASE } from "./base";
 import { formatList, t } from "../i18n";
@@ -97,7 +97,7 @@ interface ScreenStatus {
 }
 
 /**
- * Whether the machine page offers the live screen (screenPath; docs/extensions/computer-use.md "Live view"). The screen is
+ * Whether the machine page offers the live screen (screenPath). The screen is
  * macOS's Screen Sharing on port 5900 through the hub's relay, which the hub opens while cua or ego is on for the Mac
  * (extmgr portAllowed); Cua Driver plays no part, so its install, permissions and daemon do not matter. The same checks,
  * in the same order, as the screen page makes before it connects (ScreenView), plus online.

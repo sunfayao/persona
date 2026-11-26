@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// A task the voice model hands over is a run (docs/assistant/voice.md "Per-round tracking"): one channel.Run, as the assistant's channels
+// A task the voice model hands over is a run: one channel.Run, as the assistant's channels
 // have, found in the conversation by its message's client_msg_id (voice-<random>) or its first line, followed until
 // that turn is over and then read whole (channel.ReadTurn over the hub's HTTP API), so what the voice model hears is
 // that turn's whole answer: not the conversation's last 200 characters, not another turn's. Its words go back on the
@@ -22,7 +22,7 @@ import (
 // The target is the conversation a protocol 2 call is bound to (target.go), else the Persona main conversation of the
 // moment (protocol 1). Each conversation has a tracker: one goroutine that owns its runs and checks them when the hub
 // link says their conversation changed, and every 5 s regardless. On protocol 2 the app follows each run by its run
-// frames (docs/assistant/voice.md "Extension → App").
+// frames.
 
 // voiceRun is one handed-over task being followed.
 type voiceRun struct {
@@ -52,7 +52,7 @@ type voiceRun struct {
 	// its run frame says so, so an app offers Send Anyway only for what a resend will send.
 	resendable bool
 	// unsent: the app handed it back while it was being sent: past channel.QueuedMost without its message in the
-	// conversation it is unknown, not answered with the conversation's last words (docs/assistant/voice.md "Reconnect and resume").
+	// conversation it is unknown, not answered with the conversation's last words.
 	unsent bool
 	// foldedCalls is how many earlier runs folded into it handed work over on calls that get no answer of their own.
 	foldedCalls int
@@ -82,7 +82,7 @@ type voiceRun struct {
 	toldRev, lastRev int64
 }
 
-// The run frame's states (docs/assistant/voice.md "Extension → App").
+// The run frame's states.
 const (
 	runSending  = "sending"
 	runSent     = "sent"
@@ -463,7 +463,7 @@ func (t *tracker) finish(r *voiceRun, res *channel.Result, look channel.Look) {
 		}
 	}
 	state, empty, told := runDone, strings.TrimSpace(res.Answer) == "", true
-	// The model service failed it: what sort of failure, never its text (docs/assistant/voice.md "Per-round tracking").
+	// The model service failed it: what sort of failure, never its text.
 	failed := res.End == channel.EndError && !res.Held && r.failure != ""
 	switch {
 	case res.Quiet:

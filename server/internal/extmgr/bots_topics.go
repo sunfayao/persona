@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Topic group chats (#5279, docs/extensions/bots.md "Topic group chats"): the bot's chat with the owner is the private one, and
+// Topic group chats (#5279): the bot's chat with the owner is the private one, and
 // anyone in a group could write to a bot in it, so a group is talked to only where the owner said so. The owner opts a
 // group in (the /topics command in it, or the bot's settings), and from then on, in that group:
 //

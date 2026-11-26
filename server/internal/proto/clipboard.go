@@ -1,6 +1,6 @@
 package proto
 
-// Clipboard sharing between the phone and a computer (#3064, docs/operations/clipboard.md): the node reads and writes
+// Clipboard sharing between the phone and a computer (#3064): the node reads and writes
 // the clipboard of the session it runs in (clipboard.get / clipboard.set), the manager keeps a per-machine switch
 // (off by default) and serves GET / PUT /api/v1/machines/{mid}/clipboard.
 

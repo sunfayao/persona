@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/link"
 )
 
-// Presence through Persona Link (internal/link/presence.go, docs/operations/link.md "Presence"): a computer's menu bar
+// Presence through Persona Link (internal/link/presence.go): a computer's menu bar
 // app says the user is at it and its notifications show, and which cards' notifications it handed to Notification
 // Center. The manager keeps what a link said until the TTL runs out and reports the computers that count in
 // devices.desktops; the hub counts them as desktops for "Phone Muted". A card's push is left to such a desktop only

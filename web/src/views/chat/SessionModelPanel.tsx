@@ -1,4 +1,4 @@
-// The model panel of an Agent's chat (#5032, docs/web/web.md "Model pill and model panel"), loaded on its pill's first
+// The model panel of an Agent's chat (#5032), loaded on its pill's first
 // tap (ModelPill.tsx AgentModelPill, which also starts reading the lists): the shared panel (ui/model-panel) fed with the
 // session's providers and state (lib/session-panel.ts), its picks applied through POST …/modes. On a hub with the
 // in-session switch (#5035) a pick on another launcher is recorded for the next message, which a toast says. On one that

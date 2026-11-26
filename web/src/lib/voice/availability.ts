@@ -1,4 +1,4 @@
-// Whether a conversation's page offers Voice chat, and if not why (docs/assistant/voice.md 3.1, 6.1; docs/web/web.md "Voice").
+// Whether a conversation's page offers Voice chat, and if not why (6.1).
 // Pure: the hub's answers (the extension list, the voice extension's /info) and what the browser can do come in, the
 // verdict goes out. The browser's own limit comes last: there is nothing to say about HTTPS on a hub without voice.
 import { sessionCan } from "../format";
@@ -6,7 +6,7 @@ import type { HubExtension } from "../extensions";
 import type { Session } from "../types";
 import { validExtensionID } from "./wire";
 
-/** The extension's `GET /info` (docs/assistant/voice.md 5.6): which protocol it speaks and what it still needs. */
+/** The extension's `GET /info`: which protocol it speaks and what it still needs. */
 export interface VoiceInfo {
   protocol: number;
   features: string[];
@@ -70,7 +70,7 @@ export function readInfo(body: unknown): VoiceInfo {
   return { protocol, features, setup };
 }
 
-/** The origin of a meeting's room conversation (docs/assistant/meeting-minutes.md "The room conversation"). */
+/** The origin of a meeting's room conversation. */
 const MEETING_ROOM_ORIGIN = "meeting";
 
 /**

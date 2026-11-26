@@ -1,4 +1,4 @@
-// Machine details (docs/server/machines.md "App"): the pure part of the page — ranges, the metric charts' scales, gaps, ticks and
+// Machine details: the pure part of the page — ranges, the metric charts' scales, gaps, ticks and
 // the hover read-out, the number formats, the agents by space and the system facts. MachineDetail.tsx only draws.
 import { formatDate, t } from "../i18n";
 import { normalizeTraeCliName } from "./agent-kind";
@@ -43,7 +43,7 @@ export interface DetailSample {
   temp_c?: number;
 }
 
-/** Machine.system (docs/server/machines.md "System information"). */
+/** Machine.system. */
 export interface SystemInfo {
   os?: string;
   distro?: string;
@@ -68,7 +68,7 @@ export interface DetailMetrics {
 }
 
 /** What the machine list carries beyond types.ts's Machine (the detail page reads these too). */
-/** computer: only while the hub's extension cua is on, and only for a Mac (docs/extensions/computer-use.md). */
+/** computer: only while the hub's extension cua is on, and only for a Mac. */
 export type DetailMachine = Machine & { ssh_host?: string; node_version?: string; system?: SystemInfo; computer?: MachineComputer };
 
 // ── ranges ──

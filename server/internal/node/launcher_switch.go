@@ -55,7 +55,7 @@ import (
 //
 // The pending switch is kept in the session's state record (the hub's Postgres): a node restart neither drops it nor
 // carries it out without a message. A session Persona did not start has no record and gets none for this (a record
-// means "Persona started it", docs/lessons/agents.md): its switch waits in the node's memory, and a node restart
+// means "Persona started it"): its switch waits in the node's memory, and a node restart
 // forgets it, so its row shows no pending switch any more and nothing is switched behind the user's back. A switch
 // picked more than switchMaxAge ago is dropped when a message comes.
 //

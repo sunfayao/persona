@@ -19,7 +19,7 @@ export const SessionInfoDialog = lazyDialog(() => import("./SessionInfoDialog").
 
 // Rename, Rename space and Delete (SessionMenuDialogs.tsx): one chunk of their own, loaded on the first open or, sooner,
 // when a menu that offers one opens (preloadSessionDialogs: the chat's ⋯ menu, an Agent row's, a space's), so the click
-// draws the dialog at once. Off the first screen (#10382, docs/web/web.md "First screen").
+// draws the dialog at once. Off the first screen (#10382).
 const loadMenuDialogs = () => import("./SessionMenuDialogs");
 export const RenameDialog = lazyDialog(() => loadMenuDialogs().then((m) => m.RenameDialog));
 export const RenameSpaceDialog = lazyDialog(() => loadMenuDialogs().then((m) => m.RenameSpaceDialog));

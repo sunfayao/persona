@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Binding the Lark bot in one authorization (#4347, docs/extensions/bots.md "Pairing and permissions"): the bind step
+// Binding the Lark bot in one authorization (#4347): the bind step
 // starts the accounts site's app registration, the user opens its page in Lark (or scans it from another device) and
 // confirms, and the answer carries the new app's credentials and the confirming person's open id. The credentials are
 // saved as if typed in, the app configured as after typing them, and that person becomes the owner: no pairing code.

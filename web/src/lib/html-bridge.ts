@@ -1,4 +1,4 @@
-// The bridge of an html card on the web (#4215, docs/assistant/assistant-views.md "Free-form HTML rendering"): a
+// The bridge of an html card on the web (#4215): a
 // card's persona.reply / persona.open held to the one instance on screen, a native question at a time with a limit
 // after a refusal, and the body the hub's html-actions endpoint takes (htmlRequest). Loaded with the card
 // (ui/HtmlCard.tsx), never on the first screen: lib/assistant-html.ts keeps only what decides whether a card runs.

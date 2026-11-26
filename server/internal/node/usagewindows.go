@@ -21,7 +21,7 @@ import (
 	"github.com/nwverse/persona/server/internal/transcript"
 )
 
-// Subscription rate-limit windows of the agents on this machine (#2432, docs/server/usage-windows.md): how much of an
+// Subscription rate-limit windows of the agents on this machine (#2432): how much of an
 // account's 5-hour and weekly allowance is used. Persona never reads login credentials:
 //
 //   - Codex app-server can return the limits together with the account ID. The node sends only a digest of that ID.

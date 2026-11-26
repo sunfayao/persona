@@ -610,7 +610,7 @@ func (l *link) localGone() bool {
 	return true
 }
 
-// forward joins stream id to the resident node: nothing else, and nowhere else (docs/operations/link.md "Forwarding"). It returns an
+// forward joins stream id to the resident node: nothing else, and nowhere else. It returns an
 // error only when the stream could not be opened; once bytes flow, its end is the node's or the hub's business.
 func (l *link) forward(ctx context.Context, id, target string) error {
 	node, err := net.DialTimeout("unix", target, 2*time.Second)

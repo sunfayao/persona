@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Spot-check reviews (#3128, docs/assistant/todos.md "Spot-check reviews"): with
+// Spot-check reviews (#3128): with
 // assistant.review_sample_percent below 100, the done judge also checks each done_when criterion (taskAutoCheck).
 // The checks are delivery evidence only: every finished task still waits for the main conversation's task_review,
 // including work that passed and was not sampled (#5732). At 100 (the default) the judge checks nothing more.

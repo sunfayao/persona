@@ -22,7 +22,7 @@ type Config struct {
 	Listen    string `json:"listen"`
 	Token     string `json:"token"`
 	PublicURL string `json:"public_url"`
-	// Lark: the lark-cli path and the Feishu account (docs/extensions/feishu.md).
+	// Lark: the lark-cli path and the Feishu account.
 	Lark lark.Config `json:"lark"`
 	// LarkGate and ConnectorGate: the rules for the assistant's Feishu writes and the connectors' writes
 	// (internal/connector/gate.go).
@@ -30,7 +30,7 @@ type Config struct {
 	ConnectorGate []connector.Rule `json:"connector_gate,omitempty"`
 	GitHub        *github.Config   `json:"github,omitempty"`
 	IMessage      *imessage.Config `json:"imessage,omitempty"`
-	// Google and Microsoft: mail's sign-ins (docs/extensions/mail.md).
+	// Google and Microsoft: mail's sign-ins.
 	Google                  GoogleConfig      `json:"google"`
 	Microsoft               MicrosoftConfig   `json:"microsoft,omitempty"`
 	Inbox                   InboxConfig       `json:"inbox"`
@@ -74,14 +74,14 @@ type RemoteImagesConfig struct {
 	DoH *string `json:"doh,omitempty"`
 }
 
-// GoogleConfig is the iOS OAuth client behind Gmail's "Sign in with Google" (docs/extensions/mail.md).
+// GoogleConfig is the iOS OAuth client behind Gmail's "Sign in with Google".
 type GoogleConfig struct {
 	ClientID string `json:"client_id"`
 	// Proxy is an http:// (CONNECT) or socks5:// proxy for Gmail IMAP / SMTP and Google's OAuth / Gmail API.
 	Proxy string `json:"proxy,omitempty"`
 }
 
-// MicrosoftConfig is Outlook's "Sign in with Microsoft" (docs/extensions/mail.md "Outlook: Sign In with Microsoft").
+// MicrosoftConfig is Outlook's "Sign in with Microsoft".
 type MicrosoftConfig struct {
 	ClientID    string `json:"client_id,omitempty"`
 	RedirectURI string `json:"redirect_uri,omitempty"`

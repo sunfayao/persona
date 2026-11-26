@@ -1,4 +1,4 @@
-// Source subscriptions (#2041, docs/extensions/subscriptions.md "Pages"): the manager draws the pages as declarative UI
+// Source subscriptions (#2041): the manager draws the pages as declarative UI
 // (POST /api/v1/subscriptions/-/ui); the web opens them at /subscriptions and shows entry rows, once the manager reports
 // that subscriptions deliver to the Inbox (feature source_subscriptions).
 import { useStore } from "./store";

@@ -53,7 +53,7 @@ type MachineConfig struct {
 	HerdrAutostart   *bool    `json:"herdr_autostart,omitempty"`
 	HerdrAutoinstall bool     `json:"herdr_autoinstall,omitempty"`
 	ClaudeStartDir   string   `json:"claude_start_dir,omitempty"`
-	// InboxDir is the receive folder transfers put files in (hub/config.go, docs/protocol/file-transfer.md).
+	// InboxDir is the receive folder transfers put files in (hub/config.go).
 	InboxDir string `json:"inbox_dir,omitempty"`
 	// ClaudeGlobalHooks: the node puts report-only hooks into its default claude config directory (hub/config.go).
 	ClaudeGlobalHooks bool `json:"claude_global_hooks,omitempty"`
@@ -365,7 +365,7 @@ func (m *Machine) command(ctx context.Context) *exec.Cmd {
 		"-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3", host, bin+" node --stdio")
 }
 
-// localNode is the program the node of the hub's computer runs as (docs/server/server.md "Programs"): persona-node
+// localNode is the program the node of the hub's computer runs as: persona-node
 // beside self when it is self's build, else personad beside self when it is self's build (so the node and what it
 // writes into hooks stay off the manager's program), else self. update.SplitEnv 0 keeps self. version is
 // update.BuildOf when nil.

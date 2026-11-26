@@ -1,5 +1,5 @@
 // Package extwire is what the hub and the manager say to each other about the extensions, the connectors and the
-// bots (docs/extensions/extensions.md "Who owns what"): the manager (internal/extmgr, in `personad assistant`) has all of them — the
+// bots: the manager (internal/extmgr, in `personad assistant`) has all of them — the
 // registry with its secrets, the programs, the connectors and their credentials, mail, the Feishu and WeChat bots —
 // and answers their routes; the hub relays the apps' requests to it as they are and keeps the last of what the
 // manager reports for the apps (features, the extensions' parts of the API). Both import this package, neither
@@ -90,7 +90,7 @@ const (
 	EventEmit = "extensions.emit"
 	// EventErrorReports: ErrorReports, one-way: the hub's own errors (its log's error lines, panics it recovered),
 	// sent only while the report's features have error_reports; the manager scrubs them like the apps' and gives
-	// them to the extensions (docs/extensions/extensions.md "Error reports").
+	// them to the extensions.
 	EventErrorReports = "extensions.error_reports"
 	// MethodHubCall: HubCall → the answer: what the hub's own features ask of the manager's (Hub*).
 	MethodHubCall = "extensions.hub_call"
@@ -165,7 +165,7 @@ type Report struct {
 	Machines map[string]MachineExtras `json:"machines,omitempty"`
 	// ScreenKeepAwake: a Mac whose screen the app watches stays awake meanwhile (the plugin cua's setting).
 	ScreenKeepAwake bool `json:"screen_keep_awake,omitempty"`
-	// Looks are the looks of the extensions that are on (docs/extensions/extensions.md "Avatars"), with their files: the hub serves
+	// Looks are the looks of the extensions that are on, with their files: the hub serves
 	// them as persona packages beside its own.
 	Looks []LookPackage `json:"looks,omitempty"`
 	// BotIdentities identify enabled bots for cross-manager conflict warnings. Never include credentials.

@@ -1,7 +1,7 @@
 // Command persona-manager is the managers' program: the built-in manager (the assistant), a manager made in the app,
 // their extensions and the computers they connect (and the node of this computer they start), without the hub
 // (persona-hub). personad, the compatibility entry, runs the same commands as `personad assistant`, `personad manager
-// …`, `personad extension …` (internal/managercli; docs/server/server.md "Programs").
+// …`, `personad extension …` (internal/managercli).
 package main
 
 import (
@@ -78,7 +78,7 @@ func main() {
 		fmt.Println(usage)
 		return
 	}
-	// An extension's sandbox and its source check run this program again (docs/extensions/extensions.md "Sandbox").
+	// An extension's sandbox and its source check run this program again.
 	if args[0] == sandbox.ValidationRunCommand {
 		os.Exit(sandbox.RunValidation(args[1:]))
 	}
@@ -118,7 +118,7 @@ func main() {
 		err = extmgr.ExtensionCommand(ctx, args[1:], os.Stdin, os.Stdout, os.Stderr)
 	case "voice":
 		err = voice.Run(ctx)
-	case "volc": // the built-in Volcengine speech extension's program (docs/extensions/volcengine-speech.md)
+	case "volc": // the built-in Volcengine speech extension's program
 		err = volc.Run(ctx, version)
 	default: // join, run, install, uninstall, status (manager.Main says what it does not know)
 		err = managercli.Manager(ctx, buildInfo(), args)

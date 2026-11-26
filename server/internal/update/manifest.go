@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-// Manifest is latest.json: the release the publisher put up (docs/operations/hub-update.md "Release manifest and signature").
+// Manifest is latest.json: the release the publisher put up.
 type Manifest struct {
 	Version     string          `json:"version"`
 	Build       int64           `json:"build"`
@@ -35,14 +35,14 @@ type Manifest struct {
 	// "linux-amd64" -> its download. The hub swaps them with personad, and goes back with it. Older hubs ignore them.
 	Programs map[string]map[string]File `json:"programs,omitempty"`
 	// Nodes are the other programs a computer's node can run (NodePrograms: persona-node, the device's own): name ->
-	// "linux-amd64" -> its download. A manager sends one to a node that runs it (docs/operations/node-update.md); personad's own
+	// "linux-amd64" -> its download. A manager sends one to a node that runs it; personad's own
 	// downloads (Files) run a node too. Older hubs ignore them.
 	Nodes map[string]map[string]File `json:"nodes,omitempty"`
 	// Links are the independently installed persona-link connectors, by platform. They are downloaded and installed
 	// explicitly, never swapped by a hub or manager. Old hubs ignore this field.
 	Links map[string]File `json:"links,omitempty"`
 	// Helpers are native programs a computer's node runs beside it and installs on demand (HelperPrograms:
-	// persona-iphone-bridge, docs/extensions/iphone-control.md "Releases"): name -> "linux-amd64" -> its download. Built
+	// persona-iphone-bridge): name -> "linux-amd64" -> its download. Built
 	// from native/, with versions of their own (no build number in them); a platform this release could not build is
 	// left out. Old hubs ignore this field.
 	Helpers map[string]map[string]File `json:"helpers,omitempty"`

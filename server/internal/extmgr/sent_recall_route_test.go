@@ -20,7 +20,7 @@ import (
 	"github.com/nwverse/persona/server/internal/extension"
 )
 
-// The route a recall comes in by (docs/protocol.md "Connector API"): POST /api/v1/connectors/sent/{id}/recall.
+// The route a recall comes in by: POST /api/v1/connectors/sent/{id}/recall.
 
 func recallPath(id int64) string { return fmt.Sprintf("/api/v1/connectors/sent/%d/recall", id) }
 

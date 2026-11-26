@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Decisions that can wait (#4930, docs/assistant/todos.md "Decisions that can wait"): a supervisor's needs_user review
+// Decisions that can wait (#4930): a supervisor's needs_user review
 // may say its decision can wait (task_review can_wait). Such a decision is raised without a push to the owner's phone
 // and without a card: it is on its to-do at once (Needs you in the apps, the board), and the next briefing with facts
 // lists it under "To verify" with its recommendation, where it is answered. It is the same ask as any decision's

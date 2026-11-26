@@ -20,7 +20,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Phone Screen (#9314, docs/extensions/computer-use.md "Phone Screen"): the live screen's third mode. Persona Input
+// Phone Screen (#9314): the live screen's third mode. Persona Input
 // adds a portrait virtual display shaped like the phone's picture and puts the window the phone picks on it. The node
 // starts the helper's session (`--socket … --token … --phone-screen`, its Accessibility being the helper's own),
 // relays the phone's requests to it one at a time (JSON lines), and binds the session to the live screen's paired RFB

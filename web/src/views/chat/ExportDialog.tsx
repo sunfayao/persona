@@ -1,4 +1,4 @@
-// Export Conversation… (#7375, docs/web/web.md "Exporting a conversation"): the chat's ⋯ opens it over the page. It
+// Export Conversation… (#7375): the chat's ⋯ opens it over the page. It
 // reads the whole conversation from the hub (lib/chat-export.ts readConversation), whatever the page has loaded, says how
 // far it is, and saves the Markdown as a file or copies it. "Include work steps" reads it again unfolded. A chunk of its
 // own: nothing of it is on the first screen.

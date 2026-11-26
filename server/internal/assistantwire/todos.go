@@ -6,7 +6,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// ---- the todos (the assistant's, docs/assistant/todos.md) ----
+// ---- the todos (the assistant's) ----
 
 // TodoReport is what the hub shows of the todos: active links, display-only completed ownership and the agents kept
 // quiet (#1731: no pushes, badges or Live

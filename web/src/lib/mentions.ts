@@ -112,7 +112,7 @@ export function displayTitle(s: Pick<Session, "title" | "cwd">): string {
 
 /** The sessions this page holds, each once (#12983): the chats opened here as their complete rows (the store's
  *  `sessions`), then the Agents list's rows of the others (`sessionSummaries`). A paging hub pushes no `sessions`
- *  (docs/lessons/web.md), so an Agent nobody opened here is only in the list. Child sessions fold into their parent,
+ * , so an Agent nobody opened here is only in the list. Child sessions fold into their parent,
  *  as in every list (#5120). */
 export function pageSessions(sessions: Record<string, Session[]>, listed: readonly Session[]): Session[] {
   const complete = Object.values(sessions).flat();
@@ -170,7 +170,7 @@ export function workspaceDetail(w: Workspace, machineName: (id: string) => strin
 }
 
 /** The context for a picked workspace: `<persona-context kind="workspace" machine="…" cwd="…">`. The hub reads the two
- * attributes and adds what it knows about the place (docs/assistant/assistant.md "Workspace mentions"); the body is for people
+ * attributes and adds what it knows about the place; the body is for people
  * and clients that show it as is. */
 export function workspaceContext(w: Workspace, machineName: (id: string) => string): { title: string; url: string; text: string; attrs: Record<string, string> } {
   const title = workspaceTitle(w);

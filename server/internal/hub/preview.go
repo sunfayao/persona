@@ -20,7 +20,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Dev server previews (docs/web/preview.md): the node shows a port of its computer in a headless browser and streams it;
+// Dev server previews: the node shows a port of its computer in a headless browser and streams it;
 // the hub relays. GET …/preview/servers and POST …/preview/start go to the node as they are; …/preview/connect is a
 // WebSocket whose messages are the frames of a stream to the node (preview.Frame), the hub re-framing them without
 // reading them. The ports that may be shown are the ones port forwarding lets the user connect to (portAllowed):

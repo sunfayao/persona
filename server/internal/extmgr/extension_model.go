@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// The extension model in the hub (docs/extensions/extensions.md "Dependencies, exports and packs", #1854): what installs
+// The extension model in the hub (#1854): what installs
 // together (a preview's bundle: missing dependencies, a pack's members), what a switch-off or removal takes with it
 // (dependents), and telling an exporter its contributions changed.
 
@@ -139,7 +139,7 @@ func (h *Manager) setByUser(ctx context.Context, id string, on bool, actor strin
 }
 
 // switchExtension is PUT …/-/enabled of the regular and admin routes; it writes the error itself and then says false.
-// A pack takes its installed members with it (docs/extensions/extensions.md "Dependencies, exports and packs", #1830):
+// A pack takes its installed members with it (#1830):
 // off switches off the members that are on, after the same has_dependents question as for the pack's own
 // dependents, and remembers them on the pack (Record.PackOff); on switches the pack and then those members back on,
 // not the ones the user had turned off. A member switched by itself is forgotten by its pack. A member that cannot go

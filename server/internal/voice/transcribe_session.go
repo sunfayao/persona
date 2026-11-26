@@ -13,7 +13,7 @@ import (
 	"github.com/coder/websocket"
 )
 
-// One upstream session of a transcription job (docs/assistant/meeting-minutes.md "The built-in adapter"): a caption
+// One upstream session of a transcription job: a caption
 // session or a verbatim one, dialed and started like a call's (dialUpstream), with a reader of its own context
 // (cancelling a WebSocket's read closes it at once, and a polite close needs the reader until the service answers)
 // and a writer that sends it the job's audio from wherever it starts (a reconnect or a rollover replays the job's

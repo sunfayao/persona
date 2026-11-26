@@ -1,4 +1,4 @@
-// A complete copy of the runtime session collection on a paging hub (#3759, docs/operations/testing.md "Session list reads").
+// A complete copy of the runtime session collection on a paging hub (#3759).
 // A paging hub pushes no session rows, only a `sessions_list` hint per change. Views that need every row (pins,
 // grouping, per-assistant lists) used to read the whole no-query list again for each hint, hundreds of KB a few times
 // a minute; this keeps one baseline of complete pages and then reads only what changed since its revision.

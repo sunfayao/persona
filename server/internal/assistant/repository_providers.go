@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Repository providers (docs/extensions/repository-providers.md): GitHub and GitLab work offline as before; an
+// Repository providers: GitHub and GitLab work offline as before; an
 // extension's repository_providers contribution answers for the hosts it claims (s.repoExt, the extensions' manager).
 // A provider is never asked inside a store transaction or under todos.writing, and the calls of one request share one
 // repository.CheckTimeout budget.

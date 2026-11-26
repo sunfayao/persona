@@ -2,8 +2,8 @@ package assistantwire
 
 import "time"
 
-// MethodAssistantMemory lists the assistant's memory entries for an extension granted assistant.memory.read
-// (docs/extensions/extensions.md "Assistant memory"): the hub checks the grant and forwards it as it is; the manager,
+// MethodAssistantMemory lists the assistant's memory entries for an extension granted assistant.memory.read:
+// the hub checks the grant and forwards it as it is; the manager,
 // which reaches the assistant's computer, answers it. Read-only, and only the assistant's own space: the health
 // space's memory is never listed.
 const MethodAssistantMemory = "assistant.memory"
@@ -36,7 +36,7 @@ type AssistantMemoryEntry struct {
 	Content   string `json:"content,omitempty"`
 	Truncated bool   `json:"truncated,omitempty"`
 	// Track is the track whose memory it is ("" the main track's); an extension is shown another track's only when it
-	// may read what comes from it (docs/assistant/tracks.md "Using information by scene", scene 6).
+	// may read what comes from it (scene 6).
 	Track string `json:"track,omitempty"`
 }
 

@@ -22,7 +22,7 @@ import (
 	"github.com/nwverse/persona/server/internal/managerconf"
 )
 
-// The mesh from the command line on the hub's machine (docs/server/mesh.md "Admin APIs and CLI"): the same peers API as the admin page,
+// The mesh from the command line on the hub's machine: the same peers API as the admin page,
 // under /api/v1/admin/cli/, over loopback with the master token (peerCLIRoutes).
 
 // adminCallLimit bounds each of these commands' calls (adminCall): a hub that takes the connection but never answers (a

@@ -9,7 +9,7 @@ import { homeKey } from "./folded-rows";
 import type { Interaction, Session } from "./types";
 
 /**
- * The Assistant's entries above the composer (docs/assistant/unified-entry.md "Needs you and In progress"):
+ * The Assistant's entries above the composer:
  * Needs you lists the user's turn, In progress the active work, and Parked the external waits, including ready PRs.
  * Each thing has one home and one count. Finished things are not open work: the handed-out ones that finished in the
  * last 24 hours are under Finished (`finished`, #10922), everything else on the board. A
@@ -263,7 +263,7 @@ export function assistantEntries(input: AssistantEntriesInput): AssistantEntries
   };
 }
 
-/** Needs you's rows by the conversation supervising them (#4314, docs/assistant/assistant.md "Background rounds"): a
+/** Needs you's rows by the conversation supervising them (#4314): a
  *  task's `origin`, else `conversation` (agents, plans, message cards, hand-made to-dos). This conversation's group comes
  *  first, then the others in the order their first row appears; the rows and their order within a group are as given,
  *  so the entry's count is unchanged. One group when every row is this conversation's. */

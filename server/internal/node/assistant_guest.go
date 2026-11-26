@@ -259,7 +259,7 @@ var errRoomRecord = errors.New("this meeting's room lost its record on this comp
 
 // guestSettingArgs are what every guest's process runs with besides its tool flags, so that only its own CLAUDE.md
 // (the guest's, or a room's meeting CLAUDE.md) and what the node passes itself reach the model
-// (docs/assistant/assistant.md "Guest conversations", docs/assistant/meeting-minutes.md "Nothing of the owner's Claude
+// (docs/assistant/meeting-minutes.md "Nothing of the owner's Claude
 // Code setup"): only the project's settings sources (never the user's: their CLAUDE.md, rules, auto memory, hooks,
 // output style, plugins and permissions), and the guest's own --settings (guestSettingsFile), which carries the
 // launcher's environment and excludes every CLAUDE.md, AGENTS.md and .claude/rules of the directories above the
@@ -429,8 +429,8 @@ func (n *Node) assistantDirOf(rel string) string {
 // stateRoot is the node's state directory as its assistant's sessions run in it. A custom PERSONA_HOME is that root, the
 // data_dir the hub reports the assistant's directory in (#5505). On the default layouts it is whichever of ~/.persona and
 // the former state directory (compat.StateDir) is a directory rather than an alias of the other and is the node's: an
-// installation still kept under the former name keeps the path Claude Code knows its sessions and memory by
-// (docs/protocol/rolling-upgrade-compatibility.md), and a migrated one never gets the former directory back. n.dir as it is when it is
+// installation still kept under the former name keeps the path Claude Code knows its sessions and memory by,
+// and a migrated one never gets the former directory back. n.dir as it is when it is
 // neither (not made yet).
 func (n *Node) stateRoot() string {
 	dir := filepath.Clean(n.dir)

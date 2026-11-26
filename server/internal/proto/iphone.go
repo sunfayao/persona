@@ -6,7 +6,7 @@ import (
 )
 
 // IPhone is what a computer has of the iPhones it reaches over RemotePairing through the device bridge, which the
-// assistant may operate (the built-in extension iphone, docs/extensions/iphone.md). In proto.Machine only while the
+// assistant may operate (the built-in extension iphone). In proto.Machine only while the
 // extension is on. Enabled is the manager's: the user turned it on for this computer; the rest is what the node found
 // when last asked (the iphone program's status).
 type IPhone struct {

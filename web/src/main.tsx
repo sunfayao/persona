@@ -9,7 +9,7 @@ import { logCaughtError } from "./lib/caught-error";
 // language's strings or App (lib/import-link.ts). Any other fragment stays, so a sign-in link's `#token=` still signs in.
 takeImportLinkOnStart();
 
-// The language's catalog loads before the rest of the app: their modules call t() as they load (docs/web/web.md "Internationalization").
+// The language's catalog loads before the rest of the app: their modules call t as they load.
 // The build waits only for the first screen's part of it, as its lazy imports wait for the rest; the dev server's do not.
 // React and the PWA helper say no t(), so they load alongside it rather than after it.
 // An overlay's history entry a reload left behind goes before the app reads the address (lib/back-close.ts, #5134).
@@ -34,7 +34,7 @@ if (target) {
   const { NativePasswordLogin } = await import("./views/PasswordLogin");
   root.render(createElement(StrictMode, null, createElement(NativePasswordLogin)));
 } else {
-  // Error reports (docs/web/web.md "Error reports") start with the app: they go out only if the hub's hello has the feature.
+  // Error reports start with the app: they go out only if the hub's hello has the feature.
   const [{ App }] = await Promise.all([import("./App"), import("./lib/error-reports-start")]);
   root.render(createElement(StrictMode, null, createElement(App)));
   // An open page picks up a new build (lib/new-version.ts) and a language another tab picked (lib/language-sync.ts): by

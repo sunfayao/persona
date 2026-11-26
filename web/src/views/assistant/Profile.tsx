@@ -35,7 +35,7 @@ export function Profile({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const displayName = defaultManager?.name || persona.name;
   const assistant = useStore((s) => s.assistant);
   const machines = useStore((s) => s.machines);
-  // what it can work on: the current assistant's computers (docs/assistant/managers.md "The current assistant")
+  // what it can work on: the current assistant's computers
   const own = useScopedMachines();
   const working = useStore((s) => (s.assistant?.conversations ?? []).some((c) => c.state === "working"));
   const [tasks, setTasks] = useState<Task[] | null>(null);

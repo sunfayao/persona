@@ -124,7 +124,7 @@ type Spec struct {
 	// OnUp is called each time it becomes ready.
 	OnUp func()
 	Logf func(string, ...any)
-	// Observe, when set, is told what the host sees of the plugin (docs/extensions/extensions.md "Runtime status"): every call, every
+	// Observe, when set, is told what the host sees of the plugin: every call, every
 	// run, every line of its log and of the host's own about it.
 	Observe Observer
 }

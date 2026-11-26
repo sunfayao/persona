@@ -1,4 +1,4 @@
-// A Codex opened with no first message (#4961, docs/integrations/codex.md "Starting without a first message"): New agent
+// A Codex opened with no first message (#4961): New agent
 // starts a Codex with the message left empty; its chat waits for one (the note above the box, the box's placeholder, the
 // row's second line); the first message sent from the chat moves the page to the thread it began.
 //

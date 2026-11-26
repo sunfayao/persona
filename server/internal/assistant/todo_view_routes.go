@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The To-dos view on the wire (#10226, docs/assistant/todo-status-sop.md "The hub's view"): every row of
+// The To-dos view on the wire (#10226): every row of
 // GET /api/v1/todos carries its view and the list its counts, GET /api/v1/todos/{id} answers one row the same way, and
 // GET /api/v1/todos/places the sidebar's places. Each read works the view out once, over the whole list, through the
 // adapter (todo_projection.go): a row's rank, its steps and a superseded failed start are read against the rest of the

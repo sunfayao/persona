@@ -70,7 +70,7 @@ type pairCodeReply struct {
 	QR     *qrImage `json:"qr,omitempty"`
 	WebURL string   `json:"web_url,omitempty"`
 	WebQR  *qrImage `json:"web_qr,omitempty"`
-	// A computer's code (docs/assistant/onboarding.md 5.3): its name, whether it waits to be confirmed (pending / confirmed),
+	// A computer's code: its name, whether it waits to be confirmed (pending / confirmed),
 	// whether it was added now, the command that pairs its Persona Link and the line that installs and pairs a node
 	// by system (only linux, when the hub knows the site it was published on).
 	Name    string            `json:"name,omitempty"`
@@ -173,7 +173,7 @@ func (h *Hub) pairRoutes(api *http.ServeMux) {
 		var err error
 		member := h.isMember()
 		if member {
-			// An app pairs with the center: devices are the center's (docs/server/mesh.md 3).
+			// An app pairs with the center: devices are the center's.
 			p = &pairCode{}
 			err = h.meshCall(r.Context(), h.centerID(), "pair.code", map[string]any{}, p)
 		} else {

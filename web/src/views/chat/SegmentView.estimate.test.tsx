@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// A finished exchange off screen takes its guessed height (`--seg-est`, docs/web/web.md "Long chats") until it is
+// A finished exchange off screen takes its guessed height (`--seg-est`) until it is
 // drawn: the model change divider in it (#5034) is part of that guess, so the chat does not jump when it comes in.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";

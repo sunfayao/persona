@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The reviewer's checks of due follow-up looks (docs/assistant/inbox.md "Following up", DECISIONS B-10): what a pass
+// The reviewer's checks of due follow-up looks (DECISIONS B-10): what a pass
 // does with a due look beside the queued work it shares its slots with, that a user-triggered wake stays uncapped, that
 // a look that already ran is not counted twice, and the template the conversation reads.
 

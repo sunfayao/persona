@@ -1016,7 +1016,7 @@ func (s *Service) finished(p *pending) {
 		how.Reason = proto.DismissedInChat
 	}
 	s.channelsEnded(p.ix, how)
-	// the app marks a question the assistant answered, and why (docs/assistant/assistant.md)
+	// the app marks a question the assistant answered, and why
 	s.hub.Tell(assistantwire.EventFleetResolved, done)
 	s.publishSessions(p.ix.MachineID)
 }
@@ -1214,7 +1214,7 @@ func (s *Service) askHub(ctx context.Context, ix proto.Interaction) (proto.Resol
 	return s.waitInteraction(ctx, s.ownCard(ctx, ix))
 }
 
-// ---- "Always allow in this session" (#2202, docs/assistant/assistant.md "Always allow in this session") ----
+// ---- "Always allow in this session" (#2202) ----
 
 // The node names what a card grants (proto.Interaction.AlwaysKeys, only on assistant conversations). The manager
 // remembers explicit Always answers and rechecks every later card against the stored keys, including after a

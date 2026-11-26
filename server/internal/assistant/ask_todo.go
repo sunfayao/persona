@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// An ask_user nobody answers becomes a to-do (#1617, docs/assistant/todos.md "Questions nobody answered"). When a card of
+// An ask_user nobody answers becomes a to-do (#1617). When a card of
 // the assistant's ask_user expires unanswered (only then: not a dismiss, not "replied in the chat", not the conversation
 // stopping), the assistant opens a to-do for it: the question its title, the options and when and where it was asked its
 // notes, no Agent and no origin: it is no task of the asking conversation (an origin is what makes a to-do one, for the

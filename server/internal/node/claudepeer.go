@@ -23,7 +23,7 @@ import (
 	"github.com/nwverse/persona/server/internal/transcript"
 )
 
-// Claude Code's peer inbox (read from its 2.1.308 bundle; 2.1.291 is the same; docs/integrations/claude-integration.md
+// Claude Code's peer inbox (read from its 2.1.308 bundle; 2.1.291 is the same
 // "The peer inbox"): every interactive claude since 2.1.29x listens on a local socket for messages other Claude
 // sessions send it (SendMessage), and names it in its sessions/<pid>.json as messagingSocketPath, with peerProtocol 1.
 // On Windows it is a named pipe, \\.\pipe\LOCAL\cc-msg-<32 hex>; on macOS and Linux a unix socket,

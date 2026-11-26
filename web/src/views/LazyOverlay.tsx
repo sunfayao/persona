@@ -26,7 +26,7 @@ export class OverlayBoundary extends Component<{ open: boolean; onClose: () => v
   }
 
   componentDidCatch(error: unknown, info: ErrorInfo) {
-    // a chunk that would not load is a warning (a redeploy), anything else a render crash (docs/web/web.md "Error reports")
+    // a chunk that would not load is a warning (a redeploy), anything else a render crash
     reportBoundary(error, "overlay_boundary", isChunkError(error), info.componentStack);
     // left open, an open request would not change the state, and the entry points would do nothing until a reload
     if (!this.props.fallback) this.props.onClose();

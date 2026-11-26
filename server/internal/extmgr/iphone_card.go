@@ -1,6 +1,6 @@
 package extmgr
 
-// The approval card of a step on an iPhone (docs/extensions/iphone.md "Approval"): the node core says what waits, as
+// The approval card of a step on an iPhone: the node core says what waits, as
 // data (proto.IPhoneApproval); the words are the manager's, in the user's language, from the catalog
 // (hub-iphone.card_*). The card's input is that data without the evidence (English facts for the log): never the
 // model's own arguments, which can hold a password being typed.

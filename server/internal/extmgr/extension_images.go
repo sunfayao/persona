@@ -22,7 +22,7 @@ import (
 	"github.com/nwverse/persona/server/internal/extension"
 )
 
-// Pictures an extension serves itself (UI version 6, docs/extensions.md "UI version 6", "Pictures through the hub"):
+// Pictures an extension serves itself (UI version 6, "Pictures through the hub"):
 // a view's ref is the extension's own name for a picture (a camera, a map). For an app of UI version 6 the hub writes
 // next to each ref a path of its own, GET /api/v1/extensions/{id}/-/image/{token}, the token naming the extension,
 // the ui that drew it and the ref, signed and good for imageTokenFor. The app loads that path with its own device

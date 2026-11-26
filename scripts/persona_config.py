@@ -68,7 +68,7 @@ def env(cfg: dict) -> dict:
 
 
 def update_url(cfg: dict, override=None) -> str:
-    """The update source built into personad (-X main.updateURL, docs/operations/hub-update.md "Update source"):
+    """The update source built into personad (-X main.updateURL):
     a non-empty environment override, then publish.update_url as given (the directory latest.json is in, e.g. a GitHub
     repository's releases/latest/download), else publish.site_url's dl/, else none. hub.json update.url still replaces it."""
     value = override or get(cfg, "publish.update_url", "")

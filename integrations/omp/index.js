@@ -1,4 +1,4 @@
-// Persona runtime for omp (Oh My Pi, docs/integrations/omp.md): an omp extension that puts the sessions of this omp
+// Persona runtime for omp (Oh My Pi): an omp extension that puts the sessions of this omp
 // process into the Persona apps through the personad node on this machine (~/.persona/runtime.sock,
 // docs/integrations/runtimes.md). It does nothing visible until a node listens.
 //

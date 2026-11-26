@@ -151,7 +151,7 @@ export function applySnapshot(conversation: string, res: { views?: Record<string
   for (const k of res.view_blocks ?? []) applyBlock(conversation, k);
 }
 
-// The events (docs/assistant/assistant-views.md): each names its conversation.
+// The events: each names its conversation.
 onHubEvent("assistant_view", (m) => applyView(String(m.conversation ?? ""), m.view as AssistantView | undefined));
 onHubEvent("assistant_view_action", (m) => applyAction(String(m.conversation ?? ""), m.action as ViewAction | undefined));
 onHubEvent("assistant_view_block", (m) => applyBlock(String(m.conversation ?? ""), typeof m.key === "string" ? m.key : undefined));

@@ -1,4 +1,4 @@
-// The alert sheet's section for launchers that fail on a computer (#8037, docs/server/launcher-health.md): each failing
+// The alert sheet's section for launchers that fail on a computer (#8037): each failing
 // or blocked one (what kind of failure, its error line, when it was checked, how many starts failed, a usage limit's
 // reset), the ones that work there as alternatives, and Test again (the hub's own check of that launcher on that
 // computer; the new record shows in place). The hub has no per-computer default launcher to switch, so the way to use

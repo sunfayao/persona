@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/secretkey"
 )
 
-// The model configuration (docs/assistant/model-config.md) is the assistant's: the four categories' records (settings
+// The model configuration is the assistant's: the four categories' records (settings
 // model_config.<id>), the providers added in Persona with their keys sealed (models_launchers.go), the hidden ~/.zshrc
 // launchers. Only the assistant reads and writes them; the hub hands over what the machines and the plugins have, and
 // asks only what its plugins need (models_hub.go). Every model call is made from here, with the keys only the
@@ -24,7 +24,7 @@ import (
 
 // The Claude profiles GET /model-config offers for the main chat's new conversations (#4633): Persona's own profile
 // (the default, stored as none) or this computer's existing Claude Code setup, resolved as the node resolves
-// config_dir "legacy" (docs/assistant/assistant.md). Selecting one copies nothing between profiles.
+// config_dir "legacy". Selecting one copies nothing between profiles.
 const (
 	assistantConfigDirPrivate = "private"
 	assistantConfigDirLegacy  = "legacy"

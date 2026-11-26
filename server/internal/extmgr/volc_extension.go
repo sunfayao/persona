@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/volc"
 )
 
-// The built-in Volcengine speech extension, `personad volc` (docs/extensions/volcengine-speech.md): off until the owner
+// The built-in Volcengine speech extension, `personad volc`: off until the owner
 // turns it on and saves a key in Settings › Extensions. It contributes a transcription (meetings on the hub, and
 // extensions' own audio) and a speech (meeting answers read aloud) on the owner's Volcengine account. Its form's
 // "Use for Meeting Transcription" is not a setting of its own: it shows and sets the assistant's choice of meeting

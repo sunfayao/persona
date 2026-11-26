@@ -1,4 +1,4 @@
-// Subscription rate-limit windows (#2432, docs/server/usage-windows.md): GET /api/v1/usage/windows lists the accounts the
+// Subscription rate-limit windows (#2432): GET /api/v1/usage/windows lists the accounts the
 // machines' agents are signed in to with how much of each window (5h, 7d …) is used. Pure helpers here (pace,
 // countdown, sample age, what the sidebar shows); the bars and the popover are views/UsageBars.tsx.
 import { useSyncExternalStore } from "react";
@@ -40,7 +40,7 @@ export interface UsageAccount {
   /** The computers (by name) that read it (#1907); an older hub only says `local`. */
   machines?: string[];
   /** Why a gateway's numbers are old: "error" (it could not read this account just now) or, when its own last read
-   *  failed, "rejected" (the key was turned away), "unreachable" or "failed" (docs/server/usage-windows.md). */
+   *  failed, "rejected" (the key was turned away), "unreachable" or "failed". */
   problem?: string;
 }
 

@@ -188,7 +188,7 @@ export function TodosView({
 }) {
   const owner = useSyncExternalStore(subscribeCredentialOwner, credentialOwner, credentialOwner);
   const repositoryManager = useShownManager();
-  // with several assistants, the current one's to-dos (docs/assistant/managers.md "Clients"); a link to another assistant's
+  // with several assistants, the current one's to-dos; a link to another assistant's
   // to-do still opens it, without switching
   const everyTodo = useStore((s) => s.todos);
   const ownTodos = useScoped(everyTodo);
@@ -272,7 +272,7 @@ export function TodosView({
   // whether a failed start was superseded by finished work (#3713) is decided on every to-do: a search or a filter that
   // leaves the finished one out must not put it back in Needs you
   const superseded = useMemo(() => supersededFailedStarts(todos), [todos]);
-  // Each to-do's own status section (docs/assistant/todo-status-sop.md), whatever the list is grouped by: its checkbox
+  // Each to-do's own status section, whatever the list is grouped by: its checkbox
   // and its page read a failed start waiting on the owner as open (audit item 13).
   const sectionOf = useMemo(
     () => new Map(todos.map((td) => [td.id, triage(td, lookup, Date.now(), restored.get(td.id) ?? 0, superseded.has(td.id)).section])),
@@ -313,7 +313,7 @@ export function TodosView({
   // a search and the filter narrow the to-dos first; the sections (or the folders) place what is left
   const filterTodo = (t: Todo) => matchesSearch(t) && inFilter(t);
 
-  // Developing Persona's view switch (docs/web/web.md "Developing Persona"): the sections from the hub's view, a row
+  // Developing Persona's view switch: the sections from the hub's view, a row
   // without one placed as before
   const features = useStore((s) => s.features);
   const fromView = useMemo(() => viewDrawOn(features), [features]);
@@ -374,7 +374,7 @@ export function TodosView({
     steadyLists,
   );
 
-  // The list by status sections (#3156, docs/assistant/todo-status-sop.md), or by folder as before
+  // The list by status sections (#3156), or by folder as before
   const [chosenGrouping, setGrouping] = useState<TodoGrouping>(() => todoGrouping(pref(GROUPING_KEY)));
   // "By request" is offered while some request is in pieces; else the list goes by status and the choice is kept.
   // Until the to-dos are read a saved choice stays.
@@ -397,7 +397,7 @@ export function TodosView({
     },
     [restoreTodo],
   );
-  // Got it on a Just finished row (#5707, docs/assistant/todo-status-sop.md "Seen"): filed under Done at once, the hub
+  // Got it on a Just finished row (#5707): filed under Done at once, the hub
   // keeps the mark for every device, and the toast's Undo takes it off. Only while the hub keeps seen marks.
   const seenOn = useStore((s) => todoSeenOn(s.features));
   // Opening a Just finished to-do is seeing it too: it is filed under Done once the page leaves it (another to-do, the
@@ -1256,7 +1256,7 @@ function sectionTitle(section: TriageSection, rules: readonly TriageRule[]): str
   return t(`todos.section_${section}`);
 }
 
-/** One status section (docs/assistant/todo-status-sop.md): a folding title with its count, a row per group of related
+/** One status section: a folding title with its count, a row per group of related
  *  to-dos. Every section starts open but Shelved and Done (#5707). */
 const TodoTriageSection = memo(function TodoTriageSection({
   section,
@@ -1500,7 +1500,7 @@ const DOT_STATE: Record<TodoStatus, AgentState> = {
 function todoRowView(todo: Todo, lookup: SessionLookup, interactions: Interaction[]): TodoRowView {
   const view = agentRowView(todo, lookup, interactions);
   // Nobody is working on it (#3618): the hub's finding goes ahead of what a stopped agent last said (Interrupted,
-  // Follow up; docs/assistant/todos.md). A card that waits for the user still says its question.
+  // Follow up). A card that waits for the user still says its question.
   const orphan = view.status !== "needs_you" ? orphanedLine(todo) : undefined;
   if (orphan) {
     view.urgentLine = true;
@@ -1907,7 +1907,7 @@ function TodoPlanEditor({ todo }: { todo: Todo }) {
   );
 }
 
-/** A to-do whose decision is held for the briefing (#4930, #5803, docs/assistant/todos.md "Decisions that can wait"):
+/** A to-do whose decision is held for the briefing (#4930, #5803):
  *  nothing was pushed for it, and it comes with the next briefing. The to-do's page writes out what that means under
  *  its ask; a row's ask line carries the quiet mark itself (views/TodoAsk AskLine), as the decision's card does
  *  (views/assistant/BriefingMark). Nothing for any other to-do, and for a hub that does not say. */

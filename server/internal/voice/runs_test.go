@@ -380,7 +380,7 @@ func TestAskPersonaWaitsForTheCaptionAndAnswersOnItsCall(t *testing.T) {
 }
 
 // Another extension calling (X-Persona-Role: extension) gets ask_persona only, from an upstream that takes tools: it may
-// hand work to the main conversation (docs/assistant/voice.md "Permissions"), and the measured service hands nothing over without a
+// hand work to the main conversation, and the measured service hands nothing over without a
 // tool; the knowledge base and the agents are not its to reach.
 func TestExtensionCallerGetsOnlyAskPersona(t *testing.T) {
 	hub := newFakeHub(t)

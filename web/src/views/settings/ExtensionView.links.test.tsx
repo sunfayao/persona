@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// An extension's page in another manager's inbox item or chat (docs/assistant/managers.md "Grouping"): a document an action
+// An extension's page in another manager's inbox item or chat: a document an action
 // answers with open_url opens in the panel as that manager; the default's names none.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";

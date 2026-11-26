@@ -7,7 +7,7 @@ import (
 	"unicode"
 )
 
-// Secret providers (docs/extensions/secret-providers.md): an extension's secret_providers contribution supplies the
+// Secret providers: an extension's secret_providers contribution supplies the
 // values of references of its schemes (op://vault/item/field). The registry only says which enabled extension claims
 // a scheme; resolving is the manager's (extmgr/secret_providers.go).
 

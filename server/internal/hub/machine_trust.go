@@ -417,7 +417,7 @@ func (h *Hub) machineTrustRoutes(api *http.ServeMux) {
 
 // ---- what the apps see of a machine ----
 
-// Machine error codes (docs/assistant/onboarding.md 5.3): what the error is about, for a client's own words.
+// Machine error codes: what the error is about, for a client's own words.
 const (
 	errCodeNodeServiceDown = "node_service_down" // the computer's link is up, its resident node is not
 	errCodeLinkOffline     = "link_offline"      // it was connected and is not now

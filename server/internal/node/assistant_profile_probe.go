@@ -40,7 +40,7 @@ var (
 	profileProbeFresh = 10 * time.Minute
 	profileProbeRetry = time.Minute
 	// profileProbeSettle: a file written this recently may be written again within one timestamp tick at the same
-	// size, which its stamp would not tell apart (docs/lessons/agents.md, #5659): until then every message probes.
+	// size, which its stamp would not tell apart (#5659): until then every message probes.
 	profileProbeSettle = 2 * time.Second
 	profileProbeRenew  = 2 * time.Minute
 	profileProbeKeep   = time.Hour

@@ -38,7 +38,7 @@ func TestGoldenAssistantClaudeMD(t *testing.T) {
 	bare := claudeMDHub(Device{ID: "server", Name: "服务器", Kind: "local"})
 	s = newTestService(t, bare)
 	golden(t, "assistant_claude_md.bare", s.claudeMD(ctx, "server", false))
-	// lark-cli (docs/extensions/feishu.md).
+	// lark-cli.
 	golden(t, "assistant_claude_md.lark_cli", s.claudeMD(ctx, "server", true))
 
 	// prepare writes it with what the hub says of lark-cli, for the machine it prepares.

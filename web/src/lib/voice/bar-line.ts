@@ -1,4 +1,4 @@
-// What the voice bar says (docs/assistant/voice.md 6.2), as iOS's VoiceBarLine.swift: the first line beside the orb, and the
+// What the voice bar says, as iOS's VoiceBarLine.swift: the first line beside the orb, and the
 // second line about the bound conversation with the buttons that go with it. Pure: the bar only draws them.
 import { t } from "../../i18n";
 import { sessionCan } from "../format";
@@ -117,7 +117,7 @@ export function barLine(o: BarLineInput): BarLine {
   return { kind: "ready", text: t("voice.line_ready", { name: label }), actions: [] };
 }
 
-/** Why `run` did not go, in the user's words (docs/assistant/voice.md 1.3), and what can be done about it. */
+/** Why `run` did not go, in the user's words, and what can be done about it. */
 function notSent(run: VoiceRun, cards: readonly Pick<Interaction, "id" | "kind">[], label: string, resendable: boolean): BarLine {
   const dismiss: BarAction = { kind: "dismiss", run: run.id };
   const line = (text: string, actions: BarAction[] = []): BarLine => ({ kind: "notSent", text, actions: [...actions, dismiss] });
@@ -134,7 +134,7 @@ function notSent(run: VoiceRun, cards: readonly Pick<Interaction, "id" | "kind">
       return line(t("voice.not_sent_card", { name: label }));
     }
     case "unprompted": {
-      // the gate heard no fresh request (docs/assistant/voice.md 4.4): never worded as if someone else said it. What was
+      // the gate heard no fresh request: never worded as if someone else said it. What was
       // held back is quoted, as a draft is: Send anyway confirms words the user can see (last, so a long one only loses
       // its end to the line's ellipsis)
       const task = run.task.trim();

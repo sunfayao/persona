@@ -1,4 +1,4 @@
-// A decision held for the briefing (#4930, #5803, docs/assistant/todos.md "Decisions that can wait"): its supervisor
+// A decision held for the briefing (#4930, #5803): its supervisor
 // said it can wait, so nothing was pushed for it and it comes with the next briefing; the to-do's ask says
 // `for_briefing` meanwhile. Without the mark a held decision looks like any other in Needs you, and the owner cannot
 // tell why it did not ring. On the decision's card the mark has its meaning written out beside it (a touch screen has

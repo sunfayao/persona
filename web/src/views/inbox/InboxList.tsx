@@ -94,7 +94,7 @@ const alwaysBeside = () => true;
  *  page) rather than hidden under it; a list on its own is in sight. */
 export function InboxList({ selected, routed, picked = null, onPicked, listBeside = alwaysBeside }: { selected?: { id: string; manager?: string }; routed?: InboxItem; picked?: Picked; onPicked?: Dispatch<SetStateAction<Picked>>; listBeside?: () => boolean }) {
   const view = useInboxView();
-  // with several assistants the list is the current one's (docs/assistant/managers.md "Clients"); one: every item
+  // with several assistants the list is the current one's; one: every item
   const mine = useScope();
   const items = useScoped(useInbox((s) => s.items));
   const loaded = useInbox((s) => s.loaded);
@@ -375,7 +375,7 @@ export function InboxList({ selected, routed, picked = null, onPicked, listBesid
     setLanding(null);
     if (listBox.current) listBox.current.scrollTop = 0;
   };
-  // An item the list doesn't show lands the list on its choice (docs/assistant/inbox.md "Section bar"): Done for a done
+  // An item the list doesn't show lands the list on its choice: Done for a done
   // one, All with Collapsed open for a collapsed one; a folded group it is in opens. Opened from outside the Inbox (a
   // link, ⌘K, a Needs-you line elsewhere), that is where the list stays when the item closes, so a link lands where its
   // item lives. Opened from inside (another item's chain or relations), only a list beside the item moves, and closing
@@ -957,7 +957,7 @@ export function rowMenu(it: InboxItem, done: boolean, folders = false): MenuItem
   ];
   if (!done) items.splice(1, 0, { key: "todo", label: t("inbox-inboxlist.todo_add_short"), icon: "todo", onSelect: () => openTodoDialog([it]) });
   (it.mutes ?? []).forEach((m, i) => items.push({ key: `mute:${m.tag}:${m.value}`, label: muteTitle(m), detail: muteShortName(m), icon: "bellOff", divider: i === 0, onSelect: () => void muteItem(it, m) }));
-  // then a rule for each (docs/assistant/inbox.md "Policies"): the tier its items get, what the AI twin does with them
+  // then a rule for each: the tier its items get, what the AI twin does with them
   (it.mutes ?? []).forEach((m, i) => items.push({ key: `policy:${m.tag}:${m.value}`, label: policyMenuTitle(m), detail: muteShortName(m), icon: "target", divider: i === 0, onSelect: () => openPolicyDialog({ item: it, option: m, source: it.source }) }));
   if (folders) items.push({ key: "folder", label: t("inbox-folders.move_menu"), hint: it.folder, icon: "folder", divider: true, onSelect: () => openFolderDialog(it) });
   return items;

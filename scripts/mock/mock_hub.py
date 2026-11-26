@@ -5,7 +5,7 @@
 
 Pair the app with it: -pairURL "persona://pair?url=http%3A%2F%2F127.0.0.1%3A18760&token=mock" (any token works).
 It serves machines, agents, conversations, interactions and the inbox, enough for the main screens; requests it
-does not know are logged to stderr as MISSING. Timestamps are relative to when it starts. See docs/operations/testing.md.
+does not know are logged to stderr as MISSING. Timestamps are relative to when it starts.
 """
 import base64, unicodedata
 import argparse, copy, hashlib, itertools, json, math, os, posixpath, re, shlex, shutil, signal, socket, ssl, struct, subprocess, sys, tempfile, threading, time, uuid, zlib
@@ -73,7 +73,7 @@ def identity():
     return {"hub_id": HUB_ID, "tls_port": TLS["port"], "fp": TLS["fp"]}
 
 
-# ---------- hub mesh (docs/server/mesh.md 2.6) ----------
+# ---------- hub mesh ----------
 # Optional: this mock as one hub of a mesh group, so a client can be tried against several fake hubs (two groups, one
 # of them two hubs). With none of these set every answer is exactly what it was before.
 #   MOCK_HUB_ID=hub-b                    a fixed hub_id (otherwise a random uuid each run)
@@ -377,7 +377,7 @@ def mock_workspaces():
     return list({(w["machine_id"], w["source"], w["source_id"]): w for w in result}.values())
 
 
-# ---------- node self-check (#2429, docs/server/machines.md "Doctor: what this computer can do") ----------
+# ---------- node self-check (#2429) ----------
 # GET /api/v1/machines/{mid}/doctor and POST …/doctor/fix: the report `personad node doctor` prints, as the hub relays it.
 #   MOCK_TOKENS=none (a hub without per-machine token usage: no card tokens, the usage route 404s) | empty (nothing ran)
 #               | lopsided (the server ran nearly everything, the others a thousandth as much)
@@ -445,7 +445,7 @@ def doctor_route(h, p, method):
     return h.send_json(doctor_report(machine["id"])) or True
 
 
-# ---------- machine monitoring (docs/server/machines.md) ----------
+# ---------- machine monitoring ----------
 # What each machine runs, and made-up but smooth 24-hour curves: the server is busy right now (CPU and memory
 # high), the Mac Studio was away for two hours this morning (a gap), the NAS has been offline for three hours.
 GB = 1 << 30
@@ -592,7 +592,7 @@ def machine_metrics(mid, span, step):
             "points": metric_series(mid, span, step)}
 
 
-# Token usage by machine (docs/server/machines.md "Token usage", #4973). MOCK_TOKENS=none: a hub before it (the usage route
+# Token usage by machine (#4973). MOCK_TOKENS=none: a hub before it (the usage route
 # answers 404, the cards have no tokens); =empty: no machine ran anything; =lopsided: the server ran nearly all of it
 # (the Machines page's share bar with minimum-width parts). The studio's node is an older one (its usage
 # names no launcher), the NAS is offline (its monitoring stops 3 hours ago, and so does its usage).
@@ -857,7 +857,7 @@ SESSIONS = [
          "计划写好了，等你批准后开始改。", pending=1, permission_mode="plan", effort="xhigh"),
     sess("server", ORDERS, "排查 /orders 接口变慢", "/home/me/code/shop-api", "working", "working", "shop-api", 1, "perf", 1, 1,
          "慢在订单列表的 N+1 查询，正在改成一次 JOIN 并补索引。", agent="codex",
-         # how Persona reaches it (docs/integrations/codex.md "Sessions on the daemon"); MOCK_CODEX_ROUTE=terminal: the terminal, with why
+         # how Persona reaches it; MOCK_CODEX_ROUTE=terminal: the terminal, with why
          codex_route=os.environ.get("MOCK_CODEX_ROUTE", "app_server"),
          codex_route_note="不在共享的 app-server 上（带 -c 的启动器、在自己进程里跑的会话、没有守护进程的 0.153）"
          if os.environ.get("MOCK_CODEX_ROUTE") == "terminal" else None),
@@ -1272,7 +1272,7 @@ if os.environ.get("MOCK_TREE"):
                 TREE_MUTED.append("%s/%s" % (mid, sid))
 # "Show botmux sessions too" per machine (PUT /api/v1/machines/{mid}/botmux); unset is on, as on a real hub.
 BOTMUX_ON: dict = {}
-# MOCK_BOTMUX=1: a botmux session (docs/integrations/engines.md "botmux") that needs you, with botmux's reason and its Feishu topic
+# MOCK_BOTMUX=1: a botmux session that needs you, with botmux's reason and its Feishu topic
 # (attention_reason, external_url), a working one with only the topic, and one botmux stopped on an error
 # (failure_reason).
 BOTMUX_BLOCKED = "b0700000-0000-4000-8000-000000000001"
@@ -1309,7 +1309,7 @@ if os.environ.get("MOCK_ROW_EDGES"):
         sess("server", ROW_NOSOURCE, "核对看板的筛选条件", "/home/me/code/report", "working", "working", "edges", 8, "nosource", 3, 6,
              "条件都对上了。", pane_id=None),
     ]
-# MOCK_PASEO=1: a computer whose engine is Paseo, as its bridge lists it (docs/integrations/paseo.md): one project, its
+# MOCK_PASEO=1: a computer whose engine is Paseo, as its bridge lists it: one project, its
 # main checkout and two worktree workspaces in one space, each agent a row of its own that names its workspace
 # (slot_name without a slot_id). One agent created two others: the one that works names it as its parent (is_subagent,
 # parent_session_id), the one that waits for the user is listed without a parent while it waits, and both are its
@@ -1450,7 +1450,7 @@ if os.environ.get("MOCK_MANUAL_HERDR"):
         sess("studio", "a2917000-0000-4000-8000-000000000002", "整理下载文件夹", "/Users/me/Downloads", "done", "idle",
              "downloads", 7, "tidy", 1, 25, "按类型分好了。", started_by_persona=False),
     ]
-# MOCK_WORK=1: stopped agents the hub triaged (docs/assistant/agent-work.md): one done with its conclusion that nobody has
+# MOCK_WORK=1: stopped agents the hub triaged: one done with its conclusion that nobody has
 # looked at yet (Just finished, #9751), one waiting for a deploy the hub will wake it after, one cut off by a 503 the hub
 # retries, one waiting for the user's decision on a card; Settings › Session triage reads and writes TRIAGE.
 TRIAGE = {"enabled": bool(os.environ.get("MOCK_WORK")), "auto_continue": bool(os.environ.get("MOCK_WORK")),
@@ -1475,7 +1475,7 @@ if os.environ.get("MOCK_WORK"):
              work={"phase": "blocked", "on": "user", "line": "等你选 D2 / D4，要不要推到 beta"}),
     ]
 
-# MOCK_CLOSEOUT=1 (#3612, docs/assistant/agent-work.md "Closeout"): stopped agents that ended their turn with a closeout, one
+# MOCK_CLOSEOUT=1 (#3612): stopped agents that ended their turn with a closeout, one
 # per state the web draws: done with merged and deployed both confirmed by the hub; done saying merged where the hub
 # found the pull request open (the hub cannot call the turn finished: no phase, no line); blocked on someone, nothing
 # checked; not done, with a reply that is only the block. Each one's last reply carries the raw block (CLOSEOUT_REPLIES,
@@ -1570,7 +1570,7 @@ CLAUDE_TERMINAL = "c1a0de00-2222-4000-8000-000000000005"
 AGY_SESSION = "a6700000-1111-4000-8000-000000000006"
 NO_SPACE = dict(space_kind=None, space_id=None, space_name=None, space_index=None, slot_id=None, slot_name=None,
                 slot_index=None, pane_id=None, tab_id=None, workspace_id=None, launcher=None)
-# MOCK_RESUME_TERMINAL=1 (#5521, docs/integrations/engines.md "Agents run in a terminal"): Agents started outside Persona's
+# MOCK_RESUME_TERMINAL=1 (#5521): Agents started outside Persona's
 # terminals, as the node lists them. On the MacBook (herdr): a Claude Code typed into a terminal of its own that has been
 # closed since, and a Codex thread nothing has open, both stopped (read and terminal: Resume in Terminal); a claude still
 # running in a terminal of its own (claude_cli: no terminal, no resume). On the Mac mini, which enables no terminal engine,
@@ -1597,7 +1597,7 @@ if RESUME_TERMINAL:
     ]
 RT_START = {x["session_id"]: copy.deepcopy(x) for x in SESSIONS if x["session_id"] in (RT_STOPPED, RT_CODEX, RT_LIVE, RT_NO_ENGINE)}
 _desktop_caps = {"read": True, "send": True}
-# MOCK_CODEX_WAITING=1 (#4961, docs/integrations/codex.md "Starting without a first message"): the Codex launchers say the
+# MOCK_CODEX_WAITING=1 (#4961): the Codex launchers say the
 # computer opens Codex with no first message (prompt_optional), a Codex start without one answers with a waiting row,
 # and one such row is listed already; its first message makes it the thread, in the same pane.
 MOCK_CODEX_WAITING = os.environ.get("MOCK_CODEX_WAITING") == "1"
@@ -1614,7 +1614,7 @@ if os.environ.get("MOCK_TERMINAL_ONLY") == "1":
     SESSIONS.append(sess("macbook", TERMINAL_ONLY, "kiro-demo", "/Users/me/code/kiro-demo", "idle", "idle", "kiro-demo", 8, "kiro", 1, 1,
                          "", agent="kiro", launcher="kiro", read_only_reason="Persona 还不能读 kiro 的对话：手机上只能看终端、按键盘"))  # i18n-ignore
 
-# MOCK_COMMAND_INPUT=1 (#14527, docs/integrations/engines.md "Commands waiting for input"): an Antigravity (agy) Agent in a
+# MOCK_COMMAND_INPUT=1 (#14527): an Antigravity (agy) Agent in a
 # herdr pane whose background task, a command-line sign-in, waits at its prompt for the code the sign-in page shows: the
 # node's command_input card (COMMAND_INPUT_CARD below) asks for that line. Open it with -openSession macbook/<COMMAND_INPUT>.
 COMMAND_INPUT = "c0de0000-0000-4000-8000-000000014527"
@@ -1625,7 +1625,7 @@ if MOCK_COMMAND_INPUT:
                          agent_label="Antigravity", launcher="agy", pending=1))
 
 
-# MOCK_OMP=1 (docs/integrations/omp.md): every computer lists the omp launcher, which takes no model, mode, effort or
+# MOCK_OMP=1: every computer lists the omp launcher, which takes no model, mode, effort or
 # ultracode (omp's own config decides) and starts with its first message, as the node does (control.go): a start that
 # is async or sets any of those is refused (omp_options), else it answers with omp's session, the first message in it.
 MOCK_OMP = os.environ.get("MOCK_OMP") == "1"
@@ -1664,7 +1664,7 @@ if os.environ.get("MOCK_SOURCES"):
              source_kind="runtime", source_instance_id="dsh",
              capabilities={"read": True, "send": True, "interrupt": True, "approve": True, "terminal": False, "attach": False},
              **dict(NO_SPACE, space_kind="dsh")),
-        # Claude outside Persona's terminals (docs/integrations/claude-integration.md): one in the desktop app that takes
+        # Claude outside Persona's terminals: one in the desktop app that takes
         # messages through its peer inbox, one in another terminal whose inbox the node cannot use.
         sess("server", CLAUDE_DESKTOP, "整理发布说明", "/home/me/code/release", "working", "working", "", 0, "", 0, 1,
              "把这周合并的 PR 按模块分好了，正在写摘要。", agent="claude", source_kind="claude_desktop",
@@ -1789,7 +1789,7 @@ if CATALOG:
              "notes", 31, "weekly", 1, 40, "四份草稿合成了一份，重复的两段删掉了。"),
     ]
 
-# MOCK_OPENCODE=1 (#3070, docs/integrations/opencode.md): opencode in herdr panes on the server. Four are herdr sessions the Persona
+# MOCK_OPENCODE=1 (#3070): opencode in herdr panes on the server. Four are herdr sessions the Persona
 # plugin completes (working, needs you with a permission card, finished unread, idle with a long conversation), one has
 # no plugin (terminal only, with why), and gemini is an agent nothing reads (terminal only).
 OC_WORK = "ses_e5612a2ffeBQKMrUbj51TjJc"
@@ -2169,7 +2169,7 @@ if os.environ.get("MOCK_PERSONA_QUEUE") == "1":
     ASSISTANT[0].update({"state": "working", "status": "working", "queued_relayed": 1,
                          "queued": list(PERSONA_QUEUE_MESSAGES)})
 
-# MOCK_UNDELIVERED=1 (#10194, docs/assistant/assistant.md "Messages that could not go in"): the first Persona chat could
+# MOCK_UNDELIVERED=1 (#10194): the first Persona chat could
 # not start, and its manager keeps two of the owner's messages: one it sends again by itself, one that gave up (Retry /
 # Delete).
 if os.environ.get("MOCK_UNDELIVERED") == "1":
@@ -2180,7 +2180,7 @@ if os.environ.get("MOCK_UNDELIVERED") == "1":
          "state": "waiting", "attempts": 2, "next_at": ago(minutes=-1), "error": "助手没能启动"},
     ]})
 
-# MOCK_NEXT_SUGGESTIONS=1 (#4644, docs/assistant/assistant.md "Next-message suggestions"): the switch is on and sessions carry
+# MOCK_NEXT_SUGGESTIONS=1 (#4644): the switch is on and sessions carry
 # the suggestion as the manager lists them: the main Persona chat and the Codex session (stopped) the suggest.next model's,
 # the PR review agent (Claude Code in a terminal) Claude Code's own, and the morning briefing chat a risky one
 # (suggestion_risky: filled in, no one-tap send).
@@ -2210,7 +2210,7 @@ if os.environ.get("MOCK_ORIGINS") == "1":
     for c in ASSISTANT[:4]:
         c.setdefault("origin", "user")
 
-# MOCK_BACKGROUND_SUPERVISOR=1 (#4927, docs/assistant/unified-entry.md "Background supervisor"): the hub's built-in
+# MOCK_BACKGROUND_SUPERVISOR=1 (#4927): the hub's built-in
 # conversation that follows up the tasks no leader supervises. It has origin "task" with no origin_ref, so the apps list
 # it with the scheduled tasks' conversations; GET /api/v1/assistant names it as `background_supervisor`, and archiving
 # it is refused. Not with MOCK_LEGACY_HUB (a hub from before it).
@@ -2348,7 +2348,7 @@ SCHEDULE = [
 ]
 TASK_FIELDS = ("title", "prompt", "repeat", "at", "time", "weekdays", "every_minutes", "cron", "enabled", "launcher", "permission_mode", "effort", "push", "inbox")
 
-# MOCK_CRON=1 (#4399, docs/assistant/assistant.md "Scheduled tasks"): the hub runs cron tasks (feature task_cron) and has
+# MOCK_CRON=1 (#4399): the hub runs cron tasks (feature task_cron) and has
 # one, every 30 minutes in work hours on weekdays. GET /api/v1/assistant/tasks/cron answers the web editor's examples as
 # the hub does (lnquy/cron's words, the next runs in UTC+8) and refuses anything else with the hub's kind of message.
 CRON_PREVIEWS = {
@@ -2585,7 +2585,7 @@ def assistant_state(space="", archived=False):
     return out
 
 
-# ---------- todos (To-dos, docs/assistant/todos.md) ----------
+# ---------- todos (To-dos) ----------
 TODOS_INIT = [
     {
         "id": "todo_weather",
@@ -2777,7 +2777,7 @@ TODOS_INIT = [
         "agents": [],
     },
     {
-        # A task done as asked but held short of live (docs/assistant/todos.md "Delivery", #3306): stays open, says where it is held.
+        # A task done as asked but held short of live (#3306): stays open, says where it is held.
         "id": "todo_held_pr",
         "title": "登录页加验证码",
         "notes": "登录页加图形验证码，走 PR 合并后部署。",
@@ -2792,7 +2792,7 @@ TODOS_INIT = [
         "agents": [],
     },
     {
-        # A task the hub closed itself (docs/assistant/todos.md "Automatic completion").
+        # A task the hub closed itself.
         "id": "todo_done_auto",
         "title": "统一连接器 logo 尺寸",
         "notes": "设置页里各个连接器的 logo 统一成同样大小、同一中心，走 PR 合并后发 TestFlight。",
@@ -2842,7 +2842,7 @@ if os.environ.get("MOCK_TODO_OFFLINE") == "1" and not MOCK_MACHINES:
                          "unknown", "backup", 1, "1", 1, 180, "开始同步照片库。"))
 
 
-# MOCK_TODO_TRIAGE=1 (#3156, docs/assistant/todo-status-sop.md): a long-running hub's to-do list. A few to-dos really move;
+# MOCK_TODO_TRIAGE=1 (#3156): a long-running hub's to-do list. A few to-dos really move;
 # most are old agent records nobody touched for days, one accepted task was reopened when its agent got more work (eight
 # criteria, the accepted review judged five), an old PR still waits to merge, and two pairs are the same piece of work.
 def _triage_fixture():
@@ -2988,7 +2988,7 @@ _TODO_LIST = os.environ.get("MOCK_TODO_LIST", "")
 if _TODO_LIST:
     TODOS_INIT[:] = _todo_list_fixture(_TODO_LIST)
 
-# MOCK_TODO_BADGE=1 (#11085, docs/assistant/todos.md "Sidebar and main navigation"): only these to-dos, for the sidebar's
+# MOCK_TODO_BADGE=1 (#11085): only these to-dos, for the sidebar's
 # To-dos badge. A goal of the owner's whose two pieces (`part_of`) Agents are working on, and an errand of the owner's
 # no Agent was ever on: the To-dos page's Not done is 4, the badge 1 (the errand), where it used to say 4 as well.
 if os.environ.get("MOCK_TODO_BADGE") == "1":
@@ -3013,7 +3013,7 @@ if os.environ.get("MOCK_TODO_BADGE") == "1":
         _badge_todo("tb_errand", "给家里的 NAS 换硬盘", 90),
     ]
 
-# MOCK_TODO_STEPS=1 (#11858, docs/web/web.md "A to-do's steps"): only these to-dos, each with the `view` a hub with the
+# MOCK_TODO_STEPS=1 (#11858): only these to-dos, each with the `view` a hub with the
 # To-dos view sends, as far as the row's steps go (`view.steps`). A goal whose three steps are all closed with nothing
 # arranged next, a goal with one of its three steps closed, one being done and one not started, and an errand with
 # neither steps nor view: the first reads "3/3 steps done · Next step not arranged yet", the second "Steps 1/3", the
@@ -3045,7 +3045,7 @@ if os.environ.get("MOCK_TODO_STEPS") == "1":
         _steps_todo("ts_errand", "给家里的 NAS 换硬盘", 90),
     ]
 
-# MOCK_TODO_WAITS=1 (#11090, docs/assistant/todos.md "State calculation rules"): only these to-dos, one per thing a
+# MOCK_TODO_WAITS=1 (#11090): only these to-dos, one per thing a
 # waiting to-do can wait on, each with one Agent whose turn ended while something brings it back (task Waiting): a
 # decision only the owner can make and work held for their OK (Waiting on you, in the attention color; the sidebar's
 # badge 2), another Agent's merge, a merge behind CI, an outside review, its own background work, the hub's retry after
@@ -3123,7 +3123,7 @@ if os.environ.get("MOCK_TODO_CONCERNS") in ("1", "only"):
         TODOS_INIT.extend(_concern_todos)
 
 
-# MOCK_STAGE_DONE=1: the stage strip's endings (#11590, docs/assistant/todos.md "Data model"): a code task accepted with
+# MOCK_STAGE_DONE=1: the stage strip's endings (#11590): a code task accepted with
 # nothing left to deploy, whose strip ends with Done after Develop (stage_done), and a check of real data still running,
 # general work that draws no strip at all.
 if os.environ.get("MOCK_STAGE_DONE") == "1":
@@ -3195,7 +3195,7 @@ def apply_todo_plan(t, body):
     return None
 
 
-# MOCK_TODO_ASKS=1 (#2056, docs/assistant/todos.md "Waiting for the owner"): to-dos carry the ask they wait on, as GET
+# MOCK_TODO_ASKS=1 (#2056): to-dos carry the ask they wait on, as GET
 # /api/v1/todos lists it: a decision with a recommendation (the PR check, its agent idle), a conclusion that cannot be done
 # (the blog) and, with MOCK_TASKS, the release notes' "Please verify" and the cache decision (the brief's accept rows). POST …/accept takes one
 # (accept_brief): its ask is gone from the list, and a second press is 409.
@@ -3213,12 +3213,12 @@ if os.environ.get("MOCK_TODO_ASK_LONG") == "1" and "todo_review" in TODO_ASKS:
         verdict="🤔 要你拍板：PR #42 改的公开接口已经合进 2.0 版，但旧接口还有一半的客户端在用，2.0 放量之前它们的列表页会整个空掉。要不要先把旧接口加回来止损？",
         recommend="先加回旧接口，通知客户端的负责人这个版本之后再删")
     TODO_ASKED_AT = ago(hours=12, minutes=31)
-# MOCK_ASK_HELD=1 (#4930, #5803, docs/assistant/todos.md "Decisions that can wait"): with MOCK_TODO_ASKS, the PR
+# MOCK_ASK_HELD=1 (#4930, #5803): with MOCK_TODO_ASKS, the PR
 # check's decision is held for the next briefing (`ask.for_briefing`), so the apps mark it.
 if os.environ.get("MOCK_ASK_HELD") == "1" and "todo_review" in TODO_ASKS:
     TODO_ASKS["todo_review"]["for_briefing"] = True
 
-# MOCK_RULE_SUGGESTIONS=1 (#4929, #5802, docs/assistant/unified-entry.md "A rule after the same answer three times"):
+# MOCK_RULE_SUGGESTIONS=1 (#4929, #5802):
 # the standing rule the hub suggests after the same answer three times, one of each kind: on the PR check's decision
 # (with MOCK_TODO_ASKS; `ask.suggestion`), on the network tests' question card (`interaction.suggestion`) and, with
 # MOCK_TASKS, on the open plan (`TaskPlan.suggestion`, filled in where the plan is read). POST
@@ -3300,7 +3300,7 @@ if _TODO_LIST and _TODO_LIST != "calm":  # MOCK_TODO_LIST: the cache decision wa
     TODO_ASKS["tl_cache"] = {"outcome": "decide", "verdict": "🤔 要你拍板：测试已通过，是否继续更换缓存方案？",
                              "recommend": "保留当前缓存，下次再评估新方案"}
 
-# MOCK_ORPHANED=1 (#3618, docs/assistant/todos.md "Nobody is working on this"): open to-dos whose agents are gone, as GET
+# MOCK_ORPHANED=1 (#3618): open to-dos whose agents are gone, as GET
 # /api/v1/todos carries it, on to-dos whose agents have stopped, one per reason: closed after a model error (the PR
 # check), the computer offline (the blog) and, with MOCK_TASKS, closed (the blog task) and the release notes' task card
 # in the main chat (closed after an error). A done to-do carries none.
@@ -3310,7 +3310,7 @@ TODO_ORPHANED = {
 TODO_ORPHANED_SINCE = ago(hours=5)
 
 
-# MOCK_DECISIONS=1 (#3804, docs/assistant/todos.md "Decisions the owner can answer"; with MOCK_TODO_ASKS=1): every
+# MOCK_DECISIONS=1 (#3804; with MOCK_TODO_ASKS=1): every
 # decision ask carries what the hub's decision does: the question, why only the owner can answer, two or three options
 # with what each leads to (the recommended one first), what waiting costs, the background line, the default and the
 # fixed answers. The PR check is irreversible (no default, two taps on an option); the cache choice (MOCK_TASKS) is a
@@ -3318,7 +3318,7 @@ TODO_ORPHANED_SINCE = ago(hours=5)
 # seen by another team (two taps, no default). POST …/accept with `response` "explain_first" keeps the round open
 # with `response` set, as the hub does; any other response or an option ends it.
 MOCK_DECISIONS = os.environ.get("MOCK_DECISIONS") == "1"
-# MOCK_ACCEPT_DIALOG=1 (#7343, docs/assistant/todos.md): every answer to a decision is refused as the hub refuses one a
+# MOCK_ACCEPT_DIALOG=1 (#7343): every answer to a decision is refused as the hub refuses one a
 # dialog in its Agent's terminal holds back (423 dialog_open, with the dialog's first line and that Agent), so the
 # decision row says so and offers its terminal; nothing is taken.
 MOCK_ACCEPT_DIALOG = os.environ.get("MOCK_ACCEPT_DIALOG") == "1"
@@ -3438,7 +3438,7 @@ def push_todos():
             pass
 
 
-# ---------- a to-do's decisions (#1618, docs/assistant/todos.md "Decision records") ----------
+# ---------- a to-do's decisions (#1618) ----------
 def todo_decision(did, tid, question, choice, reason="", source="manual", machine="", session="", message="",
                   supersedes="", at=None):
     return {"id": did, "todo_id": tid, "question": question, "choice": choice, "reason": reason, "source": source,
@@ -3544,7 +3544,7 @@ def is_read_only(h):
     return False
 
 
-# The managers' roster (docs/assistant/managers.md): the hub's own assistant (the default), one on another computer, one offline,
+# The managers' roster: the hub's own assistant (the default), one on another computer, one offline,
 # one still installing. MOCK_MANAGER_COMMANDS=1 adds the install commands to a new code's answer; MOCK_MANAGERS=0 is a
 # hub from before the roster (404); MOCK_MANAGERS=1 only the hub's own (one manager: a one-row switcher without Default, no grouping).
 # MOCK_MANAGER_HIDDEN=1: 工作 is the default and has every computer, and the hub's own is kept out of the switcher (#9055).
@@ -3754,7 +3754,7 @@ MANAGER_NOTES = {"m-3fa21c": "这是「工作」管理者：只管工作电脑�
 
 
 def machine_rename_route(h, method, p, raw):
-    """PUT /api/v1/machines/{id}/name {name} (docs/server/machines.md "Renaming a computer"): the hub's name for the
+    """PUT /api/v1/machines/{id}/name {name}: the hub's name for the
     computer, "" its id again; every client gets the machines again. 400 invalid_name as the hub."""
     parts = p.split("/")
     if method != "PUT" or len(parts) != 6 or parts[5] != "name" or not p.startswith("/api/v1/machines/"):
@@ -4531,7 +4531,7 @@ def live_step_page_sent(sid):
     threading.Thread(target=push, daemon=True).start()
 
 
-# MOCK_TASKS=1: the unified entry (docs/assistant/unified-entry.md, #930). The main conversation dispatches tasks: a started plan
+# MOCK_TASKS=1: the unified entry (#930). The main conversation dispatches tasks: a started plan
 # of two (the widget fix working, the unit tests waiting for an answer — ix_tests), a read-only one that finished with a
 # receipt, an answered card, a message routed straight to a task, a reminder done on the phone, and an open plan at the
 # end. Served at /api/v1/assistant/conversations/{id}/feed and /api/v1/task-plans/…; the tasks are todos with origin.
@@ -4600,7 +4600,7 @@ if MOCK_TASKS:
             _task_todo("todo_task_long2", "Workflow 支持：hub / 网页 / 安卓 / Apple 端都能看到后台状态", "", "macbook", WIDGET,
                        "/Users/me/code/weather", 18, "plan_mock_2"),
         ]
-    # MOCK_TASK_CHECK=1 (#3180, docs/assistant/todos.md "Automatic completion"): the blog move's agent stopped and the
+    # MOCK_TASK_CHECK=1 (#3180): the blog move's agent stopped and the
     # hub's completion check found it waiting, so its Progress row says why it is not done.
     if os.environ.get("MOCK_TASK_CHECK") == "1":
         for _t in TODOS_INIT:
@@ -4771,7 +4771,7 @@ if MOCK_TASKS:
                              start_error_args={"line": "Trust this new host key?", "choices": "yes,no", "kind": "ssh_host_key",
                                                "kept_until": later(hours=2), "screen": "Host key fingerprint: SHA256:example"}))
         ITEMS[START_QUESTION_SESSION] = []
-    # MOCK_BRIEF_SETUP=1 (#5085, #5804, docs/assistant/assistant.md "Recommended setup"): the briefing is the week's
+    # MOCK_BRIEF_SETUP=1 (#5085, #5804): the briefing is the week's
     # first, so its `brief` item carries the computed setup lines, in the hub's own words
     # (server/internal/i18n/locales/en/assistant-setup_suggest.json): one with a settings page in every app (the triage's
     # switch), the lower tier for the background supervisor (its purpose's page of Model Settings), the remembered kinds
@@ -4862,7 +4862,7 @@ if MOCK_TASKS:
         for _i in TASK_FEED[ASK1]:
             if _i["kind"] == "review":
                 _i["body"]["by"] = "background"
-    # MOCK_BRIEFS=1 (#3822, docs/assistant/unified-entry.md "Briefs"): tasks carry the brief they are held to. The open
+    # MOCK_BRIEFS=1 (#3822): tasks carry the brief they are held to. The open
     # plan's task has a real one (the owner's own words, long enough to be cut, the goal, criteria, time and what is out
     # of bounds). The widget fix has a real one too, taken over twice (a lineage of three), with one scope change and an
     # overdue mark. The blog move's was made later (reconstructed: no request, the hand-over prompt). The release notes
@@ -5392,7 +5392,7 @@ if MOCK_TASKS:
         TASK_FEED[ASK1].sort(key=lambda x: x["at"])
 
 
-# MOCK_USAGE_LIMIT=1: two agents stopped on a subscription usage limit (docs/assistant/agent-work.md "Usage limits").
+# MOCK_USAGE_LIMIT=1: two agents stopped on a subscription usage limit.
 # One the CLI continues, one nothing continues. With MOCK_TASKS=1 the first is also a task card in the main chat.
 if os.environ.get("MOCK_USAGE_LIMIT") == "1":
     _limit_resumes = "a9e0c000-0000-4000-8000-000000000001"
@@ -6064,7 +6064,7 @@ if os.environ.get("MOCK_SETTINGS_INPUT"):
         "fields": [{"key": "password", "label": "密码 / 授权码", "placeholder": "填写邮箱授权码", "secret": True}],
     })
 
-# MOCK_DELEGATE=1 (#544, docs/assistant/assistant.md "Assistant answers questions first"): questions the assistant takes
+# MOCK_DELEGATE=1 (#544): questions the assistant takes
 # first. The tests question is one it is still looking at (delegating); GET /mock/delegate?handover=ix_tests hands it to
 # the user (sent again without delegating, with what it filled in). The PR review session asks one it already handed
 # over (delegate, recommending one of the options). The release session asks one it is looking at that GET
@@ -6206,7 +6206,7 @@ if os.environ.get("MOCK_ELICITATION"):
     ])
 
 # MOCK_CODEX=1: the Codex session's question (Plan mode, two questions) and an approval, as a node reads them off the
-# Codex TUI (docs/integrations/codex.md "Questions and approvals"); the first answer to the approval is refused as if the computer's input box held
+# Codex TUI; the first answer to the approval is refused as if the computer's input box held
 # a draft (409 input_draft), the next one goes through (GET /mock/resolved has them all). /mock/reset puts both back
 # unanswered (CodexCardsTests: each case starts from the two cards).
 CODEX_INTERACTIONS = []
@@ -6272,7 +6272,7 @@ if os.environ.get("MOCK_ASSISTANT_CARDS") == "run":
              "summary": "性能 · %s：（无） → %s — 备用：主账号没额度时代替" % (_name, _to),
              "always_honored": False})
 
-if os.environ.get("MOCK_IPHONE_ASK") == "1":  # an iphone_do step the node says needs approval (docs/extensions/iphone.md)
+if os.environ.get("MOCK_IPHONE_ASK") == "1":  # an iphone_do step the node says needs approval
     INTERACTIONS.append(
         {"id": "ix_iphone_do", "machine_id": "server", "session_id": ASK1, "session_title": "Persona",
          "kind": "permission", "created_at": ago(minutes=1), "expires_at": later(minutes=14),
@@ -6816,7 +6816,7 @@ def mock_tool_call(name, args):
     return {"call_id": call_id, "sent": len(phones)}
 
 
-# MOCK_CLAUDE_DESKTOP_ASK=1 (docs/integrations/claude-integration.md "Question cards outside Persona's terminals"): the
+# MOCK_CLAUDE_DESKTOP_ASK=1: the
 # Claude in the desktop app on the server waits on an AskUserQuestion of four questions (one multi-select). No hook of
 # Persona's runs there; the node reads the question from its transcript and lists it as a card it answers through the
 # session's peer inbox, so the row may answer it (capabilities.approve) and says a card or a reply answers it.
@@ -7004,7 +7004,7 @@ FLEET_MODES = ("1", "all", "permission", "working", "done", "one", "empty", "off
 
 def set_fleet_mode(mode):
     """GET /mock/fleet?mode=…: switch MOCK_FLEET while running and push the new fleet. Restarting the mock instead
-    changes HUB_ID, and the app's pairing no longer matches (docs/lessons/android.md). `off` restores the default."""
+    changes HUB_ID, and the app's pairing no longer matches. `off` restores the default."""
     global MOCK_FLEET
     if mode not in FLEET_MODES:
         return {"error": "mode is one of " + ", ".join(FLEET_MODES)}, 400
@@ -7567,7 +7567,7 @@ def phone_screen(cols, rows, typed="", tick=0):
 # MOCK_TERMINAL_FULL_REFUSE=forbidden|unsupported|too_many answers herdr_open with that end; MOCK_TERMINAL_FULL_END_AFTER=
 # seconds ends a view after that long (the Reconnect button). The hub also says herdr_focus: a herdr_focus from the page is
 # answered with the focus coming back as the page's own, and GET /mock/herdr_focus?pane=w1:p2[&session=<id>&source=client|persona|other
-# &mine=1|0&view=<id>] makes herdr's focus move as the node would tell the views (docs/integrations/terminal.md "Focus synchronization");
+# &mine=1|0&view=<id>] makes herdr's focus move as the node would tell the views;
 # MOCK_TERMINAL_FULL_NOFOCUS=1 leaves herdr_focus out (an older hub).
 TERMINAL_FULL = bool(os.environ.get("MOCK_TERMINAL_FULL"))
 FULL_EXEC = os.environ.get("MOCK_TERMINAL_FULL_EXEC", "")
@@ -7853,7 +7853,7 @@ if os.environ.get("MOCK_BOT") == "pairing":
     FEISHU_BOT.update(owner=None, agents=[], target="", pairing={"code": "482913", "expires_at": int(time.time()) + 540})
 elif os.environ.get("MOCK_BOT") == "off":
     FEISHU_BOT.update(enabled=False, app_id="", has_secret=False, connected=False, bot_name=None, owner=None, agents=[], target="")
-# Phone tools (docs/apple/phone-tools.md): what each connected phone declared (register_phone) and the tool_result messages it
+# Phone tools: what each connected phone declared (register_phone) and the tool_result messages it
 # sent back. GET /mock/tool_call?name=phone_…&args=<JSON> sends a tool_call to the phones that declared the tool, as the
 # hub does when Claude calls it; GET /mock/phone shows the registrations and results.
 PHONES = {}  # socket -> {"send", "registration"}
@@ -7880,7 +7880,7 @@ TOKENS = [  # Settings › Devices (GET/POST/DELETE /api/v1/auth/tokens)
     {"id": "dev_ipad", "name": "iPad", "kind": "phone", "role": "full", "created_at": ago(days=40), "last_seen": ago(days=20),
      "revoked_at": ago(days=2)},
 ]
-# Per credential, the way the hub pushes to the device it registered (docs/operations/push-relay.md "Which way a device is pushed").
+# Per credential, the way the hub pushes to the device it registered.
 TOKEN_PUSH = {
     "dev_phone": {"route": "relay"},
     "dev_work": {"route": "none", "reason": "relay_failed", "detail": "403 topic not served"},
@@ -8108,7 +8108,7 @@ INBOX = [
      "mail": {"account_id": "acc1", "mailbox": "INBOX", "uids": [503], "from": {"name": "Weekly Digest", "email": "news@example.com"}}},
 ]
 
-# MOCK_DOCS=1: Feishu documents that @'d me (docs/assistant/inbox.md "Docs: mentions in sheets, bases, and documents"): a Base with my rows and their status, a sheet
+# MOCK_DOCS=1: Feishu documents that @'d me: a Base with my rows and their status, a sheet
 # whose AI twin proposes a status move with its draft, a docx comment.
 DOC_STATES = [{"name": "待处理", "color": "#bacefd"}, {"name": "进行中", "color": "#fed4a4"},
               {"name": "待验收", "color": "#b1e8fc"}, {"name": "已完成", "color": "#c5f2bb"}]
@@ -8341,7 +8341,7 @@ ITEM_MUTES = {
 for _x in INBOX:
     if _x["id"] in ITEM_MUTES: _x["mutes"] = ITEM_MUTES[_x["id"]]
 
-# Folders (docs/assistant/inbox.md "Folders", #2463): GET/PUT /api/v1/inbox/folders and PUT /api/v1/inbox/{id}/folder.
+# Folders (#2463): GET/PUT /api/v1/inbox/folders and PUT /api/v1/inbox/{id}/folder.
 # MOCK_INBOX_FOLDERS=1 turns automatic folders on and files most items (one by hand); the rest stay unfiled.
 FOLDER_CFG = {"enabled": bool(os.environ.get("MOCK_INBOX_FOLDERS")), "rules": ""}
 if os.environ.get("MOCK_INBOX_FOLDERS"):
@@ -8377,7 +8377,7 @@ MUTES = [] if not os.environ.get("MOCK_MUTES") else [
 ]
 
 
-# Another manager's own mutes (each manager keeps its own, docs/assistant/managers.md "Clients"), by its id; the default's are MUTES.
+# Another manager's own mutes (each manager keeps its own), by its id; the default's are MUTES.
 OTHER_MUTES = {}
 
 
@@ -8404,7 +8404,7 @@ def mute_item(item_id, tag, manager=None):
     return mute, settled
 
 
-# The policies the user set (GET/POST/PATCH/DELETE /api/v1/inbox/policies, docs/assistant/inbox.md "Policies"); MOCK_POLICIES=1 starts with two.
+# The policies the user set (GET/POST/PATCH/DELETE /api/v1/inbox/policies); MOCK_POLICIES=1 starts with two.
 POLICIES = [] if not os.environ.get("MOCK_POLICIES") else [
     {"id": "p1", "source": "lark", "source_name": "飞书", "tag": "chat", "value": "f-weekend", "name": "周末徒步群", "tier": "noise", "created_at": ago(days=2), "updated_at": ago(days=2)},
     {"id": "p2", "source": "mail", "source_name": "邮件", "tag": "sender", "value": "boss@example.com", "name": "王经理", "tier": "action", "twin": "first", "created_at": ago(hours=5), "updated_at": ago(hours=5)},
@@ -8676,7 +8676,7 @@ LEGACY_CONNECTORS = [{"id": "lark", "name": "飞书", "status": "ok", "capabilit
 if os.environ.get("MOCK_MAIL_INBOX") == "off":
     LEGACY_CONNECTORS[1]["inbox"] = False
 
-# Telegram (the Telegram extension, #1704; docs/extensions/connectors.md): the user's own account, signed in from Settings › Connectors › Telegram a step at a time.
+# Telegram (the Telegram extension, #1704): the user's own account, signed in from Settings › Connectors › Telegram a step at a time.
 # Its two inbox rows carry their conversations' pictures (connector.avatar_url, the avatars route serves made-up ones, #10923);
 # GET /mock/telegram_avatars?mode=before lists them as an older hub did, without.
 # All made up: api_id 1234567 (a hash of 32 zeros is refused), any phone starting with +, the code 12345, the 2FA
@@ -8794,7 +8794,7 @@ def wechat_area(h, method, p, raw):
     return h.send_json(qr) or True
 
 
-# MOCK_LARKCLI=1: the Lark connector that reads Lark as you (larkcli, docs/extensions/feishu.md), not signed in. lark-cli
+# MOCK_LARKCLI=1: the Lark connector that reads Lark as you (larkcli), not signed in. lark-cli
 # follows the bot's app; its sign-in is a device-code step whose link carries the code, so the hub adds its QR code
 # (#5818); confirmed after a few polls.
 LARKCLI_MODE = os.environ.get("MOCK_LARKCLI", "")
@@ -9334,7 +9334,7 @@ if PLUGIN_CHAT:
          "connector": {"thread": "user_example_b", "label": "私聊", "open_url": "https://chat.example.com/c/user_example_b"}},
     ]
 
-# Messages (GET /api/v1/imessage…, docs/extensions/connectors.md "5"): one Mac's Messages, read for the user's own eyes. Every
+# Messages (GET /api/v1/imessage…): one Mac's Messages, read for the user's own eyes. Every
 # name, number (+1 555 01xx) and text is made up. MOCK_IMESSAGE=denied: that Mac's node has no Full Disk Access.
 IMESSAGE_DENIED = os.environ.get("MOCK_IMESSAGE") == "denied"
 IMESSAGE_STATUS = {"machine": "MacBook", "status": "ok", "via": "ssh", "ai": True}
@@ -9374,7 +9374,7 @@ if NO_SOURCES:
     INBOX.clear()
     GITHUB_CONNECTOR.update(status="not_configured", account=None, via=None)
 
-# MOCK_INBOX_EXTRA=<n>: n more FYI mails (example notices), for Clean up all's confirmation over many items (docs/assistant/inbox.md).
+# MOCK_INBOX_EXTRA=<n>: n more FYI mails (example notices), for Clean up all's confirmation over many items.
 for _i in range(int(os.environ.get("MOCK_INBOX_EXTRA", "0"))):
     INBOX.append({"id": "mail:acc1:x%d" % _i, "source": "mail", "kind": "mail", "account": "acc1", "account_name": "个人邮箱",
                   "title": "示例通知 %d" % (_i + 1), "sender": "示例商城", "preview": "你的订单已发货", "count": 1,
@@ -9520,7 +9520,7 @@ MOCK_INBOX_MANY = _many_counts(os.environ.get("MOCK_INBOX_MANY", "").strip())
 for _section, _n in MOCK_INBOX_MANY.items():
     INBOX.extend(_many_item(_section, _i, _n) for _i in range(_n))
 # The first Needs-you item's Related line names the first done and the first collapsed item: an item opened from inside the
-# Inbox, which moves the section bar only beside the item (docs/assistant/inbox.md "Section bar"). Its one-entry chain
+# Inbox, which moves the section bar only beside the item. Its one-entry chain
 # makes it an event, whose body (InboxEvent.tsx) is where Related is drawn.
 if MOCK_INBOX_MANY.get("action"):
     _rel = [_many_item(_s, 0, MOCK_INBOX_MANY[_s]) for _s in ("done", "noise") if MOCK_INBOX_MANY.get(_s)]
@@ -9689,7 +9689,7 @@ def inbox_suggestion_bump(iid):
     return x, 200
 
 
-# Hand to AI's main-chat target (POST /api/v1/inbox/{id}/handoff, docs/assistant/inbox.md "Item actions", #1194): the text
+# Hand to AI's main-chat target (POST /api/v1/inbox/{id}/handoff, #1194): the text
 # goes after a block naming the item to the main conversation (started with it when there is none), once per client_id,
 # and lands in its transcript MOCK_ASSISTANT_TRANSCRIPT_SECONDS later (default 1) under that id, as the hub's
 # session.send_once does; under none when it started the conversation (the hub's start takes no message id). The item keeps the hand-off and its chain gets one entry per conversation. What went is in
@@ -9830,7 +9830,7 @@ LARK_CHATS = [{"id": "f2", "is_mine": False, "name": "设计评审", "is_group":
                "preview_sender": "Tom", "read_position": "299", "updated_at": ago(minutes=30)},
               {"id": "f1", "is_mine": False, "name": "韩梅梅", "is_group": False, "unread": 2, "at_me": False, "muted": False, "preview": "新包发你了",
                "read_position": "99", "updated_at": ago(minutes=2)}]
-# MOCK_LARK_ACCOUNTS=1: a second Feishu account signed in on the Lark gateway (docs/extensions/feishu.md "Multiple accounts"): GET
+# MOCK_LARK_ACCOUNTS=1: a second Feishu account signed in on the Lark gateway: GET
 # /api/v1/lark/accounts lists both, ol_account=2 reads its own chats, and the inbox has an item from it.
 LARK_ACCOUNTS = [{"id": 1, "name": "我", "tenant": "示例公司", "signed_in": True, "primary": True, "unread": 17},
                  {"id": 2, "name": "工作号", "tenant": "示例集团", "signed_in": True, "unread": 4},
@@ -10367,7 +10367,7 @@ if os.environ.get("MOCK_LARK_TOPIC"):
                   "lark": {"feed_id": "f4", "is_group": True, "is_topic": True, "start_position": "405", "read_position": "404"}})
 
 
-# MOCK_LARK_RICH=1 (docs/operations/testing.md): f3's history is heavier, like a busy work group's: every third message
+# MOCK_LARK_RICH=1: f3's history is heavier, like a busy work group's: every third message
 # before the unread ones is a card, a picture or a rich post instead of a line of chatter.
 if os.environ.get("MOCK_LARK_RICH"):
     for _i, _m in enumerate(m for m in LARK_MESSAGES["f3"] if int(m["position"]) < 300 and not m.get("is_mine")):
@@ -10681,7 +10681,7 @@ MODEL_CATEGORY_FOR = {pid: {"主对话": "assistant", "Agents": "agent.new", "�
 
 
 SUPERVISE_PURPOSE = "assistant.supervise"
-# MOCK_SUPERVISE_LISTED=1 (#5806, docs/assistant/model-config.md "The background supervisor in the catalog"): a hub that
+# MOCK_SUPERVISE_LISTED=1 (#5806): a hub that
 # lists the background supervisor's use in the catalog, as its last built-in purpose, and sends each built-in purpose's
 # one-sentence `description` (#5086). Without it the catalog is a hub's from before: the use is answered by its id only.
 SUPERVISE_LISTED = os.environ.get("MOCK_SUPERVISE_LISTED") == "1"
@@ -10728,7 +10728,7 @@ def listed_model_configuration(lang="zh-Hans"):
         own.append(supervise["purpose"])
     at = next((n for n, x in enumerate(catalog["purposes"]) if x["id"].startswith(("extension.", "plugin."))), len(catalog["purposes"]))
     catalog["purposes"][at:at] = own
-    # MOCK_MODEL_USAGE=1 (#10498, docs/assistant/model-config.md "Counting"): the last 7 days' calls of two purposes,
+    # MOCK_MODEL_USAGE=1 (#10498): the last 7 days' calls of two purposes,
     # Inbox screening's many small ones on a CLI and Information processing's few; the others had none.
     if os.environ.get("MOCK_MODEL_USAGE") == "1":
         usage = {"inbox.triage": dict(calls=1234, failures=12, input_tokens=61_700, output_tokens=148_080,
@@ -10777,7 +10777,7 @@ def model_configuration(include_uses=False):
                 purpose["uses"] = [{"name": use} for use in MODEL_SCOPES[pid]]
             if SUPERVISE_LISTED and pid in MODEL_DESCRIPTIONS:
                 purpose["description"] = MODEL_DESCRIPTIONS[pid]
-            # MOCK_MODEL_LIMIT=1: the default API connection is out of quota for 23 more minutes (docs/assistant/model-config.md "Upstream rate limits").
+            # MOCK_MODEL_LIMIT=1: the default API connection is out of quota for 23 more minutes.
             if os.environ.get("MOCK_MODEL_LIMIT") and effective["provider"] == "legacy.ai":
                 purpose["limit"] = {"reason": "quota", "until": later(minutes=23)}
                 purpose["status"] = "额度用完，23 分钟后重试"
@@ -10827,7 +10827,7 @@ NEW_AGENT_PANEL = os.environ.get("MOCK_NEW_AGENT_PANEL") == "1"
 if NEW_AGENT_PANEL:
     LAUNCHER_MODELS["codex"]["models"].append({"id": "gateway/glm-5.3", "name": "glm-5.3", "description": "From gateway", "efforts": ["low", "medium", "high"], "default_effort": "medium"})
 
-# Typing a model ID (#1644, docs/assistant/model-config.md "Typing a model ID"): MOCK_CUSTOM_MODELS=1 lists the IDs typed
+# Typing a model ID (#1644): MOCK_CUSTOM_MODELS=1 lists the IDs typed
 # before after a Claude Code / Codex launcher's own models (`custom: true`, none for a locked one), takes Forget
 # (DELETE …/launchers/{name}/models/custom?model=) and remembers a start's or a running session's typed model the list
 # doesn't have, as the hub does once it ran. =forgetfail: Forget answers 500 (the app puts the row back); =empty: Claude
@@ -10919,7 +10919,7 @@ def _w(label, ratio=None, used=None, limit=None, unit="percent", resets=None, ex
     if resets: w["resets_at"] = resets
     if exhausted: w["exhausted"] = True
     return w
-LAUNCHER_QUOTAS = {  # as a quota plugin would answer (docs/extensions/extensions.md "Usage quota"); gateway_name is what the app shows
+LAUNCHER_QUOTAS = {  # as a quota plugin would answer; gateway_name is what the app shows
     "cc_main": {"gateway": "example-gateway", "gateway_name": "示例网关", "key_name": "cc_main",
         "budget": [_w("每周预算", 0.62, 496, 800, "usd", later(hours=60))],
         "pools": [
@@ -10944,7 +10944,7 @@ if os.environ.get("MOCK_MODEL_PANEL_USAGE"):
     # weekly bar too, to check a two-line caption and the bar don't touch
     LAUNCHER_QUOTAS["anthropic_main"] = {"gateway": "example-subscription", "pools": [
         {"name": "示例订阅", "state": "available", "windows": [_w("每周", 0.5, resets=later(hours=36))]}]}
-# "Add provider" › "Add from plugin" (docs/extensions/extensions.md "Model providers"): the providers made-up plugins offer (GET /api/v1/launchers/presets).
+# "Add provider" › "Add from plugin": the providers made-up plugins offer (GET /api/v1/launchers/presets).
 LAUNCHER_PRESETS = [
     {"id": "example-gateway/team", "plugin": "example-gateway", "name": "示例网关 · 团队", "description": "团队共用的 Claude Code 网关，按 Key 计费",
      "kind": "launcher", "base_url": "https://gateway.example.com", "model": "claude-opus-5-5", "small_model": "claude-haiku-5-5",
@@ -11114,7 +11114,7 @@ def machine_launchers(mid=""):
         # The MacBook's Claude desktop app keeps Claude Code sessions: its launcher starts one there (#5480,
         # docs/integrations/claude-integration.md "New sessions in the desktop app").
         out.append({"name": "claude-desktop", "model": "", "source": "claude_desktop", "agent": "claude", "agent_type": "claude"})
-        # Its Codex App runs: its launcher starts a chat there (#5726, docs/integrations/codex.md).
+        # Its Codex App runs: its launcher starts a chat there (#5726).
         out.append({"name": "codex-app", "model": "", "source": "codex_app", "agent": "codex", "agent_type": "codex"})
     if PASEO_PROVIDERS and mid == "server":
         # Paseo's providers the apps have no id for (#8142): the runtime's own id as their agent, the runtime as source,
@@ -13605,7 +13605,7 @@ if os.environ.get("MOCK_API_ERRORS") == "1":
            "\"request_id\":\"req_011CUdExampleExample01\"} · Please run /login"),
     ]
 
-# MOCK_CHAT_CONTENT=1: what a conversation draws beyond plain text (docs/android/android.md "Chat content"). A "Images, files and plans"
+# MOCK_CHAT_CONTENT=1: what a conversation draws beyond plain text. A "Images, files and plans"
 # session on the MacBook: photos sent from the phone (<attached_images>, one of them gone), file paths in the messages,
 # a photo-only message, a plan / a question / a sub-agent, and a reply the hub cut ("View full text" loads it). The /orders Codex
 # session gets two file changes (a patch and a new file), so its live work line shows them; a Persona conversation gets a
@@ -13820,7 +13820,7 @@ if os.environ.get("MOCK_DRAWER") == "1":
             "```\n\n同一秒拍的会自动加上 -1、-2。")),
     ]
 
-# MOCK_TITLES=1: the assistant's conversations have the hub's titles (docs/assistant/assistant.md "Chat titles"), one with a topic
+# MOCK_TITLES=1: the assistant's conversations have the hub's titles, one with a topic
 # too long for a narrow drawer; "Rename" is recorded at /mock/renamed (AssistantTitlesTests).
 RENAMED = []
 if os.environ.get("MOCK_TITLES") == "1":
@@ -13829,7 +13829,7 @@ if os.environ.get("MOCK_TITLES") == "1":
 
 # MOCK_LONG_ASSISTANT=1: the Persona tab's main conversation is a long one, like the one a user keeps for weeks: sixty
 # exchanges, each with a few tool calls and a long Markdown reply (headings, lists, a table, a code block), for measuring
-# the Persona page's frames (docs/operations/testing.md).
+# the Persona page's frames.
 if os.environ.get("MOCK_LONG_ASSISTANT") == "1":
     _long = []
     for _n in range(60):
@@ -14100,7 +14100,7 @@ if os.environ.get("MOCK_REPLY_BLOCKS") == "1":
                                         "如果中途发现首屏时间反而变长，先回滚价格页，再看是不是缓存没命中。\n\n有问题再找我。"),
     ]
 
-# MOCK_PORTS=1: an agent running a dev server (docs/operations/ports.md): its session lists the port, its reply links it (and a
+# MOCK_PORTS=1: an agent running a dev server: its session lists the port, its reply links it (and a
 # server it has stopped), and …/ports/{port}/connect forwards a WebSocket's bytes to a real page served here on
 # another port (PortForwardTests). GET /mock/ports lists the connects.
 LANDING = "a1f3c2d4-0000-4000-8000-00000000000d"
@@ -14180,8 +14180,8 @@ def port_listening(port):
         return False
 
 
-# MOCK_LINKS=1: links in the Persona tab's main conversation and in an inbox item, to open in the link sheet
-# (docs/android/android.md "Terminal and links"): a plain web page, a persona:// link that only navigates, and a javascript: link that is dropped.
+# MOCK_LINKS=1: links in the Persona tab's main conversation and in an inbox item, to open in the link sheet:
+# a plain web page, a persona:// link that only navigates, and a javascript: link that is dropped.
 if os.environ.get("MOCK_LINKS") == "1":
     ITEMS[ASK1] = ITEMS[ASK1] + [it("assistant", "text", 1, text=(
         "资料在 [示例页面](https://example.com/) 里；要看那个 Agent 就点 [这里](persona://session/macbook/" + RICH +
@@ -14194,8 +14194,8 @@ if os.environ.get("MOCK_LINKS") == "1":
     MAIL_MESSAGES[501]["html"] += '<p>议程放在 <a href="https://example.org/agenda">example.org/agenda</a>。</p>'
 
 
-# MOCK_LINK_SCHEMES=1: a fresh reply in the first Agent conversation with a link of every kind the link sheet handles
-# (docs/android/android.md "Terminal and links"): a web page written a minute ago (preloaded), mailto: and tel: (asked first, then
+# MOCK_LINK_SCHEMES=1: a fresh reply in the first Agent conversation with a link of every kind the link sheet handles:
+# a web page written a minute ago (preloaded), mailto: and tel: (asked first, then
 # another app), a persona:// tab link (navigates), persona://pair (ignored in a conversation) and a javascript: link.
 if os.environ.get("MOCK_LINK_SCHEMES") == "1":
     _first = SESSIONS[0]["session_id"]
@@ -14991,7 +14991,7 @@ if os.environ.get("MOCK_PHOTO") == "1":
 GAP = os.environ.get("MOCK_GAP") == "1"
 GAP_STATE = {"started": False, "grown": False}
 
-# ---------- files (docs/apple/ios.md "File viewer") ----------
+# ---------- files ----------
 # MOCK_FILES=1: a made-up checkout of the weather app under /Users/me/code/weather that GET …/file and …/stat answer
 # from, with big files for timing the viewer (a 3 MB JSON, a 20 000-line Go file, a 5 000-line README, a 5 MB log),
 # one small file per language for screenshots, and a last message in the widget conversation that names some of them
@@ -15510,7 +15510,7 @@ def file_read(path, cwd, offset, stream=False):
             "is_dir": False, "offset": offset, "next": offset + len(page) if more else 0}
 
 
-# ---------- personas (docs/apple/persona.md) ----------
+# ---------- personas ----------
 # MOCK_PERSONAS=<dir>: the packages in it, as the hub lists and serves ~/.persona/personas. MOCK_PERSONAS=demo: the
 # original placeholder (scripts/assets/make_persona.py demo), made into a temporary directory at start. With "builtin"
 # among them (MOCK_PERSONAS=builtin, demo,builtin): the packages built into personad too (server/internal/hub/personas,
@@ -15601,7 +15601,7 @@ def set_persona_tier(key):
             pass
 
 
-# ---------- looks (docs/extensions/extensions.md "Avatars", #3200) ----------
+# ---------- looks (#3200) ----------
 # MOCK_LOOKS=example (or a package directory): an extension's looks (schema/extension/examples/example-looks), listed
 # and served as the hub does (a made persona.json; only the files a look names). GET /api/v1/looks lists the built-in
 # looks, the packages and these; PUT /api/v1/looks/current chooses one (MOCK_LOOK: chosen at start) and pushes "look".
@@ -15649,7 +15649,7 @@ def ext_look_personas():
     return out
 
 
-# ---------- uploaded looks (docs/apple/persona.md "Uploading an image", #2404) ----------
+# ---------- uploaded looks (#2404) ----------
 # POST /api/v1/looks/uploads makes a package in a temporary directory, as the hub does in personas/u-<hex>; the mock
 # keeps the image as it came for every size and state (the hub scales it and draws the states). DELETE takes it away.
 # MOCK_LOOK_UPLOADS=off: a hub without them (no look_uploads feature, 404); =demo: one uploaded look at start.
@@ -16191,7 +16191,7 @@ def case_route(h, method, p, q, body):
 PAGING = {"on": False}
 
 
-# MOCK_CHAT_SEARCH=1 (#6281, docs/assistant/assistant.md): the long Persona conversation (ASK4) is one whose
+# MOCK_CHAT_SEARCH=1 (#6281): the long Persona conversation (ASK4) is one whose
 # marker words each sit in one place only: the title, the user's words, a reply that is not the last, the last reply, a
 # thought, a tool output left unfolded and one in a folded run, early history beyond the first pages, a quoted context, a
 # card's answer (and an HTML card's) and a message Persona injected. History is paged (turns) so the early words need "Load earlier". Made up.
@@ -16821,7 +16821,7 @@ def mock_files(p, q):
 # --- end of Files & Git ---
 
 
-# --- Files & Git on Android (docs/android/android.md "Files and Git in chat"): a PDF in the tree, a tag in the history, the
+# --- Files & Git on Android: a PDF in the tree, a tag in the history, the
 # folders above the home (the browser can walk up to /), and with MOCK_FILES=1 the tree's files readable too (the
 # big-file set answers …/file first). MOCK_TIME_OFFSET=+08:00: file and commit times carry the machine's own offset,
 # as a real node sends them ("2026-10-31T13:58:40.205893083+08:00"), not Z.
@@ -17188,7 +17188,7 @@ if os.environ.get("MOCK_TURN_IMAGES"):
             "mcp__persona__computer_state", {"machine": "studio"}, "屏幕上：Safari（首页）、备忘录", 2, (SHOT_SCREEN, 504, 328)) + [
             it("assistant", "text", 1, text="Studio 上开着 Safari（博客首页）和备忘录，备忘录里是一张发布前的检查清单。")]
     ITEMS[BLOG] = ITEMS[BLOG] + _ask  # it() numbers lines in order: appended ones come after
-# MOCK_RENDER=1: formulas and a diagram (docs/apple/ios.md "Math and diagrams"): the last turn of the release-notes conversation, and the algorithm document fixture.
+# MOCK_RENDER=1: formulas and a diagram: the last turn of the release-notes conversation, and the algorithm document fixture.
 RENDER_MD = ("降雨概率按逻辑回归估：$p = \\sigma(w^\\top x + b)$，其中 \\(\\sigma(z) = 1/(1+e^{-z})\\)。损失是交叉熵：\n\n"
              "$$\nL = -\\frac{1}{n}\\sum_{i=1}^{n} \\big[y_i \\log p_i + (1-y_i)\\log(1-p_i)\\big]\n$$\n\n"
              "刷新流程：\n\n```mermaid\nflowchart LR\n  A[小组件请求] --> B{缓存新鲜?}\n  B -- 是 --> C[读缓存]\n"
@@ -18138,7 +18138,7 @@ def churn(rounds, ms, steps=1, final=False, inbox=False, waiting=False, real=Fal
         CHURN["rounds"] += 1
 
 
-# ---------- truth and single changes (ScreenTruthTests, RenderBudgetTests; docs/apple/ios-state.md) ----------
+# ---------- truth and single changes (ScreenTruthTests, RenderBudgetTests) ----------
 # GET /mock/truth: what the hub holds now, shaped like the app's probe.agents-list (`states` and `last` by
 # "<machine>/<session>", `asks` the questions about agents): the tests compare the screen with it.
 # GET /mock/bump?what=rev|last|needs|ask|resolve: one change, pushed like the real hub (the machine's whole session list,
@@ -18444,7 +18444,7 @@ Tell me if you want the upload sped up too.""",
 
 
 # MOCK_AGENT_LIVE=1 (#1309): an agent's reply streams the way a Claude session Persona started sends it (its
-# MessageDisplay hook, docs/integrations/claude-integration.md "Live replies"): `delta` grows a batch of whole lines at a
+# MessageDisplay hook): `delta` grows a batch of whole lines at a
 # time, the words before a tool call stay live while the tool runs (the transcript writes them with its result), then the
 # items land and the live text is cleared, and the words after the tool are a message of their own. Off by default.
 # GET /mock/agent_live?step=… drives the PR #42 review agent one step at a time (for screenshots and checks):
@@ -18903,7 +18903,7 @@ if os.environ.get("MOCK_TALL_HISTORY") == "1":
     for _n, _x in enumerate(ITEMS[WIDGET]):  # transcript order: the tall history first
         _x["seq"] = _n + 1
 
-# MOCK_COMPUTER=ready|permissions|locked: the hub's plugin cua is on (docs/extensions/computer-use.md) and macbook is turned on
+# MOCK_COMPUTER=ready|permissions|locked: the hub's plugin cua is on and macbook is turned on
 # in that state; Mac Studio is a Mac it is not on for yet. =off: on, but for no machine yet. Unset: the plugin is off.
 MOCK_COMPUTER = os.environ.get("MOCK_COMPUTER", "")
 MOCK_METRICS_FAIL = os.environ.get("MOCK_METRICS_FAIL", "")  # the Machines page's failed refresh (G219): 1 | after
@@ -18983,13 +18983,13 @@ if MOCK_COMPUTER:
         if _m.get("os") == "darwin":
             _m["computer"] = computer_of(_m["id"], _m["id"] == "macbook" and MOCK_COMPUTER != "off")
 
-# MOCK_BROWSER=missing|setup|ready (docs/extensions/computer-use.md): the plugin ego is on and MacBook is turned on, with ego
+# MOCK_BROWSER=missing|setup|ready: the plugin ego is on and MacBook is turned on, with ego
 # lite not installed / installed but its first-run setup not done / ready (its usage statistics still on);
 # MOCK_BROWSER_ANALYTICS=off has them off. "Install ego lite" and "Open ego lite" move on by the clock (MOCK_COMPUTER_STEP
 # seconds a step); an open setup is done a few steps later. Mac Studio is a Mac it is not on for, not installed.
 MOCK_BROWSER = os.environ.get("MOCK_BROWSER", "")
 
-# MOCK_CLIPBOARD=off|on|image (#3064, docs/operations/clipboard.md): the hub shares clipboards. MacBook can, with its switch
+# MOCK_CLIPBOARD=off|on|image (#3064): the hub shares clipboards. MacBook can, with its switch
 # off / on; with "image" its clipboard holds a picture, else text. Mac Studio can, switched off; the Linux machines have no
 # desktop session (unsupported, reason_code no_display). GET / PUT /api/v1/machines/{mid}/clipboard, GET / PUT
 # …/clipboard/settings, with the hub's errors: 403 clipboard_disabled, 409 clipboard_unsupported, 503 offline, 413
@@ -19201,7 +19201,7 @@ if MOCK_BROWSER:
         if _m.get("os") == "darwin":
             _m["browser"] = browser_of(_m["id"], _m["id"] == "macbook")
 
-# MOCK_IPHONE=one|several|none|off (docs/extensions/iphone.md): the extension iphone is on and every Mac lists the
+# MOCK_IPHONE=one|several|none|off: the extension iphone is on and every Mac lists the
 # iPhones it reaches; MacBook is turned on. `one`: one of them is this simulator (MOCK_IPHONE_MODEL / MOCK_IPHONE_IOS,
 # what the app reads of itself: `xcrun simctl getenv <udid> SIMULATOR_MODEL_IDENTIFIER` and the runtime's version);
 # `several`: two alike, the user picks; `none`: none is this one; `pair`: this simulator is plugged into MacBook but not
@@ -19375,7 +19375,7 @@ for _m in MACHINES:
                         **({"note": "Orca 协议版本不兼容，请先更新 Orca。"} if _m["id"] == "server" else {})}]
                       if _m.get("online") else [])
 
-# MOCK_ENGINE_SETS=1 (#2576, docs/integrations/engines.md "Host sets"): a hub that takes sets of engine hosts. Every machine lists
+# MOCK_ENGINE_SETS=1 (#2576): a hub that takes sets of engine hosts. Every machine lists
 # engine_hosts / engine_default; the MacBook enables herdr + Herdr App, the Mac Studio herdr + Orca (Tern, Rex, Paseo, Cindy and T3 Code found
 # there too); the widget session on the MacBook is live in Herdr App as well (also_open_in). PUT …/engine takes {hosts, default}.
 ENGINE_SETS = os.environ.get("MOCK_ENGINE_SETS") == "1"
@@ -19415,7 +19415,7 @@ if RESUME_TERMINAL:  # the Mac mini enables no terminal engine: the empty set (#
         if _m["id"] == "mini":
             _m["engine_hosts"], _m["engine_default"] = [], ""
 
-# ---------- MOCK_NEEDS / MOCK_HISTORY: the Persona page (docs/android/android.md "Persona page") ----------
+# ---------- MOCK_NEEDS / MOCK_HISTORY: the Persona page ----------
 # By default five agent requests and several inbox items in "Needs you" wait: the Persona home's "Things that need you now" shows three
 # lines and "N more items in the inbox". MOCK_NEEDS=none: nothing waits (no section); MOCK_NEEDS=two: one request, one inbox item.
 # MOCK_HISTORY=1: a long Persona history (46 more conversations: "Recent" lists 30, then "View all N"), one of them started
@@ -19490,7 +19490,7 @@ def pins_route(handler, p):
     return True
 
 
-# ---------- MOCK_EXTENSIONS: the plugin base (docs/extensions/extensions.md "Hub API") ----------
+# ---------- MOCK_EXTENSIONS: the plugin base ----------
 # MOCK_EXTENSIONS=1 lists five made-up plugins, one of each state the app draws (needs setup, running, hub.json's,
 # switched off, incompatible), with feature plugin_manager; their pages, switches, settings and secrets work in memory.
 # The form of example-notes has every kind of field. A base_url that is not a URL is refused like the hub does.
@@ -19566,7 +19566,7 @@ PLUGINS = {
                         "source": "installed", "enabled": True, "error": "这个扩展要 hub 的构建号 >=202612010000，这台是 202611041200",
                         "contributes": {"connectors": ["exampleweather"]}, "form": {"fields": []}, "config": {}, "secrets": [], "permissions": [_RUNS]},
 }
-import volc_mock  # noqa: E402  MOCK_VOLC: the built-in Volcengine speech extension (docs/extensions/volcengine-speech.md)
+import volc_mock  # noqa: E402 MOCK_VOLC: the built-in Volcengine speech extension
 if volc_mock.ENABLED:
     PLUGINS[volc_mock.EXT] = volc_mock.plugin(_RUNS)
 PLUGINS["example-gateway"] = {
@@ -19579,9 +19579,9 @@ PLUGINS["example-gateway"] = {
     "ui": [{"plugin": "example-gateway", "plugin_name": "Example 网关面板", "id": "home", "title": "概况", "placement": "plugin_page", "size": "full"},
            {"plugin": "example-gateway", "plugin_name": "Example 网关面板", "id": "usage", "title": "用量", "placement": "nav_page", "size": "full",
             "icon": "chart", "badge": {"text": "3", "tone": "danger"}},
-           # UI version 3's components and pages (docs/extensions/extensions.md "UI version 3"): -openPlugin example-gateway -openPluginPage notes
+           # UI version 3's components and pages: -openPlugin example-gateway -openPluginPage notes
            {"plugin": "example-gateway", "plugin_name": "Example 网关面板", "id": "notes", "title": "笔记（组件 v3）", "placement": "plugin_page", "size": "full"}]}
-# MOCK_SECRET_HANDOFF=1 (with MOCK_EXTENSIONS=1): secret references (docs/extensions/secret-providers.md). Example Notes'
+# MOCK_SECRET_HANDOFF=1 (with MOCK_EXTENSIONS=1): secret references. Example Notes'
 # API key holds a reference of a made-up provider, Example Vault, whose page lists who uses its references and one Always
 # rule; Persona's main conversation waits on a hand-off card (secret_handoff) for an Agent on the MacBook. The model
 # provider `gateway` keeps its key as one of Example Vault's references, the server's own key as another.
@@ -19603,7 +19603,7 @@ if SECRET_HANDOFF and PLUGINS_MODE:
         "handoff_rules": [{"id": "0123456789abcdef", "reference": "op://Example/Registry token/credential", "launcher": "claude",
                            "machine": "macbook", "by": "device:d1", "at": "2026-01-01T10:00:00Z"}]}
     # The provider that uses Example Vault's reference: added in Persona, its key a reference, the server's own key
-    # another (launcher_secret_references, docs/extensions/secret-providers.md "Launcher keys"; #3962 step 4c), with the
+    # another (launcher_secret_references; #3962 step 4c), with the
     # features its form's computers page (launcher_scope) and a preset's key step (builtin_presets) need.
     LAUNCHERS.insert(0, {
         "name": "gateway", "display_name": "Example 网关", "source": "persona", "kind": "launcher", "base_url": "https://gateway.example.com",
@@ -19644,7 +19644,7 @@ if os.environ.get("MOCK_EXTENSION_PICKERS"):
         "config": {"agent_machine": "server", "auto_reply_launcher": "cc_retired"}, "secrets": [],
         "permissions": [_RUNS, {"key": "network", "title": "访问网络", "detail": "chat.example.com"}]}
 
-# A plugin whose program runs on computers (docs/extensions/extensions.md "Programs running on computers", #1830): its field picking them asks
+# A plugin whose program runs on computers (#1830): its field picking them asks
 # before one is switched on (the hub's x-confirm), each machine's row says how the program is there (nodes).
 PLUGINS["example-helper"] = {
     "id": "example-helper", "name": "Example 助手", "kind": "providers", "status": "running", "version": "1.0.0", "source": "installed",
@@ -19662,13 +19662,13 @@ PLUGINS["example-helper"] = {
                     {"key": "node_network", "title": "在这些电脑上访问网络", "detail": "api.example.com"},
                     {"key": "node_files", "title": "读写这些电脑上的文件", "detail": "不只是它自己的数据目录"},
                     {"key": "node_secrets", "title": "把密钥发给这些电脑", "detail": "API Key"}]}
-# The UI slots (docs/extensions/extensions.md "UI slots"): example-gateway's nav_page, overview_card and machine_section.
+# The UI slots: example-gateway's nav_page, overview_card and machine_section.
 _SLOT_UI = [{"plugin": "example-gateway", "plugin_name": "Example 网关面板", "id": "today", "title": "今天的用量", "placement": "overview_card",
              "size": "compact", "opens": "usage"},
             {"plugin": "example-gateway", "plugin_name": "Example 网关面板", "id": "gpu", "title": "网关调用", "placement": "machine_section", "size": "full"}]
 
 if MOCK_COMPUTER:
-    # The built-in plugin cua, on (MOCK_COMPUTER, docs/extensions/computer-use.md): its list of Macs is each Mac's computer.enabled,
+    # The built-in plugin cua, on (MOCK_COMPUTER): its list of Macs is each Mac's computer.enabled,
     # both ways, like the hub's (a switch here is the machine page's "Allow the assistant to control this computer").
     PLUGINS["cua"] = {"id": "cua", "name": "操控电脑（Cua）", "kind": "computer", "status": "running", "version": "202611041200",
                       "source": "builtin", "enabled": True, "contributes": {"computer": ["cua"]},
@@ -19783,7 +19783,7 @@ def cua_config(pl):
 _PLUGIN_VIEW = ["id", "name", "kind", "status", "error", "version", "source", "enabled", "description", "contributes", "needs_setup", "warnings",
                 "auto_upgrade", "auto_upgrade_paused", "market", "upgrade", "upgrade_note", "nodes"]
 
-# ---------- MOCK_EXTENSIONS: declarative UI (docs/extensions/extensions.md "Declarative UI") ----------
+# ---------- MOCK_EXTENSIONS: declarative UI ----------
 # example-gateway draws a page (plugin_page "home") and a section on every launcher's page (launcher_section "panel"),
 # with every kind of item; its buttons answer (a toast, a new view, a link), the form's values come back.
 _UI_STATE = {"note": "", "auto": "true", "plan": "team", "refreshed": 0, "capsule_refreshed": 0, "test_key": True}
@@ -19891,7 +19891,7 @@ def _ui_view(ui, launcher=""):
             {"type": "text", "text": "GET /v1/usage → 200", "style": "code"}]}]}
 
 
-# "notes" draws UI version 3 (docs/extensions/extensions.md "UI version 3"): a list with a search box, a filter and "Load more", rows
+# "notes" draws UI version 3: a list with a search box, a filter and "Load more", rows
 # with an icon, an avatar and a thumbnail pushing a detail page (markdown, a table), whose "Edit" pushes a form that
 # saves and pops; an empty state and loading. An older app gets what the hub would draw it (_fit_v3).
 _NOTES = [{"id": "n%d" % i, "title": t, "folder": f, "when": w} for i, (t, f, w) in enumerate([
@@ -20011,7 +20011,7 @@ def _ui_action(ui, action, values):
     return {}
 
 
-# ---------- MOCK_EXTENSIONS: plugin markets (docs/extensions/extensions.md "Extension market") ----------
+# ---------- MOCK_EXTENSIONS: plugin markets ----------
 # Two made-up markets (a public site, a private GitHub repository with its token set); their catalog has a plugin to
 # install, one installed from the market with an upgrade, one installed elsewhere, and one this hub cannot install.
 # Previews, installs, upgrades and removals work in memory.
@@ -20123,7 +20123,7 @@ def _catalog_item(c):
     return {k: v for k, v in it.items() if v not in (None, "", False)} | {"tags": c.get("tags", [])}
 
 
-# Auto-upgrade (docs/extensions/extensions.md "Auto-upgrade"): example-gateway, from a market at 1.0.0, has 1.1.0 there asking for one more
+# Auto-upgrade: example-gateway, from a market at 1.0.0, has 1.1.0 there asking for one more
 # host. MOCK_PLUGIN_UPGRADE picks how it stands: needs_permission (default), waiting_idle, skipped, upgraded (the last
 # one went in by itself), disabled (switched off: auto-upgrade paused, its own switch kept), rolled_back_by_user (the
 # user rolled back from 1.1.0 by hand: skipped as the user's, #1826), renamed (the market lists 1.1.0 under a new ID,
@@ -20215,7 +20215,7 @@ def upgrades_route(handler, p, req):
     return False
 
 
-# ---------- MOCK_EXTENSIONS: places outside the app (docs/extensions/extensions.md "System-level placements") ----------
+# ---------- MOCK_EXTENSIONS: places outside the app ----------
 # example-gateway draws a widget "today" (small / medium / Lock Screen and watch face complications) that opens its
 # nav_page "usage", and has two shortcuts. The hub's new paths only (these came after the rename).
 _WIDGETS = [{"extension": "example-gateway", "extension_name": "Example 网关面板", "id": "today", "title": "今天的用量",
@@ -20594,7 +20594,7 @@ def markets_route(handler, p, body):
                 ui = [u for u in PLUGINS["example-gateway"]["ui"] + _SLOT_UI if placement in ("", u["placement"])]
             elif q.get("launcher"):
                 # "elsewhere" has no hosts (listed on every launcher) and always says the launcher is not its gateway:
-                # clients hide it (docs/extensions/extensions.md "Declarative UI", #1339)
+                # clients hide it (#1339)
                 ui = [{"plugin": "example-gateway", "id": "panel", "title": "Example 网关", "placement": "launcher_section"},
                       {"plugin": "example-gateway", "id": "elsewhere", "title": "别家网关", "placement": "launcher_section"}]
         ui += [u for u in INBOX_ITEM_UI if placement in ("", u["placement"])]
@@ -21190,7 +21190,7 @@ def plugins_route(handler, p, body):
     return True
 
 
-# ---------- MOCK_VOICE: the hub's voice plugin (docs/extensions/extensions.md "Voice", docs/android/android.md "Voice chat") ----------
+# ---------- MOCK_VOICE: the hub's voice plugin ----------
 # MOCK_VOICE=1 serves a running voice plugin: /api/v1/plugins, its voices and models, the model configuration of
 # plugin.voice, and a socket that answers start with ready, then talks by a script (captions, a tool, audio). Modes for
 # captures: drop (closes with 1001, a plugin restart, while Persona speaks), bad-model (the model configuration says the
@@ -21403,13 +21403,13 @@ def voice_socket(h):
 
 
 preview_route = None
-if os.environ.get("MOCK_PREVIEW"):  # dev server previews (docs/web/preview.md): scripts/mock/mock_preview.py
+if os.environ.get("MOCK_PREVIEW"):  # dev server previews: scripts/mock/mock_preview.py
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import mock_preview
     preview_route = mock_preview.install(sys.modules[__name__])
 
 
-if VOICE_MODE:  # iOS's protocol 2 beside the script above (docs/assistant/voice.md 6.8): scripts/mock/voice_mock.py
+if VOICE_MODE:  # iOS's protocol 2 beside the script above: scripts/mock/voice_mock.py
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import voice_mock
     voice_route = voice_mock.install(sys.modules[__name__])
@@ -21481,7 +21481,7 @@ if MODEL_DEFAULTS:
 
 
 # ---------- area: launcher health (#1643) ----------
-# MOCK_LAUNCHER_HEALTH=1: "New Agent"'s launchers carry their health on the computer (docs/server/launcher-health.md): claude
+# MOCK_LAUNCHER_HEALTH=1: "New Agent"'s launchers carry their health on the computer: claude
 # checked fine, work_gw blocked because new terminal tabs can't run it (not_in_terminal, #1642), team_gw blocked on its key.
 # MOCK_LAUNCHER_HEALTH=default: Model Settings' New Agent default is work_gw too. Either way a start that runs work_gw fails
 # after MOCK_START_SECONDS with the hub's coded sentence (start_error_code launcher_missing, where terminal), and a session
@@ -22396,7 +22396,7 @@ class H(BaseHTTPRequestHandler):
         if p == "/mock/served": return self.send_json({"served": SERVED})
         if p == "/mock/inbox_events/bump": return self.send_json(*inbox_suggestion_bump((q.get("id") or [""])[0]))
         if p == "/api/v1/inbox":
-            # MOCK_INBOX_DELAY_MS=<ms>: a slow hub, for the inbox refreshing in the background (#1947, docs/operations/testing.md)
+            # MOCK_INBOX_DELAY_MS=<ms>: a slow hub, for the inbox refreshing in the background (#1947)
             time.sleep(int(os.environ.get("MOCK_INBOX_DELAY_MS", "0")) / 1000)
             return self.send_json(inbox_list(q))
         if p == "/api/v1/inbox/done/days":
@@ -22411,7 +22411,7 @@ class H(BaseHTTPRequestHandler):
             if os.environ.get("MOCK_INBOX_HISTORY") == "none": return self.send_json({"error": "not found"}, 404)
             # A page asked from a moment (`before`: a Done group's, an older page) waits while /mock/inbox_done_hold holds
             # them, until /mock/inbox_done_release (at most 60 s); the list's first page does not: Jump To a group still
-            # loading (#6661, docs/operations/testing.md)
+            # loading (#6661)
             if (q.get("before") or [""])[0]: INBOX_DONE_GATE.wait(60)
             other = other_manager(self)  # the history is each manager's own: the others have none here
             if other: return self.send_json(*other[1]) if other[1] else self.send_json({"items": []})
@@ -24479,7 +24479,7 @@ class H(BaseHTTPRequestHandler):
 
     # ---------- minimal WebSocket ----------
     def port_connect(self, mid, port):
-        """…/ports/{port}/connect: the WebSocket's binary messages are one TCP connection to the port (docs/operations/ports.md)."""
+        """…/ports/{port}/connect: the WebSocket's binary messages are one TCP connection to the port."""
         import socket
         listed = any(pp.get("port") == port for x in all_sessions() for pp in (x.get("ports") or []))
         # The live screen (#1184): macOS's Screen Sharing on this Mac's own 5900, for a Mac the plugin cua is on for.
@@ -24951,7 +24951,7 @@ class H(BaseHTTPRequestHandler):
         self.close_connection = True
 
 
-# ---------- MOCK_CHANNELS: Settings › Plugins › Channels (docs/extensions/channels.md) ----------
+# ---------- MOCK_CHANNELS: Settings › Plugins › Channels ----------
 # MOCK_CHANNELS=1 lists the channels: the apps, the Feishu bot and WeChat bound, /agent off (hub.json's), a third-party
 # chat app's plugin channel waiting to be bound with a token, one broken, and one in a market not installed. Their
 # settings, binding (WeChat's QR code, the Feishu bot's pairing code, a token) and test messages live in memory. The
@@ -25315,7 +25315,7 @@ if DOC_COMMENTS:
     H.do_POST = _doc_post
     # The web's reader opens from a link in a chat: the widget session ends with the made-up document's.
     ITEMS[WIDGET].append(it("assistant", "text", 0, text="评审文档在这里：[新版图标评审](https://example.feishu.cn/docx/AbC123)，评论里还有两条没解决。"))
-# ---------- area: hub restarts the app does not notice (docs/operations/hub-restart.md, #1634) ----------
+# ---------- area: hub restarts the app does not notice (#1634) ----------
 # MOCK_RESTART=1: hello carries event_stream / event_seq / resumed and the numbered broadcasts are kept, like the hub's
 # event log; GET /mock/restart?gap_ms=1500&missed=todos,inbox says hub_restarting and closes every socket with 1001,
 # connections in the next gap_ms wait (the socket's backlog), the `missed` broadcasts are numbered while nobody is
@@ -25443,7 +25443,7 @@ MOCK_HELP.append("MOCK_RESTART=1  hub 无感重启（#1634）：hello 带 event_
 MOCK_HELP.append("MOCK_DOC_COMMENTS=1  飞书文档阅读页能写评论（#1290）：features 带 lark_doc_comments，每篇文档三条编造的评论，回复 / 新评论 / 解决 / 重新打开 / @人都改它们；GET /mock/doc-comments 看写了什么；「给天气 App 加主屏幕小组件」最后一条带这篇文档的链接（网页从这里打开阅读页）；=read 是不能写的插件（没有 lark_doc_comments，只读评论）")
 
 
-# ---------- area: an inbox item's page drawn by a plugin (docs/extensions/extensions.md "Inbox items", #1681) ----------
+# ---------- area: an inbox item's page drawn by a plugin (#1681) ----------
 # MOCK_INBOX_ITEM_UI=1 (with MOCK_EXTENSIONS=1): a plugin example-chat draws the page of Feishu's items (inbox_item for
 # connector lark), from the item it is told of (context.item): the people, the time it spans, the thing it continues
 # and its messages, a reply (files the item as replied) and "View in conversation" (persona://inbox/<item>/source: the apps open the
@@ -25661,7 +25661,7 @@ MOCK_HELP.append("MOCK_TAB_PANES=1  一个 herdr 标签页里三个 Agent（#232
 MOCK_HELP.append("MOCK_TEAM=1  A tab team (#5180, implies MOCK_TAB_PANES): the lead's tab adds a permission card of the Codex worker's (folded_under the lead, folded_as worker), a third worker that is working and a stopped pane that stays a row of its own; the lead and every worker have a short transcript")
 MOCK_HELP.append("MOCK_CHAT_CARDS=1  （配合 MOCK_SPLIT_TABS=1）server 上 w1:t1 那个工作中的 Claude 同时有计划、提问、授权三张卡，两条排队消息，/loop 和一个后台任务：手机上输入区最挤的样子（#1996）")
 
-# ---------- MOCK_GOAL: an agent working toward a goal (docs/integrations/agent-goal.md, #2420) ----------
+# ---------- MOCK_GOAL: an agent working toward a goal (#2420) ----------
 # MOCK_GOAL=1: macbook's widget agent has an active /goal with its latest check, the PR review a goal met;
 # MOCK_GOAL=stopped: the widget agent's goal ran out of its token budget instead (a Codex status).
 def goal_mock(mode):
@@ -25681,7 +25681,7 @@ def goal_mock(mode):
 
 if os.environ.get("MOCK_GOAL"):
     goal_mock(os.environ["MOCK_GOAL"])
-# MOCK_AGENT_PLANS=1: agents' own task lists (TodoWrite, docs/integrations/agent-goal.md "Plan", #5302): the widget agent is at 3/5,
+# MOCK_AGENT_PLANS=1: agents' own task lists (TodoWrite, #5302): the widget agent is at 3/5,
 # the unit tests' at 1/4 with nothing in progress (it waits for an answer). The plans are 10 minutes old, so with
 # MOCK_TASKS_REPORTS=1 the widget task's newer report stands alone on its card.
 if os.environ.get("MOCK_AGENT_PLANS") == "1":
@@ -25694,7 +25694,7 @@ if os.environ.get("MOCK_AGENT_PLANS") == "1":
 MOCK_HELP.append("MOCK_BRANCH=1  macbook 上「给天气 App 加主屏幕小组件」的文件夹在 git 分支 feat/hourly-widget 上，聊天顶栏宽屏时显示它（#5421）")
 MOCK_HELP.append("MOCK_GOAL=1|stopped  macbook 上「给天气 App 加主屏幕小组件」有一个进行中的 goal（带最近一次检查的理由），「检查 PR #42 的改动」的 goal 已达成；stopped 时小组件那个 goal 用完了 token 预算（#2420）")
 
-# ---------- MOCK_EXTENSIONS: a hub from #1844 on (docs/extensions/extensions.md "Naming and compatibility") ----------
+# ---------- MOCK_EXTENSIONS: a hub from #1844 on ----------
 # It says `extensions` and the extension_* features beside the old ones and answers /api/v1/extensions/… with the new keys
 # (extensions, extension, extension_name; a market's count extensions), by way of the old routes above.
 # MOCK_EXTENSIONS_LEGACY=1: a hub from before the rename, /api/v1/plugins only.
@@ -26271,7 +26271,7 @@ def mock_motion(handler, reset=False):
 
 def mock_invalidate(handler):
     """GET /mock/invalidate: example-gateway's notes changed (a note synced in, the sync done) and it says so
-    (`ui.invalidate`, docs/extensions/extensions.md "ui.invalidate"): extension_ui {invalidate} to every app, no plugin_ui."""
+    (`ui.invalidate`): extension_ui {invalidate} to every app, no plugin_ui."""
     if not any(x["id"] == "n0" for x in _NOTES):
         _NOTES.insert(0, {"id": "n0", "title": "刚同步的笔记", "folder": "work", "when": "刚刚"})
     _NOTES_SYNCED[0] = True
@@ -26515,7 +26515,7 @@ if os.environ.get("MOCK_RELAY_ACCOUNTS") and PLUGINS_MODE:
 MOCK_HELP.append("MOCK_RELAY_ACCOUNTS=<fixture.json>  （配合 MOCK_EXTENSIONS=1）侧边栏多一个扩展页「中转账号」，内容是 quota-relay 导出的 View（web/src/views/extensions/testdata/relay-accounts-view.json，假数据）：默认、选 Kiro、搜索、点一个账号进详情；MOCK_RELAY_ACCOUNTS_START=kiro|detail 让第一次打开就是选了 Kiro / 一个账号的详情，截图不用点（#4576）")
 
 
-# ---------- area: adding a computer from a signed-in device (#287, docs/assistant/onboarding.md 4.2, 5.3) ----------
+# ---------- area: adding a computer from a signed-in device (#287, 5.3) ----------
 # MOCK_ADD_COMPUTER=1: the hub says machines_add and machine_trust. POST /api/v1/auth/pair-codes {"add": {name, os}} adds a
 # pending kind-link computer (never connected), {"machine": id} gives one a new code; MOCK_ADD_COMPUTER_JOIN seconds later
 # (default 8, 0 = never) its Persona Link "connects" (online, still pending). POST /api/v1/machines/{id}/confirm | reject
@@ -26730,7 +26730,7 @@ if TOOL_SEARCH:
                           last_text=_tool_search_text)
         ITEMS[ASK1] = ITEMS.get(ASK1, []) + [it("assistant", "text", 0.2, text=_tool_search_text)]
 
-# MOCK_READINESS=<scenario> (docs/operations/testing.md "Readiness scenarios", scripts/mock/readiness_mock.py): a new user's hub in one of
+# MOCK_READINESS=<scenario> (scripts/mock/readiness_mock.py): a new user's hub in one of
 # the states the setup card shows, in the hub's shapes and words (its own catalogs, by Accept-Language): the features
 # assistant_readiness, machines_add, machine_trust, builtin_presets and launcher_auto_name; GET /api/v1/assistant/readiness[?probe=1],
 # POST …/readiness/dismiss, POST /api/v1/assistant/warm with readiness; POST /api/v1/assistant/conversations refused
@@ -27094,7 +27094,7 @@ MOCK_HELP.append("MOCK_CUSTOM_MODELS=1|forgetfail|empty|fail  手动输入模型
                  "DELETE …/models/custom?model= 忘掉；新建和 …/modes 用了列表里没有的 ID 就记下。forgetfail：忘掉回 500；empty：Claude Code 的列表是空的；"
                  "fail：读不到列表（502）。GET /mock/custom_models 看记着的，?reset=1 复原")
 
-# A Persona chat's own model (#5033, docs/assistant/model-config.md "A conversation's own model"): MOCK_MODEL_PICK=1
+# A Persona chat's own model (#5033): MOCK_MODEL_PICK=1
 # advertises `assistant_model_pick`; the main chat's launchers (`?purpose=assistant`) are plain claude, the locked
 # sonnetcc, a Messages-protocol direct API ("Team API", which has no /model list) and codex, with the default and an
 # `unavailable` list (a Responses direct API, a provider out of the computer's scope); PUT / DELETE
@@ -27259,7 +27259,7 @@ if MODEL_PICK_MODE and os.environ.get("MOCK_MODEL_LEVELS") == "1":
                               "efforts": _listed, "default_effort": _level})
     LAUNCHER_MODELS["agy"] = {"agent": "agy", "models": _agy_rows}
 
-# MOCK_MODEL_GATEWAY=1 (with MOCK_MODEL_PICK=1, #10365, docs/assistant/model-config.md "One row per model"): the main chat
+# MOCK_MODEL_GATEWAY=1 (with MOCK_MODEL_PICK=1, #10365): the main chat
 # runs on gateway-api, a Persona-managed gateway provider whose Claude Code tiers all name one model, with the /model list
 # the hub serves for it: one Opus 5.5 row with the tier aliases folded into it, the gateway's other route of that model
 # told apart by its route, Default apart. =raw: the list as the hub served it before, each tier alias a row of its own,
@@ -28095,7 +28095,7 @@ if MOCK_TURN_USAGE in ("1", "multi", "unpriced"):
     mock_turn_usage(MOCK_TURN_USAGE)
 
 
-# ---------- the mock's domains (scripts/mock/mock_domains.py, docs/operations/testing.md "Mock hub domains") ----------
+# ---------- the mock's domains (scripts/mock/mock_domains.py) ----------
 # Each module in mock_domains.DOMAINS registers its routes, WebSocket messages, features, help lines and /mock/reset
 # hooks, and H consults them before its own; a new domain is a module and a line in that list, with no change here.
 # They load after every switch above, so a domain can read and extend those fixtures.

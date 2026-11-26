@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The processing conversation names an item (title and summary through inbox_suggest, docs/assistant/inbox.md
+// The processing conversation names an item (title and summary through inbox_suggest
 // "Following up"): a chat item takes both, the title clipped and on one line as grouping writes it, and title_by says
 // the assistant wrote them, so grouping leaves them alone; a mail, a document or a company-feed item keeps its own
 // title and takes the summary only; blanks written nothing.

@@ -5,7 +5,7 @@
 // in it from when they may have missed one (`FoldMissed`): mounting, a group takes the last fold-all after that and
 // after its own last choice, as it would have taken it mounted. A group drawn for the first time, with nothing missed
 // around it (a new Agent, another grouping), keeps its own fold, as before. Kept for this visit, not across a reload:
-// a group not drawn again before one shows the fold it had stored before the fold-all (docs/web/web.md).
+// a group not drawn again before one shows the fold it had stored before the fold-all.
 import { createContext } from "react";
 
 let seq = 0;

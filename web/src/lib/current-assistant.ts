@@ -1,4 +1,4 @@
-// What the pages show once there are several assistants (docs/assistant/managers.md "Clients"): only the current one's
+// What the pages show once there are several assistants: only the current one's
 // computers, agents, cards, inbox items and to-dos. The hub's lists stay whole (every item carries its `manager`), so a
 // link to another assistant's item still opens it; the pages filter what they list. With one assistant nothing is
 // filtered: an item without `manager`, or of a manager the roster doesn't know, is the default's (ownerIn).

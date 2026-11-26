@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// Handled elsewhere (docs/assistant/inbox.md "Handled elsewhere"): an open item the owner already dealt with in the
+// Handled elsewhere: an open item the owner already dealt with in the
 // source, or that the other side closed, is filed without the owner pressing Done. Two places find it:
 //
 //   - grouping: the model relating a batch says an open event is settled (group.md "settled"), from the batch's own

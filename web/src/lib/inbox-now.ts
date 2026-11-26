@@ -1,4 +1,4 @@
-// The manager's inbox state key in the app's words (docs/assistant/inbox.md "Following up"). The key, its
+// The manager's inbox state key in the app's words. The key, its
 // translations and the shared examples live in spec/fixtures/inbox/now.json; an older hub's missing key, or a newer
 // hub's unknown one, leaves each existing state line on its own words.
 import { formatDate, t } from "../i18n";

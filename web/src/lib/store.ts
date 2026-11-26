@@ -70,7 +70,7 @@ export interface State {
   features: string[];
   /** Whether the hub's push grading switch is enabled (`hello.push_grading` / `push_grading` event). */
   pushGrading: boolean;
-  /** This hub's name and its interconnected group (docs/server/mesh.md 2.6); empty on older hubs. */
+  /** This hub's name and its interconnected group; empty on older hubs. */
   hubName: string;
   mesh: MeshHub[];
   machines: Machine[];
@@ -1048,7 +1048,7 @@ function onMessage(msg: Record<string, unknown>) {
         void refreshAgentPrefs();
       }
       // Overview and attention signals need counts even when the paged sidebar is closed. Read at once when a
-      // reconnect may have missed changes, without waiting for another hint (docs/lessons/web.md, #6362).
+      // reconnect may have missed changes, without waiting for another hint (#6362).
       if (agentsMode && (!isResumed(msg) || !runtimeAgents.getSnapshot().loaded)) {
         void runtimeAgents.load().catch(() => {});
       }

@@ -1,4 +1,4 @@
-// An agent's closeout (docs/assistant/agent-work.md "Closeout", #3612): the record it ends a turn with, saying whether the
+// An agent's closeout (#3612): the record it ends a turn with, saying whether the
 // work is done, what changed, whether it is merged and deployed, what was verified and what is missing. It is the
 // agent's own claim. Where the hub looked itself (`checked`), its finding stands beside the claim: confirmed,
 // contradicted, or not checked. The session's page draws it as a card (views/chat/CloseoutCard.tsx), list rows as a

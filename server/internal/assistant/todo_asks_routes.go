@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// A to-do's own asks answered through one route (#10465, docs/assistant/todos.md "Decisions the owner can answer"):
+// A to-do's own asks answered through one route (#10465):
 // POST /api/v1/todos/{id}/asks/{ask}/answer takes any answer to an ask of the to-do's row, named by the ask's id in
 // its view (todo/projection: todo:decision@<asked_at>, todo:retry@<done_at>, and step:<step id>/<that id> for a step's
 // ask on its parent's row), and maps it onto the paths each ask has had: a decision's option, fixed answer or words

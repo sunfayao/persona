@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Claude Code aliases (docs/assistant/model-config.md "Importing providers from shell aliases"): `alias x="K=V K=V …
+// Claude Code aliases: `alias x="K=V K=V …
 // claude [args]"`, quoted either way or not at all, read from the text and never from a shell, so nothing of the
 // user's runs. Their env holds keys: a caller never logs it.
 

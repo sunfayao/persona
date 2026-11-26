@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/sdk/go/wire"
 )
 
-// UI version 10 (docs/extensions/extensions.md "UI version 10", #9727): a graph, a canvas of nodes joined by edges.
+// UI version 10 (#9727): a graph, a canvas of nodes joined by edges.
 // downgrade10 draws it with version 9's for an older app, and for a native stream (whose components never include a
 // graph): one row per visible node, in reading order, indented by its depth, carrying what the node said.
 

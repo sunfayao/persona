@@ -25,7 +25,7 @@ import (
 // HeaderManagerProof carries the proof.
 const HeaderManagerProof = "X-Persona-Manager-Proof"
 
-// The hub's answers to a proof that is the manager's but not taken (docs/assistant/managers.md "Extensions and the hub's API").
+// The hub's answers to a proof that is the manager's but not taken.
 const (
 	CodeClockSkew     = "clock_skew"     // 403: its time is out of ProofWindow
 	CodeProofReplayed = "proof_replayed" // 403: its nonce was taken already

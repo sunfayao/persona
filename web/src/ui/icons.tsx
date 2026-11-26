@@ -71,7 +71,7 @@ const P: Record<string, React.ReactNode> = {
   fork: <path d="M16 3h5v5M8 3H3v5M12 22v-8.3a4 4 0 0 0-1.17-2.87L3 3M15 9l6-6" />,
   sidebar: <g><rect x="3" y="4" width="18" height="16" rx="2.5" /><path d="M9 4v16" /></g>,
   loop: <path d="M17 2l4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3" />,
-  // a goal the agent works toward (docs/integrations/agent-goal.md)
+  // a goal the agent works toward
   target: <g><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.2" fill="currentColor" /></g>,
   gear: <g><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></g>,
   arrowDown: <path d="M12 5v14M19 12l-7 7-7-7" />,
@@ -169,7 +169,7 @@ const P: Record<string, React.ReactNode> = {
   code: <path d="m16 18 6-6-6-6M8 6l-6 6 6 6" />,
   pullRequest: <g><circle cx="18" cy="18" r="3" /><circle cx="6" cy="6" r="3" /><path d="M13 6h3a2 2 0 0 1 2 2v7M6 9v12" /></g>,
   merge: <g><circle cx="18" cy="18" r="3" /><circle cx="6" cy="6" r="3" /><path d="M6 21V9a9 9 0 0 0 9 9" /></g>,
-  // voice chat (docs/web/web.md "Voice"): the composer's entry (a sound wave), the bar's mute (after Lucide's mic-off) and hang-up
+  // voice chat: the composer's entry (a sound wave), the bar's mute (after Lucide's mic-off) and hang-up
   voice: <path d="M3 10v4M7.5 6v12M12 3v18M16.5 7v10M21 10v4" />,
   micOff: <g><path d="M15 9.34V5.5a3 3 0 0 0-5.68-1.33M9 9v2.5a3 3 0 0 0 5.12 2.12" /><path d="M19 11a7 7 0 0 1-1.07 3.73M5 11a7 7 0 0 0 11.37 5.47M12 18v3.5M2 2l20 20" /></g>,
   // hang up: Lucide's phone handset turned to lie flat, as call apps draw it

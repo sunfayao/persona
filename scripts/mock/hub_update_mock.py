@@ -1,4 +1,4 @@
-"""The hub's own update in the mock hub (server/internal/hub/update, docs/operations/hub-update.md), a domain of
+"""The hub's own update in the mock hub (server/internal/hub/update), a domain of
 scripts/mock/mock_domains.py that moved out of mock_hub.py (#11649): GET /api/v1/hub/update and …/history, PUT
 …/update/settings and POST …/update, and GET /mock/hub_update?mode=, which HubNoticeUITests uses to start a mode afresh.
 """
@@ -13,8 +13,8 @@ def ago(minutes=0, hours=0, days=0):
     return HUB.ago(minutes=minutes, hours=hours, days=days)
 
 
-# MOCK_HUB_UPDATE=available|waiting|notice|held|docker|docker-pinned|beta: the hub's version and its updating itself
-# (docs/operations/hub-update.md): a newer release to install (auto-update off), an update waiting for two busy agents, "Automatic updates enabled"
+# MOCK_HUB_UPDATE=available|waiting|notice|held|docker|docker-pinned|beta: the hub's version and its updating itself:
+# a newer release to install (auto-update off), an update waiting for two busy agents, "Automatic updates enabled"
 # told for the first time, a newer release auto-update holds back (its code does not contain the hub's commit, with
 # the held line in the history), or a Docker hub with a newer image (on :latest, or on a pinned version tag). behind
 # (#8108): up to date against a build-time source whose newest release is older than the hub (source_behind). Unset:

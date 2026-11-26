@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-// A request in pieces (docs/assistant/todos.md "Requests in pieces"). When one thing the owner asked for is split into
+// A request in pieces. When one thing the owner asked for is split into
 // several pieces of work, each piece is a to-do with `part_of`, the to-do that stands for the request (its root), and
 // `after`, the pieces of the same request it waits for. A piece that cannot start yet is a to-do with no Agent; when its
 // turn comes, task_plan's todo_id runs an Agent on that same to-do, so its id, and every `after` naming it, stay.

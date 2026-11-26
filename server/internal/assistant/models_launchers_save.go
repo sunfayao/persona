@@ -45,7 +45,7 @@ type launcherInput struct {
 	// DisplayName is the name shown, any language; nil on an update keeps it; empty on a provider the hub names from a preset is the preset's name.
 	DisplayName *string `json:"display_name"`
 	// Assign (POST only): the categories (assistant, agent.new) to put on the new provider, each only while it is
-	// still at its default (docs/assistant/onboarding.md 5.4).
+	// still at its default.
 	Assign []string `json:"assign,omitempty"`
 
 	// #2455's fields (proto.ManagedLauncher). Each is a pointer: left out (an app from before them) keeps what is

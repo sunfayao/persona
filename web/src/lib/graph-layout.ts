@@ -1,4 +1,4 @@
-// UI version 10's `graph` layout (docs/extensions/extensions.md "UI version 10", #9727): a pure copy of the shared
+// UI version 10's `graph` layout (#9727): a pure copy of the shared
 // rules (spec/fixtures/graph-layout/README.md; scripts/gen/graph_layout.py is the reference and writes the cases this
 // is checked against, web/src/lib/graph-layout.test.ts). A layout is in slots — a node and its gap — so every client
 // agrees on the shape; each multiplies by its own node pitch. Only equality of ids and group titles is used, never

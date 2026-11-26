@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Add computer with several assistants (docs/assistant/managers.md "Clients", docs/protocol/protocol.md "Computer pairing
+// Add computer with several assistants (docs/protocol/protocol.md "Computer pairing
 // codes"): the new computer is the current assistant's (its real id in add.manager, once the roster said which), the
 // waiting screen says where it went when that is another (or the hub didn't say: one from before add.manager), an
 // offline current assistant takes none, and the computers in the way of a new one are every assistant's.

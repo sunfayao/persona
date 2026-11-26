@@ -1,4 +1,4 @@
-// End-to-end check of New agent's recent setups (#2134, docs/web/web.md "Recent setups"): two starts through the form are
+// End-to-end check of New agent's recent setups (#2134): two starts through the form are
 // remembered; reopened, New agent shows them as cards above the computers (with a made-up offline computer's one,
 // dimmed, that can't be picked, and Full access marked); a tap fills computer, folder, launcher, model, permission
 // mode and effort and starts nothing; the ⋯ removes one and clears them. The model, launcher and effort are New agent's

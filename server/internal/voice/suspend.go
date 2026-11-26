@@ -12,7 +12,7 @@ import (
 )
 
 // Pausing the upstream (docs/assistant/voice.md 4.9 "Suspension", protocol 2 only). A realtime session is billed by the second, silence
-// included (docs/lessons/voice.md "Other behavior": a 15-minute session the model hardly spoke in was billed 948 s), and an
+// included (a 15-minute session the model hardly spoke in was billed 948 s), and an
 // agent's turn often takes minutes. So while the bound conversation works on something (or a run of the call's waits
 // on its background work or on something outside: what it brings back is still to come), nobody has spoken for
 // pauseAfter (the user by their voice, captions or typed lines; the model by its speech as it plays, its handovers;
@@ -43,7 +43,7 @@ import (
 
 var (
 	// pauseAfter is how long the call is quiet while its conversation works before the upstream is closed
-	// (docs/lessons/voice.md "Recommended constants": 60 s).
+	// (60 s).
 	pauseAfter = time.Minute
 	// wakeVoice is how long the user's voice wakes a paused upstream (docs/assistant/voice.md 4.9 "Suspension": 200 ms).
 	wakeVoice = 200 * time.Millisecond
@@ -56,7 +56,7 @@ var (
 // wakeMost is how many tries in a row a wake gets before the call ends.
 const wakeMost = 3
 
-// The link frame's states (docs/assistant/voice.md "Extension → App").
+// The link frame's states.
 const (
 	linkLive         = "live"
 	linkPaused       = "paused"
@@ -437,6 +437,6 @@ func (t *tracker) works() bool {
 // saw notes how a look found the conversation of key (s nil: not listed): whether the bound conversation works.
 func (t *tracker) saw(key linkKey, s *proto.Session) {
 	if t.obs.on && key == t.obs.key {
-		t.busy = s != nil && atWork(s) // waiting on the user is not: they may speak at any moment (docs/assistant/voice.md 4.9)
+		t.busy = s != nil && atWork(s) // waiting on the user is not: they may speak at any moment
 	}
 }

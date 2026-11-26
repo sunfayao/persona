@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Model ids the user typed (#1644, docs/assistant/model-config.md "Typing a model ID"). New Agent, a running
+// Model ids the user typed (#1644). New Agent, a running
 // session's model switch and the Persona chat's chip take any model id (proto.ValidModelID), not only one from the
 // launcher's /model list: a gateway's own models, or a model newer than the list. One that ran is remembered here, per
 // machine and launcher, for every device: the hub tells the manager (models.used) once a start, a switch or a message

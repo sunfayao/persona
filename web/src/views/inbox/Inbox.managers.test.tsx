@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The inbox with several managers (docs/assistant/managers.md "Clients"): the list is the current assistant's (no manager
+// The inbox with several managers: the list is the current assistant's (no manager
 // headings), with its own sections open or closed, a route opens the copy of its manager, the Muted dialog lists the
 // current assistant's, a rule from another manager's item is read and saved with that manager, a new mail is the current
 // assistant's, and an offline current assistant's list says it is offline rather than empty.

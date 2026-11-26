@@ -18,7 +18,7 @@ import (
 
 // What a handover is sent with of the conversation, and what a new session is told was said, go in the order it was
 // said (#5506): the measured service sends the user's caption 1.2–1.4 s after they stop, after the model began to
-// answer (docs/lessons/voice.md "Timeline").
+// answer.
 
 // captionConversation is a conversation that takes upstream events with no upstream or app behind it.
 func captionConversation(t *testing.T) *conversation {

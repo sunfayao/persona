@@ -1,6 +1,6 @@
 // A call's two AudioContexts (audio.ts): the capture context at the device's rate, the player at the voice's output rate.
 // A browser lets audio start only from a user's gesture, so both are made and resumed inside the click that starts the
-// call, before anything is awaited (docs/lessons/voice.md, "Two AudioContexts"). They live apart from audio.ts so the
+// call, before anything is awaited. They live apart from audio.ts so the
 // first call of a page can make them in that click while its code (calls.ts, call-stack.ts) is still loading.
 
 export interface VoiceContexts {

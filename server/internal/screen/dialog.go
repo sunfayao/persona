@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// Defined in the contract package dialogwire (docs/server/architecture.md "Contract packages"); the old names stay.
+// Defined in the contract package dialogwire; the old names stay.
 type (
 	Dialog = dialogwire.Dialog
 	Option = dialogwire.Option

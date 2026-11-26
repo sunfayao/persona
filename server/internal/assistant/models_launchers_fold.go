@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// One row per model in a launcher's /model list (#10365, docs/assistant/model-config.md "One row per model"). Claude
+// One row per model in a launcher's /model list (#10365). Claude
 // Code lists each tier alias as a row of its own, and a gateway provider whose tiers all name one model (Persona fills
 // the tiers it leaves empty with its model) showed "Opus 5.5" four times, then a fifth time for the same model behind
 // another route of the gateway. The manager folds the list once, for every picker on every client; the node's list,

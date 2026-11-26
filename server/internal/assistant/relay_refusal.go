@@ -17,7 +17,7 @@ import (
 )
 
 // A relay send that failed is classified once, by what the failure says, and every path that relays into an assistant
-// conversation asks the same function (#11393, docs/assistant/assistant.md "Between conversations"): conversation_send,
+// conversation asks the same function (#11393): conversation_send,
 // the queue's drain, supervision delivery, relayOrQueue (task ends, spawn notices, chat replies), the owner's card
 // answers, approval results and quiet tasks' notices. A message refused for good leaves delivery once, by its kind
 // (relayRefused), instead of being retried every relayRetryGap without end.

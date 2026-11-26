@@ -8,7 +8,7 @@ import (
 	"github.com/nwverse/persona/server/internal/transcript"
 )
 
-// Subscription usage limits (docs/assistant/agent-work.md "Usage limits", #1710): a turn a subscription's 5-hour or
+// Subscription usage limits (#1710): a turn a subscription's 5-hour or
 // weekly limit refused is no failure to report and nothing for the user to fix. It waits for the reset; the CLI goes
 // on by itself when it said so (typing into it would cancel that), otherwise the manager continues it a minute or so
 // after the reset (agents_work_act.go). Gateway quota errors with an explicit UTC reset use the same wait.

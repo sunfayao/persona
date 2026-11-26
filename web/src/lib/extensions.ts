@@ -1,4 +1,4 @@
-// Manager-owned extension metadata and settings APIs (docs/extensions/extension-settings.md).
+// Manager-owned extension metadata and settings APIs.
 // Configuration is schema-backed and secrets are write-only. Lifecycle management is host-owned;
 // market installation and consent flows live in extension-market.ts.
 import { api, ApiError, enc } from "./api";
@@ -43,7 +43,7 @@ export interface HubExtension {
   needs_setup?: string[];
   warnings?: string[];
   /** An extension from a market (a hub with plugin_auto_upgrade): its own auto-upgrade switch, its newer version and what
-   *  happened last with an upgrade (docs/extensions/extensions.md "Automatic upgrades"). */
+   *  happened last with an upgrade. */
   auto_upgrade?: boolean;
   /** Why its own switch does not apply now (the switch is kept either way): "market_removed" once its market is no longer
    *  registered, "disabled" while the extension is off. */
@@ -67,7 +67,7 @@ export interface HubExtension {
   attached?: ExtensionAttached;
 }
 
-/** How an attached extension is connected (docs/extensions/extensions.md "Attached extensions"). */
+/** How an attached extension is connected. */
 export interface ExtensionAttached {
   online: boolean;
   /** When it came online or went offline; none while it is switched off or nothing needs it. */
@@ -104,7 +104,7 @@ export function channelOf(p: Pick<HubExtension, "contributes">): string | null {
   return p.contributes?.channel?.find((id) => id.trim() !== "") ?? null;
 }
 
-/** An extension's program on one machine (docs/extensions/extensions.md "Programs running on computers"). */
+/** An extension's program on one machine. */
 export interface ExtensionNodeState {
   machine_id: string;
   version?: string;
@@ -227,7 +227,7 @@ export interface ExtensionSecret {
   set: boolean;
   /** Its last four characters, when it is set and the extension asked for them (secrets[].hint "last4"); never more. */
   hint?: string;
-  /** It holds a provider's reference, not a value (docs/extensions/secret-providers.md). */
+  /** It holds a provider's reference, not a value. */
   reference?: SecretReference;
   /** A live entry's storage ID is name; these associate it with its list and display title. */
   list?: string;
@@ -279,7 +279,7 @@ export interface HubExtensionDetail extends HubExtension {
   config?: JsonObject;
   secrets?: ExtensionSecret[];
   permissions?: ExtensionPermission[];
-  /** The pages it draws in its settings (placement plugin_page, docs/extensions/extensions.md "Declarative UI"). */
+  /** The pages it draws in its settings (placement plugin_page). */
   ui?: UIPlace[];
   /** The field (format machine) that picks the computers its program runs on; their rows say how it is there. */
   node_machines?: string;

@@ -8,7 +8,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// New Inbox messages about a supervised task reach its supervisor (#4293; docs/assistant/unified-entry.md
+// New Inbox messages about a supervised task reach its supervisor (#4293
 // "Supervision (#3124)" and "Message cards link to tasks"). The AI twin's pass takes new messages from other people into
 // an item, and the judge links the item to one of the user's tasks (linkTaskFor). When that task is supervised, its
 // supervisor gets the signal inbox through the usual digest: routed to the task's leader conversation or the main one,

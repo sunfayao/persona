@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// TypeExtension is a source an extension reads (contributes.usage, docs/extensions/extensions.md "Usage"): the manager asks the
+// TypeExtension is a source an extension reads (contributes.usage): the manager asks the
 // extension (usage.query), which sends its requests to a launcher's gateway through usage.http and answers with the
 // accounts and windows to draw. It has no address and no key of its own: the launcher has both, and the key stays with
 // whoever holds it.

@@ -18,7 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/runtimepkg"
 )
 
-// The opencode ACP companion runtime (docs/integrations/opencode.md). When the machine has `opencode` installed and no
+// The opencode ACP companion runtime. When the machine has `opencode` installed and no
 // external `opencode` companion or active `opencode serve` plugin is connected on runtime.sock, a production
 // RuntimeHost writes out the embedded persona-opencode-runtime package and supervises `opencode/companion.mjs` itself
 // so opencode Agent and Assistant sessions work out of the box without a manual companion or daemon setup.

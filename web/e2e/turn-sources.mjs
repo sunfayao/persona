@@ -1,4 +1,4 @@
-// End-to-end check of a reply's Sources row (#9132, docs/web/web.md "Sources"): the main chat's last reply looked Kyoto's
+// End-to-end check of a reply's Sources row (#9132): the main chat's last reply looked Kyoto's
 // weather up on the web, and under it a Sources row shows three pages (each by its site, its title in the tooltip and
 // spoken name), +2 shows the other two and Show less folds them again; a chip is a link to the page that opens in a new
 // tab, and the row stays inside the window.

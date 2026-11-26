@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// The recommended setup, said once (#5085, docs/assistant/assistant.md "Recommended setup"; step R3, section 4c of
+// The recommended setup, said once (#5085; step R3, section 4c of
 // docs/assistant/assistant.md). The mechanisms that cut asks and background rounds ship off or
 // empty because each spends tokens or acts for the owner. This block says, from the install's own records, which of
 // them would have removed how many of the last setupWindow's asks or background rounds, with what it costs and where

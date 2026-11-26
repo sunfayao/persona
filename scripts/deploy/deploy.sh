@@ -3,10 +3,10 @@
 #   ./scripts/deploy/deploy.sh                 # all machines
 #   ./scripts/deploy/deploy.sh <hub machine>   # only the hub
 #   ./scripts/deploy/deploy.sh <machine id>    # only one machine (node binary; the hub restarts its connection)
-#   ./scripts/deploy/deploy.sh web             # only the web client (web/, docs/web/web.md): no restart
+#   ./scripts/deploy/deploy.sh web # only the web client (web/): no restart
 # The checkout must contain the remote deploy branch (it fetches it first), else nothing is deployed;
 # PERSONA_DEPLOY_ANY_COMMIT=1 skips the check.
-# Who may open the hub's admin UI (docs/operations/admin.md): --admin-access <loopback|lan|cidrs|any> [--admin-cidrs a,b] (or
+# Who may open the hub's admin UI: --admin-access <loopback|lan|cidrs|any> [--admin-cidrs a,b] (or
 # PERSONA_ADMIN_ACCESS / PERSONA_ADMIN_CIDRS) sets it on the hub; without them a hub that never had one chosen asks on
 # a terminal, else keeps the default (lan) and says so.
 set -euo pipefail
@@ -60,7 +60,7 @@ _env=$(python3 scripts/persona_config.py env) || exit $?
 eval "$_env"; unset _env
 cd server
 # Straight from the default branch, for when a change cannot wait for a release: the build number is the build time
-# (UTC), so an older release never replaces it and the next release does (docs/operations/hub-update.md "Direct deploys").
+# (UTC), so an older release never replaces it and the next release does.
 BUILD="$(date -u +%Y%m%d%H%M)"
 # The nearest vX.Y.Z tag names it, a lightweight one too (a GitHub release's tag is one; plain `git describe` counts
 # annotated tags only, so builds after v0.4.0 read v0.3.1-…, #7201); testflight/<build> and other tags never do.
@@ -125,11 +125,11 @@ $command"
 }
 mkdir -p bin
 # The commit it is built from, "-dirty" after it with changes in server/ not committed: a release installs itself over
-# this build only when its code contains that commit (docs/operations/hub-update.md "No regression").
+# this build only when its code contains that commit.
 COMMIT="$(git rev-parse HEAD 2>/dev/null || true)"
 [ -n "$COMMIT" ] && [ -n "$(git status --porcelain -- . 2>/dev/null)" ] && COMMIT="$COMMIT-dirty"
 # The update source built in: the config's publish.update_url, else publish.site_url's dl/ (scripts/persona_config.py
-# update_url); none without either. hub.json's update.url replaces it at run time (docs/operations/hub-update.md "Update source").
+# update_url); none without either. hub.json's update.url replaces it at run time.
 UPDATE_URL="${PERSONA_UPDATE_URL:-${PERSONA_PUBLISH_URL:+$PERSONA_PUBLISH_URL/dl}}"
 # Without publish.update_url the hub carries the site's dl/, which may no longer take releases (#8108): say so once.
 if [ -z "$(python3 ../scripts/persona_config.py get publish.update_url 2>/dev/null)" ]; then
@@ -251,7 +251,7 @@ install_bin() {
     root=$(state_root "$role")
     mkdir -p "$root/bin" || return 1
     # The hub's binary before it is replaced: hub-systemd.sh switches the running edge to the new one and goes back
-    # to this one if it fails while taking over (docs/operations/hub-restart.md "Blue-green switching: the hub's edge").
+    # to this one if it fails while taking over.
     if [ "$role" = hub ]; then
       local previous
       previous=$(python3 ../scripts/persona_identity.py --service hub --shell) || return 1
@@ -291,7 +291,7 @@ $command")
 }
 
 # install_program <hub machine id> <os-arch> <program>: the hub and manager programs released with personad
-# (update.ProgramNames; docs/server/server.md). Keep a .prev for rollback after a failed switch.
+# (update.ProgramNames). Keep a.prev for rollback after a failed switch.
 install_program() {
   local id=$1 plat=$2 name=$3 bin keep=
   bin="bin/$name-$plat"
@@ -332,7 +332,7 @@ ensure_herdr() { # machine-id
 }
 
 # A resident node (scripts/deploy/node-launchd.sh, Mac or Linux) keeps the old binary until it restarts: it does so
-# once none of the assistant's conversations is busy, which go on across hub restarts (docs/operations/hub-restart.md).
+# once none of the assistant's conversations is busy, which go on across hub restarts.
 restart_resident() { ../scripts/deploy/node-launchd.sh restart-idle || true; }
 
 # The admin UI's scope on the hub (its new binary is in place, the hub restarts right after): what was given, else a
@@ -377,7 +377,7 @@ for t in "${TARGETS[@]}"; do
       install_bin "$t" "bin/personad-$hub_plat"
       for p in persona-hub persona-manager; do install_program "$t" "$hub_plat" "$p"; done
       # What this build contains, beside its binary: the hub's deploy checks read it before asking GitHub, and it names
-      # the open PRs the build runs (docs/assistant/todo-status-sop.md "Without GitHub"). Never fails the deploy.
+      # the open PRs the build runs. Never fails the deploy.
       if python3 ../scripts/deploy/deployed_commits.py ${COMMIT:+--commit "${COMMIT%-dirty}"} --out bin/deployed-commits.txt; then
         remote_state "$PERSONA_HUB_SSH" 'cat > "$PERSONA_HOME/bin/deployed-commits.txt.new" && mv "$PERSONA_HOME/bin/deployed-commits.txt.new" "$PERSONA_HOME/bin/deployed-commits.txt"' < bin/deployed-commits.txt ||
           echo "hub: deployed-commits.txt not written; its deploy checks ask GitHub" >&2

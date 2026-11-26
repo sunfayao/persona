@@ -1,6 +1,6 @@
 package node
 
-// A reviewer's own copy of an agent's change (#2173, docs/assistant/unified-entry.md "Independent review"):
+// A reviewer's own copy of an agent's change (#2173):
 // worktree.snapshot checks out the HEAD of the repository a folder is in, detached, under the directory the computer
 // puts this repository's checkouts in, and puts the folder's uncommitted change there too (tracked edits as a binary
 // diff, untracked files copied). The reviewer runs in that copy, so whatever it edits, formats or builds lands there

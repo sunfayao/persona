@@ -19,7 +19,7 @@ import (
 
 // ---- interaction_answer (prompts/mcp/agents) ----
 
-// toolInteractionAnswer answers another agent's question for the user (docs/assistant/assistant.md). Only a question may be
+// toolInteractionAnswer answers another agent's question for the user. Only a question may be
 // answered here: a permission, a plan and a terminal dialog are the user's to decide, and an assistant conversation
 // (this one among them) is never answered by the assistant.
 func (s *Service) toolInteractionAnswer(ctx context.Context, self string, args json.RawMessage) (string, error) {
@@ -312,7 +312,7 @@ func draftPlaceholder(text string) string {
 	return placeholderRE.FindString(text)
 }
 
-// toolInboxDraft gives the inbox the draft of the AI twin working in conversation self (docs/assistant/inbox.md, inboxDraft):
+// toolInboxDraft gives the inbox the draft of the AI twin working in conversation self (inboxDraft):
 // it waits on the item for the user to send.
 func (s *Service) toolInboxDraft(ctx context.Context, self string, args json.RawMessage) (string, error) {
 	var a struct {

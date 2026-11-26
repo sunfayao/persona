@@ -6,7 +6,7 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-// What a row of the ledger tells a screen about taking its message back (docs/protocol.md "Connector API"): whether it
+// What a row of the ledger tells a screen about taking its message back: whether it
 // can be now. It is read from the same check RecallSent acts on (recallCheck), so a button never offers what the
 // recall would refuse for a reason known without asking the other side. A message that ages out between the read and
 // the tap is refused by the route (409 too_old) and the screen reads the ledger again.

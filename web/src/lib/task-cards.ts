@@ -30,7 +30,7 @@ export function upsertTaskCards(previous: TaskCardMetadata[], incoming?: TaskCar
 }
 
 /** Legacy hubs keep their audit events. Fold those events into the same plan-slot identities. `everyTodo`: the main
- *  conversation watches every task (docs/assistant/unified-entry.md), so each to-do gets a row there, whatever its origin,
+ *  conversation watches every task, so each to-do gets a row there, whatever its origin,
  *  and its In progress entry counts what the To-dos page counts (#3331). */
 export function taskCardSlots(conversation: string, metadata: TaskCardMetadata[], feed: FeedItem[], plans: Record<string, TaskPlan>, todos: Todo[], everyTodo = false): TaskCardMetadata[] {
   const slots = new Map<string, TaskCardMetadata>();

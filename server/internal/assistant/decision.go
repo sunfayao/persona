@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// Decisions the owner can answer (#3804, docs/assistant/todos.md "Decisions the owner can answer"). A supervised task
+// Decisions the owner can answer (#3804). A supervised task
 // reviewed needs_user reaches the owner only as a decision: it names why only they can decide (why_owner), what is to
 // be decided in one sentence, the option recommended, two to four options with what each leads to, and what waiting
 // costs; anything less is refused and the supervisor decides, sends the work back or closes it. The hub, not the

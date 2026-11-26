@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end check of the web's Review panel (docs/web/review.md, #151): ⋯ › Review changes opens every file the
+"""End-to-end check of the web's Review panel (#151): ⋯ › Review changes opens every file the
 session changed against where the branch left origin/main; the Git panel's Review opens the uncommitted ones; a
 comment on a line and one on a range wait in the review as drafts at their lines (deleting one, a reload keeping
 them); a comment straight to the message box; lines hidden between hunks read from the file on disk; a file too big

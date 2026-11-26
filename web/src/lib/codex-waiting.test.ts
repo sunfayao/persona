@@ -1,4 +1,4 @@
-// A Codex opened with no first message (docs/integrations/codex.md "Starting without a first message"): its page
+// A Codex opened with no first message: its page
 // follows its pane to the thread the first message began.
 import { describe, expect, it } from "vitest";
 import { codexThreadOf, waitsForFirstMessage } from "./codex-waiting";

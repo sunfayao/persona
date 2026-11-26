@@ -1,4 +1,4 @@
-// Inbox Sources' relationship view (#5741, docs/extensions/subscriptions.md "Pages"): what brings each source, how it is
+// Inbox Sources' relationship view (#5741): what brings each source, how it is
 // read, the source and where its things go. Wide, four columns joined by curves with the details over them; phone-wide,
 // a tree per extension with filters and the details in a sheet. Picking a source lights up its whole path and opens its details: Open Settings (its page in the list) and,
 // for a subscription, Set Up with the assistant. The words, badges and duplicates are the list's (the server's).

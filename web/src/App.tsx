@@ -131,7 +131,7 @@ if (typeof window !== "undefined") window.addEventListener("hashchange", takeImp
 
 // Developing Persona's To-dos view shadow (features/todos/model/view-shadow.ts) reads today's triage through this
 // module: its recorder can load before App, so importing lib/todo-triage.ts there would split it out of the first
-// screen's chunk (docs/lessons/web.md #10226). The cost is development only: under `npm run dev` an edit to
+// screen's chunk. The cost is development only: under `npm run dev` an edit to
 // lib/todo-triage.ts changes App's exports, so the page reloads where it used to refresh in place.
 export { openMergePRs, supersededFailedStarts, triage } from "./lib/todo-triage";
 
@@ -176,7 +176,7 @@ export function App() {
   useEffect(() => {
     if (!authed) return;
     connect();
-    // the managers' roster from the start (docs/assistant/managers.md "Clients"): what goes by the default waits for it
+    // the managers' roster from the start: what goes by the default waits for it
     watchRoster();
     return () => disconnect();
   }, [authed]);

@@ -7,7 +7,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// ---- the channels: the Feishu bot and the chat app bots (docs/extensions/channels.md, docs/extensions/bots.md) ----
+// ---- the channels: the Feishu bot and the chat app bots ----
 
 // Which conversation a channel talks to, following the turn and sending its answer back, what is asked there and its
 // answer, the commands, the pushes and the sync mirror are the assistant's; the hub keeps the transport — the Feishu

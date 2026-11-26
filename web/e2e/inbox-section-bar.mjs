@@ -1,4 +1,4 @@
-// The Inbox's section bar in a real browser (#9053, docs/assistant/inbox.md "Section bar"): it opens on Needs you, stays in
+// The Inbox's section bar in a real browser (#9053): it opens on Needs you, stays in
 // sight over the scrolling list, keeps to one row (its words never wrap, in every language) with All and the grouping
 // always in full and the choice made in sight, its sections scrolling sideways (faded, a mouse's wheel too) where they
 // don't fit, shows a choice's section alone, keeps the grouping in its trailing menu, lands on a linked item's choice
@@ -181,7 +181,7 @@ try {
       }
     }
   }
-  // the landing (docs/assistant/inbox.md "Section bar"): a link to a done item, from outside the Inbox, lands the list on
+  // the landing: a link to a done item, from outside the Inbox, lands the list on
   // Done with the item's row marked, and the list stays there when the item closes; one opened from inside (another
   // item's Related line, the mock's first Needs-you item names the first done one) moves only a list beside the item,
   // and Back returns that list to the choice it had

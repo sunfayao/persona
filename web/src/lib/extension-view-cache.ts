@@ -1,4 +1,4 @@
-// An extension page's last view (docs/web/web.md "Extension pages on reload"): the full page opened again draws it at
+// An extension page's last view: the full page opened again draws it at
 // once, inert and marked as updating, until the extension draws the page again. Never a source of authority: nothing in
 // it can be pressed. Kept in localStorage under the feed cache's hub and sign-in scope (lib/feed-cache.ts scopedKey), so
 // signing out, new credentials or another hub never show it. One entry per extension, page, first state, UI version,

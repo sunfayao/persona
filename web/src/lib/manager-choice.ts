@@ -1,4 +1,4 @@
-// The current assistant (docs/assistant/managers.md "Clients"): with several managers, each a whole assistant, the sidebar's
+// The current assistant: with several managers, each a whole assistant, the sidebar's
 // switcher picks the one the whole app shows. The pick is kept in this browser (per hub: the page's origin and proxy
 // prefix) across reloads; a manager that left the roster goes back to the default. The assistant's requests name the
 // chosen one (`X-Persona-Manager`, docs/protocol/protocol.md "Per-manager routing"); with the default chosen none is sent,
@@ -274,7 +274,7 @@ export function useItemManager(): string | undefined {
 }
 
 /** The manager of the chat (an agent's, a conversation) or the opened document a link is in: a document or post the
- *  link opens in the page is read through it (docs/assistant/managers.md "Grouping"). Where none is provided, an inbox
+ *  link opens in the page is read through it. Where none is provided, an inbox
  *  item's (ItemManager), else the default's. */
 export const LinkManager = createContext<string | undefined>(undefined);
 

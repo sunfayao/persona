@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end check of provider import links (#5420, docs/integrations/launchers.md "Import links"): opening the web's
+"""End-to-end check of provider import links (#5420): opening the web's
 link (`/settings?tab=models#import=<data>`) cleans the address bar and opens Add provider on the paste view in its link
 mode, read at once, and Continue fills in the gateway's steps; a link of another version is refused in plain words with
 nothing to continue with; cindy's `cindy://provider/import` pasted into "Paste a configuration" reads as a link; a

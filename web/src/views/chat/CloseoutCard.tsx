@@ -1,4 +1,4 @@
-// A stopped agent's closeout, above its transcript (#3612, docs/assistant/agent-work.md "Closeout"): whether it says the work
+// A stopped agent's closeout, above its transcript (#3612): whether it says the work
 // is done, what changed, what it produced, whether it is merged and deployed, what it verified and what it still needs.
 // It is the agent's own claim and the card says so. Beside "merged" and "deployed" stands what the hub found when it
 // looked itself: confirmed, contradicted (in the caution color, with the warning mark: color is never the only signal)

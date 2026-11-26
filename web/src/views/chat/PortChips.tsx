@@ -1,6 +1,6 @@
 // The ports an agent's answer links on its computer, as chips under the answer (docs/operations/ports.md "Recognizing
 // links in replies"; iOS PortChips): `:5173` with the page's title, or Stopped (dimmed) once nothing listens there.
-// A click shows the page in the preview panel (docs/web/preview.md): a browser on that computer draws it, since this
+// A click shows the page in the preview panel: a browser on that computer draws it, since this
 // computer's localhost is not the agent's.
 import { useMemo } from "react";
 import { isHubPortLink } from "../../lib/links";

@@ -97,7 +97,7 @@ func (g extensionGrant) covers(info infoUse) bool {
 	return true
 }
 
-// usage is what info may do in scene sc (docs/assistant/tracks.md "Using information by scene"); grant is the reading
+// usage is what info may do in scene sc; grant is the reading
 // extension's, for sceneExtension only. General information is used as usual everywhere, by relevance outside its
 // track; sensitive information (or information whose categories are not known) is used freely in its own track only:
 // elsewhere only when on topic, handed out or sent to others only once the phone confirmed it, on the lock screen

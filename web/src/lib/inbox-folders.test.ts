@@ -1,4 +1,4 @@
-// Inbox folders (docs/assistant/inbox.md "Folders"): paths kept as the hub keeps them, the folder filter (a folder and
+// Inbox folders: paths kept as the hub keeps them, the folder filter (a folder and
 // everything under it, or the unfiled), and the tree the folder bar draws.
 import { describe, expect, it } from "vitest";
 import { childFolders, folderCrumbs, inFolderFilter, knownFolders, normalizeFolder, unfiledCount, UNFILED } from "./inbox-folders";

@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Reporting conversations (#3192, docs/extensions/lark-agent.md "Dispatched tasks"): a conversation started with report_tasks (a
+// Reporting conversations (#3192): a conversation started with report_tasks (a
 // plugin's /agent asks for it) is told about the tasks it opens as the main conversation is about its quiet ones
 // (quiet.go): they are quiet, and each notice goes into it, so it can hand the result on (the /agent conversation
 // replies in Feishu). Kept in the settings table: a task outlives the hub's process.
@@ -160,7 +160,7 @@ type stopResult struct {
 	Already      bool          `json:"already"`
 }
 
-// stopReporting stops reporting conversation sid and what it handed out (#3308, docs/extensions/lark-agent.md "Stopping"): its
+// stopReporting stops reporting conversation sid and what it handed out (#3308): its
 // turn (unless by is "app": the app's stop button stopped it already), the working agents of its open tasks, and the
 // notices about them (those queued for it go, later ones are dropped) until the user talks in it again. Tasks waiting
 // for the user's answer and plan cards not started are left as they are: nothing runs there without the user.

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// A to-do's Decisions fold (#6447, docs/assistant/todos.md "Decision records"): the first five at first with Show all under
+// A to-do's Decisions fold (#6447): the first five at first with Show all under
 // them, the header's fold-all button (the Agents title row's icon) folding the list away and opening it whole, the count
 // unchanged, nothing asked of the hub, and each to-do opening at the first five again. The hub is faked; the data made up.
 import { act } from "react";

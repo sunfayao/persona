@@ -20,7 +20,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// A scheduled task's own start grant (#8045, docs/assistant/unified-entry.md "A scheduled task's own start grant").
+// A scheduled task's own start grant (#8045).
 //
 // A round the hub starts for a scheduled task has no message from the owner, so a writable task it hands out with
 // task_plan used to wait on its card however much the owner wanted the schedule to do that work. The owner can now say,

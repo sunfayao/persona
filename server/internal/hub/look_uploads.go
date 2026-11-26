@@ -29,7 +29,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Uploaded looks (docs/apple/persona.md "Uploading an image"): the user makes Persona's avatar from an image of their own
+// Uploaded looks: the user makes Persona's avatar from an image of their own
 // in the apps. The hub turns the image into a persona package of its own (format 1) in personas/u-<hex>/, so every app
 // that shows packages shows it, and deletes it again on request. Only packages it made this way can be deleted here:
 // one placed by hand, a built-in one and an extension's are left alone.

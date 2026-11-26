@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// ask_user without holding the turn (#4928, docs/assistant/assistant.md "Asking without holding the turn"). With
+// ask_user without holding the turn (#4928). With
 // wait false the card goes up exactly as a waiting ask_user's does (the same interaction, push, channels, expiry and
 // deadline), the tool returns at once, and whatever ends the card is told to the asking conversation as one message
 // that quotes the questions: the owner's answers, that the card was closed unanswered, or that it expired (it then

@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Resume in Terminal (#5521, docs/integrations/engines.md "Agents run in a terminal"): a Claude Code session typed into
+// Resume in Terminal (#5521): a Claude Code session typed into
 // a terminal of the user's own (outside Persona's engines: a plain terminal, an SSH login) and not running now. The
 // clients offer to resume it in a terminal only where the node says it can (a stopped Agent's capabilities); these
 // pin what the node says and does in the three cases: a computer with herdr, one with no terminal engine, and the

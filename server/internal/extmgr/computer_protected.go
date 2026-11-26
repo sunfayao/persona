@@ -1,6 +1,6 @@
 package extmgr
 
-// Apps the assistant never operates (#4336, docs/extensions/computer-use.md "c) Per-App approval"): System Settings
+// Apps the assistant never operates (#4336): System Settings
 // and the system's permission and authorization prompts. macOS's privacy permissions are meant to be answered by a
 // person, and one Allow on a card that says "operate System Settings" would otherwise let an Agent turn any of them on.
 // On Cua Driver each computer_run goes through protectedapps.Look.Check, the same rules as the Agents' own Cua Driver

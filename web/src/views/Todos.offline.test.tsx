@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// An offline current assistant's to-dos (docs/assistant/managers.md "Clients"): the hub's merged list leaves out a manager
+// An offline current assistant's to-dos: the hub's merged list leaves out a manager
 // that doesn't answer, so the page says it is offline instead of "No to-dos" with New To-Do, in the list and the
 // calendar; with one assistant, or an online one, the empty page is as before.
 import { act } from "react";

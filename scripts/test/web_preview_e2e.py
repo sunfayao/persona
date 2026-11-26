@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end check of the web's dev server preview panel (docs/web/preview.md, #150): the session's ⋯ › Preview opens the
+"""End-to-end check of the web's dev server preview panel (#150): the session's ⋯ › Preview opens the
 running server's page; the address bar goes to another page; Pick element outlines, a click opens the comment box and
 the comment lands above the message box with the page and the element; a screenshot lands in the message box; a link
 elsewhere is offered in a new tab; Phone size; the servers menu; a server that is not running is started after its

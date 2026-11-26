@@ -2,7 +2,7 @@ package prompts
 
 import "github.com/nwverse/persona/server/internal/lazyre"
 
-// The voice extension's prompts (voice/, docs/assistant/voice.md "Prompts"). Every one comes in the user's language: its Lang is
+// The voice extension's prompts (voice/). Every one comes in the user's language: its Lang is
 // an i18n code, en or ja, anything else is Chinese.
 
 // VoiceLine is one final line of a voice conversation, or of the conversation a call is bound to (role tool: the
@@ -18,7 +18,7 @@ type VoiceInstructions struct {
 	Owner string // "" is the word for "user" in Lang
 	Notes string
 	// Tools is which of the plugin's function tools (mcp/voice) the session declares: "all"; "ask_persona" (only that
-	// one: another extension calling, docs/assistant/voice.md "Permissions"); "bound" (a call bound to a conversation, protocol 2:
+	// one: another extension calling); "bound" (a call bound to a conversation, protocol 2:
 	// list_agents and delegate_task, which hands work to it); "" none, the model delegates.
 	Tools string
 	// History: what was said before the connection dropped (a reconnected session, a call picked up again), oldest
@@ -62,7 +62,7 @@ func RenderVoiceInstructions(d VoiceInstructions) string { return render("voice/
 
 // VoiceReport is what the voice model is told when a turn handed to the main conversation is over, or stops to wait for
 // the user (voice/report). Its first sentence and the <agent_output> block around the answer are the wording measured
-// to keep the model from doing what an agent wrote (docs/lessons/voice.md "Verbatim injection-test text").
+// to keep the model from doing what an agent wrote.
 type VoiceReport struct {
 	Lang   string
 	To     string   // who did it: an agent's name (Claude Code…); "" the Persona main conversation
@@ -84,14 +84,14 @@ type VoiceReport struct {
 	// answer; done: Answer is what it wrote before that.
 	Failure string
 	// Observed: the turn was not handed over by voice: the bound conversation began it otherwise (typed on the phone or
-	// at the computer, a wake-up, docs/assistant/voice.md "Per-round tracking"); Tasks is then empty.
+	// at the computer, a wake-up); Tasks is then empty.
 	Observed bool
 }
 
 func RenderVoiceReport(d VoiceReport) string { return render("voice/report", d) }
 
 // VoiceProgress is what the voice model is told while the bound conversation still works on what was handed over
-// (voice/progress, docs/assistant/voice.md "Announcements"): a heartbeat after a long quiet (working: the sort of step it is on and how
+// (voice/progress): a heartbeat after a long quiet (working: the sort of step it is on and how
 // long it has worked, nothing it wrote), or once that it stopped to wait on something outside (waiting).
 type VoiceProgress struct {
 	Lang string
@@ -187,7 +187,7 @@ type VoiceAgentMessage struct {
 func RenderVoiceAgentMessage(d VoiceAgentMessage) string { return render("voice/agent_message", d) }
 
 // VoiceStatus is what the voice model is told about the bound conversation without sending it anything
-// (voice/status, docs/assistant/voice.md "Status queries"): a status asked for, or a stop.
+// (voice/status): a status asked for, or a stop.
 type VoiceStatus struct {
 	Lang string
 	To   string // an agent's name; "" the Persona main conversation
@@ -205,7 +205,7 @@ type VoiceStatus struct {
 
 func RenderVoiceStatus(d VoiceStatus) string { return render("voice/status", d) }
 
-// VoiceAsk is a question a conversation asked, as the voice model is to ask it (voice/ask, docs/assistant/voice.md "Questions and cards"):
+// VoiceAsk is a question a conversation asked, as the voice model is to ask it (voice/ask):
 // from the card's own data, one question at a time, the options by their names. Not channel.QuestionText: that has the
 // options' meanings and the typing hints in it, and a cut drops the last options. The question and the options are
 // the agent's words: they go inside an <agent_output> block.
@@ -230,7 +230,7 @@ func RenderVoiceAsk(d VoiceAsk) string { return render("voice/ask", d) }
 
 // VoiceNeedsYou is what the voice model is told of cards that are answered on the screen only (voice/needs_you): a
 // plan, a permission, a terminal dialog, a form, a question voice cannot answer. Only their kinds: never a command, a
-// path or what a plan says (docs/assistant/voice.md "Questions and cards").
+// path or what a plan says.
 type VoiceNeedsYou struct {
 	Lang  string
 	To    string

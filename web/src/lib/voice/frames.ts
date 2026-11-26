@@ -1,4 +1,4 @@
-// The voice extension's socket frames, read and written (docs/assistant/voice.md 3: protocol 2; their types are in
+// The voice extension's socket frames, read and written (protocol 2; their types are in
 // wire.ts). As iOS's VoiceWire.swift: an unknown frame comes back as `other`, a missing or odd field falls back to its
 // default, so a newer extension never breaks an older page. Only a call uses them, so they load with its code
 // (call-stack.ts, #3461), not with the first screen.

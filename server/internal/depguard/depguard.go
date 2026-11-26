@@ -1,5 +1,5 @@
 // Package depguard checks what a program links (go list -deps), for the tests that keep the hub's and the manager's
-// programs apart (cmd/persona-hub, cmd/persona-manager; docs/server/server.md "Programs").
+// programs apart (cmd/persona-hub, cmd/persona-manager).
 package depguard
 
 import (

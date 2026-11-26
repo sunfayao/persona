@@ -1,4 +1,4 @@
-// The live screen's connection stats (#6558, docs/extensions/computer-use.md "Connection stats on the web"), in a real
+// The live screen's connection stats (#6558), in a real
 // browser against the mock hub's animated Screen Sharing, so noVNC's frames, the RFB socket's bytes and the hub probe's
 // Resource Timing are the browser's own:
 //   PORT=<port> MOCK_COMPUTER=ready MOCK_SCREEN=fake MOCK_SCREEN_ANIMATE=1 python3 scripts/mock/mock_hub.py

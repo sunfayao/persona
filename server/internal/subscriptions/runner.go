@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/sdk/go/wire"
 )
 
-// The runner's limits (docs/extensions/subscriptions.md "Running").
+// The runner's limits.
 const (
 	tickEvery        = 30 * time.Second
 	startJitter      = 60 * time.Second

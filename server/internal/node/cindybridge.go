@@ -20,7 +20,7 @@ import (
 	"github.com/nwverse/persona/server/internal/shellcmd"
 )
 
-// The Cindy engine (docs/integrations/engines.md). Cindy runs coding agents (Claude Code, Codex, Pi) in its desktop
+// The Cindy engine. Cindy runs coding agents (Claude Code, Codex, Pi) in its desktop
 // app and loopback host service (`cindy-host`), storing sessions and messages in its profile database and Claude
 // transcripts on disk. While the machine's engine is Cindy, the node runs an in-process runtime bridge (runtimes.go)
 // that talks to Cindy's loopback host API (`host-endpoint.json` / `CINDY_HOST_API`) or reads its profile database

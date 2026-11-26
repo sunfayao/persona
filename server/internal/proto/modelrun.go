@@ -3,7 +3,7 @@ package proto
 import "github.com/nwverse/persona/server/internal/aiwire"
 
 // model.run: one request of an API purpose answered by a launcher's CLI run headless on a computer
-// (docs/assistant/model-config.md "Running API purposes on a launcher", docs/protocol/protocol.md "hub ↔ node RPC").
+// (docs/protocol/protocol.md "hub ↔ node RPC").
 
 // MethodModelRun is the node method.
 const MethodModelRun = "model.run"

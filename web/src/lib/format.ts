@@ -26,7 +26,7 @@ export function sessionCanRename(s: Session | undefined): boolean {
   return sessionCan(s, "send") && (Boolean(s.assistant) || !s.source_kind);
 }
 
-/** A stopped Agent (#4754, docs/integrations/engines.md "Agents run in a terminal"): an Agent of a terminal engine that is
+/** A stopped Agent (#4754): an Agent of a terminal engine that is
  *  not running. Its row keeps its conversation and its terminal and takes no messages; the one way back is Resume on its
  *  terminal page. Only a node that knows it says so (capabilities read and terminal, no send): an older node's offline
  *  row has no capabilities and keeps today's behavior. A Codex thread nothing has open is marked the same way (node
@@ -60,7 +60,7 @@ export function sourceSubtitle(s?: Session): string {
   if (!s?.source_kind) return "";
   const label = s.source_kind === "codex_app_server" ? t("lib-format.source_codex_live") : s.source_kind === "codex_history" ? t("lib-format.source_codex_history") : s.source_kind === "identity_conflict" ? t("lib-format.source_identity_conflict")
     : s.source_kind === "claude_bg" ? t("lib-format.source_claude_background")
-    // Claude outside Persona's terminals (docs/integrations/claude-integration.md "Claude outside Persona's terminals")
+    // Claude outside Persona's terminals
     : s.source_kind === "claude_desktop" ? t("lib-format.source_claude_desktop")
     : s.source_kind === "claude_cli" ? t("lib-format.source_claude_terminal")
     // an agent runtime's session (docs/integrations/runtimes.md): its own name, else its agent's ("Claude Code", a Paseo
@@ -173,7 +173,7 @@ export function attentionReason(s: Session): string | undefined {
 }
 
 /** The line a list row shows for it: why it waits for you when its host says so, else why its host stopped it on an
- *  error, else where its work stands when the hub triaged its turn (docs/assistant/agent-work.md), with where its closeout
+ *  error, else where its work stands when the hub triaged its turn, with where its closeout
  *  stands on merged and deployed after it, else its last words (iOS listPreview). */
 export function sessionPreview(s: Session): string {
   return attentionReason(s) ?? failureReason(s) ?? usageLimitLabel(s) ?? closeoutPreview(s) ?? workLine(s) ?? s.last_text ?? "";

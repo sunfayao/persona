@@ -9,7 +9,7 @@ import (
 
 // bgMatcher finds whether a line holds any of scanBackground's markers in one pass over it: an Aho-Corasick automaton
 // turned into a table, one lookup per byte. Testing each marker in turn (containsAny) read every line 28 times, and on a
-// node's first list, which scans each listed transcript whole, that was most of the CPU it spent (docs/lessons/agents.md).
+// node's first list, which scans each listed transcript whole, that was most of the CPU it spent.
 type bgMatcher struct {
 	// class numbers the bytes the markers use from 1; every other byte is class 0, which leads where any foreign byte does.
 	class  [256]int32
@@ -23,7 +23,7 @@ type bgMatcher struct {
 const bgMatched = -1
 
 // bgMatch is the matcher for the static markers, built on the first scan, not at start: the same binary runs as
-// `personad hook` on each Claude Code event (docs/lessons/agents.md, "Package-level work").
+// `personad hook` on each Claude Code event.
 var bgMatch = sync.OnceValue(func() *bgMatcher {
 	return newBGMatcher(slices.Concat(bgMarkers, transcript.GoalMarkers, transcript.UltracodeMarkers, transcript.PlanMarkers))
 })

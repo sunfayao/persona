@@ -23,7 +23,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// A new chat in the Codex App, started from the phone (docs/integrations/codex.md "New chats in the Codex App", #5726). The
+// A new chat in the Codex App, started from the phone (#5726). The
 // App takes no chat with a first message from outside: codex://new only fills its composer, and its codex_app MCP
 // channel takes only the App's own processes. It does list any chat its Codex home has from an interactive source
 // (vscode among them: what an app-server's threads are), opens one at codex://threads/<id>, and runs a turn in one it

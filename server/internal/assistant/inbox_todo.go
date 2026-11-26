@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Turning Inbox rows into to-dos by hand (#6480, docs/assistant/inbox.md "Add to to-dos"). The machine cannot read a
+// Turning Inbox rows into to-dos by hand (#6480). The machine cannot read a
 // colleague's deadline out of a message, so the user picks the due time (the client works it out in its own time zone and
 // sends due_at, or due_date for a whole day, or neither); a to-do is made at once, titled like the row and pointing back
 // at it (todos.inbox_item), and the row counts as handled: done_by=todo, "Added to your to-dos" on its chain, linked to

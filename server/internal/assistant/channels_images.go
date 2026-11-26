@@ -10,8 +10,8 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// Pictures in an answer to a channel that sends them (#11986, docs/extensions/channels.md "Capabilities"): a picture
-// on a line of its own (the block images the apps draw, docs/assistant/assistant.md "Pictures in replies (#9473)") is
+// Pictures in an answer to a channel that sends them (#11986): a picture
+// on a line of its own (the block images the apps draw) is
 // taken out of the text and sent as a picture of the chat app. It is fetched as the apps' pictures are, through
 // remoteimage (the open internet only, checked and scaled), so a channel never makes the manager fetch what the
 // apps would not. Inline pictures, pictures in code and ones past ImagesMost stay in the text; a picture that can't

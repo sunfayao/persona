@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The assistant page's manager (docs/assistant/managers.md "Clients"): which requests name it, which live updates are its, the
+// The assistant page's manager: which requests name it, which live updates are its, the
 // things merged lists showed as another manager's, and the roster's grouping that the machines, extensions and inbox
 // pages go by.
 import { afterEach, describe, expect, it } from "vitest";

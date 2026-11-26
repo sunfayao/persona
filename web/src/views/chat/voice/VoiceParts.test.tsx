@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The composer's voice entry (docs/web/web.md "Voice chat"): a chat with a running protocol 2 voice extension offers a
+// The composer's voice entry: a chat with a running protocol 2 voice extension offers a
 // call; a meeting's room conversation (origin `meeting`, #3862) offers none, since the extension takes only the
 // iPhone's meeting calls there and refuses an ordinary one (`meeting_room`). Where the button explains instead of
 // starting, what its tap opens (VoiceCall.tsx, a chunk of its own) is fetched before the tap.

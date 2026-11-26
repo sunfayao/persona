@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/managerconf"
 )
 
-// AdminConfig is hub.json's "admin": who may open the admin UI and how long a sign-in lasts (docs/operations/admin.md).
+// AdminConfig is hub.json's "admin": who may open the admin UI and how long a sign-in lasts.
 type AdminConfig struct {
 	// Access is loopback | lan (default) | cidrs | any.
 	Access string `json:"access,omitempty"`
@@ -21,7 +21,7 @@ type AdminConfig struct {
 	// SessionHours is how long a sign-in lasts (default 12), counted from signing in.
 	SessionHours int `json:"session_hours,omitempty"`
 	// FirstSetup "code": setting the first password takes the one-time setup code from every source, not only from
-	// loopback (admin_setupcode.go). `personad hub setup` writes it into new hub.json files (docs/assistant/onboarding.md 4.1);
+	// loopback (admin_setupcode.go). `personad hub setup` writes it into new hub.json files;
 	// files without it keep the old rule: only loopback needs the code.
 	FirstSetup string `json:"first_setup,omitempty"`
 }

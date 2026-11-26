@@ -28,7 +28,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Writing an extension (docs/extensions/extensions.md "Writing extensions: SDK, templates and command line"): `personad extension new |
+// Writing an extension: `personad extension new |
 // test | pack` need no hub; `dev` hangs the extension on this machine's (extension_dev.go). What they print reads in
 // the terminal's language (i18n.Terminal, #5520).
 

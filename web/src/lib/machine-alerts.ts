@@ -1,4 +1,4 @@
-// What is wrong with a computer, as the Machines page's chips and alert sheet say it (#8037, docs/web/web.md
+// What is wrong with a computer, as the Machines page's chips and alert sheet say it (#8037
 // "Machines"): one alert per problem, worst first, from what the page already has (the machine list, its latest metric
 // sample, the launcher health records). Thresholds are docs/server/machines.md "Alerts" (lib/machine-detail.ts
 // `level`). A computer waiting to be confirmed, never connected, or whose assistant is offline keeps its own notice on
@@ -31,7 +31,7 @@ export interface MachineAlert {
   busy?: boolean;
 }
 
-/** A launcher health record (GET /api/v1/launchers/health, docs/server/launcher-health.md "API for the board"). */
+/** A launcher health record (GET /api/v1/launchers/health). */
 export interface LauncherHealthRecord {
   machine: string;
   launcher: string;

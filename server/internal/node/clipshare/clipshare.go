@@ -1,6 +1,6 @@
 package clipshare
 
-// Sharing this computer's clipboard with the phone (#3064, docs/operations/clipboard.md): clipboard.get reads it,
+// Sharing this computer's clipboard with the phone (#3064): clipboard.get reads it,
 // clipboard.set puts text or an image on it. The node runs in the user's login session (a LaunchAgent in gui/<uid>
 // on a Mac, a scheduled task in the interactive session on Windows), so the clipboard it reaches is the user's own.
 // Whether the user allowed it for this computer is the manager's to check; the node only says what it can do.

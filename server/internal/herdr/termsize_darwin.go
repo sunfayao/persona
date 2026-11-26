@@ -20,7 +20,7 @@ var ttyNames struct {
 
 // ttyOf is the device of the terminal pid runs on: the kernel's record of it (kern.proc.pid, e_tdev), named by the /dev
 // entry with that device number. No process is started (the node asks every couple of seconds while it mirrors a
-// pane, docs/integrations/terminal.md section 1), and the name found is checked against the number on every call.
+// pane), and the name found is checked against the number on every call.
 func ttyOf(_ context.Context, pid int) (string, error) {
 	kp, err := unix.SysctlKinfoProc("kern.proc.pid", pid)
 	if err != nil {

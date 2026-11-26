@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The space each of the assistant's conversations is in, as the manager noted it (#10941, docs/extensions/extensions.md
+// The space each of the assistant's conversations is in, as the manager noted it (#10941
 // "Never shown to extensions"): what keeps the health space's words from an extension (todo_scope.go, feed_scope.go)
 // tells a conversation by its space, and a computer lists a quiet assistant conversation only for a week and only its
 // 100 newest, and nothing before it is back after a restart. So the space is noted when the manager starts a

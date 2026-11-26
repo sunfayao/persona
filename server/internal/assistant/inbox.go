@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/extwire"
 )
 
-// The unified inbox (docs/assistant/inbox.md) is the manager's: Feishu messages, mail and the connectors' threads in one list,
+// The unified inbox is the manager's: Feishu messages, mail and the connectors' threads in one list,
 // one row per "thing" — the new messages in a chat, a mail thread — not per message and not per chat. The hub reads
 // the sources when a round is due and hands what it read over (InboxCollected); the inbox keeps the items in Postgres
 // (table inbox_items, only it reads and writes it) with their AI triage (inbox_triage.go) and whether the user has
@@ -70,7 +70,7 @@ type InboxItem struct {
 	DoneAt      *time.Time `json:"done_at,omitempty"`
 	DoneBy      string     `json:"done_by,omitempty"` // user | dismissed | read | replied | superseded
 	Lark        *InboxLark `json:"lark,omitempty"`
-	// Conversation is where the item opens in a messaging source (docs/extensions/extension-messaging.md "9", #2138): listed
+	// Conversation is where the item opens in a messaging source (#2138): listed
 	// only, from Lark; an app with the source opens it there, an older one uses Lark.
 	Conversation *wire.MessagingConversationRef `json:"conversation,omitempty"`
 	Mail         *InboxMail                     `json:"mail,omitempty"`
@@ -95,7 +95,7 @@ type InboxItem struct {
 	// Where is where the matter happens, for people: a group's name, the other person of a direct chat, a repository
 	// ("" for mail). TitleBy says who wrote Title (TitleBy* in inbox_follow.go): once the assistant or the user did,
 	// grouping leaves the title and the summary alone; kept, not listed. Follow is what the matter waits on, its next
-	// step and when to look at it again; Now is its state key, listed only (docs/assistant/inbox.md "Following up").
+	// step and when to look at it again; Now is its state key, listed only.
 	Where   string       `json:"where,omitempty"`
 	TitleBy string       `json:"title_by,omitempty"`
 	Follow  *InboxFollow `json:"follow,omitempty"`

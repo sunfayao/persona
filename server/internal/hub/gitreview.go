@@ -10,7 +10,7 @@ import (
 )
 
 // gitReview relays GET /api/v1/machines/{mid}/git/review?cwd=&scope=&base=&path=… to the node's git.review: every
-// file a scope changed, with its hunks, for the web's Review panel (docs/web/review.md, #151). Read like git/diff:
+// file a scope changed, with its hunks, for the web's Review panel (#151). Read like git/diff:
 // full credentials only. The node's refusals (not_git, bad_base, no_default_branch…) are 409 with their code; a node
 // from before it 409 node_outdated.
 func (h *Hub) gitReview(w http.ResponseWriter, r *http.Request, m *Machine) {

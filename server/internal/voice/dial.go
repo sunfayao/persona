@@ -136,7 +136,7 @@ var upstreamRoots *x509.CertPool
 var lastGood sync.Map
 
 // dialTLS opens a TLS connection to addr (host:port) address by address: the first whose TLS handshake completes in
-// time wins (docs/lessons/voice.md "An address that accepts TCP but never answers TLS"). Go's dialer falls back only
+// time wins. Go's dialer falls back only
 // when TCP fails, and orders a ULA IPv6 address after IPv4: when the IPv4 address takes the connection but never
 // answers TLS, a working IPv6 address was never tried. ALPN offers only http/1.1, which the WebSocket upgrade needs.
 func dialTLS(ctx context.Context, network, addr string) (net.Conn, error) {

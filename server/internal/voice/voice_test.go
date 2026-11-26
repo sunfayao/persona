@@ -191,7 +191,7 @@ func (a *app) until(match func(map[string]any) bool) map[string]any {
 	}
 }
 
-// protocolOne: the app got only protocol 1's frames (docs/extensions/extensions.md "Voice"): no run, ask or link.
+// protocolOne: the app got only protocol 1's frames: no run, ask or link.
 func (a *app) protocolOne() {
 	a.t.Helper()
 	a.mu.Lock()
@@ -289,7 +289,7 @@ func TestLiveDialectConversation(t *testing.T) {
 	}
 
 	// The delegation goes to the main conversation; its whole answer comes back as the delegation's one commentary,
-	// framed as data, and nothing is said on it before (docs/lessons/voice.md: it would have the model speak again).
+	// framed as data, and nothing is said on it before (it would have the model speak again).
 	a.until(func(f map[string]any) bool {
 		return f["type"] == "tool" && f["label"] == "Persona 主对话处理中" && f["done"] == false
 	})

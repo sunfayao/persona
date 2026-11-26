@@ -11,7 +11,7 @@ import (
 // cuts the answer into its top level's members and the list's items without decoding them, and copies every value
 // encoding/json would write unchanged: compact, with no '<', '>', '&', U+2028 or U+2029 in a string. Anything else is
 // handed to encoding/json, never escaped by hand: its rules are not the classic ones (a RawMessage's U+2028 is
-// escaped even with SetEscapeHTML(false), docs/lessons/server.md).
+// escaped even with SetEscapeHTML(false)).
 
 // answerScan is an answer cut as writeDecoded reads it.
 type answerScan struct {

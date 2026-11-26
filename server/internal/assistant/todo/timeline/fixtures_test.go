@@ -383,7 +383,7 @@ func readmeLineKeys(t *testing.T) []string {
 	return out
 }
 
-// The timeline stays pure (docs/assistant/todo-status-sop.md 7.1), as the projection does: no IO and no clock,
+// The timeline stays pure, as the projection does: no IO and no clock,
 // and nothing of the manager, so the same rows always give the same timeline. The standard library it may use is
 // listed, so a package that reads the disk, the network or randomness never gets in unnoticed.
 func TestTimelineStaysPure(t *testing.T) {

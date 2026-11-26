@@ -5,7 +5,7 @@
 // `personad hook` on each of Persona's hook events (#1308): compiling the server's four hundred patterns took about
 // a third of that hook's start. A package-level pattern is therefore lazyre.New, which
 // keeps the call sites as they were (the same methods); guard_test.go keeps it that way. A contract package, which
-// depends on the standard library only (docs/server/architecture.md "Contract packages"), uses sync.OnceValue instead.
+// depends on the standard library only, uses sync.OnceValue instead.
 //
 // In a test binary New compiles at once, as regexp.MustCompile did: a broken pattern still fails every test of its
 // package, not only the one that reaches it (the standard library's internal/lazyregexp does the same).

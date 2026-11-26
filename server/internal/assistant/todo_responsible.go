@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-// TodoResponsible is an external responsible party on a to-do (#12712, docs/assistant/todos.md): either a long-running
+// TodoResponsible is an external responsible party on a to-do (#12712): either a long-running
 // external session ("session") or a person ("person"). Name is a stable label; MachineID and SessionID are optional
 // hints. The hub records and displays it without starting or messaging the external session.
 type TodoResponsible = db.TodoResponsible

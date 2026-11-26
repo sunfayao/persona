@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The sidebar's switcher (docs/assistant/managers.md "Clients"): the current assistant in the sidebar's head, the roster it
+// The sidebar's switcher: the current assistant in the sidebar's head, the roster it
 // opens (status, where each runs, what waits there, the default tagged, the current one checked), switching, New
 // assistant, an installing one's install commands, and the earlier product row without a roster.
 import { act } from "react";

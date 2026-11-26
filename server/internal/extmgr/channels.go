@@ -18,7 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Channels (docs/extensions/channels.md): every way of talking to Persona in one list — the apps, the Feishu bot, /agent in
+// Channels: every way of talking to Persona in one list — the apps, the Feishu bot, /agent in
 // Feishu, voice, and the chat app bots plugins contribute (the channel extension point). What a channel does with its
 // messages is the assistant's (internal/assistant, channels*.go), and so are its routes (/api/v1/channels…, relayed);
 // the hub keeps the transport: the list as the plugins, connectors and the Feishu bot have it (channels.list), the
@@ -99,7 +99,7 @@ func appChannel(l i18n.Lang) channel.View {
 // botAnswerPiece is how many runes one of the bot's cards holds (a card holds about 30 KB).
 const botAnswerPiece = 6000
 
-// feishuCapabilities are the Feishu bot's (docs/extensions/bots.md): cards for answers, progress and what is asked.
+// feishuCapabilities are the Feishu bot's: cards for answers, progress and what is asked.
 var feishuCapabilities = channel.Capabilities{ImagesIn: true, FilesIn: true, VoiceIn: true, Format: channel.FormatMarkdown, MaxText: botAnswerPiece,
 	Asks: channel.AsksButtons, Push: true, Progress: true, Threads: true}
 
@@ -512,7 +512,7 @@ func (h *Manager) bindFeishuStep(ctx context.Context, step string, values map[st
 			return credentials(i18n.Localize(err, l)), nil
 		}
 		// Best-effort: with the credentials just verified, set the scopes, events and the long-connection mode
-		// and submit the publish, so the console's manual steps are done (docs/extensions/bots.md). Its outcome
+		// and submit the publish, so the console's manual steps are done. Its outcome
 		// is a sentence on the next step, never a failure of the bind.
 		if err := h.configureBotForPairing(ctx, receipt); err != nil {
 			return credentials(i18n.Localize(err, l)), nil

@@ -93,7 +93,7 @@ func Run(ctx context.Context, stop func(), args []string, b Build) (handled bool
 		return true, runNode(ctx, rest, b)
 	case "hook":
 		nodeclient.RunHook(ctx, rest, os.Stdin, os.Stdout)
-	case "launch": // a launcher kept in Settings › Models: its settings from the local node, then claude (docs/integrations/launchers.md)
+	case "launch": // a launcher kept in Settings › Models: its settings from the local node, then claude
 		ticket, rest, err := launchTicket(rest) // --ticket: a hand-off's values too (node/secretenv.go)
 		if err != nil || len(rest) < 1 {
 			return true, UsageError("usage: " + CommandName() + " launch [--ticket <ticket>] <launcher> [claude args…]\n       " +

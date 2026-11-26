@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The Persona plugin for Claude Code (internal/claudeplugin, docs/operations/link.md "Claude Code plugin"): the
+// The Persona plugin for Claude Code (internal/claudeplugin): the
 // resident node keeps it installed by itself (on macOS and Windows unless turned off on the computer), says how it
 // stands in node.info's claude_plugin and, when that changes, in a "claude.plugin" notification. `personad
 // claude-plugin` (and `persona-link plugin`, which runs it) checks and changes it by hand.
@@ -50,7 +50,7 @@ func ClaudePluginManager(logf func(string, ...any)) *claudeplugin.Manager {
 // claudePluginDirs are the config directories the plugin goes into: the user's default (~/.claude, which the desktop
 // app's Code sessions use whatever the environment says) and the one this node's environment names. Never a profile
 // of Persona's own under its data directory, nor the directories other claudes were seen with (automation runs claude
-// with throwaway ones, docs/lessons/agents.md).
+// with throwaway ones).
 func claudePluginDirs(home, data, env string) []string {
 	dirs := []string{filepath.Join(home, ".claude")}
 	if env = strings.TrimSpace(env); env != "" {

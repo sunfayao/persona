@@ -1,4 +1,4 @@
-// In-conversation search (docs/web/web.md "Search in chat", Android ChatSearch.kt, parity N26): where a hit sits in the
+// In-conversation search (Android ChatSearch.kt, parity N26): where a hit sits in the
 // chat's lines, for going to it; paging back and fetching the folded work for the search. The matching itself is
 // chat-search-match.ts, which only the search panel loads (off the first screen).
 import type { Item } from "./types";

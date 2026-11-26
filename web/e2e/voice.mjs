@@ -1,4 +1,4 @@
-// Browser acceptance for the web's voice chat (docs/web/web.md "Voice", #2273), against the mock hub's scripted protocol 2
+// Browser acceptance for the web's voice chat (#2273), against the mock hub's scripted protocol 2
 // voice socket (scripts/mock/voice_mock.py). Everything is made up; nothing reaches a real hub or a real voice service.
 //
 // The caller owns the services: a mock hub with MOCK_VOICE=1 (MOCK_VOICE_PACE=0.5 halves the wait, and the default pace 1
@@ -23,7 +23,7 @@
 // It checks that 20 ms PCM16 frames of 640 bytes reached the mock, that they keep coming as silence while muted and
 // carry sound again after Unmute, that they come at 50 a second all along (at pace 1 the call is held until that spans
 // 40 s, the muted window included: Chrome moved a capture context whose output was exact silence for 30 s to a sink
-// that ran at a quarter of real time, docs/lessons/voice.md), and shoots each state, plus the explanation an insecure
+// that ran at a quarter of real time), and shoots each state, plus the explanation an insecure
 // page (plain HTTP) gets. `--quick`: one run (agent, en, light). Exits nonzero on failure or its timeout and
 // prints a one-line verdict.
 import assert from "node:assert/strict";

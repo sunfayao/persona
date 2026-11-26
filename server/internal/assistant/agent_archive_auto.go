@@ -8,7 +8,7 @@ import (
 	"github.com/nwverse/persona/server/internal/transcript"
 )
 
-// Archiving closed sessions by themselves (docs/assistant/todos.md "Closed sessions archive themselves", #3618). A
+// Archiving closed sessions by themselves (#3618). A
 // finished task's agent is closed a few minutes after the task (tasks_close.go) and an idle one after half a day
 // (tasks_idle.go), but the closed session stays in the lists as stopped, and the few agents that matter get lost among
 // them. A closed session that has been idle for archive_closed_days, and is on no to-do or only on done ones, is

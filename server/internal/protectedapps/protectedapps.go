@@ -1,5 +1,5 @@
 // Package protectedapps is the rule that Persona never operates System Settings or macOS's permission and
-// authorization prompts for anyone (#4336, #4349, #7560; docs/extensions/computer-use.md "c) Per-App approval").
+// authorization prompts for anyone (#4336, #4349, #7560).
 // macOS's privacy permissions are meant to be answered by a person. The assistant's computer_run (extmgr) and the
 // Agents' own Cua Driver tools (the node's PreToolUse gate) both go by this package: which apps, how a call names the
 // apps it touches, and where on the Mac a call acts (check.go).

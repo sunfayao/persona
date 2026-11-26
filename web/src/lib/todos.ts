@@ -90,7 +90,7 @@ export interface Todo {
   notes?: string;
   /** The manager that owns this to-do on a multi-manager hub. */
   manager?: string;
-  /** When it is due (#1683, docs/assistant/todos.md "Due date, reminder, priority"): a moment, or a day ("YYYY-MM-DD",
+  /** When it is due (#1683): a moment, or a day ("YYYY-MM-DD",
    * due by its end in the user's time zone); at most one. Unset from hubs without them. */
   due_at?: string | null;
   due_date?: string | null;
@@ -99,7 +99,7 @@ export interface Todo {
   reminded_at?: string | null;
   /** "high" or "low"; unset or "" is normal. */
   priority?: string;
-  /** The slug of the knowledge-base project it belongs to (#2581, docs/assistant/todos.md "Project"); unset for none. */
+  /** The slug of the knowledge-base project it belongs to (#2581); unset for none. */
   project?: string;
   /** The to-do whose request this one is a piece of, and the pieces it waits for (docs/assistant/todos.md "Requests in
    *  pieces"); unset for a to-do that is no piece and from hubs without them. */
@@ -114,14 +114,14 @@ export interface Todo {
   spaces?: TodoSpace[];
   /** Stored pictures; their private bytes are not embedded in list responses (#11084). */
   images?: TodoImage[];
-  /** The assistant conversation that opened it as a task, and the plan (docs/assistant/unified-entry.md); unset for a todo made by hand. */
+  /** The assistant conversation that opened it as a task, and the plan; unset for a todo made by hand. */
   origin?: string;
   plan_id?: string;
   /** The Inbox item this task was explicitly dispatched for. */
   inbox_item?: string;
-  /** "concern" records a question the owner wants answered (docs/assistant/todos.md "Concerns"); unset for other to-dos and older hubs. */
+  /** "concern" records a question the owner wants answered; unset for other to-dos and older hubs. */
   kind?: string;
-  /** "auto" when the hub marked the task done because its work was judged finished, with why (docs/assistant/todos.md "Automatic completion"). */
+  /** "auto" when the hub marked the task done because its work was judged finished, with why. */
   done_by?: string;
   done_reason?: string;
   /** Cancellation is closed but not completed; the hub derives both fields for current and legacy rows (#5732). */
@@ -152,21 +152,21 @@ export interface Todo {
   pr_status?: PRFacts;
   /** Facts of its earlier PRs, newest first (#7935): work spanning several PRs waits for merge while any is open. */
   other_prs?: PRFacts[];
-  /** How far its finished work went out; short of live, where it is held and who can unhold it (docs/assistant/todos.md "Delivery"). */
+  /** How far its finished work went out; short of live, where it is held and who can unhold it. */
   delivery?: TodoDelivery;
-  /** The hub's latest automatic completion check of its work, while still current (#3180, docs/assistant/todos.md
+  /** The hub's latest automatic completion check of its work, while still current (#3180
    *  "Automatic completion"); unset before one, after a reopen or a new turn, and from hubs without it. */
   check?: TodoCheck;
-  /** The chat thread the todo is bound to (#5279, docs/assistant/todos.md "Chat thread"); unset while it has none. */
+  /** The chat thread the todo is bound to (#5279); unset while it has none. */
   thread?: TodoThread;
   /** Optional responsible party that is not a Persona-started agent (#12712); linked agents take precedence when present. */
   responsible?: TodoResponsible;
-  /** What it waits on from the user (#2056, docs/assistant/todos.md "Waiting for the owner"); unset while nothing does,
+  /** What it waits on from the user (#2056); unset while nothing does,
    *  and from hubs before it. */
   ask?: TodoAsk;
   /** Current task-review decision, including a receipt-scoped dismissal; absent on older hubs. */
   decision_review?: { review_at: string; dismissal_id?: string };
-  /** Nobody is working on it (#3618, docs/assistant/todos.md "Nobody is working on this"): every agent of this open
+  /** Nobody is working on it (#3618): every agent of this open
    *  to-do is gone and nothing brings one back. `reason`: `error` (closed after a model error), `offline` (its computer
    *  is not connected) or `closed`; `since` is when the hub first saw it. Unset otherwise, and from hubs before it. */
   orphaned?: { reason?: "error" | "offline" | "closed" | (string & {}); since?: string };
@@ -175,10 +175,10 @@ export interface Todo {
   brief?: TaskBrief;
   lineage?: LineageStep[];
   /** The owner's latest restore of it, and until when they put it off (Someday; a far date means no date), as the hub
-   *  keeps them (docs/assistant/todos.md "Restores and Someday"); unset when never, and from hubs before them. */
+   *  keeps them; unset when never, and from hubs before them. */
   restored_at?: string | null;
   someday_until?: string | null;
-  /** The hub's view of the row (#10226, docs/assistant/todo-status-sop.md "The hub's view"): read only behind
+  /** The hub's view of the row (#10226): read only behind
    *  Developing Persona's switches for now (features/todos/model). Unset from managers without `todo_view`. */
   view?: TodoSummary;
 }
@@ -400,7 +400,7 @@ export type SessionLookup = ((mid: string, sid: string) => Session | undefined) 
   interaction?: (id: string) => Interaction | undefined;
 };
 
-/** The hub closed it because its task's work was judged finished; reopening undoes it (docs/assistant/todos.md "Automatic completion"). */
+/** The hub closed it because its task's work was judged finished; reopening undoes it. */
 export function isAutoDone(todo: Todo): boolean {
   return Boolean(todo.done_at) && todo.done_by === "auto";
 }
@@ -419,7 +419,7 @@ export function strikesThrough(todo: Todo, open: boolean): boolean {
 }
 
 /** An open task its supervisor accepted, reopened by the hub when its agent got more work, with nothing of it running
- *  or asking now: it reads as accepted, not "Follow up" (#3156, docs/assistant/todo-status-sop.md "Accepted tasks").
+ *  or asking now: it reads as accepted, not "Follow up" (#3156).
  *  An open concern still waits for its report, so neither an accepted verdict nor its done styling applies (#3582). */
 export function acceptedAtRest(todo: Todo, status: TodoStatus): boolean {
   return todo.kind !== "concern" && !todo.done_at && (!waitsForOwner(todo) || decisionDismissed(todo)) && acceptanceStands(todo) && (status === "follow_up" || status === "unread" || status === "not_started" || status === "usage_limit");
@@ -701,7 +701,7 @@ export function mostUrgentAgent(
   return best;
 }
 
-// ── Decision log (#1618, docs/assistant/todos.md "Decision records") ───────────────
+// ── Decision log (#1618) ───────────────
 
 /** One call the user made on a todo: written by hand, or their answer to a question card of an agent on it. */
 export interface TodoDecision {
@@ -724,7 +724,7 @@ export interface TodoDecision {
   phase_completed_at?: string;
 }
 
-/** How a to-do's Decisions list is shown (#6447, docs/assistant/todos.md "Decision records"): the first few, the
+/** How a to-do's Decisions list is shown (#6447): the first few, the
  *  default each time a to-do opens; every one; or none, folded under its title. */
 export type DecisionsView = "first" | "all" | "folded";
 /** How many decisions the list shows before Show all. */
@@ -919,7 +919,7 @@ export interface DockAgent {
 }
 
 /**
- * What a conversation's dock shows after its tasks (docs/assistant/unified-entry.md "Manual Agents in the main-chat dock"): in the main
+ * What a conversation's dock shows after its tasks: in the main
  * conversation, every agent going on that no task stands for — the ones opened by hand on the Agents page — waiting
  * for the user first, then the newest in its state; elsewhere nothing. Persona's own conversations are not agents. A
  * task's agents (a task not done, from any conversation) are its pill already; an agent the hub tags with a todo shows
@@ -958,7 +958,7 @@ export type TaskNow = { kind: "words"; text: string } | { kind: "step"; text: st
 /**
  * A working agent's step (its latest tool call, which the hub only sends when it is newer than its words) comes
  * before its words; once it stopped, its words do (a turn cut short on a tool call), and the step only stands in for
- * words it never said. Null when it has said and done nothing yet (docs/assistant/unified-entry.md "Task cards", #1583).
+ * words it never said. Null when it has said and done nothing yet (#1583).
  */
 export function taskNow(lead: Session | undefined, working: boolean): TaskNow | null {
   const words = lead?.last_text?.trim() ?? "";

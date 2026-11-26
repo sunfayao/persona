@@ -1,4 +1,4 @@
-// The terminal's colors (docs/integrations/terminal.md "Appearance"): the page's tokens of the terminal's scheme. Under
+// The terminal's colors: the page's tokens of the terminal's scheme. Under
 // "Match page" they are read off <html>, as they always were; under "Light" / "Dark" off an element scoped to that
 // scheme (SCHEME_ATTR), so a light page still gives a dark terminal the page's real dark values, a theme color's and an
 // extension theme's included. Both surfaces read them here.

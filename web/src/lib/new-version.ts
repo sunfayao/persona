@@ -1,4 +1,4 @@
-// An open page picks up a new web build (#4331; docs/web/web.md "New versions"). The service worker already serves a
+// An open page picks up a new web build (#4331). The service worker already serves a
 // fresh index.html to every navigation, but a page that stays open never navigates again, so it kept the old build for
 // days. The page asks the hub for its shell now and then (on a reconnect, when it comes back to the front, every few
 // minutes) and compares the entry script the shell loads with the one this page runs; the build's file names carry

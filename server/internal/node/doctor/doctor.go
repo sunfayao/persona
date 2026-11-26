@@ -33,7 +33,7 @@ import (
 // node's LaunchAgent's ProcessType (launchagent.go); nothing else: the user's own Claude Code settings are only ever
 // looked at. The path-access check (preflight.go) reads what a claude start reads, in a child it kills when a read
 // hangs. Background: a redeploy once deleted node.sock and every hook and MCP call fell back to the terminal without a
-// word (docs/lessons/server.md).
+// word.
 
 // Config connects checks to the node's generated files and installed extensions.
 type Config struct {

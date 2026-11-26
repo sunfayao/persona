@@ -74,7 +74,7 @@ function avatarPixels(size: number): number {
 }
 
 /** `manager`: whose item the picture is of (a list row's; inside an item's view, ItemManager tells), so its URL names
- *  that manager (docs/assistant/managers.md "Clients"). */
+ *  that manager. */
 export function Monogram({ name, size = 40, square, neutral, src, avatarURL, manager }: MonogramProps) {
   const owner = useItemManager();
   // Feishu paths already name their account; the requested size belongs to the same query.

@@ -606,7 +606,7 @@ var (
 		"interrupted by user", "request was aborted", "aborted by user", "user aborted")
 )
 
-// riskyWords mark a next step the manager must not set off itself (docs/assistant/agent-work.md "Safety boundary"): it is only ever a
+// riskyWords mark a next step the manager must not set off itself: it is only ever a
 // card.
 var riskyWords = []string{"push", "deploy", "部署", "发布", "上线", "merge", "合并", "合入", "发消息", "回复", "评论", "testflight",
 	"release", "推送", "推到", "comment", "发版", "提审", "send",

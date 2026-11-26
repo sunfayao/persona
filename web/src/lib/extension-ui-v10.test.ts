@@ -1,4 +1,4 @@
-// UI version 10 as the web reads it (docs/extensions/extensions.md "UI version 10", #9727): a view's `graph`
+// UI version 10 as the web reads it (#9727): a view's `graph`
 // component — nodes, edges, folds and the node drawn as selected — from the schema's examples; what it cannot use is
 // left out, and the component is then drawn as a graph without it. The layout itself is lib/graph-layout.test.ts.
 import { readFileSync } from "node:fs";

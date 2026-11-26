@@ -14,7 +14,7 @@ import (
 // it waits for (#3246). Now the hub lets it go on by itself when the agent's open todo authorizes the step, and keeps
 // a trace (the work event auto_approved, the work line); the wake says the task authorized it. What no task text can
 // authorize — reaching other people, deleting, spending, changing production — stays the user's, and so does any step
-// of an agent with no todo (docs/assistant/agent-work.md "Safety boundary").
+// of an agent with no todo.
 
 // userOnlyWords mark a step only the user may let an agent take, whatever its task says: it is seen by other people,
 // deletes, costs money or changes production.

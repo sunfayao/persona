@@ -143,7 +143,7 @@ type InboxJudgeInput struct {
 	Language string // Native language name; empty preserves the legacy Chinese output.
 	Summary  string
 	Item     InboxItem
-	Tasks    []InboxTask // the user's tasks going on (docs/assistant/unified-entry.md), for the judge to link the item to one
+	Tasks    []InboxTask // the user's tasks going on, for the judge to link the item to one
 }
 
 // InboxTask is a task the user started from the assistant's conversation: a todo and where its agents are.

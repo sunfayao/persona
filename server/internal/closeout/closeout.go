@@ -1,4 +1,4 @@
-// Package closeout reads the structured record an agent ends a turn with (docs/assistant/agent-work.md "Closeout"):
+// Package closeout reads the structured record an agent ends a turn with:
 // whether the work is done, what changed, whether it is merged and deployed, what was verified and what is missing.
 // The node's Stop hook asks for one when a turn that did work ends without it; the manager's triage reads it before
 // it asks a model.

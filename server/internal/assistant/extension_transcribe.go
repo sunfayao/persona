@@ -1,6 +1,6 @@
 package assistant
 
-// Transcription for extensions (#8485, docs/extensions/extensions.md "Transcription for extensions",
+// Transcription for extensions (#8485,
 // schema/extension/transcription.schema.json): an extension granted the transcription scope hands its own audio, a
 // piece at a time, to the transcription the owner chose for meetings, and gets the sentences back. The job runs on the
 // contribution's replay mode, as a meeting's final pass does but with no transcript of record to check against: the

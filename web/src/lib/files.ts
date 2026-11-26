@@ -1,4 +1,4 @@
-// Pure logic of a session's files / Git panels and the file viewer (docs/apple/ios.md "File viewer", the session page's
+// Pure logic of a session's files / Git panels and the file viewer (the session page's
 // "Files" / Git; iOS: FilesPane, GitPane, FileViewer, Persona/Code). No DOM here: tested in files.test.ts.
 
 import { BASE } from "./base";

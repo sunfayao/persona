@@ -63,7 +63,7 @@ const (
 	// SessionEchoStatus supports checking and conditionally resending a held message by its client_msg_id.
 	SessionEchoStatus = "session_echo_status"
 	// ModelConfiguration: assistant.send / assistant.warm / session.start / session.send take a launcher's model and
-	// model_fingerprint (docs/assistant/model-config.md). Older nodes said so with node.info's model_configuration.
+	// model_fingerprint. Older nodes said so with node.info's model_configuration.
 	ModelConfiguration = "model_configuration"
 	// AssistantConfigDir: assistant.send / assistant.warm / session.send honor an explicit
 	// config_dir and preserve the selected Claude profile when resuming a conversation.
@@ -87,12 +87,12 @@ const (
 	// SessionStartSpeed: session.start and session.start.work take speed for a new terminal Codex or Claude Code Agent.
 	// A node without it would silently drop the explicit choice and start at the launcher's own speed.
 	SessionStartSpeed = "session_start_speed"
-	// NodeUpdate: the node.update.* methods (docs/operations/node-update.md). Whether an update can run right now is still
+	// NodeUpdate: the node.update.* methods. Whether an update can run right now is still
 	// node.info's node_update / node_update_reason.
 	NodeUpdate = "node_update"
-	// Engines: engine.use and node.info's engine / engines (docs/integrations/engines.md).
+	// Engines: engine.use and node.info's engine / engines.
 	Engines = "engines"
-	// MachineUID: node.info's machine_uid (docs/server/mesh.md).
+	// MachineUID: node.info's machine_uid.
 	MachineUID = "machine_uid"
 	// HerdrServer: herdr.server.status / herdr.server.start and node.info's herdr_running / herdr_running_known.
 	HerdrServer = "herdr_server"
@@ -101,32 +101,31 @@ const (
 	// Ultracode: session.start takes ultracode and session.ultracode switches it (docs/protocol/protocol.md "Claude Code
 	// ultracode"). A node without it would start a session and drop the field without a word.
 	Ultracode = "ultracode"
-	// StartGoal: session.start takes goal, a Claude Code or Codex /goal typed after the first message is in
-	// (docs/integrations/agent-goal.md "A goal set at the start"). A node without it would start the session and drop
+	// StartGoal: session.start takes goal, a Claude Code or Codex /goal typed after the first message is in.
+	// A node without it would start the session and drop
 	// the goal without a word.
 	StartGoal = "start_goal"
 	// DenyDirs: assistant.prepare takes deny_dirs, the track directories (each with its track's slug) the assistant's
-	// other conversations' Read and Edit are denied, and the node tells a conversation in one as that track's
-	// (docs/assistant/tracks.md "Registry and policy"). A node without it keeps no track directory: a conversation
+	// other conversations' Read and Edit are denied, and the node tells a conversation in one as that track's.
+	// A node without it keeps no track directory: a conversation
 	// of a track is not started on it.
 	DenyDirs = "deny_dirs_v1"
 	// Preview: preview.servers / preview.start / preview.open, dev server previews in a headless browser on the
-	// computer (docs/web/preview.md).
+	// computer.
 	Preview = "preview"
 	// SecretRun: secret.run, commands the user approved on the password card run with the password they typed on
-	// their stdin (docs/assistant/assistant.md "Password card"). A node on Windows announces it and refuses the run.
+	// their stdin. A node on Windows announces it and refuses the run.
 	SecretRun = "secret_run"
 	// SecretEnv: secret.stage and session.start's secret_ticket, values the user approved on the hand-off card put
-	// in one Agent start's environment (docs/extensions/secret-providers.md "The hand-off to one Agent run").
+	// in one Agent start's environment.
 	SecretEnv = "secret_env"
-	// Clipboard: clipboard.get / clipboard.set and node.info's clipboard (docs/operations/clipboard.md).
+	// Clipboard: clipboard.get / clipboard.set and node.info's clipboard.
 	Clipboard = "clipboard"
 	// LauncherSwitch: session.modes takes launcher, a switch of a running Claude Code Agent to another launcher that
 	// its next session.send carries out (docs/integrations/claude-integration.md "Switching a running Agent to another
 	// provider"). A node without it would drop launcher and apply the model on the launcher the Agent runs on.
 	LauncherSwitch = "launcher_switch"
 	// ModelHTTP: model.http, a direct-API model request an API connection sends through this computer
-	// (docs/assistant/model-config.md "Sending through a computer").
 	ModelHTTP = "model_http"
 	// EngineSwitch: session.modes takes a launcher of the other engine (Claude Code ↔ Codex) for a running terminal
 	// Agent, kept as its pending switch (Session.pending_switch.agent); its next session.send with apply_switch starts
@@ -136,7 +135,6 @@ const (
 	// pick (switch_unsupported / switch_other_agent).
 	EngineSwitch = "engine_switch"
 	// ModelRun: model.run, an API purpose's request answered by a launcher's CLI run headless on this computer
-	// (docs/assistant/model-config.md "Running API purposes on a launcher").
 	ModelRun = "model_run"
 	// LauncherSwitchNow: session.send takes switch_now, the assistant's agent_switch (#5973): the switch it picked is
 	// carried out with that message now, or the message is refused (switch_busy and the other switch codes) with
@@ -154,13 +152,13 @@ const (
 	// there (#6362). The hub answers node_outdated to a request that asks for this (new_space) when the node lacks it.
 	PaneNewSpace = "pane_new_space"
 	// NodeUpdateIdle: node.update.commit waits only for what the restart would interrupt, the conversations the node
-	// runs headless and launches still starting; terminal Agents and their background work do not hold it back
-	// (docs/operations/node-update.md "Usage"). sessions.list answers update_busy, that check, and the hub waits on it;
+	// runs headless and launches still starting; terminal Agents and their background work do not hold it back.
+	// sessions.list answers update_busy, that check, and the hub waits on it;
 	// for a node without it (or a list without the field) it waits on the old rule, every Agent idle.
 	NodeUpdateIdle = "node_update_idle"
 	// MachineDiagnose: machine.diagnose and machine.cleanup, a computer's bounded self-description (largest process
-	// groups, folders, rebuildable caches, tools) and the emptying of caches from its own catalog
-	// (docs/server/machines.md "Diagnosis and cleanup"). Without it the manager answers node_outdated.
+	// groups, folders, rebuildable caches, tools) and the emptying of caches from its own catalog.
+	// Without it the manager answers node_outdated.
 	MachineDiagnose = "machine_diagnose"
 	// StartContinue: start.continue, an answer to the startup question a start's new tab stopped on (shell_waiting),
 	// typed into the kept tab while the question is still there, and the start run again there under the same id
@@ -168,7 +166,7 @@ const (
 	StartContinue = "start_continue"
 	// LauncherCheckAssistantTurn: launchers.check takes assistant_turn (with conversation, config_dir, model and effort)
 	// and runs a Claude Code launcher's check as the assistant runs that conversation's turn: its profile, environment,
-	// Persona's MCP server and tool flags (docs/assistant/onboarding.md "Main-chat readiness"). Its answer says so
+	// Persona's MCP server and tool flags. Its answer says so
 	// (assistant_turn); an older node runs the plain check, which proves nothing about the main chat's own failure.
 	LauncherCheckAssistantTurn = "launcher_check_assistant_turn"
 	// StartAnswer: start.answer, the same answer typed into a failed start's kept tab by its pane, for a planned task
@@ -234,7 +232,7 @@ const (
 var Required = []string{Sessions}
 
 // The programs a node can run as (node.info's program): personad, everything (it may run a hub or a manager too), or
-// persona-node, the device's own (docs/operations/link.md "The device's program"). A node from before program was reported leaves
+// persona-node, the device's own. A node from before program was reported leaves
 // it out: it is personad.
 const (
 	ProgramPersonad    = "personad"

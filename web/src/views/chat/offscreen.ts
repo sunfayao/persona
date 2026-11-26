@@ -1,4 +1,4 @@
-// Finished exchanges off screen are not drawn (content-visibility: auto, `.seg-cv` in styles.css; docs/web/web.md
+// Finished exchanges off screen are not drawn (content-visibility: auto, `.seg-cv` in styles.css
 // "Long chats"): each takes a guessed height (SegmentView segmentHeight) until it is first drawn, then its own. The
 // chat sets `overflow-anchor: none` (#1124), so the browser does not keep the view still when one above it changes:
 // ChatView's ResizeObserver does, before paint, from what these work out.

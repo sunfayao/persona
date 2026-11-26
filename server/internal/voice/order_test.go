@@ -13,7 +13,7 @@ import (
 )
 
 // The app's rows go in the order they were said (#5673): the measured service sends the user's caption 1.2–1.4 s after
-// they stop, after the model began to answer (docs/lessons/voice.md "Timeline"). On protocol 2 the caption's frame says
+// they stop, after the model began to answer. On protocol 2 the caption's frame says
 // which of the model's lines it goes before, and the model's line it came in the middle of goes on in the same line
 // where the service ends the model's turns itself. Protocol 1's frames are as they were.
 

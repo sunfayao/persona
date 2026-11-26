@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// Extension markets (docs/extensions/extensions.md "Extension market") publish persona-extensions.json
+// Extension markets publish persona-extensions.json
 // at the root of a repository or website path. A registered market lists its packages
 // and pins each download's sha256.
 

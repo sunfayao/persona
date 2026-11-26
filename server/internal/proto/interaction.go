@@ -37,7 +37,7 @@ const DismissedInChat = "replied_in_chat"
 // their Reason dropped (assistant/fleet_routes.go).
 const DismissedExpired = "expired"
 
-// AskedWithoutWaiting: ix is the assistant's ask_user raised with wait false (#4928, docs/assistant/assistant.md
+// AskedWithoutWaiting: ix is the assistant's ask_user raised with wait false (#4928
 // "Asking without holding the turn"): its turn ended when the card went up, so no turn is held behind it. It is the
 // one ask_user card that is Resumable (a waiting one lives in the manager's memory and is not).
 func (ix Interaction) AskedWithoutWaiting() bool { return ix.ToolName == "ask_user" && ix.Resumable }
@@ -81,16 +81,16 @@ type Question struct {
 }
 
 type Interaction struct {
-	// Manager is the manager it belongs to (docs/assistant/managers.md, "Ownership"); the hub stamps it on what it sends the apps.
+	// Manager is the manager it belongs to; the hub stamps it on what it sends the apps.
 	Manager string `json:"manager,omitempty"`
-	// Private: a Just me turn raised it (docs/assistant/meeting-minutes.md "Just me"): its push and the Fleet Live
+	// Private: a Just me turn raised it: its push and the Fleet Live
 	// Activity say nothing of what it asks, as a health conversation's card, and it never goes to Lark or a channel.
 	Private      bool       `json:"private,omitempty"`
 	ID           string     `json:"id"`
 	MachineID    string     `json:"machine_id"`
 	SessionID    string     `json:"session_id"`
 	SessionTitle string     `json:"session_title,omitempty"`
-	TaskTitle    string     `json:"task_title,omitempty"` // the task its agent works for (docs/assistant/unified-entry.md), set when sent to clients
+	TaskTitle    string     `json:"task_title,omitempty"` // the task its agent works for, set when sent to clients
 	Cwd          string     `json:"cwd,omitempty"`
 	Kind         string     `json:"kind"`
 	CreatedAt    time.Time  `json:"created_at"`
@@ -166,8 +166,8 @@ type Interaction struct {
 	AgentLabel string `json:"agent_label,omitempty"`
 	// AlwaysKeys: what "Always allow in this session" grants on an assistant conversation's permission card, set by the node (a tool,
 	// a Codex command or file, a gated write's route). The hub keeps them for the conversation once answered so, and
-	// answers a later card whose keys are all kept by itself: the agent's own session rule dies with its process
-	// (docs/assistant/assistant.md "Always allow in this session"). Absent on Agents sessions' cards.
+	// answers a later card whose keys are all kept by itself: the agent's own session rule dies with its process.
+	// Absent on Agents sessions' cards.
 	AlwaysKeys []string `json:"always_keys,omitempty"`
 	// AlwaysHonored is the manager's word on whether an answer of "Always allow" on this permission card is kept
 	// (docs/protocol/protocol.md "Always allow"): true when it is (a node's card with AlwaysKeys the manager remembers,
@@ -275,7 +275,7 @@ type Resolution struct {
 	Keys       []string `json:"keys,omitempty"`
 	Text       string   `json:"text,omitempty"`
 	// AnsweredBy is who answered when it was not the user in the app: AnsweredByAssistant for a question the
-	// assistant answered on their behalf (docs/assistant/assistant.md), AnsweredByTerminal for a terminal-decided
+	// assistant answered on their behalf, AnsweredByTerminal for a terminal-decided
 	// dismissal, and AnsweredByDefault for recommended options taken at a deadline. Absent when the user answered.
 	AnsweredBy string `json:"answered_by,omitempty"`
 	// Late: the history's record of an answer that came after the card expired: the user's own answer on the to-do the
@@ -286,7 +286,7 @@ type Resolution struct {
 	Reason string `json:"reason,omitempty"`
 	// Remembered marks an allow the manager gave from an "Always allow in this session" it had kept (or that a card
 	// answered meanwhile covers), not from an answer to this card: the node's sent-as-user ledger records such a write
-	// as conversation_always, not as a card (docs/extensions/connectors.md "Sent as the user"). Only the manager sets it; an
+	// as conversation_always, not as a card. Only the manager sets it; an
 	// answer from an app or a channel never carries it. An older manager does not send it.
 	Remembered bool `json:"remembered,omitempty"`
 	// PreKeys go in before Text (Keys after it): pick "Type something." by its number, type the answer, enter.

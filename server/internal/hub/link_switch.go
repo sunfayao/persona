@@ -18,7 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Switching an ssh computer to Persona Link (#10662, docs/operations/link.md "Switching from SSH"). The manager that
+// Switching an ssh computer to Persona Link (#10662). The manager that
 // connects the computer runs the switch over its own ssh access; the hub does the two steps only it may do
 // (devicewire/link_switch.go):
 //

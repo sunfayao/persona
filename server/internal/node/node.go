@@ -1528,7 +1528,7 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 			assistantTurn: p.AssistantTurn, effort: p.Effort, conversation: p.Conversation, configDir: p.ConfigDir}), nil
 	case "claude.auth_status": // whether Claude Code is signed in as the launcher runs it, no model request (claudeauth.go)
 		return n.claudeAuthStatus(ctx, p.Name)
-	case "launchers.repair": // the hub's launcher health (docs/server/launcher-health.md)
+	case "launchers.repair": // the hub's launcher health
 		if err := n.runnableLauncher(ctx, p.Name, false); err != nil {
 			return nil, err
 		}
@@ -2752,7 +2752,7 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		return n.gitWrite(ctx, method, params) // the Git panel's writes and pull request (gitwrite.go, gitpr.go)
 	case "skills.import":
 		return n.importSkill(ctx, params)
-	case "skills.list": // the skills the assistant gets on this machine (docs/operations/hub-update.md "Skills move out of the binary")
+	case "skills.list": // the skills the assistant gets on this machine
 		var catalog struct {
 			skillCatalogRequest
 			Catalog bool `json:"catalog"`

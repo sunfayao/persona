@@ -28,7 +28,7 @@ var larkReadFallbackReads = []struct{ name, command string }{
 // Writes still ask, also when lark-cli gives no risk level and inside the loops the reads above use.
 // bypassCards is the card a bypassPermissions assistant still gets: sends as the user, deletion and writes of unknown
 // risk are hard boundaries there; an ordinary write lark-cli reports as one (`docs +create`) runs without a card, as
-// before (docs/assistant/assistant.md).
+// before.
 var larkReadFallbackWrites = []struct {
 	name, command string
 	bypassCards   int

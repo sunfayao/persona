@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Where each agent stands in its work as the session lists show it (docs/assistant/agent-work.md "Model"): what the Agents
+// Where each agent stands in its work as the session lists show it: what the Agents
 // business reported for its latest turn while it is still stopped on it, what it shows while it works or asks.
 
 // decorateWork puts on sess (decorated but for its work) where it stands in its work, and the state that follows.
@@ -165,7 +165,7 @@ func transientPending(w proto.WorkState) bool {
 var wakeGrace = 5 * time.Minute
 
 // workState is the unified state once the work state is known: a turn that is done, or blocked on something the
-// manager waits out for it, no longer counts as "Unread" (docs/assistant/agent-work.md "Model"). A wait nobody will end (the wakes
+// manager waits out for it, no longer counts as "Unread". A wait nobody will end (the wakes
 // off, or dropped because the user went near it) stays "Unread".
 func workState(state string, w *proto.WorkState) string {
 	if state != proto.StateUnread || w == nil {

@@ -17,7 +17,7 @@ import (
 )
 
 // What the bound conversation does that the call did not hand over, and how a turn that is not over yet is told
-// (docs/assistant/voice.md "Per-round tracking", "Announcements", #3503).
+// ("Announcements", #3503).
 //
 // Observed runs (protocol 2): the call watches the conversation it is bound to from ready on. When it works and no run
 // of the call's is on it (none being sent, none held), the turn it works on is followed as a run of its own: the user
@@ -29,7 +29,7 @@ import (
 // ("Stop:", its state behind the stop), and a turn of a message the call sent whose send ended unknown (it got there
 // after all: followed as the call's run).
 //
-// A turn of an agent that stopped is not always over, and what says so is the hub's triage of it (docs/assistant/agent-work.md),
+// A turn of an agent that stopped is not always over, and what says so is the hub's triage of it,
 // when the user turned it on: about triage_settle_seconds (15 s) plus a model call after the turn stopped. A model
 // error the manager goes on from ("Continue") is not the end: a turn that stopped on a model error waits for that triage when
 // the manager would go on (auto_continue), and while it says a "Continue" is due. A turn it says waits on something outside
@@ -42,7 +42,7 @@ import (
 
 var (
 	// heartbeatAfter is how long a call is quiet while what was handed over is worked on before the user hears that it
-	// still is (docs/lessons/voice.md "Recommended constants": a say, which the model always speaks; not more often, or it chats).
+	// still is (a say, which the model always speaks; not more often, or it chats).
 	heartbeatAfter = 2 * time.Minute
 	// triageWait is how long a stopped turn of an agent waits for the hub's triage of it: the manager triages a turn that
 	// stayed stopped triage_settle_seconds (15 s by default), with a model call.
@@ -275,8 +275,8 @@ func opener(items []proto.Item) *proto.Item {
 	return first
 }
 
-// sourceOf says whether a message of the bound conversation came from elsewhere than the app or voice
-// (docs/extensions/channels.md "Source markers"), and the channel's name when it came by one: one Persona wrote (a scheduled task, a
+// sourceOf says whether a message of the bound conversation came from elsewhere than the app or voice,
+// and the channel's name when it came by one: one Persona wrote (a scheduled task, a
 // task reporting back, a wake-up) or another session sent is from elsewhere, not a channel. Bound to an agent nothing
 // is (what is typed at its terminal is the user's).
 func (t *tracker) sourceOf(ctx context.Context, it proto.Item) (foreign bool, from string) {
@@ -394,7 +394,7 @@ func (t *tracker) triage(ctx context.Context) triageSwitches {
 	return t.tri.sw
 }
 
-// triaged is the hub's triage of the turn s stopped on (docs/assistant/agent-work.md "Triage"): nil until it is in (about
+// triaged is the hub's triage of the turn s stopped on: nil until it is in (about
 // triage_settle_seconds after the turn stopped, and only when the triage is on), and when it is of an earlier turn.
 func triaged(s *proto.Session) *proto.WorkState {
 	w := s.Work

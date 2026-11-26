@@ -1,7 +1,6 @@
-// What the service worker shows for a Web Push (#7459, docs/web/web.md "Web Push"): the hub's message
+// What the service worker shows for a Web Push (#7459): the hub's message
 // (server/internal/hub/webpush.go webPushMessage), already decrypted by the browser, as one notification. Only sw.ts
 // (and tests) import this: a module the page imports too would become a chunk the classic worker can't load
-// (docs/lessons/web.md "Service workers and pages must not share modules with runtime values").
 
 /** The hub's message. Every field is optional: a hub may send less, never something the worker must understand. */
 export interface PushMessage {

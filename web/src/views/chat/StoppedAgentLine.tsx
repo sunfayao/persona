@@ -1,4 +1,4 @@
-// A stopped Agent's chat (#4754, docs/web/web.md "Terminal ⇄ chat"): it keeps its conversation and its terminal and takes
+// A stopped Agent's chat (#4754): it keeps its conversation and its terminal and takes
 // no messages, so the composer's place holds one read-only line with the two ways on: its Terminal, and Resume (which
 // opens the terminal too, where the resumed Agent shows up). Resume's progress and error are shared with the terminal's
 // own Resume (lib/agent-resume.ts).

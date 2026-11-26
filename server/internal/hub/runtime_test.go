@@ -7,7 +7,7 @@ import (
 )
 
 // A runtime's card is pushed under its own name: DSH's, and omp's, whose extension names its cards omp
-// (integrations/omp, docs/integrations/omp.md).
+// (integrations/omp).
 func TestRuntimePushTitle(t *testing.T) {
 	for _, c := range []struct{ agent, label, title string }{
 		{"dsh", "DSH", "DSH 需要你授权"}, // i18n-ignore: the hub's zh-Hans push text

@@ -138,7 +138,7 @@ export function runtimeLabel(id: string | undefined, agent?: string): string {
 export const modelPurpose = (id: string, manager?: string) => api<ModelPurposeBody>(`/model-config/purposes/${enc(id)}`, { headers: manager ? { [MANAGER_HEADER]: manager } : undefined });
 
 /** A provider's name for the page: its own, or nothing for one of the hub's old built-in ones (`legacy.*`) that is not
- *  set up, whose id means nothing to a person (docs/assistant/onboarding.md 4.5). */
+ *  set up, whose id means nothing to a person. */
 export function providerName(id: string | undefined, providers: ModelProvider[] = []): string | undefined {
   if (!id) return undefined;
   const name = providers.find((v) => v.id === id)?.name || "";

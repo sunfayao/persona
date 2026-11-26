@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-// The user's per-chat rules (#5278, docs/extensions/connectors.md "Sent as the user"): from a row of the ledger the user says
+// The user's per-chat rules (#5278): from a row of the ledger the user says
 // "don't ask again in this chat", which adds a rule that lets writes into that one chat through without a card
 // (connector.ChatRuleFor). This file is what the manager does with them: a store behind a small interface (the manager's
 // setting, chat_rules_store.go), read at start; after each change they are applied at once, without a restart, in the

@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/transcript"
 )
 
-// Live replies of the Claude sessions Persona starts (#1309, docs/integrations/claude-integration.md "MessageDisplay").
+// Live replies of the Claude sessions Persona starts (#1309).
 //
 // Their live replies plugin has Claude Code's MessageDisplay hook (hooksplugin.go, doctor.go displayHooks; loaded while
 // the machine's setting is on, setLiveReplies): as Claude shows a reply in the

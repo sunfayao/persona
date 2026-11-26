@@ -1,4 +1,4 @@
-// An extension page's last view (lib/extension-view-cache.ts, docs/web/web.md "Extension pages on reload"): kept under the
+// An extension page's last view (lib/extension-view-cache.ts): kept under the
 // feed cache's hub and sign-in scope, only ever given back for the same page, UI version and manager, size-capped and
 // least recently drawn out, and gone with a sign-out, new credentials or another hub.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

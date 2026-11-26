@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The main chat's runtime line (docs/assistant/assistant.md "Main conversation execution on the web"): on the Assistant
+// The main chat's runtime line: on the Assistant
 // screen it says only the main chat's state in plain words, in the product's own name for it ("主对话 · 运行中"), never
 // where or with what it runs (Settings keeps that), and nothing at all when nothing is known (an older hub without the
 // view, a failed read), never "运行信息未上报" (audit item 80).

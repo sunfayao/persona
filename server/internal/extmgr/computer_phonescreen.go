@@ -1,6 +1,6 @@
 package extmgr
 
-// Phone Screen for the live screen (#9314, docs/extensions/computer-use.md "Phone Screen"): POST {pair, op, …} asks
+// Phone Screen for the live screen (#9314): POST {pair, op, …} asks
 // the Mac's node (screen.phone) to start the portrait virtual display for the live screen whose RFB stream carries
 // `pair`, list the Mac's windows, put one on the display, or stop. The node keeps the session bound to that signed-in
 // stream; this only relays, with the same gate as the clipboard (the plugin cua or ego on for the Mac, a full device).

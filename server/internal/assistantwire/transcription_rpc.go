@@ -2,7 +2,7 @@ package assistantwire
 
 import "encoding/json"
 
-// Transcription for extensions (#8485, docs/extensions/extensions.md "Transcription for extensions",
+// Transcription for extensions (#8485,
 // schema/extension/transcription.schema.json): an extension granted the transcription scope hands its own audio, a
 // piece at a time, to the transcription the owner chose for meetings. The manager checks the scope and hands each call
 // to the assistant with the extension's id (ExtensionTranscription), which runs the job on that contribution's replay

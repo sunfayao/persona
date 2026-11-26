@@ -96,7 +96,7 @@ import { t } from "../../i18n";
 type Step = "pick" | "key" | "done" | "connect" | "models" | "devices";
 const CUSTOM = "custom";
 const NO_PRESET_FORM: PresetForm = { name: "", display_name: "", api_key: "", model: "" };
-/** The hub's hello feature for built-in presets, a name it makes up and assign (docs/integrations/launchers.md "Built-in presets"). */
+/** The hub's hello feature for built-in presets, a name it makes up and assign. */
 const BUILTIN_PRESETS_FEATURE = "builtin_presets";
 /** The hub's hello feature for making up a gateway's startup ID when none is typed (#5029). */
 const AUTO_NAME_FEATURE = "launcher_auto_name";
@@ -225,11 +225,11 @@ export function ProviderWizard({ existing, onClose, onSaved, draft = null, link 
   const autoName = useStore((s) => hubHas(s.features, AUTO_NAME_FEATURE));
   // a hub that reads pasted settings and imports one alias: ① offers both
   const canPaste = useStore((s) => hubHas(s.features, PASTE_FEATURE));
-  // the device scope (docs/integrations/launchers.md "Device scope and on-demand delivery"): an existing provider's
+  // the device scope: an existing provider's
   // when its hub returns one, a new one's when the hub says it takes it
   const scopeOn = useStore((s) => scopeShown(old, s.features));
   const machines = useStore((s) => s.machines);
-  // A provider's key may be a secret provider's reference (docs/extensions/secret-providers.md "Launcher keys").
+  // A provider's key may be a secret provider's reference.
   const keyRefs = useStore((s) => hubHas(s.features, "launcher_secret_references"));
   // a hub that finds a gateway's sign-in method (#5329): a new gateway starts on Automatic, the choice waits under "More
   // options" and a line names the method; an older one keeps Bearer / x-api-key on the step, Bearer for a new gateway

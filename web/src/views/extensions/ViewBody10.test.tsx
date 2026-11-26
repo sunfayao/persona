@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// UI version 10 as the web draws it (docs/extensions/extensions.md "UI version 10", #9727): a view's `graph` as an
+// UI version 10 as the web draws it (#9727): a view's `graph` as an
 // interactive canvas — the visible nodes as buttons in reading order, the edges in one SVG, the group frames, the
 // fold controls, the selected node's ring; a node presses its action, folding is the person's and kept for the
 // `key`, a redraw that changes only states keeps the position, a compact card draws the still fitted preview that
@@ -209,7 +209,7 @@ describe("UI 10: the graph canvas", () => {
   });
 
   it("puts the fold control fully outside the node's box, beside it on the side its children leave it", () => {
-    // the contract (docs/extensions/extensions.md "Drawing, on every app"): the fold control sits beside the node,
+    // the contract: the fold control sits beside the node,
     // outside the box — never over the node's own end, where it would cover its badge. A right tree puts it in the
     // gap to its children on the right; a down tree below it. The control is placed inside the node's own wrapper
     // (so Tab walks the node then its fold), so its offsets are the wrapper's own frame: beside the box means past

@@ -1,5 +1,5 @@
-// The assistant title shares the sidebar head's identity. Offline restrictions still apply only with multiple managers
-// (docs/assistant/managers.md "Clients"). The switcher itself is views/AssistantSwitcher.tsx.
+// The assistant title shares the sidebar head's identity. Offline restrictions still apply only with multiple managers.
+// The switcher itself is views/AssistantSwitcher.tsx.
 import { useRef, useState } from "react";
 import { t } from "../i18n";
 import { managerOrder, multiManager, useRoster, type Manager } from "../lib/managers";

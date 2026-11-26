@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The current assistant (docs/assistant/managers.md "Clients"): the pick is kept in this browser and survives a reload, a
+// The current assistant: the pick is kept in this browser and survives a reload, a
 // manager that left the roster goes back to the default, the pages list only the current one's things, and each
 // assistant's count is its agents waiting plus its inbox items that need the user.
 import { act } from "react";

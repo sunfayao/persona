@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/channel"
 )
 
-// The channels (docs/extensions/channels.md): the ways of talking to Persona from a chat app — the Feishu bot (feishu*.go) and
+// The channels: the ways of talking to Persona from a chat app — the Feishu bot (feishu*.go) and
 // the bots plugins contribute (the channel extension point, channels_plugin.go). A message from a channel goes into the
 // conversation the channel talks to, the turn is followed and its answer sent back the same way (channels_runs.go);
 // what is asked in a conversation a channel drives goes there too. All of that is the assistant's. The hub keeps the

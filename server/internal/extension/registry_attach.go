@@ -8,7 +8,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Attaching an installed package (docs/extensions/extensions.md "Attaching an installed package"): its program runs on
+// Attaching an installed package: its program runs on
 // its own and the manager reaches it on its sockets instead of starting it. Only Record.Remote changes. The package,
 // its tools, the configuration, the secrets and the data directory stay where they are, and the installed manifest and
 // what was granted go on taking effect: the program is held to the package's id and version, so attaching grants

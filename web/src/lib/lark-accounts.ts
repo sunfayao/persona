@@ -1,4 +1,4 @@
-// Several Feishu accounts on the hub's Lark gateway (docs/extensions/feishu.md "Multiple accounts", iOS LarkAccounts.swift). A request about
+// Several Feishu accounts on the hub's Lark gateway (iOS LarkAccounts.swift). A request about
 // another account than the hub's own (lark.account) names it with `ol_account`; the media URLs the hub hands out for
 // such an account already carry it. The "Messages" page shows one account's chats at a time: the choice is kept per browser.
 import { t } from "../i18n";

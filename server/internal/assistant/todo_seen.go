@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-// Seen to-dos (#5707, docs/assistant/todo-status-sop.md "Seen"): the owner looked at a to-do in Just finished, by Got it
+// Seen to-dos (#5707): the owner looked at a to-do in Just finished, by Got it
 // on its row or by opening it, so it is filed under Done (todo_triage.go) instead of waiting out the 24 hours. The mark is
 // the to-do's seen_at, kept here so every device agrees. Marking it is not activity: updated_at stays, and a to-do
 // that moves after it comes back to Just finished.

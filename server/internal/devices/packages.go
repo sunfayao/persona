@@ -27,7 +27,7 @@ import (
 	"github.com/nwverse/persona/server/internal/update"
 )
 
-// Node packages (docs/operations/node-update.md "Node packages"): the build a computer's node gets, for its OS, architecture
+// Node packages: the build a computer's node gets, for its OS, architecture
 // and the kind of program it runs (personad, or persona-node, the device's own). In order:
 //
 //  1. the hub's own builds on this machine: the node binary dir (deploy.sh's, a self-updating hub's release, what an
@@ -38,7 +38,7 @@ import (
 //     drives the node it has (its node protocol range and capabilities, as compatOf judges a node): the fallback;
 //  4. else no build: Redeploy is not offered, and the machine card says what to do.
 //
-// Nothing is signed (the user's call, docs/operations/hub-update.md "Security: no signing"): a fetched build must match the
+// Nothing is signed (the user's call): a fetched build must match the
 // manifest's size and sha256 (archive) and binary_sha256 (unpacked), read as a build for that OS and architecture of
 // that kind of program, and, on this machine's own platform, run and say the release's version and build (as hub
 // self-update checks its own); the node's node-update-check checks the version once more on arrival. It lands in the

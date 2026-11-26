@@ -9,7 +9,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// Trying triage on a subscription's dry run (#5278, docs/extensions/subscriptions.md "Pages"): the user asks on the
+// Trying triage on a subscription's dry run (#5278): the user asks on the
 // pages how the triage model would sort what a pull brought; each thing is made an item only to write its prompt, as a
 // round's would be, and asked about once. Nothing is kept: no item, no triage state, no log of what it says.
 

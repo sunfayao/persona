@@ -18,7 +18,7 @@ import (
 // The strip over an empty composer displays Session.Suggestion. An agent can offer a specific next step
 // when it finishes a turn. Otherwise a Claude Code terminal can supply its native hint, or an opted-in
 // small model can propose one for a watched chat. All three go through the same risk check. The fill and
-// send actions belong to the owner (docs/assistant/assistant.md "Next-message suggestions").
+// send actions belong to the owner.
 
 const purposeSuggestNext = "suggest.next"
 

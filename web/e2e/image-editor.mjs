@@ -1,4 +1,4 @@
-// Screenshots and a recording of the image editor (#4991, docs/web/web.md "Image viewer"): a made-up picture attached to
+// Screenshots and a recording of the image editor (#4991): a made-up picture attached to
 // the main chat's composer, opened from its tile, marked with Box and Pen in each width, cropped by a corner, given a
 // shape, turned, stepped back and forward with Undo and Redo, finished, and opened again from the tile with its edits.
 //

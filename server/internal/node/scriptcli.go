@@ -18,7 +18,7 @@ import (
 )
 
 // `personad ask` and `personad notify` (internal/scriptcli) reach the phone through the node's socket like the hook
-// does (docs/integrations/script-cli.md). ask is an interaction of the same shapes the phone already draws: a question card when it
+// does. ask is an interaction of the same shapes the phone already draws: a question card when it
 // has options, an allow / deny permission card when it has not. notify is a hub "notify" request (the path
 // POST /api/v1/notify takes). Both are attributed to the session of the pane the caller runs in, when the caller says
 // which pane that is (HookPane) and a hook has told the node what runs there.

@@ -20,7 +20,7 @@ import (
 	"github.com/nwverse/persona/server/internal/textfmt"
 )
 
-// The assistant's own Inbox source (#6430, docs/assistant/inbox.md "Assistant rows"): a row the assistant puts into the
+// The assistant's own Inbox source (#6430): a row the assistant puts into the
 // Inbox for one of its conversations, so a result is not missed behind a quiet unread dot. Only the user's own request
 // or a task they set makes one (the tool's description says so; a task's `inbox` is the user's setting). The source is
 // internal, like a push subscription's: the manager writes the rows itself and no connector or hub reads anything.

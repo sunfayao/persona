@@ -30,7 +30,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The single-center mesh end to end (docs/server/mesh.md): hubs in this process on 127.0.0.1 over TLS, nodes in
+// The single-center mesh end to end: hubs in this process on 127.0.0.1 over TLS, nodes in
 // the process, apps on WebSockets, a connector played by a TLS server here.
 
 func init() {
@@ -213,7 +213,7 @@ func TestCenterUnreachable(t *testing.T) {
 }
 
 // The headers a hub opens a node stream with mean nothing from outside: a request that carries them is still an app's,
-// and without a credential a member answers it 401 like any other (docs/server/mesh.md "Security boundaries").
+// and without a credential a member answers it 401 like any other.
 func TestCenterMemberDropsNodeStreamHeaders(t *testing.T) {
 	box := newMeshNode("uid-box", "box", "s1")
 	lap := newMeshNode("uid-lap", "lap", "s2")
@@ -570,7 +570,7 @@ func TestCenterTwoEntriesOneComputer(t *testing.T) {
 	}
 }
 
-// fakeConnector plays a computer's connector in passive mode (docs/operations/link.md "Passive mode"): TLS on its own key, a
+// fakeConnector plays a computer's connector in passive mode: TLS on its own key, a
 // one-time code, the hub's credential (its hash only), and the stream joined to the node.
 type fakeConnector struct {
 	t      *testing.T

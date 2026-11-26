@@ -1,4 +1,4 @@
-// Settings › Model providers › Add provider (docs/assistant/onboarding.md 4.3 / 5.4, docs/extensions/extensions.md "Model providers", iOS LauncherPresetModel):
+// Settings › Model providers › Add provider (docs/assistant/onboarding.md 4.3 / 5.4, iOS LauncherPresetModel):
 // the providers the hub offers (GET /api/v1/launchers/presets): its built-in ones (plugin "builtin", in the request
 // language's order) and the extensions'. A launcher added from one sends only the key, the preset and maybe a name or
 // another of its models; the hub fills in the name, the address, the kind and the rest.
@@ -111,10 +111,10 @@ export function displayNameProblem(name: string): string {
   return [...d].length > 64 || /\p{Cc}/u.test(d) ? t("lib-launcher-presets.display_name_invalid") : "";
 }
 
-/** The categories a provider added in the wizard takes over while they are still at their default (docs/assistant/onboarding.md 5.4). */
+/** The categories a provider added in the wizard takes over while they are still at their default. */
 const ASSIGN_PURPOSES = ["assistant", "agent.new"] as const;
 
-/** Whether the main conversation and Agents can run on a provider added from p (docs/assistant/model-config.md): Claude Code
+/** Whether the main conversation and Agents can run on a provider added from p: Claude Code
  *  needs a Messages endpoint, so a direct API on Responses or Chat Completions serves only the hub's own calls. An
  *  empty `api` is Messages. */
 export const presetRunsClaude = (p: LauncherPreset) => p.kind !== "api" || !p.api || p.api === "messages";

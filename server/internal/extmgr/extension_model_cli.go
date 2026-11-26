@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// The extension model's commands (docs/extensions/extensions.md "Turning contributions on and off"), next to extensionUsage's.
+// The extension model's commands, next to extensionUsage's.
 const extensionModelUsage = `  contributions <id>                its contributions and their switches
   contribution <id> <point>/<cid> on|off
                                     switch one contribution (a connector's is the connector's switch)`

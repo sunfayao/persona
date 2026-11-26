@@ -1,4 +1,4 @@
-// End-to-end check of Export Conversation… (#7375, docs/web/web.md "Exporting a conversation"), as the user does it: an
+// End-to-end check of Export Conversation… (#7375), as the user does it: an
 // Agent's chat › ⋯ › Export Conversation… reads the whole conversation and says how many messages it holds; Download .md
 // saves a file named after the chat with its messages and none of its tool calls; with Include work steps the file has
 // each tool call in a collapsible block; a Persona conversation's file has the assistant's replies.

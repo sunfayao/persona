@@ -29,7 +29,7 @@ func TestTranscribeWireStartShape(t *testing.T) {
 	}
 }
 
-// The frames the measured service sends (docs/assistant/voice.md "Transcription": shapes of the #3862 measurement,
+// The frames the measured service sends (shapes of the #3862 measurement,
 // the service's prefix of the caption frames replaced), read as the adapter needs them.
 func TestTranscribeWireDecodesMeasuredFrames(t *testing.T) {
 	for _, tt := range []struct {

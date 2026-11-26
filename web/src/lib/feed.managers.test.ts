@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// What a conversation's feed offers is its manager's (docs/assistant/managers.md "Clients"): a plan's Start / Don't start
+// What a conversation's feed offers is its manager's: a plan's Start / Don't start
 // and a briefing question's Handled name the conversation's manager, since their routes name no conversation and the
 // hub would otherwise take them to the default; the default's conversation names none, whichever assistant is current.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

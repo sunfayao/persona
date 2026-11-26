@@ -121,7 +121,7 @@ func (e *env) runManager(ctx context.Context, build update.Build, dir string) er
 }
 
 // RunBuiltin is the built-in manager as a service of its own (`persona-manager assistant` with
-// PERSONA_ASSISTANT_DEPLOY=service, docs/assistant/managers.md "The built-in manager as its own service"), on the
+// PERSONA_ASSISTANT_DEPLOY=service), on the
 // binding in its manager.json. Not bound is a configuration error (exit 2: its unit does not restart it). Once the hub
 // refuses its token (bound again, or a hub that starts the built-in manager itself again: assistant.mode child, a
 // version from before the split) nothing of it runs until manager.json has another token or the hub takes this one

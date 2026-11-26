@@ -3,7 +3,7 @@ package node
 import "time"
 
 // The agents Persona reads as pi (pi.go): pi itself, and omp (Oh My Pi), a pi fork whose extension API, session files and
-// conversation model are pi's (docs/integrations/omp.md). A pane and its keys are the host's; the conversation and the
+// conversation model are pi's. A pane and its keys are the host's; the conversation and the
 // control (send, interrupt, cards, live text) are the Persona extension in that same process. Both start in herdr and
 // resume there, with their own command.
 

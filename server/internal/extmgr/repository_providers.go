@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Repository providers (docs/extensions/repository-providers.md): an extension's repository_providers contribution
+// Repository providers: an extension's repository_providers contribution
 // names the repositories on the hosts it claims. The assistant asks here (repository.Extensions) and nowhere else:
 // lists never call a program, every call is bounded, and every answer is re-checked before it is returned. An
 // address is sent only to the provider that claims its host, and never with credentials in it.

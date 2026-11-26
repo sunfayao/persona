@@ -18,7 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// The Feishu bot (docs/extensions/bots.md): the user talks to Persona through a Feishu / Lark custom app's bot. The hub keeps its
+// The Feishu bot: the user talks to Persona through a Feishu / Lark custom app's bot. The hub keeps its
 // transport: the app's credentials, the long connection to the open platform, pairing with its owner, sending and
 // changing messages and cards. What the chat does — where a message goes, following its turn and the answer cards,
 // what is asked there, the commands, pushes and the sync mirror — is the assistant's (internal/assistant, feishu*.go):

@@ -2,7 +2,7 @@ package assistant
 
 import "time"
 
-// Following a matter up (docs/assistant/inbox.md "Following up"): an item stays one matter for as long as it goes on.
+// Following a matter up: an item stays one matter for as long as it goes on.
 // It says where it happens (InboxItem.Where), who wrote its title (TitleBy), what it waits on and when to look at it
 // again (Follow), and, as listed, its state as a key (Now) that every app puts in words from the same table
 // (spec/fixtures/inbox/now.json).

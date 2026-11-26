@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// Folders (docs/assistant/inbox.md "Folders", #2463): each item can be filed under a "/"-separated path
+// Folders (#2463): each item can be filed under a "/"-separated path
 // ("work/alerts/engine"), every segment a folder level, so the inbox can be browsed as a tree. A step of the triage
 // pass (fileFolders) asks the small-task model, in batches, where the items without a folder go: it sees the folders
 // in use (to reuse them, so the tree stays stable), the user's folder rules and the moves the user made by hand. An

@@ -1,7 +1,7 @@
 package node
 
 // Runtimes (docs/integrations/runtimes.md, wire in docs/protocol/protocol.md "Runtime ↔ node"): agent runtimes without a terminal that keep
-// their own sessions — DSH's Web plugin first (docs/integrations/dsh.md) — connect to ~/.persona/runtime.sock and hang their
+// their own sessions — DSH's Web plugin first — connect to ~/.persona/runtime.sock and hang their
 // sessions, status and interactions into this node. They are not hosts in the internal/host sense (where a terminal
 // lives, the machine's engine): a runtime has no panes, it reports its own sessions and content, and it runs beside
 // whichever engine the machine uses. Every runtime speaks the same protocol, so a new one needs no code here.

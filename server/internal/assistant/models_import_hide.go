@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Hiding the imported aliases (docs/assistant/model-config.md "Importing providers from shell aliases"): after an
+// Hiding the imported aliases: after an
 // import the alias and the provider made of it would show side by side, so the import can hide the alias in Persona
 // (launchers.hidden; the shell file is not touched). Only where the provider stands in for it everywhere: an alias
 // something still names stays (hiding never moves a start to another launcher, #4661), and so does one a computer

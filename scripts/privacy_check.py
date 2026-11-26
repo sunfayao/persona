@@ -19,7 +19,7 @@ internal project names, people, anything else) and CLAUDE.local.md's `code spans
 address, any email outside example.* domains, and the names in BANNED_NAMES (vendors and internal repositories that
 only extensions may name). A hit says what kind of value matched and where it comes from (a config key path such as
 `machines.id`, private-words.txt, CLAUDE.local.md, the home directory), never the value. Install as a hook:
-scripts/hooks/pre-commit (docs/operations/testing.md).
+scripts/hooks/pre-commit.
 
 Values match as substrings, ignoring case, with two narrower rules: a short value (under six letters and digits) only as
 a word of its own, and an app identifier (a reverse-DNS value held only under a `bundle_id`, `application_id` or

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Release builds of persona-iphone-bridge for the platforms a Persona node runs on, for scripts/release/publish.sh
-# (docs/extensions/iphone-bridge.md "Releases"). Builds only: build.sh runs the tests and lints.
+# Release builds of persona-iphone-bridge for the platforms a Persona node runs on, for scripts/release/publish.sh.
+# Builds only: build.sh runs the tests and lints.
 #
 #   native/iphone-bridge/release.sh <out dir> [<os>/<arch> …]
 #

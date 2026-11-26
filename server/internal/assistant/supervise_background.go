@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The legacy background supervisor (#4927, docs/assistant/unified-entry.md "Background supervisor"). Since #5732 the
+// The legacy background supervisor (#4927). Since #5732 the
 // planning lead or main supervises newly dispatched work. An already configured background conversation may
 // finish notices explicitly queued for it, but is never a default owner for new work and needs no replacement.
 // Pending and queued legacy notices are regathered or moved to main intact rather than dropped.

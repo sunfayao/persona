@@ -1,4 +1,4 @@
-// Search in chat's matching (docs/web/web.md "Search in chat", Android ChatSearch.kt, parity N26): literal,
+// Search in chat's matching (Android ChatSearch.kt, parity N26): literal,
 // case-insensitive matching over what is loaded of a chat (words, quoted contexts, thoughts, tool names, tool input and
 // output, system events), newest first, at most SEARCH_LIMIT hits. What of an item is searched is the shared rule of
 // spec/fixtures/chat-search: what the chat can show, never a hidden tag (#6281). Loaded with the search panel only.

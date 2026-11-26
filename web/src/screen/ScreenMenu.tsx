@@ -1,4 +1,4 @@
-// The live screen's picture menu (#3954, docs/extensions/computer-use.md "Live screen video"): the hardware video
+// The live screen's picture menu (#3954): the hardware video
 // channel (smoother, far less bandwidth) or VNC/RFB, and — for video — a quality bias. ScreenView imports it only when
 // this Mac's node advertises the channel, so its words (screen-video) stay out of the first screen's catalog, which
 // every page of the app sends, and no Mac shows a control it can't use. Input always rides RFB; only the picture path

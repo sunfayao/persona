@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// launchers.own_service (docs/integrations/launchers.md "Device scope and on-demand delivery"): whether an agent harness
+// launchers.own_service: whether an agent harness
 // already has a usable model service of its own on this computer, so a Persona-managed provider that skips such
 // computers is not used here. Read with what the node already checks, never a model request:
 //

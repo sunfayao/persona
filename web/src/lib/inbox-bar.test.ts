@@ -1,4 +1,4 @@
-// The section bar's shared cases (spec/fixtures/inbox/bar*.json, docs/assistant/inbox.md "Section bar", #9053), replayed
+// The section bar's shared cases (spec/fixtures/inbox/bar*.json, #9053), replayed
 // through what the list itself uses: the items filed by sections() (matches, statusOf), the Agents waiting picked by
 // waitingAgents(), then the bar's own rules. So the counts checked here are the numbers the Inbox draws.
 import { readFileSync } from "node:fs";

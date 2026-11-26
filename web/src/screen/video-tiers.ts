@@ -1,4 +1,4 @@
-// One video stream's quality tiers in the browser (#6558, #6396; docs/extensions/computer-use.md "Quality tiers"), as
+// One video stream's quality tiers in the browser (#6558, #6396), as
 // the iPhone's ScreenVideoTiers: what the frames say (./tiers/signals) and the tier chosen from it (./tiers/policy). The
 // stream feeds it as frames arrive, decode and reach the screen, and ticks it every 250 ms; the link hands it Quality,
 // the data cap and the route. A change is sent to the helper as an `update` (`updateOf`).

@@ -20,7 +20,7 @@ function sameDesktopRoot(a: string, b: string): boolean {
 const desktopProject = (host: string) => host === "codex_app" || host === "claude_desktop";
 
 /** Hosts that make worktrees of a workspace: herdr and Orca, and Paseo of its Git workspaces, where Paseo makes them itself
- *  (docs/integrations/paseo.md, "Capabilities"); a Paseo folder has none. */
+ * ; a Paseo folder has none. */
 const makesWorktrees = (host: string, workspace?: HostWorkspace) =>
   ["herdr", "orca"].includes(host) || host === "paseo" && workspace?.workspace_kind === "git";
 
@@ -57,7 +57,7 @@ export function spaceWorktreeSources(space: SpaceLike, catalog: WorkspaceCatalog
 }
 
 /** A Paseo space (its project) is renamed in Paseo: offered while the catalog has the project's workspaces from Paseo on
- *  that computer, which a bridge that renames them lists (docs/integrations/paseo.md "Spaces and workspaces"). */
+ *  that computer, which a bridge that renames them lists. */
 export function renamesRuntimeSpace(s: Session | undefined, catalog: WorkspaceCatalogSnapshot): boolean {
   if (!s?.space_id || s.source_kind !== "runtime" || (s.space_kind || s.host) !== "paseo") return false;
   if (s.manager && s.manager !== catalog.manager) return false;

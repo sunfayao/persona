@@ -1,4 +1,4 @@
-// Disconnect this browser (#1873, docs/web/web.md "Sign-in"): revoke its own credential on the hub, then sign out here.
+// Disconnect this browser (#1873): revoke its own credential on the hub, then sign out here.
 // A revoke that does not go through is said, never signed out over in silence: the credential would stay valid on the
 // hub with nothing on screen to tell. Signing out anyway keeps its id apart, so the next sign-in here names it in
 // `replaces` (lib/auth.ts pair) and the hub takes it off then.

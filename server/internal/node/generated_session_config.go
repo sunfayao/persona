@@ -88,7 +88,7 @@ func hookSettingsForOS(goos, bin, dir string, assistant bool) map[string]any {
 // passes them to the node and prints nothing (nodeclient.Display, at most 150 ms after it started); the timeout
 // (seconds, the shortest whole one) bounds one that hangs, after which Claude shows the lines as they are. It is in
 // exec form ("command" the program, "args" its arguments): Claude Code starts it directly instead of through /bin/sh -c,
-// which costs every batch 6–8 ms more on a Mac (docs/integrations/claude-integration.md "What the terminal pays").
+// which costs every batch 6–8 ms more on a Mac.
 // Every Claude Code with the event takes exec form (2.1.150 has exec form and not the event; 2.1.200 has both). With
 // no shell to put PERSONA_HOME in front (hookSettings), the hook is told dir as an argument (nodeclient.HomeFlag).
 // The headless assistant streams its replies itself and has none.

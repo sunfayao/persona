@@ -1,4 +1,4 @@
-// The full sidebar's right edge on a wide screen (docs/web/web.md "The sidebar's width"): dragged (ui/ResizeHandle.tsx,
+// The full sidebar's right edge on a wide screen: dragged (ui/ResizeHandle.tsx,
 // like the side panel's left edge) it sets the column's width, kept in this browser (lib/layout.ts).
 // The width reaches the column as a CSS variable this sets on it, so a drag moves only the column and the page beside
 // it: the shell, the sidebar's rows and the page are not rendered again on each pointer move.

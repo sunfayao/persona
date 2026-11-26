@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Work agents (docs/integrations/launchers.md "Work agents"): pi, the Cursor CLI (cursor-agent) and the Antigravity
+// Work agents: pi, the Cursor CLI (cursor-agent) and the Antigravity
 // CLI (agy). They are Agents the user works with, started in a herdr pane the way Claude and Codex are, with a model
 // the start names (`--model`) and a first message. agy also takes an explicit `--effort` and its start's permission
 // mode (agyModeFlags), Allow all when the start names none. The mode is fixed at the start: the apps cannot switch it

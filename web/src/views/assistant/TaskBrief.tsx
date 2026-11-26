@@ -1,4 +1,4 @@
-// A task's brief where the owner meets the task (#3822, docs/assistant/unified-entry.md "Briefs"): on the plan card
+// A task's brief where the owner meets the task (#3822): on the plan card
 // before "Start" (their own words with the date and one line that counts the rest; the goal, the criteria, the
 // expected time and what is out of bounds open on demand, so the card's buttons stay in reach), on
 // the task's page above its criteria (a brief made later says so and shows the hand-over prompt as that), under them

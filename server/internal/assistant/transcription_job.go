@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/extwire"
 )
 
-// A transcription contribution's job socket (docs/extensions/extensions.md "Transcription for extensions"): the
+// A transcription contribution's job socket: the
 // connection extension_transcribe.go dials and reads.
 
 // The times of a job; tests shorten them.

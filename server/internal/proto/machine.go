@@ -4,7 +4,7 @@ import "time"
 
 type Machine struct {
 	ID string `json:"id"`
-	// Manager is the manager it belongs to (docs/assistant/managers.md, "Ownership"); the hub stamps it on what it sends the apps.
+	// Manager is the manager it belongs to; the hub stamps it on what it sends the apps.
 	Manager string `json:"manager,omitempty"`
 	Name    string `json:"name"`
 	Kind    string `json:"kind"` // local | ssh | tailcat | link
@@ -12,7 +12,7 @@ type Machine struct {
 	SSHHost string `json:"ssh_host,omitempty"`
 	Online  bool   `json:"online"`
 	Error   string `json:"error,omitempty"`
-	// ErrorCode is what Error is about, for a client's own words (docs/assistant/onboarding.md 5.3): node_service_down,
+	// ErrorCode is what Error is about, for a client's own words: node_service_down,
 	// link_offline, never_connected, node_outdated; "" none of them. An unknown one shows Error.
 	ErrorCode string `json:"error_code,omitempty"`
 	// Trust: pending while the user has not confirmed the computer is theirs (POST …/confirm); "" is confirmed.
@@ -46,13 +46,13 @@ type Machine struct {
 	// to reinstall (#10566).
 	DeployNoPackage bool   `json:"deploy_no_package,omitempty"`
 	DeployPhase     string `json:"deploy_phase,omitempty"`
-	// LinkSwitch: switching this ssh computer to Persona Link (#10662, docs/operations/link.md "Switching from SSH").
+	// LinkSwitch: switching this ssh computer to Persona Link (#10662).
 	// Set by a manager that can, for each ssh computer it connects itself and for a little while after a switch ended;
 	// nil from an older manager (the apps then offer nothing).
 	LinkSwitch *MachineLinkSwitch `json:"link_switch,omitempty"`
 	// System: OS and hardware, from the node's last connection (kept across hub restarts).
 	System *System `json:"system,omitempty"`
-	// Link: kind link, while the computer's persona-link is connected (docs/operations/link.md).
+	// Link: kind link, while the computer's persona-link is connected.
 	Link *MachineLink `json:"link,omitempty"`
 	// Transport is how the hub reaches it now: local | ssh | tailcat | link (empty while offline); Tailcat: it can be
 	// reached over tailcat (an address is set); TailcatPath, over tailcat: direct (NAT traversal worked) | relay.
@@ -78,28 +78,28 @@ type Machine struct {
 	Browser *Browser `json:"browser,omitempty"`
 	// IPhone: the iPhones paired with it the assistant may operate, while the extension iphone is on (Mac and Linux).
 	IPhone *IPhone `json:"iphone,omitempty"`
-	// Clipboard: sharing its clipboard with the phone (#3064, docs/operations/clipboard.md). Always set by a manager that
+	// Clipboard: sharing its clipboard with the phone (#3064). Always set by a manager that
 	// knows the feature; nil from an older one.
 	Clipboard *MachineClipboard `json:"clipboard,omitempty"`
-	// FileTransfer controls uploads to this computer's receive folder (docs/protocol/file-transfer.md).
+	// FileTransfer controls uploads to this computer's receive folder.
 	// A nil value means the switch is off.
 	FileTransfer *MachineFileTransfer `json:"file_transfer,omitempty"`
 	// ClaudePlugin: the Persona plugin for Claude Code on it, as its node last said (docs/operations/link.md "Claude
 	// Code plugin"); nil from an older node or one that has not checked.
 	ClaudePlugin *ClaudePlugin `json:"claude_plugin,omitempty"`
-	// Hub mesh (docs/server/mesh.md): the hub that connects to this machine (its owner), its name, the machine's own id
+	// Hub mesh: the hub that connects to this machine (its owner), its name, the machine's own id
 	// (~/.persona/machine-uid, empty for an old node or one never reached) and how the hub the client talks to gets
 	// there. A hub without peers fills them in for its own machines too.
 	HubID      string        `json:"hub_id,omitempty"`
 	HubName    string        `json:"hub_name,omitempty"`
 	MachineUID string        `json:"machine_uid,omitempty"`
 	Route      *MachineRoute `json:"route,omitempty"`
-	// Paths: every way the center has to this computer (docs/server/mesh.md 5), when there is more than one or it
+	// Paths: every way the center has to this computer, when there is more than one or it
 	// is a member hub's; the machine detail and the admin page show them.
 	Paths []MachinePath `json:"paths,omitempty"`
 }
 
-// MachineRoute is how the center reaches a machine now (docs/server/mesh.md 5): via one of its own ways (local |
+// MachineRoute is how the center reaches a machine now: via one of its own ways (local |
 // service | link | ssh | tailcat, hops 0) or through a member hub (hub, hops 1); RTTMS is the node's round trip
 // when it was measured.
 type MachineRoute struct {
@@ -211,10 +211,10 @@ type NodeInfo struct {
 	// engine.use (its hosts and default fields), left out by older ones — the hub then sends them only the engine.
 	EngineHosts *EngineChoice `json:"engine_hosts,omitempty"`
 	// MachineUID is the computer's own id (~/.persona/machine-uid, a UUIDv4 made on the node's first run): hubs that
-	// both reach it tell it is the same computer (docs/server/mesh.md). Older nodes leave it out.
+	// both reach it tell it is the same computer. Older nodes leave it out.
 	MachineUID string `json:"machine_uid,omitempty"`
 	// HerdrRunning and HerdrRunningKnown: whether classic herdr's server answers on this machine now, so the Agents
-	// list can offer "Start" instead of waiting for a start to fail (docs/integrations/engines.md). An older node sets neither, and
+	// list can offer "Start" instead of waiting for a start to fail. An older node sets neither, and
 	// the hub then tells "it does not run" apart from "nobody said".
 	HerdrRunning      bool `json:"herdr_running,omitempty"`
 	HerdrRunningKnown bool `json:"herdr_running_known,omitempty"`
@@ -233,7 +233,7 @@ type NodeInfo struct {
 	ClaudePlugin *ClaudePlugin `json:"claude_plugin,omitempty"`
 }
 
-// System is what a machine is: OS, hardware, since when it runs (sysmon; docs/server/machines.md). Read once when the node
+// System is what a machine is: OS, hardware, since when it runs (sysmon). Read once when the node
 // starts and sent with node.info; the hub keeps the last one of every machine in Postgres.
 type System struct {
 	OS       string `json:"os"`                  // runtime.GOOS: linux | darwin

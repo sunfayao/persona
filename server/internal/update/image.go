@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// Image is a container image reference (docs/operations/hub-update.md "Docker"): the registry, the repository in it, and the
+// Image is a container image reference: the registry, the repository in it, and the
 // tag the compose file runs.
 type Image struct {
 	Registry string // ghcr.io, registry-1.docker.io, localhost:5000

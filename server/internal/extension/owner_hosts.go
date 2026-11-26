@@ -1,6 +1,6 @@
 package extension
 
-// Hosts the owner allows a sandboxed extension in the admin UI (#5697, docs/extensions/extensions.md "Egress"): one
+// Hosts the owner allows a sandboxed extension in the admin UI (#5697): one
 // specific host, with a port or on any port, beside what its manifest's permissions.network lists.
 
 import (

@@ -1,4 +1,4 @@
-"""MOCK_PREVIEW for dev server previews (docs/web/preview.md, #150): mock_hub.py loads it when MOCK_PREVIEW is set and hands it
+"""MOCK_PREVIEW for dev server previews (#150): mock_hub.py loads it when MOCK_PREVIEW is set and hands it
 its own module (`install`); everything here is made up.
 
 What it adds:
@@ -174,7 +174,7 @@ def agent_ports():
 
 def forward(port):
     """Where …/ports/{port}/connect reaches a preview's port on this computer (the Apple clients open the page through the
-    port forwarding, docs/web/preview.md "iPhone"): the made-up app's page server while the port is running, else None."""
+    port forwarding): the made-up app's page server while the port is running, else None."""
     return page_server() if MODE["mode"] != "old" and listening(port) else None
 
 

@@ -3,7 +3,7 @@ import { t } from "../i18n";
 import { Button } from "../ui/atoms";
 import { lazyDialog } from "./LazyOverlay";
 
-// Opened only on a click, so its list and words stay off the first screen (docs/web/web.md, "First screen").
+// Opened only on a click, so its list and words stay off the first screen.
 const HiddenAgentSessionsDialog = lazyDialog(() => import("./HiddenAgentSessionsDialog").then((m) => m.HiddenAgentSessionsDialog));
 
 /** A separate, bounded inspection view: never changes the shared default list or attention counts. */

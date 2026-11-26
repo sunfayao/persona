@@ -18,7 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Persona Input, the live screen's pixel scrolling helper (#7775; docs/extensions/computer-use.md "Pixel scrolling").
+// Persona Input, the live screen's pixel scrolling helper (#7775).
 // Persona Link installs it beside Persona Screen (Contents/Helpers/Persona Input.app). The node starts it through
 // LaunchServices for a paired stream whose phone said hello, so macOS holds its Accessibility permission (posting
 // events) to the helper's own bundle, gives it a private 0600 Unix socket and a token, and hands it the stream's scroll

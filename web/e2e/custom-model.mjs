@@ -1,4 +1,4 @@
-// End-to-end check of typing a model ID on the web (#1644, docs/assistant/model-config.md "Typing a model ID"): "New
+// End-to-end check of typing a model ID on the web (#1644): "New
 // agent"'s model panel (#5104, the model pill at the right of the first message box) lists the IDs typed before with
 // Forget, offers no "Use “…”" for an ID the hub would refuse and offers it for a good one, which becomes the pick; a
 // running Claude Code session's model panel (the composer's model pill, #5032) lists the IDs typed before

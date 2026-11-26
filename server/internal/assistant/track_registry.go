@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/identity"
 )
 
-// The assistant's tracks (#13104, docs/assistant/tracks.md): a track is a named place the assistant's conversations
+// The assistant's tracks (#13104): a track is a named place the assistant's conversations
 // run in, of a kind (a domain space is one kind), with a directory of its own. Its conversations name it by its slug
 // in the field the wire calls space (Session.Space, StartParams.Space, ?space=). The main space ("") is the
 // assistant's own directory and is no entry; every track is the store's.
@@ -55,7 +55,7 @@ func (p TrackPolicy) strictness() int {
 // strictPolicy turns every use rule on: sensitive information's outside its track.
 var strictPolicy = TrackPolicy{Redact: true, HideFromExtensions: true, NoKBWrite: true, ConfirmOutbound: true, DenyMainRead: true}
 
-// The information categories (docs/assistant/tracks.md), checked here rather than in the database so adding one is a
+// The information categories, checked here rather than in the database so adding one is a
 // code change with its use rules: infoCategoriesVersion goes up with every change to the list.
 const (
 	categoryHealth        = "health"

@@ -1,4 +1,4 @@
-// UI version 9 as the web reads it (docs/extensions/extensions.md "UI version 9", #9337): a tile's gauge, from the
+// UI version 9 as the web reads it (#9337): a tile's gauge, from the
 // schema's examples; what it cannot use is left out, and the tile is then drawn as one without a gauge.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";

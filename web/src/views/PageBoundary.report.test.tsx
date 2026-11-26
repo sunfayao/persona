@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // What PageBoundary sends to the hub's error reports when a page crashes: the error, and where in the component tree it
-// was caught, so a crash nobody saw happen can be traced from its report alone (docs/web/web.md "Error reports").
+// was caught, so a crash nobody saw happen can be traced from its report alone.
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";

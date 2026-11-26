@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Agent presets for Agents (#14672, docs/assistant/model-config.md "Agent presets (tiers)"): an Agent that starts
+// Agent presets for Agents (#14672): an Agent that starts
 // another one (a2a_send's new Agent, dispatch_start) names a tier of the profile in use as the assistant does with
 // agent_start, and reads beforehand which presets each computer can start (a2a_sessions with presets,
 // dispatch_read's overview).

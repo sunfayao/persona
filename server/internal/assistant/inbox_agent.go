@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// The inbox's AI twin (docs/assistant/inbox.md): model 1 triages every new item (inbox_triage.go), every "Needs you" item
+// The inbox's AI twin: model 1 triages every new item (inbox_triage.go), every "Needs you" item
 // (and what an inbox policy hands it, inbox_policies.go) goes to an agent, model 2 links it to one of the user's
 // tasks (linkTaskFor), and the agent (model 3, a headless Claude Code in the assistant's
 // directory, with its tools: a named handling conversation, archived from the default lists) looks into it and drafts the reply
@@ -94,7 +94,7 @@ type InboxAgent struct {
 	// InterruptedByDisable marks unfinished work released only because the twin was switched off. It survives reload and
 	// gets one escalation when re-enabled; a genuine processing failure leaves it false (#11219).
 	InterruptedByDisable bool `json:"interrupted_by_disable,omitempty"`
-	// TodoID: the user's task the item is about (model 2's task_id, docs/assistant/unified-entry.md): the draft tells its
+	// TodoID: the user's task the item is about (model 2's task_id): the draft tells its
 	// progress, and the task's conversation gets a card for it.
 	TodoID    string     `json:"todo_id,omitempty"`
 	StartedAt *time.Time `json:"started_at,omitempty"`

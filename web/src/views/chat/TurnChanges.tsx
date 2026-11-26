@@ -1,4 +1,4 @@
-// The files a finished Agent turn changed (cindy's TurnChangesCard, at the owner's request, 2026-11-12; docs/web/web.md
+// The files a finished Agent turn changed (cindy's TurnChangesCard, at the owner's request, 2026-11-12
 // "Changed files"): a bordered card at the end of the exchange with "Changed 3 files", the lines added and removed,
 // Review, and the files, three of them, then "Show N more files". What it counts is lib/turn-changes.ts. Never in a
 // Persona conversation, never while the turn runs. cindy's Undo and Reapply are not here: nothing in Persona applies

@@ -1,4 +1,4 @@
-// The sidebar's pages as it draws them (docs/web/web.md "Sidebar"): the built-in pages in their order, the
+// The sidebar's pages as it draws them: the built-in pages in their order, the
 // pages extensions' nav_pages add right before Settings, and which of them wait under More.
 //
 // Groups: the built-in Pages group ("") and the ones extensions' nav_pages name (`group` of the place), first named first;

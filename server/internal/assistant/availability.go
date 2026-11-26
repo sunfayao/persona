@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Availability metrics (#4924, docs/assistant/assistant.md "Availability metrics"; step M1 of
+// Availability metrics (#4924; step M1 of
 // docs/assistant/assistant.md): how long the owner waits for an assistant conversation's reply,
 // what its rounds are spent on, how long system messages wait in its queue, and who answers the cards. Everything is
 // a work event (session_work_events, kept 30 days like the others): one per answered owner message, per round, per

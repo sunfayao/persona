@@ -10,7 +10,7 @@ import (
 )
 
 // A relay also answers an ordinary API key (the kind a launcher uses) about the accounts that key can use, with no
-// management key: its key self-service usage document (#12311, docs/server/usage-windows.md "What is read and how it maps").
+// management key: its key self-service usage document (#12311).
 //
 //	GET /me/usage  → {"account_quota_shared": true, "accounts": [{account_id, provider, plan, plan_raw, state,
 //	                   windows: [{kind, scope, scoped_model, used_ratio, remaining, limit, resets_at, checked_at}],

@@ -3,7 +3,7 @@
 mock_hub.py is one long file that nearly every mock change edits. A domain module keeps its area out of it: it
 registers its HTTP routes, WebSocket messages, hello features, MOCK_* help lines and /mock/reset hooks here, and
 mock_hub.py consults the registry at its few central points. Adding a domain is a new module plus one line in DOMAINS
-below; mock_hub.py does not change (docs/operations/testing.md "Mock hub domains").
+below; mock_hub.py does not change.
 
     # scripts/mock/example_mock.py
     import os

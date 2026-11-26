@@ -2,7 +2,7 @@
 // To-dos page (loaded when opened) asks.
 import type { Todo } from "./todos";
 
-/** Whether any request is in pieces (docs/assistant/todos.md "Requests in pieces"): a to-do is a piece of another listed
+/** Whether any request is in pieces: a to-do is a piece of another listed
  *  one, or two to-dos came from one task plan. The To-dos page offers "By request" only then. */
 export function hasRequestPieces(todos: readonly Todo[]): boolean {
   const ids = new Set(todos.map((t) => t.id));

@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The To-dos SOP on the hub (docs/assistant/todo-status-sop.md, #3483): where each to-do shows, by the same decision
+// The To-dos SOP on the hub (#3483): where each to-do shows, by the same decision
 // table as the clients' copies (web/src/lib/todo-triage.ts, apple/Shared/TodoTriage.swift, Android's TodoTriage.kt).
 // The hub needs the sections to tell when a leader's task is stuck (leader_reports.go). It is one more copy, not a
 // second definition: it reads the to-dos and sessions as the apps get them (GET /api/v1/todos, the decorated session
@@ -363,7 +363,7 @@ func triageDueBy(t Todo, loc *time.Location) (time.Time, bool) {
 }
 
 // triageShelvable: a task (an agent was linked, or a conversation handed it out) with no due date ahead. An open concern
-// never is (docs/assistant/todos.md "Concerns", #3582): it waits for the secretary's report, however long, and sits in
+// never is (#3582): it waits for the secretary's report, however long, and sits in
 // Working while an agent of it runs, else in Other open (triageTodo keeps it out of Done too). The web has the same rule
 // and shared fixtures; iOS and Android follow in their own PRs. triageRelatedRoots also keeps an open concern in a row
 // of its own; a closed concern groups like any closed to-do.
@@ -377,7 +377,7 @@ func triageShelvable(t Todo, now time.Time, loc *time.Location) bool {
 	return len(triageAgents(t)) > 0 || t.Origin != ""
 }
 
-// triageTodo places one to-do by the SOP's decision table, first match wins (docs/assistant/todo-status-sop.md). Seen
+// triageTodo places one to-do by the SOP's decision table, first match wins. Seen
 // can file an unsupervised finished turn (#5707); a supervised or unaccepted delivery stays awaiting review (#5732).
 // restoredAt is a restore from Shelved (zero on the hub: restores are kept on each device); loc is the user's zone, for
 // a due day; superseded: a failed start whose row's work really finished (triageSupersededFailedStarts, #3713).

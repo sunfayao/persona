@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Conclusion cards (#1226, docs/extensions/bots.md "Conclusions"): the owner hands out many tasks and wants one thing of
+// Conclusion cards (#1226): the owner hands out many tasks and wants one thing of
 // each, its conclusion. When the main conversation's review of a supervised task gives a result (task_review accepted, or
 // needs_user), the task gets one card: a verdict (done / cannot be done / needs your decision), one sentence of why and
 // one link (the PR, the page, the document or the agent's conversation). A decision carries the option the supervisor

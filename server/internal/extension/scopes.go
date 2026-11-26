@@ -8,7 +8,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Defined in the contract package extwire (docs/server/architecture.md "Contract packages"); the old names stay.
+// Defined in the contract package extwire; the old names stay.
 const (
 	ScopeAgentsControl           = extwire.ScopeAgentsControl
 	ScopeAgentsPermissionMode    = extwire.ScopeAgentsPermissionMode

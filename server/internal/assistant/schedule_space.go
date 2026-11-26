@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// A scheduled task's track (#13501, docs/assistant/tracks.md "Tracks and kinds"). A task set up from a conversation
+// A scheduled task's track (#13501). A task set up from a conversation
 // takes that conversation's track (selfSpace); the owner may also put a task into a track from the apps' editor
 // (space on POST / PUT /api/v1/assistant/tasks). A task of a track runs in the track's directory, never in a cwd of
 // its own (checkTaskExecutionSpace), its run conversation is one of the track's, and what reaches the phone follows

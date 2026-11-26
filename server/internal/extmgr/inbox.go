@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/connector"
 )
 
-// The unified inbox (docs/assistant/inbox.md) is the assistant's (internal/assistant's inbox*.go; "the manager" in the
+// The unified inbox is the assistant's (internal/assistant's inbox*.go; "the manager" in the
 // comments below): the items and their state, triage, events, mutes, the AI double, translations and the
 // /api/v1/inbox… routes, which the hub relays to the manager process. The sources are this code's, the extension
 // manager in that same process: it reads them when a round is due — its poll, a connector's changed, a pull to refresh

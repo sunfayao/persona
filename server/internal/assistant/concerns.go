@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-// Concerns (#3561, docs/assistant/todos.md "Concerns", docs/assistant/todos.md G5): something the owner
+// Concerns (#3561, docs/assistant/todos.md G5): something the owner
 // raised in the main conversation and wants an answer to is a to-do of kind concern, made by the main conversation
 // (todo_create kind concern) or by hand (POST /api/v1/todos {kind: "concern"}). It needs no agent and nothing closes it
 // on its own: not the hub's judge, a review, a failed start, nor completing it by hand. It closes only when the outcome

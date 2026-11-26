@@ -16,14 +16,14 @@ type Launcher struct {
 	// RuntimeFallback is node-local discovery provenance: an ordinary CLI command yields to a connected runtime
 	// offering the same launcher. Explicit shell definitions never do. This flag is not part of the wire protocol.
 	RuntimeFallback bool `json:"-"`
-	// Agent is what it starts when not Claude Code: "codex" (plain codex, or an alias running it; docs/integrations/codex.md
+	// Agent is what it starts when not Claude Code: "codex" (plain codex, or an alias running it
 	// "Starting from the phone").
 	Agent string `json:"agent,omitempty"`
 	// PromptOptional: a Codex launcher this node starts with no first message too (docs/integrations/codex.md
 	// "Starting without a first message"). Older nodes leave it out: their Codex starts need the first message.
 	PromptOptional bool `json:"prompt_optional,omitempty"`
 	// RunHere: a Codex launcher this node starts in a shell pane the user picked (Run Agent Here) and never closes or
-	// queues that pane for cleanup when the start fails (#5504; docs/integrations/terminal.md, section 21). Older
+	// queues that pane for cleanup when the start fails (#5504). Older
 	// nodes leave it out: Run Agent Here offers them Claude Code only.
 	RunHere bool `json:"run_here,omitempty"`
 	// PermissionModes are the permission modes a start on a runtime's launcher takes when its agent is not Claude Code
@@ -52,7 +52,7 @@ type Launcher struct {
 	// DisplayName is what the apps call it: a Persona-managed provider's own name (the manager sets it,
 	// launcher_auto_name), or a runtime's name for a provider it runs (Paseo's label, "Grok"; #8261). Empty: Name.
 	DisplayName string `json:"display_name,omitempty"`
-	// Pi: a Persona-managed provider pi can use on this computer too (ManagedLauncher.PiAPI, docs/integrations/pi.md
+	// Pi: a Persona-managed provider pi can use on this computer too (ManagedLauncher.PiAPI
 	// "Persona's model providers").
 	Pi bool `json:"pi,omitempty"`
 	// BuiltinCompanion: this runtime launcher is backed by the node's own built-in Antigravity companion (wrapping the
@@ -106,7 +106,7 @@ type LauncherCheck struct {
 }
 
 // ClaudeAuthStatus is what a node's claude.auth_status found: `claude auth status --json` run as the launcher runs
-// claude (docs/assistant/onboarding.md 4.3). It spends no tokens. Only these fields leave the machine: never the account's
+// claude. It spends no tokens. Only these fields leave the machine: never the account's
 // email or organization, never a key (KeySource names where a key came from, e.g. ANTHROPIC_API_KEY).
 type ClaudeAuthStatus struct {
 	State       string `json:"state"`                  // ClaudeLoggedIn, ClaudeNotLoggedIn or ClaudeAuthUnknown
@@ -129,7 +129,7 @@ const (
 	ClaudeAuthTimeout    = "timeout"
 )
 
-// LauncherRepair is what a node did for launchers.repair (docs/server/launcher-health.md): one of its fixed repairs.
+// LauncherRepair is what a node did for launchers.repair: one of its fixed repairs.
 type LauncherRepair struct {
 	OK          bool   `json:"ok"`
 	Unsupported bool   `json:"unsupported,omitempty"` // this repair does not apply to the launcher's agent
@@ -260,7 +260,7 @@ type ManagedLauncher struct {
 	// Source: where it came from: "" (made by hand), "zshrc:<alias>@<machine id>" (imported), "preset:<id>".
 	Source string `json:"source,omitempty"`
 
-	// Device scope and on-demand delivery (docs/integrations/launchers.md "Device scope and on-demand delivery").
+	// Device scope and on-demand delivery.
 	// Delivery: "on_demand" (a computer fetches the secrets the first time it needs them) or "push" (each computer in
 	// scope fetches them as soon as it connects); "" is a record from before scopes: push.
 	Delivery string `json:"delivery,omitempty"`
@@ -307,7 +307,7 @@ const (
 	CodeLauncherOutOfScope = "launcher_out_of_scope"
 	CodeLauncherOwnService = "launcher_own_service"
 	// CodeLauncherKeyUnresolved: the key that computer uses is a reference its provider extension did not resolve
-	// (off, signed out, not found…); the message is the provider's reason (docs/extensions/secret-providers.md).
+	// (off, signed out, not found…); the message is the provider's reason.
 	CodeLauncherKeyUnresolved = "launcher_key_unresolved"
 )
 
@@ -518,7 +518,7 @@ func trimBasePathSuffix(base, suffix string) string {
 // effort): the hub matches what the node does with one a start names (assistant/launcher_modes.go), and node
 // TestStartModeAgentTypesMatchTheNode keeps these lists and the node's together.
 //
-// WorkAgentTypes are the work agents (docs/integrations/launchers.md "Work agents"): pi, the Cursor CLI and the
+// WorkAgentTypes are the work agents: pi, the Cursor CLI and the
 // Antigravity CLI. The node starts them with the two ignored rather than refusing the start (node/control.go, #8151).
 var WorkAgentTypes = []string{"pi", "cursor", "agy"}
 

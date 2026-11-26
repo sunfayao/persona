@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // A conversation that went back to its first engine (#5054, A → B → A): the live session's early stretch is drawn above
-// B's by EarlierStretches, so the chat's own rail, jumps and search cover only the live stretch (docs/web/web.md). Its
+// B's by EarlierStretches, so the chat's own rail, jumps and search cover only the live stretch. Its
 // inputs before the live stretch are no ticks (they could never be reached), and the search neither finds them nor
 // offers to load past the live stretch's start.
 import { act } from "react";

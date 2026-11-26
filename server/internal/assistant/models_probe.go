@@ -22,7 +22,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// "Test connection" / "Fetch models" for a provider being added or edited (#2455, docs/integrations/launchers.md): the manager itself talks to the
+// "Test connection" / "Fetch models" for a provider being added or edited (#2455): the manager itself talks to the
 // gateway. POST /api/v1/launchers/test sends a short request using the configured protocol;
 // POST /api/v1/launchers/discover reads model pages and fills in metadata from the built-in catalog.
 // Neither ever puts the key or a header value in what it answers. A probe sends the credential header a launch would

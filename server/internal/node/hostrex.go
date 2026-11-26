@@ -22,7 +22,7 @@ import (
 	"github.com/nwverse/persona/server/internal/screen"
 )
 
-// rexHost is Rex, a multiplexing terminal (docs/integrations/engines.md "Rex"), driven through its `rex` command line
+// rexHost is Rex, a multiplexing terminal, driven through its `rex` command line
 // and control API. A pane is a terminal block (`com.superlogical.terminal`), its id the block's full ID
 // ("block:<uuid>" — what Rex puts in the block's processes as REX_BLOCK). Spaces are Rex sessions and slots their
 // windows (tabs).

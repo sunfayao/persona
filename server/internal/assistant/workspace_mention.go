@@ -1,6 +1,6 @@
 package assistant
 
-// A workspace the user @-mentioned in the assistant's composer (#5594, docs/assistant/assistant.md "Workspace mentions"): the
+// A workspace the user @-mentioned in the assistant's composer (#5594): the
 // client sends <persona-context kind="workspace" title="…" machine="<id>" cwd="<folder>"> in front of the message, and
 // here the block becomes what the assistant needs to work there — the computer and folder to dispatch to, the
 // knowledge base's projects there and the agents that worked there lately.

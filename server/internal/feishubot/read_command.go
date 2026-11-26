@@ -11,7 +11,7 @@ var readCommandNames = []string{"read", "读群"} // i18n-ignore: the command's 
 
 // ReadCommand is the line after "/read" (or "/读群", or either with the full-width "／") when text starts with it as a
 // word of its own ("/read what broke", "/read", but not "/reader"); ok is false for any other text. The hub reads it
-// to take the owner's "@bot /read …" from a group (docs/extensions/bots.md "Reading a group with /read"), and the
+// to take the owner's "@bot /read …" from a group, and the
 // assistant again before it acts on one.
 func ReadCommand(text string) (rest string, ok bool) {
 	r := []rune(strings.TrimSpace(text))

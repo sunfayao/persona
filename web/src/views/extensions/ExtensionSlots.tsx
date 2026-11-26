@@ -1,4 +1,4 @@
-// The extensions' places among the web's own pages (docs/extensions/extensions.md "UI slots"): a nav_page's full page (/extension/<id>/<ui>,
+// The extensions' places among the web's own pages: a nav_page's full page (/extension/<id>/<ui>,
 // its entry is on the sidebar), the cards on "Overview" (overview_card, as the user arranged them: lib/overview-cards.ts,
 // laid out among Overview's own sections by views/OverviewBody.tsx) and the sections on a machine's page (machine_section). Each draws the extension's declarative View with ExtensionUI;
 // the list comes from lib/extension-slots.ts.
@@ -258,8 +258,7 @@ function OverviewCard({ place, i, span = "half", hidden = false, edit }: { place
 }
 
 /** The extensions' sections on a machine's page (machine_section), after its own; the extension is told which machine.
- *  A computer of another manager than the default gets that manager's extensions' sections, asked with its name
- *  (docs/assistant/managers.md "Clients"). */
+ *  A computer of another manager than the default gets that manager's extensions' sections, asked with its name */
 export function MachineExtensionSections({ mid, heading }: { mid: string; heading: (title: string, right?: React.ReactNode) => React.ReactNode }) {
   const manager = useStore((s) => s.machines.find((m) => m.id === mid)?.manager);
   const known = useKnownDefault();

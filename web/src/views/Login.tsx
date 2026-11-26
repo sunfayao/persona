@@ -18,7 +18,7 @@ const code = "whitespace-nowrap rounded-[5px] bg-field px-1 py-0.5 font-mono tex
 // what went wrong, under the button of the form it came from (the link's, or the master key's)
 const formError = "text-center text-[12.5px] text-red";
 
-// Sign in without a terminal (docs/assistant/onboarding.md 4.2, 4.5): first a login code from a device that is already signed
+// Sign in without a terminal (4.5): first a login code from a device that is already signed
 // in (Settings › Devices › Connect a new device › Browser makes a `#token=jp_…` link: opened here it signs in by itself, App.tsx), then a
 // pasted pairing / login link. The hub's own token and the commands that print it are folded under "Advanced". `error` is
 // what went wrong with a token that came in the link. Each form says what went wrong under its own button, where the eye

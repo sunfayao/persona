@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Stopping an agent and keeping its terminal (#4754, docs/integrations/engines.md "Agents run in a terminal"). An agent
+// Stopping an agent and keeping its terminal (#4754). An agent
 // runs on top of a terminal: Persona quits the agent process of a finished task, an idle agent (hub tasks_close.go,
 // tasks_idle.go) or a cancelled task's (supervise_leader.go), and its pane stays with the shell it was typed into in
 // front, as when the agent exits by itself. Only the user closes a terminal (Close, Archive and close, a pane's

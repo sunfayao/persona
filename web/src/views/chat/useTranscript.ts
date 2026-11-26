@@ -43,7 +43,7 @@ export function waitForEarlierRetry(ms: number, signal: AbortSignal): Promise<vo
 }
 
 /** The first page refused because reading it would start the agent: one its engine let go (Paseo's closed and archived
- *  agents), which only a watched chat reads (docs/integrations/paseo.md "Content", #8132). The subscribe that follows
+ *  agents), which only a watched chat reads (#8132). The subscribe that follows
  *  loads it, and its backlog brings the page. */
 const isNotLoaded = (e: unknown) => e instanceof ApiError && e.code === "not_loaded";
 
@@ -70,7 +70,7 @@ export interface Transcript {
   loadEarlier: (options?: { waitForRetry: boolean }) => Promise<symbol | undefined>;
   expandFold: (fold: Item) => Promise<boolean | void>;
   /** The reply as it is written, before the transcript has it: the headless assistant's, or an agent's as Claude shows it
-   *  (a Claude session Persona started; docs/integrations/claude-integration.md "Live replies"). "" for none. */
+   *  (a Claude session Persona started). "" for none. */
   streaming: string;
   /** The stream ended while its final transcript item is still on the way. */
   streamEnded?: boolean;

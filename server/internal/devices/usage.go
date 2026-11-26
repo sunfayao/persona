@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Token usage by machine (docs/server/machines.md "Token usage", #4973). The nodes meter their transcripts per minute,
+// Token usage by machine (#4973). The nodes meter their transcripts per minute,
 // model and launcher (node/usage.go) for the last 26 hours; the manager keeps them in memory for the island
 // (metrics.go's usageBook) and in Postgres: minute rows for 27 hours (the node's window and an hour), then a row each
 // 10 minutes for the week, then a row an hour for 53 weeks (usage_history.go). GET /api/v1/machines/{id}/usage draws a

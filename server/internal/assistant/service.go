@@ -47,7 +47,7 @@ type Options struct {
 	// Build is this manager's version, kept with what the north star records (north_star.go); "" in tests.
 	Build string
 	// ID is the manager this assistant is ("" and assistantwire.AssistantID: the built-in one). Its directories on a
-	// computer are named after it (identity.AssistantDirName, docs/assistant/managers.md "Directories on a computer").
+	// computer are named after it (identity.AssistantDirName).
 	ID string
 	// RepositoryConfig is this manager's operator configuration file. Only its
 	// explicit repository_trusted_targets can opt private destinations in.
@@ -753,7 +753,7 @@ type startParams struct {
 	Text                string               `json:"text"`
 	PermissionMode      string               `json:"permission_mode,omitempty"`
 	Purpose             string               `json:"purpose,omitempty"` // the model configuration's purpose; "" is the assistant's
-	Space               string               `json:"space,omitempty"`   // "health" starts it in the health space (docs/assistant/tracks.md)
+	Space               string               `json:"space,omitempty"`   // "health" starts it in the health space
 	Origin              string               `json:"origin,omitempty"`  // where it comes from (origins.go); "" is the user's
 	OriginRef           string               `json:"origin_ref,omitempty"`
 	Source              *proto.MessageSource `json:"source,omitempty"`

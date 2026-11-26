@@ -1,4 +1,4 @@
-// End-to-end check of Forward (#3899, docs/web/web.md "Forwarding a message"): a reply forwarded from one Agent's chat
+// End-to-end check of Forward (#3899): a reply forwarded from one Agent's chat
 // to another Agent and to Persona, as the user does it. The reply's actions (the right-click menu on a wide screen, the
 // reply's ⋯ on a phone) › Forward › Forward to (a dialog; a sheet from the bottom on a phone) › search "Astro" › the
 // target's chat opens with the forward over its box and the line saying which computer it comes from and goes to; a

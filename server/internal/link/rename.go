@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Renaming this computer from here (docs/operations/link.md "The computer's name"): `persona-link name <new>`, the
+// Renaming this computer from here: `persona-link name <new>`, the
 // Windows tray and the Mac menu bar ask the running persona-link (RequestRename), which asks the hub over its link
 // (rename) and keeps the hub's answer in its status for them (Status.Rename). The hub writes the name to hub.json and
 // tells every client and this computer's Persona Link (endpoints); the id never changes. The request is a file beside

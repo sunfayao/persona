@@ -13,8 +13,8 @@ import (
 	"github.com/nwverse/persona/server/internal/closeout"
 )
 
-// closeoutStop holds an agent's stop once when its turn did work and its last reply has no closeout
-// (docs/assistant/agent-work.md "Closeout"). Never twice in a row (stop_hook_active), never for an assistant
+// closeoutStop holds an agent's stop once when its turn did work and its last reply has no closeout.
+// Never twice in a row (stop_hook_active), never for an assistant
 // conversation or a subagent, and never when the reply or the turn cannot be read: a stop held by mistake costs the
 // user a turn, a closeout missed costs nothing new.
 func (n *Node) closeoutStop(parent context.Context, req sockRequest, in hookInput) any {

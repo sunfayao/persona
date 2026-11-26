@@ -1,4 +1,4 @@
-// What a to-do waits on from the user (#2056, docs/assistant/todos.md "Waiting for the owner"), where the to-do is shown:
+// What a to-do waits on from the user (#2056), where the to-do is shown:
 // the verdict line its Lark card says, the option a decision recommends, and one button that answers it through
 // POST /todos/{id}/accept, the route the briefing's Accept takes (Brief.tsx) — OK takes a decision's recommendation, Got it
 // acknowledges a conclusion, Accept verifies a deployed to-do. A decision that recommends nothing has no button: it is

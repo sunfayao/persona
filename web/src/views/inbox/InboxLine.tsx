@@ -1,4 +1,4 @@
-// "Trail" (#2128, docs/assistant/inbox.md "Relationships: parents and children"): under an item's summary, what it grew out of (its parent's chain, up to a todo or
+// "Trail" (#2128): under an item's summary, what it grew out of (its parent's chain, up to a todo or
 // an agent session) and what grew out of it (the items right under it). Each row opens where it lives. Nothing is
 // drawn when the item has neither. A pair whose lower end is an Inbox item can be unlinked; another open item can become this item's parent.
 import { useEffect, useState } from "react";

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end check of the to-dos' calendar on the web (#2029, docs/assistant/todos.md "Calendar"): List | Calendar
+"""End-to-end check of the to-dos' calendar on the web (#2029): List | Calendar
 switches and is kept in the address, the week / month / day show the mock's to-dos (due today at 10:00, 16:00 and two
 at 18:00), a block opens the to-do beside the calendar, a click on the empty axis makes a to-do due there, a to-do
 dragged to another time, onto the All day row or to another day of the month is saved there (#2045; a mouse at desktop

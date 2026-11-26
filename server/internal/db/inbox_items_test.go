@@ -368,7 +368,7 @@ const doneInboxItemsSQLBefore0471 = `SELECT id, data, updated_at, done_at FROM i
 	ORDER BY done_at DESC, id DESC LIMIT $2`
 
 // 0471 turns the rows a database already has into json and fills their source, and the done page stays the same page:
-// by the query of a build from before it (going back a version, docs/operations/hub-restart.md) and by today's.
+// by the query of a build from before it (going back a version) and by today's.
 func TestInboxJSONMigrationKeepsStoredItems(t *testing.T) {
 	ctx := t.Context()
 	d, err := Attach(ctx, freshDatabase(t), ManagerSet)

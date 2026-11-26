@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// A track's own directory (#13472, docs/assistant/tracks.md "Tracks and kinds"): a track whose template is space has
+// A track's own directory (#13472): a track whose template is space has
 // one on the assistant's machine, tracks/<slug> in the state directory, with its SPACE.md, inbox/, recordings/ and
 // .space/. The manager names it on assistant.prepare (space); the node writes the first SPACE.md and the instructions,
 // this baseline followed by the SPACE.md it reads there. The health space keeps its own directory and template.

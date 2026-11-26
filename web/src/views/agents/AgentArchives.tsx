@@ -1,4 +1,4 @@
-// "Archived agents" (`/agents/archived`, docs/web/web.md "Archived agents"; Android's AgentArchivesScreen): every agent
+// "Archived agents" (`/agents/archived`; Android's AgentArchivesScreen): every agent
 // archived from the Agents list, newest activity first, searchable on its title, folder, computer, agent and last
 // words. A row opens its chat (read from its transcript); "Restore" puts it back in the Agents list. What the hub
 // lists is what is archived: a session with new activity comes back by itself and leaves this list.

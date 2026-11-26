@@ -1,4 +1,4 @@
-// Package serve runs a program on the process protocol (docs/extensions/extensions.md "Process extension protocol")
+// Package serve runs a program on the process protocol
 // for the conformance kit (extension/conformance) and the hub's tests. It wraps the official Go SDK (sdk/go/ext), the
 // same code a third party's extension uses, in the hub's own types for initialize and its rpc errors. Public extension
 // programs use the SDK directly.

@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/bus"
 )
 
-// When a "finished" push is worth sending (docs/server/server.md "Push policy"). Borrowed from Ovis (github.com/devswha/ovis,
+// When a "finished" push is worth sending. Borrowed from Ovis (github.com/devswha/ovis,
 // server/push.ts, MIT): a push is for someone away from the computer, so
 //   - wait a while after the turn ends; if the agent resumes, or the user looks at it (herdr idle, or opened in the
 //     app), nothing is sent;
@@ -59,7 +59,7 @@ type NotifyPrefs struct {
 	MuteWhileDesktop bool `json:"mute_while_desktop"`
 	// Quiet: this device's quiet hours (quiethours.go): no "Agent finished", and "Needs you" without sound, inside the window.
 	Quiet QuietHours `json:"quiet"`
-	// MutedManagers: the managers (their ids, docs/assistant/managers.md) whose pushes this device does not want (Settings ›
+	// MutedManagers: the managers (their ids) whose pushes this device does not want (Settings ›
 	// Managers › one › Notifications). A push a manager asks for (notify.request, its extensions' pushes, a computer's
 	// `personad notify`) skips this device; the hub's own (updates) is no manager's and still comes.
 	MutedManagers []string `json:"muted_managers"`

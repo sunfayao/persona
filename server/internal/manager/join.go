@@ -231,7 +231,7 @@ func redeem(ctx context.Context, o JoinOptions, hub, code string) (joinReply, er
 
 // JoinBuiltin trades the built-in manager's one-time code (`persona-hub manager-code` on the hub's machine) for its
 // token, and keeps the binding (the hub's address, the token, the fingerprint) in its manager.json in the data
-// directory home, its other keys as they were (docs/assistant/managers.md "The built-in manager as its own service").
+// directory home, its other keys as they were.
 // The join says it is the built-in manager's: the hub refuses another manager's code for it, unspent.
 func JoinBuiltin(ctx context.Context, o JoinOptions, home string) (managerconf.Binding, error) {
 	var b managerconf.Binding

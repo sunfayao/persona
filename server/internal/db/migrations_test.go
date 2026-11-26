@@ -91,7 +91,7 @@ func setTables(t *testing.T, part string) []string {
 	return out
 }
 
-// Every migration is in exactly one set and has a version of its own there (docs/server/server.md "Migrations"); a
+// Every migration is in exactly one set and has a version of its own there; a
 // number is in both sets only for the frozen few in bothSets and sharedNumbers, and a timestamped file never is (two
 // files of one second may be, one in each). The numbered ones are frozen, and the rest timestamped, after them in name
 // order as in version order.

@@ -543,8 +543,8 @@ func (s *Service) inboxAgentStarted(ctx context.Context, self, machine, session,
 	s.saveInbox(ctx, []*InboxItem{it})
 }
 
-// linkTaskFor asks the judge (model 2) which of the user's tasks going on the event is about
-// (docs/assistant/unified-entry.md): the conversation is told that task's progress, and its reply suggestion puts a card
+// linkTaskFor asks the judge (model 2) which of the user's tasks going on the event is about:
+// the conversation is told that task's progress, and its reply suggestion puts a card
 // in the task's conversation. Since phase 1 every Needs you event goes to the manager whatever the judge says of
 // handling it; a model that fails leaves the event unlinked. w is the item's write not saved yet (nil: none): the link
 // joins that write while the item still holds it (a concurrent move keeps the write from being undone over it).

@@ -20,7 +20,7 @@ import (
 
 // Connectors: each source of the user's information plugs in as a connector, and the hub's pipes pick up what it
 // implements — the assistant's tools (writes behind the gate), Settings › Connectors' status, realtime kicks
-// (internal/connector, docs/extensions/connectors.md).
+// (internal/connector).
 
 // addConnector registers c, refusing one that offers a tool the hub has itself ("kb_search", "phone_…"): calls go
 // to the connector first. A connector may share a prefix with the hub's tools ("lark") as long as it does not offer

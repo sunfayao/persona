@@ -49,7 +49,7 @@ type heardLine struct {
 }
 
 // captionLateMost is the longest a user's caption comes after the voice it is of: the measured service sends the whole
-// line 1.2–1.4 s after they stop (docs/lessons/voice.md "Timeline"). The app's voice older than that is of something
+// line 1.2–1.4 s after they stop. The app's voice older than that is of something
 // before the caption (a line too quiet for the energy rule): the caption is then placed as it came.
 const captionLateMost = 3 * time.Second
 
@@ -72,7 +72,7 @@ func (c *conversation) remember(role, text string, at time.Time) {
 }
 
 // place adds l to lines in the order they were said. The user's caption comes after they stop, often after the model
-// has begun to answer them (docs/lessons/voice.md "Timeline"): a user's line goes before the model's lines at the end
+// has begun to answer them: a user's line goes before the model's lines at the end
 // that began after the user stopped saying it. Never before another line of the user's, nor a line whose time is not
 // known.
 func place(lines []heardLine, l heardLine) []heardLine {
@@ -113,8 +113,8 @@ func (c *conversation) spokeAt(now time.Time) time.Time {
 // userText adds to the user's line; spoke is when they stopped saying text (zero for no text). When it ends the line
 // (final), it returns when the user stopped saying it (zero: no line ended).
 //
-// The measured service sends the caption 1.2–1.4 s after they stop, often after the model began to answer them
-// (docs/lessons/voice.md "Timeline"). On protocol 2 such a line goes before the model's lines that began after spoke
+// The measured service sends the caption 1.2–1.4 s after they stop, often after the model began to answer them.
+// On protocol 2 such a line goes before the model's lines that began after spoke
 // (placeUser: the frame's before), and the model's line still open is not ended by it where the service ends the
 // model's turns itself (turnsEnd): the rest of the answer stays in the same line (#5673). Without that the caption is
 // the only end the model's line has, and it still ends it. Protocol 1's frames are as they always were.

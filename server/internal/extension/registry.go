@@ -56,7 +56,7 @@ type Record struct {
 	Enabled           bool            `json:"enabled"`
 	Config            json.RawMessage `json:"config,omitempty"`
 	Remote            *Remote         `json:"remote,omitempty"`
-	// DisabledContributions are the contributions the user switched off ("<point>/<id>", docs/extensions/extensions.md "Contribution switches"):
+	// DisabledContributions are the contributions the user switched off ("<point>/<id>"):
 	// they do not take effect while the rest of the extension runs. A connector's switch is the connector's own.
 	DisabledContributions []string `json:"disabled_contributions,omitempty"`
 	// PackOff, on an extension pack, are the members switching the pack off switched off (docs/extensions/extensions.md
@@ -163,7 +163,7 @@ type Registry struct {
 	PlanCandidates func(context.Context, *Manifest, string) []*Manifest
 	PlanGuard      func(context.Context, []*Preview) (func(), error)
 	// BoundSecrets names the secrets of p that hold only for its configuration old, so changing it to next deletes
-	// them (the built-in voice extension's key goes with its service's address, docs/extensions/extensions.md "Built-in voice extension").
+	// them (the built-in voice extension's key goes with its service's address).
 	// Both are the configurations with the schema's defaults. SetConfig deletes them before it saves next, in the same
 	// operation SetSecret runs in, so a secret never pairs with a configuration it was not set for. Nil: none.
 	BoundSecrets func(p *Extension, old, next json.RawMessage) []string
@@ -211,7 +211,7 @@ func NewRegistry(dir string, store Store, seal Sealer, build int64) *Registry {
 }
 
 // Yields marks the built-in plugin id as one an installed plugin of the same id takes the place of, while it moves out
-// of personad into a package (Telegram, docs/extensions/extensions.md): installing that plugin puts the built-in aside (the hub
+// of personad into a package (Telegram): installing that plugin puts the built-in aside (the hub
 // stops its program before the installed one starts), uninstalling it brings the built-in back.
 func (r *Registry) Yields(id string) {
 	r.mu.Lock()
@@ -295,7 +295,7 @@ func (r *Registry) AddBuiltinTranslated(m *Manifest, dir string, enabled bool, t
 }
 
 // KeepOff holds the built-in extension id (registered, before Load) switched off whatever its row says; switching it
-// on answers why. For a built-in that took over a hub.json entry written disabled (docs/extensions/extensions.md "Built-in voice extension"):
+// on answers why. For a built-in that took over a hub.json entry written disabled:
 // hub.json has the last word on it, its settings and secrets stay editable, and its row keeps its own switch for when
 // hub.json lets it run.
 func (r *Registry) KeepOff(id string, why error) {

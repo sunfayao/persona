@@ -1,6 +1,6 @@
 package devices
 
-// Sharing a computer's clipboard with the phone (#3064, docs/operations/clipboard.md). Each machine has a switch, off
+// Sharing a computer's clipboard with the phone (#3064). Each machine has a switch, off
 // until the user turns it on (Settings › Machines, or the first use's prompt); the manager keeps it in settings and
 // relays GET / PUT /api/v1/machines/{mid}/clipboard to the node's clipboard.get / clipboard.set while it is on.
 // Only a device with full credentials gets here: the hub keeps answer-only devices (the watch) and extensions' tokens

@@ -210,7 +210,7 @@ func prettyBody(body string) string {
 	return body
 }
 
-// Only the message send/reply shortcuts are documented to use the bot (docs/extensions/feishu.md).
+// Only the message send/reply shortcuts are documented to use the bot.
 // Raw API calls, mail and comments cannot claim this exemption by passing --as bot.
 var larkBotOutbound = map[string]bool{
 	"/im/+messages-send":  true,

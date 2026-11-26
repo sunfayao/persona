@@ -8,7 +8,7 @@ import (
 )
 
 // hideWindow keeps the CLI from opening a console window when the node runs without one (the scheduled task's
-// supervisor starts it windowless, docs/operations/link.md).
+// supervisor starts it windowless).
 func hideWindow(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: windows.CREATE_NO_WINDOW}
 }

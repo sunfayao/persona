@@ -1,4 +1,4 @@
-// The hub's `notify` events on an open page (#8145, docs/web/web.md "Attention signals"): what a phone is pushed and a
+// The hub's `notify` events on an open page (#8145): what a phone is pushed and a
 // closed browser gets by Web Push, for the conversations the page does not follow itself. The page works out its
 // Agents' "Needs you" and finished turns from their states (lib/attention.ts); the assistant's own conversations (the
 // main chat, a leader's, a scheduled task's run) are not among them (lib/sessions.ts useAgentSessions), and a

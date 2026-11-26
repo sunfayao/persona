@@ -1,4 +1,4 @@
-// A host tab's team (#5180, after cindy's Team; docs/web/web.md "Team"). In a herdr tab with several Agents the lead is the
+// A host tab's team (#5180, after cindy's Team). In a herdr tab with several Agents the lead is the
 // Agent in the tab's first pane (the one the others were split from), and the tab's other running Agents are its workers: a
 // Claude Code agent team's teammates, or panes split off the lead. The hub's manager folds the workers under their lead
 // (`folded_under`, `folded_as: "worker"`, docs/protocol/protocol.md "Session hierarchy"), so no list shows or counts them on

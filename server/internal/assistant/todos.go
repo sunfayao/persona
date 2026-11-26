@@ -23,7 +23,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The todos (docs/assistant/todos.md): something to do, handed to one or more agents; a task the assistant hands out is a todo
+// The todos: something to do, handed to one or more agents; a task the assistant hands out is a todo
 // whose origin is the conversation (tasks.go). They are the assistant's: it keeps them (the hub's Postgres tables
 // todos, todo_spaces, todo_agents, todo_decisions, as they were) and answers the apps' /api/v1/todos… routes, which the
 // hub relays. The hub shows what the assistant reports of them (TodoReport, in the snapshot: the todo each agent works
@@ -134,7 +134,7 @@ type Todo struct {
 	// InboxItem is the Inbox row it was made from (#6480); the to-do's page opens that row. Empty for any other to-do.
 	InboxItem string `json:"inbox_item,omitempty"`
 	// PartOf: the to-do whose request this one is a piece of; After: the pieces of that request it waits for
-	// (todo_pieces.go, docs/assistant/todos.md "Requests in pieces"). Both empty for a to-do that is no piece. Clients
+	// (todo_pieces.go). Both empty for a to-do that is no piece. Clients
 	// that do not know them show the to-do as ever.
 	PartOf               string   `json:"part_of,omitempty"`
 	After                []string `json:"after,omitempty"`

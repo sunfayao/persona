@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 )
 
-// The To-dos view stays fresh (#10226; docs/assistant/todos.md "Live WebSocket pushes"). A client files each row by
+// The To-dos view stays fresh (#10226). A client files each row by
 // its view, and what files a row can change with no write to its to-do: one of its runs starts asking, stops or
 // finishes, a turn is seen, or a window of the view ends (Just finished's 24 hours, the 48 hours to the Inactive
 // mark). The manager then sends the settled {"type":"todos"} a write sends (todosPushSoon), so every client reads the

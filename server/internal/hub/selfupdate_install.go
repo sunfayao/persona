@@ -331,7 +331,7 @@ func (u *updater) installCandidate(ctx context.Context, auto bool, candidate *up
 		return
 	}
 	if u.handover != nil {
-		// Blue-green (docs/operations/hub-restart.md "Blue-green switching: the hub's edge"): the edge starts the new binary next to this one and hands over
+		// Blue-green: the edge starts the new binary next to this one and hands over
 		// only once it checked itself; this process goes on serving until then, and stops when the edge releases it.
 		// The edge is the watchdog too (it goes back when the new one does not confirm the update in time).
 		u.set("restarting", "", "")
@@ -390,7 +390,7 @@ func (u *updater) download(ctx context.Context, m *update.Manifest, f update.Fil
 }
 
 // stagedDir is where the update to build downloads its files: the hub's binary, the node binaries in nodes/ and the
-// programs in programs/ (docs/operations/hub-update.md "Updating").
+// programs in programs/.
 func (u *updater) stagedDir(build int64) string {
 	return filepath.Join(u.dir, strconv.FormatInt(build, 10))
 }
@@ -469,7 +469,7 @@ func (u *updater) healthURL() string {
 // updateBusy is what a restart would interrupt: any conversation working or waiting for the user (the assistant's
 // and every agent's), and a machine being redeployed. A conversation whose only cards are the assistant's ask_user
 // asked without waiting is not (#7392): no turn waits on them, and they outlive a restart (the manager claims them
-// back from its record, docs/assistant/assistant.md "Asking without holding the turn"), so such a card, up for as long
+// back from its record), so such a card, up for as long
 // as 2 hours, does not hold the update back.
 func (h *Hub) updateBusy() []busyItem {
 	var out []busyItem

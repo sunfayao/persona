@@ -1,4 +1,4 @@
-// Package voice is the built-in voice plugin (`personad voice`, docs/extensions/extensions.md "Built-in voice extension"): full-duplex voice
+// Package voice is the built-in voice plugin (`personad voice`): full-duplex voice
 // conversations in the app over a realtime service that speaks the GPT-Live wire. The hub starts it like any plugin
 // and relays /api/v1/plugins/<id>/… to the HTTP server it serves on PERSONA_PLUGIN_SOCKET.
 //
@@ -41,7 +41,7 @@ const (
 )
 
 // Config is the plugin's configuration: the upstreams of the hub.json entry the hub took over and of the settings
-// form, merged (Merge, docs/assistant/voice.md "Configurable GPT-Live upstream"); a hand-run plugin's is given whole (the old format).
+// form, merged (Merge); a hand-run plugin's is given whole (the old format).
 type Config struct {
 	Providers []Provider `json:"providers"`
 	// Default is the model a conversation uses when the app names none ("<provider>/<model>"); empty: the first
@@ -91,7 +91,7 @@ type Form struct {
 	Notes        string   `json:"notes"`
 }
 
-// Sources are where the built-in extension's settings come from (docs/assistant/voice.md "How the extension receives config").
+// Sources are where the built-in extension's settings come from.
 type Sources struct {
 	// Form is the settings form (PERSONA_EXTENSION_CONFIG), Key its secret key (PERSONA_EXTENSION_SECRETS).
 	Form json.RawMessage
@@ -206,7 +206,7 @@ type Provider struct {
 	Models       []string `json:"models,omitempty"`
 	DefaultModel string   `json:"default_model,omitempty"`
 	// Tools (live dialect): declare Persona's function tools in session.start. Some services hand work over only
-	// through a declared function (docs/lessons/voice.md "Other behavior"); the public GPT-Live API refuses
+	// through a declared function; the public GPT-Live API refuses
 	// session.tools, and without them the model's client delegations go to the Persona main conversation, as with the
 	// codex dialect. Unset (the settings form's upstream, #1420) is auto: declared, and a service that refuses them as
 	// it starts the session gets the session again without them, which the plugin then remembers for that provider.
@@ -222,7 +222,7 @@ var (
 	voicePattern      = lazyre.New(`^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$`)
 )
 
-// LoadConfig reads the settings the hub hands the plugin (docs/assistant/voice.md "How the extension receives config"): the settings form in
+// LoadConfig reads the settings the hub hands the plugin: the settings form in
 // PERSONA_EXTENSION_CONFIG, its key in PERSONA_EXTENSION_SECRETS, the config of the hub.json entry the hub took over
 // in PERSONA_VOICE_HUB_CONFIG. The former PERSONA_PLUGIN_* names are read too.
 func LoadConfig() (Config, error) {

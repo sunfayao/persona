@@ -1,6 +1,6 @@
 package node
 
-// omp's stopped sessions on disk (docs/integrations/omp.md): the node lists the recent ones as offline rows. pi has a
+// omp's stopped sessions on disk: the node lists the recent ones as offline rows. pi has a
 // companion process for this; omp does not need one — the node reads the head of what omp wrote:
 // <agent dir>/sessions/<encoded cwd>/<time>_<uuid>.jsonl, a title line and a session line with the id and cwd.
 //

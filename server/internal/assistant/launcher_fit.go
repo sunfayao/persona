@@ -18,7 +18,6 @@ import (
 // have none either: their launcher may be a ~/.zshrc function or a wrapper script only some computers have. Every new
 // Agent (a task, agent_start, New Agent in the apps, a message resuming an Agent started outside Persona) is held to
 // what its computer can run before the start goes out, rather than the terminal answering "command not found"
-// (docs/server/launcher-health.md, "A launcher the computer doesn't have").
 
 // startPick is what a start's caller named itself, before a tier and Model configuration › Agents fill in the rest.
 // ultracode is the tri-state the caller gave (nil: it said nothing, false: it explicitly asked for it off). permission

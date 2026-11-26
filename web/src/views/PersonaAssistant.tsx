@@ -1,5 +1,5 @@
 import { storeValue } from "../lib/compatibility";
-// The Persona tab: the headless assistant on the hub's machine (docs/assistant/assistant.md). `/` (and the old `/persona`) is the main
+// The Persona tab: the headless assistant on the hub's machine. `/` (and the old `/persona`) is the main
 // conversation, the only one this page shows. With no main conversation yet, the first message on `/` starts it.
 import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MentionSource } from "./chat/ComposerPanel";
@@ -33,7 +33,7 @@ import { chosenManager, noteConversation, ownerHeaders, shownManager, useShownMa
 /** Every computer's tokens a day under the things to ask (#9506): a lazy chunk, not on the first screen. */
 const TokenCalendar = lazy(() => import("./assistant/TokenCalendar"));
 
-/** The example questions of a hub without readiness (its `suggestions` replace them, docs/assistant/onboarding.md 4.7). */
+/** The example questions of a hub without readiness (its `suggestions` replace them). */
 const SUGGESTIONS = [t("personaassistant.suggestion_meetings"), t("personaassistant.suggestion_agents"), t("personaassistant.suggestion_lark"), t("personaassistant.suggestion_projects")];
 
 const starting = new Set<string>();
@@ -207,7 +207,7 @@ function Starter({ cleared, onToggleSidebar }: { cleared?: boolean; onToggleSide
         void refreshAssistant().catch(() => {});
         return true;
       } catch (e) {
-        // the assistant restarting: a few seconds, tried again without a word (docs/assistant/onboarding.md 4.6)
+        // the assistant restarting: a few seconds, tried again without a word
         if (passesBySelf(e) && attempt < 3) {
           await new Promise((done) => setTimeout(done, 2000));
           // the page moved to another manager meanwhile: this one's words stay in the box, nothing goes elsewhere

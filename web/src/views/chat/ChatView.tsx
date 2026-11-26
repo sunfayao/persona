@@ -151,7 +151,7 @@ import { lazyDialog, lazyOverlay } from "../LazyOverlay";
 // stays out of the main chunk. A page that can switch to it fetches it in the background (loadTerminal below), so the
 // first switch does not slide in an empty layer.
 const loadTerminal = () => import("../session/TerminalPanel");
-// Sharing settings load on their first open, outside the first screen (docs/web/web.md "First screen").
+// Sharing settings load on their first open, outside the first screen.
 const ChatSearch = lazyDialog(() => import("./ChatSearch").then((m) => m.ChatSearch));
 const LinkTodoDialog = lazyDialog(() => import("../LinkTodoDialog").then((m) => m.LinkTodoDialog));
 const SharingDialog = lazyOverlay(() => import("../../sharing/SharingDialog").then((m) => m.default));
@@ -299,7 +299,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   /** On a narrow screen, in the header's middle in place of the title (the shell's "Assistant" | "Agents" switch). */
   topCenter?: React.ReactNode;
   /** The agent's own page (`/s/…`, `/t/…`): its terminal is a view of the middle, switched in place with the header's
-   *  "Terminal" | "Chat" and ⌘J (docs/web/web.md "Terminal ⇄ chat"). Elsewhere the chat is all there is. */
+   *  "Terminal" | "Chat" and ⌘J. Elsewhere the chat is all there is. */
   inPage?: boolean;
   /** A worker's conversation in its lead's Team panel (#5180, views/chat/TeamPanel.tsx): no header of its own (the panel's
    *  strip says whose it is), a phone's dock, and Esc there closes the panel rather than stopping the worker. */
@@ -308,7 +308,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   panel?: PanelChrome;
   /** The work browser has verified that this session has an interactive pane. Standalone chats use their existing policy. */
   terminalAvailable?: boolean;
-  /** Under the header: the assistant page's manager switcher (docs/assistant/managers.md "Clients"). */
+  /** Under the header: the assistant page's manager switcher. */
   banner?: React.ReactNode;
   /** The conversation's manager is offline: what the box says instead, and nothing can be sent. */
   offline?: string;
@@ -423,7 +423,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   const railRun = useRef(0);
   useEffect(() => () => { railRun.current++; }, [mid, sid]);
   const fine = useFinePointer();
-  // a Persona conversation's send the hub refused: a card above the composer, not a toast (docs/assistant/onboarding.md 4.4),
+  // a Persona conversation's send the hub refused: a card above the composer, not a toast,
   // while its failed bubble (`entry`) is there
   const [sendFailure, setSendFailure] = useState<{ chat: string; failure: CodedFailure; entry: string } | null>(null);
   // the main conversation's setup gate, for deliver (defined before the gate is)
@@ -478,7 +478,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   const state = session ? stateOf(session) : "unknown";
   // An idle agy can take a new turn while its background services keep running.
   const foregroundWorking = state === "working" && !(session?.agent === "agy" && session.background_working);
-  // Voice chat (docs/web/web.md "Voice"): the call belongs to this page (the same chat may be open twice, a page and a
+  // Voice chat: the call belongs to this page (the same chat may be open twice, a page and a
   // side panel), and ends as the page leaves the conversation. ChatView learns only whether a call is on here.
   const voiceId = useId();
   const voiceOwner = useMemo(() => ({ mid, sid, owner: voiceId }), [mid, sid, voiceId]);
@@ -1348,7 +1348,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
       openBackgroundPanel(mid, sid, latestWorkflowRun(session));
       return true;
     }
-    // Routed to a task ("Tell "xx""): straight to its agent, not to Persona (docs/assistant/unified-entry.md "Routing").
+    // Routed to a task ("Tell "xx""): straight to its agent, not to Persona.
     if (assistant && out.images.length && getFeedState().routes[sid]) {
       toast(t("chat-chatview.route_no_images"), "error");
       return false;
@@ -1389,7 +1389,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
     if (getFeedState().routes[sid]) return false;
     return send({ text: "/compact", images: [] });
   }, [send, sid]);
-  // The assistant's tasks (docs/assistant/unified-entry.md): the conversation's feed, and the main one's "Today" card.
+  // The assistant's tasks: the conversation's feed, and the main one's "Today" card.
   const feed = useFeed((s) => (assistant ? (s.feeds[sid] ?? NO_FEED) : NO_FEED));
   useEffect(() => {
     if (!assistant) return;
@@ -1487,7 +1487,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   // (lib/stable-lines.ts); the task index likewise, or every row reading the context would render again
   const lastLines = useRef<ChatLine[] | undefined>(undefined);
   // the main conversation and the leader conversations fold rounds their user did not start: another conversation's
-  // relay, a scheduled patrol, a follow-up (docs/assistant/assistant.md "Background rounds", #6595). On a cold load the
+  // relay, a scheduled patrol, a follow-up (#6595). On a cold load the
   // AssistantInfo has not arrived but the cached main id has: keep the main chat folded (the absent switch means on).
   const foldBackground = useStore((s) =>
     foldsBackgroundRounds(sid, s.assistant ?? (mainCache ? { main: mainCache.scope } : undefined)));
@@ -2942,7 +2942,7 @@ export const Header = memo(function Header({
   };
   // a task's or an Agent's side panel leaves the space's other agents out of ⋯
   const others = chrome ? [] : siblings.filter((s) => s.session_id !== session?.session_id);
-  // the session's files and Git open in the side panel (docs/web/web.md "Side panel"); the assistant has none. Its terminal is
+  // the session's files and Git open in the side panel; the assistant has none. Its terminal is
   // the page's other view, switched in place (view / onView)
   const here = (p: typeof panel, kind: string) => Boolean(p && p.kind === kind && "sid" in p && session && p.mid === session.machine_id && p.sid === session.session_id);
   const showTerminal = Boolean(view && onView);
@@ -2964,7 +2964,7 @@ export const Header = memo(function Header({
   const flipView = () => view && onView?.(otherView(view));
   const openFiles = () => session && togglePanel({ kind: "files", mid: session.machine_id, sid: session.session_id, cwd: session.cwd });
   const openGit = () => session && togglePanel({ kind: "git", mid: session.machine_id, sid: session.session_id, cwd: session.cwd });
-  // the session's dev server, from a browser on its computer (docs/web/preview.md); a hub without previews offers none
+  // the session's dev server, from a browser on its computer; a hub without previews offers none
   const previews = useStore((s) => hubHas(s.features, PREVIEW_FEATURE));
   const openPreview = () => session && togglePanel({ kind: "preview", mid: session.machine_id, sid: session.session_id, cwd: session.cwd });
   const openReview = () => session && togglePanel({ kind: "review", mid: session.machine_id, sid: session.session_id, cwd: session.cwd });

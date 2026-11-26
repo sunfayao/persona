@@ -1,4 +1,4 @@
-// End-to-end check of `/permissions` on the web (#6476, docs/web/web.md, lib/permissions-command.ts): "/" in a running
+// End-to-end check of `/permissions` on the web (#6476, lib/permissions-command.ts): "/" in a running
 // Claude Code Agent's composer lists /permissions; Enter on it opens the permission picker's menu with all five modes
 // (Plan mode and Auto included), the current one checked, without sending anything; Auto switches the running session
 // (POST …/modes) at once; Full access on an agent started without a bypass flag says the session restarts once its turn

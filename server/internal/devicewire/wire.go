@@ -1,5 +1,5 @@
 // Package devicewire is what the hub and the manager that carries the user's computers say to each other over the
-// bus about them (docs/protocol/protocol.md "Computers (devices.*)", docs/server/machines.md "Who connects to computers"): the manager (internal/devices, in
+// bus about them (docs/protocol/protocol.md "Computers (devices.*)"): the manager (internal/devices, in
 // `personad assistant`) connects every computer — the local node, ssh, tailcat, Persona Link in both modes, the ones
 // reached through another hub of the mesh — and holds what is known of each; the hub never dials or accepts a
 // computer. It hands the manager hub.json's machines as defaults, relays the apps' calls and streams to it, and keeps
@@ -93,7 +93,7 @@ const (
 	// MethodReconnect {machine_id} → {}: connect the machine's node again (the apps' reconnect, the admin page).
 	MethodReconnect = "devices.reconnect"
 	// MethodUsageGatewayAccounts {} → proto.GatewayAccounts: the account lists of the account-pool gateways among the
-	// usage sources, from their last read (never a key; docs/server/usage-windows.md "The gateway's account list"). The extensions'
+	// usage sources, from their last read (never a key). The extensions'
 	// usage.gateway_accounts (internal/extmgr, permission usage_gateways) asks it in the manager's process.
 	MethodUsageGatewayAccounts = "devices.usage_gateway_accounts"
 	// EventLinkRTT LinkRTT: a Persona Link's round trip, as the hub's heartbeat on it measured it (its paths are
@@ -102,7 +102,7 @@ const (
 	// MethodMachinesPut MachinePut → {}, MethodMachinesRemove MachineRef → MachineRemoved, MethodMachinesGet
 	// MachineRef → MachineEntry: the hub's edits of a manager's own list of computers, and an entry as the manager
 	// has it (its secrets too: a move hands it to the new manager), for a manager the hub handed MachinesOwn
-	// (assistantwire.CapabilityMachinesOwn; docs/assistant/managers.md "Each manager's computers"). Another manager
+	// (assistantwire.CapabilityMachinesOwn). Another manager
 	// refuses them CodeNotOwnList; get on a machine it does not have: CodeNoDevice.
 	MethodMachinesPut    = "devices.machines.put"
 	MethodMachinesRemove = "devices.machines.remove"
@@ -227,7 +227,7 @@ type LinkEndpoint struct {
 	Kind string `json:"kind"`
 }
 
-// Mesh is what the manager needs of the mesh group (docs/server/mesh.md "Multiple paths to one computer"): whether this hub leaves its computers to
+// Mesh is what the manager needs of the mesh group: whether this hub leaves its computers to
 // the center, and the members' computers the center reaches through them.
 type Mesh struct {
 	// Member: this hub is a member; its computers are connected by the center (through it), not from here.
@@ -293,7 +293,7 @@ type Desktops struct {
 	Desktops []Desktop `json:"desktops"`
 }
 
-// Desktop is a computer whose Persona Link says the user is at it (docs/operations/link.md "Presence"); the hub counts
+// Desktop is a computer whose Persona Link says the user is at it; the hub counts
 // it as a desktop for "Phone Muted" for TTLMS from when it takes this, on its own clock (at most DesktopTTLMax), while
 // Notifies holds.
 type Desktop struct {
@@ -505,7 +505,7 @@ var MetricsRoutes = []string{
 	"GET /api/v1/usage/hours",
 }
 
-// UsageRoutes are the subscription usage windows' routes (internal/devices usagewindows.go, docs/server/usage-windows.md),
+// UsageRoutes are the subscription usage windows' routes (internal/devices usagewindows.go),
 // relayed the same way: the manager asks the machines it connects and the account-pool gateways, and merges them.
 var UsageRoutes = []string{
 	"GET /api/v1/usage/windows",
@@ -529,7 +529,7 @@ const (
 	CodeNodeClosed     = "node_closed"     // the connection to its node dropped during the call
 	CodeDeadline       = "deadline"        // the call's time ran out with the node on it (it may have done it)
 	// CodeHandoffRefused: secret.stage, or a session.start with a secret_ticket, asked by the hub or another manager:
-	// only the manager that connects the computer makes a hand-off, after its own card (docs/extensions/secret-providers.md).
+	// only the manager that connects the computer makes a hand-off, after its own card.
 	CodeHandoffRefused = "handoff_refused"
 	// CodeHeld: a session.send with Hold was not sent now but held to be sent when the node is back (#10661); its data
 	// is a HeldAnswer. Nothing was written to the node.

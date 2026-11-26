@@ -18,7 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The agent sandbox at Persona's own agent starts (docs/server/agent-sandbox.md, #5357): the assistant's Claude on the CLI
+// The agent sandbox at Persona's own agent starts (#5357): the assistant's Claude on the CLI
 // (started by the node), a managed launcher (`personad launch`, run by a pane's shell) and a Codex started from the
 // phone (`personad codex-start`, the same). Off unless turned on; on, a start whose agent has a sandbox of its own that
 // would clash, or whose sandbox cannot be told, is not wrapped and says why. A start that cannot be wrapped runs as
@@ -94,7 +94,7 @@ const paneStartWhere = "pane"
 
 // notePaneStart records, while the sandbox is on, that an agent the node starts in a pane with launcher runs outside
 // it: there only a managed launcher (`personad launch`, which records its own start and clears this one) is wrapped, and herdr's resume
-// repeats the same command (docs/server/agent-sandbox.md, "Starts this version does not wrap"). The doctor then warns
+// repeats the same command. The doctor then warns
 // instead of reading as if every agent were covered.
 func (n *Node) notePaneStart(launcher string) {
 	if _, managed := n.managedLauncher(launcher); managed {

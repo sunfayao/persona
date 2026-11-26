@@ -1,4 +1,4 @@
-// Search in chat's folded work (#6281, docs/assistant/assistant.md section 8): while the panel is open, the
+// Search in chat's folded work (#6281): while the panel is open, the
 // steps of the folds loaded in the chat are fetched (lib/chat-search.ts fetchFoldsForSearch, the pages a fold's own
 // opening reads) and searched with the rest. Kept apart from the transcript: putting them in it would open the folds
 // (useTranscript's apply), which only going to a hit does. Kept while the chat stays the same (session and history);

@@ -14,7 +14,7 @@ import { testWorkerLimit } from "./test-scheduling";
 const environment = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
 const hub = environment.PERSONA_HUB_URL || "http://127.0.0.1:18660";
 
-// The hub admin UI (docs/operations/admin.md) is its own page, admin/index.html. Its code goes under admin/assets/, which the hub
+// The hub admin UI is its own page, admin/index.html. Its code goes under admin/assets/, which the hub
 // serves only to sources inside admin.access; the client's bundle never references it.
 // The admin UI's strings (src/i18n/locales/<lang>/admin.ts and its admin-*.json) are admin code too.
 const adminStrings = /\/src\/i18n\/locales\/[^/]+\/(?:admin-[\w-]+\.json|_meta\.json\?catalog=admin)$/;
@@ -188,7 +188,7 @@ function startupPreload(): Plugin {
 
 // Build only: when this build was made, in .build.json beside index.html (SOURCE_DATE_EPOCH when set, for a
 // reproducible build). The hub reads it to tell whether its data dir's copy is older than the one built into personad,
-// which then serves instead (server/internal/hub/web.go `webFrom`; docs/web/web.md "Running it"). A dot file: never served.
+// which then serves instead (server/internal/hub/web.go `webFrom`). A dot file: never served.
 const buildStamp: Plugin = {
   name: "build-stamp",
   apply: "build",
@@ -246,7 +246,7 @@ export default defineConfig({
     proxy: { "/api": { target: hub, changeOrigin: true, ws: true } },
   },
   // The bundle's files are relative to the page's <base>, which the hub points at the sub-path a reverse proxy serves
-  // it under (docs/web/web.md "Subpath"); at the root that is "/", as before.
+  // it under; at the root that is "/", as before.
   base: "./",
   // The terminal loads xterm only when opened: pre-bundle it, or the first open in dev re-optimizes and reloads the page.
   // QuickJS too (the html card worker, #4215): found on the first card instead, it reloads the page mid-session.

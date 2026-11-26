@@ -248,7 +248,7 @@ func todoOwner(t Todo) prompts.SnapshotOwner {
 
 // snapshotTask is one task in the snapshot, in state st: its lead agent's (taskLead) last words, the step it is on
 // while it works (or has said nothing yet: an agent that only runs tools, #1583) and its running subagents, as the
-// task cards show them (docs/assistant/unified-entry.md "Task cards").
+// task cards show them.
 func snapshotTask(t Todo, st string, agents []proto.Session, now time.Time) prompts.SnapshotTask {
 	task := prompts.SnapshotTask{ID: t.ID, Title: clip(oneLine(t.Title), 60), State: taskStateLabel(st), Owner: todoOwner(t)}
 	last := taskLead(st, agents)
@@ -287,7 +287,7 @@ func reported(task *prompts.SnapshotTask, p *TaskProgress, lead proto.Session, n
 	}
 }
 
-// snapshotPlan is c's own task list as the snapshot tells it, nil when it keeps none (docs/integrations/agent-goal.md "Plan").
+// snapshotPlan is c's own task list as the snapshot tells it, nil when it keeps none.
 func snapshotPlan(c proto.Session) *prompts.SnapshotAgentPlan {
 	p := c.Plan
 	if p == nil || p.Total == 0 {

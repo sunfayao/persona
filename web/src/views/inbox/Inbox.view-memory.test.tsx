@@ -288,7 +288,7 @@ describe("Inbox history-entry view memory", () => {
     expect(chosen()).toBe("action");
   });
 
-  // the section bar's landing (docs/assistant/inbox.md "Section bar"): an item from outside the Inbox (a link, ⌘K, a
+  // the section bar's landing: an item from outside the Inbox (a link, ⌘K, a
   // Needs-you line elsewhere, a reload) lands the list where it lives, for good; one from inside (another item's chain or
   // relations) moves only a list beside it, and Back or closing returns that list to the choice it had
   it("lands the list on an item opened from outside the Inbox, and leaves it there when the item closes", async () => {

@@ -9,7 +9,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Stopping the agents of finished tasks (docs/assistant/todos.md "Stop Agents of completed tasks"). Once a task opened from an
+// Stopping the agents of finished tasks. Once a task opened from an
 // assistant conversation is done — by the user or by the assistant's judge (done.go) — its agents that have stayed
 // still for a while are stopped: the node quits the agent process and keeps its terminal, the shell it ran in (node
 // retire.go, session.stop; #4754; the node closes that terminal itself only after its grace period, #10111). The todo keeps the agents

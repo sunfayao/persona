@@ -11,7 +11,6 @@ import (
 
 // The assistant's ```persona-card blocks (#886) are charts the apps draw (sdk/go/wire/personacard.go); a Feishu card
 // cannot draw them, and their JSON is no answer, so each one is written as what a reader takes in at a glance
-// (docs/extensions/bots.md "Cards"):
 //
 //   - stat: one line, the number in bold: Steps today: **8,432 steps** · +12% vs yesterday
 //   - line, bar: the title and a sparkline (▁…█; a line from its lowest point to its highest, bars from 0), then the
@@ -21,7 +20,7 @@ import (
 //   - ring: the same table, with a "remaining" row last when the total is more than the parts' sum (as the apps draw it)
 //   - a card the apps cannot draw either (View is nil): its title alone, or nothing
 //
-// A ```persona-view block (a card the apps draw, docs/assistant/assistant-views.md) is written as its text fallback,
+// A ```persona-view block (a card the apps draw) is written as its text fallback,
 // as on the watch and in notifications: a Feishu card runs none of it, and its JSON is no answer either.
 //
 // The model's words are escaped (EscapeMarkdown), numbers are written as the apps write them (wire.Number). Other

@@ -7,7 +7,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// A runtime that runs Claude Code through its SDK (Paseo, docs/integrations/paseo.md) has sessions whose conversation
+// A runtime that runs Claude Code through its SDK (Paseo) has sessions whose conversation
 // is a Claude transcript on this machine (runtimetranscript.go). When it leaves the node (Paseo stopped for more than
 // half a minute, the computer switched to another engine), those conversations are still here: the rows of its last
 // list whose conversation is a transcript here stay listed, under their own ids, as sessions not running, for

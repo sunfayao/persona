@@ -1,4 +1,4 @@
-// Model families in the model panel (docs/web/web.md "Model pill and model panel", "Families and earlier versions"):
+// Model families in the model panel ("Families and earlier versions"):
 // a provider's list keeps one family's models together (Claude Fable / Opus / Sonnet / Haiku, a GPT line, a Gemini
 // tier), newest version first, and folds the older versions under "Earlier versions" unless the user is using them.
 // A family is read only from what the list already says: the model's concrete ID (`resolved` for an alias, else `id`,

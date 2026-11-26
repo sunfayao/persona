@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-// What the extensions are told of the todos (#5279, docs/extensions/extensions.md "Events"): todo.changed when a todo is created,
+// What the extensions are told of the todos (#5279): todo.changed when a todo is created,
 // deleted, or its title, whether it is done, its supervisor (#3484) or its chat thread changes (each carries its kind:
 // concern for one of the owner's concerns, #3561), and todo.decision for every decision written on
 // one. The hub hands them only to the extensions that subscribed and were granted todos.read (extmgr/todo_events.go);

@@ -1,4 +1,4 @@
-// Package update is how a hub knows what it is and whether a newer one is out (docs/operations/hub-update.md): the build it was
+// Package update is how a hub knows what it is and whether a newer one is out: the build it was
 // made as (channel, build number), the manifest the publisher puts next to the downloads (latest.json, with every
 // file's sha256), the publisher's checks before a release, and installing one (download, swap, the watchdog).
 package update

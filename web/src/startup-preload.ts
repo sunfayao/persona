@@ -230,7 +230,7 @@ export async function brotliCopies(dir: string, files: string[]): Promise<{ file
  * against 474,421 B on main at 47c38a3466, +133 B, of which 54 B fit the room main had); #6570 removes those prompts
  * and their readiness/launch hooks without raising the budget. And 128 B for recent main changes (#6346: ja 474,617 B on main at 2010e8229f, 63 B over the old budget,
  * themselves, views/agents/GroupedSessions.tsx, load when a Browse by is chosen, which took 407 B back off; the same
- * code measured +1,396 B and +1,510 B on the two mains before, docs/lessons/web.md; the 30 B of room main had stay).
+ * code measured +1,396 B and +1,510 B on the two mains before; the 30 B of room main had stay).
  * +100 B for the scheduled tasks list's "Inbox: …" marks and the assistant's own Inbox row (#6430): the Japanese first
  * screen was 49 B over with them, in three languages' text and a few lines of code.
  * And 720 B for "By to-do" as one kind of row (#6458: main at 8269cd921 measured ja 476,774 B, 114 B over the budget
@@ -691,7 +691,7 @@ export const FIRST_SCREEN_LOW_ROOM = 1_024;
 /**
  * The line the build prints under the budget: each language's first screen (firstScreenBytes) and the room left in
  * the fullest one, `low` when that is under FIRST_SCREEN_LOW_ROOM. The room is what the next first-screen change may
- * add; a change that needs more takes bytes off the first screen first (docs/web/web.md, "Running it").
+ * add; a change that needs more takes bytes off the first screen first.
  */
 export function firstScreenRoom(bytes: [string, number][], budget = FIRST_SCREEN_BUDGET): { line: string; low: boolean } {
   const [fullest, most] = bytes.reduce((a, b) => (b[1] > a[1] ? b : a));

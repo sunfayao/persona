@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Spaces (docs/assistant/tracks.md): the assistant's conversations of a track run in a directory of their own next to
+// Spaces: the assistant's conversations of a track run in a directory of their own next to
 // the assistant's, so Claude Code's auto memory and the instructions are the space's own. Its conversations are listed
 // apart (GET /api/v1/assistant?space=<slug>), and the conversation tools of one space see only that space's
 // conversations.
@@ -44,7 +44,7 @@ func runSpace(c proto.Session) string {
 	return identity.SpaceAt(c.Cwd)
 }
 
-// What leaves a conversation (docs/assistant/tracks.md "Using information by scene", #13246): the user may share what
+// What leaves a conversation (#13246): the user may share what
 // is sensitive with anyone they like (a doctor, a coach, family), so nothing is refused for being sensitive. What must
 // not happen is it leaving without them knowing: a push or a channel says only that there is news, and a hand-off is
 // confirmed on the phone each time. A text on its way out is judged by its own categories and its track's default

@@ -19,7 +19,7 @@ import (
 	"github.com/nwverse/persona/server/internal/terncli"
 )
 
-// ternHost is Tern, Stencil's multiplexing terminal (docs/integrations/engines.md "Tern"), through its `tern` command
+// ternHost is Tern, Stencil's multiplexing terminal, through its `tern` command
 // line. A pane is a terminal block, its id the block's number — what Tern puts in the block's processes as TERN_PANE.
 // Spaces are Tern sessions and slots their tabs, from every open window (each command names its window).
 //

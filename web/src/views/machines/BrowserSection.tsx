@@ -1,4 +1,4 @@
-// "Browser (ego lite)" on a Mac's page while the hub's extension ego is on (docs/extensions/computer-use.md, iOS BrowserSection;
+// "Browser (ego lite)" on a Mac's page while the hub's extension ego is on (iOS BrowserSection;
 // G107): the switch that lets the assistant drive its ego lite, and how far that is: "Install ego lite" when it is not there;
 // its first-run setup as steps (open it on the Mac or over the page's View screen, import a browser's data, finish, check again); "Ready" with
 // what is left (its usage statistics) ticked or not. Once its setup is done, its sign-ins (BrowserLogins) follow. The

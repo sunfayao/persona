@@ -13,7 +13,7 @@ import (
 )
 
 // An app's message to the main conversation reaches the manager's north star as an attempt that went through, from the
-// app (docs/assistant/north-star.md): the hub tells the manager how the send it ran went.
+// app: the hub tells the manager how the send it ran went.
 func TestAssistantMessageOutcomeReachesTheNorthStar(t *testing.T) {
 	connection := os.Getenv("PERSONA_TEST_DATABASE_URL")
 	if connection == "" {

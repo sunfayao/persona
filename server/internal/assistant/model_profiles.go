@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Model profiles (docs/assistant/model-config.md): a named set of model choices the user switches between in one
+// Model profiles: a named set of model choices the user switches between in one
 // step — "performance" while the strong models' quota lasts, "economy" when it runs short. A profile holds each
 // category's choice (the model configuration's records, models.go), the model fields of providers added in Persona
 // (launchers.managed, models_launchers.go) and named tiers an Agent can be started on (agent_start, task_plan). A

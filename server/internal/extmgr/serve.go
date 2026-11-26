@@ -207,7 +207,7 @@ func (h *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // Serving is how many requests the hub relayed to the extensions are being served now; a WebSocket (a voice call, an
 // extension's live view) counts for as long as it is open. A meeting's audio socket (assistantwire.SocketRoutes) does
 // not: it is open for as long as the meeting records, and a redeploy may end it (the phone sends again from where the
-// hub's audio ends, docs/assistant/meeting-minutes.md "Audio from the phone").
+// hub's audio ends).
 func (h *Manager) Serving() int64 { return h.serving.Load() }
 
 // socketRoutes matches assistantwire.SocketRoutes, as the manager's own mux does.

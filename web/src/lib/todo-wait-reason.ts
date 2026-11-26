@@ -1,4 +1,4 @@
-// What a waiting to-do waits on (#11090; docs/assistant/todos.md "State calculation rules", row 4.5). A to-do is Waiting
+// What a waiting to-do waits on (#11090, row 4.5). A to-do is Waiting
 // when one of its Agents ended its turn and something brings it back (todos.ts agentWaits, #3274). One word for all of
 // them read as "it waits for me", so its label names the wait instead: "Waiting on you" in the attention color only when
 // it waits on its owner by the sidebar badge's own predicate (todo-triage.ts waitsOnOwner, #11085), so the label and the
@@ -13,7 +13,7 @@ import { agentWaits, heldDelivery, shownStatus, TODO_STATUS_INFO, todoStatusLabe
 export type { WaitReason };
 
 /** What its first waiting Agent (agentWaits, in the to-do's order as waitingLine reads it) waits on, by its work state
- *  (docs/assistant/agent-work.md "Model"): its own background commands, subagents, Monitors or workflows, or an
+ * : its own background commands, subagents, Monitors or workflows, or an
  *  external wait that names nothing and has no wake (lib/work.ts hubWaits: it wakes itself); the hub's retry after a
  *  moment's model failure (`transient`); another Agent (`agent`, or a target Agent named); a named outside thing
  *  (`external` with its `wait`). An external wait the hub checks back on without naming it says nothing (undefined),

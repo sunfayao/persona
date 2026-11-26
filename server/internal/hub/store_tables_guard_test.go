@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-// The migrations are a hub set and a manager set (docs/server/server.md "Migrations"): a hub's database has only the hub's
+// The migrations are a hub set and a manager set: a hub's database has only the hub's
 // tables, and the default manager is to get a database of its own. So what the hub asks of its store must only touch
 // the hub's tables, and what the managers ask of theirs only the manager's. These read every interface a side
 // declares, take the methods *db.DB serves of them, and look at the SQL those methods (and the db functions they

@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// Delivery to the Inbox (#2039, docs/extensions/subscriptions.md "Destinations"). Every
+// Delivery to the Inbox (#2039). Every
 // subscription is an internal source of the manager. The Inbox reads its things every collection round
 // (InboxSources), made from the held items the way a connector answers Collect from its memory. Nothing here records
 // what the Inbox took: it knows that by thread and last, so a replay or a restarted manager hands it the same things

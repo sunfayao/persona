@@ -20,7 +20,7 @@ export const COMPUTER_OSES: readonly ComputerOS[] = ["mac", "linux", "windows"];
 /** How to build and install Persona Link on a Mac until there is a download (docs/assistant/onboarding.md decision 1). */
 export const PERSONA_LINK_INSTALL_DOC = "https://github.com/nwverse/persona/blob/main/docs/operations/link.md";
 
-/** How to install persona-link on a headless Linux when the hub has no install script (docs/operations/link.md "Linux (headless)"). */
+/** How to install persona-link on a headless Linux when the hub has no install script. */
 export const LINK_LINUX_DOC = "https://github.com/nwverse/persona/blob/main/docs/operations/link.md#linux-headless";
 
 // The hub does not keep the system a computer was added as (only its node reports one, once it connects), so the
@@ -110,7 +110,7 @@ export function linuxCommand(reply: Pick<ComputerCodeReply, "pair_url" | "comman
   return line ? { line, installs: true } : { line: pairCommand(reply), installs: false };
 }
 
-/** What Windows runs in PowerShell, in the folder with persona-link.exe and personad.exe (docs/operations/link.md). */
+/** What Windows runs in PowerShell, in the folder with persona-link.exe and personad.exe. */
 export function windowsCommand(pairURL: string): string {
   return `.\\persona-link.exe install --personad .\\personad.exe --pair ${quoted(pairURL)}`;
 }
@@ -159,7 +159,7 @@ export function pendingToConfirm(machines: Machine[], preferred?: string): Machi
   return waiting.find((m) => preferred && m.id === preferred) ?? waiting.find((m) => m.online) ?? waiting[0];
 }
 
-/** A machine's error_code (docs/assistant/onboarding.md 5.3) in words; "" for a code this page does not know. */
+/** A machine's error_code in words; "" for a code this page does not know. */
 export function machineErrorText(code: string | undefined): string {
   switch (code) {
     case "node_service_down":

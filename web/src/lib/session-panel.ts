@@ -1,4 +1,4 @@
-// The model panel's data for an Agent's chat (#5032, docs/web/web.md "Model pill and model panel"), from what
+// The model panel's data for an Agent's chat (#5032), from what
 // lib/session-models.ts read: the computer's launchers are the providers, each with its list, and the setup the session
 // runs now; and what a pick sends. The session's own launcher switches its model at once. On a hub that switches a
 // running Agent to another launcher (`launcher_switch`, #5035), a Claude Code Agent in a terminal may also pick another

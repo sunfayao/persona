@@ -9,14 +9,13 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// Declarative contributions (docs/extensions/extensions.md "Purely declarative contributions", #1854): an extension made of a manifest and a few files,
+// Declarative contributions (#1854): an extension made of a manifest and a few files,
 // running no program, can give the assistant skills and instructions, the apps quick prompts and a theme, and the
 // inbox's triage settings templates.
 
 // SkillItem is a contribution to skills: a directory of the package with SKILL.md, put in with the assistant's skills
 // (the same as an assistant contribution's skills). With Source "data", Dir is in the extension's data directory and
 // each of its subdirectories with a SKILL.md is one skill the extension writes at run time
-// (docs/extensions/extensions.md "Assistant content from the data directory").
 type SkillItem struct {
 	ID     string `json:"id"`
 	Dir    string `json:"dir"`

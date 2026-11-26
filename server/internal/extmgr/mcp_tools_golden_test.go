@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/subscriptions"
 )
 
-// golden compares got with testdata/prompts/<name>.golden (UPDATE_GOLDEN=1 writes it; docs/assistant/prompts.md).
+// golden compares got with testdata/prompts/<name>.golden (UPDATE_GOLDEN=1 writes it).
 func golden(t *testing.T, name, got string) {
 	t.Helper()
 	path := filepath.Join("testdata", "prompts", name+".golden")

@@ -1,6 +1,6 @@
 package extmgr
 
-// Hosts the owner allows a sandboxed extension (#5697, docs/extensions/extensions.md "Egress"): in the admin UI only,
+// Hosts the owner allows a sandboxed extension (#5697): in the admin UI only,
 // per extension, one specific host each (any port, or the one written). Stored in the hub setting
 // extension_egress_allow, audited (egress_allow / egress_revoke), applied to the egress proxy at once and dropped with
 // the extension. The proxy reaches them like a settings address: every answer of the name checked on each connection.

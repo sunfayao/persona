@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// A group title's "Mark all seen ⌄" (#10422, docs/assistant/inbox.md "Group titles"): on FYI's (and Collapsed's) group
+// A group title's "Mark all seen ⌄" (#10422): on FYI's (and Collapsed's) group
 // titles a pull-down files the group's items or the whole section's in one request with their versions, Undo on the
 // toast; none on Needs you, none while selecting, none where a section has one group (its own button acts at once);
 // under a filter or a search each choice says what "all" covers. The same rules as iOS's InboxGroupClearTests.

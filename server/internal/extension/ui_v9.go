@@ -8,7 +8,7 @@ import (
 	"github.com/nwverse/persona/sdk/go/wire"
 )
 
-// UI version 9 (docs/extensions/extensions.md "UI version 9", #9337): a tile's gauge, a ring filled to a ratio with the
+// UI version 9 (#9337): a tile's gauge, a ring filled to a ratio with the
 // tile's value in its centre, for a quota or a usage. downgrade9 draws it with version 8's for an older app.
 
 // Gauge is a tile's ring (UI version 9).

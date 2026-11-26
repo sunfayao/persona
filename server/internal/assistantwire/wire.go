@@ -1,5 +1,5 @@
 // Package assistantwire is what the hub and the assistant (internal/assistant, its own process) say to each other
-// over the bus (docs/protocol/protocol.md "Bus", docs/assistant/assistant.md "Boundary with hub"): each method's and event's name, params
+// over the bus (docs/protocol/protocol.md "Bus"): each method's and event's name, params
 // and result, the error codes that cross it, and the routes the hub relays. Both sides import it; neither imports
 // the other.
 package assistantwire
@@ -57,7 +57,7 @@ type Hello struct {
 	// ArchivedApart: the hub takes a machine's archived rows apart from its list (EventFleetArchived, #6836). An older
 	// hub never sends it, and a manager then tells them inside EventFleetSessions as before.
 	ArchivedApart bool `json:"archived_apart,omitempty"`
-	// QuietPush: the hub's push tiering switch (the low-distraction switch, docs/server/server.md) is on. The manager
+	// QuietPush: the hub's push tiering switch (the low-distraction switch) is on. The manager
 	// then holds back what is its own to send, by the same levels the hub filters pushes by: a supervised card is not
 	// handed to the owner on a timeout, a P1 escalation and conclusion / progress cards post nothing. An older hub never
 	// sends it: off. A change of the switch sends manager.updated.
@@ -84,7 +84,7 @@ type Placement struct {
 	Machines []string `json:"machines,omitempty"`
 	// WorkMachines are configured work computers, including aliases; none may host the assistant.
 	WorkMachines []string `json:"work_machines,omitempty"`
-	// Standby: this hub is a member of a mesh group, whose center runs the scheduled tasks (docs/server/mesh.md).
+	// Standby: this hub is a member of a mesh group, whose center runs the scheduled tasks.
 	Standby        bool `json:"standby,omitempty"`
 	MemoryDreaming bool `json:"memory_dreaming,omitempty"`
 	// CompleteAgentlessTodos lets a supervising conversation complete its own agentless memo without another card.
@@ -123,7 +123,7 @@ const (
 	// DeviceSessionSwitch: {session_id} → {}, the switch session.modes just picked carried out now with no message
 	// (capability launcher_switch_idle, the assistant's batch switch).
 	DeviceSessionSwitch = "session.switch"
-	// DeviceWorktreePrepare / DeviceWorktreeCreate: "New worktree…" (docs/integrations/terminal.md), the workspace named by a directory
+	// DeviceWorktreePrepare / DeviceWorktreeCreate: "New worktree…", the workspace named by a directory
 	// in it: {cwd} → WorktreePrepare; {cwd, branch, path} → WorktreeCreateResult.
 	DeviceWorktreePrepare = "worktree.prepare"
 	DeviceWorktreeCreate  = "worktree.create"
@@ -186,7 +186,7 @@ type AppCall struct {
 
 // The apps the hub runs for the assistant and their methods.
 const (
-	// AppConnectors is the hub's connectors (docs/extensions/connectors.md).
+	// AppConnectors is the hub's connectors.
 	AppConnectors = "connectors"
 	// ConnectorsSnapshots: {tz} → {snapshots: [connectorwire.SnapshotData]}, the live states of the signed-in connectors
 	// that keep one (the chats waiting on the user, today's meetings), those that answered within a few seconds.
@@ -289,7 +289,7 @@ type Notification struct {
 	Todo *NotifyTodo `json:"todo,omitempty"`
 	// LinkCovered: a NotifyInput push's card is what the manager's Persona Link summary shows for its agent and rings
 	// for (the card that stands for it, notifying, among the listed items), so a Persona Link desktop of the manager's
-	// may stand in for the phone's push ("Phone Muted", docs/operations/link.md "Presence"). Older managers leave it
+	// may stand in for the phone's push ("Phone Muted"). Older managers leave it
 	// out: the phone is pushed.
 	LinkCovered bool `json:"link_covered,omitempty"`
 	// RecordingID is the recording a NotifyPush push is about (a meeting's minutes, #3862 phase 6): the push carries it
@@ -303,7 +303,7 @@ type Notification struct {
 	RelatedKey string `json:"related_key,omitempty"`
 }
 
-// Push levels a Notification may carry (hub low-distraction mode, docs/server/server.md "Push policy").
+// Push levels a Notification may carry (hub low-distraction mode).
 const (
 	LevelP0 = "P0" // must interrupt: a decision or a card that needs the owner now
 	LevelP1 = "P1" // worth knowing: a conclusion, an explicit notify_user; held for the briefing in low-distraction mode

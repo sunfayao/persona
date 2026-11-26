@@ -1,5 +1,5 @@
 import { storedValue, storeValue } from "../../lib/compatibility";
-// A folder of a computer (docs/apple/ios.md "Information architecture", iOS FilesPane): it starts at the session's folder
+// A folder of a computer (iOS FilesPane): it starts at the session's folder
 // (or `path`; the computer page: the home) and goes anywhere (#5827): Back, Forward, Up and the home beside a path bar that
 // names every folder from the home or "/", Find for names under the folder shown, Info for an item's details and a
 // symlink's target. Folders first with size, time and Git marks; hidden files off unless asked for. A file opens in the
@@ -163,7 +163,7 @@ export function FilesPanel({ mid, sid, cwd, path, file, highlight: marked, onClo
   const canTerminal = hubHas(features, PANE_CWD_FEATURE);
   // A runtime engine's session (Paseo's) names a workspace of its own, with no terminal. It goes all the same, as iOS
   // sends it: the node then opens the tab in the terminal engine's workspace that holds the folder, where without it the
-  // computer's first workspace took the tab (#8135, docs/integrations/paseo.md).
+  // computer's first workspace took the tab (#8135).
   const workspace = useStore((s) => s.sessions[mid]?.find((y) => y.session_id === sid)?.workspace_id || undefined);
   const openTerminal = async (folder: string) => {
     try {

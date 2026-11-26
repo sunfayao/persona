@@ -2,12 +2,12 @@ import { formatDate, t } from "../i18n";
 import type { Todo } from "./todos";
 import type { Interaction } from "./types";
 
-// A task the main conversation supervises (#3124, docs/assistant/unified-entry.md "Supervision"): what done means, where its review
+// A task the main conversation supervises (#3124): what done means, where its review
 // stands, and the reviews so far. Only such tasks carry `supervision`; an older hub sends none.
 
 export type ReviewState = "" | "pending_review" | "user_check" | "rework" | "needs_user" | "parked" | "accepted" | "cancelled";
 
-/** What a parked task waits for (#3804, docs/assistant/todos.md "Parked tasks"): the reason in one sentence, until when,
+/** What a parked task waits for (#3804): the reason in one sentence, until when,
  *  what kind of thing it waits on, and how many times in a row it was parked with no agent turn in between. */
 export interface Parked {
   reason: string;
@@ -172,7 +172,7 @@ interface TaskProgress {
 
 /** Whether its supervisor's acceptance still stands: the latest review accepted it and no review came since. That
  *  holds even when the hub reopened it because its agent was sent more work (#3156): the task is accepted until a new
- *  review says otherwise (docs/assistant/todo-status-sop.md, "Accepted tasks"). */
+ *  review says otherwise. */
 export function acceptanceStands(todo: { supervision?: Supervision }): boolean {
   const sup = todo.supervision;
   return sup?.state === "accepted" && latestReview(sup)?.verdict === "accepted";

@@ -70,7 +70,7 @@ type TodoRow struct {
 	// InboxItem is the id of the Inbox row it was made from (#6480), "" for any other to-do. Set when it is made.
 	InboxItem string `json:"inbox_item"`
 	// PartOf is the to-do whose request this one is a piece of, "" for none; After the pieces of that request it waits
-	// for, never nil (docs/assistant/todos.md "Requests in pieces"). The manager checks them before they are written.
+	// for, never nil. The manager checks them before they are written.
 	PartOf               string   `json:"part_of"`
 	After                []string `json:"after"`
 	RequireAcceptedAfter bool     `json:"require_accepted_after"`
@@ -88,7 +88,7 @@ type TodoRow struct {
 	Images []TodoImage `json:"images,omitempty"`
 }
 
-// TodoResponsible is an external responsible party for a to-do (#12712, docs/assistant/todos.md): either a
+// TodoResponsible is an external responsible party for a to-do (#12712): either a
 // long-running external session ("session") or a person ("person"). Name is a stable label; MachineID and SessionID
 // are optional hints.
 type TodoResponsible struct {
@@ -111,7 +111,7 @@ func responsibleParam(r *TodoResponsible) (any, error) {
 }
 
 // SomedayNoDate is the someday_until of a to-do put off to Someday with no date to come back on: a far date, so that
-// "put off until" is the one rule for both (docs/assistant/todos.md "Restores and Someday").
+// "put off until" is the one rule for both.
 var SomedayNoDate = time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
 
 // KindConcern is a todo for something the owner raised in the main conversation and wants an answer to (#3561,
@@ -132,7 +132,7 @@ const (
 	PriorityLow  = "low"
 )
 
-// DoneByAuto marks a todo the hub closed because its task's work was judged finished (docs/assistant/todos.md "Automatic completion").
+// DoneByAuto marks a todo the hub closed because its task's work was judged finished.
 const DoneByAuto = "auto"
 
 // DoneByReview marks a todo its supervisor (the main conversation's assistant) accepted after reviewing the work, with
@@ -500,7 +500,7 @@ func (d *DB) EditTodo(ctx context.Context, id string, e TodoEdit, updatedAt time
 	return &updated, nil
 }
 
-// SeeTodo sets when the owner looked at todo id (#5707, docs/assistant/todo-status-sop.md "Seen"); nil clears it (Undo).
+// SeeTodo sets when the owner looked at todo id (#5707); nil clears it (Undo).
 // It is not an edit: updated_at stays, so being seen never counts as activity.
 func (d *DB) SeeTodo(ctx context.Context, id string, at *time.Time) (*TodoRow, error) {
 	var r TodoRow

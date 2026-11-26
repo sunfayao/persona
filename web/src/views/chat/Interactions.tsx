@@ -105,7 +105,7 @@ type CardKeys = ReturnType<typeof useCardKeys>;
  * so the footer's `sticky` follows the dock's scrolling and the buttons stay at its bottom edge while the card is taller
  * than the dock. `-bottom-1` cancels the dock's `p-1` (`bottom-0` would leave 4px of the body under the buttons).
  */
-/** The card the voice is asking about (docs/web/web.md "Voice"): InteractionCard says so, Card marks its kicker row. */
+/** The card the voice is asking about: InteractionCard says so, Card marks its kicker row. */
 const AskedByVoice = createContext(false);
 /** The answer on its way for the card, as a line for its footer ("Sending: Allowed"); empty when none, or for its first
  *  moment online. InteractionCard says so (lib/card-answer.ts usePendingLine, past the card's own state) and disables

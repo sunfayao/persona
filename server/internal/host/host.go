@@ -1,7 +1,7 @@
 // Package host is what the node needs from a terminal host — where the terminals run (herdr, later Orca): its panes,
 // reading their screens, typing into them, opening and closing them. What runs inside a pane (Claude Code, Codex,
 // a compatible CLI) is the agent; telling agents apart, finding their sessions and judging their state stay in the node, on top
-// of any host (docs/integrations/engines.md).
+// of any host.
 //
 // A host implements Host; everything else is an optional capability the node finds with a type assertion.
 package host
@@ -186,7 +186,7 @@ type Controller interface {
 }
 
 // FullClienter runs the host's own interactive client in a terminal of the node's, for the web's full herdr view: the
-// host's sidebar, tabs and splits instead of one pane (docs/integrations/terminal.md "Full herdr UI").
+// host's sidebar, tabs and splits instead of one pane.
 type FullClienter interface {
 	// CanFullClient reports whether this host can, on this machine (herdr on Unix, with sessions to attach to).
 	CanFullClient() bool
@@ -220,7 +220,7 @@ type FocusState struct {
 }
 
 // Focuser moves and reports the focus a host shares among its clients (herdr: pane.focus, and the focus events with
-// the snapshot's focused_* ids). The web's full herdr view follows it and moves it (docs/integrations/terminal.md "Focus synchronization").
+// the snapshot's focused_* ids). The web's full herdr view follows it and moves it.
 type Focuser interface {
 	// Focused is what the host shows now; Pane is empty when the host does not say.
 	Focused(ctx context.Context) (FocusState, error)
@@ -231,7 +231,7 @@ type Focuser interface {
 	FocusPane(ctx context.Context, pane PaneRef) error
 }
 
-// MetadataReporter reports and clears pane metadata tokens (docs/assistant/todos.md, #762).
+// MetadataReporter reports and clears pane metadata tokens (#762).
 type MetadataReporter interface {
 	ReportMetadata(ctx context.Context, pane PaneRef, source string, tokens map[string]*string) error
 }
@@ -259,14 +259,14 @@ type MouseEvent struct {
 	Modifiers int
 }
 
-// Mouser is a Control that takes mouse events beyond Click (herdr: terminal.mouse; docs/integrations/terminal.md "Mouse").
+// Mouser is a Control that takes mouse events beyond Click (herdr: terminal.mouse).
 type Mouser interface {
 	Mouse(MouseEvent) error
 }
 
 // Releaser is a Control that can end at a size: the pane resized to cols × rows, then given back (herdr: CloseAt). herdr
 // lays a released pane out at its own client's size only while one is attached, so the node gives back the size the
-// pane had before it took it (docs/integrations/terminal.md section 11).
+// pane had before it took it.
 type Releaser interface {
 	CloseAt(cols, rows int)
 }

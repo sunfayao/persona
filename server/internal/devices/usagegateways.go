@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/usagesource"
 )
 
-// Account-pool gateways as a source of subscription usage windows (#2595, docs/server/usage-windows.md "Account-pool gateways").
+// Account-pool gateways as a source of subscription usage windows (#2595).
 //
 // A relay (an account-pool gateway) holds several agent accounts and already knows how much of each one's 5-hour and weekly
 // allowance is used. The manager asks it, read-only, every few minutes (usagesource) and keeps the last answer of each
@@ -363,7 +363,7 @@ func usageReadProblem(code string) string {
 	}
 }
 
-// gatewayAccounts is usage.gateway_accounts (#4576, docs/server/usage-windows.md "The gateway's account list"): every account the
+// gatewayAccounts is usage.gateway_accounts (#4576): every account the
 // gateway sources that are on listed, disabled ones included, from their last read that worked (nothing is asked of a
 // gateway for it). A source whose last read failed still gives that list, its accounts marked stale and its error
 // code said; one not read yet is listed with no accounts and the error usagesource.CodePending, so that a consumer

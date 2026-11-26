@@ -7,7 +7,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Review of the record-only hand-off (inbox_handoff.go recordHandoff, docs/assistant/inbox.md "Item actions"): what the
+// Review of the record-only hand-off (inbox_handoff.go recordHandoff): what the
 // clients' POST /api/v1/inbox/{id}/handoff with a session must do, beyond inbox_handoff_record_test.go.
 
 // A recorded hand-off is what the item lists, through both the list and the item's own GET: the session, no op, and the

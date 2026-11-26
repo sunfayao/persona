@@ -29,7 +29,7 @@ import (
 const KindSSH = "ssh"
 
 // DirectRetryEvery is how often a link running over SSH (without Always) probes the hub's direct addresses to switch
-// back when one answers again (docs/operations/network.md "Connecting to hub through SSH").
+// back when one answers again.
 const DirectRetryEvery = 2 * time.Minute
 
 // DefaultTargetPort is the fallback hub TLS port when neither a pairing link nor saved endpoints carry one: the port

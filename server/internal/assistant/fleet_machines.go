@@ -144,7 +144,7 @@ func (s *Service) placeCard(ix *proto.Interaction) {
 
 // isAssistantSession identifies manager's headless conversations in its directory dir, its health space's. A host pane is stronger evidence than
 // a shared working directory. Another manager's directory, left on a machine moved away from it, is not
-// this one's (docs/assistant/managers.md "Directories on a computer").
+// this one's.
 func isAssistantSession(sess *proto.Session, dir, manager string) bool {
 	if sess.PaneID != "" || sess.Cwd == "" {
 		return false

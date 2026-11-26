@@ -1,4 +1,4 @@
-// Finished Markdown drawn once per content (#2465, docs/web/web.md "Markdown cache and on-demand highlighting"). The React
+// Finished Markdown drawn once per content (#2465). The React
 // tree that react-markdown's synchronous Markdown() makes of a block is kept, so a block drawn again from the same input
 // skips the whole parse (micromark, mdast, hast, the rehype plugins, the JSX): a conversation opened again (ChatView
 // remounts per conversation) or a reply that re-renders for another reason. The key is everything that tree is made

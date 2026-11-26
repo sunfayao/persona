@@ -1,4 +1,4 @@
-// An extension's preview, what installing or upgrading it would do (docs/extensions/extensions.md): the Extensions page's
+// An extension's preview, what installing or upgrading it would do: the Extensions page's
 // install dialog and the market's both show it. Kept out of Extensions.tsx, which loads the market, so the market never
 // imports the page back.
 import { t } from "../../i18n";
@@ -13,7 +13,7 @@ import { Notice } from "../parts";
 
 const PERM_ICON: Record<string, AdminIconName> = {
   runs_code: "terminal", network: "web", hub_api: "key", launcher_keys: "gauge", secrets: "lock",
-  // its program on computers (docs/extensions/extensions.md "Programs running on computers")
+  // its program on computers
   node_runs_code: "machine", node_network: "web", node_files: "machine", node_macos_privacy: "shield", node_secrets: "lock",
   // command-line programs it installs in its own directory (#4507)
   tools: "terminal",

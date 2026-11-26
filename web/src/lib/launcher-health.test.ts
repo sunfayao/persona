@@ -3,7 +3,7 @@ import { blockReason, initialLauncher, launcherBlock, NOT_IN_TERMINAL, usableFir
 import { launcherBlockedReason, launcherErrorText } from "./machine-alerts";
 import type { Launcher } from "./types";
 
-// A launcher's health on the computer "New agent" is for (#1643, docs/server/launcher-health.md): only a blocked record
+// A launcher's health on the computer "New agent" is for (#1643): only a blocked record
 // grays it out, with a reason for its class; an older hub sends none and nothing changes.
 const l = (name: string, health?: Launcher["health"]): Launcher => ({ name, ...(health ? { health } : {}) });
 

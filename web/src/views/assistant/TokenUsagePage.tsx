@@ -1,4 +1,4 @@
-// Token usage (#10042, the iPhone's TokenUsagePage; docs/web/web.md): what the token calendar's line opens, in a
+// Token usage (#10042, the iPhone's TokenUsagePage): what the token calendar's line opens, in a
 // dialog (a sheet on a phone; TokenCalendar.tsx). Today's, the last 7 and the last 30 days' tokens; the calendar again
 // (only a picked day's line over it); the last 7 days by the hour; by computer, by agent and by kind over those 7
 // days; the line that says what the count is: input, output, cache write and cache read added up, the same count as

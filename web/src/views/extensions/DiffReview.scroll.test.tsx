@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// A page of diffs scrolls from script (docs/lessons/web.md "Scripted scrolling ignores reduced motion"): the keys n / p,
+// A page of diffs scrolls from script: the keys n / p,
 // j / k and ] / [ and the toolbar's open-threads button scroll smoothly, and go straight there when the system asks for
 // less motion.
 import { act } from "react";

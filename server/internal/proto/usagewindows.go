@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Subscription rate-limit windows (#2432, docs/server/usage-windows.md): how much of an account's 5-hour and weekly allowance
+// Subscription rate-limit windows (#2432): how much of an account's 5-hour and weekly allowance
 // is used. A node reads them from Codex app-server or from local files and answers usage.windows. The usage manager
 // groups the machines' answers. No credential or raw upstream account ID crosses this boundary.
 
@@ -20,7 +20,7 @@ type UsageWindow struct {
 	// Model names the one model this window measures, for an allowance a provider keeps per model next to the plan's
 	// own (#2595); empty for the plan's window. Such a window never identifies an account.
 	Model string `json:"model,omitempty"`
-	// Group, Title and Note are set by a usage extension (docs/extensions/extensions.md "Usage"; docs/server/usage-windows.md
+	// Group, Title and Note are set by a usage extension (docs/extensions/extensions.md "Usage"
 	// "Usage extensions"): windows next to each other with the same Group are drawn as one group, Title is the row's own
 	// name and Note a short remark under it, all in the language the hub asked in. Plain text, no colour or icon.
 	// Without a Group a window is drawn as it always was; a client that does not know these fields ignores them.
@@ -69,9 +69,9 @@ type UsageAccount struct {
 	// fade however long ago it last heard from the hub, and no client hard-codes the thresholds.
 	StaleAt *time.Time `json:"stale_at,omitempty"`
 
-	// Where the numbers came from (#2595), set by the hub. Local: read on one of the machines
-	// (docs/server/usage-windows.md); Sources: the names of the account-pool gateways that reported it
-	// (docs/server/usage-windows.md "Account pool gateways"). An account both saw lists both.
+	// Where the numbers came from (#2595), set by the hub. Local: read on one of the machines;
+	// Sources: the names of the account-pool gateways that reported it.
+	// An account both saw lists both.
 	Local   bool     `json:"local,omitempty"`
 	Sources []string `json:"sources,omitempty"`
 	// Machines are the names of the computers whose agents' files reported it (#1907), set with Local; clients name

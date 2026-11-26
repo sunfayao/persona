@@ -14,7 +14,7 @@ import (
 
 // A cron task (repeat "cron", Task.Cron) runs on a standard 5-field cron expression, `minute hour day-of-month month
 // day-of-week`, or an alias (@hourly, @daily / @midnight, @weekly, @monthly, @yearly / @annually), read in the user's
-// time zone (docs/assistant/assistant.md "Scheduled tasks"). robfig/cron parses it and finds the next match; on top:
+// time zone. robfig/cron parses it and finds the next match; on top:
 //   - it is matched on the wall clock, so a clock change never runs one time twice: the hour a fall-back repeats runs
 //     once (its first pass), and a time the clock skips (spring forward) runs shifted by the gap (02:30 → 03:30), at
 //     most once even when that is a time it runs anyway;

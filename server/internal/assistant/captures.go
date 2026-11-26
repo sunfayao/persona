@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// Quick capture (#13502, docs/assistant/tracks.md "Quick capture"): what the user jots down from the share sheet, the
+// Quick capture (#13502): what the user jots down from the share sheet, the
 // watch, Siri or the web goes into a list of its own. Taking one in is a single write, answered at once: no
 // conversation gets a message or a turn. The work loop (capture_sort.go) sorts it into a track and tags it later, in
 // one model call, and files the ones it is sure of into that track's inbox/.

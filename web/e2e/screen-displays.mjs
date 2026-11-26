@@ -1,4 +1,4 @@
-// One display of a multi-display Mac on the live screen (#5685, #5729, docs/extensions/computer-use.md "Displays"), in a real
+// One display of a multi-display Mac on the live screen (#5685, #5729), in a real
 // browser against the mock hub's two-display Screen Sharing:
 //   PORT=<port> MOCK_COMPUTER=ready MOCK_SCREEN=fake MOCK_SCREEN_DISPLAYS=2:node python3 scripts/mock/mock_hub.py
 //   (cd web && PERSONA_HUB_URL=http://127.0.0.1:<port> npx vite --port <web port>)

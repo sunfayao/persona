@@ -1,6 +1,6 @@
 import { conversationKeyDeleted, onConversationDeleted } from "./conversation-deleted";
 import { APP_SCHEMES, assistantPath } from "./compatibility";
-// Where a link opens (CLAUDE.md "Links open inside the app", docs/web/web.md "Links"). In a browser the browser is the app:
+// Where a link opens (CLAUDE.md "Links open inside the app"). In a browser the browser is the app:
 // ordinary pages open in a new tab (most sites refuse to be framed and the page cannot tell it was refused, so a
 // framed panel would just be blank), Feishu documents and Moments posts open in the side panel's reader (the same links
 // the phone reads natively, FeishuLinks.route) when the hub reads Feishu (feature `lark`; otherwise they are ordinary
@@ -194,7 +194,7 @@ export function opensInApp(url: string): boolean {
 
 /**
  * A localhost link on an agent's page (`http://localhost:5173/x`, as a dev server prints it): that port of the
- * agent's computer, shown in the preview panel (docs/web/preview.md) instead of a tab on this one's localhost. Null
+ * agent's computer, shown in the preview panel instead of a tab on this one's localhost. Null
  * elsewhere, and on a hub without previews.
  */
 export function previewTarget(url: string): { mid: string; sid: string; cwd: string; port: number; path: string } | null {

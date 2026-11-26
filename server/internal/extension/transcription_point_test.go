@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// The transcription point (docs/assistant/meeting-minutes.md "The `transcription` extension point"): an id and a
+// The transcription point: an id and a
 // name, served over the program's HTTP side as voice is; the same id may be a voice contribution's too.
 func TestTranscriptionPoint(t *testing.T) {
 	httpOnly := func(contributes map[string]any) []byte {

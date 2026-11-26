@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Renaming a computer (docs/server/machines.md "Renaming a computer"): the admin page (PUT /api/v1/admin/machines/{id}),
+// Renaming a computer: the admin page (PUT /api/v1/admin/machines/{id}),
 // a signed-in full device (PUT /api/v1/machines/{id}/name) and the computer's own Persona Link (devices.rename, from
 // its link) give it another name. The name is hub.json's: written there, then taken by the running hub at once, with
 // no restart and no reconnect: the entries the manager is handed (it keeps the machine and its connection), the

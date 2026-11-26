@@ -113,7 +113,7 @@ func AssistantDir(home string) string {
 const builtinManager = "assistant"
 
 // AssistantDirName is the name in the state directory of manager id's assistant directory: "assistant" for the
-// built-in manager's ("" too), "assistant-<id>" for another's (docs/assistant/managers.md "Directories on a computer").
+// built-in manager's ("" too), "assistant-<id>" for another's.
 func AssistantDirName(id string) string { return managerDirName("assistant", id) }
 
 func managerDirName(base, id string) string {
@@ -342,7 +342,7 @@ func NodeBinaryDir() string {
 // PERSONA_NODE_BUNDLED, the Docker image's /opt/persona/nodes with its own platform's build; "" for none.
 func NodeBundledDir() string { return Getenv("PERSONA_NODE_BUNDLED") }
 
-// NodePackageCacheDir is where a manager keeps the node builds it fetched from the release (docs/operations/node-update.md),
+// NodePackageCacheDir is where a manager keeps the node builds it fetched from the release,
 // by version: <data dir>/cache/nodes, in a Docker hub's data volume too.
 func NodePackageCacheDir() string {
 	home, _ := os.UserHomeDir()

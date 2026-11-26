@@ -1,4 +1,4 @@
-// Inbox Sources as relations (#5741, docs/extensions/subscriptions.md "Pages"): GET /api/v1/subscriptions/-/graph, what
+// Inbox Sources as relations (#5741): GET /api/v1/subscriptions/-/graph, what
 // brings each source, how it is read, the source and where its things go, in the pages' own words. The layout and the
 // path a selection lights up are worked out here, so the view only draws them.
 import { useEffect, useState } from "react";
@@ -144,7 +144,7 @@ export const COLUMNS_MIN = 168 + 140 + 272 + 172 + 3 * MIN_GAP;
 
 /** The columns view: sources in rows, a gap between extensions; each read level with the middle of its sources, each
  *  extension with the middle of its reads, the destinations spread down the side. The server's order already keeps
- *  links from crossing (docs/extensions/subscriptions.md "Pages"). */
+ *  links from crossing. */
 export function layoutColumns(g: SourcesGraph, width: number): GraphLayout {
   const widths = [168, 140, 272, 172];
   const gap = Math.max(MIN_GAP, Math.min(72, (width - widths.reduce((a, b) => a + b, 0)) / 3));

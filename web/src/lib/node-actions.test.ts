@@ -117,7 +117,7 @@ describe("splitting and running an agent", () => {
     expect(list.map((i) => i.label)).toEqual(["claude", "codex"]);
     await list[1].onSelect();
     expect(d.post).toHaveBeenCalledWith("m1", "panes/agent", { pane: "w1:p2", launcher: "codex" });
-    // its waiting row opens, where the first message goes (docs/integrations/codex.md "Starting without a first message")
+    // its waiting row opens, where the first message goes
     expect(d.openSession).toHaveBeenCalledWith("m1", "c0de0000-0000-4000-8000-000000000009");
   });
 

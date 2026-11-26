@@ -9,7 +9,7 @@ import (
 )
 
 // A plugin may take over one of the hub's own connectors while it moves out of the hub (connector.MigratableConnectors:
-// Feishu through the Lark extension, docs/extensions/extensions.md "Step 3"). The id stays (the inbox's source and mutes, Settings › Connectors all go by it): while the plugin's connector is
+// Feishu through the Lark extension). The id stays (the inbox's source and mutes, Settings › Connectors all go by it): while the plugin's connector is
 // registered the hub's own is out of the registry, and the hub's own loops for it stand down (h.migrated holds it);
 // when the plugin is switched off or removed, the hub's comes back.
 

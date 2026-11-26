@@ -1,5 +1,5 @@
-// Package terncli drives Tern, Stencil's multiplexing terminal, through its `tern` command line
-// (docs/integrations/engines.md "Tern"): the layout (`tern inspect`), a block's foreground process (`tern process`),
+// Package terncli drives Tern, Stencil's multiplexing terminal, through its `tern` command line:
+// the layout (`tern inspect`), a block's foreground process (`tern process`),
 // screen captures, input, opening and closing blocks, renames and the event stream.
 //
 // Tern scopes every command to one window's sessions. Every call here names its window with --window (the first

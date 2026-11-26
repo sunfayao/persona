@@ -40,7 +40,7 @@ func (h *Hub) hello() map[string]any {
 		proto.FeatureTodoSendState:    proto.TodoSendStateVersion,
 		"channel":                     h.build.Channel, "build": h.build.Number, "protocol": proto.Protocol, "min_app_build": proto.MinAppBuild,
 		"hub_id": h.hubID(), "hub_name": h.hubName(), "endpoints": h.endpointList(), "tls_port": port, "fp": fp,
-		// The hubs of this hub's mesh group, itself included (docs/server/mesh.md 2.6): only after authentication.
+		// The hubs of this hub's mesh group, itself included: only after authentication.
 		"mesh": map[string]any{"hubs": h.meshHubs()},
 		// Push grading switch (hub.ln_mode / push_grading): synced on hello and on switch toggles.
 		"push_grading": h.push.pushGradingOn(),

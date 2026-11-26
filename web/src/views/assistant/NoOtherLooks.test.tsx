@@ -4,7 +4,7 @@ import { t } from "../../i18n";
 import { NoOtherLooks } from "./Persona";
 
 // The avatar picker with no looks beyond the built-in ones (#3597): it says so, never a file in the repository nor a path on
-// the hub machine (docs/assistant/onboarding.md 4.5).
+// the hub machine.
 describe("the picker with no other looks", () => {
   const html = renderToStaticMarkup(<NoOtherLooks />);
 

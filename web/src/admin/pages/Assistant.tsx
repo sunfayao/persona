@@ -1,4 +1,4 @@
-// "Assistant cards" (docs/operations/admin.md "Assistant cards", docs/assistant/assistant-views.md "Prompts"): the main
+// "Assistant cards": the main
 // conversation's rich UI, always on (#5509), what each app does with it today, and a preview of the example cards.
 // The preview is local only: it draws the synthetic examples with the extensions' components, a press or a form only
 // changes this page's state, and an html card shows its text fallback (no model page runs here). It never calls the hub.

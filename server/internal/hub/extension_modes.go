@@ -15,7 +15,7 @@ import (
 )
 
 // An extension's token changes the permission mode of a conversation its extension opened, and nothing else of any
-// session (agents.permission_mode, docs/extensions/extensions.md "Hub API: scopes"): who opened it is what its
+// session (agents.permission_mode): who opened it is what its
 // manager's snapshot says (assistantwire.SessionView.OpenedBy), and a main conversation is the user's whoever opened
 // it. Approving a plan sets its session's permission mode too, and so may the keys that answer a terminal's dialog (a
 // screen card): both are held to the same. Every refusal goes to the extension's audit in its manager

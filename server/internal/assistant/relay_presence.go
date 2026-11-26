@@ -8,7 +8,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The owner comes first (#4925, docs/assistant/assistant.md "Messages from the system wait for the owner"): what the
+// The owner comes first (#4925): what the
 // system puts into an assistant conversation (supervision messages, task notices, late ask_user answers, messages from
 // other conversations) waits while the owner is talking there, and what waits goes in by rank, not in the order it
 // came. A scheduled run into such a conversation waits as well (runHold, schedule.go runDue). The rules hold for the

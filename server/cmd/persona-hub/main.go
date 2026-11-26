@@ -1,6 +1,6 @@
 // Command persona-hub is the hub's program: the hub, its edge and its commands, without the manager (the assistant,
 // the extensions, the computers: persona-manager) or the device's node (persona-node). personad, the compatibility
-// entry, runs the same commands as `personad hub …` (internal/hubcli; docs/server/server.md "Programs").
+// entry, runs the same commands as `personad hub …` (internal/hubcli).
 package main
 
 import (

@@ -31,7 +31,7 @@ import (
 // key. Once a provider has one, it is the only list Codex uses: one that fails leaves Codex with no list, so the
 // URL is passed only where the node found a catalog there, and kept through a probe that could not tell.
 //
-// The node looks for it by the answer's shape, never the gateway's name (docs/integrations/codex.md, "Gateway model
+// The node looks for it by the answer's shape, never the gateway's name ("Gateway model
 // catalog"): the probe asks what Codex would, and a catalog is an object whose `models` are Codex model entries.
 
 // codexCatalogPaths are where, below the provider's base URL (the one ending in /v1), a gateway may serve the catalog,

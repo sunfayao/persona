@@ -1,4 +1,4 @@
-// One display of a multi-display Mac on the live screen (docs/extensions/computer-use.md "Displays", #5685), as the iOS
+// One display of a multi-display Mac on the live screen (#5685), as the iOS
 // app's VNCDisplays does it: macOS's Screen Sharing sends one framebuffer with every display, laid out as System
 // Settings › Displays arranges them. The node reads that arrangement (`displays` in the computer / browser status) and
 // the page lays it onto the framebuffer, then shows one display cropped out of it.

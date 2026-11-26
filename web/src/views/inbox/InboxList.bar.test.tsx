@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The Inbox's section bar (docs/assistant/inbox.md "Section bar", #9053): it opens on 需要你, each choice shows its
+// The Inbox's section bar (#9053): it opens on 需要你, each choice shows its
 // section alone with its title as a heading, the counts are in their tones and spoken with the names, the arrow keys
 // move along it, a search shows 全部 and clearing it goes back, a choice with nothing in it says so in its own words,
 // and the grouping is its trailing menu. The rules themselves are replayed from spec/fixtures/inbox (lib/inbox-bar.test.ts).
@@ -225,7 +225,7 @@ describe("the Inbox's section bar (#9053)", () => {
     expect(sections()).toEqual(["done"]);
   });
 
-  // hidden, not greyed (docs/assistant/inbox.md "Section bar"): neither In progress nor Done is grouped by source or time;
+  // hidden, not greyed: neither In progress nor Done is grouped by source or time;
   // its place stays, so All doesn't move under the pointer
   it("has the grouping in its trailing menu, hidden (its place kept) where the choice is not grouped", async () => {
     await show();

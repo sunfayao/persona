@@ -302,10 +302,10 @@ func dialUpstream(ctx context.Context, p *Provider, w wire, model string) (upLin
 	return up, nil
 }
 
-// toolSet is which of the plugin's function tools the session declares (docs/assistant/voice.md "Permissions"): all of them for a full
+// toolSet is which of the plugin's function tools the session declares: all of them for a full
 // device; for another extension calling (role extension) only ask_persona, to the main conversation, which is what it may
 // reach: the others reach past that (the knowledge base, any agent), and without a tool the measured service hands
-// nothing over at all (docs/lessons/voice.md "Other behavior"); none for an upstream that takes no tools (Provider.Tools
+// nothing over at all; none for an upstream that takes no tools (Provider.Tools
 // false, the codex and fake dialects, a service that refused them: toolless).
 func (c *conversation) toolSet() []string {
 	declare, _ := c.p.toolsMode()
@@ -316,7 +316,7 @@ func (c *conversation) toolSet() []string {
 		return nil
 	case c.version >= 2:
 		// Bound to a conversation: what hands work over goes to it (delegate_task); send_to_agent and ask_persona would
-		// go past it. The measured service hands nothing over without a tool (docs/lessons/voice.md "Other behavior").
+		// go past it. The measured service hands nothing over without a tool.
 		return boundTools
 	case c.role == "" || c.role == roleFull:
 		return toolNames
@@ -580,7 +580,7 @@ func (c *conversation) lost(gen int, why error) {
 		return
 	}
 	if !c.connectedAt.IsZero() && time.Since(c.connectedAt) >= stableAfter {
-		c.reconnects = 0 // it held: a drop now is not one of a run of them (docs/assistant/voice.md "Reconnect and resume")
+		c.reconnects = 0 // it held: a drop now is not one of a run of them
 	}
 	if c.reconnects >= maxReconnects {
 		down, text := c.down.session == sessionNo(gen), c.down.text

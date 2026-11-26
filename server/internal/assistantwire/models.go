@@ -6,7 +6,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The model configuration is the assistant's (docs/assistant/model-config.md "Who owns models"): the four categories' records, the
+// The model configuration is the assistant's: the four categories' records, the
 // providers added in Persona with their sealed keys, the hidden ~/.zshrc launchers, the routes of Settings › Model providers /
 // Models and "New agent"'s pickers. Every model call is made there. The hub keeps what its plugins have (their
 // providers, their voice models, their quota readers) and hands those over as data; the hub.json sections about
@@ -81,8 +81,8 @@ const (
 	PluginsQuota = "plugins.quota"
 )
 
-// LauncherPreset is one model provider Settings › Model providers offers: a plugin's (docs/extensions/extensions.md "Model providers") or a built-in
-// one (plugin "builtin", docs/assistant/onboarding.md 4.3).
+// LauncherPreset is one model provider Settings › Model providers offers: a plugin's or a built-in
+// one (plugin "builtin").
 type LauncherPreset struct {
 	ID          string                  `json:"id"` // <plugin>/<provider>
 	Extension   string                  `json:"plugin"`

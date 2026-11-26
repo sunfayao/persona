@@ -8,7 +8,7 @@ import { navigate, parse, routeAt, routePath, type Route } from "./router";
 const STEPS = "personaInboxSteps";
 const FROM = "personaInboxFrom";
 // an item opened from another item that has no list under it (one reached by a link): still an opening from inside the
-// Inbox (docs/assistant/inbox.md "Section bar"), though there is no list to go back to
+// Inbox, though there is no list to go back to
 const INSIDE = "personaInboxInside";
 
 /** How many entries back the list is from the entry `state` belongs to; 0: no list under it. */

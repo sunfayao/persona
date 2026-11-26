@@ -11,8 +11,8 @@ import (
 )
 
 // Code hosts (#11584) are where a task's review requests live. The link's host picks one (codeHostFor): built-in
-// GitHub for github.com pull requests, otherwise the repository provider that claims the host
-// (docs/extensions/repository-providers.md), then built-in GitLab (code_host_gitlab.go). A code host has three
+// GitHub for github.com pull requests, otherwise the repository provider that claims the host,
+// then built-in GitLab (code_host_gitlab.go). A code host has three
 // layers, kept apart:
 //
 //   - read: ReviewStatus, what the delivery gate asks (supervise_review_delivery.go). GitHub's deploy check

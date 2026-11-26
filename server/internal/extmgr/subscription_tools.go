@@ -18,7 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/subscriptionsui"
 )
 
-// The assistant's subscription tools (#5240, docs/extensions/subscriptions.md "Assistant tools"): read the
+// The assistant's subscription tools (#5240): read the
 // subscriptions and what can be subscribed to, dry-run a recipe, and create, change, delete or run one. They call the
 // same subscriptions.Service as /api/v1/subscriptions and the pages. Every save is a card on the phone that says what
 // changes, applied only on the user's own approval: the assistant's Persona tools are allowed without Claude Code's own

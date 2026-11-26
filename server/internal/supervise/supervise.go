@@ -7,7 +7,7 @@
 // the supervisor becomes the hub (exec): the container is what it was. With --manager-only it runs the built-in
 // manager alone, for a container of its own beside the hub's. The hub runs as
 // persona-hub and the built-in manager as persona-manager, the image's programs beside personad, unless
-// update.SplitEnv is 0 (docs/server/server.md "Programs").
+// update.SplitEnv is 0.
 package supervise
 
 import (

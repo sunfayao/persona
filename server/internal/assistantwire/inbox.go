@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/connectorwire"
 )
 
-// The inbox (docs/assistant/inbox.md) is the manager's: the items and their state (admission, triage, events, mutes, done,
+// The inbox is the manager's: the items and their state (admission, triage, events, mutes, done,
 // the AI twin, translations) and the /api/v1/inbox… routes, which the hub relays like Routes. The sources are the
 // extension manager's (internal/extmgr, in the manager's process): it reads them when a round is due (its poll, a
 // connector's changed, InboxCollect) and hands what it read over (MethodInboxCollected); what the inbox does with a
@@ -152,8 +152,8 @@ const (
 )
 
 // Why a reply to an inbox item did not go out (#9125): the extension manager's answer to inbox.reply and
-// inbox.reply_mail, and the apps' code on POST /api/v1/inbox/{id}/reply and …/suggestion
-// (docs/assistant/inbox.md "Send failures"). Each means nothing was sent; a send that may have gone out is
+// inbox.reply_mail, and the apps' code on POST /api/v1/inbox/{id}/reply and …/suggestion.
+// Each means nothing was sent; a send that may have gone out is
 // CodeAssistantInDoubt instead. The message is a fixed sentence: never the source's own output.
 const (
 	// CodeInboxCannotReply: the item has no way to be answered through its source (a read-only document, a thread with
@@ -362,7 +362,7 @@ type InboxMailMessage struct {
 type InboxConfig struct {
 	// Rules are the user's own triage rules (setting inbox.rules, else manager.json's inbox.rules); AgentRules guide the
 	// judge linking a Needs you item to one of the user's tasks (inbox.agent_rules); what the AI twin takes on is set
-	// by inbox policies (docs/assistant/inbox.md "Policies").
+	// by inbox policies.
 	Rules      string           `json:"rules,omitempty"`
 	AgentRules string           `json:"agent_rules,omitempty"`
 	Agent      InboxAgentConfig `json:"agent"`
@@ -376,7 +376,7 @@ type InboxConfig struct {
 	Extensions []string `json:"extensions,omitempty"`
 }
 
-// InboxAgentConfig is manager.json's inbox.agent: the AI twin (docs/assistant/inbox.md).
+// InboxAgentConfig is manager.json's inbox.agent: the AI twin.
 type InboxAgentConfig struct {
 	Enabled bool `json:"enabled"`
 	// Machine and Launcher run the agent; default: the assistant's.

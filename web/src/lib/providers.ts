@@ -1,4 +1,4 @@
-// Settings › Model providers (#2455, docs/integrations/launchers.md): the add / edit wizard's form for a compatible gateway typed by hand
+// Settings › Model providers (#2455): the add / edit wizard's form for a compatible gateway typed by hand
 // (cindy's AddProviderWizard: connect → models, the rest folded under "Advanced"; the hub's presets are lib/launcher-presets.ts), its checks, the POST / PUT body, and the import preview of a computer's aliases. Pure: the views
 // in views/settings/Provider*.tsx only render it.
 import { ApiError, errorText } from "./api";
@@ -72,7 +72,7 @@ export interface ProviderView extends ScopeView {
   custom_model_description?: string;
   args?: string[];
   has_key?: boolean;
-  /** The stored key is this secret provider's reference (docs/extensions/secret-providers.md "Launcher keys"). */
+  /** The stored key is this secret provider's reference. */
   key_reference?: SecretReference;
   auth?: AuthMethod;
   models?: ProviderModel[];
@@ -629,7 +629,7 @@ export const testModel = (f: ProviderForm) => f.model.trim() || f.models.find((m
 
 // ── Import from a computer's aliases ────────────────────────
 
-/** Why an alias's variable is not carried into the new provider's environment (the hub's rules, docs/integrations/launchers.md). */
+/** Why an alias's variable is not carried into the new provider's environment (the hub's rules). */
 export type SkipReason = "credential" | "shell" | "computer" | "limit";
 /** What hiding an alias after the import would do: `ok` hides it, `in_use` / `elsewhere` keep it (with why), `none` has nothing to hide. */
 type HideCheck = "ok" | "in_use" | "elsewhere" | "none";

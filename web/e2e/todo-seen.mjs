@@ -1,4 +1,4 @@
-// End-to-end check of the To-dos page's section order and Got it (#5707, docs/assistant/todo-status-sop.md): unfinished
+// End-to-end check of the To-dos page's section order and Got it (#5707): unfinished
 // to-dos (PR to merge, Other open) are listed open above Just finished, Shelved and Done stay folded with Done last, and
 // Got it on a Just finished row files it into Done at once, without opening the to-do, its toast's Undo putting it back.
 // Got it sits at the row's right, under the time, on the status line (#6578): the row is as tall and its title as wide

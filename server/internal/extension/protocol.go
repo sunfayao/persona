@@ -1,4 +1,4 @@
-// Package extension is the extension base (docs/extensions/extensions.md, docs/extensions/extensions.md): the manifest
+// Package extension is the extension base: the manifest
 // (persona-extension.json, formerly persona-plugin.json) and its rules, the configuration form's JSON Schema subset,
 // permissions, the registry of installed extensions, and the wire types of the process extension protocol. Running
 // extensions is extension/host's; a program's side is the Go SDK (sdk/go/ext), which extension/serve wraps for tests.
@@ -19,7 +19,7 @@ const Protocol = 1
 const ManifestVersion = 1
 
 // ManifestFile is the manifest's name at the root of an extension package; LegacyManifestFile is its name before
-// #1844, still read when a package has no ManifestFile (docs/extensions/extensions.md "Naming and compatibility").
+// #1844, still read when a package has no ManifestFile.
 const (
 	ManifestFile       = "persona-extension.json"
 	LegacyManifestFile = "persona-plugin.json"
@@ -77,7 +77,7 @@ type InitializeParams struct {
 	Granted Permissions `json:"granted"`
 	// Active are the contributions this run is for, by extension point (a switched-off connector is not in it).
 	Active map[string][]string `json:"active,omitempty"`
-	// ContributionsToMe are the other extensions' contributions to the points it exports (docs/extensions/extensions.md "Exported extension points"),
+	// ContributionsToMe are the other extensions' contributions to the points it exports,
 	// by point id; the event extension.contributions_changed says them again when they change.
 	ContributionsToMe map[string][]ExportedContribution `json:"contributions_to_me,omitempty"`
 }
@@ -112,7 +112,7 @@ type HubInfo struct {
 	// ExtensionPoints are the extension points the hub has and the version of each (connectors: the connector
 	// protocol's).
 	ExtensionPoints map[string]int `json:"extension_points"`
-	// Role is the hub's place in a group of hubs (docs/server/mesh.md): "center" (alone, or the group's center: it serves
+	// Role is the hub's place in a group of hubs: "center" (alone, or the group's center: it serves
 	// the apps and drives the computers) or "member" (another hub is the center; work the center does for the group,
 	// like answering a chat service's realtime events, is not this one's). A change restarts the plugin.
 	Role string `json:"role,omitempty"`
@@ -123,7 +123,7 @@ type HubInfo struct {
 	// (its status, sign-in hints, a bot's replies) reads in it. Read at each start; empty means zh-Hans.
 	Locale string `json:"locale,omitempty"`
 	// Capabilities are what this hub does that a plugin may go by ("inbox_group": it relates a connector's batches of
-	// new messages to inbox events, docs/assistant/inbox.md "Event grouping"). Absent or without one: the hub does not do it.
+	// new messages to inbox events). Absent or without one: the hub does not do it.
 	Capabilities []string `json:"capabilities,omitempty"`
 	// URL and Token are the hub's API on this machine and a token of the scopes it was granted (permissions.hub; also
 	// PERSONA_HUB_URL / PERSONA_HUB_TOKEN when the hub runs it): a new one each start, revoked when it stops for good.
@@ -142,8 +142,8 @@ type HubInfo struct {
 const (
 	HubInboxGroup = "inbox_group"
 	// HubInboxGroupState: the hub also takes a grouped conversation's read and replied state for its events (a thing
-	// with an empty batch and the event's id), and a fallback plan's messages for events already handled
-	// (docs/assistant/inbox.md "Following up"). It is listed in HubCapabilities.
+	// with an empty batch and the event's id), and a fallback plan's messages for events already handled.
+	// It is listed in HubCapabilities.
 	HubInboxGroupState = "inbox_group_state"
 	// HubToolImages: a connector's tools.call answer may carry pictures for the model (images, #8484), within the
 	// limits of connector.ToolImagesMost and the rest. It is listed in HubCapabilities.

@@ -46,7 +46,7 @@ func (h *Hub) metricsRoutesRelayed(api *http.ServeMux) {
 }
 
 // usageRoutesRelayed relays the subscription usage windows' route (devicewire.UsageRoutes) to the manager, which
-// asks the machines it connects and the account-pool gateways (docs/server/usage-windows.md); 503 assistant_offline while
+// asks the machines it connects and the account-pool gateways; 503 assistant_offline while
 // it is away.
 func (h *Hub) usageRoutesRelayed(api *http.ServeMux) {
 	for _, pattern := range devicewire.UsageRoutes {

@@ -24,7 +24,7 @@ import (
 // The hub is the communication center only: clients <-> manager, hub <-> hub, connections, pairing / auth, admin,
 // push delivery and relays. Business (the assistant, inbox, todos, usage, boards, extensions, devices' data) is the
 // manager's (internal/assistant, internal/devices, internal/extmgr). These tests pin the hub's surface so new business
-// lands in the manager instead (docs/server/architecture.md "The hub is only a communication center").
+// lands in the manager instead.
 
 const guardDoc = "see docs/server/architecture.md「The hub is only a communication center」"
 

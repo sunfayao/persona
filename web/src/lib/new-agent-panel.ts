@@ -1,5 +1,5 @@
 // New Agent's model choice in the unified model panel (#5104, after Cindy's new-task composer: the user picks a model,
-// the engine follows from it and stays visible; docs/web/web.md "New Agent"): the chosen computer's launchers as the
+// the engine follows from it and stays visible): the chosen computer's launchers as the
 // panel's providers, each led by its "Default" row (no model sent: the model settings' model where the launcher is
 // theirs, else the launcher's own), the setup that runs now, what a pick puts in the form and what the pill says. Pure:
 // views/NewAgentModel.tsx draws it, views/NewAgent.tsx holds the form.

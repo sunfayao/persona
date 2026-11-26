@@ -414,7 +414,7 @@ func TestCodexAppDBPathTakesTheNewestSchema(t *testing.T) {
 }
 
 // A chat the App keeps in no project, in the folder the App made for it, is under "Codex chats" as in the App's sidebar
-// (placeCodexDesktop, docs/integrations/codex.md), and so are its subagents; a chat in a project stays in it.
+// (placeCodexDesktop), and so are its subagents; a chat in a project stays in it.
 func TestCodexAppChatsInNoProjectAreUnderCodexChats(t *testing.T) {
 	n := remoteTestNode(t)
 	home := n.codexHome()

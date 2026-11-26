@@ -1,4 +1,4 @@
-// Making an avatar from an image (#2404, docs/apple/persona.md "Uploading an image"): the dialog the avatar picker's
+// Making an avatar from an image (#2404): the dialog the avatar picker's
 // Upload card opens. Pick an image (or drop one), crop it square with the avatar's circle over it — drag to move; the
 // slider, the wheel or a pinch to zoom; arrow keys and + / − from the keyboard — name it, and the hub makes a package
 // of it and chooses it. The geometry, the export and the request are lib/look-upload.ts; the picker (Persona.tsx)

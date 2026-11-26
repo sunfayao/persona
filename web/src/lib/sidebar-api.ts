@@ -1,4 +1,4 @@
-// What the sidebar offers the keyboard shortcuts (docs/web/web.md "Keyboard shortcuts"): fold or open every group and walk
+// What the sidebar offers the keyboard shortcuts: fold or open every group and walk
 // the rows. The sidebar's groups subscribe through useFolded (`onFoldAll`), Sidebar.tsx marks its list `data-sidebar-rows`,
 // and the shortcuts call the rest. Kept out of the sidebar's views so they only gain the few lines that listen.
 import { noteFoldAll } from "./fold-all";

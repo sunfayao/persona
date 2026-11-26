@@ -17,9 +17,9 @@ import (
 	"github.com/nwverse/persona/server/internal/mdns"
 )
 
-// `persona-link discover`: the hubs on this LAN, as they advertise themselves over mDNS (_persona-hub._tcp, docs/server/mesh.md).
+// `persona-link discover`: the hubs on this LAN, as they advertise themselves over mDNS (_persona-hub._tcp).
 // Finding the hub is one of the connector's three jobs; the installer asks it whether this computer needs a hub of its
-// own or the node service is enough (docs/server/mesh.md section 0). Nothing is paired by it: pairing takes a link.
+// own or the node service is enough. Nothing is paired by it: pairing takes a link.
 
 const hubService = "_persona-hub._tcp"
 

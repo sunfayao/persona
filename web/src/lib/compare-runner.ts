@@ -1,4 +1,4 @@
-// Compare runs' runner (#8916, docs/web/web.md "Compare runs"): makes each run's worktree, one at a time (two `git worktree
+// Compare runs' runner (#8916): makes each run's worktree, one at a time (two `git worktree
 // add` on one repository at once fight over its lock), then hands the run's start to lib/new-agent.ts without opening it.
 // Each step is written to the group (lib/compare-runs.ts) as it happens, so the page shows every run from the frame New
 // agent closes in. The task's words and attachments stay in this tab's memory only, for a retry here.

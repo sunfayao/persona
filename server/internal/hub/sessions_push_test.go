@@ -279,7 +279,7 @@ func TestSessionsChangedStampsWithoutCopy(t *testing.T) {
 	}
 }
 
-// busyList is a busy machine's list (docs/server/server.md "Traffic pushed to the app").
+// busyList is a busy machine's list.
 func busyList() []proto.Session {
 	var many []proto.Session
 	for i := range 150 {

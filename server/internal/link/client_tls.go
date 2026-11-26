@@ -15,7 +15,7 @@ import (
 )
 
 // Pinned is an HTTP/1.1 client that only talks to the hub whose TLS key hashes to fp (Pin): what a manager on another
-// computer dials the hub's public port with (docs/assistant/managers.md).
+// computer dials the hub's public port with.
 func Pinned(fp string) *http.Client { return pinned(fp, nil) }
 
 func pinnedTLSConfig(fp, host string) *tls.Config {
@@ -54,7 +54,7 @@ func UseRootsForTesting(pool *x509.CertPool) (restore func()) {
 }
 
 // systemTLSConfig checks a hub without a pin: it sits behind an HTTPS reverse proxy whose certificate comes from a
-// public CA (docs/operations/link.md "Hub behind a reverse proxy"). The certificate must chain to the system's CAs and
+// public CA. The certificate must chain to the system's CAs and
 // name the host dialed (the transport sets ServerName); nothing else is accepted.
 func systemTLSConfig() *tls.Config {
 	return &tls.Config{MinVersion: tls.VersionTLS12, NextProtos: []string{"http/1.1"}, RootCAs: systemRoots.Load()}

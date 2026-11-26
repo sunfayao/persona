@@ -17,7 +17,7 @@ export type RepositoryLinkKind = "issue" | "pull_request";
 export type RepositoryLinkLabel = { kind: RepositoryLinkKind; label: string };
 /** How a to-do's extension row's source is now: `missing` once it is uninstalled. */
 type RepositoryProviderState = "available" | "off" | "missing";
-/** A source of repositories (docs/extensions/repository-providers.md): GitHub and GitLab built in, then extensions'. */
+/** A source of repositories: GitHub and GitLab built in, then extensions'. */
 export type RepositoryProvider = {
   id: string; name: string; builtin: boolean; hosts: string[]; state: "available" | "off"; link_kinds?: RepositoryLinkLabel[];
 };

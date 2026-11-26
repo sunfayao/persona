@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// "Hand to AI" with several managers (docs/assistant/managers.md "Clients"): the item goes to its manager's main
+// "Hand to AI" with several managers: the item goes to its manager's main
 // conversation by default (#1194), handed off through the item's manager so that conversation may write back to it, or
 // to a new conversation with that manager, and the conversation's next requests go there too; the current assistant
 // stays as it was, the conversation opening as itself on its own computer. An item stamped with the default (a hub with

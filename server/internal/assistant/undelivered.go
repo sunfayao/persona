@@ -18,7 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// The owner's messages that could not go in (#10194, docs/assistant/assistant.md "Messages that could not go in").
+// The owner's messages that could not go in (#10194).
 //
 // The owner writes to one of the assistant's conversations while its process cannot start (a cold start killed on a
 // loaded computer, the computer away). Nothing was typed, so the hub used to answer the app with the failure and

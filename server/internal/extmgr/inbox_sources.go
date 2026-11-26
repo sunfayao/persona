@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/subscriptionsui"
 )
 
-// The built-in sources of the Inbox Sources pages (#5278, docs/extensions/subscriptions.md "Pages"): the connectors
+// The built-in sources of the Inbox Sources pages (#5278): the connectors
 // that bring things into the Inbox themselves, and mail. Their switches, rules and mutes here
 // are the ones Settings › Connectors, an extension's page and the Inbox already change, so either place shows the
 // other's change.

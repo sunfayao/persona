@@ -1,4 +1,4 @@
-// "iPhone control" on a computer's page (#8217; docs/extensions/iphone.md "Interfaces" and "Codes for apps"): what the hub
+// "iPhone control" on a computer's page (#8217 and "Codes for apps"): what the hub
 // says the computer has of the iPhone helper and the iPhones it reaches (GET/PUT /api/v1/machines/{mid}/iphone,
 // POST …/iphone/{pair|forget|cancel|install|prepare}), and what the section shows for it. Every state is read from the
 // codes, in the words of the iPhone app's guided setup (#8199); a note from an older node that sends no code is shown
@@ -12,7 +12,7 @@ export interface IPhoneJob {
   state: string;
   step?: string;
   error?: string;
-  /** While a pairing runs, what it waits for (trust_pending, locked); once failed, why (docs/extensions/iphone.md). */
+  /** While a pairing runs, what it waits for (trust_pending, locked); once failed, why. */
   code?: string;
   /** The iPhone a pairing or a preparing is for. */
   device?: string;

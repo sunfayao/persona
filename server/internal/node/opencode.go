@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// opencode (docs/integrations/opencode.md). An opencode in a herdr pane is a herdr session, as a pi there is (pi.go): the pane, its
+// opencode. An opencode in a herdr pane is a herdr session, as a pi there is (pi.go): the pane, its
 // space and tab, the terminal and the keys are herdr's, and so are the state and the session id (herdr's opencode
 // plugin reports both from the TUI). Its conversation and its control (send, interrupt, cards, live text) come from
 // the Persona plugin in the opencode server process, a runtime (runtimes.go) that lists the session by the same id;

@@ -10,7 +10,7 @@ import (
 )
 
 // What a start can run where its host is an engine runtime that runs only its own launchers (#8140, Paseo with
-// caps.same_kind; docs/integrations/paseo.md "A launcher Paseo does not have"). Such an engine starts every session
+// caps.same_kind). Such an engine starts every session
 // with a provider of its own: a launcher of the login shell's or one kept in Persona never runs there. So where a
 // start goes to it, the new-session form lists its providers (launchers.list with the start's host), a name it shares
 // with a launcher of the shell's or of Persona's means its provider (the models, Test, start options and the start

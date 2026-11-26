@@ -107,7 +107,7 @@ func (s *Service) superviseOpenTodoOf(ctx context.Context, machine, session stri
 // on machine as the computer's home names it (isAssistantSession), and the node marks every conversation it keeps a
 // start record for started_by_persona. So it is one too when
 //   - it is a headless row in an assistant or health directory of any manager (identity.IsAssistantDir): another
-//     manager's, left on a computer that moved here (docs/assistant/managers.md "Moving a machine or a source"), or
+//     manager's, left on a computer that moved here, or
 //     this one's, listed before the computer reported its home;
 //   - this manager's records say its assistant started it, wherever its row is listed (an older node's row at rest
 //     may follow a `cd`): the main conversation, the background supervisor, and every conversation with a noted origin

@@ -2,7 +2,6 @@
 // reach it (a laptop on whatever network it is on), and the protocol it speaks with the hub. persona-link finds the
 // hub, tells it which machine it is, keeps the link up and hands each stream the hub opens on it to the computer's
 // resident node (`personad node --attach`), byte for byte. It does nothing else: what a node does stays in personad
-// (docs/operations/link.md).
 package link
 
 import (
@@ -101,10 +100,10 @@ type Message struct {
 	// pong, in milliseconds; Persona Link keeps this link's to them (PingTimes). Without them it keeps its own.
 	PingMS        int `json:"ping_ms,omitempty"`
 	PingTimeoutMS int `json:"ping_timeout_ms,omitempty"`
-	// endpoints: this computer waits for the user to confirm it (a signed-in device added it, docs/assistant/onboarding.md
+	// endpoints: this computer waits for the user to confirm it (a signed-in device added it
 	// 4.2). Every endpoints message says how it is now, so a confirmed one (and an older hub) leaves it out.
 	Pending bool `json:"pending,omitempty"`
-	// endpoints: what the hub calls this computer (its hub.json name; hubs that rename computers, docs/operations/link.md
+	// endpoints: what the hub calls this computer (its hub.json name; hubs that rename computers
 	// "The computer's name"). rename (persona-link → hub) asks the hub to call it this instead (empty: its id again);
 	// renamed (hub → persona-link) answers the rename of the same ID with the name it has now, or Error and Code.
 	MachineName string `json:"machine_name,omitempty"`
@@ -156,19 +155,19 @@ type Config struct {
 	Trust     string     `json:"trust,omitempty"`
 	Token     string     `json:"token"`
 	Endpoints []Endpoint `json:"endpoints"`
-	// SSH is the optional SSH tunnel for active mode (docs/operations/link.md "SSH tunnel").
+	// SSH is the optional SSH tunnel for active mode.
 	SSH *SSH `json:"ssh,omitempty"`
 	// Proxy is an outbound HTTP(S) CONNECT proxy; "off" disables environment proxies.
 	Proxy string `json:"proxy,omitempty"`
-	// ProxyAlways: active mode goes only through the proxy; direct hub addresses and the SSH tunnel are not tried
-	// (docs/operations/link.md "Outbound proxy"). SSH.Always wins when both are set.
+	// ProxyAlways: active mode goes only through the proxy; direct hub addresses and the SSH tunnel are not tried.
+	// SSH.Always wins when both are set.
 	ProxyAlways bool `json:"proxy_always,omitempty"`
 	// Mode is ModeActive (also when empty: files from before passive mode) or ModePassive.
 	Mode    string   `json:"mode,omitempty"`
 	Passive *Passive `json:"passive,omitempty"`
 }
 
-// The two modes (docs/operations/link.md "Passive mode").
+// The two modes.
 const (
 	ModeActive  = "active"  // persona-link dials the hub's /api/v1/link
 	ModePassive = "passive" // the hub dials the TLS port persona-link listens on
@@ -338,7 +337,7 @@ func Update(path string, change func(*Config) error) error {
 	return os.Rename(tmp, path)
 }
 
-// kindOf says what kind of address a hub URL is: the link tries lan first (docs/operations/link.md "Route selection").
+// kindOf says what kind of address a hub URL is: the link tries lan first.
 func kindOf(raw string) string {
 	u, err := url.Parse(raw)
 	if err != nil {

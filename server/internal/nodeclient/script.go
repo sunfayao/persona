@@ -11,7 +11,7 @@ import (
 )
 
 // `personad ask` and `personad notify` (internal/scriptcli) reach the manager through the node's socket like the hook
-// does (docs/integrations/script-cli.md), with the "ask" and "notify" kinds.
+// does, with the "ask" and "notify" kinds.
 
 // Ask results (AskReply.Status).
 const (

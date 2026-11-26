@@ -1,7 +1,7 @@
 package extmgr
 
 // Operating the user's Macs for the assistant through Cua Driver: the built-in plugin cua, off until the user turns
-// it on, then machine by machine (docs/extensions/computer-use.md). While it is off no node is asked about cua-driver, the
+// it on, then machine by machine. While it is off no node is asked about cua-driver, the
 // assistant has no computer_* tools and the machines carry no Computer.
 
 import (
@@ -65,7 +65,7 @@ type cuaSettings struct {
 	// NoAutoLock: the Macs "Don't auto-lock while the extension is on" is on for (computer_nolock.go).
 	NoAutoLock []string `json:"no_auto_lock"`
 	// ScreenX264: the Macs whose live screen may be encoded by the user's own ffmpeg with libx264 on a direct LAN
-	// (#8859, docs/extensions/computer-use.md "x264 on a direct LAN (#8859)"); the hub passes it in screen.dial.
+	// (#8859); the hub passes it in screen.dial.
 	ScreenX264 []string `json:"screen_x264"`
 	// ClickSound: "Click sound", none (or empty), foreground or all; the node plays it (node/cua_extras.go).
 	ClickSound string `json:"click_sound"`

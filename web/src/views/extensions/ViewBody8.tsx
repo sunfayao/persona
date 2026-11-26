@@ -1,4 +1,4 @@
-// UI version 8 (#9158, docs/extensions/extensions.md "UI version 8"): a dashboard page's columns layout, and a section's
+// UI version 8 (#9158): a dashboard page's columns layout, and a section's
 // icon and link beside its title. A chunk of its own, loaded with the first view that has them (ViewBody.tsx
 // ViewSections): an extension's page, never the first screen or the idle preload. It draws the view through
 // ViewSections and Section again, giving them its head for the sections' titles.

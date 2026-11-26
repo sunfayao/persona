@@ -27,7 +27,7 @@ type navigationView struct {
 	Overview *[]overviewPlace `json:"overview,omitempty"`
 }
 
-// overviewPlace is one of Overview's cards (an extension's overview_card, docs/extensions/extensions.md "UI slots") as
+// overviewPlace is one of Overview's cards (an extension's overview_card) as
 // the user placed it: the extension's id and the card's, whether it is hidden, and its width: half a row ("" or "half",
 // the default) or the whole row ("full"). Or one of Overview's own sections (#10905): its id in Section, whether it
 // is hidden, and nothing else. Which cards and sections there are is the apps' business: one the list names that is

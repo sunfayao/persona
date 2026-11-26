@@ -9,14 +9,14 @@ import (
 	"strings"
 )
 
-// An extension's token (docs/extensions/extensions.md "Permissions") opens the routes of the scopes the user granted the extension and
+// An extension's token opens the routes of the scopes the user granted the extension and
 // no other; the manager made the token and checks it (extensions.authorize), with this table of the hub's routes.
 
 // RouteScopes are the routes an extension's token may call, by the pattern they are registered with, and the scope
 // each needs. A route not here is for full credentials only. Deciding that a new route is open to extensions means
 // giving it its scope from its domain's own file, extwire/<domain>_scopes.go, through addRouteScopes, as
 // inbox_scopes.go does: the literal below keeps the entries it has and takes no new key (TestCentralListsTakeNoNewName
-// in internal/archguard; docs/server/architecture.md "Registering a domain's entries"). TestRouteScopes keeps the list
+// in internal/archguard). TestRouteScopes keeps the list
 // of every route and what was decided for it, server/internal/hub/testdata/route_scopes.txt.
 var RouteScopes = map[string]string{
 	"GET /api/v1/assistant/dispatch-policy":                      ScopeAssistantDispatchPolicy,

@@ -2,7 +2,7 @@ package proto
 
 import "time"
 
-// GoalInfo is a goal the agent keeps working toward until it holds (docs/integrations/agent-goal.md): Claude Code's /goal, whose
+// GoalInfo is a goal the agent keeps working toward until it holds: Claude Code's /goal, whose
 // Stop hook checks the condition each time the agent would stop, or a Codex thread goal.
 type GoalInfo struct {
 	Objective string `json:"objective"`
@@ -16,7 +16,7 @@ type GoalInfo struct {
 	UpdatedAt   time.Time `json:"updated_at,omitempty"`
 }
 
-// PlanInfo is an agent's latest task list, counted (docs/integrations/agent-goal.md "Plan"): Done of Total items completed, and
+// PlanInfo is an agent's latest task list, counted: Done of Total items completed, and
 // Current, the item in progress (its activeForm, else its subject) on one line, "" when none is. At is when the
 // counts or Current last changed.
 type PlanInfo struct {

@@ -1,7 +1,7 @@
 package proto
 
 // model.http: a model request an API connection sends through a computer instead of the manager's own network
-// (docs/assistant/model-config.md "Sending through a computer", docs/protocol/protocol.md "hub ↔ node RPC").
+// (docs/protocol/protocol.md "hub ↔ node RPC").
 
 // MethodModelHTTP is the node method.
 const MethodModelHTTP = "model.http"

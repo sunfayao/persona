@@ -1,4 +1,4 @@
-// A frozen page: the main thread blocked for 5 seconds or more (docs/web/web.md "Error reports").
+// A frozen page: the main thread blocked for 5 seconds or more.
 // One anr warning per page load, through the error-report pipeline, and only while the caller says the hub is
 // advertising error_reports. long-animation-frame where the browser has it, otherwise longtask; with neither, nothing.
 // A hidden tab is not a freeze, and neither is an entry that overlaps the page being hidden or frozen (visibilitychange,

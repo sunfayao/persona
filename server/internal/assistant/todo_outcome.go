@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// What a finished task came to (#2820, docs/assistant/todos.md "Record conclusions on completion"). When a task the main conversation opened (its todo
+// What a finished task came to (#2820). When a task the main conversation opened (its todo
 // has an origin) is done, closed by the judge (done.go) or by the user, its agents' last replies are read and a model
 // pulls out a one-line outcome, its links, the decisions made and the pitfalls hit. They go in the todo's decisions
 // (source "outcome", once per completion). Without a model the outcome is the

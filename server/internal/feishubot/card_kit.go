@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// The parts every card is drawn with (docs/extensions/bots.md "Cards"): the header's color is the state, its
+// The parts every card is drawn with: the header's color is the state, its
 // title the matter in one line, its subtitle who or where and its tags the card's kind; the body opens with the point,
 // then one line of small facts (Meta), the details folded (Panel); one row of actions — one primary, at most two more,
 // the rest in a "more" menu (Overflow); a press that cannot be taken back asks first (Confirm); a list is rows that are

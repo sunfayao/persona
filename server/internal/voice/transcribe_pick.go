@@ -7,7 +7,7 @@ import (
 	"unicode"
 )
 
-// Choosing a window's text (docs/assistant/meeting-minutes.md "The built-in adapter"): every session's text of the
+// Choosing a window's text: every session's text of the
 // window is compared with the captions (live) or the reference (the final pass) by normalized character edit
 // distance; a session further than trDropOver is dropped for the window, and of the rest the medoid wins, the text
 // closest to the others'. Nothing is merged across sessions.

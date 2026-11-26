@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/pgdocker"
 )
 
-// How a new manager is installed (docs/assistant/managers.md, "Install commands"): the app shows the commands that come with its install
+// How a new manager is installed: the app shows the commands that come with its install
 // code. `curl -fsSL <hub>/i/<code> | sh` gets a script from the hub that finds or downloads personad, trades the code
 // (`personad manager join … --install`) and installs the manager as a service of that computer; `docker run …` runs
 // it as a container of the hub's image. GET /i/<code> needs no credential (the code is it) and does not use the code
@@ -91,7 +91,7 @@ func (h *Hub) ownAddress() (base, fp string, ok bool) {
 }
 
 // addressOf is raw (an http(s) URL of the hub's configuration) as the commands' hub address: its path kept (a reverse
-// proxy's subpath, docs/operations/network.md), with the hub's TLS pin when it is https to the hub's own TLS port.
+// proxy's subpath), with the hub's TLS pin when it is https to the hub's own TLS port.
 func (h *Hub) addressOf(raw string) (base, fp string, ok bool) {
 	u, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil || u.Host == "" || u.User != nil || (u.Scheme != "http" && u.Scheme != "https") {
@@ -158,7 +158,7 @@ func (h *Hub) managerImage() string {
 	return h.build.Image
 }
 
-// managerDockerScript is the POSIX sh script GET /i/<code>/docker answers (docs/assistant/managers.md, "Containers"): manager id
+// managerDockerScript is the POSIX sh script GET /i/<code>/docker answers: manager id
 // in a container beside a Postgres container of its own, on a network of their own. Names: network persona-mgr-<id>,
 // containers persona-mgr-<id> and persona-mgr-<id>-pg, volumes persona-mgr-<id>-home and persona-mgr-<id>-data.
 //

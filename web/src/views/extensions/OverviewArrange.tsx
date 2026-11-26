@@ -1,4 +1,4 @@
-// Arranging Overview (#9745, #10905, docs/web/web.md "Overview's extension cards"), loaded the first time the user
+// Arranging Overview (#9745, #10905), loaded the first time the user
 // presses Arrange Overview: the heading over it (what to do, where it is kept, Reset with Undo, Done), each card's
 // controls in place of its head (the handle it is dragged by, its width, earlier / later, its switch) and each of
 // Overview's own sections as a bar with the same controls (no width: a section takes the row; no switch for the ones

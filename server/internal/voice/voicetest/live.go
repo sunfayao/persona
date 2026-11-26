@@ -1,5 +1,5 @@
 // Package voicetest is a scripted stand-in for a GPT-Live-compatible upstream, for tests of the built-in voice
-// extension's meeting transcription and of the manager that runs it (docs/assistant/voice.md "Transcription"). Its
+// extension's meeting transcription and of the manager that runs it. Its
 // sessions hear the audio PCM makes of a script and answer with the frame shapes the measured service sends: interim
 // captions on a caption session (one told only to listen, granted the caption extension) as the measured service
 // writes them, one item for the whole session; one reply per sentence on a verbatim session (with the extension, also

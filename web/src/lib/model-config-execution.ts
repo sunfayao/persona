@@ -67,7 +67,7 @@ export function catalogLists(catalog: ModelConfigurationBody, id: string): boole
 }
 
 /** The catalog with purpose `id` right after `after` (the background supervisor's after Main chat, which it follows;
- *  #5082, #5806, docs/assistant/model-config.md "The background supervisor in the catalog"). A hub since #5806 lists
+ *  #5082, #5806). A hub since #5806 lists
  *  the row last among its built-in purposes, so the apps that append their own copy keep their order: here it is
  *  moved up to its parent. A hub before that leaves it out and answers it by its own id: `fetched` is that answer, put
  *  in. Unchanged when there is no such row (an older hub still), when it is in place already, or without an `after` row. */
@@ -101,7 +101,7 @@ function ownFields(p: ModelPurpose): boolean {
   return (p.fields ?? []).some((field) => field === "provider" || field === "model" || field === "effort" || field === "permission_mode");
 }
 
-/** The category `p` is a use set apart from, told by the hub's data, not by id (#7980, docs/assistant/model-config.md
+/** The category `p` is a use set apart from, told by the hub's data, not by id (#7980
  *  "Meeting minutes and the in-meeting conversation"): a purpose with fields of its own, no `uses` (it is a use itself),
  *  a `category_id` other than its id, and a `parent` that is a category of `purposes` (its `category_id` its own id)
  *  listed in the same group of this page. Main chat for the background supervisor and the In-meeting conversation,

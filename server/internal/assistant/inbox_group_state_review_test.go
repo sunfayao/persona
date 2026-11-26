@@ -1,6 +1,6 @@
 package assistant
 
-// Review tests for the grouping connector's read/replied state reports (inbox_group_state.go, docs/assistant/inbox.md
+// Review tests for the grouping connector's read/replied state reports (inbox_group_state.go
 // "Following up", "Read and replied state from a grouping connector").
 
 import (

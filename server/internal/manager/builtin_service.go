@@ -22,7 +22,7 @@ import (
 	"github.com/nwverse/persona/server/internal/update"
 )
 
-// The built-in manager's own service (docs/assistant/managers.md "The built-in manager as its own service"): on Linux
+// The built-in manager's own service: on Linux
 // the systemd user unit persona-manager-assistant.service, on a Mac the launchd agent com.persona.manager.assistant
 // (managerconf.BuiltinService, BuiltinLabel). Each runs `<binary> assistant` with PERSONA_ASSISTANT_DEPLOY=service on
 // the data directory it shares with the hub, the binary persona-manager when builtinBinary finds it. `install
@@ -95,7 +95,7 @@ var (
 )
 
 // bootstrapAgent runs launchctl bootstrap for the plist at path in domain. Right after a bootout, bootstrap can fail
-// for a moment (5: Input/output error, docs/lessons/server.md), so it is tried bootstrapTries times, bootstrapWait
+// for a moment (5: Input/output error), so it is tried bootstrapTries times, bootstrapWait
 // apart. The last attempt's output and error come back.
 func bootstrapAgent(ctx context.Context, e *env, domain, path string) (string, error) {
 	var out string
@@ -224,8 +224,8 @@ func (e *env) installBuiltin(ctx context.Context, home string, j builtinJoin) er
 	return e.builtinService(ctx, home, bin, traded)
 }
 
-// builtinBinary is what the built-in manager's service runs: persona-manager beside bin when it is bin's build
-// (docs/server/server.md "Programs"), else bin. A unit or agent under its former name, or update.SplitEnv 0
+// builtinBinary is what the built-in manager's service runs: persona-manager beside bin when it is bin's build,
+// else bin. A unit or agent under its former name, or update.SplitEnv 0
 // (splitOff), keeps bin, and so does a Mac's agent that ran personad before (macKeepsPersonad).
 func (e *env) builtinBinary(ctx context.Context, bin string) string {
 	id := assistantwire.AssistantID

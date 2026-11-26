@@ -8,7 +8,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// ---- the Agents business: the manager's (docs/assistant/agent-work.md "Responsibilities") ----
+// ---- the Agents business: the manager's ----
 //
 // The manager triages an agent's turn once it ends (rules first, then a model), sends "Continue" after a transient model
 // error, wakes an agent when what it waits for should be over, and opens a card for what the user is to decide; it
@@ -26,7 +26,7 @@ type AgentsConfig struct {
 	// (docs/integrations/a2a.md).
 	Dispatch DispatchConfig `json:"dispatch,omitzero"`
 	A2A      A2AConfig      `json:"a2a,omitzero"`
-	// LauncherHealth is manager.json agents.launcher_health: checking each machine's launchers (docs/server/launcher-health.md).
+	// LauncherHealth is manager.json agents.launcher_health: checking each machine's launchers.
 	LauncherHealth LauncherHealthConfig `json:"launcher_health,omitzero"`
 	// Review is manager.json agents.review: the independent reviewer of a supervised task's finished change (#2173,
 	// docs/assistant/unified-entry.md "Independent review").
@@ -126,7 +126,6 @@ type LauncherRepairConfig struct {
 }
 
 // DelegateConfig is manager.json agents.delegate: an agent's question goes to the assistant before the user
-// (docs/assistant/assistant.md "Assistant answers questions first").
 type DelegateConfig struct {
 	// Enabled: off unless true.
 	Enabled *bool `json:"enabled,omitempty"`

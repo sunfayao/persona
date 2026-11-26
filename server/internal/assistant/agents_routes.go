@@ -97,7 +97,7 @@ func (s *Service) agentRoutes() {
 	// {"dry_run": true, "all": false}: rename the tabs of running agents nobody named after their task.
 }
 
-// workStats is GET /api/v1/agents/work/stats: how the triage did over the last hours (docs/assistant/agent-work.md "Evaluation").
+// workStats is GET /api/v1/agents/work/stats: how the triage did over the last hours.
 type workStats struct {
 	Hours   int            `json:"hours"`
 	Triaged map[string]int `json:"triaged"` // "done", "blocked/user", … "unsure", "failed"

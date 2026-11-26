@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Subscription usage limits in the Agents business (docs/assistant/agent-work.md "Usage limits", #1710): the turn waits
+// Subscription usage limits in the Agents business (#1710): the turn waits
 // for the reset; the CLI goes on by itself or the manager continues it; no push or receipt says it ended meanwhile.
 
 const limitText = "You've hit your session limit · resets 4:20pm (UTC)"

@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// What an extension's token (todos.read, todos.write) is shown of the to-dos (#10941, docs/extensions/extensions.md
+// What an extension's token (todos.read, todos.write) is shown of the to-dos (#10941
 // "Never shown to extensions"): nothing of one whose history may hold the words of a space hidden from extensions, as
 // of a chat of the space. One rule (todosHidden) decides every way a to-do leaves the manager for an extension: GET
 // /api/v1/todos leaves it out (extensionRows), every route of one to-do (/api/v1/todos/{id}…) answers 404 as for a

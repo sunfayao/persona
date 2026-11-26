@@ -1,5 +1,5 @@
 import { assistantSwitchNeeded } from "./assistant-execution";
-// What a Persona chat's model pill says (#5033, docs/web/web.md "Model pill and model panel"; docs/assistant/model-config.md
+// What a Persona chat's model pill says (#5033
 // "A conversation's own model"): the launcher, model and effort its next message runs on, and where that comes from.
 // A Persona chat switches models freely: its own pick is kept on the hub (`model_pick`, feature `assistant_model_pick`)
 // and holds from the next message on every device, for every Persona chat (#9248); without one the main chat, a leader

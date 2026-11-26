@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Inbox folders (docs/assistant/inbox.md "Folders"): the folder bar's crumbs and subfolders, "Move to folder…" sending the
+// Inbox folders: the folder bar's crumbs and subfolders, "Move to folder…" sending the
 // path (or handing the item back to AI), and the folder settings.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";

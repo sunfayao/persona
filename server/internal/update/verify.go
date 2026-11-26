@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-// VerifyRelease is a publisher's last check before uploading a release (docs/operations/hub-update.md "Version manifest"):
+// VerifyRelease is a publisher's last check before uploading a release:
 // every download m lists is in dir at its size and sha256s, every binary carries m's build number, and the ones this
 // machine runs (its own platform's) say m's version, the release channel and that build. A manifest written in
 // another run than its binaries, with another build number (v0.2.1, #4522), fails here rather than on every hub

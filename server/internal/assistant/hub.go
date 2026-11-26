@@ -1,4 +1,4 @@
-// Package assistant is the Persona tab's assistant (docs/assistant/assistant.md), a process of its own (`personad assistant`):
+// Package assistant is the Persona tab's assistant, a process of its own (`personad assistant`):
 // its conversations (titles, archive, messages between them), what it does on its own (scheduled tasks), the tasks
 // it hands out (plans, the conversation's feed, receipts, the "Today" card), its MCP tools and the live context each
 // message starts with. Its runtime (the headless Claude / Codex) is a node's (node/assistant*.go); the hub is only

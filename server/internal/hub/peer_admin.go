@@ -18,7 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// The admin page's peers API (docs/server/mesh.md 2.7): registerPeerAdmin registers the routes
+// The admin page's peers API: registerPeerAdmin registers the routes
 // on the admin mux, behind the admin login.
 
 // peerItem is one paired hub as the admin page lists it.
@@ -31,7 +31,7 @@ type peerItem struct {
 	Since    *time.Time `json:"since,omitempty"`
 	Error    string     `json:"error,omitempty"`
 	Machines int        `json:"machines"` // the computers in its hub.json (a member's go through it to the center)
-	Role     string     `json:"role"`     // center | member (docs/server/mesh.md 6)
+	Role     string     `json:"role"`     // center | member
 }
 
 type discoveredHub struct {
@@ -127,7 +127,7 @@ func (h *Hub) registerPeerAdmin(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/admin/mesh", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, h.meshSummary())
 	})
-	// Set as center (docs/server/mesh.md 2): {"confirm": true} when the center now in place cannot be reached.
+	// Set as center: {"confirm": true} when the center now in place cannot be reached.
 	mux.HandleFunc("POST /api/v1/admin/peers/{hub_id}/center", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Confirm bool `json:"confirm"`

@@ -20,7 +20,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Pairing two hubs (docs/server/mesh.md 2.2, docs/server/mesh.md "Pairing"): hub B makes a one-time code good for 10 minutes
+// Pairing two hubs: hub B makes a one-time code good for 10 minutes
 // (admin page, `personad hub pair --peer`), a link carrying B's addresses, hub_id and key pin. Hub A, given the code,
 // connects to B pinned to that key, hands over a credential it issued for B and its own pin and addresses, and gets
 // B's credential for A in return. Both sides then pin each other, hold each other's credential and dial each other.
@@ -212,7 +212,7 @@ func (h *Hub) joinPeer(ctx context.Context, raw string) (*db.Peer, error) {
 	}
 	p := db.Peer{HubID: got.HubID, Name: got.Name, FP: code.fp, Endpoints: rankEndpoints(slices.Concat(got.Endpoints, got.PlainEndpoints, code.endpoints)),
 		Token: sealed, CredentialID: cred.ID}
-	// Using its code joins this hub, and its group with it, to that hub's group (docs/server/mesh.md 2): before the
+	// Using its code joins this hub, and its group with it, to that hub's group: before the
 	// link comes up, so the records it brings agree.
 	center := got.Center
 	if center == "" {

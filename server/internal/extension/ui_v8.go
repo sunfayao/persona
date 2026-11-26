@@ -2,7 +2,7 @@ package extension
 
 import "github.com/nwverse/persona/sdk/go/wire"
 
-// UI version 8 (docs/extensions/extensions.md "UI version 8", #9158): the columns layout of a dashboard page, and a
+// UI version 8 (#9158): the columns layout of a dashboard page, and a
 // section's span, icon, link and columns. downgrade8 draws them with version 7's for an older app.
 
 // SectionLink is a link beside a section's title (UI version 8).

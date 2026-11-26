@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Following up (docs/assistant/inbox.md "Following up", DECISIONS B-7): the processing conversation says the ball is
+// Following up (DECISIONS B-7): the processing conversation says the ball is
 // on the other side (inbox_suggest's follow), the user's own reply keeps the matter open and waits, new messages clear
 // the looks, and a "say something" whose turn only updates the recap goes back to where it was.
 

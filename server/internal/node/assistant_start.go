@@ -126,8 +126,8 @@ func (p *assistantProc) missingCommand() bool {
 	return slices.ContainsFunc(p.stderrTail, func(l string) bool { return strings.Contains(l, "command not found") })
 }
 
-// startRefusal is err, the failed start of p, coded when what is missing is plain from what it printed
-// (docs/assistant/onboarding.md 4.6): Claude Code itself (claude_missing: the shell has no claude, or `personad launch` found
+// startRefusal is err, the failed start of p, coded when what is missing is plain from what it printed:
+// Claude Code itself (claude_missing: the shell has no claude, or `personad launch` found
 // none), or the launcher (launcher_missing: a ~/.zshrc function or alias that is gone). The hub says it in plain words
 // and keeps err's text as the detail (apierr.Call); nothing was delivered.
 func (p *assistantProc) startRefusal(err error) error {

@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Terminal recovery on a decision (#13087, docs/assistant/todos.md "Decisions the owner can answer"). Only the owner can
+// Terminal recovery on a decision (#13087). Only the owner can
 // resume an Agent whose stop was theirs or has no known cause, with Resume on its terminal page. A decision never does it:
 // a new one keeps that instruction in its reason and its row links the Agent's terminal; an older one that still offers
 // it as an option opens the terminal when that option is pressed, and the hub never takes it as an answer.

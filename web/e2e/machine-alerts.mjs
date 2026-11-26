@@ -1,4 +1,4 @@
-// The Machines page's alerts and what fixes them (#8037; docs/web/web.md "Machines"): light and dark screenshots at a
+// The Machines page's alerts and what fixes them (#8037): light and dark screenshots at a
 // desktop width (1280) and a phone's (390) of the cards with their alert chips, the memory sheet, the disk sheet with
 // its cleanup confirmation, the version-mismatch sheet, the hand-off picker and the capability index; then, once, a
 // Redeploy through its stepper. Checks along the way: every chip is a button that opens the sheet on its alert, no

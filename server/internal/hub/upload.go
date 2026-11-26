@@ -19,12 +19,12 @@ import (
 // POST /api/v1/machines/{mid}/files?name=<file name>, the raw bytes as the body. The body is read a chunk at a time
 // and each chunk is one file.upload.chunk call, so neither side holds the file and no JSON line carries all of it.
 // The app cancelling the request (or going away) aborts the upload and the node removes what it wrote.
-// dest=terminal (the web terminal's paste and drop, docs/integrations/terminal.md): the node keeps the file under its Persona
+// dest=terminal (the web terminal's paste and drop): the node keeps the file under its Persona
 // directory for a week instead of the temp directory, and the limit is proto.MaxTerminalUploadBytes.
 // dest=dir&dir=<folder>[&cwd=][&conflict=replace|keep] (the app's file browser, docs/protocol/protocol.md "Changing files"): the file
 // keeps its name in that folder, which must be in the home; a taken name is 409 exists unless conflict says what
 // to do, up to proto.MaxDirUploadBytes.
-// dest=inbox (a file sent to the computer to keep, docs/protocol/file-transfer.md): it keeps its name in the machine's
+// dest=inbox (a file sent to the computer to keep): it keeps its name in the machine's
 // receive folder (hub.json machines[].inbox_dir), a taken name gets " 2"; up to proto.MaxInboxUploadBytes; only while
 // the machine's file transfer switch is on (403 file_transfer_disabled otherwise).
 // dest=attachment (a file sent with a chat message, #8361): the node keeps it beside the chat's pictures in its

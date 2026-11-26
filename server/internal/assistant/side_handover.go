@@ -8,7 +8,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// A review a pre-#5732 side-supervised ledger leaves waiting (#8043, docs/assistant/unified-entry.md "Supervision").
+// A review a pre-#5732 side-supervised ledger leaves waiting (#8043).
 // New conversation-dispatched tasks belong to the main conversation; this compatibility path covers an old ledger
 // that still names a side conversation. Its wait for review was told once per review (watchSignals), so a conversation
 // that was no longer used, or whose turn ended without task_review, could leave the task awaiting review for good.

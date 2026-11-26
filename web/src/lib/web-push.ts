@@ -1,4 +1,4 @@
-// Web Push for this browser (#7459, docs/web/web.md "Web Push"): Settings › Notifications › "Notify this browser when
+// Web Push for this browser (#7459): Settings › Notifications › "Notify this browser when
 // Persona is closed". The browser subscribes with the hub's VAPID key (PushManager), the hub keeps the subscription
 // (PUT /api/v1/push/web/{device}) and pushes what a phone would get while no page of this browser is open; the
 // service worker shows it (lib/sw-push.ts). Each load checks the subscription is still the one the hub has, and takes

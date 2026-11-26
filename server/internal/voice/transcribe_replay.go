@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/extwire"
 )
 
-// The final pass (docs/assistant/meeting-minutes.md "The built-in adapter", "The final pass"): the stored audio at
+// The final pass ("The final pass"): the stored audio at
 // the job's speed, in windows of fresh verbatim sessions checked against the reference.
 
 // trReplayWin is a final-pass window.

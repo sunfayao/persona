@@ -21,7 +21,7 @@ import (
 	"github.com/nwverse/persona/server/internal/voice"
 )
 
-// Meeting transcription (#3862 phase 5, docs/assistant/meeting-minutes.md "The `transcription` extension point"): the
+// Meeting transcription (#3862 phase 5): the
 // manager's access to the transcription contributions, for the assistant in this process. Only the manager dials
 // them, over the extension's own socket; the apps' forward refuses every path under /transcription/
 // (transcriptionPath).

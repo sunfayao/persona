@@ -23,7 +23,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The hand-off to one Agent run (docs/extensions/secret-providers.md "The hand-off to one Agent run", #3962): after
+// The hand-off to one Agent run (#3962): after
 // the user approved the card, the manager that connects this computer asks this node for a one-time key
 // (secret.stage {check}), seals the values to it and stages them here (secret.stage {key_id, sealed}), for a one-time
 // ticket. Whatever relays the manager's connection (the hub, for a Persona Link or a mesh computer) sees no value. The

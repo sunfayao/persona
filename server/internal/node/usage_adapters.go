@@ -9,7 +9,7 @@ import (
 	"github.com/nwverse/persona/server/internal/tokenuse"
 )
 
-// Where each agent keeps its token usage and how to read it (docs/server/machines.md "Token usage"): an adapter per
+// Where each agent keeps its token usage and how to read it: an adapter per
 // agent says which files hold it, which session a file belongs to (its launcher is the session's) and parses its lines
 // (tokenuse). The usage meter and the backfill read every adapter's files the same way: what a file gained since the
 // last scan, from about the window's start in a big one, a request counted once across files.

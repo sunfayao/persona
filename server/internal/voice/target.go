@@ -16,12 +16,12 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Protocol 2 (docs/assistant/voice.md "Protocol changes"): a call is bound to the conversation it was opened from (start.target), fixed
+// Protocol 2: a call is bound to the conversation it was opened from (start.target), fixed
 // at ready. It must be listed by the hub and able to take messages; its machine may be offline (a message waits for
 // it). The voice model is told who it is and a snapshot of it (voice/target): what the app sent of its last turns, or
 // what the extension reads within snapshotWait, the cards waiting in it, and, for the main conversation, the agents.
 
-// startFrame is the app's first frame (docs/extensions/extensions.md "Voice", docs/assistant/voice.md 3.2).
+// startFrame is the app's first frame.
 type startFrame struct {
 	Type     string `json:"type"`
 	Model    string `json:"model"`
@@ -68,7 +68,7 @@ type resumeRun struct {
 	State     string          `json:"state"`
 }
 
-// The features this extension's protocol 2 has (GET /info, ready): only what is there (docs/assistant/voice.md "Version negotiation").
+// The features this extension's protocol 2 has (GET /info, ready): only what is there.
 // speak is POST /speak (speak.go), outside a call. speech_gate (#5904): a run the user-speech gate refused (unprompted)
 // can be sent again (resend), and start takes speech_gate. hold
 // (#9290): the app's hold frame pauses the upstream at once and nothing wakes it until the hold is off (suspend.go).
@@ -78,7 +78,7 @@ var features = []string{"target", "runs", "asks", "resume", "suspend", "speak", 
 const (
 	// snapshotTurns is how many of the bound conversation's last exchanges its snapshot is read from.
 	snapshotTurns = 3
-	// snapshotWait is how long the snapshot's parts that may be left out are waited for (docs/assistant/voice.md 4.5): it is
+	// snapshotWait is how long the snapshot's parts that may be left out are waited for: it is
 	// taken while the upstream connects (about 0.4 s on the measured service, lessons "instructions size").
 	snapshotWait = 500 * time.Millisecond
 	// bindTimeout is how long looking the target up may take: the call cannot start without it.
@@ -111,7 +111,7 @@ func (b *boundTarget) frame() map[string]any {
 		"agent_label": b.Label, "machine_name": b.MachineName}
 }
 
-// codedError is a failure the app shows by its code (docs/assistant/voice.md "Extension → App").
+// codedError is a failure the app shows by its code.
 type codedError struct {
 	code, msg string
 }
@@ -349,7 +349,7 @@ func permissionKind(tool string) string {
 var contextBlock = lazyre.New(`(?s)<` + compat.ContextPattern() + `\b[^>]*>.*?</` + compat.ContextPattern() + `>`)
 
 // recentOf is the user's and the agent's words in items (the last turns), made speakable and cut; tool calls in a
-// row are one line of their names (docs/assistant/voice.md 4.5: "used Bash").
+// row are one line of their names ("used Bash").
 func recentOf(l i18n.Lang, items []proto.Item) []prompts.VoiceLine {
 	var out []prompts.VoiceLine
 	for _, it := range items {

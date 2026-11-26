@@ -2,7 +2,7 @@ package proto
 
 import "encoding/json"
 
-// The hand-off card (docs/extensions/secret-providers.md "Who may approve a hand-off"): the card the manager shows
+// The hand-off card: the card the manager shows
 // before it hands secret values to one Agent run (secret.stage). Only the manager's own Agent start makes one; the hub
 // lets only a device that may approve it say yes to it.
 

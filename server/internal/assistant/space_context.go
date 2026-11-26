@@ -10,7 +10,7 @@ import (
 )
 
 // A conversation in a track other than the main space (a domain space, the health space) gets a short context of its
-// own with each message instead of the main chat's snapshot (#13499, docs/assistant/tracks.md "Tracks and kinds"):
+// own with each message instead of the main chat's snapshot (#13499):
 // the time, the track and the owner's language. What the snapshot tells (Agents, computers, unread Lark chats, tasks,
 // the knowledge base) is the main chat's work, and a track's conversation neither acts on it nor should see it.
 

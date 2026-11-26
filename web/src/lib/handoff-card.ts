@@ -1,5 +1,5 @@
 // A conversation an Inbox item was handed to writes back to it (inbox_suggest with item): the reply or conclusion is
-// also a card in that conversation (#5932, docs/assistant/inbox.md "Item actions"). The card is the suggestion as it was
+// also a card in that conversation (#5932). The card is the suggestion as it was
 // handed in; the item says whether it can still be sent and how it ended, so nothing here is stored on the card.
 
 import { isDone, type InboxItem } from "./inbox";

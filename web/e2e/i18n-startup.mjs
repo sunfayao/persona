@@ -1,4 +1,4 @@
-// Browser check of the split client catalog (docs/web/web.md "Internationalization"): the built page starts on the
+// Browser check of the split client catalog: the built page starts on the
 // first screen's part of the catalog and loads the rest after it, and every lazy import waits for the rest. With the
 // rest held back, cold loads of the first screen and of lazy pages, in each language, must never show a catalog key in
 // place of its text, and the first screen must draw before the rest arrives.

@@ -36,7 +36,7 @@ import (
 // tokens stream as they are generated, and switching the launcher (model) just restarts the process with --resume.
 // A launcher that runs Codex gets `codex app-server` instead (assistant_codex.go).
 
-// A long conversation is compacted (docs/assistant/assistant.md "Compaction"): every restart after the prompt cache expired (an hour)
+// A long conversation is compacted: every restart after the prompt cache expired (an hour)
 // writes the whole context again, half a million tokens for an assistant conversation that had never been compacted.
 // Claude Code compacts on its own once the context nears the auto-compact window, also under -p (tested on 2.1.314), by
 // default the model's own window. Every conversation follows what the launcher declares (#3066:

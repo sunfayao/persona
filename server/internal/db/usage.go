@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/tokenuse"
 )
 
-// ---- token usage by machine (docs/server/machines.md "Token usage") ----
+// ---- token usage by machine ----
 
 // UsageMinuteStep is the step of a row as a node reported it; UsageRolledStep of ten minutes rolled up; UsageHourStep
 // of an hour, rolled up from the ten-minute rows past a week and kept for the calendar's year.
@@ -195,7 +195,7 @@ type UsageSpan struct {
 // UsageSpans sums every machine's rows into the spans between bounds (in time order: a span is [bounds[i],
 // bounds[i+1])), all together or each machine's or agent's apart (by); only the spans with rows, in order. A row counts in the
 // span its start is in: the days and hours of a zone the clock is not a whole hour from UTC in split the hour rows
-// at the hour (docs/server/machines.md "Token usage").
+// at the hour.
 func (d *DB) UsageSpans(ctx context.Context, bounds []time.Time, by UsageBy) ([]UsageSpan, error) {
 	if len(bounds) < 2 {
 		return nil, nil
@@ -222,7 +222,7 @@ func (d *DB) UsageSpans(ctx context.Context, bounds []time.Time, by UsageBy) ([]
 	return out, rows.Err()
 }
 
-// UsageBackfill is how far a machine's backfill of an agent got (usage_backfill, docs/server/machines.md "Backfill").
+// UsageBackfill is how far a machine's backfill of an agent got (usage_backfill).
 type UsageBackfill struct {
 	Through time.Time // the start of the last hour sent; zero: none yet
 	Done    time.Time // when the scan finished; zero: not yet

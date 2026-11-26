@@ -1,4 +1,4 @@
-// The Machines page's Capabilities view (#8037, docs/web/web.md "Machines"): one row per computer saying what it can
+// The Machines page's Capabilities view (#8037): one row per computer saying what it can
 // take on: its state and alerts, system and architecture (and model), cores and memory, free disk, engines, the Agent
 // runtimes its launchers start (each runtime with its named entries), the tools its node detected, and how the hub
 // reaches it. A table where the page is wide enough, one card per computer where it is not (a container query, so

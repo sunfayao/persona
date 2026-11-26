@@ -22,7 +22,7 @@ import (
 )
 
 // An installed extension's program runs in a sandbox, reaching out only through the hub's egress proxy and only to the
-// hosts of permissions.network (docs/extensions/extensions.md "Sandbox").
+// hosts of permissions.network.
 // Whether it does: the owner's choice for that extension, otherwise on unless its
 // official catalog currently verifies with the final allowlisted key. Legacy
 // nonofficial pins and trusted-market configuration never confer an exemption.

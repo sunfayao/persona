@@ -1,4 +1,4 @@
-// A model ID typed by hand (#1644, docs/assistant/model-config.md "Typing a model ID"): the hub's proto.ValidModelID, the
+// A model ID typed by hand (#1644): the hub's proto.ValidModelID, the
 // rule the hub, the manager and the node hold every model to, so the page says why before the hub refuses. A letter or
 // digit first (or `~` and then one: a gateway's "latest" alias), then only letters, digits and `. _ - / : @ [ ]`, at
 // most 256 bytes. The apps' twin is apple/Shared/ModelID.swift; both are tested on the server's cases.

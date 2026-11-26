@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Standalone ACP companion runtime for opencode (docs/integrations/opencode.md).
+// Standalone ACP companion runtime for opencode.
 // Connects opencode to ~/.persona/runtime.sock without requiring a resident `opencode serve` process,
 // supporting both new Agent sessions and Persona Assistant conversations via `opencode acp`.
 //

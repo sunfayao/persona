@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// Drafting a recipe with a model (#2040, docs/extensions/subscriptions.md "Drafting with a model"), for a source whose
+// Drafting a recipe with a model (#2040), for a source whose
 // extension ships none or a subscription whose tool changed. Two structured calls on the purpose subscription.recipe:
 // the model picks a tool and its arguments from the source's read-only tools, seeing no result; then, from one sample
 // of that tool's answer cut to sampleItems entries a list, sampleString characters a string and sampleBytes in all,

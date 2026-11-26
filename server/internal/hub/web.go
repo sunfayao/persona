@@ -29,12 +29,12 @@ import (
 //go:embed all:webdist
 var webDist embed.FS
 
-// webApp serves the web client (web/, docs/web/web.md) from <data dir>/web on the hub's own port, so it shares the
+// webApp serves the web client (web/) from <data dir>/web on the hub's own port, so it shares the
 // API's origin: no CORS, and the WebSocket and images authenticate the same way. Without that directory the copy built
 // into personad serves (published builds), and without either every non-API path is a 404, as before. Paths without a
 // file fall back to index.html (client-side routes).
 //
-// The built-in copy's precompressed files (docs/web/web.md "Precompressed assets") go out as they are stored to a
+// The built-in copy's precompressed files go out as they are stored to a
 // client that takes gzip, and decompressed to any other request, with the headers and bytes a plain file would
 // have. A first-screen asset the web build also wrote as name.br (webasset.BrotliSuffix) goes out as that copy to a
 // client that takes br (serveBrotli). The data dir's files are plain and gzipResponses compresses them as it sends
@@ -101,7 +101,7 @@ func webFrom(dir string, embedded fs.FS) http.Handler {
 		}
 		root := rootFile(file)
 		switch {
-		// the shell, the service worker, the manifest and the icons (docs/web/web.md "Install as an app") are checked again on
+		// the shell, the service worker, the manifest and the icons are checked again on
 		// every load
 		case root:
 			w.Header().Set("Cache-Control", "no-cache")
@@ -373,12 +373,12 @@ func (g *gunzipSeeker) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// serveIndex serves index.html with its <base> at the sub-path a reverse proxy serves the hub under (docs/web/web.md "Subpaths"):
+// serveIndex serves index.html with its <base> at the sub-path a reverse proxy serves the hub under:
 // the page's files are relative to it and lib/base.ts reads it for the API, the WebSocket and the page's routes. The
 // same file answers differently per X-Forwarded-Prefix, so a cache must key on it (Vary). The built-in copy's ETag is
 // that of the bytes sent: at the root the file's (kept in tags), under a sub-path worked out each time.
 // htmlRuntimeWorkerCSP is the policy of the worker that runs an assistant html card's code on the web (#4215,
-// web/src/lib/html-runtime/, docs/assistant/assistant-views.md "Free-form HTML rendering"): it may load and connect to
+// web/src/lib/html-runtime/): it may load and connect to
 // nothing. The worker is one file with QuickJS built in and gets the WebAssembly compiled from the page, so it needs
 // nothing but to instantiate it ('wasm-unsafe-eval'). One of the layers between a card and the network: the card's
 // code has no network API in QuickJS, and the worker removes its own once QuickJS is up.

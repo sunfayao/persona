@@ -1,4 +1,4 @@
-// A task's brief (#3822, docs/assistant/unified-entry.md "Briefs"): one record per piece of work, made when it is
+// A task's brief (#3822): one record per piece of work, made when it is
 // handed out and never rewritten. The hub sends it on a plan's task before it starts (`tasks[i].brief`) and on a
 // to-do (`brief`, with the `lineage` of the to-dos that worked for it). Types and the reading of them only: nothing
 // here says a word, so the first screen can name the types without the strings (views/assistant/TaskBrief.tsx draws).

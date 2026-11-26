@@ -1,6 +1,6 @@
 package node
 
-// Resuming a stopped omp (docs/integrations/omp.md): `omp --resume <session file>` in a new herdr tab, then the phone's
+// Resuming a stopped omp: `omp --resume <session file>` in a new herdr tab, then the phone's
 // message once the extension lists the session again. The file comes from omp's sessions on disk (ompdisk.go) or from
 // what herdr's omp integration reported while it ran; a file is never taken from the client, and one that is gone, has
 // an apostrophe (herdr's resume command cannot be said) or lies outside the agent's sessions directory is refused

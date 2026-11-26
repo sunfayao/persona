@@ -99,7 +99,7 @@ func limitedWrite(spec string) {
 	os.Exit(Main([]string{"docx", md}, io.Discard, os.Stderr))
 }
 
-// -o names a file of its kind only (docs/assistant/office.md, "No approval every time"), and a link by that name to
+// -o names a file of its kind only, and a link by that name to
 // some other file is replaced, not written through: the new file is a new output, whatever the target's mode.
 func TestMainReplacesALinkAtTheOutput(t *testing.T) {
 	dir := t.TempDir()
@@ -266,7 +266,7 @@ func TestMainReportsTheInputBeforeAReadOnlyOutput(t *testing.T) {
 	}
 }
 
-// The output's folder must be writable (docs/assistant/office.md): the temporary file beside the output cannot be
+// The output's folder must be writable: the temporary file beside the output cannot be
 // made there, so the command exits 1 and the earlier output stays as it was, even one the user may write.
 func TestMainLeavesTheOutputAloneInAReadOnlyFolder(t *testing.T) {
 	if os.Geteuid() == 0 {

@@ -13,7 +13,7 @@ import (
 //
 // The first cut deliberately does not reorder machines: one launcher maps to one upstream provider, so every
 // machine offering it sees the same provider-level capacity (and two different providers are not equivalent — the
-// model configuration must not be silently changed, docs/assistant/model-config.md). What capacity adds here is the
+// model configuration must not be silently changed). What capacity adds here is the
 // "why and when" on the detour path (healthDetour, the one chokepoint the agent_start tool and task plans share):
 // when a launcher is rerouted or started anyway despite a failed check, a saturated pool is named, with the nearest
 // recovery time. Stale or missing data says nothing and changes nothing.

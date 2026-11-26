@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// A localhost link clicked on an agent's page (docs/web/preview.md): a port of the agent's computer, shown in the
+// A localhost link clicked on an agent's page: a port of the agent's computer, shown in the
 // preview panel, also when it names that computer by its host name; but this hub's own pages are hub pages, even
 // when this page is opened at localhost (a hub on the agent's computer, iOS #2696).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

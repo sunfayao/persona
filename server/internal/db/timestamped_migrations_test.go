@@ -260,7 +260,7 @@ const previousSchemaMigrationsSplit = `SELECT coalesce((
 //
 // This replays the older build's catalog query and its scan, but its open runs this build's runner over the numbered
 // files only, so it can't notice a difference in what the older runner does. The evidence for the older build itself
-// is v0.8.2 run against such databases (#10618; docs/server/server.md "Migrations").
+// is v0.8.2 run against such databases (#10618).
 func TestOlderBuildAfterTimestampedMigrations(t *testing.T) {
 	ctx := context.Background()
 	url := migratedDatabase(t, AllSets)

@@ -2,7 +2,7 @@ package proto
 
 import "time"
 
-// Work phases (WorkState.Phase) and what a blocked session waits on (WorkState.On), docs/assistant/agent-work.md.
+// Work phases (WorkState.Phase) and what a blocked session waits on (WorkState.On).
 const (
 	WorkWorking = "working"
 	WorkBlocked = "blocked"
@@ -38,7 +38,7 @@ type WorkState struct {
 	Link     *WorkLink  `json:"link,omitempty"`  // a link the user must open in time (on user)
 	// Artifacts are what the work produced (done): PRs, commits, documents, builds.
 	Artifacts []WorkArtifact `json:"artifacts,omitempty"`
-	// Closeout is the record the agent ended the turn with, when it wrote one (docs/assistant/agent-work.md "Closeout").
+	// Closeout is the record the agent ended the turn with, when it wrote one.
 	Closeout *Closeout `json:"closeout,omitempty"`
 	// CI is the manager's durable watch of the pull request this turn awaits.
 	CI *WorkCI `json:"ci,omitempty"`

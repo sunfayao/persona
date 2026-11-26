@@ -9,7 +9,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// References in an extension's secrets (docs/extensions/secret-providers.md "References in an extension's secrets"):
+// References in an extension's secrets:
 // the owner saves op://vault/item/field instead of a value, and the manager resolves it through the provider whose
 // scheme it is each time it hands the extension its secrets. The reference is kept sealed in the same row a value would
 // be, behind refMarker, which no value the settings take can start with (a secret is typed text: no NUL).

@@ -212,7 +212,7 @@ func runningBinary() (string, error) {
 }
 
 // ServerBinary is the program that is the whole server: this one, unless it is persona-hub, which runs the hub
-// alone: then the personad beside it (docs/server/server.md "Programs"). The update's target goes by it (personad is
+// alone: then the personad beside it. The update's target goes by it (personad is
 // the release's main download; persona-hub is swapped as a program and the hub goes on as it: runAs), and so does
 // setup's service binary. What the hub runs goes by the program it runs as: the built-in manager it starts is
 // persona-manager beside persona-hub (managerBinary).

@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-// The route that takes back a message the ledger has a row for (docs/protocol.md "Connector API", docs/connectors.md
+// The route that takes back a message the ledger has a row for (docs/protocol.md "Connector API"
 // "Sent as the user", #5278). The core is RecallSent (sent_recall.go); this is who may ask and how the user agreed.
 
 // mayReadLedger says whether the request is from who may read the ledger of what was sent as the user: one of the
@@ -94,7 +94,7 @@ func (l *recallLocks) do(ctx context.Context, id int64, run func() (db.SentAsUse
 func (h *Manager) sentRecallRoutes(api *http.ServeMux) {
 	api.HandleFunc("POST /api/v1/connectors/sent/{id}/recall", func(w http.ResponseWriter, r *http.Request) {
 		// Only the user's own device, by hand: not the owner's token (which reads the ledger), a pairing token, an
-		// answer-only device or an extension (docs/connectors.md "Sent as the user", Recall).
+		// answer-only device or an extension (Recall).
 		if !byUsersOwnHand(r.Context()) {
 			writeErrCode(w, http.StatusForbidden, "own_device_only", errors.New("a message can only be taken back on your own device, signed in to the app: "+
 				"not with the owner's token on the hub machine, a pairing token, an answer-only device or an extension"))

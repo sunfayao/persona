@@ -1,5 +1,5 @@
 // The drag handle on a column's edge (role="separator"): the side panel's left edge and the sidebar's right edge
-// (docs/web/web.md "Side panels", "The sidebar's width"). A mouse, a finger or a pen drags it (the pointer is captured,
+// ("The sidebar's width"). A mouse, a finger or a pen drags it (the pointer is captured,
 // so the drag goes on over an iframe or outside the window), the arrow keys / Home / End move it from the keyboard,
 // and a double-click or Enter puts the default width back. The column's owner keeps the width; the handle reports it.
 import { useEffect, useRef, useState } from "react";

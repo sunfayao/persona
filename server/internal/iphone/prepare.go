@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// opMountDDI is the bridge's operation that mounts the developer disk image (docs/extensions/iphone-control.md "mount_ddi").
+// opMountDDI is the bridge's operation that mounts the developer disk image.
 const opMountDDI = "mount_ddi"
 
 // StagePrepare is a prepare job's one stage (Job.Stage): mounting the image.
@@ -47,7 +47,7 @@ func (m *Manager) StartPrepare(udid string) error {
 	})
 }
 
-// The folder the bridge reads the developer disk image from (docs/extensions/iphone-control.md "mount_ddi"): $PERSONA_IPHONE_DDI_DIR,
+// The folder the bridge reads the developer disk image from: $PERSONA_IPHONE_DDI_DIR,
 // else the one Xcode installs. Nothing downloads it.
 const (
 	DDIDirEnv     = "PERSONA_IPHONE_DDI_DIR"

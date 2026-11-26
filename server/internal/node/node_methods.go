@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/nodeproto"
 )
 
-// The node's method table (docs/server/architecture.md "The node's method table", #12920). A method that is not
+// The node's method table (#12920). A method that is not
 // bound to a session is answered from its domain's own file, registered by an init() there,
 //
 //	func init() { nodeRPC(proto.MethodMachinePorts, (*Node).machinePorts) }

@@ -1,4 +1,4 @@
-// The browser's microphone and speaker for a call (docs/web/web.md "Voice"): getUserMedia with the browser's echo
+// The browser's microphone and speaker for a call: getUserMedia with the browser's echo
 // cancellation, noise suppression and gain control; an AudioWorklet (capture.worklet.ts) that resamples the context's
 // audio to the extension's input rate in 20 ms PCM16 frames; and a second AudioContext at the voice's output rate that
 // plays the PCM it sends back to back, with no gap, until `clear` drops all of it.

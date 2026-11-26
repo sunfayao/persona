@@ -2,7 +2,7 @@ package ports
 
 import "github.com/nwverse/persona/server/internal/portprobe"
 
-// Port discovery on Windows (docs/operations/ports.md): no ps, no lsof, no /proc. The process tree comes from a Toolhelp
+// Port discovery on Windows: no ps, no lsof, no /proc. The process tree comes from a Toolhelp
 // snapshot (see processtable.List), the listening sockets and their owners from iphlpapi's GetExtendedTcpTable; no child
 // process is started.
 

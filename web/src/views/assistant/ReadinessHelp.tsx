@@ -1,4 +1,4 @@
-// The help the readiness card's buttons and the local example questions open (docs/assistant/onboarding.md 4.4): how to
+// The help the readiness card's buttons and the local example questions open: how to
 // wake, install, sign in or add a computer, what Persona does, how to connect a model. A chunk of its own, loaded the
 // first time help is opened or ahead of it (views/assistant/Readiness.tsx HelpDialog), and with the provider wizard
 // (InstallClaudeHelp): none of it is drawn on a first screen.

@@ -1,6 +1,6 @@
-// A Feishu chat, opened at the item's first new message (docs/assistant/inbox.md: "Opening it: the Feishu chat stops at the item's first new message").
+// A Feishu chat, opened at the item's first new message ("Opening it: the Feishu chat stops at the item's first new message").
 // Supports native Feishu messaging interactions: direct replies, quoting messages, copying, asking Persona for summary,
-// and reporting seen messages to Feishu (docs/assistant/inbox.md, lark-read.ts). The chat's Pins
+// and reporting seen messages to Feishu (lark-read.ts). The chat's Pins
 // (lark-pins.ts) open over it; a Pin found in the chat replaces the window around it, a reply opens its thread.
 // Like the phone's chat (lib/lark-chat.ts, LarkExtras.tsx): pictures open in the viewer, files download, voice and video
 // play here, a card's buttons press, my messages show who read them, reactions can be put on, an avatar opens the
@@ -56,7 +56,7 @@ function useAttachmentSupport() {
 }
 
 /** Text, then each attachment, as the messages to send. False when the extension cannot route the attachments as
- * asked (a quote): nothing goes and it all stays in the box (docs/extensions/feishu.md, #1035). */
+ * asked (a quote): nothing goes and it all stays in the box (#1035). */
 function outgoingOf(text: string, attachments: LarkAttachment[], route: LarkOutgoing["route"], quote?: LarkOutgoing["quote"],
   features: string[] = getState().features, mentions?: LarkOutgoing["mentions"]): LarkOutgoing[] | false {
   if (attachments.length && !routeAllowed(route, features)) return false;
@@ -85,7 +85,7 @@ export interface LarkChatRef {
   unreadFrom?: string;
   /** An unread @me: "You were mentioned" goes to it until it has been on screen. */
   mention?: string;
-  /** The Feishu account the chat is in (`ol_account`, docs/extensions/feishu.md "Multiple accounts"); undefined: the hub's own. */
+  /** The Feishu account the chat is in (`ol_account`); undefined: the hub's own. */
   account?: number;
   /** A group: its box can @ people, my messages show how many read them. */
   group?: boolean;

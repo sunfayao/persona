@@ -1,7 +1,7 @@
 package assistantwire
 
 // MethodCloseoutCheck: a node asks, as an agent's turn that did work ends without a closeout, whether to hold the stop
-// once and ask for one (docs/assistant/agent-work.md "Closeout"). The manager answers: it holds the switch.
+// once and ask for one. The manager answers: it holds the switch.
 const MethodCloseoutCheck = "agents.closeout.check"
 
 type CloseoutCheckRequest struct {

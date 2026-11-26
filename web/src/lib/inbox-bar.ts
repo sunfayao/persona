@@ -1,4 +1,4 @@
-// The Inbox's section bar (docs/assistant/inbox.md "Section bar", #9053): which choices it offers with what counts,
+// The Inbox's section bar (#9053): which choices it offers with what counts,
 // which sections the list draws under a choice, what an empty choice says, where an item opened from outside the list
 // lands, and how a search moves between choices. Pure, so spec/fixtures/inbox/bar*.json replay what the list draws.
 import { isDone, type InboxItem, type InboxSections, type SectionKey } from "./inbox";

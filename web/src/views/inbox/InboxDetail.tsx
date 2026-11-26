@@ -40,7 +40,7 @@ import { lazyDialog } from "../LazyOverlay";
 const SameMatterDialog = lazyDialog(() => import("./InboxSameMatter").then((m) => m.InboxSameMatter));
 
 export function InboxDetail({ item, loaded }: { item?: InboxItem; loaded: boolean }) {
-  // Whether an item's requests name its manager goes by the roster's default (docs/assistant/managers.md "Clients"): the page
+  // Whether an item's requests name its manager goes by the roster's default: the page
   // waits for it, and is drawn anew when it moves, so nothing it asks goes by a default it was not.
   const known = useKnownDefault();
   if (item && !known) {
@@ -120,7 +120,7 @@ function ItemDetail({ item, loaded }: { item?: InboxItem; loaded: boolean }) {
   ) : null;
   const muteRows: MenuItem[] = [
     ...(item.mutes ?? []).map((m): MenuItem => ({ key: `${m.tag}:${m.value}`, label: muteTitle(m), detail: muteShortName(m), icon: "bellOff", onSelect: () => void muteItem(item, m) })),
-    // and a rule for each (docs/assistant/inbox.md "Policies"), under a divider
+    // and a rule for each, under a divider
     ...(item.mutes ?? []).map((m, i): MenuItem => ({ key: `policy:${m.tag}:${m.value}`, label: policyMenuTitle(m), detail: muteShortName(m), icon: "target", divider: i === 0, onSelect: () => openPolicyDialog({ item, option: m, source: item.source }) })),
   ];
   // the item's own body: the chat, the mail, the document's rows, the post, a connector's thread
@@ -137,7 +137,7 @@ function ItemDetail({ item, loaded }: { item?: InboxItem; loaded: boolean }) {
       )}
     </div>
   );
-  // its chat, mail or connector thread is its manager's (a merged list's stamp, docs/assistant/managers.md "Clients"): every
+  // its chat, mail or connector thread is its manager's (a merged list's stamp): every
   // request the bodies below make names it, so one still going out after the next item opened keeps its own
   return (
     <ItemManager.Provider value={item.manager}>

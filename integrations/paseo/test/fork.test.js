@@ -1,5 +1,5 @@
 // An agent Paseo moves to another Claude session (a fork: its rewind, and so going on after an API error in Paseo's app)
-// stays the same session in Persona (docs/integrations/paseo.md "Session IDs", #6709): the id it was listed under when
+// stays the same session in Persona (#6709): the id it was listed under when
 // the bridge sees the move, the first session of its transcript's line when it did not.
 
 import { test } from 'node:test'

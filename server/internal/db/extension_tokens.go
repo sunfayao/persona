@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// ---- extension_tokens (docs/extensions/extensions.md "Permissions", #1156) ----
+// ---- extension_tokens (#1156) ----
 
 // Why an extension's token stopped (ExtensionToken.Reason).
 const (

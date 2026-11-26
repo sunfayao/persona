@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// A page drawn over the app socket on reload (docs/web/web.md "Extension pages on reload"): its last view stands in for the
+// A page drawn over the app socket on reload: its last view stands in for the
 // loading state until the first snapshot, the first page's drawing is handed back to be kept (UI version 7, the roster's
 // default), a pushed page's never, nor one whose fields hold what was typed and not sent. Injected transport only.
 import { act } from "react";

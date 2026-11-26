@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// UI version 6's components as the web draws them (docs/extensions/extensions.md "UI version 6"): a picture loads from the hub's path
+// UI version 6's components as the web draws them: a picture loads from the hub's path
 // with the token or from an https url without it, controls and the row menu sit beside the row's button (never in
 // it), tiles say what they are to a screen reader, and the new fields are the browser's own inputs.
 import { describe, expect, it, vi } from "vitest";

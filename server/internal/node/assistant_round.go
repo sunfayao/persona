@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/claudeplugin"
 )
 
-// The background supervisor's rounds (#7315, docs/assistant/unified-entry.md "Each round starts clean"). The manager
+// The background supervisor's rounds (#7315). The manager
 // marks a supervision message to the background supervisor as a round (assistant.send supervise_round). The node then
 // stops the conversation's idle process and resumes it at the end of its first turn, `claude -p --resume <id>
 // --resume-session-at <uuid>`, so the model reads the start brief and this round, not every round before it. The

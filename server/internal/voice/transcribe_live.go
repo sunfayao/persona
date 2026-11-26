@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/extwire"
 )
 
-// A live job (docs/assistant/meeting-minutes.md "The built-in adapter", "During the meeting"): its sessions as slots,
+// A live job ("During the meeting"): its sessions as slots,
 // its windows, the captions, the choice of each window's text, and what the sessions say.
 
 // trSlot is one of a live job's sessions as a role: its session now, those it replaced while they finish their

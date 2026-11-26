@@ -1,4 +1,4 @@
-// The assistant page before the roster is read (docs/assistant/managers.md "Clients"): what it read with no header is the
+// The assistant page before the roster is read: what it read with no header is the
 // default's, whichever manager that turns out to be. Once the roster says (another than the hub's own), the page stays
 // as it is (not drawn empty and read again), and that answer is kept as the default's, not as the hub's own assistant's.
 // A reload with a pick kept: the page read for it before the roster is the pick's, never taken for the default's.

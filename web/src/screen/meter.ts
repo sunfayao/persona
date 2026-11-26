@@ -1,4 +1,4 @@
-// The live screen's connection numbers on the web (#6558, docs/extensions/computer-use.md "Connection stats on the web"):
+// The live screen's connection numbers on the web (#6558):
 // what the page measured on its RFB connection and on its way to the hub, turned into the reading the overlay draws
 // once a second (ScreenStats, ./video). Pure: the page feeds it bytes, frames and round trips (./probes) with their times.
 //

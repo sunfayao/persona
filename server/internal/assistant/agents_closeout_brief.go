@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Agents are told the closeout's form before they work (docs/assistant/agent-work.md "Closeout"), so a turn that did
+// Agents are told the closeout's form before they work, so a turn that did
 // work ends with one without the held stop and the extra turn it costs: after a task's prompt (any runtime, Codex
 // included), and as the starting context of a session that has Persona's hooks (node/closeout_start.go). Both only
 // under the triage's main switch and its closeout switch.
@@ -84,7 +84,7 @@ func (s *Service) reviewWorktree(machine, cwd string) bool {
 	return false
 }
 
-// (docs/assistant/agent-work.md "Closeout"). A claim the hub disproved comes first, naming the claim; else what the
+// closeoutLine says a closeout in one line. A claim the hub disproved comes first, naming the claim; else what the
 // agent says is missing (else what it waits for, else what it did), behind "Not finished". In lang, the user's.
 func closeoutLine(c proto.Closeout, lang i18n.Lang) string {
 	if k := c.Checked; k != nil {

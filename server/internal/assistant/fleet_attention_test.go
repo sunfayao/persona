@@ -100,7 +100,7 @@ func TestLinkAttentionFollowsTheSharedFixtures(t *testing.T) {
 	}
 }
 
-// The Live Activity keeps its own count on the same agents (docs/apple/live-activity.md): the assistant's questions and
+// The Live Activity keeps its own count on the same agents: the assistant's questions and
 // the ones it is still deciding on counted, muted agents and Codex sub-agents left out.
 func TestLiveActivityKeepsItsOwnCount(t *testing.T) {
 	cases := readAttentionCases(t)

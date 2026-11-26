@@ -1,4 +1,4 @@
-// What Developing Persona's package may say (#9617, docs/operations/developing-persona.md "What is never included"):
+// What Developing Persona's package may say (#9617):
 // recorded lines carry only code-chosen words and numbers, and free text (an error's message, a console line) passes
 // `scrubText` first. The same rules as iOS (apple/Persona/DevMode/DevScrub.swift); route patterns are the error
 // reports' `pathPattern`, from a copy of its word list (dev-mode.test.ts keeps the two equal): importing it would add to

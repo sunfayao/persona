@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// pi and Persona's model providers (#8194, docs/integrations/pi.md "Persona's model providers"): pi's Persona extension
+// pi and Persona's model providers (#8194): pi's Persona extension
 // asks this node over node.sock (launcher.pi, with the machine's launch key, as `personad launch` does) for the
 // Persona-managed providers in this computer's scope that speak a protocol pi has, and registers them with
 // pi.registerProvider(). Their secrets are pulled from the manager the way any start pulls them (ensureManaged) and

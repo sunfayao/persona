@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The workbench (#1961, docs/extensions/bots.md "The workbench"): with the bot's `workbench` switch on, the chat gets a
+// The workbench (#1961): with the bot's `workbench` switch on, the chat gets a
 // home card that gathers what Persona has going on and opens every other card (/home), the day at a glance (/today) and
 // the Inbox with its actions (/inbox). The home card is the standing board (feishu_board.go) drawn as a home page,
 // pinned and kept the only one (feishu_workbench_pin.go). These cards only read the assistant's state and call what

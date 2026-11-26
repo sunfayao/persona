@@ -1,5 +1,5 @@
 import { CONTEXT_RE, FILE_RE, PERSONA_SERVERS, canonicalTool } from "./compatibility";
-// Items → what the chat shows (docs/apple/ios.md "Information architecture"): every user message opens a segment; the segment shows
+// Items → what the chat shows: every user message opens a segment; the segment shows
 // the message, one work row folding the tools / thoughts / notices / intermediate replies, and the agent's last
 // words before the next message as the answer.
 
@@ -654,7 +654,7 @@ export function isPersonaTool(rawName?: string): boolean {
 
 /** Persona's tools with a verb of their own, by their bare name (iOS PersonaToolNames + ToolPresentation.verb). */
 const PERSONA_VERB_KEY: Record<string, string> = {
-  // Agents on the user's computers (docs/assistant/assistant.md "Current structure", Agents)
+  // Agents on the user's computers (Agents)
   agent_read: "persona_agent_read",
   agent_send: "persona_agent_send",
   send_to_agent: "persona_agent_send",
@@ -674,11 +674,11 @@ const PERSONA_VERB_KEY: Record<string, string> = {
   delete_routine: "persona_delete_routine",
   inbox_draft: "persona_inbox_draft",
   persona_settings: "persona_settings",
-  // live cards (docs/assistant/assistant-views.md)
+  // live cards
   view_show: "persona_view_show",
   view_get: "persona_view_get",
   view_update: "persona_view_update",
-  // its own conversations (docs/assistant/assistant.md "Managing its own conversations")
+  // its own conversations
   conversations_list: "persona_conversations_list",
   conversation_read: "persona_conversation_read",
   conversation_rename: "persona_conversation_rename",
@@ -686,7 +686,7 @@ const PERSONA_VERB_KEY: Record<string, string> = {
   conversation_unarchive: "persona_conversation_unarchive",
   conversation_new: "persona_conversation_new",
   conversation_send: "persona_conversation_send",
-  // a Mac through Cua Driver (docs/extensions/computer-use.md)
+  // a Mac through Cua Driver
   computer_state: "persona_computer_state",
   computer_run: "persona_computer_run",
   browser_run: "persona_browser_run",
@@ -799,7 +799,7 @@ function hasBackgroundReply(items: Item[]): boolean {
 }
 
 /** Message sources whose rounds fold in the main conversation while `assistant.main_background_folded` is on
- *  (docs/assistant/assistant.md "Background rounds"): another conversation's message, a scheduled task, a follow-up. */
+ * : another conversation's message, a scheduled task, a follow-up. */
 const BACKGROUND_SOURCES: ReadonlySet<string> = new Set(["conversation", "followup", "patrol"]);
 
 /** The input's source when it starts a background round. A `followup` is one only as a scheduled follow-up (the hub
@@ -931,8 +931,7 @@ export type ChatLine =
 export interface ChatLinesOptions {
   /** The agent is at work: the last exchange is the live one. */
   live?: boolean;
-  /** Fold quiet background rounds in the main and leader conversations. A scheduled task's prompt stays hidden
-   *  (docs/assistant/assistant.md "Background rounds"). */
+  /** Fold quiet background rounds in the main and leader conversations. A scheduled task's prompt stays hidden */
   background?: boolean;
   /** The main Assistant conversation: routine cross-conversation replies stay folded even when nonempty.
    * Explicit owner-visibility actions and every leader conversation keep their existing behavior (#11764). */

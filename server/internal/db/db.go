@@ -1,4 +1,4 @@
-// Package db is the hub's Postgres store (docker container persona-postgres on the hub machine, see docs/server/server.md).
+// Package db is the hub's Postgres store (docker container persona-postgres on the hub machine).
 package db
 
 import (
@@ -19,7 +19,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// The migrations are two sets (docs/server/server.md "Migrations"): the hub's tables in migrations/hub, the manager's in
+// The migrations are two sets: the hub's tables in migrations/hub, the manager's in
 // migrations/manager. A hub's database runs the hub set, a manager's the manager set; while the default manager
 // shares the hub's database, both run there, each recording its own part.
 //
@@ -283,7 +283,7 @@ const lastUnified = 419
 // hub and the default manager share.
 //
 // The rows are read once, under the lock: no migration writes schema_migrations, so they change only by what this
-// records itself. A database that is up to date costs a few reads and no write (docs/server/server.md "Migrations").
+// records itself. A database that is up to date costs a few reads and no write.
 // The files of every set are checked first (planMigrations): a set this build can't run refuses the open before the
 // database is touched.
 func (d *DB) migrateFrom(ctx context.Context, fsys fs.FS) error {

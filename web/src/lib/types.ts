@@ -4,7 +4,7 @@ import type { RuleSuggestion } from "./rule-suggestion";
 
 export type AgentState = "needs_you" | "working" | "unread" | "idle" | "offline" | "unknown";
 
-/** An engine as the machine's node found it (docs/integrations/engines.md): `note` says why one that is there cannot be used. */
+/** An engine as the machine's node found it: `note` says why one that is there cannot be used. */
 export interface DetectedEngine {
   id: string;
   name: string;
@@ -35,7 +35,7 @@ export interface Machine {
   /** The terminal engine its sessions come from (herdr when absent); `engines`: what its node found, empty while offline. */
   engine?: string;
   engines?: DetectedEngine[];
-  /** The hosts enabled side by side and the default one (#2576, docs/integrations/engines.md "Host sets"); absent from older hubs. */
+  /** The hosts enabled side by side and the default one (#2576); absent from older hubs. */
   engine_hosts?: string[];
   engine_default?: string;
   /** What to preselect when the machine is paired: what its node found available, else herdr (only while online). */
@@ -46,19 +46,19 @@ export interface Machine {
   arch?: string;
   home?: string;
   last_seen?: string;
-  /** Interconnected hubs (docs/server/mesh.md 2.6): the hub that owns this computer, and the way there. */
+  /** Interconnected hubs: the hub that owns this computer, and the way there. */
   hub_id?: string;
   hub_name?: string;
   machine_uid?: string;
   route?: { via: string; hops: number; rtt_ms?: number };
-  /** Operating it through Cua Driver (the hub's extension cua, docs/extensions/computer-use.md): only while the extension is on and it is a Mac. */
+  /** Operating it through Cua Driver (the hub's extension cua): only while the extension is on and it is a Mac. */
   computer?: {
     enabled: boolean; installed?: boolean; daemon?: boolean; ready?: boolean; accessibility?: string; screen_recording?: string;
     desktop?: string; screen_sharing?: boolean; note?: string;
   };
-  /** ego lite (the hub's extension ego, docs/extensions/computer-use.md): only while the extension is on and it is a Mac. */
+  /** ego lite (the hub's extension ego): only while the extension is on and it is a Mac. */
   browser?: import("./browser").MachineBrowser;
-  /** iPhone control (the hub's extension iphone, docs/extensions/iphone.md): only while the extension is on and the bridge runs on its system (macOS, Linux). */
+  /** iPhone control (the hub's extension iphone): only while the extension is on and the bridge runs on its system (macOS, Linux). */
   iphone?: import("./iphone").MachineIPhone;
   /** feature machine_trust (docs/protocol/protocol.md "Computer trust"): "pending" while the user has not said it is theirs; omitted = confirmed. */
   trust?: "pending";
@@ -83,7 +83,7 @@ export interface MachineLinkSwitch {
   at?: string;
 }
 
-/** The hubs of this hub's interconnected group, from the signed-in hello (docs/server/mesh.md 2.6). */
+/** The hubs of this hub's interconnected group, from the signed-in hello. */
 export interface MeshHub {
   hub_id: string;
   name: string;
@@ -179,11 +179,11 @@ export interface SessionCapabilities {
   rewind?: boolean;
   rewind_code?: boolean;
   /** A Claude outside Persona's terminals with Persona's plugin: your own messages go in as your input while it rests
-   *  (docs/integrations/claude-integration.md "Owner input through the Persona plugin"). Absent from older nodes. */
+   * . Absent from older nodes. */
   plugin_input?: boolean;
 }
 
-/** A session's work state (docs/assistant/agent-work.md): working, blocked on a named precondition, or done. */
+/** A session's work state: working, blocked on a named precondition, or done. */
 export interface WorkState {
   phase: "working" | "blocked" | "done" | "";
   /** What a blocked one waits on: user (a decision), agent, external (a deploy, CI, a time), transient (a model error). */
@@ -194,7 +194,7 @@ export interface WorkState {
   then?: string;
   /** When the hub acts next on its own: "Continue" (transient) or a wake (external, agent). */
   wake_at?: string;
-  /** When a subscription usage limit that stopped the turn resets (docs/assistant/agent-work.md "Usage limits"). */
+  /** When a subscription usage limit that stopped the turn resets. */
   resets_at?: string;
   attempts?: number;
   max?: number;
@@ -211,7 +211,7 @@ export interface WorkState {
   just_finished?: boolean;
 }
 
-/** An agent's closeout (docs/assistant/agent-work.md "Closeout"): its own claim of where the work stands. `merged` and
+/** An agent's closeout: its own claim of where the work stands. `merged` and
  *  `deployed` are "yes" or "no", absent when not said; `checked` is what the hub found when it looked itself, absent
  *  where it could not tell. Session lists leave out `did` and `verified`. */
 export interface Closeout {
@@ -227,7 +227,7 @@ export interface Closeout {
 }
 
 
-/** A port an agent's processes listen on that answers HTTP (docs/operations/ports.md): its dev server. */
+/** A port an agent's processes listen on that answers HTTP: its dev server. */
 export interface Port {
   port: number;
   addr?: string;
@@ -262,7 +262,7 @@ export interface Session {
   starting?: boolean;
   /** A Codex opened with no first message: it runs in its terminal but has no thread yet, so this row's id is the
    *  computer's, not the thread's. Its first message (text only) goes in here or in the terminal; then the row goes and
-   *  the thread's comes, in the same pane (docs/integrations/codex.md "Starting without a first message"). */
+   *  the thread's comes, in the same pane. */
   awaiting_first_message?: boolean;
   start_error?: string;
   /** The failed start's coded refusal (launcher_missing, claude_missing…) and its details; start_error is the hub's sentence for it. */
@@ -288,8 +288,7 @@ export interface Session {
   agent_surface?: string;
   launcher?: string;
   /** A Persona chat's own pick (feature `assistant_model_pick`, #5033): the launcher, model and effort its next messages
-   *  run on, kept on the hub for every device. Absent: it follows the default (the main chat) or keeps what it runs
-   *  (docs/assistant/model-config.md "A conversation's own model"). */
+   *  run on, kept on the hub for every device. Absent: it follows the default (the main chat) or keeps what it runs */
   model_pick?: ModelPick;
   /** A switch of this running Claude Code Agent to another launcher (feature `launcher_switch`, #5035) that its next
    *  message carries out: the launcher, the model and effort picked (absent: the launcher's default, the effort it runs
@@ -363,7 +362,7 @@ export interface Session {
    *  or "usage_limit" (a subscription limit, until it resets). Or the hub's own word on a task Agent's turn with no
    *  output (#10187): "no_output" or "stopped" (Persona's Stop interrupted it), turn_error then being its sentence. */
   turn_error_kind?: string;
-  /** What is wrong, when the hub can tell from turn_error (docs/assistant/onboarding.md 5.2): not_logged_in / auth_failed /
+  /** What is wrong, when the hub can tell from turn_error: not_logged_in / auth_failed /
    *  model_route / rate_limited / model_fallback_unavailable (the model Claude Code fell back to after a refusal can't
    *  be used: no "Continue"). */
   turn_error_code?: string;
@@ -376,7 +375,7 @@ export interface Session {
   turn_error_resets_at?: string;
   /** The CLI continues by itself once the usage limit resets. */
   turn_error_resumes?: boolean;
-  /** Where it stands in its work (docs/assistant/agent-work.md): set by the hub once it triaged a stopped turn. */
+  /** Where it stands in its work: set by the hub once it triaged a stopped turn. */
   work?: WorkState;
   pending_interactions?: number;
   queued?: string[];
@@ -389,9 +388,9 @@ export interface Session {
   undelivered?: UndeliveredMessage[];
   subagents?: Subagent[];
   loop?: LoopInfo;
-  /** The goal it works toward until it holds (Claude Code's /goal, a Codex thread goal; docs/integrations/agent-goal.md). */
+  /** The goal it works toward until it holds (Claude Code's /goal, a Codex thread goal). */
   goal?: GoalInfo;
-  /** Its own task list (Claude Code's TodoWrite / TaskCreate): how far along it is (docs/integrations/agent-goal.md "Plan"). */
+  /** Its own task list (Claude Code's TodoWrite / TaskCreate): how far along it is. */
   plan?: PlanInfo;
   background?: BackgroundTask[];
   /** Recent shell / Monitor outcomes from the last day; absent on older hubs and omitted from list summaries. */
@@ -447,16 +446,16 @@ export interface Session {
   /** The suggestion names a command, a path, a link, a secret-looking string or a risky action (#4644): it is filled
    *  in, never sent with one tap. An older hub never sends it. */
   suggestion_risky?: boolean;
-  /** An assistant conversation moved out of the list (docs/assistant/assistant.md "Managing its own conversations"), or
+  /** An assistant conversation moved out of the list, or
    *  an archived agent (docs/protocol/protocol.md "Agent session archives": only the Archived list has those). */
   archived?: boolean;
   /** Manager-owned visibility policy; recording and direct session access remain available. */
   hidden_by_directory?: boolean;
-  /** The user-defined labels of an assistant conversation (docs/assistant/assistant.md), newest
+  /** The user-defined labels of an assistant conversation, newest
    *  write first's provenance aside; omitted when it carries none. An older hub never sends it. */
   tags?: string[];
-  /** The HTTP ports its processes listen on (docs/operations/ports.md): closing it would stop those servers, and they are
-   *  the dev servers a preview offers (docs/web/preview.md). */
+  /** The HTTP ports its processes listen on: closing it would stop those servers, and they are
+   *  the dev servers a preview offers. */
   ports?: Port[];
   /** Who opened an assistant conversation (docs/protocol/protocol.md "Origin of assistant chats"): user, channel, inbox, task, spawned,
    *  lark_agent, extension, or one this page doesn't know; none is the user's (older hubs never say). */
@@ -466,14 +465,14 @@ export interface Session {
   /** The extension whose token opened it, by id (docs/protocol/protocol.md "Origin of assistant chats"): noted when it
    *  opened, never backfilled; absent for any other and on older hubs. */
   opened_by?: string;
-  /** The channels messages came into it from, newest first (docs/extensions/channels.md "Source markers"). */
+  /** The channels messages came into it from, newest first. */
   channels?: string[];
   todo?: { id: string; title: string };
   /** Display-only completed association; never an active task or a reason to suppress notifications. */
   completed_todo?: { id: string; title: string };
   /** Works (or worked) for a quiet task (#1731): not in the global badge; the main conversation tells about it. */
   quiet?: boolean;
-  /** Why it waits for the user, in its host's words (a botmux attention's reason); only while it needs you (docs/integrations/engines.md "botmux"). */
+  /** Why it waits for the user, in its host's words (a botmux attention's reason); only while it needs you. */
   attention_reason?: string;
   /** The host stopped its turn on an error it will not retry by itself (a botmux notice), until a message goes to it:
    *  shown over the composer with "Retry" (iOS FailureNote). */
@@ -516,7 +515,7 @@ interface CompactInfo {
   notes?: string[];
 }
 
-/** A goal the agent keeps working toward until it holds (proto.GoalInfo, docs/integrations/agent-goal.md). */
+/** A goal the agent keeps working toward until it holds (proto.GoalInfo). */
 export interface GoalInfo {
   objective: string;
   /** active / paused / blocked / usage_limited / budget_limited / complete (Claude Code's are only active or complete). */
@@ -1006,7 +1005,7 @@ export interface Launcher {
   /** How its last check or start went on the computer the list is for (GET /machines/{mid}/launchers,
    *  docs/server/launcher-health.md); absent: never checked, a failure too old to count, or an older hub. */
   health?: LauncherHealth;
-  /** A Persona-managed provider pi on this computer can use too (docs/integrations/pi.md "Persona's model providers");
+  /** A Persona-managed provider pi on this computer can use too;
    *  absent for every other launcher and from an older hub. */
   pi?: boolean;
 }
@@ -1033,7 +1032,7 @@ export interface AssistantInfo {
   timezone?: string;
   notes?: string;
   notes_effective?: string;
-  /** "Fold background rounds" in effect (#4314, docs/assistant/assistant.md "Background rounds"); absent from an older hub, which means on. */
+  /** "Fold background rounds" in effect (#4314); absent from an older hub, which means on. */
   main_background_folded?: boolean;
   /** Exact, one-shot owner replies and persistent proposal cards; off by default and absent from an older hub. */
   owner_reply_approval?: boolean;
@@ -1062,7 +1061,7 @@ export interface MachineMetrics {
   system?: Machine["system"];
   latest?: { t: number; cpu?: number; load?: number; mem_used?: number; mem_total?: number; net_rx?: number; net_tx?: number; disk_used?: number; disk_total?: number; battery_percent?: number; battery_charging?: boolean; temp_c?: number };
   points: MetricPoint[];
-  /** Its tokens (docs/server/machines.md "Token usage"): absent from an older hub, or when its node never reported usage. */
+  /** Its tokens: absent from an older hub, or when its node never reported usage. */
   usage?: UsageCard;
 }
 

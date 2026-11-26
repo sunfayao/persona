@@ -17,7 +17,7 @@ import (
 var nameWait = 20 * time.Second
 
 // nameCmd is `persona-link name [<new>|--reset]`: what the hub calls this computer, or asks the running persona-link
-// to have it call it new (docs/operations/link.md "The computer's name").
+// to have it call it new.
 func nameCmd(e *env, args []string) error {
 	path := e.configPath()
 	switch {

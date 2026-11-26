@@ -9,7 +9,7 @@ import (
 )
 
 // A turn that is not finished reaches the lists as it is reported: an empty phase, its line, and the row's part of
-// the closeout (docs/assistant/agent-work.md "Closeout"). The phase is written out, empty, for the apps that decode
+// the closeout. The phase is written out, empty, for the apps that decode
 // it as a plain string.
 func TestListRowOfAnUnfinishedTurn(t *testing.T) {
 	row := runtimeSummary(proto.Session{SessionID: "s1", State: proto.StateUnread, Work: &proto.WorkState{

@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Launcher keys that are references (docs/extensions/secret-providers.md "Launcher keys", #3962): a model provider's
+// Launcher keys that are references (#3962): a model provider's
 // key, or one computer's key for it, may be a reference such as op://vault/item/field in place of the key. It is
 // sealed in the same field behind the extensions' marker (extension.SealedReference), so nothing else about a stored
 // provider changes, and the provider extension that claims its scheme (internal/extmgr, in this process) gives the

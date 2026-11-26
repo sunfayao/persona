@@ -36,7 +36,7 @@ const watchFreezes = startFreezeWatch({
 });
 setFreezeDropListener(() => watchFreezes.rearm());
 
-// Developing Persona (docs/operations/developing-persona.md): with the switch on, the socket is wrapped before the app
+// Developing Persona: with the switch on, the socket is wrapped before the app
 // opens it, and the recorder's chunk loads. This module is not part of the first screen's budget.
 if (devModeSince()) {
   watchSockets();

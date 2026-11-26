@@ -760,7 +760,7 @@ func (c *Connector) thingForGroup(ctx context.Context, group *inboxGroup, me str
 	lang := i18n.From(ctx).Or(i18n.Default)
 	label := i18n.T(lang, "hub-connectors.larkcli_message")
 	// No tier: the Inbox's triage model decides Needs you / FYI / Collapsed, with the user's triage rules and policies
-	// (docs/assistant/inbox.md "AI triage", "Policies"). A fixed tier here would skip triage and put every bot's
+	// ("Policies"). A fixed tier here would skip triage and put every bot's
 	// direct message in Needs you.
 	switch {
 	case latest.ChatType == "p2p" && p2pIsBot(group, contextMessages, me):
@@ -839,7 +839,7 @@ func (c *Connector) thingForGroup(ctx context.Context, group *inboxGroup, me str
 }
 
 // replyTo says where a reply to the item goes and who sees it (connectorwire.InboxThing.ReplyTo): Reply sends as the
-// app's bot, not as the user (Runner.SendText / ReplyText, docs/extensions/feishu.md), to the chat or into the topic
+// app's bot, not as the user (Runner.SendText / ReplyText), to the chat or into the topic
 // the message is in, and the sentence says so (#12399). name is the chat's name; without one (only an opaque id is
 // known), the sentence names no chat.
 func replyTo(lang i18n.Lang, name string, topic bool) string {

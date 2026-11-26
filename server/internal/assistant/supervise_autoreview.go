@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// The independent review of a supervised task's change (#2173, docs/assistant/unified-entry.md "Independent review").
+// The independent review of a supervised task's change (#2173).
 // With manager.json agents.review set, a supervised task the judge says is done does not wait for review at once: a
 // fresh reviewer agent (its own launcher and model) first reviews the change in a disposable copy of it
 // (worktree.snapshot on the agent's computer), seeded only with the task's ask, its done_when and the change from

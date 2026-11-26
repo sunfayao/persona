@@ -28,7 +28,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// The extensions, the connectors and the bots are the manager's (internal/extmgr, docs/extensions/extensions.md "Who owns what"): the
+// The extensions, the connectors and the bots are the manager's (internal/extmgr): the
 // registry, the programs, their secrets and tokens, every source, mail, the Feishu and WeChat bots. The hub relays:
 //
 //   - the apps' requests on their routes (extwire.Routes, the admin UI's /api/v1/admin/extensions…, and the parts of
@@ -231,7 +231,7 @@ func (h *Hub) features() []string {
 	out = append(out, h.todoAsksFeatures()...)
 	out = append(out, h.todoTimelineFeatures()...)
 	out = append(out, h.todoImageFeatures()...)
-	// The assistant's card interfaces, always on (docs/assistant/assistant-views.md, #5509): assistant_views is declarative
+	// The assistant's card interfaces, always on (#5509): assistant_views is declarative
 	// actions (expected_version), live cards and transcript cards; assistant_html_bridge is …/html-actions. Neither says
 	// a client may run HTML: that is each platform's own security sign-off, else fallback.
 	out = append(out, "assistant_views", "assistant_html_bridge")

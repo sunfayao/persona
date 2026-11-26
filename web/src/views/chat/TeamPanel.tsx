@@ -1,4 +1,4 @@
-// A lead's Team side panel (#5180, after cindy's Team tab, `OrcaWorkerPanel` / `WorkerListToolbar`; docs/web/web.md "Team"):
+// A lead's Team side panel (#5180, after cindy's Team tab, `OrcaWorkerPanel` / `WorkerListToolbar`):
 // a 32 px strip of the lead's workers (the other Agents of its herdr tab, lib/team.ts) as round pills, each with its status
 // mark and title, the one shown filled; under it the shown worker's own conversation, the chat page's without its header,
 // where it is read, answered, written to and stopped. The lead stays the page's chat.

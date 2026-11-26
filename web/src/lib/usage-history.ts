@@ -1,4 +1,4 @@
-// Token usage history (#9480, docs/server/machines.md "Token usage history") for the token calendar on the assistant's
+// Token usage history (#9480) for the token calendar on the assistant's
 // new-chat page (views/assistant/TokenCalendar.tsx): GET /api/v1/usage/days, every computer's tokens a day in the
 // user's zone, the same count as today's tokens on the Machines page. Pure helpers here: the steps, where each day
 // goes, the sums; the iPhone has the same rules (PersonaWire HeatLevels, TokenCalendarLayout).

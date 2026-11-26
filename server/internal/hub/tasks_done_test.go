@@ -20,7 +20,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Delivering a finished task for review (docs/assistant/todos.md "Automatic completion", #1092, #5732). Every test runs without a store (h.store nil: nothing
+// Delivering a finished task for review (#1092, #5732). Every test runs without a store (h.store nil: nothing
 // reaches a database) and with a stubbed judge model.
 
 // judgeStub answers the judge's calls with reply (status 200) or fails them (status ≠ 200), counting them and keeping

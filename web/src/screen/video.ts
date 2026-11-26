@@ -1,4 +1,4 @@
-// The live screen's hardware video channel (#3954, docs/extensions/computer-use.md "Live screen video"): the picture
+// The live screen's hardware video channel (#3954): the picture
 // channel a Mac uses and the connection numbers an overlay can show, beside the VNC/RFB path ScreenView draws today. This
 // file is the interface the design leaves now — pure data, no i18n and no UI, so it can be read on the screen page's
 // first paint without pulling its words into the first screen's catalog. The switcher, quality bias and overlay (their

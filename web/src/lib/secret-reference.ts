@@ -1,4 +1,4 @@
-// A secret provider's reference as a setting holds it (docs/extensions/secret-providers.md), and how the apps say where
+// A secret provider's reference as a setting holds it, and how the apps say where
 // its value comes from. Its own module, not lib/extensions.ts: the settings pages that read it load lazily, and their
 // importing lib/extensions.ts split that first-screen module into a chunk of its own, 1.4 kB more on the first screen.
 import { t } from "../i18n";

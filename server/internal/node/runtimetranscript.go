@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// A runtime that runs Claude Code through its SDK (Paseo, docs/integrations/paseo.md) has sessions whose conversation is an
+// A runtime that runs Claude Code through its SDK (Paseo) has sessions whose conversation is an
 // ordinary Claude transcript on this machine. Its row names that transcript (runtime.sessions' transcript: the Claude
 // session id), and the node serves the session's content from it as for an agent in a terminal — items, images, the
 // watch, the session info, subagents: the same parser and the same rendering as in herdr. The runtime keeps the rest

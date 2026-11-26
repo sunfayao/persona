@@ -1,4 +1,4 @@
-// What an Agent's model pill and panel read (#5032, docs/web/web.md "Model pill and model panel"): the launchers of the
+// What an Agent's model pill and panel read (#5032): the launchers of the
 // computer it runs on (the panel's providers), each with the models its agent lists in its own /model menu
 // (lib/launcher-models.ts), and what the pill says. The panel's own data and what a pick sends are built from these in
 // lib/session-panel.ts, which loads with the panel.

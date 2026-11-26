@@ -1,4 +1,4 @@
-// The model panel of a Persona chat (#5033, docs/web/web.md "Model pill and model panel"), loaded on its pill's first tap
+// The model panel of a Persona chat (#5033), loaded on its pill's first tap
 // (ModelPill.tsx AssistantModelPill): the shared panel (ui/model-panel, scope "assistant") fed with the assistant
 // computer's providers (lib/assistant-panel.ts), a strip on top saying whether the chat follows the default or has its
 // own pick, with the way back. On a hub that keeps picks a pick is PUT for the conversation (it holds from the next

@@ -1,4 +1,4 @@
-// The model panel's data for a Persona chat (#5033, docs/web/web.md "Model pill and model panel"; docs/assistant/
+// The model panel's data for a Persona chat (#5033; docs/assistant/
 // model-config.md "A conversation's own model"), and what a pick sends. The providers are what the assistant's computer
 // lists for the main chat (`?purpose=assistant`): its rc-file aliases and PATH wrappers, plain claude and the Model
 // providers that can run it (launchers and Messages-protocol direct APIs), each with its model list; then what can't run

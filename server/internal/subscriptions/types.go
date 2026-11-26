@@ -1,4 +1,4 @@
-// Package subscriptions is the manager's source subscriptions core (#2038, docs/extensions/subscriptions.md): a
+// Package subscriptions is the manager's source subscriptions core (#2038): a
 // subscription pulls one connector source's read-only tool on a schedule by a recipe (#2037), keeps what is new, and
 // holds it for the destinations (#2039). This package validates recipes, dry-runs them, schedules and runs them, and
 // answers the API; it keeps its state through Store and reaches connectors through Connectors.
@@ -70,7 +70,7 @@ type Problem struct {
 	Message string `json:"message"`
 }
 
-// Subscription is one subscription as the API shows it (docs/extensions/subscriptions.md "API").
+// Subscription is one subscription as the API shows it.
 type Subscription struct {
 	ID         string `json:"id"`
 	Connector  string `json:"connector"`

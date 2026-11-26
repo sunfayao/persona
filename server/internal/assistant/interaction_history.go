@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// GET /api/v1/interactions/history (docs/protocol/protocol.md, docs/extensions/extensions.md "Question history"): the
+// GET /api/v1/interactions/history (docs/protocol/protocol.md): the
 // cards that were raised and how each ended, newest first. Without since, before or kind it is the newest ≤500 as
 // before; with any of them it pages back by time: a full page carries next_before / next_before_id, the cursor of the
 // next older page (pass them as before and before_id).

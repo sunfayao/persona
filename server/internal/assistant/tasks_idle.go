@@ -7,7 +7,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Stopping agents that have been idle for a long time (docs/assistant/todos.md "Idle Agents stop too"). The pass in
+// Stopping agents that have been idle for a long time. The pass in
 // tasks_close.go only knows agents of finished tasks; agents started directly (agent_start), agents of tasks that
 // stall or are never accepted, and stopped agents a message resumed (agent_send, the chat) would run for good.
 // An agent Persona started that has been still for idle_close_hours with nothing going on (retirable) is stopped the

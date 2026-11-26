@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The status question (docs/assistant/agent-work.md "Closeout", #3616): an agent on no supervised task has nobody to
+// The status question (#3616): an agent on no supervised task has nobody to
 // follow it up. When its turn did work, ended without a closeout and the triage could not call it finished, the
 // manager asks it once where the work stands, in the closeout form. It asks only for a report on work already done:
 // the message starts nothing new. The question is scheduled on the turn's work entry (wake_at, with CloseoutAsk

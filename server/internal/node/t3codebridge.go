@@ -19,7 +19,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// The T3 Code engine (docs/integrations/engines.md "T3 Code"). T3 Code (github.com/pingdotgg/t3code) runs coding agents
+// The T3 Code engine. T3 Code (github.com/pingdotgg/t3code) runs coding agents
 // (Codex, Claude Code and others) in threads its local server owns; its desktop, web and phone clients all talk to that
 // server. While the machine's engine is T3 Code, the node runs an in-process runtime bridge (runtimes.go) to it:
 //

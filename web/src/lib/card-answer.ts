@@ -100,7 +100,7 @@ function sameAnswer(a: unknown, b: unknown): boolean {
 /**
  * Answers a card, once at a time: while an answer to it is on its way, the same answer again shares that request and
  * its result, and a different one is refused without a request. It is not swapped in: a retry keeps its op id and
- * body (an op id with another body is 409 op_id_reused, docs/lessons/web.md #2459), and the first one may have reached
+ * body (an op id with another body is 409 op_id_reused), and the first one may have reached
  * the hub already. Once it ends (delivered, refused, or out of time) the card can be answered again.
  */
 export function answerCard(ix: Interaction, body: Resolution, from: AnswerFrom = {}): Promise<CardAnswer> {

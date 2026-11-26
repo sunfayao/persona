@@ -249,7 +249,7 @@ it("validates a saved response's link against the repository it claims", () => {
   expect(validRepositorySet(envelope([{ ...link, title: " padded " }]), "assistant", "todo")).toBe(false);
 });
 
-// An extension's repository (docs/extensions/repository-providers.md) on a placeholder host.
+// An extension's repository on a placeholder host.
 const acme = { provider: "ext:acme-code/acme", instance_url: "https://code.acme.test", path: "acme-code/acme", canonical_url: "https://code.acme.test/acme-code/acme" };
 const acmeLink = { kind: "pull_request" as const, number: "12", canonical_url: "https://code.acme.test/acme-code/acme/reviews/12", title: "Fix the build" };
 const acmeEnvelope = (row: Omit<Partial<TaskRepository>, "source_snapshot"> & { source_snapshot?: Partial<TaskRepository["source_snapshot"]> }): TaskRepositorySet => ({ schema_version: 1, manager: "assistant", todo_id: "todo", revision: 1,

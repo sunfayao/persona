@@ -59,7 +59,7 @@ export interface Channel {
   read_only?: boolean;
 }
 
-/** `manager`: whose channels (another manager's, docs/assistant/managers.md "Clients"); none: the default's. */
+/** `manager`: whose channels (another manager's); none: the default's. */
 async function listChannels(manager?: string): Promise<Channel[]> {
   const r = await api<{ channels?: Channel[] }>("/channels", { headers: itemHeaders(manager) });
   return r.channels ?? [];

@@ -1,4 +1,4 @@
-// "Close…" on an Agent (#7125, docs/web/web.md "Archived agents"): every place that closes an Agent opens the one
+// "Close…" on an Agent (#7125): every place that closes an Agent opens the one
 // dialog (views/chat/SessionDialogs.tsx CloseAgentDialog, mounted by views/CloseAgentHost.tsx): its row menu, the chat's
 // ⋯, and "Close pane" on the pane it runs in (the Agents tree, the Terminal page, the command palette), so a busy agent
 // is never closed without the warning. What the dialog does is lib/agent-archives.ts closeOffer.

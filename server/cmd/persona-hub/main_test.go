@@ -9,7 +9,7 @@ import (
 )
 
 // The hub's program links its own packages and the shared ones, nothing of the manager's side, on every platform the
-// guards check (docs/server/server.md "Programs"). The hub talks to managers over the bus only. A package that is
+// guards check. The hub talks to managers over the bus only. A package that is
 // neither: put it in depguard.HubOwn or depguard.Shared on purpose.
 func TestPersonaHubDoesNotLinkTheManager(t *testing.T) {
 	allowed := slices.Concat(depguard.HubOwn, depguard.Shared, depguard.HubExceptions)

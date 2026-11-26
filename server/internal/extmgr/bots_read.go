@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/feishubot"
 )
 
-// Reading a group with /read (#11803, docs/extensions/bots.md "Reading a group with /read"): alert and problem groups are
+// Reading a group with /read (#11803): alert and problem groups are
 // where questions come up, and the question is about what was said there. With the read_group switch on, the owner's
 // "@bot /read <task>" in any group the bot is in (opted in or not) is handed to the assistant marked
 // assistantwire.FeishuFromRead. The assistant reads the group as the owner (lark-cli on its own computer), so the bot

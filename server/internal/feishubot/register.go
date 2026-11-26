@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// Creating the app in one authorization (docs/extensions/bots.md "Pairing and permissions"): the accounts site's
+// Creating the app in one authorization: the accounts site's
 // device-code registration makes a personal-agent app with the bot, its scopes and the card callback, and hands back
 // its App ID and Secret together with the open id of the person who confirmed it. That person becomes the owner, so
 // no console visit, no copy-paste and no pairing code. No token is needed: the device code is the only credential.

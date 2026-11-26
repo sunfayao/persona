@@ -1,4 +1,4 @@
-// End-to-end check of a cron scheduled task on the web (#4399, docs/assistant/assistant.md "Scheduled tasks"): the list
+// End-to-end check of a cron scheduled task on the web (#4399): the list
 // shows its expression, the hub's words for it and its next run; the editor offers "Cron" when the hub has task_cron,
 // checks the expression with the hub as it is typed (its words and next runs, or what is wrong, with Save held back),
 // fills in an example, and saves the expression.

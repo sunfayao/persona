@@ -1,4 +1,4 @@
-// The Paseo bridge (docs/integrations/paseo.md): the agents of the Paseo daemon on this machine as the sessions of its engine in
+// The Paseo bridge: the agents of the Paseo daemon on this machine as the sessions of its engine in
 // Persona, through the runtime SDK. Paseo runs every agent through its SDK, with no terminal; the bridge follows its
 // directory of agents (one subscription), its pending requests (cards on the phone, withdrawn when answered in Paseo),
 // and — only while the phone watches a session — that agent's timeline (live text; items for agents that are not
@@ -309,7 +309,7 @@ export function createPaseoBridge(deps = {}, options = {}) {
 
   /**
    * An agent of Claude Code without Persona's label keeps the session id it was listed under when Paseo moves it to
-   * another Claude session (docs/integrations/paseo.md "Session IDs"): Paseo forks the session to rewind it, and so when
+   * another Claude session: Paseo forks the session to rewind it, and so when
    * the user goes on after an API error in its app. Seen here (prev: the copy listed before), the id it had; not seen
    * (the bridge was not running), the first session of the line its transcript was forked from, when the agent began
    * that conversation itself (lineage.js; lines: whether that may be read now). One on a Claude session an older agent
@@ -868,7 +868,7 @@ export function createPaseoBridge(deps = {}, options = {}) {
 
   /**
    * Paseo's workspaces, followed as its agents are (one subscription, the first page with it, the rest read after): its
-   * checkouts, worktrees and folders, agents in them or not (docs/integrations/paseo.md "Spaces and workspaces").
+   * checkouts, worktrees and folders, agents in them or not.
    */
   async function loadWorkspaces() {
     const seen = new Set()
@@ -1197,7 +1197,7 @@ export function createPaseoBridge(deps = {}, options = {}) {
   /**
    * Whether request asks for one of the Agent's own Persona tools (allowTools; any provider, asksForTool) in an Agent
    * Persona started (it carries SESSION_LABEL): those run without a card, as the node allows them in the Claude Agents
-   * it starts (docs/integrations/claude-integration.md "Persona tools Agents call without a card"). An agent made in
+   * it starts. An agent made in
    * Paseo's own app (one whose id the bridge kept, KEPT_LABEL, too) and every other tool still go to the phone.
    */
   function ownTool(agentId, request) {
@@ -1211,7 +1211,7 @@ export function createPaseoBridge(deps = {}, options = {}) {
   /**
    * The Agent's own Persona tools (allowTools) as Paseo's preapproval for a new Claude Code agent (toolPolicy): those
    * of the servers it is given, by server and tool (`mcp__<server>__<tool>`). Undefined when there are none. Never for
-   * Codex or OpenCode (docs/lessons/paseo.md): ownTool answers their asks.
+   * Codex or OpenCode: ownTool answers their asks.
    */
   function preapproved(mcpServers) {
     const grants = []
@@ -2225,8 +2225,8 @@ export function createPaseoBridge(deps = {}, options = {}) {
    * A new session (the form, or the machine's engine starting one): a new agent of the provider the launcher names.
    * A launcher Paseo has no usable provider of (none of that name, or one switched off or failing) starts on one of
    * the same kind of agent (agent_type, the node's word for what the launcher starts), chosen here and said on the
-   * answer (instead); with none of that kind it is refused, never run as another kind of agent or on Paseo's default
-   * (docs/integrations/paseo.md "A launcher Paseo does not have"). No launcher named: Paseo's default provider. The
+   * answer (instead); with none of that kind it is refused, never run as another kind of agent or on Paseo's default.
+   * No launcher named: Paseo's default provider. The
    * model stays only with a provider that offers it; an effort the model does not offer goes down to the nearest
    * lower one it does (effortFor), and the answer says so. The mode and first message apply as asked. Its id is the
    * one the hub named (session_id) when it can be (namedSession), else paseo-<agent id>, kept on the agent as a label.

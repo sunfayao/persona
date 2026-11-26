@@ -1,6 +1,6 @@
 package devicewire
 
-// Switching an ssh computer to Persona Link (docs/operations/link.md "Switching from SSH", #10662). The manager that
+// Switching an ssh computer to Persona Link (#10662). The manager that
 // carries the computer runs the switch over its own ssh access; the hub owns what only it may change: the kind in the
 // machine's entry and the computer's pairing code and credential. Two calls, each one step on the hub:
 //

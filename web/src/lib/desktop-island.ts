@@ -1,4 +1,4 @@
-// The island at the MacBook notch (#7669, docs/desktop/desktop.md "Island at the MacBook notch"): what the desktop app
+// The island at the MacBook notch (#7669): what the desktop app
 // draws there, worked out from the Agents list: its counts and its rows from the same list, so the pill never counts an
 // agent its list cannot show. Sent to a desktop that has the island; the desktop keeps the latest and ignores it while
 // the island is off.

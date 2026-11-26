@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// Companion bots (#1961, docs/extensions/bots.md "Companion bots"): other Lark bots an extension runs for the owner
+// Companion bots (#1961): other Lark bots an extension runs for the owner
 // (an Inbox bot, a notifications bot) register here. With the workbench on, the home card links to each, and while a
 // notifications companion is polling, the bot's pushes, scheduled-task results and task reports go to it (GET
 // …/notices) instead of the bot's chat. Questions, approvals and anything else that answers for the owner stay in the

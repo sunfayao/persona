@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Open tasks nobody works on (docs/assistant/todos.md "Nobody is working on this", #3618). An open to-do keeps
+// Open tasks nobody works on (#3618). An open to-do keeps
 // reading as in progress after its agents are gone: one ended on a model error nothing retries and its tab was closed,
 // the user closed the tab, or its computer went offline. When every agent of an open to-do is closed or offline and
 // the manager has nothing pending that brings one back (a wake, a "Continue", a card, queued input: session_work), the

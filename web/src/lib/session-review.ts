@@ -1,4 +1,4 @@
-// Reviewing a session's changes (docs/web/review.md, #151): what git/review answers, as the diff items the code review
+// Reviewing a session's changes (#151): what git/review answers, as the diff items the code review
 // draws (views/extensions/DiffReview.tsx, the same component an extension's code page uses), the comments of the review
 // that is under way (kept per session in this browser), and the review as the message the agent gets. Drawn by
 // views/session/ReviewPanel.tsx.

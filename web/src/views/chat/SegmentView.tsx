@@ -76,7 +76,7 @@ export const MODEL_DIVIDER_HEIGHT = 42.5;
  *  once drawn. */
 export const ENGINE_DIVIDER_HEIGHT = MODEL_DIVIDER_HEIGHT;
 
-/** A finished exchange's height in px before it is first drawn (content-visibility, docs/web/web.md "Long chats"), by
+/** A finished exchange's height in px before it is first drawn (content-visibility), by
  *  its text the way bubbleLines counts it: its bubble (folded past BUBBLE_MAX_LINES), its words at 2.5 times the
  *  bubble's characters to a line (the column is wider, and Markdown's short and blank lines take less than a line), a
  *  row for each other block, and the model change divider when it has one (`modelChange`), the engine switch divider
@@ -209,7 +209,7 @@ function BubbleText({ text: full, blocks, ts, mid, sid, own, pending }: { text: 
   );
 }
 
-/** "From WeChat" under a message that came from a channel (its client_msg_id is `<channel>-…`, docs/extensions/channels.md);
+/** "From WeChat" under a message that came from a channel (its client_msg_id is `<channel>-…`);
  *  else, under the message an extension opened the conversation with, "From Lark /agent" / "From an extension" (#3758),
  *  its mark the opening extension's icon as on the conversation's rows and its words that extension's name while the icon
  *  is drawn (#10358). */
@@ -319,7 +319,7 @@ export const SegmentView = memo(function SegmentView({
   mid: string;
   sid: string;
   streaming?: string;
-  /** The live words are an agent's as Claude shows them (docs/integrations/claude-integration.md "Live replies"): a batch
+  /** The live words are an agent's as Claude shows them: a batch
    *  of lines at a time, and still while a tool runs. The live work row stays above this text slot; the headless assistant's
    *  words stream as they are written and stand for it. */
   batchedWords?: boolean;

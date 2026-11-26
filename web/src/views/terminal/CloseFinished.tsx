@@ -1,4 +1,4 @@
-// "Close finished terminals" (#4754, docs/integrations/engines.md "Agents run in a terminal"): the terminals stopped
+// "Close finished terminals" (#4754): the terminals stopped
 // Agents left stay until the user closes them. Per computer: what it would close now (a preview that closes nothing),
 // a confirmation listing them (the destructive rung of DESIGN_SYSTEM.md 4.4: the verb again in red, and Cancel), then
 // exactly the confirmed panes, a toast with how many went, and the list read again.

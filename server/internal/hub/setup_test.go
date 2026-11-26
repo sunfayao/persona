@@ -76,7 +76,7 @@ func normalizeHost(s, token string) string {
 	return s
 }
 
-// Old hub.json files load exactly as before: the new-install defaults (docs/assistant/onboarding.md 4.1) are not in
+// Old hub.json files load exactly as before: the new-install defaults are not in
 // defaultConfig(), so a file without "public" or "admin.first_setup" gets no TLS and no LAN setup code.
 func TestLegacyHubJSONLoadsUnchanged(t *testing.T) {
 	for _, name := range []string{"dbsh-only", "handwritten-no-public"} {

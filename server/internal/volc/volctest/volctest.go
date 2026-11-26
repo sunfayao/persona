@@ -1,4 +1,4 @@
-// Package volctest stands in for Volcengine's speech service in tests (docs/extensions/volcengine-speech.md "Tests"):
+// Package volctest stands in for Volcengine's speech service in tests:
 // streaming recognition over its binary WebSocket protocol and synthesis over its HTTP lines, written from the
 // service's documentation independently of the client in package volc.
 //

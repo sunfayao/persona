@@ -39,7 +39,7 @@ const inputClass =
   "h-8 w-full rounded-control bg-field px-2.5 text-meta text-ink shadow-inset-field outline-none placeholder:text-ink-3 focus:shadow-[inset_0_0_0_1px_var(--accent)] disabled:opacity-60";
 
 /**
- * Draws again while the view is on screen (docs/extensions/extensions.md "Refresh"): `delay` ms after it was last drawn, never while the
+ * Draws again while the view is on screen: `delay` ms after it was last drawn, never while the
  * page is hidden; coming back after the delay draws at once.
  */
 function useRefresh(delay: number, drawnAt: number, draw: () => void) {
@@ -175,7 +175,7 @@ export function ExtensionUI({ remember, ...props }: Parameters<typeof LegacyExte
   const [legacyNegotiation, setLegacyNegotiation] = useState(false);
   if (ready) negotiated.current = true;
   // System/embedded slots remain full fitted snapshots. Old hubs keep the exact existing component.
-  // Another manager's extension draws over HTTP, which names its manager on each request (docs/assistant/managers.md "Clients").
+  // Another manager's extension draws over HTTP, which names its manager on each request.
   // The subscription pages (#2041) are the manager's, drawn over HTTP only.
   const baseHttp = legacyNegotiation || !supported || props.embedded || props.compact || otherManager(props.manager) || props.extension === SUBSCRIPTIONS_UI;
   // The page's last view, until it is drawn again: one drawn with a UI version it may be drawn with now (before the hello
@@ -229,7 +229,7 @@ export function ExtensionUI({ remember, ...props }: Parameters<typeof LegacyExte
   );
 }
 
-/** The page's last view while its extension draws it again (docs/web/web.md "Extension pages on reload"): as it was, as
+/** The page's last view while its extension draws it again: as it was, as
  *  wide, with its View-level tabs, search and filter intact, but nothing in it can be pressed or focused, and a quiet
  *  "Updating" in the page's top margin, so nothing moves when the drawing replaces it. `native`: drawn over the socket,
  *  which titles the page itself. `compact`: a card's (#11091), its sections laid out as the drawing's own in the card's
@@ -314,7 +314,7 @@ export function LegacyExtensionUI({
   placeholder, onView,
 }: {
   extension: string; ui: string; context?: UIContext; embedded?: boolean; compact?: boolean; bare?: boolean; title?: string;
-  /** Whose extension it is (another manager's inbox item or computer, docs/assistant/managers.md "Clients"); none: the default's. */
+  /** Whose extension it is (another manager's inbox item or computer); none: the default's. */
   manager?: string;
   onUnsupported?: () => void; onMissing?: () => void; onFailed?: (e: unknown) => void; revision?: string; onOpenSource?: () => void;
   pages?: "stack" | "open"; history?: boolean; state?: string;

@@ -18,7 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/screen"
 )
 
-// Asks go to the supervisor first (docs/assistant/unified-entry.md "Asks go to the supervisor first"). With leader
+// Asks go to the supervisor first. With leader
 // conversations configured (assistant.leaders not empty), a card a supervised task's agent raises — a question, a tool
 // approval or a plan — goes to the conversation supervising the task, not to the user: the apps show it marked
 // delegating, nothing rings, and the supervisor gets it as a supervision entry. The supervisor answers a question

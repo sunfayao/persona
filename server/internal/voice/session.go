@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// One voice conversation: the app's WebSocket on one side (docs/extensions/extensions.md "Voice"), a GPT-Live session on the other.
+// One voice conversation: the app's WebSocket on one side, a GPT-Live session on the other.
 // The upstream session can drop mid-conversation: the app's socket stays open, shows "Reconnecting" and the
 // conversation goes on in a new session told what was said so far.
 
@@ -51,7 +51,7 @@ type conversation struct {
 	role string
 	lang i18n.Lang
 	runs *tracker
-	// version is the voice wire the app speaks: 1, or 2 when its start says so (docs/assistant/voice.md "Protocol changes"). target is
+	// version is the voice wire the app speaks: 1, or 2 when its start says so. target is
 	// the conversation a protocol 2 call is bound to, fixed before ready; prep its binding, taken while the upstream
 	// connects; resume the runs the app handed back (a call picked up again).
 	version int
@@ -84,7 +84,7 @@ type conversation struct {
 	outRate    int
 	reconnects int
 	// down is the last session the service said it cannot serve (error upstream_unavailable, its model's backend is
-	// down) with its words, clipped: it closes that session right after (docs/lessons/voice.md "Errors"), so the
+	// down) with its words, clipped: it closes that session right after, so the
 	// session's loss is the service's, not the network's.
 	down struct {
 		session int // sessionNo; 0 none
@@ -263,7 +263,7 @@ func (c *conversation) sendApp(v any) {
 
 func (c *conversation) fail(msg string, fatal bool) { c.failCode("", msg, fatal) }
 
-// failCode is fail with the error's code (docs/assistant/voice.md "Extension → app"), none when code is "".
+// failCode is fail with the error's code, none when code is "".
 func (c *conversation) failCode(code, msg string, fatal bool) {
 	f := map[string]any{"type": "error", "message": msg, "fatal": fatal}
 	if code != "" {
@@ -319,7 +319,7 @@ func (c *conversation) begin() error {
 	c.mu.Lock()
 	c.p, c.w, c.model, c.modelID = p, w, model, p.ID+"/"+model
 	c.gate.echoes = start.EchoCancellation != nil && !*start.EchoCancellation
-	// Only a full device's call turns the user-speech gate off: another extension's call is held to it (docs/assistant/voice.md "Permissions").
+	// Only a full device's call turns the user-speech gate off: another extension's call is held to it.
 	c.gate.off = start.SpeechGate != nil && !*start.SpeechGate && (c.role == "" || c.role == roleFull)
 	c.sendsAnyway = start.SpeechGate != nil
 	if voicePattern.MatchString(start.Voice) && !gone { // a voice of the other upstream's may not exist here
@@ -339,7 +339,7 @@ func (c *conversation) begin() error {
 
 // negotiate reads what the app's start asks for: the protocol, the conversation to bind (protocol 2: its binding starts
 // now, while the upstream connects), what it hands back of a call it picks up again. Another extension calling has
-// protocol 1 only (docs/assistant/voice.md "Permissions"): the main conversation, never a target of its choosing.
+// protocol 1 only: the main conversation, never a target of its choosing.
 func (c *conversation) negotiate(s *startFrame) error {
 	c.asked = s.Protocol
 	full := c.role == "" || c.role == roleFull
@@ -386,7 +386,7 @@ func (c *conversation) negotiate(s *startFrame) error {
 // bind starts reading the bound conversation for a new upstream session, and returns what waits for it: the binding
 // negotiate started (the first session), or a new snapshot of it (a new session after a drop or a pause: the last one
 // is told again when it cannot be read). It is read while the upstream's socket connects (about 0.4 s on the measured
-// service, docs/lessons/voice.md "Instructions size"), not after. online: its machine is connected, as far as the hub
+// service), not after. online: its machine is connected, as far as the hub
 // said.
 func (c *conversation) bind(ctx context.Context) func() (online bool, err error) {
 	if c.version < 2 {
@@ -469,7 +469,7 @@ func (c *conversation) language() i18n.Lang {
 }
 
 // heard is when the call was last not quiet: the model's speech played out, the user's voice, a caption or a line of
-// theirs (a heartbeat goes after a long quiet, docs/assistant/voice.md "Announcements").
+// theirs (a heartbeat goes after a long quiet).
 func (c *conversation) heard() time.Time {
 	c.mu.Lock()
 	defer c.mu.Unlock()

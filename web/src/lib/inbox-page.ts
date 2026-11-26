@@ -1,4 +1,4 @@
-// The Inbox page's own helpers (docs/assistant/inbox.md): the words for mutes, rules, bulk actions and the triage banner,
+// The Inbox page's own helpers: the words for mutes, rules, bulk actions and the triage banner,
 // the "Hand to AI" message, Feishu message parts, cards and sends. Split from inbox.ts, which the sidebar's badge and the chat
 // load on every first screen, so that only the lazily loaded Inbox page and its settings carry them (#8806).
 
@@ -39,7 +39,7 @@ function sortMutes(list: InboxMute[]): InboxMute[] {
   return [...list].sort((a, b) => ts(b) - ts(a));
 }
 
-/** `manager`: whose inbox the node is in (an item's, docs/assistant/managers.md "Clients"); none: the default's. */
+/** `manager`: whose inbox the node is in (an item's); none: the default's. */
 export function fetchInboxTree(kind: InboxParentKind, id: string, manager?: string): Promise<InboxTree> {
   const path = kind === "session" ? id.split("/").map(enc).join("/") : enc(id).replace(/%3A/gi, ":");
   return api<InboxTree>(`/inbox/tree/${kind}/${path}`, { headers: itemHeaders(manager) });

@@ -1,4 +1,4 @@
-// The unified inbox (docs/assistant/inbox.md): the hub's items (Feishu chats, mail threads, Feishu documents, Moments (company feed) posts, and
+// The unified inbox: the hub's items (Feishu chats, mail threads, Feishu documents, Moments (company feed) posts, and
 // the connectors' threads: GitHub, Telegram…, drawn from their generic `connector` block),
 // kept in one module-level list so the sidebar's badge and the page share it. Pulled on first use, again on `inbox`
 // pushes and on (re)connect. Marking done applies at once and is sent in the background; a failure puts it back.
@@ -132,7 +132,7 @@ export interface InboxItem {
   version?: string;
   lark?: {
     feed_id: string; is_group: boolean; is_topic?: boolean; start_position?: string; mention_position?: string; at_all?: boolean;
-    /** The Lark gateway account the chat is in; `ol_account` only when that is not the hub's own (docs/extensions/feishu.md "Multiple accounts"). */
+    /** The Lark gateway account the chat is in; `ol_account` only when that is not the hub's own. */
     account_id?: number; ol_account?: number;
   };
   mail?: { account_id: string; mailbox?: string; uids: number[]; message_id?: string; from?: { name?: string; email?: string }; direct?: boolean; thread?: string };
@@ -147,15 +147,15 @@ export interface InboxItem {
   todo_forward?: InboxTodoForward;
   /** New foreign mail translated by the hub as it came in (for a device whose Settings › Translation asks), by target language. */
   translations?: Record<string, { subject: string; preview: string }>;
-  /** What it grew out of (docs/assistant/inbox.md "Relationships: parents and children"): another item, a todo or an agent session ("<machine>/<session>"). */
+  /** What it grew out of: another item, a todo or an agent session ("<machine>/<session>"). */
   parent?: InboxParent;
-  /** The folder path it is filed under ("work/alerts/engine"; docs/assistant/inbox.md "Folders"); absent: unfiled. `folder_by`
+  /** The folder path it is filed under ("work/alerts/engine"); absent: unfiled. `folder_by`
    *  says who filed it: the model, or the user (then the model leaves it alone). */
   folder?: string;
   folder_by?: "model" | "user";
-  /** What it can be muted by (docs/assistant/inbox.md "Muting"): its repository, chat or sender in its source. */
+  /** What it can be muted by: its repository, chat or sender in its source. */
   mutes?: InboxMuteOption[];
-  // ── events (docs/assistant/inbox.md "Events and handling chain"; lib/inbox-events.ts): absent from an older hub ──
+  // ── events (lib/inbox-events.ts): absent from an older hub ──
   /** The section of an open item; absent: by `tier` as before. */
   status?: InboxStatus;
   /** What or whom it waits on, the next step, and when to look again. */
@@ -552,7 +552,7 @@ export function contextXML(kind: string, title: string, url: string, text: strin
   return `<persona-context kind="${kind}" title="${escAttr(title)}" url="${escAttr(url)}">\n${contextBody(text)}\n</persona-context>`;
 }
 
-/** "Hand to AI" to Persona's main conversation (docs/assistant/inbox.md "Item actions"): the item's manager sends text there
+/** "Hand to AI" to Persona's main conversation: the item's manager sends text there
  *  after a block naming the item, or starts the conversation with it, and the conversation may write back to the item.
  *  The same clientID again sends nothing more. Resolves to the conversation it went to. */
 const pendingHandoffs = new Map<string, Promise<InboxHandoff>>();
@@ -1247,7 +1247,7 @@ export async function muteItem(item: InboxItem, o: InboxMuteOption): Promise<voi
   }
 }
 
-/** A policy's tier (docs/assistant/inbox.md "Policies"): "" leaves the tier to triage. */
+/** A policy's tier: "" leaves the tier to triage. */
 export type PolicyTier = "" | "action" | "fyi" | "noise";
 /** What a policy does with the AI twin: "first" hands it over first (even when not Needs you), "never" keeps it away; "" as configured. */
 export type PolicyTwin = "" | "first" | "never";
@@ -1597,7 +1597,7 @@ export function useInbox<T>(select: (s: InboxState) => T): T {
 
 /** How many unread open items the inbox has (the sidebar's badge). */
 export function useInboxBadge(): number {
-  // the current assistant's, with several (docs/assistant/managers.md "Clients")
+  // the current assistant's, with several
   const scope = useScope();
   return useInbox((s) => badgeCount(scoped(s.items, scope)));
 }

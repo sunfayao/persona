@@ -1,4 +1,4 @@
-// What a model provider or launcher is called for people (#5029, docs/integrations/launchers.md "Display names"): its
+// What a model provider or launcher is called for people (#5029): its
 // display name, in any language, with the startup ID (`name`, what a launch, a preset or the model settings refer to)
 // as secondary text. A launcher without a display name (an rc alias, an older hub) keeps showing its ID. Every picker
 // that names one goes through these, so a provider reads the same everywhere.

@@ -3,7 +3,7 @@ package prompts
 import "strings"
 
 // VoiceTranscribe is what the built-in voice extension's meeting transcription sessions are told
-// (voice/transcribe_caption, voice/transcribe_verbatim; docs/extensions/extensions.md "Transcription for extensions").
+// (voice/transcribe_caption, voice/transcribe_verbatim).
 type VoiceTranscribe struct {
 	Lang string // the instructions' language: en, ja, otherwise Chinese
 	// TextLang is the recording's language tag (BCP 47), "" when not known. A hint only: every word is written in the

@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/voice"
 )
 
-// The built-in voice extension, `personad voice` (docs/extensions/extensions.md "Built-in voice extension", docs/assistant/voice.md
+// The built-in voice extension, `personad voice` (docs/extensions/extensions.md "Built-in voice extension"
 // "Configurable GPT-Live upstream"): a built-in extension with a settings form and a secret key, so its realtime
 // service can be set from the apps. hub.json's first entry of it is taken over under its own id (its upstreams stay,
 // and come first); without one the extension is there, switched off, as "voice".
@@ -49,7 +49,7 @@ func voiceManifest(h *Manager, id, name string) *extension.Manifest {
 		name = "实时语音"
 	}
 	items, _ := json.Marshal([]extension.VoiceItem{{ID: id, Name: name}})
-	// Meeting transcription on the hub (docs/assistant/meeting-minutes.md "The built-in adapter"), with the same
+	// Meeting transcription on the hub, with the same
 	// upstream and key: the manager dials it, never the apps.
 	transcription, _ := json.Marshal([]extension.TranscriptionItem{{ID: voice.TranscriptionContribution, Name: "GPT-Live"}})
 	return &extension.Manifest{ManifestVersion: extension.ManifestVersion, ID: id, Name: name, Version: h.version,

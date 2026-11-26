@@ -1,4 +1,4 @@
-"""make_persona.py tiers build: a tiered package from each tier's poses (docs/apple/persona.md "Tiered avatars"), offline."""
+"""make_persona.py tiers build: a tiered package from each tier's poses, offline."""
 import importlib.util
 import json
 from pathlib import Path

@@ -18,7 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// Deployed needs evidence (#3205, docs/assistant/todo-status-sop.md "Deployed needs evidence"): a task whose work is a
+// Deployed needs evidence (#3205): a task whose work is a
 // GitHub PR is "deployed" only when the commit the running hub was built from (its /api/v1/health commit, or the
 // -g<hash> of its version) contains the PR's merge commit, which GitHub's compare answers. Until then the task is held
 // at "merged, not deployed" (the stage bar stops at merge, the delivery says so, no "Please verify") and a watch looks

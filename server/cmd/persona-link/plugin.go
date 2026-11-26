@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The Persona plugin for Claude Code (docs/operations/link.md "Claude Code plugin") comes with the resident node: the
+// The Persona plugin for Claude Code comes with the resident node: the
 // node carries the plugin of its own build and keeps it installed (internal/claudeplugin). `persona-link plugin` runs
 // the node's program (`claude-plugin <op>`, which prints JSON) and says the result in words; `persona-link status`
 // reads the last result the node left (claudePluginStatusFile) without running anything.

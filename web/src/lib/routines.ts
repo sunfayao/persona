@@ -1,4 +1,4 @@
-// The assistant's scheduled tasks (docs/assistant/assistant.md "Scheduled tasks", docs/protocol/protocol.md `/assistant/tasks`): the wire types,
+// The assistant's scheduled tasks (docs/protocol/protocol.md `/assistant/tasks`): the wire types,
 // how a task is said in words (the iOS app's AssistantScheduleText, except that a daily rule's time is 24-hour here, as
 // its next run is; iOS still writes it in 12-hour time, #7499), what the editor checks, and the body it saves.
 // Pure functions of their arguments (`now` passed in), so they are tested without a DOM.
@@ -89,9 +89,9 @@ export interface Task {
   permission_mode?: string;
   effort?: string;
   /** "Push when done" (hubs with the task_push feature): "" every run's answer, "asked" only what a run sends with notify_user.
-   *  An "asked" task always runs in its own conversation (docs/assistant/assistant.md "Push after running"). */
+   *  An "asked" task always runs in its own conversation. */
   push?: Push;
-  /** "When done, put it in the Inbox" (hubs with the task_inbox feature); independent of push (docs/assistant/assistant.md "Put it in the Inbox when done"). */
+  /** "When done, put it in the Inbox" (hubs with the task_inbox feature); independent of push. */
   inbox?: InboxMode;
   /** Optional end time (RFC 3339). After it, a daily or interval task turns itself off. Ignored for once; omitted when unset. */
   until?: string;

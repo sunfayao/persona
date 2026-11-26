@@ -15,7 +15,7 @@ import (
 
 // ---- settings ----
 
-// Each side has its own settings (docs/server/server.md "Migrations"): the hub's in hub_settings, a manager's in settings.
+// Each side has its own settings: the hub's in hub_settings, a manager's in settings.
 // A database opened for the hub alone reads and writes the hub's; one opened for a manager (or for both, in tests)
 // the manager's. Neither side reads the other's keys: what one needs of the other comes over the bus.
 
@@ -57,7 +57,7 @@ func (d *DB) keepForOlderHub(ctx context.Context, tx pgx.Tx, key string, raw []b
 }
 
 // followOlderHub takes up what a hub build from before hub_settings wrote in the settings table it shares with the
-// default manager, at every start of the hub: a switch back to such a build (blue-green, docs/operations/hub-restart.md) and
+// default manager, at every start of the hub: a switch back to such a build (blue-green) and
 // forward again keeps the changes made meanwhile. A key it wrote later than this build is taken, its event log
 // hand-over too; taking a hand-over removes it from both tables (a hand-over is read once: left there, a later switch
 // back would resume a stale stream).
@@ -236,7 +236,7 @@ func (d *DB) PutSetting(ctx context.Context, key string, v any) error {
 }
 
 // PutSettings writes several settings in one transaction: all of them or none (a model profile's switch writes the
-// categories it sets, the launchers and what it replaced together, docs/assistant/model-config.md). Only keys of this
+// categories it sets, the launchers and what it replaced together). Only keys of this
 // database's own: a hub key, kept for an older hub too, goes through PutSetting.
 func (d *DB) PutSettings(ctx context.Context, values map[string]any) error {
 	keys, raws, err := encodeSettings(values)
@@ -280,7 +280,7 @@ type execer interface {
 }
 
 // TakeSetting is Setting that also removes the key, in one statement: a value meant to be read once (the event log a
-// stopping hub hands to the next one, docs/operations/hub-restart.md) is never read twice.
+// stopping hub hands to the next one) is never read twice.
 func (d *DB) TakeSetting(ctx context.Context, key string, out any) (bool, error) {
 	var raw []byte
 	shared := false

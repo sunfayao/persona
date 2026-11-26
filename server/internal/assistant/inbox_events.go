@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// Inbox events, phase 1 (docs/assistant/inbox.md "Events and handling chain"): an item is an event. Besides what it always had it
+// Inbox events, phase 1: an item is an event. Besides what it always had it
 // keeps its handling chain (chain: the key calls in time order, recorded by the program where they happen; the sole exception is
 // reported, a processing conversation's unverified statement that it or an Agent did something, drawn as "assistant says"), whether
 // it is urgent, the manager's recap, the processing conversation bound to it (handling),
@@ -39,7 +39,7 @@ const (
 	ChainFailed      = "failed"
 	ChainConcluded   = "concluded"
 	ChainDone        = "done" // filed (by the user, read elsewhere, the manager): not in the contract's table, drawn generically
-	// Following up (docs/assistant/inbox.md "Following up"): drawn from text with a generic icon by apps from before.
+	// Following up: drawn from text with a generic icon by apps from before.
 	ChainReopened     = "reopened"      // new messages reopened a handled event
 	ChainWaiting      = "waiting"       // the processing conversation waits on the other side, until a time to look again
 	ChainCheck        = "check"         // it was looked at again when that time came

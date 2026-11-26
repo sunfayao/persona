@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// "Hand to AI" › "New agent…" (#5933; docs/assistant/inbox.md "Item actions"): New agent opens over the dialog with the
+// "Hand to AI" › "New agent…" (#5933): New agent opens over the dialog with the
 // item as the card over the first message (the <persona-context> an agent target gets) and the ask, or the first preset;
 // nothing is sent before its Start, and Cancel leaves the dialog as it was. Once the agent has its first message, the
 // item's source remembers that agent (never "New agent…") and the item is filed only when the user asked for that.

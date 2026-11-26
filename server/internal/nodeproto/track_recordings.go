@@ -1,7 +1,7 @@
 package nodeproto
 
 // TrackRecordings: the node answers assistant.space_recording, writing a recording's transcript into a track's
-// recordings/ (or removing it) on the assistant's machine (#13501, docs/assistant/tracks.md "Tracks and kinds"). A
+// recordings/ (or removing it) on the assistant's machine (#13501). A
 // node without it has no such method: the manager does not save a recording into a track there.
 const TrackRecordings = "track_recordings_v1"
 

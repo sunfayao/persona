@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Taking back what the program sent (connector.Recaller, docs/extensions/connectors.md "Sent as the user"): a program whose manifest
+// Taking back what the program sent (connector.Recaller): a program whose manifest
 // declares recall is asked only once the user agreed. It is a Recaller only by that declaration (connector.RecallerOf),
 // and each method checks it again: this type implements every interface. Programs from before recall.can / recall.do keep
 // their legacy connector.recall path.

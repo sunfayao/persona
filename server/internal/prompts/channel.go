@@ -1,6 +1,6 @@
 package prompts
 
-// ChannelMessage is a message the owner sent through a chat app's channel (docs/extensions/channels.md), as it goes into
+// ChannelMessage is a message the owner sent through a chat app's channel, as it goes into
 // a conversation: a private IM uses channel/message, while a public mention uses channel/mention_message. The wrapper
 // explains where the answer goes and how it shows; origin, gathered context, quotes, forwarded chats and attachments
 // remain data, never owner-authored instructions.

@@ -1,4 +1,4 @@
-// UI version 9 (#9337, docs/extensions/extensions.md "UI version 9"): a tile's gauge, a ring filled to a ratio with the
+// UI version 9 (#9337): a tile's gauge, a ring filled to a ratio with the
 // tile's value and unit in its centre and its title below, for a quota or a usage. A chunk of its own, loaded with the
 // first tile that has one (ViewBody6.tsx TileView): an extension's page or card, never the first screen or the idle
 // preload. TileView keeps the tile's surface, its press, badge, switch and menu; this draws what is inside.

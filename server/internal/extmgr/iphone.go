@@ -1,7 +1,7 @@
 package extmgr
 
 // Operating the user's iPhones for the assistant: a computer's node reaches the iPhones paired with it over
-// RemotePairing (#3452, docs/extensions/iphone.md). The built-in extension iphone is off until the user turns it on,
+// RemotePairing (#3452). The built-in extension iphone is off until the user turns it on,
 // then computer by computer, and an iPhone is operated only once it consented from its own app (fail-closed: an iPhone that never said yes
 // is never operated). While it is off no node is asked about iPhones, the assistant has no iphone_* tools and the
 // machines carry no IPhone. Like the extensions cua and ego (computer.go, browser.go), whose switch it shares.

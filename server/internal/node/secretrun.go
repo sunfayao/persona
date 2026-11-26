@@ -27,7 +27,7 @@ import (
 // the pipe closed (sudo reads it there); any other gets an empty stdin. The run stops at the first command that exits
 // non-zero, cannot start or runs out of the run's time (its group is stopped: endGroup). A command whose output held
 // the password returns none of it (secretRedactor masks it as it is read, and counts). The password bytes are zeroed
-// when the run ends. Nothing here logs the params, the password or the output (docs/assistant/assistant.md "Password card").
+// when the run ends. Nothing here logs the params, the password or the output.
 
 // secretRunGOOS is the system the node runs on (a variable so a test can play Windows).
 var secretRunGOOS = runtime.GOOS

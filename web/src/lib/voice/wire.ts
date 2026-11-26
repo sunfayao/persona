@@ -1,4 +1,4 @@
-// The browser's side of the voice extension's socket (docs/assistant/voice.md 3: protocol 2). Pure data, as iOS's
+// The browser's side of the voice extension's socket (protocol 2). Pure data, as iOS's
 // VoiceWire.swift: the frames' types, and what the first screen reads from a conversation's lines and runs. The frames
 // themselves are read and written in frames.ts, which only a call loads (#3461).
 import { CONTEXT_RE } from "../compatibility";
@@ -64,7 +64,7 @@ export function recentLines(items: readonly Item[]): VoiceLine[] {
   return lines.slice(from).slice(-RECENT_LINES);
 }
 
-/** What a `run` frame says about one instruction the call handed to the conversation (docs/assistant/voice.md 3.3); a
+/** What a `run` frame says about one instruction the call handed to the conversation; a
  *  state this page does not know is kept as it came. */
 export type VoiceRunState = "sending" | "sent" | "working" | "needs_you" | "blocked" | "held" | "done" | "failed" | "refused" | "unknown" | "folded" | (string & {});
 
@@ -102,7 +102,7 @@ export interface VoiceRun {
   /** The words left unsent in the agent's input box on the computer (409 input_draft): the whole line, shown. */
   draft?: string;
   /** The hub's 409 `clearable` text: only when the node can clear that line, not always the same as `draft` (an IDE
-   *  selection marker stays out of it). Clear and Send sends it back as `clear_draft` exactly (docs/assistant/voice.md 3.2). */
+   *  selection marker stays out of it). Clear and Send sends it back as `clear_draft` exactly. */
   clearable?: string;
   /** The extension keeps it for a resend (#5904): what the user-speech gate held back offers Send anyway only then (one
    *  longer than its quoted task, or from before it, is not kept). */
@@ -130,7 +130,7 @@ export interface VoiceFailure {
 }
 
 /** The extension sends anyway what its user-speech gate held back (a resend of a run refused `unprompted`), and its
- *  `start` takes `speech_gate` (#5904, docs/assistant/voice.md 3.1). */
+ *  `start` takes `speech_gate` (#5904). */
 export const SPEECH_GATE_FEATURE = "speech_gate";
 
 /** The `ready` frame: the extension is connected upstream and the rates are known. */
@@ -179,12 +179,12 @@ export interface VoiceStart {
   resume?: VoiceRun[];
   /** False: the microphone records without echo cancellation, so a caption of the user's may be the voice's own. */
   echoCancellation?: boolean;
-  /** The user-speech gate on (true) or off (false) for the call (#5904, docs/assistant/voice.md 3.2). Saying it also tells
+  /** The user-speech gate on (true) or off (false) for the call (#5904). Saying it also tells
    *  the extension this page has Send anyway; a page from before it says nothing, and an older extension ignores it. */
   speechGate?: boolean;
 }
 
-/** Extension ids are a-z, 0-9, `_` and `-` (docs/extensions/extensions.md): anything else must not become a path. */
+/** Extension ids are a-z, 0-9, `_` and `-`: anything else must not become a path. */
 export function validExtensionID(id: string): boolean {
   return /^[a-z0-9_-]+$/.test(id);
 }

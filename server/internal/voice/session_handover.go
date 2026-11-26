@@ -11,7 +11,7 @@ import (
 )
 
 // runTool runs a function call in the background and answers it (mu held). ask_persona is a task for the main
-// conversation: its call stays open and its one result is the task's answer (docs/lessons/voice.md: a call can wait
+// conversation: its call stays open and its one result is the task's answer (a call can wait
 // minutes; answering at once had the model speak twice and left the answer to be said out of turn). What writes
 // (ask_persona, send_to_agent) waits for the user-speech gate, as it was at the call.
 func (c *conversation) runTool(gen int, e event) {
@@ -73,7 +73,7 @@ func (c *conversation) toolOutput(e event) string {
 
 // startTask hands a delegation the model made to the main conversation (mu held). Nothing is sent back on the
 // delegation until the task's answer: the model has already told the user it handed it over, and anything on the
-// delegation has it speak again (docs/lessons/voice.md "Conclusions" 4).
+// delegation has it speak again.
 func (c *conversation) startTask(delegationID, text string, at time.Time, reply string) {
 	c.handOver(handoverName(delegationID, ""), strings.TrimSpace(text), delegationID, c.delegations[delegationID], at, reply)
 }

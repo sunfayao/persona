@@ -38,7 +38,7 @@ type Server struct {
 	Cwd       string `json:"cwd,omitempty"`
 	Listening bool   `json:"listening"`
 	Title     string `json:"title,omitempty"`
-	// Problem says why the entry cannot be used (a code, docs/web/preview.md); the others are empty then.
+	// Problem says why the entry cannot be used (a code); the others are empty then.
 	Problem string `json:"problem,omitempty"`
 }
 
@@ -49,7 +49,7 @@ type Servers struct {
 	Servers []Server `json:"servers"`
 	// Error is why File could not be used (its JSON, its size).
 	Error string `json:"error,omitempty"`
-	// Browser is the browser previews open in, "" when this computer has none (docs/web/preview.md "The browser").
+	// Browser is the browser previews open in, "" when this computer has none.
 	Browser string `json:"browser,omitempty"`
 }
 

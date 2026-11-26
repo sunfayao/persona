@@ -21,8 +21,8 @@ const (
 	callLimit = 60 * time.Second
 )
 
-// admit finds source and tool in the connector's current catalog and holds the tool to the read-only rule
-// (docs/extensions/subscriptions.md "Read-only tools"): only a tool the catalog declares read-only (ReadCatalog has
+// admit finds source and tool in the connector's current catalog and holds the tool to the read-only rule:
+// only a tool the catalog declares read-only (ReadCatalog has
 // already refused a catalog whose hints contradict that), and never one whose name says it writes. Hints only refuse.
 func admit(sources []connector.CatalogSource, source, tool string) (connector.CatalogSource, connector.CatalogTool, *Problem) {
 	for _, s := range sources {

@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/sdk/go/wire"
 )
 
-// The messaging extension point (docs/extensions/extension-messaging.md, #2138): an extension gives the apps' "Messages" entry its
+// The messaging extension point (#2138): an extension gives the apps' "Messages" entry its
 // data and actions. The hub lists the sources (GET /api/v1/messaging), hands /api/v1/messaging/<source>/… to the
 // extension that has the source, checks what it answers against schema/extension/messaging.schema.json before the
 // apps see it, and pushes the extension's messaging.changed to the apps.

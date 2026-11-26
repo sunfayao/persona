@@ -105,7 +105,7 @@ func TestEngineHandoffReadsTheSpans(t *testing.T) {
 	}
 }
 
-// The note as the engines get it: a full one, a delta, and a delta with nothing in it (docs/assistant/prompts.md).
+// The note as the engines get it: a full one, a delta, and a delta with nothing in it.
 func TestGoldenEngineHandoff(t *testing.T) {
 	n, home := handoffFiles(t)
 	switchedAt, back := handoffAt(t, "2026-01-01T10:05:00Z"), handoffAt(t, "2026-01-01T10:20:00Z")

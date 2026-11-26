@@ -1,4 +1,4 @@
-// The user's saved prompts (#7329, docs/web/web.md "Saved prompts"): the "/" prompts they keep on the hub, the current
+// The user's saved prompts (#7329): the "/" prompts they keep on the hub, the current
 // assistant's (GET /api/v1/assistant/saved-prompts, docs/protocol/protocol.md "REST (App → hub)"). One list for the page,
 // read again when the hub comes back, when another device changes it (assistant_saved_prompts) and when another
 // assistant becomes the current one; Settings › Saved Prompts and every composer's "/" list read it. A chunk of its own:

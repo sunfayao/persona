@@ -274,7 +274,7 @@ func wakesItself(s proto.Session) bool {
 }
 
 // retrying: the hub's "Continue" after a moment's model failure is on its way (work blocked on transient with its
-// wake_at, docs/assistant/agent-work.md "Transient errors: automatic continuation"), and not so overdue that the hub
+// wake_at), and not so overdue that the hub
 // drops it from the list (retryGrace). The session keeps its turn_error meanwhile, but the hub writes no Interrupted
 // receipt until its retries run out, and neither does the view.
 func retrying(s proto.Session, now time.Time) bool {
@@ -322,7 +322,7 @@ func earliest(a, b time.Time) time.Time {
 
 // lastActivity is the last moment at now that the to-do or any of its active runs moved: its own times, its ledger's,
 // its delivery's and ask's, the owner's restore, its return from Someday once that passed, and each active run's
-// session (docs/assistant/todo-status-sop.md "Principle: real signals only").
+// session.
 func lastActivity(f *Facts, now time.Time) time.Time {
 	last := later(f.UpdatedAt, &f.CreatedAt)
 	last = later(last, f.ReopenedAt)
@@ -370,7 +370,6 @@ func latestReview(v *Supervision) *Review {
 }
 
 // acceptanceStands: the latest review accepted it and none came since, even when the hub reopened it
-// (docs/assistant/todo-status-sop.md "Accepted tasks").
 func acceptanceStands(f *Facts) bool {
 	r := latestReview(f.Supervision)
 	return f.Supervision != nil && f.Supervision.State == reviewAccepted && r != nil && r.Verdict == reviewAccepted

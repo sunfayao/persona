@@ -29,7 +29,7 @@ import (
 	"github.com/nwverse/persona/server/internal/shellcmd"
 )
 
-// Starting a Codex from the phone (docs/integrations/codex.md "Starting from the phone"). A Codex launcher (plain `codex`, or an alias whose
+// Starting a Codex from the phone. A Codex launcher (plain `codex`, or an alias whose
 // command is codex) runs in a new herdr tab with an optional first message as its prompt argument: Codex makes the thread
 // itself — on the shared app-server daemon for a plain 0.163, where #220 joins it (codex_daemon.go); in its own process
 // for 0.153 or a launcher with -c, on the terminal route. Launcher words (an alias can carry a key) stay in a private

@@ -1,4 +1,4 @@
-"""MOCK_VOICE for the iOS and web voice modes (docs/assistant/voice.md 6.8, 6.11; web/e2e/voice.mjs): the voice extension at protocol 2, beside the protocol 1 script
+"""MOCK_VOICE for the iOS and web voice modes (6.11; web/e2e/voice.mjs): the voice extension at protocol 2, beside the protocol 1 script
 that mock_hub.py keeps for Android (docs/android/android.md"Voice conversations"). mock_hub.py loads it when MOCK_VOICE is set and hands
 it its own module (`install`); everything here is made up.
 
@@ -12,7 +12,7 @@ What it adds, under /api/v1/extensions and the old /api/v1/plugins alike:
                                                with GET /mock/voice2?voices=fail|slow|slowfail|flaky|stale|none|ok
   GET  …/voice/ws                              a start with protocol 2 and a target gets the script below; any other
                                                start is handed to mock_hub.py's protocol 1 script unchanged
-  POST …/voice/speak                           a text read aloud (docs/assistant/voice.md 4.15, #5004): `speak` in the
+  POST …/voice/speak a text read aloud (#5004): `speak` in the
                                                features, and a quiet 440 Hz tone as audio/pcm at 24 kHz, streamed in
                                                100 ms pieces at about real time, MOCK_VOICE_SPEAK_SECONDS long (3 by
                                                default). MOCK_VOICE_SPEAK=ok|fail|slow|off: the tone / 502

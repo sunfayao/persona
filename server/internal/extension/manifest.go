@@ -30,7 +30,7 @@ var (
 // ValidID says whether id is a plugin id: a-z0-9_-, at most 32, not starting with - or _ (those are the hub's).
 func ValidID(id string) bool { return idPattern.MatchString(id) }
 
-// Manifest is persona-plugin.json (docs/extensions/extensions.md "3").
+// Manifest is persona-plugin.json.
 type Manifest struct {
 	ManifestVersion int    `json:"manifest_version"`
 	ID              string `json:"id"`
@@ -41,7 +41,7 @@ type Manifest struct {
 	Homepage        string `json:"homepage,omitempty"`
 	// Icon is source-only catalog metadata, omitted by PackagedManifest.
 	Icon string `json:"icon,omitempty"`
-	// Tags are what the market shows and searches (docs/extensions/extensions.md "Extension market"). Packages and indexes carry the
+	// Tags are what the market shows and searches. Packages and indexes carry the
 	// manifest without them (PackagedManifest): hubs before tags read manifests strictly and would refuse it.
 	Tags             []string                   `json:"tags,omitempty"`
 	Engines          Engines                    `json:"engines,omitzero"`
@@ -50,10 +50,10 @@ type Manifest struct {
 	ActivationEvents []string                   `json:"activation_events,omitempty"`
 	Contributes      map[string]json.RawMessage `json:"contributes,omitempty"`
 	// OffByDefault are contributions ("<point>/<id>") that start switched off: at install, and at an upgrade for the
-	// ones the version before did not have (docs/extensions/extensions.md "Turning contributions on and off"). A connector's or a bound channel's
+	// ones the version before did not have. A connector's or a bound channel's
 	// switch is not the extension's, so they cannot be listed.
 	OffByDefault []string `json:"off_by_default,omitempty"`
-	// Depends, Exports and ExtensionPack are the extension model (docs/extensions/extensions.md "Dependencies, exports and packs", model.go).
+	// Depends, Exports and ExtensionPack are the extension model (model.go).
 	Depends       []Dependency    `json:"depends,omitempty"`
 	Exports       *Exports        `json:"exports,omitempty"`
 	ExtensionPack []PackMember    `json:"extension_pack,omitempty"`

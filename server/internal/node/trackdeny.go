@@ -11,7 +11,7 @@ import (
 )
 
 // trackDenyRules are the permission rules that keep an assistant conversation off the files of the spaces it is not
-// in (docs/assistant/tracks.md "Tool isolation", #3282): the tracks the manager names (assistant.prepare deny_dirs),
+// in (#3282): the tracks the manager names (assistant.prepare deny_dirs),
 // each with its Claude project directories (auto memory, transcripts). Deny rules hold over any allow rule: "Always
 // allow in this session" and bypassPermissions included. A conversation in a space is never denied its own. Bash is not
 // covered: a command can name a path any way it likes (the issue says what would).

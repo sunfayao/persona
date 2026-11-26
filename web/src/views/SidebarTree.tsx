@@ -123,7 +123,7 @@ function SpaceMarks({ pinned, muted }: { pinned: boolean; muted: boolean }) {
   );
 }
 
-// The todo a space hangs on (docs/assistant/todos.md), when the hub supports both: a tag that opens it.
+// The todo a space hangs on, when the hub supports both: a tag that opens it.
 function SpaceTodoTag({ sp, onNavigate }: { sp: Space; onNavigate?: () => void }) {
   const todos = useStore((st) => st.todos);
   const todosSupported = useStore((st) => st.todosSupported);

@@ -1,4 +1,4 @@
-//! The JSON lines the node and the bridge exchange (docs/extensions/iphone-bridge.md).
+//! The JSON lines the node and the bridge exchange.
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};

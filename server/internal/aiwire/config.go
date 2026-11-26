@@ -1,4 +1,4 @@
-// Package aiwire is the model configuration as the contract carries it (docs/server/architecture.md "Contract packages"):
+// Package aiwire is the model configuration as the contract carries it:
 // the manager's model settings travel over the bus in it. Types and pure helpers only; internal/ai, which calls the
 // models, aliases it.
 package aiwire
@@ -28,7 +28,7 @@ type Config struct {
 	// manager sends them itself. The manager's client is built for it (assistant/models_via.go).
 	ViaMachine string `json:"-"`
 	// RunLauncher is a launcher on ViaMachine whose CLI answers each request headless there instead of an HTTP API: no
-	// address or key here (assistant/models_run.go, docs/assistant/model-config.md "Running API purposes on a launcher").
+	// address or key here (assistant/models_run.go).
 	RunLauncher string `json:"-"`
 }
 

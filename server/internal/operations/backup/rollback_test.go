@@ -213,7 +213,7 @@ func TestRollbackNeverActsOnAConfusedPartsStage(t *testing.T) {
 // What the manifest records as empty (a listed runtime directory that held
 // nothing) is not reproduced: restore leaves the
 // install's copy in place, untouched, and says so. (Moving it aside was
-// dropped pending a decision; see docs/server/server.md.)
+// dropped pending a decision.)
 func TestRestoreLeavesWhatTheBundleRecordsAsAbsentInPlaceAndSaysSo(t *testing.T) {
 	fixture := newBackupFixture(t, "persona_manager")
 	if err := os.RemoveAll(filepath.Join(fixture.home, "skills")); err != nil {

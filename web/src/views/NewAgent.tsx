@@ -92,10 +92,10 @@ export function NewAgent(props: NewAgentProps) {
 }
 
 function AgentForm({ open, onClose, preset }: NewAgentProps) {
-  // with several assistants, the current one's computers: the agent started here shows in its list (docs/assistant/managers.md "Clients")
+  // with several assistants, the current one's computers: the agent started here shows in its list
   const machines = useScopedMachines();
   const online = useMemo(() => machines.filter((m) => m.online), [machines]);
-  // no computer at all (docs/assistant/onboarding.md 4.5): the "Computer" field says why it is empty and adds one, nothing else to fill in
+  // no computer at all: the "Computer" field says why it is empty and adds one, nothing else to fill in
   const loaded = useStore((s) => s.loaded);
   const none = loaded && machines.length === 0;
   const adding = useAddComputer();

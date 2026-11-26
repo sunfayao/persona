@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/textfmt"
 )
 
-// What a runtime that is a machine's engine needs beyond listing and driving its sessions (Paseo, docs/integrations/paseo.md):
+// What a runtime that is a machine's engine needs beyond listing and driving its sessions (Paseo):
 // several launchers (one per provider it runs), the form's choices passed on when a session starts, the phone's
 // permission mode and effort (caps.modes, runtimes.go), and — as the engine — every new session and every session to
 // continue on this machine.

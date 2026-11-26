@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// The reviewer's checks of nowKey against the shared table (spec/fixtures/inbox/now.json, docs/assistant/inbox.md
+// The reviewer's checks of nowKey against the shared table (spec/fixtures/inbox/now.json
 // "Following up"): every case, the list's copy, combinations of several states, and that the key is from the item
 // alone (no clock).
 

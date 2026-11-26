@@ -8,7 +8,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Paseo (docs/integrations/paseo.md) gives an agent what other agents send it as user input, each message in an
+// Paseo gives an agent what other agents send it as user input, each message in an
 // envelope (Paseo's agent-messages/envelope.ts), a blank line between those it delivers together:
 //
 //	<paseo-system version="1" kind="agent-notification" source-agent-id="…" message-id="…" source-server-id="…" source-agent-title="…" event="finished">

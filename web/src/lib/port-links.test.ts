@@ -1,4 +1,4 @@
-// Links to a port of the agent's computer (docs/operations/ports.md "Recognizing links in replies"): the same cases as
+// Links to a port of the agent's computer: the same cases as
 // iOS's PortLinksTests, so the clients agree on what a dev server link is.
 import { describe, expect, it } from "vitest";
 import { MAX_PORT_LINKS, portLabel, portLink, portLinks, portURL } from "./port-links";

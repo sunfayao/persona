@@ -1,4 +1,4 @@
-// Developing Persona's probe (#9617, docs/operations/developing-persona.md): loaded with lib/error-reports-start.ts,
+// Developing Persona's probe (#9617): loaded with lib/error-reports-start.ts,
 // which runs before the app opens its socket and is not part of the first screen's budget. While the switch is on it
 // wraps the page's WebSocket so the recorder (lib/dev-mode.ts, its own chunk) hears the hub socket's frames by type,
 // its connects and drops; everything else the recorder watches itself. iOS's twin is apple/Shared/DevProbe.swift.

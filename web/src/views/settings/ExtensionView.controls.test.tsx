@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// UI version 6's controls on an extension's page (docs/extensions/extensions.md "UI version 6"): a change shows at once, one request per
+// UI version 6's controls on an extension's page: a change shows at once, one request per
 // control is on its way at a time (a change meanwhile goes after it, the latest only), the extension's answer says
 // what the control is now, a failure puts back the value it last drew, and a redraw meanwhile keeps the user's value.
 // The hub is faked: every draw and action waits until the test answers it.

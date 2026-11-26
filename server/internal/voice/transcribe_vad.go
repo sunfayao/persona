@@ -2,7 +2,7 @@ package voice
 
 import "time"
 
-// Speech detection for transcription (docs/assistant/meeting-minutes.md "The built-in adapter"): the adapter's own
+// Speech detection for transcription: the adapter's own
 // energy-based detection cuts windows at silences and spreads sentences over the speech. The rule is the call's
 // (gate.go: over voiceRMS and floorMargin times over the noise floor), on 20 ms frames and on the recording's clock,
 // never the wall clock: the final pass runs at four times real time.

@@ -15,7 +15,7 @@ import (
 
 // A piece that changes its request (todo_update part_of to another request, or "" to clear it) while a sibling's after
 // names it is refused, naming the sibling: otherwise the sibling waits for a piece of another request, which after
-// never names (docs/assistant/todos.md "Requests in pieces"). Every combination of the piece's place, its own after,
+// never names. Every combination of the piece's place, its own after,
 // who waits for it and the edit goes through the real tools (and the apps' PATCH), in memory and in the store, and
 // after each one every after still names pieces of its own request. Ids and titles are placeholders.
 

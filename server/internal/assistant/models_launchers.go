@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Settings › Model providers (docs/integrations/launchers.md): every launcher in one list. Those in each machine's ~/.zshrc are found by its
+// Settings › Model providers: every launcher in one list. Those in each machine's ~/.zshrc are found by its
 // node and remembered by the hub (it hands them over: launchers.zshrc); those added in the app are the assistant's —
 // base URL, model, and the API key AES-GCM sealed with the manager's own secret.key (docs/assistant/managers.md "The built-in
 // manager's own files") — and given to every node, which runs them as `personad launch <name>`. Deleting a
@@ -42,7 +42,7 @@ type launcherMeta struct {
 	SyncedAt time.Time `json:"synced_at"`
 }
 
-// LauncherSync is how one machine's launchers came in this time, for Settings › Model providers (docs/integrations/launchers.md, “Sync state”):
+// LauncherSync is how one machine's launchers came in this time, for Settings › Model providers (“Sync state”):
 // ok, offline (not connected: its last list shows, marked), timeout (no answer in launcherSyncTimeout) or error
 // (Error says why).
 type LauncherSync struct {
@@ -125,7 +125,7 @@ type LauncherView struct {
 	Effort        string   `json:"effort,omitempty"`
 	// Origin is ManagedLauncher.Source ("" made by hand, "zshrc:<alias>@<machine>", "preset:<id>"); "source" is taken.
 	Origin string `json:"origin,omitempty"`
-	// Managed only: the device scope (docs/integrations/launchers.md "Device scope and on-demand delivery"). LegacyScope:
+	// Managed only: the device scope. LegacyScope:
 	// saved before scopes, read as all (work computers too) + push + use. KeyMachines: the computers with a key of their own.
 	Share         string   `json:"share,omitempty"`
 	ScopeMachines []string `json:"scope_machines,omitempty"`

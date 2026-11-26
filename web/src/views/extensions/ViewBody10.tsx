@@ -1,4 +1,4 @@
-// UI version 10 (#9727, docs/extensions/extensions.md "UI version 10"): a view's `graph` drawn as an interactive
+// UI version 10 (#9727): a view's `graph` drawn as an interactive
 // canvas — nodes as DOM buttons on a transformed layer, the edges in one SVG behind them, group frames, fold
 // controls, the selected node's ring; drag and wheel pan, pinch and Ctrl/Cmd + wheel and the buttons zoom (25%–200%),
 // Fit, and a Full screen overlay with the same canvas. A chunk of its own, loaded with the first view that has a

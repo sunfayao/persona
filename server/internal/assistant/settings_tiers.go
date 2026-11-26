@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// persona_settings model_profiles.tiers (docs/assistant/model-config.md "Agent presets"): the tiers of the model
+// persona_settings model_profiles.tiers: the tiers of the model
 // profiles, read and edited in a conversation, so they can be set up from every app without an editor of their own.
 // A set changes one tier in every profile unless it names some, so a switch keeps it. What it would change is checked
 // first (a launcher no computer has never reaches the card), shown on the approval card, and saved at the revision the

@@ -1,4 +1,4 @@
-// End-to-end check of Paseo as a machine's engine (docs/integrations/paseo.md "Verification"): a real Paseo daemon (its own home and port,
+// End-to-end check of Paseo as a machine's engine: a real Paseo daemon (its own home and port,
 // a Claude Code provider whose model is the scripted one in model.mjs), a real `personad node --stdio` started by the
 // runtime SDK's harness (it plays the hub), and the bridge the node itself writes out and runs once the engine is set
 // to Paseo. It starts a session from the "phone" (one with no first message too, whose first message keeps its id once

@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// ModelChoice and VoiceChoice are what GET /models and GET /voices list (docs/extensions/extensions.md "Voice").
+// ModelChoice and VoiceChoice are what GET /models and GET /voices list.
 type ModelChoice struct {
 	ID   string `json:"id"`
 	Name string `json:"name,omitempty"`

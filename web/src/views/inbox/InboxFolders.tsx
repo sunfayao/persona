@@ -1,4 +1,4 @@
-// Inbox folders (docs/assistant/inbox.md "Folders", #2463): the folder bar under the filters (crumbs down to the folder
+// Inbox folders (#2463): the folder bar under the filters (crumbs down to the folder
 // picked, the folders under it as chips), "Move to folder…" from an item's menu, and the folder settings from the ⋯
 // menu (the model files items when on; the user's folder rules guide it).
 import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";

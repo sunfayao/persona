@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// A closeout is what an agent says of its own work as a turn ends (docs/assistant/agent-work.md "Closeout"): done or
+// A closeout is what an agent says of its own work as a turn ends: done or
 // not, what changed, merged and deployed or not, what was verified, what is missing. The node holds a stop once to
 // get one (node/closeout_stop.go) when the manager says so here; the triage reads it before it asks a model.
 

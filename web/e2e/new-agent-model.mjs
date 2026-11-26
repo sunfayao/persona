@@ -1,4 +1,4 @@
-// End-to-end check of New agent's model choice in the unified model panel (#5104, docs/web/web.md "New Agent"): the model
+// End-to-end check of New agent's model choice in the unified model panel (#5104): the model
 // pill at the right of the first message box shows the model Model settings › New agent runs, with Claude Code's mark, and
 // its panel has "Follow Model settings" checked on top; the panel lists the profile's presets, one group per launcher of
 // the computer (a launcher that failed its check here with its reason and How to fix), searches, and the flyout of the row

@@ -18,7 +18,7 @@ const (
 	// name, only folders in the home take it (node/writeguard.go), and it may be bigger.
 	UploadDestDir     = "dir"
 	MaxDirUploadBytes = 2 << 30
-	// A file sent to a computer to keep (dest=inbox, docs/protocol/file-transfer.md): it lands in the machine's receive
+	// A file sent to a computer to keep (dest=inbox): it lands in the machine's receive
 	// folder (hub.json machines[].inbox_dir, DefaultInboxDir by default) under its own name, a taken name gets " 2",
 	// " 3"… The limit is a folder's: the bytes are streamed a chunk at a time, so nothing holds the whole file, and
 	// what a person sends between their own computers (a video, a disk image) is often over 200 MB.

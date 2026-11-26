@@ -1,4 +1,4 @@
-// The editor of one saved prompt (#7329, docs/web/web.md "Saved prompts"): its name, the word after "/" in every chat,
+// The editor of one saved prompt (#7329): its name, the word after "/" in every chat,
 // and the text picking it puts in the message box. Settings › Saved Prompts opens it to add or change one; a message's
 // "Save as Prompt…" opens it filled with that message's words (openSavedPromptDialog, which mounts it on its own, as the
 // chat has no place for it). The hub checks everything again; the checks here only say it before asking.

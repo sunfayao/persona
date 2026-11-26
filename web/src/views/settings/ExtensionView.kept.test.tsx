@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// An extension page on reload (docs/web/web.md "Extension pages on reload"): the full page draws its last view at once,
+// An extension page on reload: the full page draws its last view at once,
 // inert and marked as updating, before the hello and while the extension draws it again, and the drawing replaces it
 // and is kept for the next load. Never another manager's or another UI version's, never a form typed into.
 import { act } from "react";

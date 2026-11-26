@@ -267,7 +267,7 @@ func (h *Hub) auth(next http.Handler) http.Handler {
 			// (authenticate asked the manager whose it is and whether it opens this route: authorizeExtension)
 			// An extension's token is for the hub it runs beside, on this machine (hub.url), or comes through its
 			// manager's relay with the manager's proof: a relayed manager's computer may reach the hub only across the
-			// internet (docs/assistant/managers.md "Extensions and the hub's API"; the gate still holds it to TLS there). A
+			// internet (the gate still holds it to TLS there). A
 			// token alone from there is refused, and counted against the source; a proof the manager did sign but
 			// that is out of time, sent twice or one too many just now is refused without counting.
 			if public {
@@ -1393,7 +1393,7 @@ func (h *Hub) broadcastTo(typ string, b []byte, elicitation bool) {
 }
 
 // legacyLarkEvent is the Lark extension's old change notice ({"type":"lark","feed_ids":…}); while the old /api/v1/lark
-// is still read it comes beside the same change's "messaging" event (docs/extensions/extension-messaging.md).
+// is still read it comes beside the same change's "messaging" event.
 const legacyLarkEvent = "lark"
 
 // featureLarkViaMessaging: in client_hello, the app follows the "messaging" events for its Feishu screens and drops
@@ -1658,7 +1658,7 @@ func (h *Hub) onClientMessage(ctx context.Context, c *client, data []byte) {
 		DeviceID   string `json:"device_id"` // register_phone / register_desktop: the app's id for pushes
 		Epoch      string `json:"epoch"`
 		AfterSeq   int    `json:"after_seq"`
-		// terminal_subscribe, terminal_input: the grid the app drives the terminal at (docs/integrations/terminal.md)
+		// terminal_subscribe, terminal_input: the grid the app drives the terminal at
 		Control  *termCtl `json:"control"`
 		Takeover bool     `json:"takeover"`
 		Text     string   `json:"text"`
@@ -1680,7 +1680,7 @@ func (h *Hub) onClientMessage(ctx context.Context, c *client, data []byte) {
 		Rows  int    `json:"rows"`
 		Bytes int64  `json:"bytes"`
 		Focus bool   `json:"focus"`
-		// terminal_input: one mouse event on a terminal the app drives (feature terminal_mouse, docs/integrations/terminal.md "Mouse")
+		// terminal_input: one mouse event on a terminal the app drives (feature terminal_mouse)
 		Mouse *termMouse `json:"mouse"`
 	}
 	if json.Unmarshal(data, &msg) != nil {

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Blocked Claude Code config directories (docs/integrations/claude-integration.md "Blocking configuration directories"): per machine, patterns the user
+// Blocked Claude Code config directories: per machine, patterns the user
 // keeps out of Persona — the node neither looks in nor reports a matching directory, the hub does not remember it, and
 // its sessions are not listed. Both the hub and the node match with ClaudeDirBlocked. Hidden Agent folders
 // (agentdirs.go) are the parallel list with the same pattern syntax and matcher.

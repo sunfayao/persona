@@ -19,7 +19,7 @@ import (
 	"github.com/nwverse/persona/server/internal/taskworkspace"
 )
 
-// Tasks dispatched from an assistant conversation (docs/assistant/unified-entry.md, #930). The assistant hands the user a plan
+// Tasks dispatched from an assistant conversation (#930). The assistant hands the user a plan
 // (task_plan); read-only plans, tasks the user asked for in so many words (#2559) and kinds the user trusts start at
 // once, the rest wait for the user's "Start" on the plan card. A task is a todo (todos.go) whose origin is the conversation; its agents are ordinary agents
 // (the Agents page shows them as always). What the assistant adds to the conversation — the plan card, a started

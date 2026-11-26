@@ -1,4 +1,4 @@
-// Developing Persona on the web (#9617, docs/operations/developing-persona.md): what may go into the package
+// Developing Persona on the web (#9617): what may go into the package
 // (scrubbing, route patterns, the same cases as iOS DevModeTests), what the recorder writes a minute and per visible
 // period, and that the error reporter feeds the recorder with the
 // hub's reports off.

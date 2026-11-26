@@ -13,7 +13,7 @@ import (
 	"github.com/coder/websocket"
 )
 
-// A call's log (#1485, docs/assistant/voice.md "Diagnosing a call"): one line per meaningful event of the call, each
+// A call's log (#1485): one line per meaningful event of the call, each
 // beginning with the call's id ("call 7:", the calls this extension took since it started), so the lines of calls at
 // the same time can be told apart and what happened in one can be told afterwards: how it started (protocol, target,
 // model, tools), its upstream sessions, every handover and the user-speech gate's decision on it, every run's states

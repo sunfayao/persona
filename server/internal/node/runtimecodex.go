@@ -7,7 +7,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// A runtime that runs Codex itself (Paseo, docs/integrations/paseo.md) has sessions whose conversation is a Codex thread
+// A runtime that runs Codex itself (Paseo) has sessions whose conversation is a Codex thread
 // with a rollout on this machine. The node finds that rollout on its own too and listed it a second time, as Codex
 // history: the same conversation under another id, read-only, with the thread's own subagents under it (#4495). The
 // runtime's row names the thread (runtime.sessions' codex_thread: the thread id) and the node lists the conversation

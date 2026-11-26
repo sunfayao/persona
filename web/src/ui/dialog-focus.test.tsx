@@ -216,7 +216,7 @@ describe("Dialog focus", () => {
 
   describe("opened from a menu row chosen with the pointer", () => {
     // jsdom has no CSS.escape (the menu's outside-press check calls it), and its click() neither sends a pointerdown
-    // nor focuses the button: `press` does all three, as a browser does (docs/lessons/web.md, "Popup menus")
+    // nor focuses the button: `press` does all three, as a browser does
     beforeEach(() => {
       const css = ((globalThis as { CSS?: Partial<typeof CSS> }).CSS ??= {});
       css.escape ??= (s: string) => s.replace(/[^\w-]/g, (c) => `\\${c}`);

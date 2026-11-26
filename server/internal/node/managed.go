@@ -29,7 +29,7 @@ import (
 	"github.com/nwverse/persona/server/internal/shellcmd"
 )
 
-// Launchers kept by the hub ("Settings › Model", docs/integrations/launchers.md): the manager names the ones in this
+// Launchers kept by the hub ("Settings › Model"): the manager names the ones in this
 // computer's scope on connect and on every change (launchers.catalog), the secrets of each withheld; they come when the
 // node needs them (launchers.pull) and stay in this process's memory. A manager from before the catalog sends them all
 // with their secrets (launchers.managed). A managed launcher runs as `personad launch <name> …`, which asks this node

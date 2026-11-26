@@ -25,7 +25,7 @@ const ExtensionHeader = "X-Persona-Extension"
 const AdminHeader = "X-Persona-Admin"
 
 // DeviceNameHeader carries the name of the device a relayed request came from ("" for the hub's own token), so a
-// manager can say who did something (a model profile's switch, docs/assistant/model-config.md); set by the hub like
+// manager can say who did something (a model profile's switch); set by the hub like
 // RoleHeader, never the client's.
 const DeviceNameHeader = "X-Persona-Device-Name"
 
@@ -35,7 +35,7 @@ const DeviceNameHeader = "X-Persona-Device-Name"
 const PersonHeader = "X-Persona-Person"
 
 // HandoffApprover is the device the hub found may approve a hand-off card (proto.SecretHandoffTool): a full device
-// whose app shows the card (docs/extensions/secret-providers.md "Who may approve a hand-off"). It travels in
+// whose app shows the card. It travels in
 // HTTPRequest, never in a header, so no client can set it, and an older hub never sends it: a manager approves a
 // hand-off only with it.
 type HandoffApprover struct {
@@ -133,7 +133,7 @@ type ContextParams struct {
 }
 
 // ContextResult is assistant.context's answer: the <persona-context> text, and the <persona-view-errors> block of the
-// conversation's rich views that failed their check and were not reported yet (docs/assistant/assistant-views.md "Next-turn feedback").
+// conversation's rich views that failed their check and were not reported yet.
 // Reading it consumes nothing: the node acks Receipts once the message is delivered.
 // Receipts also carry what else the hub wants confirmed as delivered with the message (the background supervisor's
 // announcement, item_id "background_supervisor"): the node sends them all back as they are.
@@ -213,8 +213,8 @@ type MessageCard struct {
 // APIErrorMarkers start what Claude Code answers when the model call itself failed (an error card in the app). Both
 // sides read a turn by them: the hub's session lists say an agent's turn was cut off (proto.Session.TurnError), the
 // assistant's scheduled runs and tasks act on it. "Not logged in · Please run /login" is what Claude Code answers when
-// it has no credentials (a model of its own, "<synthetic>"): the turn did not run, the user must sign in
-// (docs/assistant/onboarding.md 4.4). Its separator is in the marker, so a reply that talks about being logged out is a reply.
+// it has no credentials (a model of its own, "<synthetic>"): the turn did not run, the user must sign in.
+// Its separator is in the marker, so a reply that talks about being logged out is a reply.
 var APIErrorMarkers = []string{"API Error:", "There's an issue with the selected model", "Failed to authenticate",
 	"OAuth token has expired", "Invalid API key", "Not logged in ·", "Request too large"}
 
@@ -251,8 +251,8 @@ func startsWithAny(s string, prefixes []string) bool {
 }
 
 // StartEnded is session.start_ended's params: how an app's start that the node ran before answering went (a resume, a
-// Codex, an older app; one answered at once is followed in the session lists), for launcher health
-// (docs/server/launcher-health.md). Launcher is the one the start ran ("" : claude); Error and Code, Data are the
+// Codex, an older app; one answered at once is followed in the session lists), for launcher health.
+// Launcher is the one the start ran ("" : claude); Error and Code, Data are the
 // node's answer when it failed (its rpc.Error's code and data, when it had them).
 type StartEnded struct {
 	MachineID string          `json:"machine_id"`

@@ -1,4 +1,4 @@
-// End-to-end check of Web Push (#7459, docs/web/web.md "Web Push") in a real Chrome, as the user does it: Settings ›
+// End-to-end check of Web Push (#7459) in a real Chrome, as the user does it: Settings ›
 // Notifications › "Notify this browser when Persona is closed" subscribes the browser at its real push service (FCM)
 // with the hub's key and hands the hub the subscription; a push the service worker gets shows as the hub's
 // message says, under the page's tag, opening the conversation; a pushed notification whose event is over goes once a

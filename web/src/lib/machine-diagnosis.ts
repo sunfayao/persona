@@ -1,4 +1,4 @@
-// What is using a computer (#8037, docs/web/web.md "Machines"): the manager's bounded diagnosis of one node
+// What is using a computer (#8037): the manager's bounded diagnosis of one node
 // (`GET /api/v1/machines/{mid}/diagnosis?sections=`) and its cache cleaner (`POST …/cleanup {ids}`). The node answers a
 // fixed question (process groups by name, the largest folders under home, a fixed list of rebuildable caches, a fixed
 // list of tools); nothing here sends a path or a command. A node or hub from before it says so in its own way, which

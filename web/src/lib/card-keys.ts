@@ -1,4 +1,4 @@
-// A waiting card's own keyboard (docs/web/web.md "Keyboard shortcuts"): while a card has keyboard focus, digits 1–9
+// A waiting card's own keyboard: while a card has keyboard focus, digits 1–9
 // pick its options, a bare Enter runs its main action and Esc goes back to the composer — never an answer. This file
 // is the part with no DOM of its own: whose key it is, and where focus goes. The cards hang these on their root
 // (useCardKeys in views/chat/Interactions.tsx); the shortcut that hands the card the keyboard is "focus-card"

@@ -1,4 +1,4 @@
-// What only a voice call runs (docs/web/web.md "Voice chat"): the call itself (conversation.ts, with its uplink and
+// What only a voice call runs: the call itself (conversation.ts, with its uplink and
 // resampling) and the browser's side of it (audio.ts and the capture worklet's address, the cues, the pace check).
 // calls.ts imports this with import() when the page's first call starts, so the first screen does not carry it; the
 // first-screen modules import these only as types.

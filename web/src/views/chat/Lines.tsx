@@ -339,7 +339,7 @@ function UsageLimitLine({ text, onDismiss }: { text: string; onDismiss?: () => v
 
 /** A model API error (cindy's error notice): why, in words, whether it passes by itself under it, then its actions; the
  *  ids, the status code, how many times in a row and the original are under "Error details". One the user must fix (not
- *  signed in, a wrong key, a model that is not there) says so instead, with "Fix it" (docs/assistant/onboarding.md 4.4). */
+ *  signed in, a wrong key, a model that is not there) says so instead, with "Fix it". */
 function APIErrorCard({ info, count, at, onRetry, onEditLastMessage, onCompactAndResend, compactingToResend, fix, turnErrorCode, onDismiss, exhausted }: { info: APIErrorInfo; count: number; at?: string; onRetry?: () => void; onEditLastMessage?: () => void; onCompactAndResend?: () => void; compactingToResend?: boolean; fix?: TurnFix | null; turnErrorCode?: string; onDismiss?: () => void; exhausted?: RecoveryExhaustedView | null }) {
   const imageLimit = isImageLimitError(info.code, turnErrorCode);
   const sub = imageLimit ? "" : fix ? fix.detail : info.transient === true ? t("chat-lines.api_transient") : info.transient === false ? t("chat-lines.api_permanent") : "";

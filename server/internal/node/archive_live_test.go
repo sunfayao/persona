@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Native archive against a real Codex (docs/integrations/codex.md "Archive"), in a throwaway CODEX_HOME of its own:
+// Native archive against a real Codex, in a throwaway CODEX_HOME of its own:
 // a thread made there with thread/start (no model call), archived and restored first through a `codex app-server`
 // the node is connected to, then, with that app-server gone, with the codex command in the user's shell. Never touches
 // the user's threads. Run with -tags codexarchivelive and PERSONA_CODEX_ARCHIVE=1 (codex on PATH, 0.163 or later).

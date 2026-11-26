@@ -1,7 +1,6 @@
 // The `brief` item of a morning or evening routine's conversation: the fixed part of the run (what waits for the user,
 // what happened in the last hours, what is to be verified), as the hub worked it out when the run started; the same
 // rows as the Lark card, with an Accept button for each task to verify and a Handled button for each question that can wait
-// (docs/extensions/bots.md "Morning and evening briefings").
 import { leaveChat, openAgent, openTask } from "../../lib/handoff";
 import { conversationRoute } from "../../lib/conversation-page";
 import { type ReactNode, Suspense, useRef, useState } from "react";

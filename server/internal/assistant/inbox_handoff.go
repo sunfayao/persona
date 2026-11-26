@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// Hand to AI with write-back (docs/assistant/inbox.md "Item actions", #1194): the user hands an item to Persona's main
+// Hand to AI with write-back (#1194): the user hands an item to Persona's main
 // conversation, which may then write back to it with inbox_suggest (item). The item keeps which conversations it was
 // handed to (Handoffs); its processing conversation (Agent, Handling) is not touched, so the AI twin's sweep and
 // timeouts never take the main conversation for one of its own. What the user does with a suggestion from there is

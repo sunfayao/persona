@@ -54,7 +54,7 @@ func refusingTools(t *testing.T, refuse func(u *fakeUpstream, c *websocket.Conn)
 }
 
 // unknownTools is how the public GPT-Live API answers a session start with tools: unknown_parameter, the connection
-// left open (docs/lessons/voice.md "Errors").
+// left open.
 func unknownTools(u *fakeUpstream, c *websocket.Conn) {
 	u.send(c, map[string]any{"type": "error", "error": map[string]any{"type": "invalid_request_error", "code": "unknown_parameter",
 		"param": "session.tools", "message": "Unknown parameter: 'session.tools'."}})

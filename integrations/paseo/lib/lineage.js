@@ -1,4 +1,4 @@
-// Where a Paseo agent's Claude conversation began (docs/integrations/paseo.md "Session IDs"). Paseo forks an agent's
+// Where a Paseo agent's Claude conversation began. Paseo forks an agent's
 // Claude Code session whenever it rewinds it, and so when the user goes on after an API error in Paseo's app (it drops
 // the failed turn first): the fork is a new transcript beside the old one, and every record it copied names the session
 // it came from (forkedFrom: {sessionId, messageUuid}). The bridge follows those back when it did not see the agent move

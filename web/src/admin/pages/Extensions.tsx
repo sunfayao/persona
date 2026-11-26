@@ -1,4 +1,4 @@
-// "Extensions": what extends this hub (docs/extensions/extensions.md), installed, upgraded, rolled back, switched and uninstalled from here as
+// "Extensions": what extends this hub, installed, upgraded, rolled back, switched and uninstalled from here as
 // `personad extension` does on the hub's machine. Installing runs a new program there, so nothing installs before the
 // page has shown what it may do (the preview) and the user agreed to exactly that (its permissions digest).
 import { t } from "../../i18n";
@@ -40,7 +40,7 @@ export function Extensions() {
   // An extension's state moves on its own (starting, running, idle).
   useVisiblePoll(reload, 15_000, Boolean(data));
 
-  // How each runs, over the last day (docs/extensions/extensions.md "Runtime status"); a hub from before #1857 has none (null).
+  // How each runs, over the last day; a hub from before #1857 has none (null).
   const [running, setRunning] = useState<Record<string, ExtensionOverview> | null>(null);
   const live = useRef(true);
   const loadRunning = useCallback(() => {

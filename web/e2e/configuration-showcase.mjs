@@ -1,4 +1,4 @@
-// Browser checks and screenshots for the configuration showcase (#9877 follow-up, docs/web/web.md "Configuration forms"):
+// Browser checks and screenshots for the configuration showcase (#9877 follow-up):
 // web/e2e/configuration-showcase.html, the real form over the showcase's mock modules, plus every scenario.
 //
 // Needs the Vite dev server (no hub is used: the page reads nothing from one) and Chrome or any Chromium through

@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// A todo's plan (#1683, docs/assistant/todos.md "Due date, reminder, priority"): when it is due (a moment, or a day in the
+// A todo's plan (#1683): when it is due (a moment, or a day in the
 // user's time zone), when the phone is reminded of it, and its priority. The apps set them through POST / PATCH
 // /api/v1/todos, the assistant through its todo_* tools (todo_tools.go). remindLoop pushes each reminder once, when it is
 // due: claimed in the store first, so neither a restart nor a second manager pushes it again.
@@ -365,7 +365,7 @@ func (s *Service) remindLoop(ctx context.Context) {
 }
 
 // remindDue pushes the reminders due by now and returns when the next one is (zero for none). A mesh member's
-// wait while the center pushes the group's (docs/server/mesh.md), as its scheduled tasks do.
+// wait while the center pushes the group's, as its scheduled tasks do.
 func (s *Service) remindDue(ctx context.Context, now time.Time) time.Time {
 	type due struct {
 		id string

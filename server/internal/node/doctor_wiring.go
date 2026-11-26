@@ -189,7 +189,7 @@ func checkAgentSandboxIn(dir string, lang i18n.Lang) DoctorCheck {
 	return c
 }
 
-// agentSandboxLimits is what the doctor reminds of while the sandbox is on (docs/server/agent-sandbox.md): what it does not
+// agentSandboxLimits is what the doctor reminds of while the sandbox is on: what it does not
 // stop, which agents it does not cover, and platform-specific behavior that needs a restart or stops working.
 func agentSandboxLimits(goos string) string {
 	return agentSandboxLimitsIn(goos, i18n.Default)

@@ -1,6 +1,6 @@
-// The words around a call that is not on (docs/assistant/voice.md 1.3, 1.2 L; iOS's VoiceNotes.swift): why the page offers
+// The words around a call that is not on (1.2 L; iOS's VoiceNotes.swift): why the page offers
 // none, and what stays after one ended by itself ("Voice ended · Continue"). Pure; the extension's or the upstream's own
-// words only go under Details (docs/lessons/voice.md "Implementation reminders").
+// words only go under Details.
 import { t } from "../../i18n";
 import type { VoiceAvailability } from "./availability";
 import type { VoiceEnd } from "./conversation";

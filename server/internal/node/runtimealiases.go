@@ -10,7 +10,7 @@ import (
 )
 
 // A runtime's session listed under an id of its own whose conversation is a Claude transcript here (Paseo's: one
-// started from Persona, paseo-<agent id>, or one whose id the bridge kept when Paseo forked it, docs/integrations/paseo.md
+// started from Persona, paseo-<agent id>, or one whose id the bridge kept when Paseo forked it
 // "Session IDs") went by other ids on this machine: the transcript's, and the sessions Paseo forked it from. Before
 // #6709 such a conversation was listed under its transcript, and Persona's archive (the user's, or closed sessions
 // archiving themselves) kept a record under each id it was listed under: the Archived list repeated the conversation

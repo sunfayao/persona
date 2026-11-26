@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/extwire"
 )
 
-// Meeting transcription (docs/assistant/meeting-minutes.md "The `transcription` extension point"; the Volcengine side
+// Meeting transcription (the Volcengine side
 // in docs/extensions/volcengine-speech.md "Recognition"): one job per WebSocket from the manager, its audio in and its
 // sentences out, in recording seconds. A live job streams to one session at a time of the two-pass endpoint: its
 // interim text becomes `interim`, each sentence it marks definite a `sentence`. A session ends at a flush, a hole, a

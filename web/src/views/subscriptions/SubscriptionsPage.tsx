@@ -1,4 +1,4 @@
-// The source subscription pages (#2041, docs/extensions/subscriptions.md "Pages") at /subscriptions: the manager draws
+// The source subscription pages (#2041) at /subscriptions: the manager draws
 // them as declarative UI, so this is only the page around them, as an extension's full page has (ExtensionNavPage).
 // ?state= opens them on one extension's or one connector's subscriptions, or one of their pages. A manager with
 // inbox_sources draws Inbox Sources (#5278), every source of the Inbox, and the page says so.

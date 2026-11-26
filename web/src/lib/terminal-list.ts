@@ -1,4 +1,4 @@
-// The Sessions and Terminal page's list (#4754, docs/web/web.md "Pages", **Terminal**): a switch at its top between the
+// The Sessions and Terminal page's list (#4754, **Terminal**): a switch at its top between the
 // sessions and **Terminals**, every plain terminal of every computer (computer → space → tab → pane) at full height.
 // Which one shows is the address's `?view=sessions|terminals`, else the one this browser chose last, else the sessions.
 // Also "Close finished terminals": the terminals stopped Agents left, previewed, confirmed, then closed. Pure, tested

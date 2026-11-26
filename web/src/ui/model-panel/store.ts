@@ -1,6 +1,6 @@
 // What the model panel keeps (#5032): favorites, recent setups and per-model overrides, in this browser's storage. The
-// hub has no store for personal picker preferences, so they stay on the device the way Cindy keeps them per install
-// (docs/web/web.md "Model pill and model panel"). An Agent's and a Persona chat's are kept apart (`scope`), and so are two
+// hub has no store for personal picker preferences, so they stay on the device the way Cindy keeps them per install.
+// An Agent's and a Persona chat's are kept apart (`scope`), and so are two
 // hubs served under different sub-paths of one origin (BASE). Every open panel and every tab follows a change at once
 // (the storage event for other tabs).
 import { useCallback, useMemo, useSyncExternalStore } from "react";

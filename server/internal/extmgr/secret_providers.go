@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Secret providers (docs/extensions/secret-providers.md): the value of a reference (op://vault/item/field) comes from
+// Secret providers: the value of a reference (op://vault/item/field) comes from
 // the extension whose secret_providers contribution claims its scheme, asked here and nowhere else. A value is never
 // logged, put in an error, an audit detail or an event; only the caller that asked gets it.
 

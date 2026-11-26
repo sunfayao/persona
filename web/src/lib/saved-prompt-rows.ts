@@ -1,4 +1,4 @@
-// The user's saved prompts as rows of the composer's "/" list (#7329, docs/web/web.md "Saved prompts"). The list itself,
+// The user's saved prompts as rows of the composer's "/" list (#7329). The list itself,
 // its reads, changes and words are lib/saved-prompts.ts, a chunk of its own the first time a composer has the focus
 // (or a "/" in it), so none of that is on the first screen; this file only holds the rows it gives the composers.
 import { useEffect, useSyncExternalStore } from "react";

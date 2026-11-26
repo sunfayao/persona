@@ -4,7 +4,7 @@ package iphone
 // that worked), starts the bridge's serve on it, and when the link drops starts again after a backoff. It belongs to
 // the Manager, which lives as long as the node process: a client closing or the hub restarting doesn't touch it, and
 // an idle connected phone stays connected. Calls go one at a time, as the bridge answers them; an input operation
-// whose answer never came is reported as uncertain and never sent again (docs/extensions/iphone-pairing.md).
+// whose answer never came is reported as uncertain and never sent again.
 
 import (
 	"context"

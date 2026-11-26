@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// A manager's own list of computers (docs/assistant/managers.md "Each manager's computers"): the entries it connects,
+// A manager's own list of computers: the entries it connects,
 // kept in its manager.json so that a manager starting while the hub is away connects them at once. They come from the
 // hub's hand-over (devicewire.Config.Machines): the first one is taken over (MachinesFromHubKey records when), and as
 // long as the hub edits the lists (adding, removing or moving a computer), each later hand-over is written over it.

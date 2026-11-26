@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Several managers (docs/assistant/managers.md "Grouping"): a document or Moments post a chat's link opens in the panel
+// Several managers: a document or Moments post a chat's link opens in the panel
 // is read as that chat's manager, and so is everything the panel loads for it and every link inside it; the default's
 // names none.
 import { act } from "react";

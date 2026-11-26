@@ -1,4 +1,4 @@
-// Settings › Notifications › When Persona is closed (#7459, docs/web/web.md "Web Push"): this browser's Web Push, off
+// Settings › Notifications › When Persona is closed (#7459): this browser's Web Push, off
 // until turned on here. What it needs is said in the row when the browser can't (https, the Home Screen app on iPhone
 // and iPad, not the desktop app), its state when it can (through which push service, the last delivery or failure).
 import { useEffect, useState } from "react";

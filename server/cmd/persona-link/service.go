@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/link"
 )
 
-// On Linux persona-link runs as a systemd user service (docs/operations/link.md "Linux (headless)"): `install` writes the unit,
+// On Linux persona-link runs as a systemd user service: `install` writes the unit,
 // enables and (re)starts it and waits for the link; `uninstall` takes it away. The service runs in the user's own
 // systemd instance, so it needs no root, and runs with nobody logged in once linger is on.
 

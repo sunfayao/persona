@@ -1,7 +1,6 @@
 package proto
 
 // Claude Code sessions the node finds running where Persona has no terminal pane: their source_kind
-// (docs/integrations/claude-integration.md, "Claude outside Persona's terminals").
 const (
 	// SourceClaudeBg: a background session Claude's own daemon runs (/fork, /background).
 	SourceClaudeBg = "claude_bg"

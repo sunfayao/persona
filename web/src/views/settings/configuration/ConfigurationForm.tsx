@@ -1,4 +1,4 @@
-// A configuration form (lib/configuration, docs/web/web.md "Configuration forms"; docs/design/DESIGN_SYSTEM.md
+// A configuration form (lib/configuration; docs/design/DESIGN_SYSTEM.md
 // "Configuration forms"): one Document from an injected source, drawn with the settings pieces every page uses. It knows
 // no module: titles, descriptions, details and notices are the source's words, shown as given.
 //

@@ -1,4 +1,4 @@
-// Exporting a conversation as Markdown (#7375, docs/web/web.md "Exporting a conversation"): the whole chat read from the
+// Exporting a conversation as Markdown (#7375): the whole chat read from the
 // hub page by page, whatever the page holds, and written as one document people can keep, paste or file. The rules of
 // the document are here, pure, with the words passed in, so spec/fixtures/chat-export (and later the apps) can check
 // the same file; the dialog (views/chat/ExportDialog.tsx) reads, shows the progress and saves.

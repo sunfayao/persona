@@ -44,7 +44,7 @@ describe("Back from an Inbox item", () => {
     expect(history.length - start).toBe(1);
   });
 
-  // the section bar lands for good only on an opening from outside (docs/assistant/inbox.md "Section bar", #9053)
+  // the section bar lands for good only on an opening from outside (#9053)
   it("tells an item opened from inside the Inbox from one reached from outside", () => {
     atList();
     openFromInbox({ name: "inbox", id: "a" });

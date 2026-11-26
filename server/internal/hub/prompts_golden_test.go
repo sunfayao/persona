@@ -1,6 +1,6 @@
 package hub
 
-// Golden tests for every prompt the hub writes (docs/assistant/prompts.md): representative inputs, the output compared byte for
+// Golden tests for every prompt the hub writes: representative inputs, the output compared byte for
 // byte with testdata/prompts/<name>.golden. After changing a prompt on purpose, regenerate with
 //
 //	UPDATE_GOLDEN=1 go test ./internal/hub -run Golden
@@ -200,7 +200,7 @@ func TestGoldenBotMessage(t *testing.T) {
 	golden(t, "bot_message.only_files", prompts.RenderBotMessage(prompts.BotMessage{Persona: true, Files: []string{"/tmp/a.pdf", "/tmp/b.png"}}))
 }
 
-// A message to a plugin's chat app bot (docs/extensions/channels.md): plain text and text answers (WeChat), Markdown without
+// A message to a plugin's chat app bot: plain text and text answers (WeChat), Markdown without
 // answering there, what came that cannot be passed on, a picture alone.
 func TestGoldenChannelMessage(t *testing.T) {
 	golden(t, "channel_message.plain", prompts.RenderChannelMessage(prompts.ChannelMessage{Persona: true, Name: "微信", Owner: "示例用户",
@@ -251,7 +251,7 @@ func TestChannelMentionMessageCarriesOriginAndPublicCaution(t *testing.T) {
 	}
 }
 
-// Closing a finished task (docs/assistant/todos.md "Automatic completion"): the judge's system prompt and its input, with and without hints.
+// Closing a finished task: the judge's system prompt and its input, with and without hints.
 func TestGoldenTaskDone(t *testing.T) {
 	golden(t, "task_done", prompts.RenderTaskDone(prompts.TaskDone{Owner: "示例用户"}))
 	golden(t, "task_done.delivery", prompts.RenderTaskDone(prompts.TaskDone{Owner: "示例用户", Delivery: true}))

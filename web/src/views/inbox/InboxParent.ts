@@ -15,7 +15,7 @@ export function onInboxParentChanged(listener: () => void): () => void {
   };
 }
 
-/** The one request-body shape used by both Trail actions (docs/assistant/inbox.md "Relationships: parents and children"). */
+/** The one request-body shape used by both Trail actions. */
 async function setInboxParent(item: InboxItemRef, parent: InboxParent | null): Promise<void> {
   const fresh = await api<InboxItem>(`${itemPath(item.id)}/parent`, { method: "PUT", json: parent, headers: itemRequest(item) });
   if (fresh?.id === item.id) replaceItem(fresh, item.manager);

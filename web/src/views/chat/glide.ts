@@ -1,4 +1,4 @@
-// A smooth jump the chat drives itself, frame by frame (docs/web/web.md "Long chats"). The browser's own smooth scroll
+// A smooth jump the chat drives itself, frame by frame. The browser's own smooth scroll
 // aims once, at where the row was when it set off: exchanges drawn for the first time on the way (content-visibility)
 // then move the row, and setting scrollTop to keep the view still stops it. This one asks `aim()` each frame. Its pace
 // is Chromium's own (measured): √distance × 15 ms, at most 1.5 s, easing out.

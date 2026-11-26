@@ -181,7 +181,7 @@ func (c *keptClaim) tab(ctx context.Context) (*host.Created, error) {
 
 // closeStalledTab closes the kept tab of a stalled Orca start, whose one launch is used, for the user's retry to open a
 // new one. The local free check is repeated after each terminal lookup, just before sending the close: an agent
-// that recovered during lookup is left open (docs/integrations/engines.md "Agents run in a terminal"). This is not
+// that recovered during lookup is left open. This is not
 // atomic with recovery after the check or with runtime execution of the close.
 func (c *keptClaim) closeStalledTab(ctx context.Context) error {
 	o, ok := c.k.launch.(*orcaHost)

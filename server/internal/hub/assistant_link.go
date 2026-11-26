@@ -27,7 +27,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// The assistant (internal/assistant) is a process of its own on the bus (docs/assistant/assistant.md "Boundary with hub"); the hub
+// The assistant (internal/assistant) is a process of its own on the bus; the hub
 // starts it beside itself (assistant_process.go). This file is the hub's end: assistantLink answers the assistant's
 // calls (manager.hello, device.call, app.call, notify.request, manager.snapshot, ws.broadcast; registered on the bus
 // below) with the hub's own functions, the hub keeps the snapshot the assistant last reported (the session lists the

@@ -108,8 +108,8 @@ func (h *Manager) connectorSnapshots(ctx context.Context, tz string) []connector
 }
 
 // githubLogin is the GitHub connector's account (the persona tiers' level); known false while it has not said yet. It
-// is whichever connector holds the id, the hub's own or an extension's that took it over, read through its status
-// (docs/extensions/extensions.md "GitHub: from hub to extension"): only the hub's type used to count, so with the
+// is whichever connector holds the id, the hub's own or an extension's that took it over, read through its status:
+// only the hub's type used to count, so with the
 // extension's the tiers fell to the lowest.
 func (h *Manager) githubLogin(ctx context.Context) (login string, known bool) {
 	acc, ok := connector.As[connector.Accounts](h.connectors.Get("github"))

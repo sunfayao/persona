@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Persona Link's "Needs you" summary (internal/link/attention.go, docs/operations/link.md "Needs you"): worked out in
+// Persona Link's "Needs you" summary (internal/link/attention.go): worked out in
 // liveLoop from the Live Activity's inputs and handed to the devices, which send it to the computers' Persona Link
 // when it changed. It reuses two rules the product has, and writes no third:
 //

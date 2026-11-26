@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// git.review against real repositories (docs/web/review.md, #151): each scope, renames, new files, binaries,
+// git.review against real repositories (#151): each scope, renames, new files, binaries,
 // deletions, odd names, generated files, a detached HEAD, no default branch, no commit yet, guarded files, and files
 // too big for a page.
 

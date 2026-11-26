@@ -1,4 +1,4 @@
-// Inbox folders (docs/assistant/inbox.md "Folders", #2463): each item can be filed under a "/"-separated path
+// Inbox folders (#2463): each item can be filed under a "/"-separated path
 // ("work/alerts/engine"), every segment a folder level. The hub's triage model files them (when the user turned it on)
 // and the user can move one by hand. The tree is built here from the items' paths; the settings (on / off, the user's
 // folder rules) are the hub's (GET / PUT /api/v1/inbox/folders).

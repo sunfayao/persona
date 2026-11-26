@@ -1,4 +1,4 @@
-// Claude Code's ultracode switch in the chat and in "New agent" (#3428, docs/web/web.md "ultracode"): the row in the model
+// Claude Code's ultracode switch in the chat and in "New agent" (#3428): the row in the model
 // panel's flyout of the model that runs (#5032), the workflow mark on the model pill, on agent rows and on to-dos, the plan
 // card's chip (#12) and the line above the composer after a resume turned it off. The rules and the request are
 // lib/ultracode.ts.

@@ -48,7 +48,7 @@ func nodeMissing(goos, target string) error {
 
 // These are settings, not measurements.
 const (
-	stagger     = 300 * time.Millisecond // between starting one candidate and the next (docs/operations/link.md "Route selection")
+	stagger     = 300 * time.Millisecond // between starting one candidate and the next
 	dialTimeout = 8 * time.Second        // one candidate: TCP, TLS and the WebSocket handshake
 	checkPing   = 3 * time.Second        // a ping after the network changed
 	refusedWait = 5 * time.Minute        // after the hub refused the credential, unless link.json changes
@@ -433,7 +433,7 @@ func dialActive(ctx context.Context, c *Config, sshBin string, last string) (*li
 	})
 }
 
-// routeOrder is the order c's routes are tried in (docs/operations/link.md "Outbound proxy"): direct candidates
+// routeOrder is the order c's routes are tried in: direct candidates
 // (""), the outbound proxy when there is one, the SSH tunnel when there is one; last, the kind of the link that worked
 // last, first when it is one of these. Always use SSH leaves the tunnel alone; else proxy-only mode
 // (Config.ProxyAlways) leaves the proxy alone, whatever last was; else a tunnel and no candidates leaves the tunnel.

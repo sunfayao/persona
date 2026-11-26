@@ -233,7 +233,7 @@ func (h *hubClient) resolve(ctx context.Context, id string, r proto.Resolution) 
 	return out.Already, err
 }
 
-// channels are the hub's channels (docs/extensions/channels.md), their names in the language ctx carries (i18n.With).
+// channels are the hub's channels, their names in the language ctx carries (i18n.With).
 func (h *hubClient) channels(ctx context.Context) ([]channel.View, error) {
 	var out struct {
 		Channels []channel.View `json:"channels"`
@@ -242,7 +242,7 @@ func (h *hubClient) channels(ctx context.Context) ([]channel.View, error) {
 	return out.Channels, err
 }
 
-// triageSwitches are the hub's session triage switches (GET /api/v1/agents/triage, docs/assistant/agent-work.md "Switches"): whether
+// triageSwitches are the hub's session triage switches (GET /api/v1/agents/triage): whether
 // it triages an agent's stopped turn at all, and whether it goes on ("Continue") after a transient model error
 // (transient_retry, unset: on, also with the triage off) or once a usage limit resets (auto_continue).
 type triageSwitches struct {

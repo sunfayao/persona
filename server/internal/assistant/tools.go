@@ -34,7 +34,6 @@ import (
 // that app (AppTool).
 
 // toolNames are the tools only assistant conversations get; their descriptions and schemas are in prompts/mcp
-// (docs/assistant/prompts.md).
 var toolNames = []string{"resource_status", "ask_user", "notify_user", "supervision_finish", "schedule_followup", "schedule_routine", "schedule_state_set", "delete_routine", "list_followups",
 	"cancel_followup", "machines_list", "machine_redeploy", "agents_list", "agent_read", "agent_send", "agent_switch", "agents_switch", "agent_interrupt", "agent_start", "agent_supervise", "agent_archive", "agent_unarchive", "agent_autoname", "agent_autoname_receipt", "interaction_answer", "ask_escalate", "inbox_suggest", "inbox_draft",
 	"inbox_folders", "inbox_move", "inbox_post", "persona_settings", "secret_run", "skill_import",

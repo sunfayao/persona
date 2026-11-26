@@ -563,7 +563,7 @@ func (svc *Service) listArchivedSessions(w http.ResponseWriter, r *http.Request)
 		}
 	}
 	out := []proto.Session{}
-	ext := r.Header.Get(RoleHeader) == roleExtension // never a conversation of a space hidden from extensions (docs/extensions/extensions.md)
+	ext := r.Header.Get(RoleHeader) == roleExtension // never a conversation of a space hidden from extensions
 	for _, m := range svc.fleetMachines() {
 		if mid != "" && mid != m.ID {
 			continue

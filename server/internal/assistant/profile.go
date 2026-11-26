@@ -20,7 +20,7 @@ import (
 	"github.com/nwverse/persona/server/internal/workspacenaming"
 )
 
-// The assistant's own settings (settings `assistant`, docs/assistant/assistant.md "Boundary with hub"): the machine its
+// The assistant's own settings (settings `assistant`): the machine its
 // conversations run on, its launcher, the user's time zone, "About me", the main conversation and the ones it replaced,
 // and whether tasks from the main conversation are told only there. Only the assistant reads and writes them; hub.json's
 // assistant section is their default (the hub's hello). It reports what the hub's own features need of them in every
@@ -617,7 +617,7 @@ type assistantView struct {
 }
 
 // view is GET /api/v1/assistant; withArchived lists archived conversations too (flagged `archived`). It lists the
-// assistant's own conversations; a space (space "health") lists that space's instead (docs/assistant/tracks.md), with
+// assistant's own conversations; a space (space "health") lists that space's instead, with
 // that space's directory as Cwd.
 func (s *Service) view(ctx context.Context, withArchived bool, space ...string) assistantView {
 	sp := ""
@@ -716,7 +716,7 @@ func (s *Service) profileRoutes() {
 		}
 		_ = json.NewDecoder(r.Body).Decode(&in)
 		go s.warm(in.Launcher)
-		// What the main conversation still needs, for the first screen's card (docs/assistant/onboarding.md 5.1); no probe, and
+		// What the main conversation still needs, for the first screen's card; no probe, and
 		// bounded so that opening the tab stays quick.
 		out := map[string]any{"ok": true}
 		if rd := s.readinessQuick(r.Context(), readinessWaitWarm); rd != nil {
@@ -833,7 +833,7 @@ func (s *Service) memory(ctx context.Context, op map[string]any, out any) error 
 	if !s.trackKnown(ctx, space) {
 		return badRequest(fmt.Errorf("space %q: not a registered space", space))
 	}
-	cwd := s.spaceCwd(ctx, d, space) // a space keeps a memory of its own (docs/assistant/tracks.md)
+	cwd := s.spaceCwd(ctx, d, space) // a space keeps a memory of its own
 	if cwd == "" {
 		return errMemoryMachineOffline
 	}

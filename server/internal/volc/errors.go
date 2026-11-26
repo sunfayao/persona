@@ -38,7 +38,7 @@ func (c credentials) ttsHeaders(h http.Header) {
 	h.Set("X-Api-Key", c.key)
 }
 
-// The kinds of failure the owner can act on (docs/extensions/volcengine-speech.md "Connection test"): each has its own words in
+// The kinds of failure the owner can act on: each has its own words in
 // the settings check and on the extension's page, and its transcription code.
 const (
 	failForbidden  = "forbidden"   // the key was refused

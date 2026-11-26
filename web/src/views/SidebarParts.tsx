@@ -94,7 +94,7 @@ export function pageLabel(p: NavPage): string {
 /** The sidebar's pages ("Overview" … "Settings", the extensions' pages) and the connection, shared by the sidebar and its rail. */
 export function useNavPages() {
   const phase = connPhase(useStore((s) => s.conn), useStore((s) => s.link));
-  // the counts on the pages are the current assistant's (docs/assistant/managers.md "Clients"); the other assistants' are in
+  // the counts on the pages are the current assistant's; the other assistants' are in
   // the switcher at the sidebar's head. Numbers, not the computers: a push of a computer's load or memory leaves them
   // equal and doesn't draw the sidebar again.
   const scope = useScope();
@@ -137,7 +137,7 @@ export function useNavPages() {
     ...(page[k] ? [page[k]] : []),
   ]);
 
-  // the list, and the pages that wait under More (docs/web/web.md "Sidebar") and in their groups (#9071):
+  // the list, and the pages that wait under More and in their groups (#9071):
   // `pages` is every group's in order, for the rail, the drawer and ⌘K
   const { sections, more } = arrangeSections(all);
   const pages = sections.flatMap((s) => s.pages);

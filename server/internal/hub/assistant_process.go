@@ -25,7 +25,7 @@ import (
 // (managerBinary), with a fresh bus token on its stdin (never on the command line; it stops when its stdin closes),
 // and starts it again when it exits: 1 s doubling to a minute, from 1 s again once it ran a minute. So a hub's systemd
 // unit, its Docker image and deploy.sh stay as they are. An assistant run elsewhere gets its token from
-// `personad hub assistant-token` (docs/assistant/assistant.md "Process").
+// `personad hub assistant-token`.
 
 // assistantCommand is the assistant's command line (tests run another): `<managerBinary> assistant`.
 var assistantCommand = func(ctx context.Context) (*exec.Cmd, error) {
@@ -44,7 +44,7 @@ var assistantCommand = func(ctx context.Context) (*exec.Cmd, error) {
 }
 
 // managerBinary is the program the hub starts the built-in manager with, for a hub running from self: self when that
-// is personad, which runs everything (docs/server/server.md "Programs"); for persona-hub, which has no manager in it,
+// is personad, which runs everything; for persona-hub, which has no manager in it,
 // the persona-manager beside it when it is the same build (what version says `version -v` prints), else the personad
 // beside it (ServerBinary). note says why a persona-manager there was passed over.
 func managerBinary(ctx context.Context, self string, version func(context.Context, string) (string, error)) (bin, note string, err error) {

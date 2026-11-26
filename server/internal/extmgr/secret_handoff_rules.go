@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Always rules for hand-offs (docs/extensions/secret-providers.md "Always rules"): "Always for this launcher on this
+// Always rules for hand-offs: "Always for this launcher on this
 // computer" on a hand-off card keeps one rule per reference × launcher × computer, and a later hand-off that every rule
 // covers asks nothing (its uses are recorded with approved_by "rule"). A rule holds for the provider that claimed the
 // reference's scheme when it was made, and only while that install lasts: it goes with the provider's uninstall, and a

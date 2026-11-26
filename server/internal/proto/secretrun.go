@@ -10,7 +10,7 @@ import (
 )
 
 // secret.run: the commands the user approved on the password card, run by the target computer's node with the
-// password they typed on its stdin (docs/protocol/protocol.md "hub ↔ node", docs/assistant/assistant.md "Password card").
+// password they typed on its stdin (docs/protocol/protocol.md "hub ↔ node").
 
 // MethodSecretRun is the node method.
 const MethodSecretRun = "secret.run"

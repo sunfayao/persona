@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// UI version 8 as the web draws it (docs/extensions/extensions.md "UI version 8", #9158): a columns view is a grid of cards
+// UI version 8 as the web draws it (#9158): a columns view is a grid of cards
 // with their titles inside, a section that spans the row, a section's icon and its link beside the title (in every
 // layout), and rows side by side in a section. The grid's columns at each width are checked in a real browser
 // (web/e2e/extension-columns.mjs); here, what is drawn and what a press does.

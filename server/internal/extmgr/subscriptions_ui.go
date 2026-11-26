@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/subscriptionsui"
 )
 
-// The subscription pages (#2041, docs/extensions/subscriptions.md "Pages"): drawn here as declarative UI with the
+// The subscription pages (#2041): drawn here as declarative UI with the
 // same request and answer as an extension page, so the apps reuse their renderers. Unlike an extension page, every
 // device may look; only a full-access device may press anything that changes a subscription.
 

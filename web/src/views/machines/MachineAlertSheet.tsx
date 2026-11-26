@@ -1,4 +1,4 @@
-// A computer's alert sheet (#8037, docs/web/web.md "Machines"): opened from a chip on its card, on that alert. One
+// A computer's alert sheet (#8037): opened from a chip on its card, on that alert. One
 // Dialog (a centred card on a desktop, a sheet from the bottom on a phone) with the computer's alerts as a row of
 // tabs at the top and, for the one shown, three parts in a fixed order: what is wrong, why, what you can do (the
 // sections in Alert*.tsx). "Hand work to another computer" is a second step inside it. Rendered once by the page,

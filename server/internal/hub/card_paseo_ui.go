@@ -18,7 +18,7 @@ import (
 //
 //   - A block that is not one object of a known type, or not closed, stays the code it is (as Paseo shows it).
 //   - Past the apps' three cards a reply, or before one of the reply's own persona-view blocks (whose keys count the
-//     blocks before them, docs/assistant/assistant-views.md "Card identity"), a block becomes its fallback.
+//     blocks before them), a block becomes its fallback.
 //   - table → table; bar, line, pie, donut → a chart of that kind; stat → stat_grid; progress → a progress per bar;
 //     checklist, steps → a row per item with its state as a badge; buttons → a row per choice under "reply with one".
 //     A card's title is its section's; its caption is the table's or chart's own, else the section's footer.

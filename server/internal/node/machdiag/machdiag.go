@@ -1,4 +1,4 @@
-// Package machdiag answers a computer's diagnosis and empties its rebuildable caches (#8037, docs/server/machines.md
+// Package machdiag answers a computer's diagnosis and empties its rebuildable caches (#8037
 // "Diagnosis and cleanup"): node methods machine.diagnose and machine.cleanup.
 //
 // It describes; it is not a tunnel. Every question is fixed and bounded: the largest process groups by name, the

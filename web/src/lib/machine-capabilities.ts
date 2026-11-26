@@ -1,4 +1,4 @@
-// What each computer can do (#8037, docs/web/web.md "Machines"): one table that feeds people (the Machines page's
+// What each computer can do (#8037): one table that feeds people (the Machines page's
 // Capabilities view) and placement (the hand-off's target picker, rankTargets). Rows come from the machine list
 // (system, engines), the latest metric sample (free disk and memory), the computer's launchers (Agent runtimes, each
 // runtime with its named entries) and the node's detected tools. Pure: the page fetches, this only reads.

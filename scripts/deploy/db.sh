@@ -35,7 +35,7 @@ container_user() {
 has_container() { docker ps -a --format '{{.Names}}' | grep -qx "$1"; }
 has_volume() { docker volume inspect "$1" >/dev/null 2>&1; }
 
-# No docker on the hub machine: the database is one set up by hand (the distribution's own Postgres, docs/server/server.md
+# No docker on the hub machine: the database is one set up by hand (the distribution's own Postgres
 # "Database") and hub.json's database_url points at it. Nothing to create here; only check that it answers.
 answers() {
   if command -v pg_isready >/dev/null 2>&1; then

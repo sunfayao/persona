@@ -3,7 +3,7 @@ package assistant
 import "time"
 
 // The processing conversation bound to an event (InboxItem.Handling) and the manager's suggestion on it
-// (InboxItem.Suggestion), docs/assistant/inbox.md "Events and handling chain".
+// (InboxItem.Suggestion).
 
 // Handling states.
 const (

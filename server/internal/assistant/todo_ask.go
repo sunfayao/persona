@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The ask a to-do waits on, on the to-do itself (#2056, docs/assistant/todos.md "Waiting for the owner"): the apps list
+// The ask a to-do waits on, on the to-do itself (#2056): the apps list
 // the to-dos, not the briefing, and a to-do whose conclusion needs the owner's decision is where they show the
 // recommendation and take it with one tap (POST /api/v1/todos/{id}/accept, briefing_feed.go). It is the briefing's
 // `accept[]` row (briefing_feed.go), read from the same book (awaitingAcceptance): a "Please verify" ask, or a supervised

@@ -1,4 +1,4 @@
-// UI version 6 of an extension's declarative UI (docs/extensions/extensions.md "UI version 6"): pictures (an https url, or a ref the
+// UI version 6 of an extension's declarative UI: pictures (an https url, or a ref the
 // hub serves at a path of its own), a row's switch / slider / stepper, a row's extra actions, grids and carousels of
 // tiles, new fields (date, time, datetime, multichoice, multiline), named colors, and the new charts' geometry
 // (area, candlestick, donut, pie, sparks). What is drawn is in views/extensions; the reading and the arithmetic here.

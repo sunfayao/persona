@@ -18,7 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/shellcmd"
 )
 
-// Switching a running terminal Agent between Claude Code and Codex (#5054, docs/integrations/claude-integration.md
+// Switching a running terminal Agent between Claude Code and Codex (#5054
 // "Switching a running Agent to another engine", docs/protocol/protocol.md "Switching a running Agent to another
 // engine"). It is the launcher switch of launcher_switch.go (#5035) with a launcher of the other engine: picked, it is
 // kept as the session's pending switch, now naming the engine it moves to (pending_switch.agent); the user's next

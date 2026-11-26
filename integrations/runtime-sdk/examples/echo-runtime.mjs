@@ -4,7 +4,7 @@
 //
 //   node integrations/runtime-sdk/examples/echo-runtime.mjs [--socket <path>]
 //
-// or as a daemon the node dials (docs/integrations/daemons.md), the token in PERSONA_DAEMON_TOKEN:
+// or as a daemon the node dials, the token in PERSONA_DAEMON_TOKEN:
 //
 //   PERSONA_DAEMON_TOKEN=<token> node integrations/runtime-sdk/examples/echo-runtime.mjs --listen <port>
 //

@@ -1,6 +1,6 @@
 package node
 
-// A Mac's displays for the live screen (docs/extensions/computer-use.md "Displays"): macOS's Screen Sharing sends every
+// A Mac's displays for the live screen: macOS's Screen Sharing sends every
 // display in one picture, laid out as System Settings › Displays arranges them, and the app crops it to one display
 // with these frames.
 

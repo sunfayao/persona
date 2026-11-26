@@ -1,4 +1,4 @@
-// A session's Side sessions panel (#7944; docs/web/web.md "Side sessions"): the side sessions the hub folds into it
+// A session's Side sessions panel (#7944): the side sessions the hub folds into it
 // (lib/side-fold.ts) are in no list; its chat header has a "Side sessions" button with their count, and the panel is the
 // Team panel's layout (views/chat/TeamPanel.tsx): a strip of the sides above the chosen one's own conversation. Unlike
 // the Team panel it never opens by itself: only by hand, or for a link to a side (a deep link, a notification, a card in

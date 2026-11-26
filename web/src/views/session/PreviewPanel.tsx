@@ -1,4 +1,4 @@
-// The dev server preview panel (docs/web/preview.md, #150): a session's dev server as the headless browser on its computer
+// The dev server preview panel (#150): a session's dev server as the headless browser on its computer
 // draws it, beside the chat. Pick a server (the project's .claude/launch.json, the ports the session's agents serve,
 // another port), use the page (pointer, wheel, keys, the address bar, back / forward / reload, desktop or phone size),
 // take a screenshot into the message box, or pick an element and comment on it for the agent. Logic in lib/preview.ts.

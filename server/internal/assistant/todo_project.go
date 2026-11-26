@@ -7,7 +7,7 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-// A todo's project (#2581, docs/assistant/todos.md "Project"): a label the owner or the assistant files it under, usually
+// A todo's project (#2581): a label the owner or the assistant files it under, usually
 // an area of the user's work. The apps group open todos by it. It is kept as the text given, trimmed.
 
 // todoProject is the label name names, trimmed; "" for "".

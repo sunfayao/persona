@@ -659,7 +659,7 @@ func newGatedDirectListener(t *testing.T, targetAddr string, startAllowed bool) 
 }
 
 // serve counts c as an attempt only when it opens with a TLS record: other programs on this machine probe local
-// ports too (a node's port scan, user agent persona-ports; docs/lessons/testing.md).
+// ports too (a node's port scan, user agent persona-ports).
 func (g *gatedDirectListener) serve(c net.Conn, targetAddr string) {
 	first := make([]byte, 1)
 	_ = c.SetReadDeadline(time.Now().Add(3 * time.Second))

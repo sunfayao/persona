@@ -1,4 +1,4 @@
-// Runs one html card (#4215, docs/assistant/assistant-views.md "Free-form HTML rendering"): its code in a worker
+// Runs one html card (#4215): its code in a worker
 // (html-runtime.worker.ts, QuickJS), its drawing in a frame of an opaque origin (sandbox="allow-scripts" only) whose
 // CSP lets nothing load and runs nothing but its own script (frame.js, by nonce). Every operation is checked here on
 // the way through (sanitize.ts). The worker is terminated from here when the card stops, when it takes too long to

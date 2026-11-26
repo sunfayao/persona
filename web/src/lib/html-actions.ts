@@ -1,4 +1,4 @@
-// The hub side of an html component's bridge (#4215, docs/assistant/assistant-views.md "Free-form HTML rendering"): what
+// The hub side of an html component's bridge (#4215): what
 // the user confirmed goes to POST …/views/{key}/html-actions. Its own module, loaded with the html card (ui/HtmlCard.tsx),
 // so the first screen doesn't carry it.
 import { ApiError, api, enc } from "./api";
@@ -6,7 +6,7 @@ import type { HtmlActionRequest } from "./html-bridge";
 import { applyAction, applyView, isCardVersion, type CardKey, type SubmitOutcome } from "./assistant-views";
 import type { ViewAction, ViewChangedError } from "./extension-wire";
 
-/** The path of an html component's bridge calls (POST, docs/assistant/assistant-views.md "Free-form HTML rendering"). */
+/** The path of an html component's bridge calls (POST). */
 export const htmlActionsPath = (conversation: string, key: CardKey) => `/assistant/conversations/${enc(conversation)}/views/${enc(key)}/html-actions`;
 
 export type HtmlActionOutcome = { ok: true; open?: string } | { ok: false; outcome: Exclude<SubmitOutcome, "sent" | "busy">; message?: string };

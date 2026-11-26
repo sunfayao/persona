@@ -1,4 +1,4 @@
-// Side sessions under their parent in the paged Agents list (#5935, docs/web/web.md "Paging hubs"): a Claude desktop
+// Side sessions under their parent in the paged Agents list (#5935): a Claude desktop
 // app's side chat or /btw question (parent_agent_id) is drawn right under the session that started it, a level in, the
 // group where its newest member is, and every row and count stays the hub's. Checked against the fake hub, with
 // screenshots on a wide window and a phone, light and dark.

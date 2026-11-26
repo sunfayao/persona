@@ -147,7 +147,7 @@ type ToolLoop struct {
 // 1,536-byte size class (TestSessionFitsItsSizeClass). A bool between two wider fields takes a word to itself.
 type Session struct {
 	ToolLoop *ToolLoop `json:"tool_loop,omitempty"`
-	// Manager is the manager it belongs to (docs/assistant/managers.md, "Ownership"); the hub stamps it on what it sends the apps.
+	// Manager is the manager it belongs to; the hub stamps it on what it sends the apps.
 	Manager          string               `json:"manager,omitempty"`
 	MachineID        string               `json:"machine_id"`
 	SessionID        string               `json:"session_id"`
@@ -204,7 +204,7 @@ type Session struct {
 	TabID       string `json:"tab_id,omitempty"`
 	WorkspaceID string `json:"workspace_id,omitempty"`
 	AgentName   string `json:"agent_name,omitempty"`
-	// CodexRoute: how Persona reaches a Codex in a terminal (docs/integrations/codex.md "Sessions on the daemon") — "app_server" (joined on
+	// CodexRoute: how Persona reaches a Codex in a terminal — "app_server" (joined on
 	// the shared app-server: questions, approvals and messages go through its protocol) or "terminal" (its rollout and
 	// screen, keys and typing); CodexRouteNote says why when it is the terminal.
 	CodexRoute     string `json:"codex_route,omitempty"`
@@ -253,7 +253,7 @@ type Session struct {
 	UltracodeNote   string     `json:"ultracode_note,omitempty"`
 	UltracodeLostAt *time.Time `json:"ultracode_lost_at,omitempty"`
 	// PendingSwitch is a switch of this running Claude Code Agent to another launcher (model provider) of the same
-	// engine that the user picked and that waits for the next message (#5035, docs/integrations/claude-integration.md
+	// engine that the user picked and that waits for the next message (#5035
 	// "Switching a running Agent to another provider"): that message quits the agent and resumes the same conversation
 	// on the new launcher in the same terminal first. Nil when none waits.
 	PendingSwitch *PendingSwitch `json:"pending_switch,omitempty"`
@@ -276,11 +276,11 @@ type Session struct {
 	// ServiceTier is the acknowledged native speed, omitted while unknown.
 	ServiceTier  string        `json:"service_tier,omitempty"`
 	ServiceTiers []ServiceTier `json:"service_tiers,omitempty"`
-	// Space is "health" for a session in the health space (docs/assistant/tracks.md), or empty otherwise.
+	// Space is "health" for a session in the health space, or empty otherwise.
 	// The node can preserve it from the start directory even when a live pane's working directory moves.
 	Space string `json:"space,omitempty"`
 	// ModelPick is the launcher / model / effort picked for one of the assistant's conversations, which its next
-	// messages run on (#5033, docs/assistant/model-config.md "A conversation's own model"); nil follows Model
+	// messages run on (#5033); nil follows Model
 	// configuration › Main chat (the main conversation, a scheduled task's) or what the conversation runs. Set by the
 	// manager.
 	ModelPick *ModelPick `json:"model_pick,omitempty"`
@@ -301,7 +301,7 @@ type Session struct {
 	// assistant chats"): noted when it opens, never backfilled; "" for any other. Set like Origin.
 	OpenedBy string `json:"opened_by,omitempty"`
 	// Compaction is the last compaction the user asked for in an assistant conversation (POST …/compact), kept by the
-	// node until the next one: running, then done or failed (docs/assistant/assistant.md "Manual compaction").
+	// node until the next one: running, then done or failed.
 	Compaction *Compaction `json:"compaction,omitempty"`
 	// Channels are the channels messages came into this conversation from, newest first ("wechat", "feishu"):
 	// the conversation list draws the latest's icon (docs/extensions/channels.md"Source labels"). Set by the manager's fleet
@@ -353,10 +353,10 @@ type Session struct {
 	// AwaitingFirstMessage: a Codex Persona opened with no first message (node/codex_waiting.go): Codex runs in its
 	// terminal but has no thread until it gets one, so this row is keyed by an id of the node's, not the thread's.
 	// It takes the first message (text only) and opens its terminal; once the thread exists the row goes and the
-	// thread's comes, in the same pane (docs/integrations/codex.md "Starting without a first message").
+	// thread's comes, in the same pane.
 	AwaitingFirstMessage bool `json:"awaiting_first_message,omitempty"`
 	// QueuedRelayed: the last this many of Queued are messages from other conversations that an assistant
-	// conversation's manager holds until its turn ends (docs/assistant/assistant.md "Queue while running"); the apps
+	// conversation's manager holds until its turn ends; the apps
 	// show them but take back, delete, move and send now only the others (#4342). A uint16 here sits in the padding
 	// before SeenAt, so a Session stays the size the allocation budgets measured.
 	QueuedRelayed uint16    `json:"queued_relayed,omitempty"`
@@ -381,13 +381,13 @@ type Session struct {
 	Workflows []Workflow `json:"workflows,omitempty"`
 	// Loop is the /loop driving this agent, when there is one (it wakes itself up on a schedule).
 	Loop *LoopInfo `json:"loop,omitempty"`
-	// Goal is the goal the agent works toward, when one is set (Claude Code's /goal, a Codex thread goal; docs/integrations/agent-goal.md).
+	// Goal is the goal the agent works toward, when one is set (Claude Code's /goal, a Codex thread goal).
 	Goal *GoalInfo `json:"goal,omitempty"`
 	// Plan is the agent's own task list (Claude Code's TodoWrite, or TaskCreate / TaskUpdate), when it keeps one: how far
-	// along it is and the step in progress (docs/integrations/agent-goal.md "Plan"). Absent for Codex and for runtimes
+	// along it is and the step in progress. Absent for Codex and for runtimes
 	// whose conversation is not a Claude transcript on the node.
 	Plan *PlanInfo `json:"plan,omitempty"`
-	// Ports are the TCP ports the agent's processes listen on that answer HTTP (docs/operations/ports.md): the dev servers
+	// Ports are the TCP ports the agent's processes listen on that answer HTTP: the dev servers
 	// it started, which the apps open through the hub.
 	Ports     []Port    `json:"ports,omitempty"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -427,7 +427,7 @@ type Session struct {
 	// (Codex: a rollout's task_complete.error, an app-server's failed turn, #2185); otherwise the hub reads it off the
 	// last words, as Claude Code writes them ("API Error: …"). The hub keeps it only while the agent is stopped: empty
 	// while it works or when the turn ended normally. The task it works for is interrupted, not done
-	// (docs/assistant/todos.md "State calculation rules", #1516).
+	// (#1516).
 	TurnError string `json:"turn_error,omitempty"`
 	// TurnErrorKind is what the agent's record says of TurnError, when it says (Claude Code's error field, Codex's
 	// error kinds): TurnErrorTransient (worth a "Continue"), TurnErrorUser (the user must act), TurnErrorUsageLimit
@@ -442,7 +442,7 @@ type Session struct {
 	// rollout's own rate limits), else what the hub reads off Claude Code's words when they name a time zone. Nil: not
 	// known, and nothing waits for it. Only a subscription's limit has one: a gateway's or an API key's 429 never does.
 	TurnErrorResetsAt *time.Time `json:"turn_error_resets_at,omitempty"`
-	// TurnErrorCode says what is wrong when the hub or node can tell from TurnError (docs/assistant/onboarding.md 5.2):
+	// TurnErrorCode says what is wrong when the hub or node can tell from TurnError:
 	// one of the TurnError* values below, for a client fix card (sign in, the key, the model) or for upstream-stall
 	// visibility (TurnErrorUpstreamUnavailable). Empty: not known.
 	TurnErrorCode string `json:"turn_error_code,omitempty"`
@@ -451,7 +451,7 @@ type Session struct {
 	// ModelRestore: "back to the configured model" was asked for this session's refusal fallback (#2528) and no newer
 	// model evidence has come since. Not proof the configured model runs: only a newer reply says that.
 	ModelRestore *ModelRestore `json:"model_restore,omitempty"`
-	// Work is where the session stands in its work (docs/assistant/agent-work.md): working, blocked on a named precondition, or
+	// Work is where the session stands in its work: working, blocked on a named precondition, or
 	// done, with a line saying what it waits for or what it concluded. Set by the hub; absent before the hub has
 	// triaged a stopped session's turn.
 	Work *WorkState `json:"work,omitempty"`
@@ -486,7 +486,7 @@ type Session struct {
 	// ExternalURL opens the session where it lives outside Persona (a botmux session's Feishu topic).
 	ExternalURL string `json:"external_url,omitempty"`
 	// Chat, Topic, Dispatched: a botmux session's Feishu chat, its topic's root message and the topics it dispatched
-	// (`botmux dispatch`), for the todos to follow (docs/assistant/todos.md "botmux following"); stripped by hub like SpawnFrom.
+	// (`botmux dispatch`), for the todos to follow; stripped by hub like SpawnFrom.
 	Chat       string   `json:"chat,omitempty"`
 	Topic      string   `json:"topic,omitempty"`
 	Dispatched []string `json:"dispatched,omitempty"`
@@ -522,7 +522,7 @@ const (
 // the model service reported: nothing for Session Triage to ask the user about or to continue by itself.
 func SilentTurnKind(kind string) bool { return kind == TurnErrorNoOutput || kind == TurnErrorStopped }
 
-// Session.TurnErrorCode values (docs/assistant/onboarding.md 4.6).
+// Session.TurnErrorCode values.
 const (
 	TurnErrorNotLoggedIn              = "not_logged_in"              // Claude Code on that machine is not signed in
 	TurnErrorAuthFailed               = "auth_failed"                // the key or token was refused or has expired
@@ -542,7 +542,7 @@ const (
 	TurnErrorImagesTooLarge = "images_too_large"
 )
 
-// Codes a call refuses with when the assistant's conversation cannot start on a machine (docs/assistant/onboarding.md 4.6, 5.2):
+// Codes a call refuses with when the assistant's conversation cannot start on a machine (5.2):
 // rpc.Error codes the hub answers 409 with, the text in the request's language (apierr.Call).
 const (
 	CodeNoMachine       = "no_machine"       // no machine to run the main conversation on
@@ -689,7 +689,7 @@ type TodoRef struct {
 // the runtime ("dsh"); its capabilities come from what the runtime declared (no terminal, never attach).
 const SourceRuntime = "runtime"
 
-// Port is a listening TCP port on a machine (docs/operations/ports.md).
+// Port is a listening TCP port on a machine.
 type Port struct {
 	Port int `json:"port"`
 	// Addr is what it is bound to: 127.0.0.1, 0.0.0.0, ::, ::1 or one of the machine's addresses.

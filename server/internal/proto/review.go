@@ -1,6 +1,6 @@
 package proto
 
-// Reviewing a session's changes (GET /api/v1/machines/{mid}/git/review → node git.review, docs/web/review.md, #151): every
+// Reviewing a session's changes (GET /api/v1/machines/{mid}/git/review → node git.review, #151): every
 // file that changed in a scope, each with its hunks, for the web's Review panel; read only.
 
 // Review scopes: what the working tree is compared with.

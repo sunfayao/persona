@@ -2,7 +2,7 @@ package node
 
 import "github.com/nwverse/persona/server/internal/lazyre"
 
-// The kind of an assistant process's track (#13472, docs/extensions/extensions.md "Assistant"): next to PERSONA_SPACE
+// The kind of an assistant process's track (#13472): next to PERSONA_SPACE
 // (its track's slug, from its directory), the process gets PERSONA_TRACK_KIND, the kind the manager last named for its
 // directory on assistant.prepare (track_kind): orchestration for the assistant's own, space for the health space, a
 // track's own kind otherwise. A gated command or an extension's script may serve some kinds only. A directory the node

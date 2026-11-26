@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// mailConnector is mail as a connector (docs/extensions/connectors.md "3. Migration"): its inbox, its tools and mail_send
+// mailConnector is mail as a connector: its inbox, its tools and mail_send
 // through the gate;
 // Settings › Connectors draws its row from the connectors list (?all=1, migration M3–M6).
 type mailConnector struct{ h *Manager }

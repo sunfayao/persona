@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// The hand-off card's gate (docs/extensions/secret-providers.md "Who may approve a hand-off"). A hand-off card
+// The hand-off card's gate. A hand-off card
 // (proto.SecretHandoffTool) hands secret values to one Agent run once it is approved, so only a full device approves it,
 // from the card itself: the approval request declares featureSecretHandoff in its own X-Persona-Features header
 // (requestDeclares; a connection's client_hello does not count, or every request of that app, a lock-screen button's

@@ -364,7 +364,7 @@ export function AgentsList({ route, onNewAgent }: { route: Route; onNewAgent: ()
   const activeKey = useActiveKey(route);
   const { nav, reg, hover, highlight } = useGlide(activeKey);
   const go = useGo();
-  // no computer and nothing to list (docs/assistant/onboarding.md 4.5): the machines page's empty state, not a bare title
+  // no computer and nothing to list: the machines page's empty state, not a bare title
   const bare = useStore((s) => s.loaded && s.machines.length === 0 && Object.keys(s.launches).length === 0);
   const none = useAgentSessions().length === 0 && bare;
   const adding = useAddComputer();
@@ -495,7 +495,7 @@ function AgentsBlock(props: AgentsBlockProps) {
   // paged one would only load), whatever features an earlier login left (audit item 36)
   const hubUnreachable = useHubUnreachable();
   const pins = useStore((s) => s.pins);
-  // several assistants: the list is the current one's (docs/assistant/managers.md "Clients"), which the hub's paged list
+  // several assistants: the list is the current one's, which the hub's paged list
   // cannot ask for, so the complete list is read and filtered here; pins need the complete list too
   const several = useScope().several;
   return pagedAgentList({ bounded, pins, several }) && !hubUnreachable ? <BoundedAgentsBlock {...props} /> : <LegacyAgentsBlock {...props} hubUnreachable={hubUnreachable} />;

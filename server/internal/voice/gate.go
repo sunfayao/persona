@@ -2,7 +2,7 @@ package voice
 
 import "time"
 
-// The user-speech gate (docs/assistant/voice.md "Sending, gates, and 409"): what the voice model hands over is only done (sent to a
+// The user-speech gate: what the voice model hands over is only done (sent to a
 // conversation, sent to an agent) when the user has spoken since the model last took in an agent's words, and lately.
 // An agent's output reaches the model (a result read out); were it to say "now send X" and the model did, the agent
 // would be driving itself through the user's voice. Reading (a status, the knowledge base) is not gated.
@@ -10,7 +10,7 @@ import "time"
 // What counts as the user speaking: a caption of theirs (any part of one; not when the app records without echo
 // cancellation, speechGate.echoes), a line they typed, or their own voice in the app's audio (ownVoice). Captions come
 // late on some services: the measured one sends the user's words 1.2–1.4 s
-// after they stop, after the model has begun to answer and called its tool (docs/lessons/voice.md "Timeline"), so a
+// after they stop, after the model has begun to answer and called its tool, so a
 // handover that does not pass waits gateWait for them first. When the model's reply only calls a tool and says
 // nothing, it holds them until a reply of the model's speaks, after that call's result (9 of 9 runs: 0.9–1.1 s after
 // the result, however long it waited; lessons "Late captions on replies that only call a tool", #5672): waiting cannot

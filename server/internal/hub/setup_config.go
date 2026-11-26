@@ -31,7 +31,7 @@ type installInputs struct {
 	locale  i18n.Lang // the language the installer ran in (hub.json initial_locale), "" for none
 }
 
-// newInstallConfig is the hub.json a new install gets (docs/assistant/onboarding.md 4.1). These defaults are written into new
+// newInstallConfig is the hub.json a new install gets. These defaults are written into new
 // files only, never added to defaultConfig(): LoadConfig decodes every existing hub.json over defaultConfig(), so a
 // default there would change every hub whose file does not name the field (Public is a value: a TLSListen default
 // would turn TLS on for every old hub.json without "public").

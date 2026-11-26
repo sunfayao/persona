@@ -1,4 +1,4 @@
-// Compare runs (#8916, docs/web/web.md "Compare runs"): one New agent start run 2–4 times, each in a worktree of its own,
+// Compare runs (#8916): one New agent start run 2–4 times, each in a worktree of its own,
 // and the page that shows the runs side by side. This file is the group as this browser keeps it and what each run shows;
 // lib/compare-runner.ts makes the worktrees and starts the runs. Like the recent setups (lib/recent-setups.ts) the list
 // stays in this browser, for this hub, and holds ids only, never the task's words: those and the attachments live in

@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// ---- model_usage (docs/assistant/model-config.md "Counting") ----
+// ---- model_usage ----
 
 // ModelUsageKeep is how many days of model usage are kept.
 const ModelUsageKeep = 60

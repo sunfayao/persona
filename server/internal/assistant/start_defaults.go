@@ -43,7 +43,7 @@ type StartDefaults struct {
 	// Ultracode: applied only to a Claude Code start whose caller did not say.
 	Ultracode *bool
 	// Goal: GoalFromDoneWhen turns the task's done_when into one checkable condition typed as /goal after the first
-	// message (docs/integrations/agent-goal.md "A goal set at the start"); GoalOff asks for none, not even the Codex
+	// message; GoalOff asks for none, not even the Codex
 	// default; "" leaves it to the default (startGoalSource). Only new Claude Code and Codex starts take a goal.
 	Goal string
 	// PlanFirst asks for the self-planning constraint in the task's prompt, for a launcher whose model does not act
@@ -574,7 +574,7 @@ func startGoalSource(d StartDefaults, ruled bool, agent string, resume bool, don
 }
 
 // applyStartGoal adds the task's goal to its start when startGoalSource says so: Claude Code's /goal and Codex's
-// alike, typed after the first message (docs/integrations/agent-goal.md). It runs on every start try, with or without
+// alike, typed after the first message. It runs on every start try, with or without
 // a policy rule; a goal over proto.StartGoalMax is left out and logged. refusedHere says the start is one the node is
 // known to refuse a goal for (defaultGoalRefusedOn): the built-in default is then left out, logged, rather than sent
 // to be refused and started again; a rule's goal still goes, so its refusal reaches the task's why. byDefault says the

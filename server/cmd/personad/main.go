@@ -31,7 +31,7 @@ import (
 	"github.com/nwverse/persona/server/internal/volc"
 )
 
-// What the build wrote in (-X): the version for people, and for updates (docs/operations/hub-update.md) the channel
+// What the build wrote in (-X): the version for people, and for updates the channel
 // (release / docker / dev), the build number (UTC YYYYMMDDHHMM), where the publisher's dl/ is, the commit it was
 // built from ("-dirty" after it with changes not committed: a release has to contain it to be installed by itself),
 // and for the Docker image the image it was built as (where to look for newer ones).
@@ -105,7 +105,7 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if os.Args[1] == sandbox.RunCommand { // an extension's sandbox (docs/extensions/extensions.md "Sandbox"); it passes signals on itself
+	if os.Args[1] == sandbox.RunCommand { // an extension's sandbox; it passes signals on itself
 		stop()
 		os.Exit(sandbox.Run(os.Args[2:], os.Stderr))
 	}
@@ -139,9 +139,9 @@ func main() {
 			break
 		}
 		err = hubcli.Hub(ctx, buildInfo(), os.Args[2:])
-	case "assistant": // the assistant as its own process on the hub's bus (the hub starts it, docs/assistant/assistant.md)
+	case "assistant": // the assistant as its own process on the hub's bus (the hub starts it)
 		err = managercli.Assistant(ctx, buildInfo(), os.Args[2:], os.Stdin)
-	case "manager": // a manager made in the app: join, run, install as a service (docs/assistant/managers.md)
+	case "manager": // a manager made in the app: join, run, install as a service
 		err = managercli.Manager(ctx, buildInfo(), os.Args[2:])
 	case "share-http":
 		err = shareproxy.Run(ctx, os.Args[2:], os.Stderr)
@@ -151,7 +151,7 @@ func main() {
 		}
 	case "voice":
 		err = voice.Run(ctx)
-	case "volc": // the built-in Volcengine speech extension's program (docs/extensions/volcengine-speech.md)
+	case "volc": // the built-in Volcengine speech extension's program
 		err = volc.Run(ctx, version)
 	case "extension", "ext", "plugin": // plugin: its name before #1844
 		err = extmgr.ExtensionCommand(ctx, os.Args[2:], os.Stdin, os.Stdout, os.Stderr)

@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// "New worktree…" against real temp Git repositories and a fake herdr (docs/integrations/terminal.md "New worktree").
+// "New worktree…" against real temp Git repositories and a fake herdr.
 
 // setWorktreeSupport decides whether the fake herdr "has" the worktree command, for this test only.
 func setWorktreeSupport(t *testing.T, ok bool) {

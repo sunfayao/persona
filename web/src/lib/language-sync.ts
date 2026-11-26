@@ -51,7 +51,7 @@ export function startLanguageSync() {
     reload: () => location.reload(),
     notify: (reloadNow) => {
       // Its words are in the catalog's rest, which may still be on its way this early: main.tsx's own imports, this one
-      // included, do not wait for it (docs/web/web.md "Internationalization"). Without it, no toast: the page still
+      // included, do not wait for it. Without it, no toast: the page still
       // reloads at its next calm moment.
       const say = () => toast(t("language.other_tab"), "info", { label: t("language.other_tab_reload"), run: reloadNow, sticky: true });
       const rest = i18nRest();

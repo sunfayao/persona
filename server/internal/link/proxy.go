@@ -20,7 +20,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// KindProxy is the route through an outbound HTTP(S) proxy (docs/operations/link.md "Outbound proxy"): Status.Kind
+// KindProxy is the route through an outbound HTTP(S) proxy: Status.Kind
 // while a link uses it, and the kind its candidates carry in errors.
 const KindProxy = "proxy"
 

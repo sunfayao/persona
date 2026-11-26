@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/subscriptions"
 )
 
-// Built-in sources (#5278, docs/extensions/subscriptions.md "Pages"): the connectors and mail that bring things into the
+// Built-in sources (#5278): the connectors and mail that bring things into the
 // Inbox themselves, beside the subscriptions. The pages list them with the same controls as a
 // subscription; what they change is the connector's own setting (the manager answers BuiltinSources), so a switch
 // turned here shows on the connector's page and the other way round.

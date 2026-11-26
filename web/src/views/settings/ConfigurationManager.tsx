@@ -7,7 +7,7 @@ import { Group, Row } from "./SettingsParts";
 
 /**
  * Which manager a configuration editor reads and writes, independently of late requests (its children are drawn again
- * for another one). By default the current assistant (docs/assistant/managers.md "The current assistant": the current
+ * for another one). By default the current assistant (the current
  * assistant's settings pages have no picker of their own), drawn once the roster says which manager that is (a kept
  * pick counts before). `pick`: an editor outside those pages (the hub's download mirrors) with its own picker,
  * starting on the current assistant and kept in the address (`?manager=`).

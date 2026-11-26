@@ -9,7 +9,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// An imported alias's environment (docs/assistant/model-config.md "Importing providers from shell aliases"): the
+// An imported alias's environment: the
 // variables Persona has a field for fill the field; the others go into the provider's sealed env, except credentials,
 // values the shell would expand, and names tied to one computer. The preview names what goes and what does not,
 // never a value.

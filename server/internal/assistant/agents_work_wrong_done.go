@@ -7,7 +7,7 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-// Cheap labels for a wrong "done" in GET /api/v1/agents/work/stats (#2586, docs/assistant/agent-work.md "Evaluation"):
+// Cheap labels for a wrong "done" in GET /api/v1/agents/work/stats (#2586):
 // a to-do the hub's done judge closed that is reopened within a day, and a supervised task the judge found done that
 // its supervisor sends back with task_review. Each is a work event with no session (session_work_events, kept 30
 // days like the others); summarizeWork counts each to-do once.

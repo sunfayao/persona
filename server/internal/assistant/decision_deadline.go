@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Decision deadlines (#3127, docs/assistant/todos.md "Decision deadlines"): a decision that waits for the owner — a
+// Decision deadlines (#3127): a decision that waits for the owner — a
 // supervised task's needs_user, or an ask_user question — may carry a recommended default and a deadline, and say
 // whether it can be undone. When the deadline passes with no answer, a reversible one takes the recommendation as the
 // owner's OK would and records on its to-do that it was taken by default; one that cannot be undone (deleting,

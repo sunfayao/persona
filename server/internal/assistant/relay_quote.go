@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The owner's words across a relay (#3822, docs/assistant/unified-entry.md "Briefs"). A brief records the owner's
+// The owner's words across a relay (#3822). A brief records the owner's
 // message verbatim only when they spoke in the conversation that hands the work out. When the main conversation passes
 // their request on to a leader, the leader's brief would only say a conversation started it. conversation_send and
 // conversation_new can therefore carry one of the owner's messages (quote): the hub reads it from the sending

@@ -1,6 +1,6 @@
 package node
 
-// The dev servers a preview can show (docs/web/preview.md "Servers"): the entries of the project's .claude/launch.json, in
+// The dev servers a preview can show: the entries of the project's.claude/launch.json, in
 // the shape Claude Desktop reads (configurations[]: name, runtimeExecutable, runtimeArgs, port, optional url, cwd and
 // env), each with whether something listens on its port now. preview.start runs one of them in a new terminal tab.
 

@@ -24,7 +24,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// What the assistant does on its own (docs/assistant/assistant.md "Scheduled tasks") is one list of tasks, each with a schedule:
+// What the assistant does on its own is one list of tasks, each with a schedule:
 //   - once: a follow-up the assistant scheduled from a conversation (schedule_followup), or the user in the app;
 //   - daily: at a time on some weekdays (the morning briefing on weekdays at 09:00…), set up in the app or with schedule_routine;
 //   - interval: every N minutes (a 30-minute patrol), from schedule_followup's `every` or the app;
@@ -86,7 +86,7 @@ type Task struct {
 	// sentence or two on top. On for the default morning and evening routines (a hub set up before gets it with their
 	// current prompt, upgradeDefaultRoutines); an app that leaves it out of a change keeps it.
 	Facts bool `json:"facts,omitempty"`
-	// Report: a daily report (a dot's, docs/assistant/north-star.md "Daily briefing"): its runs open with the north
+	// Report: a daily report (a dot's): its runs open with the north
 	// star's lines. Set with schedule_routine's report or in the body of PUT /api/v1/assistant/tasks/{id}; a change
 	// that leaves it out keeps it.
 	Report bool          `json:"report,omitempty"`
@@ -117,7 +117,7 @@ type Task struct {
 	ModelRevision  int64  `json:"model_revision,omitempty"`
 	PermissionMode string `json:"permission_mode,omitempty"`
 	Effort         string `json:"effort,omitempty"`
-	// Space is the space of the conversation that set it up (e.g. "health", docs/assistant/tracks.md): a run that starts a conversation
+	// Space is the space of the conversation that set it up (e.g. "health"): a run that starts a conversation
 	// starts it there. "" is the assistant's own.
 	Space string `json:"space,omitempty"`
 	// StartGrant: the owner let this schedule's own rounds start some kinds of task without the plan card (#8045,
@@ -1181,7 +1181,7 @@ func (sc *schedule) noteDeletionLocked(id, sessionID string, now time.Time) {
 }
 
 // describeSchedule lists the tasks of space ("" the assistant's own, or a registered space): a conversation sees and changes only
-// its own space's (docs/assistant/tracks.md).
+// its own space's.
 func (s *Service) describeSchedule(ctx context.Context, space string) string {
 	loc := s.location(ctx)
 	now := time.Now()
@@ -1268,7 +1268,7 @@ func (s *Service) toolScheduleRoutine(ctx context.Context, machine, self string,
 	if a.Cron != "" && (a.Time != "" || a.Weekdays != nil) {
 		return "", errors.New("cron replaces time and weekdays: give either cron, or time (and weekdays)")
 	}
-	space, _ := s.selfSpace(ctx, self) // a new routine runs in the space it was asked from (docs/assistant/tracks.md)
+	space, _ := s.selfSpace(ctx, self) // a new routine runs in the space it was asked from
 	var push *string
 	if a.Push != nil {
 		p, err := pushArg(*a.Push)
@@ -1611,7 +1611,7 @@ func (s *Service) scheduleLoop(ctx context.Context) {
 	for {
 		now := time.Now()
 		wait := scheduleIdle
-		// A mesh member's tasks wait while the center runs the group's (docs/server/mesh.md). Nothing here moves a past
+		// A mesh member's tasks wait while the center runs the group's. Nothing here moves a past
 		// one-off or interval task on, so its time stays past: a member only checks again at the idle wake-up (or
 		// when the list changes), not every 50 ms.
 		if !s.hello(ctx).Assistant.Standby {
@@ -2457,7 +2457,7 @@ func (s *Service) watchScheduledRun(run ScheduleRun, t Task, m Device) {
 		}
 	}
 	if reset, turn, resumes, limited := s.runLimit(ctx, m.ID, run.SessionID, full); limited {
-		// A subscription's usage limit (docs/assistant/agent-work.md "Usage limits"): a retry before it resets is
+		// A subscription's usage limit: a retry before it resets is
 		// refused at once. The conversation that goes on by itself then needs none; otherwise the retry waits for the
 		// reset, however long that is — the watcher's time is for the turn, not for this.
 		if resumes {

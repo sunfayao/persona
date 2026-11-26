@@ -21,7 +21,7 @@ import (
 )
 
 // The service that keeps the hub running (docs/assistant/onboarding.md 4.1 step 3): on Linux the systemd user units of
-// scripts/deploy/hub-systemd.sh (socket activation, docs/operations/hub-restart.md; keep the two in step), on a Mac a launchd
+// scripts/deploy/hub-systemd.sh (socket activation; keep the two in step), on a Mac a launchd
 // agent.
 
 func (e *setupEnv) service(ctx context.Context, cfg *setupConfig) error {
@@ -462,7 +462,7 @@ func (e *setupEnv) systemdService(ctx context.Context, cfg *Config, bin string) 
 		restartSaid = true
 	case binChanged:
 		// The units are as they were, but the binary is new (an upgrade): the hub running is the old one. The port
-		// stays with personad.socket, so the restart is not noticed (docs/operations/hub-restart.md).
+		// stays with personad.socket, so the restart is not noticed.
 		steps = append(steps, []string{"restart", "personad"})
 		what = i18n.T(e.l, "hub-setup.service_updated")
 		restartSaid = true

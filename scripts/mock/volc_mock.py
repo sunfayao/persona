@@ -1,4 +1,4 @@
-"""MOCK_VOLC=1 (with MOCK_EXTENSIONS=1): the built-in Volcengine speech extension (docs/extensions/volcengine-speech.md),
+"""MOCK_VOLC=1 (with MOCK_EXTENSIONS=1): the built-in Volcengine speech extension,
 switched off as on a new hub. Its form, its key check (a key with "bad" in it is refused as the service refuses a key;
 "notts" in it, synthesis is not turned on), the meetings switch (the assistant's choice, never saved with the settings)
 and its page (Connection and Test) work in memory with made-up outcomes. Nothing reaches a real service.

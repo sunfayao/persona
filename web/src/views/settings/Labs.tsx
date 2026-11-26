@@ -1,4 +1,4 @@
-// Settings › Labs (#9877, docs/web/web.md "Labs"): trial features and choices between a stable and a new implementation.
+// Settings › Labs (#9877): trial features and choices between a stable and a new implementation.
 // Each module that has one injects a configuration source (lib/configuration/contract.ts); this page draws each with the
 // generic form (configuration/ConfigurationForm.tsx), which knows none of them. Today: the terminal renderer
 // (lib/labs-terminal.ts), kept by this browser.

@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-// Live replies (#1309, docs/integrations/claude-integration.md "Live replies"): the Claude sessions Persona starts on a
+// Live replies (#1309): the Claude sessions Persona starts on a
 // machine load the plugin with Claude Code's MessageDisplay hook, so their replies reach the apps as Claude shows them.
 // It costs the terminal on that computer something (replies show a batch of lines at a time, each once the hook ran),
 // and the previous per-machine choice still applies. On unless the user turned it off; a node of an older hub, which

@@ -22,7 +22,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Taking back what an extension's program sent (docs/extensions/connectors.md "Sent as the user"), end to end: a real extension
+// Taking back what an extension's program sent, end to end: a real extension
 // (this test binary run as its program, as PERSONA_TEST_PLUGIN=recall) installed through the hub's routes, rows written
 // the three ways the ledger gets them, and RecallSent asking the program.
 

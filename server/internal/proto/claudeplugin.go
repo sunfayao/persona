@@ -2,8 +2,8 @@ package proto
 
 import "time"
 
-// ClaudePlugin is the Persona plugin for Claude Code on a computer, as its node last checked it
-// (docs/operations/link.md "Claude Code plugin"): the node carries the plugin of its own build and keeps it installed
+// ClaudePlugin is the Persona plugin for Claude Code on a computer, as its node last checked it:
+// the node carries the plugin of its own build and keeps it installed
 // at the user scope of each Claude Code config directory it manages. Sent with node.info and, when it changes, as the
 // node's "claude.plugin" notification; the manager puts it on the machine (Machine.ClaudePlugin). Older nodes send
 // nothing.

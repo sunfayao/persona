@@ -27,7 +27,7 @@ import (
 	"github.com/nwverse/persona/server/internal/osproc"
 )
 
-// The passive listener (docs/operations/link.md "Passive mode"): TLS with the connector's own identity, four endpoints and nothing
+// The passive listener: TLS with the connector's own identity, four endpoints and nothing
 // else. Pairing trades a one-time code for the hub's credential (its hash is kept); info, attention and stream need
 // that credential; a stream is joined to the resident node's socket byte for byte, as active mode's streams are.
 

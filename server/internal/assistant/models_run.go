@@ -22,7 +22,7 @@ import (
 
 // An API purpose may pick a launcher without a gateway the manager can call (plain claude, codex, agy, or a computer's
 // own launcher): each request then runs that launcher's CLI headless once on the main chat's computer, which answers
-// with the final text (docs/assistant/model-config.md "Running API purposes on a launcher", #5823, #12027). The manager
+// with the final text (#5823, #12027). The manager
 // still resolves the purpose and reads the answer; the node runs the CLI with no tools and leaves no session (model.run).
 
 // modelRunTimeout bounds a run whose caller set no deadline.

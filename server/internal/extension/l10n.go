@@ -1,6 +1,6 @@
 package extension
 
-// Translations of a manifest's text (#897, docs/extensions/extensions.md "Translations"): a package's
+// Translations of a manifest's text (#897): a package's
 // l10n/<language>.json files, and an index entry's l10n with the same text so a market can show it before anything
 // is downloaded. The manifest itself does not change: hubs read manifests strictly, so a new manifest field would
 // make the extension uninstallable on older hubs, while files and entry keys they do not read are harmless. A

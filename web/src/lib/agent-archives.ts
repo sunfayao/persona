@@ -1,4 +1,4 @@
-// Archiving Agent sessions (docs/web/web.md "Archived agents", docs/protocol/protocol.md "Agent session archives"): an
+// Archiving Agent sessions (docs/protocol/protocol.md "Agent session archives"): an
 // archive takes a session out of the Agents list and keeps it under Archived, from where it is restored; its transcript
 // stays on its computer, and new activity brings it back by itself. "Archive and close" also closes the agent on its
 // computer (session.retire: its tab and process go, the next message resumes it). The manager decides; the rules here

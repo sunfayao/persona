@@ -9,7 +9,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// launcherRepairUpgrade is the one repair a node does by itself for the hub's launcher health (docs/server/launcher-health.md):
+// launcherRepairUpgrade is the one repair a node does by itself for the hub's launcher health:
 // update the Claude Code CLI a launcher runs. Fixed commands only: the hub cannot have the node run anything else.
 const launcherRepairUpgrade = "upgrade_cli"
 

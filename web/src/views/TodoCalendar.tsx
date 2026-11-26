@@ -1,4 +1,4 @@
-// The to-dos as a calendar (#2029, docs/assistant/todos.md "Calendar"): a day, a week or a month of those with a due
+// The to-dos as a calendar (#2029): a day, a week or a month of those with a due
 // date, drawn as the list draws them (state, overdue, done, priority, reminder). Clicking one opens it, clicking the
 // empty axis makes a new one due there; those without a due date are counted under it, a click from the list. The
 // page (Todos.tsx) keeps the mode and the day in the address. A to-do can be dragged to another time or day (#2045,

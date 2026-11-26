@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// The deployed commits (#3205, docs/assistant/todo-status-sop.md "Deployed needs evidence"): a hub that cannot reach
+// The deployed commits (#3205): a hub that cannot reach
 // GitHub still knows what it runs when the deploy puts, next to the binaries, the commits the deployed one contains.
 // The file is deployedCommitsName in the hub's state directory or next to the running binary:
 //

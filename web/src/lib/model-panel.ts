@@ -1,4 +1,4 @@
-// The unified model panel's data (#5032, after Cindy's model selector; docs/web/web.md "Model pill and model panel"):
+// The unified model panel's data (#5032, after Cindy's model selector):
 // the providers a chat can run on and their models, the setup that runs now, and what the panel keeps in this browser
 // (favorites, recent setups, per-model customizations). The panel (ui/model-panel/ModelPanel.tsx) draws them; each chat
 // kind builds them from its own sources (an Agent: its computer's launchers; a Persona chat: the assistant's list).

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// "Hand to AI" records where an item went (DECISIONS D3, docs/assistant/inbox.md "Item actions"): once the text got to a
+// "Hand to AI" records where an item went (DECISIONS D3): once the text got to a
 // new Persona chat, a running agent or a new agent, one more `POST /inbox/{id}/handoff` (no `text`: the record only) with
 // the session, its kind, the conversation's title and a fresh `client_id`; a refusal (an older hub's 400, 404, 405, any
 // other) is ignored without a word, and nothing is recorded when the text did not get there.

@@ -8,7 +8,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The user's /compact to a Codex session Persona drives through its app-server (#10188, docs/integrations/codex.md
+// The user's /compact to a Codex session Persona drives through its app-server (#10188
 // "Sessions on the daemon (app-server route)"). The app-server runs no slash commands: a turn's text is the model's
 // input, and the TUI runs its own commands before it calls the app-server. Sent as a turn, /compact was answered by
 // the model as words. It goes as thread/compact/start instead, the call the TUI's /compact makes and the assistant's

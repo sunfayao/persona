@@ -1,4 +1,4 @@
-// A task's card comes once in a Persona conversation, and how it goes on is its row (#8237, docs/assistant/unified-entry.md
+// A task's card comes once in a Persona conversation, and how it goes on is its row (#8237
 // "Receipts"): no receipt, review or report is drawn; the hand-off card says a failed start in plain words (the raw error
 // is the task's details') and a turn the model service cut off, in place.
 import { renderToStaticMarkup } from "react-dom/server";

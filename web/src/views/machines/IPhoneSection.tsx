@@ -1,4 +1,4 @@
-// "iPhone control" on a computer's page while the hub's extension iphone is on (#8217; docs/extensions/iphone.md, the
+// "iPhone control" on a computer's page while the hub's extension iphone is on (#8217, the
 // iPhone app's guided setup #8199): the switch that lets the assistant operate iPhones through this computer, and what
 // each iPhone needs next, read from the hub's codes (lib/iphone.ts). What is missing comes with what to do here: Install
 // the iPhone helper, Pair an iPhone on the cable, Prepare it (with what that does and doesn't do), Cancel while one of

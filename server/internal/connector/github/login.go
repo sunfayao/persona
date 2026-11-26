@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Signing in from the app with GitHub's device flow (docs/extensions/connectors.md "Login supports"): the hub asks GitHub for a code
+// Signing in from the app with GitHub's device flow: the hub asks GitHub for a code
 // with the GitHub CLI's OAuth App (ghCLIClientID), the user enters it at github.com/login/device, and the token GitHub
 // then grants is kept sealed in the hub (connector.Secrets) and used before a computer's gh login. Nobody registers an
 // OAuth App; GitHub's authorization page says "GitHub CLI".

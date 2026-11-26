@@ -137,5 +137,5 @@ type (
 	}
 )
 
-// Defined in the contract package connectorwire (docs/server/architecture.md "Contract packages"); the old names stay.
+// Defined in the contract package connectorwire; the old names stay.
 type Media = connectorwire.Media

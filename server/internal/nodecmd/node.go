@@ -347,7 +347,7 @@ func sysmonSamples(ctx context.Context, n int, every time.Duration, sample func(
 	return taken
 }
 
-// runSysmon shows what a node would report (docs/server/machines.md), and the CPU time it took: how the collection cost
+// runSysmon shows what a node would report, and the CPU time it took: how the collection cost
 // in the docs was measured.
 func runSysmon(ctx context.Context, n int) {
 	enc := json.NewEncoder(os.Stdout)

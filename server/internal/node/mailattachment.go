@@ -18,8 +18,8 @@ import (
 
 // mail_save_attachment is answered here, on the machine the agent runs on: the manager fetches the attachment (the
 // mail.attachment request, at most proto.MaxMailAttachment, only for a caller the mail connector offers the tool to)
-// and this node writes it under its own data directory, <data dir>/attachments/mail/<dir>/<file>
-// (docs/extensions/mail.md "Saving attachments"). The agent picks only a relative subfolder and the file name comes
+// and this node writes it under its own data directory, <data dir>/attachments/mail/<dir>/<file>.
+// The agent picks only a relative subfolder and the file name comes
 // from the mail's sender, so both are cleaned: nothing lands outside that folder, nothing is overwritten.
 
 // toolMailSaveAttachment is mail.ToolSaveAttachment (a test keeps them equal; the node does not take in the mail

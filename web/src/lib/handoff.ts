@@ -49,7 +49,7 @@ let left: { path: string; place: ChatPlace; back: boolean; panel?: Panel } | nul
 
 // The page the main conversation opened last as a page of its own, set to Full page (an Agent's or a task's: leaveChat),
 // with where its chat was (#13164). It is the conversation's page while another place is in front, as a place keeps its
-// drill-down on iOS (SidebarPageRoots, docs/design/sidebar-navigation.md): Main Chat picked in the sidebar opens it again
+// drill-down on iOS (SidebarPageRoots): Main Chat picked in the sidebar opens it again
 // (`pickMainChat`). Back (or Forward) to the conversation and Main Chat picked while it or its page is in front drop it.
 // `chat` names the conversation (mainChat), so another assistant's never opens over this one's; kept in this page only:
 // a reload, or another hub's page, starts with none.

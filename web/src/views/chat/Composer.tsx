@@ -226,10 +226,10 @@ export const Composer = memo(function Composer({
   planMode?: PlanMode;
   /** The text box gains / loses focus (on a phone: the keyboard comes up / goes down). */
   onFocusChange?: (focused: boolean) => void;
-  /** The main conversation cannot answer yet (docs/assistant/onboarding.md 4.4): the send button says what to do first and opens
+  /** The main conversation cannot answer yet: the send button says what to do first and opens
    *  it; the box still takes typing and keeps the draft, nothing is sent or queued. */
   blocked?: { label: string; onClick?: () => void; onNudge?: () => void };
-  /** Voice chat (docs/web/web.md "Voice"): with an empty box and an idle agent it takes the send button's place, round;
+  /** Voice chat: with an empty box and an idle agent it takes the send button's place, round;
    *  otherwise it is a plain icon before send / stop. "explain": its click says why a call cannot start here. */
   voice?: VoiceOffer;
   /** First in the card, flush with its top and edges, a hairline under it: the chat's queued messages (QueuePanel.tsx,

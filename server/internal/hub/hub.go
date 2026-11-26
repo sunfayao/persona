@@ -48,7 +48,7 @@ type Hub struct {
 
 	cfg     *Config
 	version string
-	build   update.Build // channel, build number, where updates come from (docs/operations/hub-update.md)
+	build   update.Build // channel, build number, where updates come from
 	upd     *updater     // updating itself to the publisher's release (selfupdate.go)
 	// quiesce and assistantProc pause the hub's own writers for a Web
 	// development snapshot (quiesce.go).
@@ -129,10 +129,10 @@ type Hub struct {
 	// linkDesktops: the computers whose Persona Link says the user is at them (desktops.go); guarded by mu.
 	linkDesktops linkDesktops
 
-	// stopping: a planned stop has begun (beginStop, docs/operations/hub-restart.md): what the stop itself causes (machines going
+	// stopping: a planned stop has begun (beginStop): what the stop itself causes (machines going
 	// offline, their questions ending) is not news for the apps, which reconnect to the next hub in a moment.
 	stopping atomic.Bool
-	// slot: the hub's edge started this process (hub_edge.go, docs/operations/hub-restart.md "Blue-green switching: the hub's edge"); it listens on the edge's
+	// slot: the hub's edge started this process (hub_edge.go); it listens on the edge's
 	// sockets, and an update or a rollback hands over to the next slot instead of exec'ing. nil: the hub listens itself.
 	slot *hubedge.Slot
 	// deltas: the live text of each session's message being generated, as last relayed (machine, session -> text): a
@@ -171,7 +171,7 @@ type Hub struct {
 	fresh        freshStarts  // agents started for a todo without a prompt, until their first message (assistant_todos.go)
 	// ext is what the hub keeps of the extensions, connectors and bots, the manager's (extensions_link.go).
 	ext   extLink
-	admin adminState // the admin UI (admin.go, docs/operations/admin.md)
+	admin adminState // the admin UI (admin.go)
 
 	apiMux *http.ServeMux // the API's routes: the one a request goes to decides what an extension's token may do
 

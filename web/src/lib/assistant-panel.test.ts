@@ -1,4 +1,4 @@
-// A Persona chat's model pill and panel (#5033, docs/web/web.md "Model pill and model panel"): where the setup the next
+// A Persona chat's model pill and panel (#5033): where the setup the next
 // message runs on comes from (its kept pick, the default, what a side chat started with, this page's pick on an older hub
 // or the new-conversation page), what the pill says, the panel's providers (what can run Persona chats, with their
 // lists; what can't, off with the hub's reason; another engine than a running chat's, off) and what a pick keeps.

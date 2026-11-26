@@ -1,4 +1,4 @@
-// The background supervisor (#4927, #5082, docs/assistant/unified-entry.md "Background supervisor"): the hub's built-in
+// The background supervisor (#4927, #5082): the hub's built-in
 // conversation that follows up the tasks no leader supervises. The hub names it in GET /api/v1/assistant
 // (`background_supervisor`, its session id once it was made); it is listed with the scheduled tasks' conversations,
 // never as a direction or among the user's recent chats, and it is not renamed, archived, ended or made a direction.
@@ -12,7 +12,7 @@ import type { AssistantInfo, Session } from "./types";
 /** `by` on a review's chat-activity entry the background supervisor made (#5084, docs/protocol/protocol.md, FeedItem "review"). */
 export const REVIEW_BY_BACKGROUND = "background";
 
-/** The purpose its conversation runs under (docs/assistant/model-config.md); it follows Main chat until it has its own. */
+/** The purpose its conversation runs under; it follows Main chat until it has its own. */
 export const SUPERVISE_PURPOSE = "assistant.supervise";
 
 /** Conversation `id` is the background supervisor. Never the main conversation; false on a hub before it, or before it was made. */

@@ -2,7 +2,7 @@ package hub
 
 import "time"
 
-// MeshConfig tunes the hub mesh (docs/server/mesh.md). The peers themselves and the group's center are in Postgres (paired in
+// MeshConfig tunes the hub mesh. The peers themselves and the group's center are in Postgres (paired in
 // the admin page or with `personad hub peer add`), not here.
 type MeshConfig struct {
 	// Discovery: advertise this hub on the LAN over mDNS and list the hubs found there (default on). Docker's bridge

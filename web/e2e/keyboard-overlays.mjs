@@ -1,4 +1,4 @@
-// End-to-end check of the keyboard around the web app's overlays (docs/web/web.md "Keyboard shortcuts", "Node menu"):
+// End-to-end check of the keyboard around the web app's overlays ("Node menu"):
 //
 // - the session ⋯ menu uses the window's height: whole at 1280 × 820; at 1280 × 560, too short for it, it opens beside
 //   its button, not over it, a fade at the cut edge shows there is more (at the top once scrolled), and End from the

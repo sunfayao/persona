@@ -34,7 +34,7 @@ export interface ExtensionTool {
 export type AuthPrompt = WireAuthPrompt & { qr?: PromptQR };
 
 /** Calls l with each extension_auth the hub pushes (extension id, its new state, and the manager whose extension it is:
- *  the same id may be installed under several managers, docs/assistant/managers.md "Clients"). */
+ *  the same id may be installed under several managers). */
 export function onAuthChange(l: (id: string, auth: ExtensionAuth, manager: string) => void): () => void {
   return onHubEvent("extension_auth", (msg) => {
     const id = extIdOf(msg as { extension?: unknown; plugin?: unknown });

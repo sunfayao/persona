@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// A settings check's own way out (#8459, docs/extensions/extensions.md "Settings the user fills in"). A program asked
+// A settings check's own way out (#8459). A program asked
 // to check settings it has not been given yet must reach the address they name. Only requests sent with the check's
 // own credential get there: the program's ordinary credential keeps the saved addresses, also while the check runs
 // (#1180). The check's credential works until the check answers (revoke) or its time is up, whichever comes first;

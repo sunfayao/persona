@@ -1,4 +1,4 @@
-// What waits for the user at each assistant (docs/assistant/managers.md "Clients"): the switcher's count beside the other
+// What waits for the user at each assistant: the switcher's count beside the other
 // assistants and the dot on the sidebar's avatar. A count is the agents waiting (a pending card to approve or answer,
 // or a session in Needs you; one agent with both counts once) plus the assistant's inbox items that need the user
 // (`inbox_needs_you` of the roster; a hub without it: the agents only). The agents are counted here from what the hub

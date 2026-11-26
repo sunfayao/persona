@@ -1,4 +1,4 @@
-// Seen to-dos (#5707, docs/assistant/todo-status-sop.md "Seen"): Got it on a Just finished row, or opening the to-do, files
+// Seen to-dos (#5707): Got it on a Just finished row, or opening the to-do, files
 // it under Done at once instead of after 24 hours. The hub keeps the mark (`seen_at`), so every device agrees; Undo takes
 // it off. A hub without `todo_seen` has no mark: the page offers neither.
 import { api, enc } from "./api";

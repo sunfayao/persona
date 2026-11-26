@@ -16,7 +16,7 @@ import (
 )
 
 // Meeting transcription (#3862 phase 5, docs/assistant/meeting-minutes.md "The `transcription` extension point" and
-// "The built-in adapter"; docs/assistant/voice.md "Transcription"): the built-in voice extension's transcription
+// "The built-in adapter"): the built-in voice extension's transcription
 // contribution, on its own socket under /transcription/{cid}/, apart from the voice point's /info and /ws. Only the
 // manager dials it. A job is one WebSocket: the meeting's audio in, its sentences out, transcribed by one caption
 // session and two or three verbatim sessions of a GPT-Live-compatible (live dialect) upstream, or in the final pass

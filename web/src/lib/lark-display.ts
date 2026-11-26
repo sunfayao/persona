@@ -1,4 +1,4 @@
-// Feishu message display settings (display tweaks, docs/extensions/feishu.md "Message Tweaks display", iOS LarkMessageDisplay.swift):
+// Feishu message display settings (display tweaks, iOS LarkMessageDisplay.swift):
 // the Lark gateway's per-account switches for showing a recalled message's retained content ("Keep recalled messages") and a message's earlier
 // versions ("Edit history"). They only decide what is shown: the hub sends retained content whatever they say, so anything
 // unknown (not read yet, a failed read, an account that changed) hides it. A write carries the account and the old value;
@@ -177,7 +177,7 @@ const models = new Map<string, LarkDisplayModel>();
 const modelKey = (ol: number | undefined, manager: string | undefined) => `${itemHeaders(manager) ? manager : ""}|${ol ?? ""}`;
 
 /** The page's one model for a Feishu account (`ol`, lark-accounts.ts; undefined: the hub's own) of manager's Lark
- *  (an inbox item's, docs/assistant/managers.md "Clients"; undefined: the default's). */
+ *  (an inbox item's; undefined: the default's). */
 function larkDisplayModel(ol?: number, manager?: string): LarkDisplayModel {
   const key = modelKey(ol, manager);
   let m = models.get(key);

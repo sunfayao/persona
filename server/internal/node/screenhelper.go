@@ -25,7 +25,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// The live-screen video helper, Persona Screen (#3954; docs/extensions/computer-use.md "Live screen video (#3954)").
+// The live-screen video helper, Persona Screen (#3954).
 // Persona Link installs it in its app bundle (Contents/Helpers/Persona Screen.app). The node starts it through
 // LaunchServices, so macOS holds its Screen Recording to the helper's own bundle and not to the node, gives it a
 // private 0600 Unix socket and a token, and joins the socket to screen.dial's stream once the helper has connected and

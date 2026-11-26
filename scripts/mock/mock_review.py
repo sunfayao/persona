@@ -1,4 +1,4 @@
-"""git/review on the mock hub (#151, docs/web/review.md): the Review panel's answers for the made-up weather checkout
+"""git/review on the mock hub (#151): the Review panel's answers for the made-up weather checkout
 that MOCK_FILES serves (mock_hub.py MOCK_TREE), so the lines between hunks read from GET …/file are the files' own.
 
 MOCK_REVIEW=1 turns on the hub feature git_review and the route; with MOCK_FILES=1 the panel can show hidden lines.

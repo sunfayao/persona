@@ -1,7 +1,7 @@
 // Code highlighting (highlight.js 11's common languages through lowlight), loaded the first time a reply has a fenced
 // block with a language: the main bundle doesn't carry the grammars. Until it is there blocks show plain.
 //
-// Each code block colors itself (#2465, docs/web/web.md "Markdown cache and on-demand highlighting"): the reply's
+// Each code block colors itself (#2465): the reply's
 // Markdown no longer runs rehype-highlight, so the grammars arriving draw again only the blocks near the viewport, not
 // every reply that has code, and a reply's kept tree (markdown-cache.ts) does not depend on them. A block is near when it
 // is within one height of its scroll container above or below what shows (one IntersectionObserver per container);

@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Where an agent stands in its work (docs/assistant/agent-work.md, #1686), the manager's: when a turn ends it triages it — rules
+// Where an agent stands in its work (#1686), the manager's: when a turn ends it triages it — rules
 // first, then a cheap model reading the last reply — into done or blocked on a named precondition, and acts on what it
 // can: "Continue" after a transient model error (with capped backoff), a wake when what it waits for should be over, a
 // card for what the user is to decide (the answer goes back to the agent). Everything else (pushing code, deploying,
@@ -29,7 +29,7 @@ import (
 
 // TriageSwitches turn the triage and each of its actions on, all off until the user turns them on (Settings › Session Triage,
 // settings agents.triage): the triage calls a model on every stopped turn, and a "Continue" or a wake runs a turn of the
-// agent on its own model (docs/assistant/agent-work.md "Switches").
+// agent on its own model.
 type TriageSwitches struct {
 	Enabled      bool `json:"enabled"`       // triage stopped turns: the lists' line, done no longer unread
 	AutoContinue bool `json:"auto_continue"` // "Continue" after a transient model error, and once a usage limit reset

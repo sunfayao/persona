@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end check of Claude Code's ultracode switch on the web (#3428, docs/web/web.md "ultracode"): the row in the model
+"""End-to-end check of Claude Code's ultracode switch on the web (#3428): the row in the model
 panel's flyout of the model that runs (#5032: the composer's model pill, then that row's Customize; on / queued for the
 turn, by this page or elsewhere / the node's reason in orange with the switch still usable, the Claude quota under it),
 the workflow mark on the model pill, on the sidebar's agent row (not on an offline one) and on a Codex thread's pill at

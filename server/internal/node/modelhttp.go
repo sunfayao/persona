@@ -34,8 +34,8 @@ func init() {
 	})
 }
 
-// modelHTTP answers model.http: one request (a reply's POST, or a model list's GET) to a model provider for an API connection that sends through this computer
-// (docs/assistant/model-config.md "Sending through a computer"). The key is in the headers for this call only: it is
+// modelHTTP answers model.http: one request (a reply's POST, or a model list's GET) to a model provider for an API connection that sends through this computer.
+// The key is in the headers for this call only: it is
 // never logged, kept or put in an error (an error names the URL at most, which holds no credential: the manager's
 // gateway check refuses user info and queries). params are zeroed once read.
 func modelHTTP(ctx context.Context, params json.RawMessage) (any, error) {

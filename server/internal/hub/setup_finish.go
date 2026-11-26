@@ -77,7 +77,7 @@ func (e *setupEnv) hubAnswers(ctx context.Context, cfg *Config) bool {
 	return true
 }
 
-// finish prints the way in: the phone's QR code and the admin URL with the setup code (docs/assistant/onboarding.md 4.1).
+// finish prints the way in: the phone's QR code and the admin URL with the setup code.
 func (e *setupEnv) finish(ctx context.Context, cfg *setupConfig) error {
 	p, err := cfg.requestPairCodeLang(ctx, e.l)
 	if err != nil {

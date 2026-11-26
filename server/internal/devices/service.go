@@ -28,7 +28,7 @@ import (
 	"github.com/nwverse/persona/server/internal/textfmt"
 )
 
-// Computers of kind service (docs/server/mesh.md 4, docs/operations/link.md "Passive mode"): the computer's connector
+// Computers of kind service: the computer's connector
 // (Persona Link in passive mode) listens on a TLS port of its own and the manager dials it — no ssh. The manager pins
 // the connector's key (the SPKI SHA-256 pairing gave it), shows the credential made up at pairing, and opens
 // GET /api/v1/connector/stream, which the connector joins to the resident node's attach socket: from there it is

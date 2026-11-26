@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Subscription usage limits in Claude Code's words (docs/assistant/agent-work.md "Usage limits"). Its own record
+// Subscription usage limits in Claude Code's words. Its own record
 // says more (the assistant line's quotaLimits, read by the parser); these read the words for what an older version
 // wrote, a launcher check's output and a node that does not send the record's fields yet.
 

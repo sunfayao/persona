@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/screen"
 )
 
-// Starting a Codex with no first message (docs/integrations/codex.md "Starting without a first message", #4961).
+// Starting a Codex with no first message (#4961).
 //
 // Codex makes its thread only when it gets its first message, so a start without one has no thread id to answer with.
 // The node runs the launcher in a new tab as for a start with a message (codex-start, with no message), waits for

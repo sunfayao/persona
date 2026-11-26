@@ -11,7 +11,7 @@ const AssistantID = "assistant"
 const (
 	// CapabilityConfigOwn: the manager reads its own sections of the configuration from its manager.json (owner,
 	// notes, Agents, the models, a card's wait): the hello does not carry them any more, and a
-	// manager without it runs on its built-in defaults (docs/assistant/managers.md "Configuration").
+	// manager without it runs on its built-in defaults.
 	CapabilityConfigOwn = "config.own"
 	// CapabilityAgentSessionArchives: the manager owns recoverable Codex/Claude archives.
 	CapabilityAgentSessionArchives = "agent_session_archives"
@@ -27,7 +27,6 @@ const (
 	CapabilityAgentSessionArchiveClose = "agent_session_archive_close"
 	// CapabilityMachinesOwn: the manager keeps its own list of computers in its manager.json and takes the hub's edits
 	// of it (devicewire MethodMachinesPut / Remove / Get) once the hub hands it MachinesOwn
-	// (docs/assistant/managers.md "Each manager's computers").
 	CapabilityMachinesOwn = "machines.own"
 	// CapabilityTaskInput: the manager validates and saves structured scheduled prompts.
 	CapabilityTaskInput = "task_input"
@@ -115,7 +114,7 @@ const (
 	EventStartEnded = "session.start_ended"
 
 	// EventConversationSent (ConversationSent): how an app's message to one of the assistant's conversations went, as
-	// the hub sent it (the north star's availability, docs/assistant/north-star.md). An older manager ignores it.
+	// the hub sent it (the north star's availability). An older manager ignores it.
 	EventConversationSent = "session.assistant_sent"
 )
 
@@ -140,7 +139,7 @@ const (
 	CodeChatDenied = "chat_denied"
 	// CodeLauncherOtherKind: a launcher of another agent kind picked for a message in an existing assistant
 	// conversation (Data: conversation_agent, launcher, launcher_agent, delivered "none"): the hub answers 409, nothing
-	// was sent, and the conversation keeps its agent (docs/assistant/assistant.md, #4662).
+	// was sent, and the conversation keeps its agent (#4662).
 	CodeLauncherOtherKind = "launcher_other_kind"
 	// CodeConversationBusy: an assistant conversation is at work (a turn, background tasks) and its task-follow-up role
 	// changed, so the message would need a new process with the new role while the old one still works. Nothing was
@@ -257,7 +256,7 @@ var Routes = []string{
 	"POST /api/v1/task-plans/{id}/workspace-preview",
 	"POST /api/v1/task-plans/{id}/dismiss",
 	"DELETE /api/v1/todos/{id}/terminal-cleanup",
-	// The todos (the assistant's todos.go, docs/assistant/todos.md).
+	// The todos (the assistant's todos.go).
 	"GET /api/v1/todos",
 	"GET /api/v1/todos/places",              // the To-dos places and counts (todo_view_routes.go, #10226); the literal wins over {id}
 	"GET /api/v1/todos/{id}",                // one to-do as the list has it, with its view
@@ -316,11 +315,11 @@ var Routes = []string{
 	"DELETE /api/v1/assistant/conversations/{id}/model",
 	"POST /api/v1/assistant/main/new",
 	"POST /api/v1/assistant/main/clear",
-	// The channels (channels.go there, docs/extensions/channels.md "API").
+	// The channels (channels.go there).
 	"GET /api/v1/channels",
 	"POST /api/v1/assistant/conversations/{id}/views/{key}/actions",
 	"POST /api/v1/assistant/conversations/{id}/views/{key}/html-actions",
-	// The Lark bot's workbench: companion bots and their notices (feishu_companions.go there, docs/extensions/bots.md
+	// The Lark bot's workbench: companion bots and their notices (feishu_companions.go there
 	// "Companion bots").
 	"PUT /api/v1/assistant/feishu/companions",
 	"GET /api/v1/assistant/feishu/notices",

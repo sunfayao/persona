@@ -1,4 +1,4 @@
-/** Where Hand to AI last sent an item from each source (#2121; docs/assistant/inbox.md "Item actions";
+/** Where Hand to AI last sent an item from each source (#2121;
  *  spec/fixtures/inbox/handoff_memory.json, which the apps read too): the repository, else the chat, else the sender
  *  (the item's `mutes`). The next item from that source starts on that target, marked Last time; nothing is sent until
  *  the user sends. Kept in this browser for this hub (localStorage is per origin): ids only, the 200 most recent sources,

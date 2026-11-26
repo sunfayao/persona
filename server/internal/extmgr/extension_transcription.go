@@ -9,7 +9,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Transcription for extensions (#8485, docs/extensions/extensions.md "Transcription for extensions"): an extension the
+// Transcription for extensions (#8485): an extension the
 // owner granted the transcription scope hands its own audio to the transcription chosen for meetings; each call goes
 // to the assistant, which runs the job, with the extension's id (which the extension cannot set). Like model calls, the
 // legacy full-hub grant does not include it, and there is no budget (the owner's decision).

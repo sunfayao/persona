@@ -1,4 +1,4 @@
-"""Keep CJK text out of English prompt templates (docs/assistant/prompts.md)."""
+"""Keep CJK text out of English prompt templates."""
 from pathlib import Path
 import re
 import sys

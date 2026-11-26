@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Interactive Claude Code for assistant conversations (#10058, docs/assistant/assistant.md "Interactive Claude Code").
+// Interactive Claude Code for assistant conversations (#10058).
 //
 // With the assistant's claude_interactive setting on, the manager sends claude_interactive with every assistant.send
 // (modelExecution.Interactive), and a Claude conversation's process is `personad assistant-tui` instead of `claude -p`.

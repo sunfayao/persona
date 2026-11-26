@@ -1,4 +1,4 @@
-// The live screen's Displays menu (#5685, docs/extensions/computer-use.md "Displays"): All Displays or one display of a
+// The live screen's Displays menu (#5685): All Displays or one display of a
 // multi-display Mac. ScreenView imports it once there is a choice to offer, so its words (screen-displays) stay out of the
 // first screen's catalog, which every page of the app sends; the build makes the import wait for the rest of the catalog.
 import { useState } from "react";

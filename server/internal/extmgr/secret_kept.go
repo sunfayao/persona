@@ -8,7 +8,7 @@ import (
 	"github.com/nwverse/persona/sdk/go/wire"
 )
 
-// Launcher keys that are references (docs/extensions/secret-providers.md, "Launcher keys"): a launcher's key is
+// Launcher keys that are references: a launcher's key is
 // opened every time a computer pulls it and every time the manager calls the provider's service itself, so a resolved
 // value is kept here for a while instead of asking the provider each time. Only in this process's memory, never on
 // disk, and only for launchers: an extension's secrets resolve at each start, an Agent's hand-off after each card.

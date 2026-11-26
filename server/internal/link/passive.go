@@ -18,7 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/netaddr"
 )
 
-// Passive mode (docs/operations/link.md "Passive mode"): the hub dials this computer instead. persona-link listens on a TLS port with its
+// Passive mode: the hub dials this computer instead. persona-link listens on a TLS port with its
 // own identity (tlsid.go) and offers three things there, nothing else: pairing, a little about itself, and streams
 // to the resident node (listen.go). Pairing goes the other way round from active mode, as the computer may not reach
 // the hub: `persona-link pair --listen` makes a one-time code and prints a link for the hub's admin page; the hub dials
@@ -38,7 +38,7 @@ const (
 const PingHeader = "X-Persona-Ping"
 
 // MachineNameHeader is on a hub's info read (and its pairing request's machine_name says it too): what the hub calls
-// this computer, URL query-escaped; the connector keeps it to show (docs/operations/link.md "The computer's name").
+// this computer, URL query-escaped; the connector keeps it to show.
 const MachineNameHeader = "X-Persona-Machine-Name"
 
 // PingHeaderValue is PingHeader's value for a heartbeat.

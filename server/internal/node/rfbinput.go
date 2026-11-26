@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-// Pixel scrolling for the live screen (#7775, docs/extensions/computer-use.md "Pixel scrolling"). A phone that can
+// Pixel scrolling for the live screen (#7775). A phone that can
 // scroll by the point sends its scrolls inside the RFB stream as 16-byte records, client message type 200 (unassigned in
 // IANA's RFB client-to-server registry). The node takes them out, so macOS's Screen Sharing never sees them, and hands
 // them to Persona Input, which posts them as continuous scroll events; one the helper can't take becomes RFB wheel

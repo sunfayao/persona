@@ -27,7 +27,7 @@ import (
 // up to their supervisor (report_to_supervisor, one of the tools an agent gets, not the assistant; agentToolNames).
 
 // agentToolNames are the tools of the agents (not the assistant's conversations) that are this manager's own; their
-// descriptions and schemas are in prompts/mcp (docs/assistant/prompts.md). Each needs to know which agent calls it: the node
+// descriptions and schemas are in prompts/mcp. Each needs to know which agent calls it: the node
 // names the session of the agent's pane for them (node.callerTools). The list lives in assistantwire so the node reads
 // the same one (#9089).
 var agentToolNames = assistantwire.AgentToolNames

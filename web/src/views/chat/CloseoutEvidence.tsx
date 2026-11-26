@@ -1,4 +1,4 @@
-// The closeout card's Command evidence row (#7665, docs/web/web.md "Closeout"): for each command its Verified text names,
+// The closeout card's Command evidence row (#7665): for each command its Verified text names,
 // only the facts recorded in this closeout's own exchange (lib/closeout-commands.ts), never a badge. Its own chunk, which
 // CloseoutCard loads when a card with a Verified claim draws (#8118): the matching code and its strings stay off the first
 // screen. It reads the exchange's folded steps itself, while the card is open; a failed or capped read stays unavailable

@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-// Token usage history (docs/server/machines.md "Token usage history"): the calendar of tokens a day on the assistant's
+// Token usage history: the calendar of tokens a day on the assistant's
 // home and its page's last week by the hour, every machine's usage summed in the user's zone. The same sums as
 // today's tokens (every kind, cache reads included), from the rows usageLoop keeps: past a week an hour a row, for
 // usageHistoryKeep.

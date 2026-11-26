@@ -146,7 +146,7 @@ func (s *Service) actOn(ctx context.Context, v *workView, machine string, c prot
 	w.InteractionID = e.InteractionID
 }
 
-// actOnLimit decides about a usage-limit wait (docs/assistant/agent-work.md "Usage limits"): none of a wait's risky
+// actOnLimit decides about a usage-limit wait: none of a wait's risky
 // checks or wakes, nothing its next step could set off — it goes on with what the limit stopped. The CLI that goes on
 // by itself at the reset is left to it: typing into it would cancel that. Otherwise, with auto_continue on, the
 // manager continues it a minute or so after the reset, up to maxLimitContinues times with no productive turn between

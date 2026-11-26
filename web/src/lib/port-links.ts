@@ -1,7 +1,7 @@
-// Links to a port of the computer an agent runs on (docs/operations/ports.md "Recognizing links in replies"; the
+// Links to a port of the computer an agent runs on (the
 // same rules as iOS's PortLinks): what an agent prints for the dev server it started (http://localhost:5173/,
 // http://127.0.0.1:8000/docs, http://0.0.0.0:3000, http://[::1]:4173, the computer's own name, or a bare
-// localhost:3000/x), which the web shows in the preview panel (docs/web/preview.md), never on this computer's localhost.
+// localhost:3000/x), which the web shows in the preview panel, never on this computer's localhost.
 
 export interface PortLink {
   port: number;

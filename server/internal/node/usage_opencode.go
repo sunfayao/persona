@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/tokenuse"
 )
 
-// opencode's token usage (docs/server/machines.md "Token usage"): it keeps its sessions in a SQLite database, a row a
+// opencode's token usage: it keeps its sessions in a SQLite database, a row a
 // step (tokenuse.OpencodeRow), so its adapter reads by query instead of by line, with the system sqlite3 as the Codex
 // App's database is read (querySQLite): the live meter the rows added since its last read and the unfinished ones
 // again, nothing while the database has not changed; the backfill a week's rows by their time (the database indexes

@@ -1,6 +1,6 @@
 package devices
 
-// The file transfer switch (#3065, docs/protocol/file-transfer.md): each machine has one, off until the user turns it
+// The file transfer switch (#3065): each machine has one, off until the user turns it
 // on. While it is off nothing is sent to the machine to keep (dest=inbox, which the hub checks against this switch as
 // the manager reports it on the machine). The manager keeps the switches in settings (machine_file_transfer) and answers
 // GET / PUT /api/v1/machines/{mid}/file-transfer/settings.

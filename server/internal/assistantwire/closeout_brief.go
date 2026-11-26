@@ -1,7 +1,7 @@
 package assistantwire
 
 // MethodCloseoutBrief: a node asks, as an agent's session starts, for the closeout's form to hand it as starting
-// context, so that a turn that does work ends with one without a held stop (docs/assistant/agent-work.md "Closeout").
+// context, so that a turn that does work ends with one without a held stop.
 // The manager answers: it holds the switch.
 const MethodCloseoutBrief = "agents.closeout.brief"
 

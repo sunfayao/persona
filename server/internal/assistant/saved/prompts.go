@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Saved prompts (#7329, docs/web/web.md "Saved prompts"): the user's own "/" prompts, the instructions they send
+// Saved prompts (#7329): the user's own "/" prompts, the instructions they send
 // again and again. The user keeps them in Settings › Saved Prompts (or saves one of their messages as one); every chat's
 // "/" list offers them after its built-in commands, and picking one fills the composer with its text, never sends it.
 // They are this assistant's settings, as saved places and repository bindings are, so every device shows the same list.

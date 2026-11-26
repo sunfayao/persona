@@ -1,6 +1,6 @@
 // New agent's parts for a start in a desktop app (lib/desktop-start.ts; #5480 Claude's desktop app, #5726 the Codex App):
 // the temporary session's row, the way back to one with its note, and naming a new folder. Loaded only when such a
-// launcher is the one that runs (NewAgent.tsx), so its words stay off the first screen (docs/lessons/web.md, "The live
+// launcher is the one that runs (NewAgent.tsx), so its words stay off the first screen ("The live
 // screen's later words go in a lazy component").
 import { useState } from "react";
 import { baseName } from "../lib/format";

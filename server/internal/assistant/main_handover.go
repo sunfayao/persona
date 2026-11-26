@@ -6,7 +6,7 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-// Replacing the main conversation (#4866, docs/assistant/assistant.md "New main chat"): the open tasks of the main
+// Replacing the main conversation (#4866): the open tasks of the main
 // conversation that was put away (POST /api/v1/assistant/main/new) or replaced in the settings go to the main one now.
 // Their supervisor and their origin move together, as a closed leader's workers are rehomed (task_leader.go): every
 // check that compares the supervisor with a conversation (agent_send's provenance, the done judge's, agent_supervise,

@@ -1,4 +1,4 @@
-// End-to-end check of the main chat's profile for new conversations on the web (#4633, docs/assistant/model-config.md
+// End-to-end check of the main chat's profile for new conversations on the web (#4633
 // "Main chat's profile for new conversations"): Model settings › Main chat offers "New chats' Claude profile" next to
 // Runtime, Persona's own first and chosen; choosing this computer's and saving sends config_dir "legacy", which the
 // editor shows chosen when opened again; Persona's own goes back to none.

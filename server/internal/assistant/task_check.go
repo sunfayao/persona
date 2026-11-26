@@ -7,7 +7,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// The completion check on a task (#3180, docs/assistant/todos.md "Automatic completion"): every automatic judgment of a
+// The completion check on a task (#3180): every automatic judgment of a
 // task's work (autoFinishTask, done.go) is kept on the todo as its check, the verdict with its reason in the user's
 // language, so an open task whose agents stopped can say why it is not done ("Stopped, not done yet · waiting for CI").
 // It is kept with the task's stage and delivery (reportStagesKey: no migration), and only while the judgment is still

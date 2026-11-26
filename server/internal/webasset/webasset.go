@@ -1,6 +1,6 @@
 // Package webasset is what the hub and the build agree on about the web client's files: which responses gzip makes
 // worth sending compressed (CompressibleType, MinSize), which of the built files are kept only gzipped in a
-// published personad (Precompressible, Precompress; docs/web/web.md "Precompressed assets"), and the brotli copies
+// published personad (Precompressible, Precompress), and the brotli copies
 // the web build writes of the first screen's files (BrotliSuffix). The hub compresses other responses as it sends
 // them (internal/hub/gzip.go); these it sends as they are stored.
 package webasset

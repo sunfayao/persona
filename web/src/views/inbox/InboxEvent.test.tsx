@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Inbox events on the page (docs/web/web.md "Inbox"): the "In progress" section and the rows' marks, the detail's summary → suggestion
+// Inbox events on the page: the "In progress" section and the rows' marks, the detail's summary → suggestion
 // card → recap → handling chain, "Edit" / "Say something", "Original"; and an older hub's items (none of the fields) exactly as before.
 // Driven by the fake hub's fixture (scripts/mock/inbox_events.json).
 import { readFileSync } from "node:fs";

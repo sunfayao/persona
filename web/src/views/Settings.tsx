@@ -1,5 +1,5 @@
 import { managedProvider } from "../lib/compatibility";
-// Settings (docs/web/web.md): appearance and language, this browser, "Notifications" (this browser's), "Models" (every
+// Settings: appearance and language, this browser, "Notifications" (this browser's), "Models" (every
 // launcher: rc-file and PATH ones synced, the built-in claude, Persona ones kept by the hub — docs/integrations/launchers.md)
 // and the other devices. Everything else is changed by telling the main conversation.
 import { BASE, stripBase } from "../lib/base";
@@ -41,7 +41,7 @@ import { SHEET_QUERY, useMedia } from "../ui/overlay";
 import { lazyDialog, lazyOverlay, useOpened } from "./LazyOverlay";
 import { formatList, t } from "../i18n";
 
-// ── types (docs/integrations/launchers.md) ───────────────────────────
+// ── types ───────────────────────────
 
 interface LauncherDetail {
   agent?: string;
@@ -62,7 +62,7 @@ interface LauncherView extends ProviderView {
   /** zshrc: an rc file's (~/.zshrc, ~/.bashrc); path: a wrapper script on the computer's PATH (#5954); builtin: plain claude (no edit, can't be hidden). */
   source: "zshrc" | "path" | "persona" | "agy" | "builtin" | string;
   agent?: "claude" | "codex" | "agy" | string;
-  /** Managed: pi can use it too on the computers in its scope (docs/integrations/pi.md "Persona's model providers"). */
+  /** Managed: pi can use it too on the computers in its scope. */
   pi?: boolean;
   machines?: string[];
   hidden?: boolean;
@@ -139,7 +139,7 @@ export function Settings({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const scroller = useRef<HTMLDivElement>(null);
   useScrollMemory(scroller, listed ? "settings" : `settings/${tab}`);
   const { sub } = at;
-  // The Models page reads and writes the current assistant only (docs/assistant/managers.md "The current assistant"):
+  // The Models page reads and writes the current assistant only:
   // its model providers ask that assistant's manager while the page is open.
   const picked = useChosenManager();
   useLayoutEffect(() => (ASSISTANT_TABS.has(tab) ? pinManagerAt(ASSISTANT_PREFIXES, otherManager(picked ?? undefined)) : undefined), [tab, picked]);

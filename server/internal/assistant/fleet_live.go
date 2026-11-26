@@ -171,7 +171,7 @@ type fleetInput struct {
 	TurnStart time.Time // zero: unknown
 }
 
-// buildFleet sums agents up the way the Agents list does (docs/apple/ios.md): needs you first (oldest request first), then
+// buildFleet sums agents up the way the Agents list does: needs you first (oldest request first), then
 // working (longest first), then finished unseen. Muted agents, idle / offline ones, and /loop agents waiting for
 // their next tick are left out; the assistant only counts when it asks something.
 func buildFleet(agents []fleetInput, ixs []proto.Interaction) FleetState {
@@ -552,7 +552,7 @@ func backgroundDetail(l i18n.Lang, sess *proto.Session) string {
 
 // backgroundProgress is the bar under a background-working agent's item (#3437): the counts its detail prints (which
 // clipping never cuts), of the same workflow, so the bar and the line beside it agree and the bar never changes the
-// content by itself (the push budget, docs/live-activity.md). Nil without a running workflow, or before it started an
+// content by itself (the push budget). Nil without a running workflow, or before it started an
 // agent.
 func backgroundProgress(sess *proto.Session) *FleetProgress {
 	w, ok := shownWorkflow(sess)

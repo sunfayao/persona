@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/identity"
 )
 
-// `personad hub setup` (docs/assistant/onboarding.md 4.1, 5.5): one command that leaves a working hub on this machine. It writes
+// `personad hub setup` (5.5): one command that leaves a working hub on this machine. It writes
 // hub.json (a whole new file only when there is none yet), makes sure there is a database (the same Postgres container
 // scripts/deploy/db.sh makes, or the one hub.json names), installs the service that keeps the hub running (the same
 // systemd units as scripts/deploy/hub-systemd.sh; a launchd agent on a Mac), waits for the hub, has the built-in manager

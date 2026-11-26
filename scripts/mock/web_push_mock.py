@@ -1,4 +1,4 @@
-"""Web Push as the hub answers it (#7459, docs/web/web.md "Web Push", docs/protocol/protocol.md "Web Push"), for mock_hub.py's
+"""Web Push as the hub answers it (#7459, docs/protocol/protocol.md "Web Push"), for mock_hub.py's
 MOCK_WEB_PUSH (web/e2e/web-push.mjs, screenshots of Settings › Notifications).
 
 MOCK_WEB_PUSH=1       the routes, no browser subscribed yet

@@ -54,7 +54,7 @@ type AssistantClaudeMD struct {
 	Notes     string // Settings › Assistant › About me, trimmed
 	StateDir  string
 	OnHub     bool
-	// LarkCLI: hub.json configures lark-cli (docs/extensions/feishu.md), on the assistant's PATH.
+	// LarkCLI: hub.json configures lark-cli, on the assistant's PATH.
 	LarkCLI bool
 	// Language is the language the user reads, by its own name ("English", or Japanese written in Japanese); "" is Chinese, as before i18n.
 	Language string
@@ -110,7 +110,7 @@ type SnapshotAgentCloseout struct {
 	FoundMerged, FoundDeployed string
 }
 
-// SnapshotAgentPlan is an agent's own task list (TodoWrite / TaskCreate, docs/integrations/agent-goal.md "Plan"): Done of Total
+// SnapshotAgentPlan is an agent's own task list (TodoWrite / TaskCreate): Done of Total
 // items completed, and the one in progress ("" when none is).
 type SnapshotAgentPlan struct {
 	Done, Total int
@@ -186,7 +186,7 @@ type SnapshotMiss struct {
 	Skipped    bool
 }
 
-// SnapshotTask is a task opened from an assistant conversation: a todo and its agents (docs/assistant/unified-entry.md).
+// SnapshotTask is a task opened from an assistant conversation: a todo and its agents.
 type SnapshotTask struct {
 	ID, Title, State string
 	Machine, Session string // its latest agent, when it has one
@@ -208,10 +208,9 @@ type SnapshotTask struct {
 	DoneWhen int
 	// Orphan: why nobody works on an open task any more (error: its agent ended on a model error and is closed;
 	// closed: its agent's tab was closed; offline: its computer is away), "" while an agent is at it or will be woken
-	// (docs/assistant/todos.md "Nobody is working on this").
 	Orphan string
 	// Delivery: how far its finished work was delivered when that is short of live ("stopped at the PR, stuck on 'CI queued'"), ""
-	// otherwise (docs/assistant/todos.md "Delivery").
+	// otherwise.
 	Delivery string
 	// Reported: what its agent last reported to the supervisor (report_to_supervisor), nil when it has not.
 	Reported *SnapshotReport
@@ -255,7 +254,7 @@ type SnapshotWorkflow struct {
 	For                string // how long it has run ("12 minutes"), "" under a minute
 }
 
-// SnapshotProfile is the model profile in use (docs/assistant/model-config.md) with its tiers, the Agent presets
+// SnapshotProfile is the model profile in use with its tiers, the Agent presets
 // agent_start and task_plan take; Unreadable when the profiles could not be read, Gone when the one in use was deleted
 // (a rollback to it).
 type SnapshotProfile struct {
@@ -315,7 +314,7 @@ type Snapshot struct {
 	Unaccepted      []SnapshotAccept
 	UnacceptedTotal int // all of them (Unaccepted is the oldest eight)
 	// Approvals: open tasks whose finished work waits for the user's nod to go live (merge, deploy, turn on, send),
-	// oldest first: told to the user as one list to approve at once (docs/assistant/todos.md "Delivery").
+	// oldest first: told to the user as one list to approve at once.
 	Approvals []SnapshotApproval
 	// Scoped: the snapshot of a conversation other than the main one and its stand-ins: Tasks, Unaccepted and Approvals
 	// hold only the tasks it handed out or supervises, and OpenTodos only its open ones Tasks does not show; other
@@ -977,7 +976,7 @@ func RenderTaskDoneWhen(criteria []string) string {
 }
 
 // RenderTaskGoal is a task's done_when as one checkable condition, for the Claude Code or Codex /goal typed after the
-// task's first message (docs/integrations/agent-goal.md "A goal set at the start"): one line, trimmed.
+// task's first message: one line, trimmed.
 func RenderTaskGoal(criteria []string) string {
 	return strings.TrimSpace(render("assistant/task_goal", struct{ Criteria []string }{criteria}))
 }
@@ -1077,14 +1076,14 @@ type TurnSection struct {
 func RenderTurnContext(c TurnContext) string { return render("assistant/turn_context", c) }
 
 // TaskDone is the system prompt deciding whether a task opened from an assistant conversation is finished, so the
-// hub can mark its todo done (assistant/task_done, docs/assistant/todos.md "Automatic completion").
+// hub can mark its todo done (assistant/task_done).
 type TaskDone struct {
 	Owner string
-	// Delivery: also say how far the work was delivered (assistant.done_needs_delivery, docs/assistant/todos.md "Delivery"): only
+	// Delivery: also say how far the work was delivered (assistant.done_needs_delivery): only
 	// live or nothing to ship closes the task.
 	Delivery bool
 	// Checks: also check each done_when criterion (checkable, met, evidence) and say the delivery, for the judge's own
-	// check of a supervised task (assistant.review_sample_percent below 100, docs/assistant/todos.md "Spot-check reviews").
+	// check of a supervised task (assistant.review_sample_percent below 100).
 	Checks bool
 	// Language: the user's language for the reason, which the apps show on the task ("" for Chinese, the prompt's own).
 	Language string
@@ -1144,7 +1143,7 @@ type TaskDoneReply struct {
 func RenderTaskDoneInput(in TaskDoneInput) string { return render("assistant/task_done_input", in) }
 
 // MainHandoff is the first message of a new main conversation: what the old one left (its last compaction summary,
-// the messages after it), behind a note, then what the user wrote (docs/assistant/assistant.md "New main chat").
+// the messages after it), behind a note, then what the user wrote.
 type MainHandoff struct {
 	FromID  string
 	Until   string // when the old one was archived, in the user's words
@@ -1171,7 +1170,7 @@ func RenderSessionHandoff(summary string, recent []HandoffTurn) string {
 }
 
 // Acceptance is a deployed task, for the three lines of its "Please accept" card (assistant/acceptance_input; the system
-// prompt is assistant/acceptance; docs/extensions/bots.md "Task progress and review requests").
+// prompt is assistant/acceptance).
 type Acceptance struct {
 	Title, Prompt, Reply string
 	Links                []string // the only links it may pick

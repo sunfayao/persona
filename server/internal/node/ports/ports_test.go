@@ -230,7 +230,7 @@ func portOf(t *testing.T, u string) int {
 	return p
 }
 
-// Two panes, a server each: one scan asks each server once, and the next asks neither (docs/operations/ports.md: results are
+// Two panes, a server each: one scan asks each server once, and the next asks neither (results are
 // kept by pid:port until the process or the port goes). A pane's own pass must not drop another pane's results.
 func TestProbePanesKeepsEveryPanesProbes(t *testing.T) {
 	t.Parallel()

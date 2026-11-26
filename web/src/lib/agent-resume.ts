@@ -1,4 +1,4 @@
-// Resume (#4754, docs/integrations/engines.md "Agents run in a terminal") opens the Agent without sending a message,
+// Resume (#4754) opens the Agent without sending a message,
 // through `POST /sessions {machine_id, resume_session_id}`. The chat's
 // read-only line and the terminal's not-running state both start it, so how it went is kept here, per session, and
 // both show the same progress and the same error. A pure store, tested without a DOM.

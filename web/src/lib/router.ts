@@ -8,7 +8,7 @@ import { decodeURIComponentSafe } from "./uri";
 // Persona's main conversation is the front door (like the app, which opens on the assistant): `/` and `/persona` open it
 // (so does any `/persona/<id>` link of an older version), and "Overview" lives at `/overview`. `/extension/<id>/<ui>` is an extension's page
 // (docs/extensions/extensions.md "UI slots" nav_page).
-/** What the middle of an agent's page shows (docs/web/web.md "Terminal ⇄ chat"): its conversation, or its terminal in place. */
+/** What the middle of an agent's page shows: its conversation, or its terminal in place. */
 export type SessionView = "chat" | "term";
 
 export type Route =
@@ -24,7 +24,7 @@ export type Route =
   // paging back when it is further up
   | { name: "persona"; at?: string }
   | { name: "profile" }
-  // `manager`: whose item it is when that is another manager than the default (`?manager=`, docs/assistant/managers.md
+  // `manager`: whose item it is when that is another manager than the default (`?manager=`
   // "Clients"): two managers may list the same id
   | { name: "inbox"; id?: string; manager?: string }
   | { name: "messages"; id?: string }
@@ -33,7 +33,7 @@ export type Route =
   | { name: "machine"; mid: string }
   // one space of a machine by its name (lib/space-page.ts): its agents, the todos it hangs on, what can be done to it
   | { name: "space"; mid: string; space: string }
-  // the terminal browser (docs/integrations/terminal.md "Standalone terminal"): every pane of every machine; `id` is the terminal opened (an agent
+  // the terminal browser: every pane of every machine; `id` is the terminal opened (an agent
   // session's id, or "pane:<pane>" for a plain shell); `view` is the list beside it, `?view=sessions|terminals`
   // (lib/terminal-list.ts): without it the one this browser chose last
   | { name: "terminal"; mid?: string; id?: string; view?: "sessions" | "terminals" }

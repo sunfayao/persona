@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// A to-do's timeline (#10465, docs/assistant/todo-status-sop.md "The to-do's timeline"): its conversation grouped into
+// A to-do's timeline (#10465): its conversation grouped into
 // rounds, its results and what changed since the owner looked, worked out by the pure todo/timeline (its rules:
 // spec/fixtures/todo-rounds) from the stores the manager already keeps. This file is the adapter: once per read it
 // reads the to-do as GET /api/v1/todos/{id} lists it, the feed's items about it, its decisions, its runs' sessions and
@@ -26,7 +26,7 @@ import (
 // {"type":"todos"} comes on a decision, a supervision or a scope change, and assistant_feed with every feed item,
 // which clients match to the to-do by its ref. The manager names CapabilityTodoTimeline in its hello.
 //
-// An extension's token (todos.read) reads less (docs/extensions/extensions.md "Never shown to extensions"): nothing of
+// An extension's token (todos.read) reads less: nothing of
 // a to-do whose history may hold a private space's words, whose routes answer it 404 (todoScoped, todo_scope.go), and
 // no answered cards, whose records hold what the owner typed into a card's fields and do not say whose card it was (a
 // Just me card, a space run's).

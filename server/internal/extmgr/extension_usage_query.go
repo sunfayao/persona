@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/quota"
 )
 
-// The usage extension point (docs/extensions/extensions.md "Usage"): an extension contributing usage answers usage.query with the
+// The usage extension point: an extension contributing usage answers usage.query with the
 // accounts and windows the usage bars draw (usagesource.ExtensionAnswer), reading the launcher's gateway through
 // usage.http. Like quota.http, those requests are taken only while the query runs, from the extension it was asked of,
 // and go out through whoever holds the launcher's key (launcherSender): the extension never sees the key.

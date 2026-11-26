@@ -18,7 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// The built-in Volcengine speech extension, `personad volc` (docs/extensions/volcengine-speech.md): the owner's
+// The built-in Volcengine speech extension, `personad volc`: the owner's
 // Volcengine (Doubao Speech) key, used for meeting transcription on the hub (a `transcription` contribution, which
 // also serves extensions' own transcription) and for reading meeting answers aloud (a `speech` contribution). It
 // stores nothing: the key comes from the hub, sealed there; the audio and text pass through.

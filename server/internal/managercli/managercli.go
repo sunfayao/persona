@@ -1,6 +1,6 @@
 // Package managercli is the managers' command line: `persona-manager <command>` (cmd/persona-manager) and personad's
 // `assistant`, `manager …` and `hub tailcat-key` (cmd/personad, the compatibility entry) run the same code. It links
-// only the manager's side (docs/server/server.md "Programs"): the hub's commands are internal/hubcli's.
+// only the manager's side: the hub's commands are internal/hubcli's.
 package managercli
 
 import (
@@ -56,7 +56,7 @@ func Assistant(ctx context.Context, build update.Build, args []string, stdin io.
 	return assistant.Main(ctx, build, stdin)
 }
 
-// Manager is `manager join|run|install|uninstall|status …`: a manager made in the app (docs/assistant/managers.md).
+// Manager is `manager join|run|install|uninstall|status …`: a manager made in the app.
 // A usage mistake prints the usage and exits 2, -h exits 0, and a configuration mistake exits 2: restarting cannot fix
 // it, so its service does not (RestartPreventExitStatus=2).
 func Manager(ctx context.Context, build update.Build, args []string) error {
@@ -89,7 +89,7 @@ func managerExit(err error, stderr io.Writer) (code int, done bool) {
 }
 
 // TailcatKey prints the built-in manager's tailcat key, made the first time: the computers reached over tailcat trust
-// it (it dials them; managerconf.OwnFile, docs/assistant/managers.md). command is how it was typed ("tailcat-key",
+// it (it dials them; managerconf.OwnFile). command is how it was typed ("tailcat-key",
 // personad's "hub tailcat-key").
 func TailcatKey(command string, args []string) error {
 	if len(args) > 0 {

@@ -18,7 +18,7 @@ import (
 	"strings"
 )
 
-// The resident node (`personad node --attach`, docs/server/server.md "Persistent node") is what the connector forwards to. Setting
+// The resident node (`personad node --attach`) is what the connector forwards to. Setting
 // it up here is packaging only: `persona-link install` sets up a computer's node service alongside the connector on
 // every supported platform. It writes the same service scripts/deploy/node-launchd.sh does and leaves an existing one
 // as it is. What the node does stays in personad.
@@ -53,7 +53,7 @@ func (e *env) nodeServiceFile() string {
 }
 
 // nodeUnitFile is the resident node's systemd user unit: scripts/deploy/node-launchd.sh's, without network-online.target
-// (a user instance has none, docs/lessons/server.md).
+// (a user instance has none).
 func nodeUnitFile(bin, logPath string) string {
 	return `# Written by persona-link (docs/operations/link.md); persona-link node uninstall removes it.
 [Unit]

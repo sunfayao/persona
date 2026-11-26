@@ -1,4 +1,4 @@
-// "Engine" on a machine's page (docs/integrations/engines.md, iOS EngineSelectionModel / EngineSelectionView): which terminal engine the
+// "Engine" on a machine's page (iOS EngineSelectionModel / EngineSelectionView): which terminal engine the
 // computer's sessions come from. The hub keeps one per machine (herdr when never chosen) and takes a new one with
 // PUT /api/v1/machines/{mid}/engine, also while the machine is offline (applied when it connects).
 import { t } from "../i18n";
@@ -74,7 +74,7 @@ export function engineSaveError(message: string): string {
   return t("lib-engines.save_failed", { message });
 }
 
-// ---- Host sets (#2576, docs/integrations/engines.md "Host sets"): several engines enabled side by side plus a default one. ----
+// ---- Host sets (#2576): several engines enabled side by side plus a default one. ----
 
 /** The hosts a set may hold, in the hub's canonical order (proto.EngineHostIDs); herdr-both is a set, not a member. */
 export const ENGINE_HOSTS = ["herdr", "herdr-core", "orca", "tern", "rex", "paseo", "cindy", "t3code"];

@@ -1,4 +1,4 @@
-// Persona runtime for DeepSeek Harness (docs/integrations/dsh.md): a Host plugin for the `dsh web` profile that hangs DSH's sessions
+// Persona runtime for DeepSeek Harness: a Host plugin for the `dsh web` profile that hangs DSH's sessions
 // into the personad node on this machine (~/.persona/runtime.sock, docs/integrations/runtimes.md), so the Persona apps list them, show
 // their work, send to them and answer their approvals and questions. It does nothing until a personad node listens.
 //

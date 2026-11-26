@@ -49,7 +49,7 @@ var inboxBookBridge = []string{
 // inboxBookReaders are the other files that reach the book today (the plan's section 1), each with how many places it
 // does and the seam that replaces them (the plan's section 3.1). Shrink-only: never add an entry or raise a count. A
 // file with fewer places than its count passes with a note; lowering the count (or dropping the entry at zero) is
-// tidying anyone can do, then or later (docs/operations/testing.md, "Count ratchets").
+// tidying anyone can do, then or later.
 var inboxBookReaders = map[string]struct {
 	sites int
 	seam  string

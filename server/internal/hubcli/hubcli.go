@@ -117,7 +117,7 @@ func Hub(ctx context.Context, build update.Build, args []string) error {
 			return noArguments("manager-code")
 		}
 		return hub.ManagerCode(ctx, os.Stdout)
-	case "assistant-token": // a token for an assistant run elsewhere (hub.json assistant.external, docs/assistant/assistant.md)
+	case "assistant-token": // a token for an assistant run elsewhere (hub.json assistant.external)
 		if len(rest) != 0 {
 			return noArguments("assistant-token")
 		}

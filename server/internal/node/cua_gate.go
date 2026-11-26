@@ -1,7 +1,7 @@
 package node
 
 // The Agents' own Cua Driver, kept away from System Settings and macOS's permission prompts (#4349, the follow-up of
-// #4336; docs/extensions/computer-use.md "c) Per-App approval"). The assistant's computer_run goes through the
+// #4336). The assistant's computer_run goes through the
 // manager, which refuses those (extmgr/computer_protected.go). An Agent Persona starts may have Cua Driver's own MCP
 // server, or run `cua-driver call` in Bash; neither goes through the hub. The sessions Persona starts load PreToolUse
 // hooks for both (doctor.go hookSettingsForOS, on a Mac): this decides them here, at once, with no card, by the same
@@ -85,7 +85,7 @@ var cuaCallText = lazyre.New(`cua-driver\S*\s+call\b`)
 // variable assignments and wrappers such as env or sudo), or inside sh / bash / zsh -c. A mention of cua-driver as
 // an argument (grep, a commit message) is none. ok is false when a command that looks like a cua-driver call cannot be
 // followed (a heredoc, a subshell, unbalanced quotes): the gate then refuses rather than guess. This is a best effort:
-// a shell can drive the screen in other ways (docs/extensions/computer-use.md).
+// a shell can drive the screen in other ways.
 func cuaCalls(cmd string) (calls []cuaCall, ok bool) {
 	return cuaCallsDepth(cmd, 0)
 }

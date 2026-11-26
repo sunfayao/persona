@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// Optional x264 for the live screen (docs/extensions/computer-use.md "x264 on a direct LAN (#8859)"). When the user
+// Optional x264 for the live screen. When the user
 // has installed ffmpeg with libx264 themselves and x264 is on for this Mac (screen.dial's x264), the node starts the helper
 // with `--x264 <ffmpeg>`, and the helper encodes with it while the stream is on a direct LAN route. Persona ships, links,
 // downloads and installs nothing of x264's or ffmpeg's: this only finds the user's ffmpeg and checks that it works.

@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/extwire"
 )
 
-// An extension's token may not send terminal control characters (docs/extensions/extensions.md "Hub API: scopes"):
+// An extension's token may not send terminal control characters:
 // what it sends an agent can be typed into the agent's terminal, now or later in a prompt (a to-do), where they are keys rather than text, and keys can do what the extension was not granted (switch the
 // permission mode). Newline, carriage return and tab are text there; every other control character (C0, DEL, C1) is
 // refused, in any chat, its extension's own included. Scoped device tokens use the same input check.

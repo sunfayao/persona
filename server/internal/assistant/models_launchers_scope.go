@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// A Persona-managed provider's device scope (docs/integrations/launchers.md "Device scope and on-demand delivery"):
+// A Persona-managed provider's device scope:
 // which computers it runs on (share, scope_machines), when its secrets travel (delivery), whether a computer whose
 // harness has a usable service of its own takes it (own_service), and a key for one computer (launchers.machine_keys).
 // A computer in scope is named the provider without its secrets (launchers.catalog) and asks for them when it needs
@@ -39,7 +39,7 @@ const (
 	// NodeLaunchersPull is the node's request: {name, own_service?} → {launcher: proto.ManagedLauncher}.
 	NodeLaunchersPull = "launchers.pull"
 	// NodeAgentsDefault is the node's request for Model Settings › Agents as pi can use it there: {} →
-	// {launcher?, model?, effort?} (docs/integrations/pi.md "Persona's model providers").
+	// {launcher?, model?, effort?}.
 	NodeAgentsDefault = "launchers.agents_default"
 )
 

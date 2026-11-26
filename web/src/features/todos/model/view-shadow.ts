@@ -1,4 +1,4 @@
-// Developing Persona's shadow of the hub's to-do view (#10226; docs/web/web.md "Developing Persona"): its own chunk,
+// Developing Persona's shadow of the hub's to-do view (#10226): its own chunk,
 // started by the recorder (lib/dev-mode.ts startDevMode) and stopped with it. While the hub lists `todo_view` it reads
 // every row the list carries with a view through today's triage (lib/todo-triage.ts, the tray's session lookup) and
 // compares the two (view-legacy.ts classify). It draws nothing: a summary line at most once a minute, and one line per

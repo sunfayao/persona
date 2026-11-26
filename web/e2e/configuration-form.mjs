@@ -1,4 +1,4 @@
-// Screenshots and a quick check of the generic configuration form (#9877, docs/web/web.md "Configuration forms"): the
+// Screenshots and a quick check of the generic configuration form (#9877): the
 // fixture-only page (e2e/configuration-form.html: the real form over the shared schema/configuration/all-types.json) and
 // the real Settings › Labs, each wide (1280) and phone width (390), light and dark, and at the large text size.
 //

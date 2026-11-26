@@ -1,4 +1,4 @@
-// The manager's subscription pages (docs/extensions/subscriptions.md "Pages") as Settings › Inbox Sources and
+// The manager's subscription pages as Settings › Inbox Sources and
 // /subscriptions draw them: the declarative renderer under the reserved id, told the assistant's name as the composer
 // shows it ("Ask {name}…"), which the pages' Set Up with … button takes. With a manager that has the relationship view
 // (#5741), a List / Relationships switch sits over the list's first page; the view's Open Settings shows a source's page

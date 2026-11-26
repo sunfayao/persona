@@ -1,4 +1,4 @@
-// Package subscriptionsui draws the source subscription pages (#2041, docs/extensions/subscriptions.md "Pages") as
+// Package subscriptionsui draws the source subscription pages (#2041) as
 // declarative UI: Inbox Sources (#5278: every built-in source and subscription), a source, its recipe, picking a tool
 // and setting it up, its runs, and the small pickers.
 // extmgr serves it at POST /api/v1/subscriptions/-/ui with the request and answer of an extension page, so every app

@@ -144,7 +144,7 @@ func backgroundSnapshot(snap prompts.Snapshot) prompts.Snapshot {
 // the background supervisor that follows its tasks up (supervise_background.go), a scheduled task's own conversation
 // (a briefing goes over all of them) and while there is no main conversation; else id, for only the tasks it handed
 // out or supervises, as agent_control.go othersTask counts them. The design gives the
-// whole list to the main conversation (docs/assistant/todos.md); another conversation that got it took the user's
+// whole list to the main conversation; another conversation that got it took the user's
 // question for one of the others' tasks, which crowded its own out of the first rows.
 func (s *Service) snapshotScope(ctx context.Context, id string) string {
 	if id == "" || s.settings(ctx).Main == "" || s.isMain(ctx, id) || s.isBackgroundSession(ctx, id) || s.runsScheduledTask(ctx, id) {
@@ -395,10 +395,10 @@ func snapshotAgentGroup(c proto.Session, now time.Time) snapshotAgentGroupKind {
 	}
 }
 
-// snapshotAgents sorts the agents by what they need: the work state (agents_work.go, docs/assistant/agent-work.md) says what a stopped one
+// snapshotAgents sorts the agents by what they need: the work state (agents_work.go) says what a stopped one
 // waits for or concluded. Each has its page in the web app at web ("" for none). The muted ones (the agent or its
-// space) are in none of the others: the Live Activity, the Agents badge and the inbox leave them out
-// (docs/apple/live-activity.md), so "Needs you" here does too; they are told apart, for when the user asks about them (#4562).
+// space) are in none of the others: the Live Activity, the Agents badge and the inbox leave them out,
+// so "Needs you" here does too; they are told apart, for when the user asks about them (#4562).
 func (s *Service) snapshotAgents(ctx context.Context, devices []Device, web string) (needs, unread, awaiting, waiting, done, muted []prompts.SnapshotAgent,
 	working []prompts.SnapshotAgent) {
 	now := time.Now()

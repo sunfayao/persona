@@ -1,4 +1,4 @@
-// UI version 6 on the web (docs/extensions/extensions.md "UI version 6"): what a view's new parts read as, where a picture loads from
+// UI version 6 on the web: what a view's new parts read as, where a picture loads from
 // (the device token only ever goes to the hub's own image path), and the new charts' and controls' arithmetic.
 import { describe, expect, it } from "vitest";
 import { fieldValues, readView, seriesColors, UI_VERSION, uiContext } from "./extension-ui";

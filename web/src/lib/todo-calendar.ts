@@ -1,4 +1,4 @@
-// The to-dos' calendar (#2029, docs/assistant/todos.md "Calendar"): which entries a day, a week or a month shows, and
+// The to-dos' calendar (#2029): which entries a day, a week or a month shows, and
 // where. The page draws entries, not to-dos: a to-do due at a moment or on a day is one source; the phone's calendar
 // events can be another later (an entry with an end), and nothing here needs to change for it. iOS / Mac:
 // apple/Shared/TodoCalendar.swift, the same rules.

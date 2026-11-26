@@ -1,6 +1,6 @@
 package extmgr
 
-// Sign-ins in ego lite on a Mac (#1304, docs/extensions/computer-use.md "Importing cookies"): the machine page's "Browser
+// Sign-ins in ego lite on a Mac (#1304): the machine page's "Browser
 // sign-ins" lists the sites with cookies there, imports cookies the user picked in a file on their phone or in the web
 // app, and clears a site's or all. Cookies are credentials:
 //   - only the user's own signed-in apps may do any of it (byOwnDevice): not the pairing token in hub.json the CLI and

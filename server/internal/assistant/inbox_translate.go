@@ -23,7 +23,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// Translation (docs/apple/ios.md "Translation") is the manager's. The app decides what needs translating (its own setting, its
+// Translation is the manager's. The app decides what needs translating (its own setting, its
 // own language detection) and asks (POST /api/v1/translate, /api/v1/translate/mail, relayed by the hub); the manager
 // asks the translation model (purpose "translate": a cheap one is enough) and keeps the answers in memory, so opening
 // the same mail again is instant. Mail is translated by reference (the hub reads the message: inbox.mail_body,
@@ -122,7 +122,7 @@ func (s *Service) translateTextsLimit(ctx context.Context, texts []string, targe
 	}
 	cctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-	// A reasoning model spends hidden tokens first (docs/lessons/agents.md): leave plenty.
+	// A reasoning model spends hidden tokens first: leave plenty.
 	if err := s.inboxModelJSON(cctx, purposeTranslate, prompts.RenderTranslateTexts(prompts.Translation{Language: answerLanguage(s.hello(ctx).Locale), Target: lang}), string(body), min(4000+total*3, 32000), &res); err != nil {
 		return nil, err
 	}

@@ -65,7 +65,7 @@ function Composer({ session, request, onClose }: { session: WorktreeCreationSess
   const actual = intent && createdWorkspace(intent);
   const machine = machines.find((m) => m.id === source.mid);
   const offline = machine?.online === false;
-  // Paseo's workspaces have no terminal to open (docs/integrations/paseo.md): an Agent in it is what opening it means.
+  // Paseo's workspaces have no terminal to open: an Agent in it is what opening it means.
   const agentOnly = source.host === "paseo";
   const startAgent = () => {
     if (actual && !launched.current && worktreeAdmission(source)) { launched.current = true; openNewAgent({ workspace: actual }); onClose(); }

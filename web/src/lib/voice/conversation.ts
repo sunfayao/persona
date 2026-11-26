@@ -1,4 +1,4 @@
-// One voice call bound to one conversation (docs/assistant/voice.md 6.3; the web's take in docs/web/web.md "Voice"): the socket
+// One voice call bound to one conversation (the web's take in docs/web/web.md "Voice"): the socket
 // to the hub's voice extension, the frames, the captions, the runs it handed over, and the audio. As iOS's
 // VoiceConversation.swift, with everything the browser does behind `VoiceDeps`, so the tests drive it with a fake socket,
 // fake audio and a clock they move by hand.
@@ -163,7 +163,7 @@ const IDLE_LIMIT = 600_000;
 const IDLE_CHECK = 30_000;
 const RUN_LIMIT = 20;
 
-/** When a call that nothing happens in ends by itself (docs/assistant/voice.md 6.5). */
+/** When a call that nothing happens in ends by itself. */
 function idleExpired(o: { now: number; lastActivity: number; openRuns: boolean; targetWorking: boolean; playing: boolean }): boolean {
   return !o.playing && !o.openRuns && !o.targetWorking && o.now - o.lastActivity >= IDLE_LIMIT;
 }

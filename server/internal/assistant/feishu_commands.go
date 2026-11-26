@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// --- commands (docs/extensions/bots.md "Commands"): which conversation or agent messages go to, the lists to pick one from,
+// --- commands: which conversation or agent messages go to, the lists to pick one from,
 // starting an agent, stopping a turn ---
 
 func botHelp(l i18n.Lang, f FeishuFeatures) string {

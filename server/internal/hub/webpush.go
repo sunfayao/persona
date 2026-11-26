@@ -19,7 +19,7 @@ import (
 	"github.com/nwverse/persona/server/internal/webpush"
 )
 
-// Web Push (#7459, docs/web/web.md "Web Push"): a browser that turned it on in Settings › Notifications gets what a phone
+// Web Push (#7459): a browser that turned it on in Settings › Notifications gets what a phone
 // would be pushed (notifyWSFrom's events: cards, finished turns, reminders, decisions, notify API alerts) while no
 // Persona page of it is open. Open, the page notifies by itself (web lib/attention-signals.ts), so nothing shows twice.
 // The payload is encrypted to the browser (RFC 8291): its vendor's push service sees ciphertext only.

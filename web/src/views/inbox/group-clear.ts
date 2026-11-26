@@ -1,4 +1,4 @@
-// A group title's pull-down in a section with a section-wide action (#10422, docs/assistant/inbox.md "Group titles"):
+// A group title's pull-down in a section with a section-wide action (#10422):
 // FYI's "Mark all seen" and Collapsed's "Clear all", for the group's items or the whole section's. Group titles stick
 // while their rows scroll by, so the section's own button is often out of sight. Needs you and In progress have none:
 // their items need the owner (or the AI is on them), and a batch there is how things get missed. The same rules as

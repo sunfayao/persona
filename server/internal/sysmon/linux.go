@@ -141,7 +141,7 @@ func volumesOf(mounts []string) []proto.DiskVolume {
 	return out
 }
 
-// Volumes are the local filesystems a sample adds up, one by one (a computer's diagnosis, docs/server/machines.md
+// Volumes are the local filesystems a sample adds up, one by one (a computer's diagnosis
 // "Diagnosis and cleanup").
 func Volumes() []proto.DiskVolume {
 	var cache mountCache

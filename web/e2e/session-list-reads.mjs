@@ -1,4 +1,4 @@
-// How often the web app reads GET /api/v1/sessions while it sits open (#3759, docs/operations/testing.md "Session list reads"):
+// How often the web app reads GET /api/v1/sessions while it sits open (#3759):
 // one quiet minute, then one minute while the fake hub's working agents change about twice a second (a list hint
 // each time; --rows of them a round, default one), counted by the fake hub per kind of read (full list, complete baseline pages, `since` deltas, counts).
 //

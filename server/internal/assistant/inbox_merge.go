@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Merging rows by hand (#6480, docs/assistant/inbox.md "Merge rows"). The grouping model sometimes splits one matter into
+// Merging rows by hand (#6480). The grouping model sometimes splits one matter into
 // several rows; the user picks them in Select and merges them. The newest row survives and stands for all of them:
 //
 //   - the others become its members: hidden from every list (`merged_into`), not open as far as triage, the AI twin and

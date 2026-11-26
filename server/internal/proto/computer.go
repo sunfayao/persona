@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Computer is a Mac the assistant may operate through Cua Driver (the built-in plugin cua, docs/extensions/computer-use.md). In
+// Computer is a Mac the assistant may operate through Cua Driver (the built-in plugin cua). In
 // proto.Machine only while the plugin is on, and only for a Mac. Enabled: the user turned it on for this machine; the
 // rest is what the node found when last asked (computer.status), and only for an enabled one.
 type Computer struct {
@@ -20,8 +20,8 @@ type Computer struct {
 	// Desktop: active (this user's desktop is on screen) | locked (its screen is locked) | away (logged out, or another
 	// user is on the console). Cua Driver needs it active.
 	Desktop string `json:"desktop,omitempty"`
-	// ScreenSharing: macOS's Screen Sharing answers on 127.0.0.1:5900, so the app can show this Mac's live screen
-	// (docs/extensions/computer-use.md "Live view"). Not needed to operate it.
+	// ScreenSharing: macOS's Screen Sharing answers on 127.0.0.1:5900, so the app can show this Mac's live screen.
+	// Not needed to operate it.
 	ScreenSharing bool `json:"screen_sharing"`
 	// Displays: this Mac's displays as arranged in System Settings, read with ScreenSharing (only while it answers).
 	// The app lays them onto the Screen Sharing picture to offer one display at a time.
@@ -48,11 +48,11 @@ type Computer struct {
 	// so an old app simply keeps showing RFB.
 	ScreenVideo *ScreenVideo `json:"screen_video,omitempty"`
 	// ScreenInput: this Mac's node takes the live screen's pixel scroll records out of the RFB stream for Persona Input
-	// (#7775, docs/extensions/computer-use.md "Pixel scrolling"). Absent from an old node or one without the helper: the
+	// (#7775). Absent from an old node or one without the helper: the
 	// phone then scrolls by wheel notches only, and never sends a record.
 	ScreenInput *ScreenInput `json:"screen_input,omitempty"`
 	// PhoneScreen: this Mac's Persona Input can show one window on a portrait virtual display shaped like the phone
-	// (#9314, docs/extensions/computer-use.md "Phone Screen"). Absent from an old node or helper: the app offers no Phone
+	// (#9314). Absent from an old node or helper: the app offers no Phone
 	// Screen mode.
 	PhoneScreen *PhoneScreen `json:"phone_screen,omitempty"`
 }
@@ -93,7 +93,7 @@ type ScreenVideo struct {
 	// Recording list. While Permission is missing and Asked is false, macOS's alert is about to show on the Mac.
 	Asked bool `json:"asked,omitempty"`
 	// X264: the ffmpeg with libx264 the user installed on this Mac, as the node found and tested it ("ffmpeg 9.0.2"),
-	// so x264 can be turned on for this Mac (docs/extensions/computer-use.md "x264 on a direct LAN (#8859)").
+	// so x264 can be turned on for this Mac.
 	// Absent: none found, or not tested yet.
 	X264 string `json:"x264,omitempty"`
 }
@@ -172,7 +172,7 @@ type BrowserCookies struct {
 	Removed  int                 `json:"removed,omitempty"`
 }
 
-// ComputerJob is one install or grant the node runs in the background (docs/extensions/computer-use.md "One-tap installation").
+// ComputerJob is one install or grant the node runs in the background.
 type ComputerJob struct {
 	Kind  string `json:"kind"`  // install | grant | open
 	State string `json:"state"` // running | done | failed | cancelled

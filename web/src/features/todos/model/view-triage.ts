@@ -1,4 +1,4 @@
-// The To-dos page's status sections drawn from the hub's view (#10226; docs/web/web.md "Developing Persona"), behind
+// The To-dos page's status sections drawn from the hub's view (#10226), behind
 // view-gates.ts viewDrawOn only. Nothing but the source of each row's section changes: the sections, titles, folds and
 // rows are today's, so what moves is what the redesign decided (view-legacy.ts). Proposal 7.3: a row with a view is
 // placed by it, alone (related-row merging retires, 6.4); a row without one, or with one this web cannot read, keeps

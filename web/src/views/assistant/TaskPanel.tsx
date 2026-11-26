@@ -1,4 +1,4 @@
-// A task's detail beside the assistant's conversation (docs/assistant/unified-entry.md "Task details"; iOS TaskDetailSheet): its
+// A task's detail beside the assistant's conversation (iOS TaskDetailSheet): its
 // agent's own chat — everything the Agents page does works here — and, with several agents, a switch between them. Opened
 // while Agents open in the side panel (lib/agent-open.ts, #5424); loaded with the first one (SidePanel).
 

@@ -1,4 +1,4 @@
-// Compare runs (`/compare/<id>`, #8916, docs/web/web.md "Compare runs"): the runs of one New agent start side by side, each
+// Compare runs (`/compare/<id>`, #8916): the runs of one New agent start side by side, each
 // in a worktree of its own. A card per run says how far it got (its worktree, its start), then, as a session, the sidebar's
 // state mark and title, its branch and what it has changed since its branch left the main one; Open and Review changes
 // go to it. Nothing here merges or deletes: keeping one result is the Git and worktree tools' job.

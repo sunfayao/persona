@@ -1,7 +1,7 @@
 // @vitest-environment node
 // Scripted scrolls follow reduced motion only through scrollBehavior() (motion.ts): the stylesheet's reduced-motion rule
 // cannot reach scrollTo, scrollIntoView or scrollBy, so a smooth scroll written anywhere else animates for someone who
-// asked for less motion (docs/lessons/web.md "Scripted scrolling ignores reduced motion"). A scroller styled to scroll
+// asked for less motion. A scroller styled to scroll
 // smoothly would animate even scrollBehavior()'s "auto", so none is.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";

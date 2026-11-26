@@ -1467,7 +1467,7 @@ test('refuses session start with a clear error when model is unknown (#5572)', a
   assert.equal(ctl.prompts.length, 0)
 })
 
-// ---- subagents and background work (docs/integrations/dsh.md "Subagents and background tasks") ----
+// ---- subagents and background work ----
 
 const ev2 = (seq, type, data) => ({ type, seq, time: 1_700_000_000_000 + seq, data })
 const toolCall = (seq, callId, name) => ev2(seq, 'tool/call', { callId, name, arguments: '{}' })

@@ -1,5 +1,5 @@
 // The admin sections, in order. A new section (hub updates #284, settings #287) is one more entry here plus its page.
-// advanced: what most people never need (docs/server/mesh.md 0: one hub, the node service on every other
+// advanced: what most people never need (one hub, the node service on every other
 // computer); the navigation shows these under "Advanced".
 import { t } from "../i18n";
 import type { AdminIconName } from "./icons";

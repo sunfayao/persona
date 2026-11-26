@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/netproxy"
 )
 
-// The hub's update source (docs/operations/hub-update.md "Update source", #4522): where it reads latest.json and
+// The hub's update source (#4522): where it reads latest.json and
 // downloads releases from, and through which proxy. The build says where (-X main.updateURL); hub.json's update.url
 // says otherwise without a new build, and update.proxy sends these requests alone through a proxy: the rest of what
 // the hub talks to never goes through it.
@@ -69,7 +69,7 @@ func (h *Hub) selfUpdates() bool {
 }
 
 // parseUpdateURL reads hub.json's update.url: the directory latest.json is in, over https (http only to this machine:
-// nothing is signed, docs/operations/hub-update.md "Security"), or a file:// one (a private publisher's copy), with no
+// nothing is signed), or a file:// one (a private publisher's copy), with no
 // user and password, query or fragment. Its errors say why for people and never show the address, which may hold a
 // password.
 func parseUpdateURL(raw string) (string, error) {

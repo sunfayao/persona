@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/shellcmd"
 )
 
-// launchers.zshrc (#2455, #5024, docs/assistant/model-config.md "Importing providers from shell aliases"): the claude
+// launchers.zshrc (#2455, #5024): the claude
 // aliases of this machine's shell files (~/.zshrc, ~/.bashrc, ~/.bash_aliases) as the hub imports them into providers:
 // `alias x="K=V K=V … claude [args]"`, quoted either way or not at all. Read from the files, not a shell: nothing of
 // the user's runs. Their env holds keys: it goes to the hub through this RPC only, never to a log or an error.

@@ -1,4 +1,4 @@
-// An assistant's avatar (docs/assistant/managers.md "Clients", docs/design/DESIGN_SYSTEM.md 3.8): a disc in its color with the
+// An assistant's avatar (docs/design/DESIGN_SYSTEM.md 3.8): a disc in its color with the
 // first letter of its name, the same rule on every client (lib/managers.ts avatarColor). Decorative: the name is
 // always beside it, or the control that holds it says it. Optional marks: `status` at its foot (online, offline,
 // installing) and `waiting` at its head (another assistant has something for the user).

@@ -21,7 +21,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Prepaid balances (#11825, docs/server/usage-windows.md "Prepaid balances"): an official DeepSeek account has no
+// Prepaid balances (#11825): an official DeepSeek account has no
 // 5-hour or weekly rate-limit window; GET https://api.deepseek.com/user/balance reports how much money is left.
 // The manager reads it for a launcher added in Persona, whose key it already holds sealed, and only at the provider's
 // own origin (officialDeepSeekURL). A ~/.zshrc launcher's key stays on its computer, so it is never read here.

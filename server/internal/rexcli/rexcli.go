@@ -1,4 +1,4 @@
-// Package rexcli drives Rex, a multiplexing terminal (docs/integrations/engines.md "Rex"), through its `rex` command
+// Package rexcli drives Rex, a multiplexing terminal, through its `rex` command
 // line and control API: listing sessions and window layouts, inspecting a terminal block's foreground process and
 // title, capturing colored screens, sending text/pastes/keys, opening/splitting/renaming/closing blocks and sessions,
 // and streaming server events.

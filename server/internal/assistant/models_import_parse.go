@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/shellcmd"
 )
 
-// Reading a pasted provider configuration (#5193, docs/assistant/model-config.md): the provider wizard sends what the
+// Reading a pasted provider configuration (#5193): the provider wizard sends what the
 // user pasted, the manager reads it as shell lines, a Claude Code settings.json, a curl command, a cindy provider
 // import (models_import_formats.go) or a provider import link (models_import_link.go), and answers drafts of
 // POST /api/v1/launchers bodies with what each leaves out and why, and the stored providers each would meet. Nothing

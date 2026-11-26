@@ -1,4 +1,4 @@
-// End-to-end check of Compare runs (#8916, docs/web/web.md "Compare runs"): New agent's Runs choice appears only with the
+// End-to-end check of Compare runs (#8916): New agent's Runs choice appears only with the
 // worktree switch on; Start 3 closes the sheet on the runs' page at once, which shows each run's worktree and start as they
 // go (the fake hub's worktree/add held back a little so the steps can be seen), then three sessions with their titles,
 // state words and branches; a branch the fake node refuses ("taken") fails every run with its reason and a Retry; a run's

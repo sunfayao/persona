@@ -40,9 +40,9 @@ type Preview struct {
 	// AddedPermissions are the lines of what the new version may do that the installed one may not (only what is
 	// new: the added hosts, the added secrets), for the upgrade screen.
 	AddedPermissions []PermissionLine `json:"added_permissions,omitempty"`
-	// Market is the market it comes from (a full-rights device may install it, docs/extensions/extensions.md "Extension market").
+	// Market is the market it comes from (a full-rights device may install it).
 	Market string `json:"market,omitempty"`
-	// Depends are its dependencies on this hub (docs/extensions/extensions.md "Dependencies"); Bundle the previews of what installs with it,
+	// Depends are its dependencies on this hub; Bundle the previews of what installs with it,
 	// before it: its missing dependencies from the markets, or a pack's members. Each has its own id and digest, and
 	// installing sends them all (the user agreed to every one on one screen).
 	Depends []DependencyState `json:"depends,omitempty"`
@@ -451,7 +451,7 @@ func (r *Registry) checkPackageFiles(ctx context.Context, m *Manifest, root stri
 	return checkProgram(root, "runtime.command", cmd)
 }
 
-// NodePrograms says whether this hub runs plugins' programs on computers (docs/extensions/extensions.md "7"): off, a package
+// NodePrograms says whether this hub runs plugins' programs on computers: off, a package
 // with a node program does not install, rather than install and never run there (a test turns it off).
 var NodePrograms = true
 

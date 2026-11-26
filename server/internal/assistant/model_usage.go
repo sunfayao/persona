@@ -11,7 +11,6 @@ import (
 )
 
 // modelUsageDays: Settings › Models shows each purpose's calls of the last 7 UTC days, today's included
-// (docs/assistant/model-config.md "Counting").
 const modelUsageDays = 7
 
 // modelUsageStore keeps the purposes' model calls added up by day (db.DB); without it they are only logged.

@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// Declarative UI (docs/extensions/extensions.md "Declarative UI"): a plugin never runs code in the apps. It answers ui.render with a View
+// Declarative UI: a plugin never runs code in the apps. It answers ui.render with a View
 // — a few fixed kinds of items — and the apps draw it with their own components (each style's, in light and dark);
 // a button's action goes back to the plugin (ui.action). The same View is drawn by iOS, Android and the web.
 
@@ -32,7 +32,7 @@ type UIItem struct {
 	// Icon is a nav_page's icon, from UIIcons (each app draws its own); the default when empty.
 	Icon string `json:"icon,omitempty"`
 	// IconColor is a nav_page's icon color, one of wire.Colors as a row's icon_color: drawn only while the owner chose
-	// Colored sidebar icons (#10822, docs/extensions/extensions.md "UI slots"); the sidebar's neutral ink when empty.
+	// Colored sidebar icons (#10822); the sidebar's neutral ink when empty.
 	IconColor string `json:"icon_color,omitempty"`
 	// Opens is the ui (a nav_page or extension_page of the same extension) a compact card or widget opens when
 	// tapped.
@@ -43,7 +43,7 @@ type UIItem struct {
 	// its own (WidgetRefreshDefault when 0). A widget's only.
 	Families       []string `json:"families,omitempty"`
 	RefreshMinutes int      `json:"refresh_minutes,omitempty"`
-	// Group is the sidebar group a nav_page goes in unless the user put it elsewhere (#9071, docs/extensions/extensions.md
+	// Group is the sidebar group a nav_page goes in unless the user put it elsewhere (#9071
 	// "UI slots"): pages of any extension naming the same id share it. Its title is translated in l10n's groups.
 	Group *UIGroup `json:"group,omitempty"`
 }
@@ -62,7 +62,7 @@ func (u UIItem) Refresh() time.Duration {
 	return time.Duration(cmp.Or(u.RefreshMinutes, WidgetRefreshDefault)) * time.Minute
 }
 
-// UISlot is a place in the apps plugins may draw (docs/extensions/extensions.md "UI slots").
+// UISlot is a place in the apps plugins may draw.
 type UISlot struct {
 	Name string
 	// Size is what the plugin is asked to draw there: compact (a card) or full (a page, a section).
@@ -92,13 +92,13 @@ var UISlots = []UISlot{
 	// inbox_item draws the body of an inbox item from the plugin's connector (its own header stays the app's): the
 	// same items a plugin's connector brought in, with the hub's triage on them. Drawn with UI version 2's items.
 	{Name: "inbox_item", Size: SizeFull, Context: "item", Shown: true, Since: 2},
-	// widget is drawn outside the app (docs/extensions/extensions.md "System-level placements"): a home screen widget, a Lock Screen or watch
+	// widget is drawn outside the app: a home screen widget, a Lock Screen or watch
 	// face complication. The size it is asked for is the family (FitWidget holds the view to it); the apps list
 	// widgets on their own (GET /api/v1/extensions/-/widgets), not with the slots drawn in the app.
 	{Name: "widget", Size: WidgetFamilySmall, Shown: true, Since: 3},
 }
 
-// Widgets: the families a widget is drawn at and how often it is drawn again (docs/extensions/extensions.md "System-level placements").
+// Widgets: the families a widget is drawn at and how often it is drawn again.
 const (
 	WidgetFamilySmall    = wire.WidgetFamilySmall
 	WidgetRefreshDefault = 30 // minutes
@@ -227,7 +227,7 @@ func CheckBadge(text, tone string) error {
 }
 
 // EventsItem is a contribution to events: the hub's events a plugin is told about. It is only told; it changes
-// nothing (docs/extensions/extensions.md "Events").
+// nothing.
 type EventsItem struct {
 	ID        string   `json:"id"`
 	Subscribe []string `json:"subscribe"`
@@ -241,11 +241,9 @@ type ErrorReportsItem = wire.ErrorReportsItem
 type AuthRelayItem = wire.AuthRelayItem
 
 // SecretProviderItem is a contribution to secret_providers: the reference schemes whose values it supplies
-// (docs/extensions/secret-providers.md).
 type SecretProviderItem = wire.SecretProviderItem
 
 // RepositoryProviderItem is a contribution to repository_providers: a code-hosting source on the exact hosts it names
-// (docs/extensions/repository-providers.md).
 type RepositoryProviderItem = wire.RepositoryProviderItem
 
 // RepositoryLinkLabel is what a repository provider calls one kind of its links (wire.RepositoryLinkKinds), "MR" for a

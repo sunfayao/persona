@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// A manager's messages to the apps (ws.broadcast, docs/assistant/managers.md "What the hub keeps of each manager"). The hub
+// A manager's messages to the apps (ws.broadcast). The hub
 // passes on only what a manager may say, about its own things, read the way the apps read it:
 //
 //   - its types: managerMessageTypes, and the types its own extensions declare for their api.broadcast (the

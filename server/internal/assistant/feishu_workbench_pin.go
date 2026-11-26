@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The pinned workbench (#1961, docs/extensions/bots.md "The workbench"). With the `workbench` switch on, the standing
+// The pinned workbench (#1961). With the `workbench` switch on, the standing
 // board (feishu_board.go) is drawn as the home card (homeCard), and it is kept where the owner finds it: summoning it
 // (/home, or the workbench button every bot card then carries) posts a fresh one at the bottom of the chat, pins it,
 // takes the bot's other pins off and withdraws the card before, so there is only ever one. Between changes the board

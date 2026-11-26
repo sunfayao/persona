@@ -28,7 +28,7 @@ import (
 	"github.com/nwverse/persona/server/internal/managerconf"
 )
 
-// `personad extension …` on the hub's machine (docs/extensions/extensions.md "Command line"): what installs, upgrades and removes
+// `personad extension …` on the hub's machine: what installs, upgrades and removes
 // extensions. It talks to the running hub over loopback with the master token in hub.json, like `hub admin`.
 // `personad ext …` is the same, and so is `personad plugin …` (its name before #1844).
 
@@ -472,7 +472,7 @@ func unknownExtensionCommand(name string) error {
 	return fmt.Errorf("unknown extension command %q\n%s\n%s", name, clitext.Named(extensionUsage), extensionModelUsage)
 }
 
-// extensionArgs is what a hub command takes (extensionUsage, docs/extensions/extensions.md "Command line").
+// extensionArgs is what a hub command takes (extensionUsage).
 type extensionArgs struct {
 	min, max  int      // positional arguments (a market command's include its own word); max -1: any number
 	options   []string // exact words; one ending in "=" takes a value after it (--token-from=<id>)

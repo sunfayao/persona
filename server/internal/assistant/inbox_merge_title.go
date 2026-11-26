@@ -8,7 +8,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// A merged row's title (#7229, docs/assistant/inbox.md "Merge rows"): once the user merges rows, the small-task model
+// A merged row's title (#7229): once the user merges rows, the small-task model
 // writes one title for the row from every row's title and summary, in the background. Until it answers, and when it
 // cannot, the row keeps the newest row's title. A title the user wrote is never replaced; one the handling conversation
 // wrote is, by a merge. The title is the model's (TitleByMerged), so grouping leaves it alone; Undo puts the old one back.

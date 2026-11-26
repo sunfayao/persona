@@ -18,7 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// Reading a text aloud (POST /speak, docs/assistant/voice.md "Reading a text aloud", #5004): the iPhone says its
+// Reading a text aloud (POST /speak, #5004): the iPhone says its
 // answers in a meeting outside a call in the realtime voice the owner hears in calls (their model and voice), not in
 // the phone's on-device one. One upstream session per text, with no tools and instructions that it only reads texts
 // out (voice/read_aloud); the reply's audio is the answer's body as it comes, and the session closes once the reply is

@@ -1,4 +1,4 @@
-// The one quiet line about the hub at the top of the Agents list (#2897, docs/operations/hub-update.md "In the app", the app's
+// The one quiet line about the hub at the top of the Agents list (#2897, the app's
 // HubNoticeRow): an update under way, one that went back, auto-update turned on (once), a newer version or Docker image.
 // Its buttons each do their own thing. Follows the hub's `hub_update` pushes and
 // reads again on a fresh hello (a hub that just restarted into a new version).

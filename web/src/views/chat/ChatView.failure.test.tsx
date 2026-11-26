@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // A message that did not go stays in the chat as a failed bubble with why, Retry and Delete, the box empty (#1122). A
-// refused send in a Persona conversation also gets a card above the composer (docs/assistant/onboarding.md 4.6); the next
+// refused send in a Persona conversation also gets a card above the composer; the next
 // send that goes through takes it away, so it does not linger over a later setup step.
 import { act, useEffect, useReducer } from "react";
 import { createRoot, type Root } from "react-dom/client";

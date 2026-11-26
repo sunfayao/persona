@@ -1,4 +1,4 @@
-// Package webpush sends a push to a browser's push subscription (docs/web/web.md "Web Push"): RFC 8030 delivery,
+// Package webpush sends a push to a browser's push subscription: RFC 8030 delivery,
 // RFC 8291 message encryption (aes128gcm) and RFC 8292 VAPID, with the standard library only. It knows nothing of the
 // hub: what to send and to whom is the hub's (hub/webpush.go).
 package webpush

@@ -1,4 +1,4 @@
-"""mock_hub.py's MOCK_READINESS scenarios answer what the hub answers (docs/operations/testing.md "Readiness scenarios").
+"""mock_hub.py's MOCK_READINESS scenarios answer what the hub answers.
 
 Each scenario's readiness (three languages) and its coded start refusal are compared with the hub's own answers, which
 server/internal/assistant/readiness_scenarios_test.go keeps in testdata/readiness_scenarios/; the built-in providers

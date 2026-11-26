@@ -52,7 +52,7 @@ describe("sessionTitle", () => {
   });
 });
 
-// A botmux session's reason for waiting and its Feishu topic (attention_reason, external_url; docs/integrations/engines.md "botmux").
+// A botmux session's reason for waiting and its Feishu topic (attention_reason, external_url).
 describe("sessionPreview", () => {
   it("shows why it waits while it needs you", () => {
     expect(sessionPreview(session({ status: "blocked", state: "needs_you", last_text: "正在跑全量", attention_reason: "本轮执行失败，再发一条消息继续" }))).toBe("本轮执行失败，再发一条消息继续");

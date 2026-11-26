@@ -1,4 +1,4 @@
-// Settings › Notifications (docs/web/web.md): this browser's system notifications and Web Push (WebPushSettings.tsx),
+// Settings › Notifications: this browser's system notifications and Web Push (WebPushSettings.tsx),
 // the two that need the browser's own permission prompt. Everything else about what Persona tells you is said to the main
 // conversation.
 import { useState } from "react";

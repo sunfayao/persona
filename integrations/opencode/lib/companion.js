@@ -1,4 +1,4 @@
-// Standalone ACP companion runtime for opencode (docs/integrations/opencode.md).
+// Standalone ACP companion runtime for opencode.
 // Connects to ~/.persona/runtime.sock without requiring a resident `opencode serve` process:
 //  - Discovers available models from `opencode models --verbose` (and merges ACP session configOptions)
 //  - Starts new Agent sessions (`session.start`) and Persona Assistant conversations (`assistant: true`) via `opencode acp`

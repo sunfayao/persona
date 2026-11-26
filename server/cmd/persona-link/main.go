@@ -1,6 +1,6 @@
 // Command persona-link (persona-link before #1159; cmd/persona-link is a link to this directory) keeps this computer
 // reachable from the Persona hub when the hub cannot reach it — a laptop on
-// whatever network it is on, a server or NAS behind NAT (docs/operations/link.md). It finds the hub, says which machine it is and
+// whatever network it is on, a server or NAS behind NAT. It finds the hub, says which machine it is and
 // hands each stream the hub opens on the link to this computer's resident node. Nothing else: everything a node does
 // stays in personad. `persona-link install` makes it a systemd user service on Linux, a launchd agent on Mac or a
 // scheduled task on Windows; the Electron desktop's optional setup window does not have to run alongside it.

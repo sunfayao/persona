@@ -1,4 +1,4 @@
-// UI version 8 as the web reads it (docs/extensions/extensions.md "UI version 8", #9158): the columns layout and a
+// UI version 8 as the web reads it (#9158): the columns layout and a
 // section's span, icon, icon color, link and columns, from the schema's examples; what it cannot use is left out.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";

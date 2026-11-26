@@ -1,5 +1,5 @@
 // The owner's messages to a Persona conversation that could not go in (its assistant did not start, its computer was
-// away), which the conversation's manager keeps and sends again by itself (#10194, docs/assistant/assistant.md
+// away), which the conversation's manager keeps and sends again by itself (#10194
 // "Messages that could not go in"); and, on a hub with AGENT_MESSAGE_HOLD_FEATURE, those to an Agent whose computer is
 // away, which that computer's manager holds and sends once it is back (#10661, `computer` set on each). The row carries
 // them (`undelivered`), so every device shows them, not only the one that sent: as the owner's own bubbles marked not

@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Token usage backfill (docs/server/machines.md "Backfill", #9484): the hub keeps the token usage history from the
+// Token usage backfill (#9484): the hub keeps the token usage history from the
 // day it started; the days before are only in the transcripts here. Once a machine, the node reads them with the
 // live meter's rules (usage.go: a reply counted once, <synthetic> skipped), sums them by the hour, model and launcher,
 // and sends the hours to the manager, oldest first. Only numbers leave: no text, no file names. The manager says

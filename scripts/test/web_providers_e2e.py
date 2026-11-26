@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end check of Settings › Model providers (#2455, docs/integrations/launchers.md): the add wizard's custom compatible
+"""End-to-end check of Settings › Model providers (#2455): the add wizard's custom compatible
 gateway (pick → connect → models, "Advanced" folded), named by a display name in any language with the startup ID under
 "More options" or left to the hub (#5029), the Connect step checking the address and key by itself (#4881), finding the
 sign-in method with the choice under "More options" (#5329), and "Test"

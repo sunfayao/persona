@@ -14,7 +14,7 @@ import (
 // so it is left as it is. Claude Code reads a private profile's settings and instructions instead of the user's,
 // except in two ways:
 //   - its directory below the home still has Claude Code walk up to the home and read ~/.claude as the home's project
-//     .claude (docs/lessons/agents.md, #5786), so ~/.claude/CLAUDE.md and every ~/.claude/rules file, written for
+//     .claude (#5786), so ~/.claude/CLAUDE.md and every ~/.claude/rules file, written for
 //     coding Agents, came in as project instructions. They are excluded; what the assistant needs of them belongs in
 //     About me, which its own instructions carry.
 //   - the skills the user turned off in their own settings.json came back, as that file is not read. Only those

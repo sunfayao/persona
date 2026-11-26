@@ -17,7 +17,7 @@ type Runtime struct {
 	RPC string `json:"rpc,omitempty"`
 	// HTTP: the program serves HTTP on PERSONA_PLUGIN_SOCKET, and the hub relays /api/v1/plugins/<id>/… to it.
 	HTTP bool `json:"http,omitempty"`
-	// Resources are the most it may use when the hub runs it in a sandbox (docs/extensions/extensions.md "Sandbox"); the defaults
+	// Resources are the most it may use when the hub runs it in a sandbox; the defaults
 	// otherwise.
 	Resources *Resources `json:"resources,omitempty"`
 }
@@ -49,7 +49,7 @@ func (r *Resources) Limits() Resources {
 // SpeaksRPC says whether the program speaks the plugin protocol.
 func (r *Runtime) SpeaksRPC() bool { return r != nil && r.RPC != "none" }
 
-// NodeRuntime is the plugin's program that runs on computers, not on the hub (docs/extensions/extensions.md "7"): on each
+// NodeRuntime is the plugin's program that runs on computers, not on the hub: on each
 // machine the user switched on in the configuration field Machines, started and stopped by that machine's node.
 type NodeRuntime struct {
 	// Command is one per platform ("darwin-arm64": "node/bin/x"); its platforms are the computers it runs on.

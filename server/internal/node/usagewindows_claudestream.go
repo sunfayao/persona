@@ -10,7 +10,7 @@ import (
 )
 
 // After a model reply, Claude Code's stream-json output carries a rate_limit_event with the windows of the account the
-// process runs on (#12855, docs/server/usage-windows.md): rate_limit_info.unifiedWindows holds five_hour and seven_day,
+// process runs on (#12855): rate_limit_info.unifiedWindows holds five_hour and seven_day,
 // each with utilization (a fraction) and resetsAt (epoch seconds), measured on Claude Code 2.1.330. The node already
 // reads that stream for its Claude assistant conversations (readAssistant), so every turn refreshes the windows with no
 // process, credential or request of its own. An event without unifiedWindows (an API key or a gateway) adds nothing.

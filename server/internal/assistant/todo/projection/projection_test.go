@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The projection stays pure (docs/assistant/todo-status-sop.md 7.1): no IO and no clock, and nothing of the
+// The projection stays pure: no IO and no clock, and nothing of the
 // manager, so the same facts always give the same view and the hub's contract types are all it shares. The standard
 // library it may use is listed, so a package that reads the disk, the network or randomness never gets in unnoticed.
 func TestProjectionStaysPure(t *testing.T) {

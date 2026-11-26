@@ -299,7 +299,7 @@ func (u *updater) dockerImage() (update.Image, error) {
 	return update.ParseImage(s)
 }
 
-// checkImage asks the registry for the newest release of the image this Docker hub runs (docs/operations/hub-update.md "Docker").
+// checkImage asks the registry for the newest release of the image this Docker hub runs.
 // A private image needs PERSONA_REGISTRY_TOKEN (a read token) in the container's environment.
 func (u *updater) checkImage(ctx context.Context) error {
 	im, err := u.dockerImage()

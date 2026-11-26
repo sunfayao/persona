@@ -1,4 +1,4 @@
-// The first screen's part of a voice call in the conversation's page (docs/assistant/voice.md 6.1, docs/web/web.md "Voice
+// The first screen's part of a voice call in the conversation's page (docs/web/web.md "Voice
 // chat"): the composer's entry, and the call's own parts as stand-ins for VoiceCall.tsx, a chunk of its own: the bar, its
 // captions at the thread's end, the row after a call ended by itself and the dialog that says why a call cannot start.
 // That chunk loads with the call's code when the page's first call starts (voiceCalls.start waits for both, so the bar
@@ -51,7 +51,7 @@ export const VoiceEnded = callPart(Ended);
 const preloadCall = () => Promise.all([Bar.preload(), Tail.preload(), Ended.preload(), UnavailableDialog.preload()]);
 
 /**
- * The composer's voice entry for this page, and the dialog that explains why it cannot start (docs/assistant/voice.md 6.1).
+ * The composer's voice entry for this page, and the dialog that explains why it cannot start.
  * `items`: the transcript as the page has it, read when the call starts (`start.recent`).
  */
 export function useVoiceEntry(o: VoiceOwner & { session: Session | undefined; items: () => readonly Item[]; label: string; off?: boolean }): { offer: VoiceOffer | undefined; dialog: React.ReactNode } {

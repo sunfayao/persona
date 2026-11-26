@@ -23,7 +23,7 @@ import (
 	"github.com/nwverse/persona/server/internal/textfmt"
 )
 
-// model.run (docs/assistant/model-config.md "Running API purposes on a launcher", #5823, #12027): an API purpose's
+// model.run (#5823, #12027): an API purpose's
 // request answered by a launcher's CLI on this computer, with the user's own login here. Supports Claude Code
 // (`claude -p`), Codex (`codex exec`), and Antigravity (`agy`). Every run executes headless, once, inside a fresh temp
 // directory (`persona-check-*`) that is deleted afterwards, with strict zero-tool, zero-MCP, zero-hook, and

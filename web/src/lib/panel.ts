@@ -1,4 +1,4 @@
-// The page's right-hand panel (docs/web/web.md "Side panel"): a session's files / Git, a link opened in the page, or an
+// The page's right-hand panel: a session's files / Git, a link opened in the page, or an
 // Agent or task opened from a conversation (lib/agent-open.ts). A session's terminal is the page's own view now
 // (lib/session-view.ts), not a panel.
 // One panel at a time; opening another replaces it. Session panels close when the page moves to another conversation;
@@ -45,7 +45,7 @@ export type Panel =
   /** `manager`: the chat's it was opened from, which reads it (none: the default's). */
   | { kind: "link"; url: string; title?: string; manager?: string }
   /** A task of a conversation, opened from it while Agents open in the side panel (lib/agent-open.ts, #5424): its
-   *  Agent's chat (docs/assistant/unified-entry.md "Task details"). */
+   *  Agent's chat. */
   | { kind: "task"; todo: string }
   | { kind: "conversation-tasks"; mid: string; sid: string; manager: string }
   /** An Agent opened from a conversation while Agents open in the side panel (#5424), one no task stands for (#1113)
@@ -62,7 +62,7 @@ export type Panel =
    *  and workflow runs. `run`: a workflow run's task_id; `task`: a background command's id; `from`: Session overview when
    *  that view opened the detail. */
   | { kind: "background"; mid: string; sid: string; run?: string; task?: string; from?: "overview" }
-  /** The session's dev server in a headless browser on its computer (docs/web/preview.md); `port` / `path`: the one to
+  /** The session's dev server in a headless browser on its computer; `port` / `path`: the one to
    *  show (a localhost link of a reply), else the one shown last or the first running one. */
   | { kind: "preview"; mid: string; sid: string; cwd: string; port?: number; path?: string };
 

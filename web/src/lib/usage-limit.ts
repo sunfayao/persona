@@ -1,4 +1,4 @@
-// A subscription usage limit that stopped a turn (docs/assistant/agent-work.md "Usage limits").
+// A subscription usage limit that stopped a turn.
 // The hub reports it on the session; task cards, agent rows and the chat say when it resumes
 // instead of calling the turn interrupted. An older hub that does not send the fields is not one of these.
 import { formatDate, t } from "../i18n";

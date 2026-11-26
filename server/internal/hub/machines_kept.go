@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Machines their manager keeps (docs/assistant/managers.md "Each manager's computers"): a manager that names
+// Machines their manager keeps: a manager that names
 // machines.own keeps its own list of computers in its manager.json, and the hub hands it MachinesOwn. The hub then
 // edits that list over the bus (devices.machines.*) instead of hub.json, and moves its entries out of hub.json once the
 // manager reports them as its own: from then on the hub knows them only as

@@ -17,12 +17,12 @@ type LarkRule struct {
 // and credentials through Gates; an older hub's "account", "base" and "token" are unknown keys and ignored.)
 type AssistantLark struct {
 	Rules  []LarkRule `json:"rules,omitempty"`
-	CLI    *LarkCLI   `json:"cli,omitempty"`    // lark-cli is configured (hub.json lark.cli, docs/extensions/feishu.md)
+	CLI    *LarkCLI   `json:"cli,omitempty"`    // lark-cli is configured (hub.json lark.cli)
 	Prefer string     `json:"prefer,omitempty"` // "cli", or the serving extension's own source: the primary one when both are there
-	// Gates are the command gates of the assistant's skills (plugins' assistant.gate, docs/extensions/extensions.md "Assistant"):
+	// Gates are the command gates of the assistant's skills (plugins' assistant.gate):
 	// a command calling an HTTP API as the user, its credentials and the rules its calls go by.
 	Gates []CommandGate `json:"gates,omitempty"`
-	// MCPServers are the extensions' MCP servers for the assistant (mcp_servers, docs/extensions/extensions.md "MCP servers").
+	// MCPServers are the extensions' MCP servers for the assistant (mcp_servers).
 	MCPServers []AssistantMCPServer `json:"mcp_servers,omitempty"`
 }
 

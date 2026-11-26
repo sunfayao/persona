@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Tagging information with categories (#13246, docs/assistant/tracks.md "Information categories"). Collecting is not
+// Tagging information with categories (#13246). Collecting is not
 // limited: every assistant conversation is tagged, whatever track it runs in, so its information can follow its
 // categories wherever it is used. A conversation's categories are its track's default categories (a floor nobody
 // takes away) and what was tagged since: by the info.tag use after each turn, by an agent, or by the user, who alone

@@ -44,7 +44,7 @@ func TestWebAppServesFilesAndFallsBackToIndex(t *testing.T) {
 			t.Fatalf("%s: %d %q", p, w.Code, w.Body)
 		}
 	}
-	// The installable app's files (docs/web/web.md "Install as an app"): typed, and never kept past a redeploy.
+	// The installable app's files: typed, and never kept past a redeploy.
 	must(os.WriteFile(filepath.Join(dir, "manifest.webmanifest"), []byte(`{"name":"Persona"}`), 0o644))
 	must(os.WriteFile(filepath.Join(dir, "sw.js"), []byte("self"), 0o644))
 	if w := get("/manifest.webmanifest"); w.Code != 200 || w.Header().Get("Content-Type") != "application/manifest+json" || w.Header().Get("Cache-Control") != "no-cache" {
@@ -146,7 +146,7 @@ func TestWebAppDoesNotLetAnOlderDataDirShadowTheBuiltInCopy(t *testing.T) {
 	}
 }
 
-// Behind a reverse proxy that serves the hub under a sub-path (docs/web/web.md "Subpaths"), index.html's <base> says where.
+// Behind a reverse proxy that serves the hub under a sub-path, index.html's <base> says where.
 func TestWebAppWritesTheProxyPrefixIntoBase(t *testing.T) {
 	dir := t.TempDir()
 	index := `<head><base href="/" /><script src="./assets/a-1.js"></script></head>app`

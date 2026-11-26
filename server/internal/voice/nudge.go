@@ -11,8 +11,8 @@ import (
 // answer and says nothing: the user finished a line or typed one, or a result was handed to it (a tool's, a
 // delegation's, a refusal, a status), and no caption, audio or function call of the model's follows. The call then sits
 // in silence until the user speaks again or hangs up. So an answer owed for nudgeAfter, with the user quiet for
-// nudgeQuiet, gets one short say (voice/nudge): the measured service's model always speaks after a say
-// (docs/lessons/voice.md "Recommended constants"). At most one per owed answer; the next one owed arms it again.
+// nudgeQuiet, gets one short say (voice/nudge): the measured service's model always speaks after a say.
+// At most one per owed answer; the next one owed arms it again.
 //
 // An answer is owed from:
 //   - the user's line, once its caption is final (they stopped, and nothing more of it came): not when the model began
@@ -35,7 +35,7 @@ import (
 
 var (
 	// nudgeAfter is how long an answer is owed before the model is nudged: past the 0.9–1.3 s the measured model takes
-	// to begin an answer (docs/lessons/voice.md "Timeline"), and a reply's 4–5 s, with a wide margin; well short of
+	// to begin an answer, and a reply's 4–5 s, with a wide margin; well short of
 	// heartbeatAfter.
 	nudgeAfter = 15 * time.Second
 	// nudgeQuiet is how long the user has been quiet (no caption growing, no typed line, no voice in the app's audio)

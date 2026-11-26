@@ -1,4 +1,4 @@
-// Package devices is the manager's side of the user's computers (docs/server/machines.md "Who connects to computers"): it connects each one —
+// Package devices is the manager's side of the user's computers: it connects each one —
 // the hub machine's own node as a child process, ssh, tailcat, a Persona Link that dialed the hub (relayed to the
 // manager as it is), a connector of kind service, a member hub's computer through that hub — keeps it connected, and
 // holds what is known of it: online, node.info, its sessions and their revs, warm start across restarts, the engine,

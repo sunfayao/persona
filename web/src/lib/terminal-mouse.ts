@@ -1,4 +1,4 @@
-// The pointer on a terminal the page drives (#2441, docs/integrations/terminal.md "Mouse"): which events go to herdr (and so to a
+// The pointer on a terminal the page drives (#2441): which events go to herdr (and so to a
 // program that takes the mouse) and which stay with the page (xterm's selection, Persona's right-click menu), the
 // button and modifier bits herdr takes, and how motion is thinned to one event per cell. Pure, so the decisions are
 // tested without a browser; lib/terminal.ts keeps the older wheel / click geometry.

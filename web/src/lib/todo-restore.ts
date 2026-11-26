@@ -1,4 +1,4 @@
-// Shelved to-dos brought back by hand (#3156, docs/assistant/todo-status-sop.md "Shelving"): the moment of the restore
+// Shelved to-dos brought back by hand (#3156): the moment of the restore
 // counts as activity, so the to-do leaves Shelved and goes back only after another 48 hours without a move. The hub
 // keeps nothing about it: a restore is this browser's (localStorage), and nothing of the to-do changes or is deleted.
 

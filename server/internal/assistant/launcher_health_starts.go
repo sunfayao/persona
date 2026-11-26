@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// The app's own starts count for launcher health too (#1642, docs/server/launcher-health.md): the hub says how one
+// The app's own starts count for launcher health too (#1642): the hub says how one
 // the node ran before answering went (StartEnded), and one answered at once ("New Agent" with async: the node starts
 // it after) is followed in its machine's session list, from starting to started or failed.
 

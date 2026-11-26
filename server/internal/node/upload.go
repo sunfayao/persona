@@ -244,7 +244,7 @@ func (n *Node) beginInto(dir, cwd, name, conflict string, size, limit int64) (st
 	return id, nil
 }
 
-// beginInbox opens an upload into the machine's receive folder (dest=inbox, docs/protocol/file-transfer.md): dir is the
+// beginInbox opens an upload into the machine's receive folder (dest=inbox): dir is the
 // folder the hub's config names for this machine ("": proto.DefaultInboxDir), "~/" or absolute, and only a folder
 // the phone may write to (writeguard.go). It is made when missing. The file keeps its name; a taken one gets " 2",
 // " 3"… (conflict keep), so nothing there is ever replaced.

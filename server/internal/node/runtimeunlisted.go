@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// A runtime that runs Claude Code's command line itself (Paseo, docs/integrations/paseo.md) writes transcripts that
+// A runtime that runs Claude Code's command line itself (Paseo) writes transcripts that
 // say "sdk-cli", as a script running `claude -p` does, and the offline list leaves those out (claude_oneshot.go). While
 // the runtime lists a session its row is the session. Once it no longer lists it (archived in Paseo: closing a session
 // from Persona archives it) only the transcript is left, and nothing in it says whose it was (#4521). So the runtime

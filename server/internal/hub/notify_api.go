@@ -18,7 +18,7 @@ import (
 
 // POST /api/v1/notify lets an extension with the notify scope (or any full credential) alert the user's devices, at the level it
 // decides: what deserves a nudge (an agent stuck, a scheduled task failing, the same session not twice in half an
-// hour) is the extension's call, the delivery is the hub's (docs/extensions/extensions.md "Sending notifications", #1477).
+// hour) is the extension's call, the delivery is the hub's (#1477).
 
 // Notification levels a caller may ask for (UNNotificationInterruptionLevel). "critical" needs an Apple entitlement and
 // is not offered; "passive" never alerts, which is not what this is for.
@@ -36,7 +36,7 @@ type notifyRequest struct {
 	Level     string `json:"level,omitempty"` // active (default) | time-sensitive
 	// ID: the same id again replaces the earlier alert on the phone (apns-collapse-id) instead of stacking.
 	ID string `json:"id,omitempty"`
-	// Silent: no sound (`personad notify --silent`, docs/integrations/script-cli.md).
+	// Silent: no sound (`personad notify --silent`).
 	Silent bool `json:"silent,omitempty"`
 	// PushLevel is the ln-mode urgency: "P0" (must interrupt), "P1" (default; held for briefings in ln mode) or
 	// "P2" (silent in ln mode). It is separate from Level, the interruption level.
@@ -284,7 +284,7 @@ func (m *Machine) scriptNotify(params json.RawMessage) (any, error) {
 }
 
 // fitBody is in's body cut (ending in …) so that its push fits notifyPayloadMost. The node cuts a script's texts by
-// characters (docs/integrations/script-cli.md: cut, not refused), but the payload is bounded in bytes: 1000 emoji, or 1000 of
+// characters (cut, not refused), but the payload is bounded in bytes: 1000 emoji, or 1000 of
 // < > & (escaped six bytes each in JSON), would otherwise be refused and the notification lost.
 func fitBody(in notifyRequest, machine string) string {
 	fits := func(body string) bool {

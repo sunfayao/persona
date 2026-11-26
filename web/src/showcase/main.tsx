@@ -10,7 +10,7 @@ import "../styles.css";
 import type { UIItem, UIView } from "../lib/extension-ui";
 import type { UIRowControl } from "../lib/extension-ui-v6";
 
-// The catalog loads before the modules that call t() as they load (docs/web/web.md "Internationalization"), as in main.tsx.
+// The catalog loads before the modules that call t as they load, as in main.tsx.
 await initI18n();
 const [{ ExtensionUI }, { SHOWCASE, showcaseKind }, { Toasts }] = await Promise.all([import("../views/settings/ExtensionView"), import("./snapshots"), import("../ui/atoms")]);
 

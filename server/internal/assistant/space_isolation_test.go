@@ -12,7 +12,7 @@ import (
 )
 
 // spaceHub is a fake hub with one machine: the main conversation and another of the assistant's own, and two of the
-// health space's (docs/assistant/tracks.md).
+// health space's.
 func spaceHub() *fakeHub {
 	f := claudeMDHub(Device{ID: "server", Name: "服务器", Kind: "local", Home: "/home/me"})
 	f.sessions["server"] = []proto.Session{
@@ -174,7 +174,7 @@ func answerOutboundIn(t *testing.T, s *Service, self, tool, says, cwd string, al
 	}()
 }
 
-// What leaves the health space leaves with the user knowing (docs/assistant/tracks.md "Outbound", #3194): notify_user says there is
+// What leaves the health space leaves with the user knowing (#3194): notify_user says there is
 // news, not the news; a hand-off to a coding agent is confirmed on the phone each time; the schedule tools see only
 // the space's own tasks. The assistant's own conversations are as before.
 func TestSpaceOutbound(t *testing.T) {

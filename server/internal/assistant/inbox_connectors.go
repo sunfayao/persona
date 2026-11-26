@@ -12,7 +12,7 @@ import (
 )
 
 // The inbox items of connectors (GitHub…): their things become items with one generic block the apps draw without
-// knowing the source (docs/extensions/connectors.md "1 · 5. Inbox"). Feishu and mail keep their own blocks.
+// knowing the source. Feishu and mail keep their own blocks.
 
 // InboxConnector is an item's thread in a connector, and how it is answered.
 type InboxConnector struct {

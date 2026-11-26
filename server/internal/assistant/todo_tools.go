@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The assistant's tools on Persona's todos (#1683, docs/assistant/todos.md "The assistant's todo tools"): list, read,
+// The assistant's tools on Persona's todos (#1683): list, read,
 // create, change, complete, reopen and delete them, as the apps do through /api/v1/todos. The user's own todos (no agent,
 // not a task) are created, changed, completed and reopened at once; deleting one is confirmed on the phone every time,
 // and so is completing or reopening a task or a todo agents work on (completing it closes its agents, tasks_close.go). A

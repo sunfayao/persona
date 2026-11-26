@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end check of archiving Agent sessions on the web (docs/web/web.md "Archived agents"): a row's menu offers
+"""End-to-end check of archiving Agent sessions on the web: a row's menu offers
 Archive and Close… (#7125). While the agent works, Archive is disabled, saying why, and Close… asks with what closing
 interrupts and "Close anyway", as Close pane on its pane does; on an idle agent Close… archives and closes, then the
 row leaves and the toast says it was closed (or why it is still open); a plain archive offers Undo, which brings the

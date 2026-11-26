@@ -18,7 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// The connection test (docs/extensions/volcengine-speech.md "Connection test"): one tiny recognition (0.6 s of
+// The connection test: one tiny recognition (0.6 s of
 // silence) and, while answers are read aloud, one tiny synthesis (two characters), on the settings about to be saved
 // (settings.check) or on the saved ones (the page's Test Connection). The last outcome of each service, by a test or
 // by real use, is on the extension's page; it is kept in the extension's data directory for the settings it was for,

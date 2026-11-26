@@ -1,4 +1,4 @@
-// The To-dos page's sections (#3156, docs/assistant/todo-status-sop.md): each to-do's place comes from real signals only — its
+// The To-dos page's sections (#3156): each to-do's place comes from real signals only — its
 // agents' sessions (alive, running, asking), its PR / delivery state, the latest task_review verdict and when it last moved —
 // never from what an agent says about itself. The rules are the SOP's table, in its order; the first that holds wins.
 
@@ -129,7 +129,7 @@ export function lastActivity(todo: Todo, lookup?: SessionLookup, restoredAt = 0)
 
 /** Whether a to-do may be shelved at all: it is a task (an agent was linked, or a conversation handed it out) with no
  *  due date ahead. The user's own to-dos without agents — reminders, errands — never shelve themselves. An open concern
- *  never shelves either: it waits for its report (docs/assistant/todos.md "Concerns", #3582). */
+ *  never shelves either: it waits for its report (#3582). */
 function shelvable(todo: Todo, now: number): boolean {
   if (todo.kind === "concern") return false;
   const due = todoDueBy(todo);
@@ -138,7 +138,7 @@ function shelvable(todo: Todo, now: number): boolean {
 }
 
 /**
- * A to-do's section by the SOP's table (docs/assistant/todo-status-sop.md, "Decision table"), first match wins:
+ * A to-do's section by the SOP's table, first match wins:
  *
  *  1. failed_start    the task's agent never started                    → Waiting on you (retry or remove), Done after 48 h;
  *     superseded      … and a related to-do (its row) really finished   → Done immediately (#3713)

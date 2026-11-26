@@ -361,7 +361,7 @@ func (h *Hub) sendMessageOnce(w http.ResponseWriter, r *http.Request, m *Machine
 	defer cancel()
 	id, _ := p["client_msg_id"].(string)
 	if ch := channel.FromClientMsgID(id, []string{"voice"}); ch != "" {
-		h.channelNoted(ch, m.cfg.ID, sid) // a voice conversation's errand (docs/extensions/channels.md "Source markers")
+		h.channelNoted(ch, m.cfg.ID, sid) // a voice conversation's errand
 	}
 	l := h.requestLang(r)
 	external := s.SourceKind != ""
@@ -552,7 +552,7 @@ func sendReturnedQueued(out json.RawMessage) bool {
 }
 
 // conversationSent tells the conversation's manager how an app's message to it went, delivered or not (the north
-// star's availability, docs/assistant/north-star.md): only a send that ran, not a retry answered from its record. It
+// star's availability): only a send that ran, not a retry answered from its record. It
 // names the message by its client_msg_id id ("" none), which its manager settles a direction's notes block by (#11392).
 func (h *Hub) conversationSent(mid, sid, id string, status int, body []byte, outcome string) {
 	r := assistantwire.ConversationSent{MachineID: mid, SessionID: sid, Outcome: assistantwire.ConversationFailed, ClientMsgID: id}

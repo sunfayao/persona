@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The ports an agent's answer links, as chips under it (docs/operations/ports.md "Recognizing links in replies"): a
+// The ports an agent's answer links, as chips under it: a
 // port an agent lists is live with its title, any other is asked about once, a stopped one is dimmed, and a click
 // shows the page in the preview panel. The hub's probe is faked (api).
 import { act } from "react";

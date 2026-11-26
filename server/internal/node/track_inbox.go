@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// A capture filed into a track (#13502, nodeproto.TrackInbox, docs/assistant/tracks.md "Quick capture"): the manager
+// A capture filed into a track (#13502, nodeproto.TrackInbox): the manager
 // sorts what the user jotted down and hands the node one file for the track's inbox/. The node writes it there only:
 // the directory must be the named track's own (tracks/<slug>) and a real folder, inbox/ a real folder in it, the name
 // a plain file name, and the write goes to a new file renamed into place inside that folder (os.Root: no step of the

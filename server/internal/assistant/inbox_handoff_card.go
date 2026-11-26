@@ -2,7 +2,7 @@ package assistant
 
 import "context"
 
-// A hand-off conversation's write-back as a card in that conversation (#5932, docs/assistant/inbox.md "Item actions"):
+// A hand-off conversation's write-back as a card in that conversation (#5932):
 // when the conversation an item was handed to hands in a reply or a conclusion, the user sees it where they are
 // talking, not only on the item. The card is a snapshot of the suggestion as it was handed in; the item stays the one
 // home of the pending request: the apps read the item to tell whether the card can still be sent (its suggestion is

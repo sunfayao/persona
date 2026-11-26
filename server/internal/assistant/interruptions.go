@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Interrupted receipts after the fact (docs/assistant/unified-entry.md "Interrupted receipts"): a receipt for a turn the
+// Interrupted receipts after the fact: a receipt for a turn the
 // model service cut off stays in the chat, but once its task was dealt with it says how (cancelled, rerouted,
 // resumed, accepted, done) and the apps draw it grey. Receipts with the same cause in one conversation within
 // interruptBatchWindow form one batch: the first is its head and carries the batch, the others name the head in

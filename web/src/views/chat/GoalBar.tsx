@@ -1,4 +1,4 @@
-// The goal an Agent works toward (docs/integrations/agent-goal.md, iOS GoalBar / GoalSheet), over the composer as cindy's
+// The goal an Agent works toward (iOS GoalBar / GoalSheet), over the composer as cindy's
 // goal indicator (#5421, `GoalIndicator`): one line, the goal mark, its status, the objective and what it has spent; red
 // while it is held up (blocked, out of usage or budget). A click shows all of it and the latest check's reason.
 import { useState } from "react";

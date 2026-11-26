@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// UI version 9 as the web draws it (docs/extensions/extensions.md "UI version 9", #9337): a tile's gauge is a ring
+// UI version 9 as the web draws it (#9337): a tile's gauge is a ring
 // filled to its ratio in its named color, the tile's value and unit in its centre, the title below; read out as
 // "title: value unit, N%". Its pixels at each width are checked in a real browser (web/e2e/extension-gauge.mjs); here,
 // what is drawn, what is read out and what a press does.

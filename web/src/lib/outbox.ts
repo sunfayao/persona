@@ -150,7 +150,7 @@ const IN_DOUBT_REASONS: Record<string, string> = {
 
 /** The code's own words for an uncertain send, when it has some. One the inbox read and the session did not take,
  *  relayed because the session runs a Persona plugin from before busy delivery (plugin_outdated), says that reopening
- *  the session on the computer fixes it (docs/integrations/claude-integration.md "Owner input through the Persona plugin"). */
+ *  the session on the computer fixes it. */
 function inDoubtReason(code: unknown, relay?: unknown): string | undefined {
   if (code === "peer_unconfirmed" && relay === "plugin_outdated") return t("lib-outbox.peer_unconfirmed_old_plugin");
   const key = typeof code === "string" ? IN_DOUBT_REASONS[code] : undefined;
@@ -367,7 +367,7 @@ export type DeliveryReply = { delivered_as?: string; relay_reason?: string };
 
 /**
  * What to tell you when your own message to a Claude with Persona's plugin went through its message inbox instead of
- * as your input (docs/integrations/claude-integration.md "Owner input through the Persona plugin"): the Agent may not
+ * as your input: the Agent may not
  * take it as your approval. Nothing when it went in as your input, or when the session has no plugin (it always used
  * the inbox there, and its row says so).
  */
@@ -617,7 +617,7 @@ export async function askPersona(text: string): Promise<void> {
 /**
  * askPersona for one manager's main conversation (an inbox item's `manager`, none: the default's), whatever the assistant
  * page shows (Android's mainConversationOf): its main conversation is read from that manager, the page opens that
- * conversation (the current assistant stays as it is, docs/assistant/managers.md "Clients") and the text goes there;
+ * conversation (the current assistant stays as it is) and the text goes there;
  * with none yet, the text starts it. Throws when the manager can't be read or the conversation can't start, before the
  * page moves; `sent` then says whether the text got there (a failed bubble says why).
  */

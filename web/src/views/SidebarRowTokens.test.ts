@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 // Sidebar rows take their height from --sidebar-row, never the text's own line box, and headings are not uppercased
-// (docs/apple/sidebar.md, #1647): the same size in every language.
+// (#1647): the same size in every language.
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 // The sidebar's source is Sidebar.tsx and the files split out of it.
 const sidebar = ["./Sidebar.tsx", "./SidebarParts.tsx", "./SidebarRows.tsx", "./SidebarTree.tsx", "./SidebarRail.tsx"].map(source).join("\n");

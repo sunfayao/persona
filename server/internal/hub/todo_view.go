@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 )
 
-// The To-dos view (#10226, docs/assistant/todo-status-sop.md "The hub's view") is the managers': each works out its own
+// The To-dos view (#10226) is the managers': each works out its own
 // to-dos' views, counts and places. The hub relays them and joins several managers' answers, adding their counts up
 // field by field and key by key; it never works out a phase itself (docs/server/architecture.md "The hub is only a
 // communication center"). Clients order a merged list by rank, then manager, then id: the hub does not rank again.

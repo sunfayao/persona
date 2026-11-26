@@ -1,4 +1,4 @@
-// The file viewer (docs/apple/ios.md "File viewer"): one file or folder on a machine, read through the hub. Markdown
+// The file viewer: one file or folder on a machine, read through the hub. Markdown
 // rendered (or its source), code with line numbers and a little coloring, JSON indented, images, PDFs, folders.
 // Text files come a page (2 MB) at a time; only the lines on screen are rendered, so big files stay smooth.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";

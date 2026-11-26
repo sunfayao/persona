@@ -8,7 +8,7 @@ import (
 // TermSize is the size a pane's programs see now: the window size of its terminal, read from the tty of the pane's
 // process. PaneSize (its rect in pane.layout) is that only while a herdr client is attached: with none, the layout
 // holds herdr's own default (120 × 40) while each pane keeps the size the last client gave it — which is the size to
-// give back after a phone drove the pane (docs/integrations/terminal.md section 11).
+// give back after a phone drove the pane.
 func (c *Client) TermSize(ctx context.Context, pane string) (cols, rows int, err error) {
 	var out struct {
 		ProcessInfo struct {

@@ -22,7 +22,7 @@ export function ProviderScope({ scope, setScope, old, kind, agent, assign = fals
   assign?: boolean;
 }) {
   const machines = useStore((s) => s.machines);
-  // A computer's own key may be a secret provider's reference (docs/extensions/secret-providers.md "Launcher keys").
+  // A computer's own key may be a secret provider's reference.
   const keyRefs = useStore((s) => hubHas(s.features, "launcher_secret_references"));
   const [keysOpen, setKeysOpen] = useState(false);
   const name = (id: string) => machines.find((m) => m.id === id)?.name || id;

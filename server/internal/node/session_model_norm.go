@@ -8,7 +8,7 @@ import (
 
 // Session rows carry the model a transcript reports, including any upstream gateway routing prefix ("route-a/model-x",
 // "passthrough/vendor/model"), so clients show which channel actually served the turn while RequestedModel keeps the
-// launcher's requested id for carry-over (docs/lessons/web.md, #10125). normalizeSessionRowModel trims white
+// launcher's requested id for carry-over (#10125). normalizeSessionRowModel trims white
 // space and clears stand-in placeholders such as "<synthetic>".
 func (n *Node) normalizeSessionRowModel(s *proto.Session) {
 	if s == nil {

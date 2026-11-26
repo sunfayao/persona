@@ -1,4 +1,4 @@
-// End-to-end check of Resume in terminal (#5521, docs/web/web.md "Terminal ⇄ chat"): the chat's ⋯ of an Agent that isn't
+// End-to-end check of Resume in terminal (#5521): the chat's ⋯ of an Agent that isn't
 // running offers it where its computer has a terminal engine. On the fake hub's MacBook (herdr): a Claude Code from a
 // terminal that has been closed since and a Codex thread nothing has open, both stopped, offer it; picking it opens the
 // terminal and resumes the Agent there (the fake hub's start with resume_session_id). A claude still running in a

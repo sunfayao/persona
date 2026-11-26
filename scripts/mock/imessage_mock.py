@@ -1,4 +1,4 @@
-"""Messages (iMessage) in the mock hub (docs/extensions/connectors.md "5"), a domain of scripts/mock/mock_domains.py
+"""Messages (iMessage) in the mock hub, a domain of scripts/mock/mock_domains.py
 that moved out of mock_hub.py (#11649): one Mac's Messages, read for the user's own eyes. What Settings › Connectors ›
 Messages reads (GET /api/v1/imessage), the reader's chats and a chat's messages (GET …/chats, …/chats/{id}/messages),
 "Give to Persona" (PUT …/settings) and deleting what the hub kept (DELETE …/data). Every name, number (+1 555 01xx) and

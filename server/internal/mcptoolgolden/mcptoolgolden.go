@@ -44,7 +44,7 @@ const (
 // toolName is a tool or list name that is safe as a file name on every platform the tests run on.
 var toolName = lazyre.New(`^[A-Za-z0-9_-][A-Za-z0-9_.-]*$`)
 
-// update is the repository's switch for rewriting goldens (docs/assistant/prompts.md).
+// update is the repository's switch for rewriting goldens.
 func update() bool { return os.Getenv("UPDATE_GOLDEN") != "" }
 
 // entry is one tool of a list: its name and its golden, the wire JSON indented with a final newline.

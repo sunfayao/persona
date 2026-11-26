@@ -1,4 +1,4 @@
-// An assistant Inbox row's text (#9041, docs/assistant/inbox.md "Assistant rows"): the hub keeps it as Markdown in `body`
+// An assistant Inbox row's text (#9041): the hub keeps it as Markdown in `body`
 // and says it as plain words in `summary` and `preview`; a row from an older hub has only the Markdown run into one line.
 // Only the Inbox views import this, so none of it is on the first screen.
 import type { InboxItem } from "./inbox";

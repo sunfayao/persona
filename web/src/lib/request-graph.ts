@@ -2,7 +2,7 @@
 // the owner made as a small DAG (the owner's words → the pieces of work, left to right by what each piece waits for),
 // who is on each piece, and the pieces still queued. Nothing here reads the hub or the clock.
 //
-// A request in pieces is two fields of a to-do, the hub's (docs/assistant/todos.md "Requests in pieces"): `part_of`, the
+// A request in pieces is two fields of a to-do, the hub's: `part_of`, the
 // to-do whose request this one is a piece of (the request's root), and `after`, the pieces it waits for. The hub checks
 // them when they are written (the to-dos exist, one level, no cycle); layout leaves out edges to missing to-dos.
 // `prerequisite_blockers`, when sent, gives the actual blockers even if a to-do is missing from the graph.

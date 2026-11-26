@@ -425,8 +425,8 @@ func (n *Node) runtimeAsk(ctx context.Context, h *runtimeConn, params json.RawMe
 	return res, nil
 }
 
-// runtimeInSpace: the card's session is in a space (its cwd or the row's), where every write is confirmed
-// (docs/assistant/tracks.md "Outbound"). A directory inside the space counts: a tool's `cd` may have left either there
+// runtimeInSpace: the card's session is in a space (its cwd or the row's), where every write is confirmed.
+// A directory inside the space counts: a tool's `cd` may have left either there
 // (identity.InSpace, #2368).
 func runtimeInSpace(h *runtimeConn, ix proto.Interaction) bool {
 	if identity.InSpace(ix.Cwd) {
