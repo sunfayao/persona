@@ -14,6 +14,7 @@ var (
 	ErrTodoNotFound      = errors.New("todo not found")
 	ErrTodoCompleted     = errors.New("todo is already completed")
 	ErrTodoImageNotFound = errors.New("todo image not found")
+	ErrTodoAgentAssigned = errors.New("agent is already linked to another to-do")
 )
 
 // TodoImage is one picture attached to a to-do. Data is present when it is being created or explicitly read as
@@ -1018,25 +1019,34 @@ func (d *DB) LinkTodoAgent(ctx context.Context, todoID, machineID, sessionID, ti
 
 // LinkTodoAgentWithSource links an agent with a specific source ("manual", "space", "spawned") and via.
 func (d *DB) LinkTodoAgentWithSource(ctx context.Context, todoID, machineID, sessionID, title, cwd, agent, startError, source, via string, linkedAt time.Time) ([]string, error) {
-	return d.linkTodoAgentWithSource(ctx, todoID, machineID, sessionID, title, cwd, agent, startError, source, via, false, linkedAt)
+	_, released, err := d.linkTodoAgentWithSource(ctx, todoID, machineID, sessionID, title, cwd, agent, startError, source, via, false, false, linkedAt)
+	return released, err
 }
 
 // LinkTodoAgentOfDoneTask links an agent to a todo that is already done (see linkTodoAgentWithSource's allowDone):
 // the agent of a task the user finished while it was still starting. Linking by hand stays refused (#2954).
 func (d *DB) LinkTodoAgentOfDoneTask(ctx context.Context, todoID, machineID, sessionID, title, cwd, agent, startError, source, via string, linkedAt time.Time) ([]string, error) {
-	return d.linkTodoAgentWithSource(ctx, todoID, machineID, sessionID, title, cwd, agent, startError, source, via, true, linkedAt)
+	_, released, err := d.linkTodoAgentWithSource(ctx, todoID, machineID, sessionID, title, cwd, agent, startError, source, via, true, false, linkedAt)
+	return released, err
+}
+
+// AttachUnassignedTodoAgent adds or reactivates a manual link without moving an agent from another to-do.
+func (d *DB) AttachUnassignedTodoAgent(ctx context.Context, todoID, machineID, sessionID, title, cwd, agent string, linkedAt time.Time) (bool, error) {
+	changed, _, err := d.linkTodoAgentWithSource(ctx, todoID, machineID, sessionID, title, cwd, agent, "", "manual", "", false, true, linkedAt)
+	return changed, err
 }
 
 // linkTodoAgentWithSource links an agent to a todo, refusing a todo that is done (ErrTodoCompleted) unless allowDone:
 // a done todo keeps the agents started for it (tasks_close.go retires them), it just gets no new ones by hand.
-func (d *DB) linkTodoAgentWithSource(ctx context.Context, todoID, machineID, sessionID, title, cwd, agent, startError, source, via string, allowDone bool, linkedAt time.Time) ([]string, error) {
+func (d *DB) linkTodoAgentWithSource(ctx context.Context, todoID, machineID, sessionID, title, cwd, agent, startError, source, via string, allowDone, keepOwner bool, linkedAt time.Time) (bool, []string, error) {
 	conn, err := d.pool.Acquire(ctx)
 	if err != nil {
-		return nil, err
+		return false, nil, err
 	}
 	defer conn.Release()
 
 	var releasedTodoIDs []string
+	changed := false
 	err = pgx.BeginFunc(ctx, conn, func(tx pgx.Tx) error {
 		targetDoneAt, err := lockTodoAgentMembership(ctx, tx, todoID, machineID, sessionID)
 		if err != nil {
@@ -1044,6 +1054,22 @@ func (d *DB) linkTodoAgentWithSource(ctx context.Context, todoID, machineID, ses
 		}
 		if targetDoneAt != nil && !allowDone {
 			return ErrTodoCompleted
+		}
+
+		if keepOwner {
+			var current string
+			err = tx.QueryRow(ctx, `SELECT todo_id FROM todo_agents
+				WHERE machine_id = $1 AND session_id = $2 AND released_at IS NULL LIMIT 1`,
+				machineID, sessionID).Scan(&current)
+			if err == nil {
+				if current == todoID {
+					return nil
+				}
+				return ErrTodoAgentAssigned
+			}
+			if !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			}
 		}
 
 		// Find other active links for this agent and release them.
@@ -1096,13 +1122,14 @@ func (d *DB) linkTodoAgentWithSource(ctx context.Context, todoID, machineID, ses
 			return err
 		}
 
+		changed = true
 		_, err = tx.Exec(ctx, `UPDATE todos SET updated_at = $2 WHERE id = $1`, todoID, linkedAt)
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return false, nil, err
 	}
-	return releasedTodoIDs, nil
+	return changed, releasedTodoIDs, nil
 }
 
 // ReleaseTodoAgent lets go of an agent still linked to a todo (released_at only: it stays in the todo's history, unlike

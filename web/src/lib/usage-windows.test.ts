@@ -222,6 +222,15 @@ describe("pinned sidebar usage accounts (#12418)", () => {
     expect(picked.balances.map((a) => a.id)).toEqual(["ds"]);
   });
 
+  it("groups Antigravity source spellings while keeping separate account rows and pins", () => {
+    const accounts = [...live(), account("another-agy", 95, { provider: "antigravity", name: "Antigravity 2" })];
+    expect(selectSidebarUsageAccounts(accounts, []).bars.map((a) => a.id)).toEqual(["another-agy", "codex"]);
+    expect(selectSidebarUsageAccounts(accounts, ["agy", "another-agy"]).bars.map((a) => a.id)).toEqual(["agy", "another-agy"]);
+    const antigravity = groupByProvider(accounts).filter((g) => g.provider === "agy" || g.provider === "antigravity");
+    expect(antigravity).toHaveLength(1);
+    expect(antigravity[0].accounts.map((a) => a.id)).toEqual(["agy", "another-agy"]);
+  });
+
   it("selects pinned window and balance accounts in pinned order", () => {
     const onlyAgy = selectSidebarUsageAccounts(live(), ["agy"]);
     expect(onlyAgy.custom).toBe(true);

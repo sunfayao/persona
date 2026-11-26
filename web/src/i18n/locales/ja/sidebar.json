@@ -1,4 +1,6 @@
 {
+  "expand_title": "タイトル全文を表示",
+  "collapse_title": "タイトルを折りたたむ",
   "nav_home": "概要",
   "nav_home_short": "概要",
   "nav_inbox": "受信トレイ",

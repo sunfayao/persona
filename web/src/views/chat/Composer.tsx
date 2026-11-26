@@ -1000,6 +1000,8 @@ export const Composer = memo(function Composer({
     query, source: mention, machineId, within: box, memory: catalogMemory, ime: ime.tracker,
   };
   const commandPalette = () => <SlashPalette {...slashProps} active={Math.min(active, Math.max(rows.length - 1, 0))} />;
+  const inlineFields = !editor && !loop && !blocked && !draft.includes("\n") && draft.length <= 48;
+
   return (
     <div
       ref={box}
@@ -1051,7 +1053,7 @@ export const Composer = memo(function Composer({
       <div
         className={cx(
           // a container: what sits in its bottom row (the model pill) takes its width modes from the card's own width
-          "@container/composer relative flex flex-col gap-1.5 rounded-[14px] border bg-surface p-1.5 shadow-card transition-[border-color,box-shadow] duration-150 focus-within:border-line-strong",
+          "@container/composer relative flex flex-col gap-1 rounded-card border bg-surface p-1.5 transition-[border-color,box-shadow] duration-150 focus-within:border-line-strong",
           dragging ? "border-accent shadow-[0_0_0_3px_var(--accent-tint)]" : "border-line",
         )}
       >
@@ -1104,7 +1106,8 @@ export const Composer = memo(function Composer({
         )}
         {/* a field that turns disabled loses focus with no blur event: the keyboard is down, say so */}
         <DisabledBlur disabled={Boolean(disabled)} focused={focused} onBlur={() => { setFocused(false); onFocusChange?.(false); }} />
-        <div className="relative">
+        <div data-composer-fields className={cx("relative flex min-w-0 flex-col gap-1", inlineFields && "@min-[40rem]/composer:flex-row @min-[40rem]/composer:items-center")}>
+        <div className={cx("relative min-w-0", inlineFields && "@min-[40rem]/composer:flex-1 @min-[40rem]/composer:pl-8")}>
         <textarea
           ref={input}
           data-composer-input
@@ -1271,7 +1274,7 @@ export const Composer = memo(function Composer({
             <span className="min-w-0 truncate">{t("chat-composer.blocked_hint", { label: blocked.label })}</span>
           </div>
         )}
-        <div className="flex items-center gap-1 [@media(pointer:coarse)]:gap-2">
+        <div className={cx("flex min-w-0 items-center gap-1 [@media(pointer:coarse)]:gap-2", inlineFields && "@min-[40rem]/composer:max-w-[54%]")}>
           <input ref={fileInput} type="file" multiple hidden onChange={(e) => e.target.files && void addFiles(e.target.files).finally(() => (e.target.value = ""))} />
           {/* cindy's +: bare until hover, as the model pill; it opens the + / @ panel (files, Plan mode, sessions…) */}
           <button
@@ -1284,7 +1287,7 @@ export const Composer = memo(function Composer({
             disabled={disabled || Boolean(editor && !mention)}
             onMouseDown={(e) => e.preventDefault()}
             onClick={togglePlus}
-            className={cx(TOOL, "text-ink-2 disabled:opacity-50")}
+            className={cx(TOOL, "text-ink-2 disabled:opacity-50", inlineFields && "@min-[40rem]/composer:absolute @min-[40rem]/composer:left-0")}
           >
             {uploading ? <Spinner /> : <Icon name="plus" size={15} stroke={2} />}
           </button>
@@ -1350,6 +1353,7 @@ export const Composer = memo(function Composer({
               <Icon name="send" size={14} stroke={2} className="-translate-x-px translate-y-px fill-current" />
             </button>
           )}
+        </div>
         </div>
       </div>
       {expanded && (

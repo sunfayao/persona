@@ -106,7 +106,7 @@ function sections(items: Section[], listId: string): ReactNode[] {
 /** An Agent's match by its title (starting with what was typed 100, containing it 80), then every word in its folder,
  *  computer or last line (40), until lib/agent-search.ts has loaded. */
 function score(s: Session, q: string, machine: string, preferTab = false): number {
-  return matchPaletteWords(sessionTitle(s, preferTab), q, [s.title, s.cwd, s.space_name, s.slot_name, machine, s.last_text].join(" "));
+  return matchPaletteWords(sessionTitle(s, preferTab), q, [sessionTitle(s), s.cwd, s.space_name, s.slot_name, machine, s.last_text].join(" "));
 }
 
 const HOME: Route = { name: "home" };

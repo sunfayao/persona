@@ -294,7 +294,7 @@ export function usePinnedUsageAccounts(): readonly string[] {
 
 /** Choose which live accounts appear in the collapsed sidebar strip:
  *  when pinned IDs match at least one live account, show those matched accounts in pinned order;
- *  otherwise fall back to the default automatic ranking (`topAccounts(live)` and live balance accounts). */
+ *  otherwise show the two most-used providers, plus live balance accounts. */
 export function selectSidebarUsageAccounts(
   live: UsageAccount[],
   pinnedIds: readonly string[],
@@ -314,8 +314,15 @@ export function selectSidebarUsageAccounts(
       };
     }
   }
+  const seen = new Set<string>();
+  const providers = topAccounts(live, live.length).filter((account) => {
+    const provider = usageProvider(account.provider);
+    if (seen.has(provider)) return false;
+    seen.add(provider);
+    return true;
+  });
   return {
-    bars: topAccounts(live),
+    bars: providers.slice(0, 2),
     balances: live.filter(isBalanceAccount),
     custom: false,
   };
@@ -362,16 +369,21 @@ export interface ProviderGroup {
 /** The accounts grouped by provider (account type), groups in the order the hub first listed them. */
 export function groupByProvider(accounts: UsageAccount[]): ProviderGroup[] {
   const by = new Map<string, UsageAccount[]>();
-  for (const a of accounts) by.set(a.provider, [...(by.get(a.provider) ?? []), a]);
+  for (const a of accounts) {
+    const provider = usageProvider(a.provider);
+    by.set(provider, [...(by.get(provider) ?? []), a]);
+  }
   return [...by].map(([provider, list]) => {
     const newest = list.reduce((m, a) => Math.max(m, Date.parse(a.sampled_at) || -Infinity), -Infinity);
     return { provider, accounts: sortForCard(list), sampledAt: Number.isFinite(newest) ? new Date(newest).toISOString() : "" };
   });
 }
 
+/** Nodes and external sources can use either spelling for the same usage provider. Account IDs remain separate. */
+export const usageProvider = (p: string) => p === "antigravity" ? "agy" : p;
 const PROVIDER_TITLES: Record<string, string> = { xai: "xAI", deepseek: "DeepSeek", kimi: "Kimi", agy: "Antigravity" };
 /** A provider's name for a card title: its own spelling when known, else the id with a capital. */
-export const providerTitle = (p: string) => PROVIDER_TITLES[p] ?? p.charAt(0).toUpperCase() + p.slice(1);
+export const providerTitle = (p: string) => PROVIDER_TITLES[usageProvider(p)] ?? p.charAt(0).toUpperCase() + p.slice(1);
 
 const HOUR_MS = 3600_000;
 /** The shared axis: now, then these hours from now. The first 24 hours take 45% of the width, 1 to 7 days the other 55%. */
@@ -441,6 +453,7 @@ let usageAccounts = emptyAccounts;
 let usageHidden = noProviders;
 let usageReady = false;
 let stopPolling: (() => void) | undefined;
+let refreshPolling: (() => Promise<boolean>) | undefined;
 const listeners = new Set<() => void>();
 
 function publishUsage(accounts: UsageAccount[], ready = usageReady, hidden = usageHidden) {
@@ -454,25 +467,38 @@ function pollUsage() {
   let dead = false;
   // The tab coming back to the front can overlap the poll. Only the newest reply counts.
   let seq = 0;
-  const load = () => {
-    if (document.visibilityState !== "visible") return;
+  let manual: Promise<boolean> | undefined;
+  const load = async () => {
     const mine = ++seq;
     const current = () => !dead && mine === seq;
-    api<{ accounts?: UsageAccount[]; hidden_providers?: string[] }>("/usage/windows")
-      .then((r) => current() && publishUsage(r.accounts ?? emptyAccounts, true, r.hidden_providers?.length ? r.hidden_providers.map((p) => p.toLowerCase()) : noProviders))
-      .catch((e: unknown) => {
-        if (!current()) return;
+    try {
+      const r = await api<{ accounts?: UsageAccount[]; hidden_providers?: string[] }>("/usage/windows");
+      if (!current()) return false;
+      publishUsage(r.accounts ?? emptyAccounts, true, r.hidden_providers?.length ? r.hidden_providers.map((p) => p.toLowerCase()) : noProviders);
+      return true;
+    } catch (e: unknown) {
+      if (current()) {
         const missing = e instanceof ApiError && e.status === 404;
         publishUsage(missing ? emptyAccounts : usageAccounts.slice(), missing ? false : usageReady, missing ? noProviders : usageHidden);
-      });
+      }
+      return false;
+    }
   };
-  load();
-  const timer = setInterval(load, POLL_MS);
-  document.addEventListener("visibilitychange", load);
+  const background = () => {
+    if (document.visibilityState === "visible" && !manual) void load();
+  };
+  refreshPolling = () => {
+    manual ??= load().finally(() => { manual = undefined; });
+    return manual;
+  };
+  background();
+  const timer = setInterval(background, POLL_MS);
+  document.addEventListener("visibilitychange", background);
   return () => {
     dead = true;
+    refreshPolling = undefined;
     clearInterval(timer);
-    document.removeEventListener("visibilitychange", load);
+    document.removeEventListener("visibilitychange", background);
   };
 }
 
@@ -494,6 +520,11 @@ function subscribeUsage(listener: () => void) {
 /** The sidebar and Agent status lines share one poll, including while switching chats. */
 export function useUsageWindows(): UsageAccount[] {
   return useSyncExternalStore(subscribeUsage, () => usageAccounts, () => emptyAccounts);
+}
+
+/** Re-read the hub's latest quota snapshots using the same store and ordering as the background poll. */
+export function refreshUsageWindows(): Promise<boolean> {
+  return refreshPolling?.() ?? Promise.resolve(false);
 }
 
 /** The providers the owner hid from the usage bars (lowercase), so nothing else in the strip lists them either (#13179). */

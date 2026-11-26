@@ -88,10 +88,10 @@ export function SpaceSection({ sp, machineName, reg, hover, activeKey, go, pinne
       onToggle={toggle}
       onMenu={(at, el) => onMenu(sp, el, at, { folded, toggle })}
       title={
-        <span className="flex items-center gap-1.5">
-          <span className="truncate normal-case tracking-normal text-[11.5px] text-ink-2">{sp.name}</span>
+        <span className="flex items-center gap-x-1.5 max-lg:flex-wrap">
+          <span className="truncate max-lg:whitespace-normal max-lg:wrap-anywhere normal-case tracking-normal text-[11.5px] text-ink-2">{sp.name}</span>
           <SpaceMarks pinned={pinned} muted={muted} />
-          {machineName && <span className="truncate normal-case tracking-normal text-[11px] font-normal text-ink-3">{machineName}</span>}
+          {machineName && <span className="truncate max-lg:basis-full normal-case tracking-normal text-[11px] font-normal text-ink-3">{machineName}</span>}
         </span>
       }
       right={

@@ -1,10 +1,11 @@
 // The sidebar's rows: Persona's main conversation, the pinned heading, a page's row, an agent's row and the personal
 // agents. Imports only SidebarParts among the sidebar's files.
-import { memo, useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { t } from "../i18n";
 import { awaitsReply, finishedUnopened, justFinished, sessionSource, sourceName } from "../lib/agent-groups";
 import { addSection, arrangeSessions, assignSection, GROUP_LABEL, isDefaultView, providerLabel, refreshAgentSessions, removeSection, resetView, setView, SHOW_LABEL, SORT_LABEL, toggleProvider, togglePin, totalUnread, updateAgentPrefs, useAgentList, useAgentPrefs, viewOf, type AgentPrefs, type AgentSession, type GroupBy, type ShowMode, type SortBy } from "../lib/agents";
 import { ago, backgroundWaiting, sessionCan, sessionDisplayTab, sessionPreview, sourceSubtitle, sessionTitle, sessionTitleDetail, stateOf, tabLabel } from "../lib/format";
+import { sessionAgentName } from "../lib/agent-kind";
 import { useHerdrTabName } from "../lib/agents-display";
 import { firstAndCurrent } from "../lib/persona-nav";
 import { pickMainChat } from "../lib/handoff";
@@ -45,6 +46,31 @@ import { backgroundWork } from "../lib/background-work";
 import { SESSIONS_LIST_FEATURE } from "../lib/session-list";
 import { personalHideDeps, personalOrder, personalSessions, removeAgentSession, useGoingIds } from "../lib/agents";
 import { BADGE_CLASS, CURRENT_ROW, type GoFn, GroupCount, type RegFn, ROW_TITLE_MIN, type RowMenuFn, Section } from "./SidebarParts";
+
+// Long prompt-derived names can fill a drawer. Give them a bounded preview with a touch/keyboard disclosure.
+function SidebarTitleDisclosure({ title, expanded, onToggle }: { title: string; expanded: boolean; onToggle: () => void }) {
+  const button = useRef<HTMLButtonElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  useEffect(() => {
+    const name = button.current?.parentElement?.querySelector<HTMLElement>(".sidebar-session-title");
+    if (!name) return;
+    const measure = () => {
+      const lineHeight = parseFloat(getComputedStyle(name).lineHeight);
+      setOverflows(name.scrollHeight > 3 * lineHeight + 1);
+    };
+    if (typeof ResizeObserver === "undefined") { measure(); return; }
+    const observer = new ResizeObserver(measure);
+    observer.observe(name);
+    return () => observer.disconnect();
+  }, [title]);
+  return (
+    <button ref={button} type="button" hidden={!overflows} aria-expanded={expanded} onClick={onToggle} className="sidebar-title-disclosure touch-hit relative z-10 items-center gap-1 rounded-control text-submeta font-medium text-accent-ink focus-visible:outline-auto">
+      {expanded ? t("sidebar.collapse_title") : t("sidebar.expand_title")}
+      <Icon name="chevron" size={10} className={cx("motion-safe:transition-transform", expanded && "rotate-180")} />
+    </button>
+  );
+}
+const LONG_TITLE_LENGTH = 120;
 
 // The main conversation uses the home symbol (Back to main chat's) and one Main conversation line.
 // The assistant's identity belongs to the sidebar head; a left draft keeps its existing second line.
@@ -94,6 +120,9 @@ type NavRowProps = { onMenu?: (at: MenuAt, el: HTMLElement, button: boolean) => 
 export const NavRow = memo(function NavRow({ k, reg, hover, active, to, go, icon, agent, label, badge, badgeTone, badgeLabel, hint, hintCount, title, onMenu, menuLabel, dot }: NavRowProps) {
   // one ref for the row's life, so a re-render does not let go of it and register it again (useGlide's reg)
   const ref = useMemo(() => reg(k), [reg, k]);
+  const conversation = to.name === "session" || to.name === "agents" || to.name === "request";
+  const long = conversation && label.length >= LONG_TITLE_LENGTH;
+  const [expanded, setExpanded] = useState(false);
   const link = (
     <a
       ref={ref}
@@ -110,7 +139,7 @@ export const NavRow = memo(function NavRow({ k, reg, hover, active, to, go, icon
       <span className={active ? "text-ink" : "text-ink-3"}>
         {agent ? <AgentMark agent={agent} size={14} decorative /> : <Icon name={icon} size={14} stroke={1.8} />}
       </span>
-      <span className={cx("min-w-0 flex-1 truncate text-[13px]", active ? "font-medium text-ink" : "text-ink-2")}>{label}</span>
+      <span className={cx("min-w-0 flex-1 truncate text-[13px]", conversation && "sidebar-session-title", active ? "font-medium text-ink" : "text-ink-2")}>{label}</span>
       {dot && <StatusMark state={dot} size="sm" />}
       {hintCount ? <GroupCount {...hintCount} className="shrink-0" />
         : hint && <span className="text-[11px] text-ink-3 tabular-nums">{hint}</span>}
@@ -121,12 +150,13 @@ export const NavRow = memo(function NavRow({ k, reg, hover, active, to, go, icon
       )}
     </a>
   );
-  if (!onMenu) return link;
+  if (!onMenu && !long) return link;
   // the ⋯ shows over the row's end on hover (a pointer); on a touch screen it stays, in the room the row leaves for it
   return (
-    <div className="group/row relative">
+    <div className="group/row relative" data-sidebar-long-title={long ? (expanded ? "open" : "closed") : undefined}>
       {link}
-      <button
+      {long && <SidebarTitleDisclosure title={label} expanded={expanded} onToggle={() => setExpanded(!expanded)} />}
+      {onMenu && <button
         type="button"
         aria-label={menuLabel}
         aria-haspopup="menu"
@@ -139,7 +169,7 @@ export const NavRow = memo(function NavRow({ k, reg, hover, active, to, go, icon
         className="absolute top-1/2 right-1 z-20 hidden size-6 -translate-y-1/2 items-center justify-center rounded-[6px] bg-hover text-ink-3 hover:bg-hover-2 hover:text-ink group-hover/row:flex [@media(hover:none)]:right-0 [@media(hover:none)]:flex [@media(hover:none)]:size-11 [@media(hover:none)]:bg-transparent"
       >
         <Icon name="more" size={14} />
-      </button>
+      </button>}
     </div>
   );
 }, sameProps);
@@ -223,6 +253,8 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
   const preferTab = useHerdrTabName();
   const title = sessionTitle(s, preferTab);
   const titleDetail = sessionTitleDetail(s, preferTab);
+  const long = (label ?? title).length >= LONG_TITLE_LENGTH;
+  const [expanded, setExpanded] = useState(false);
   const st = stateOf(s);
   // Awaiting Reply (#5096): seen, but it asked you something you have not answered
   const awaiting = useStore((x) => awaitsReply(s, x.mutes));
@@ -240,14 +272,15 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
   const [openerName, setOpenerName] = useState<string>();
   // a desktop app's runtime that can be written to: its mark says where it is and the agent's mark which agent, so the
   // runtime's name at the end only repeats them (it stays in the tooltip); a read-only one still says why
-  const sameAsMarks = source === "desktop" && s.source_kind === "runtime" && sessionCan(s, "send");
+  const subtitle = sourceSubtitle(s);
+  const sameAsMarks = s.source_kind === "runtime" && sessionCan(s, "send") && (source === "desktop" || subtitle === sessionAgentName(s));
   const hasTabAssociation = !!(s.slot_id?.trim() || s.tab_id?.trim());
   const primaryTab = sessionDisplayTab(s, preferTab);
   const associatedTab = hasTabAssociation && !primaryTab ? tabLabel(s) : "";
   const tabIdentity = associatedTab ? t("sidebar.tab_named", { label: associatedTab }) : "";
   // A structural tab row keeps its old plain-text fallback, but only a real association earns the localized identity.
   const structuralTabHint = tab && !tabIdentity && !primaryTab ? tabLabel(s) : "";
-  const tail = [sameAsMarks ? "" : sourceSubtitle(s), hint ?? structuralTabHint, tabIdentity].filter(Boolean).join(" · ");
+  const tail = [sameAsMarks ? "" : subtitle, hint ?? structuralTabHint, source === "terminal" ? associatedTab : tabIdentity].filter(Boolean).join(" · ");
   const preview = sessionPreview(s);
   // Settings › Appearance › show details on agent rows (#2430): a second line under an agent's title — folder · model · context · age
   const details = useAgentDetails();
@@ -299,30 +332,35 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
       onFocus={() => hover(k)}
       onBlur={() => hover(null)}
       aria-current={active ? "page" : undefined}
+      aria-description={source === "terminal" && tabIdentity ? tabIdentity : undefined}
       // its mark's name is in the row's tooltip too: the mark steps aside while the row is hovered
-      title={`${title}${titleDetail ? `\n${titleDetail}` : ""}${source ? `\n${sourceName(source)}` : ""}${origin ? `\n${openerFrom(origin, openerName)}` : ""}${sourceSubtitle(s) ? `\n${sourceSubtitle(s)}` : ""}${hint ? `\n${hint}` : ""}${tabIdentity ? `\n${tabIdentity}` : ""}${s.todo ? `\n${t("sidebar.todo_tag", { title: s.todo.title })}` : ""}${preview ? `\n${preview}` : ""}`}
+      title={`${title}${titleDetail ? `\n${titleDetail}` : ""}${source ? `\n${sourceName(source)}` : ""}${origin ? `\n${openerFrom(origin, openerName)}` : ""}${subtitle ? `\n${subtitle}` : ""}${hint ? `\n${hint}` : ""}${tabIdentity ? `\n${tabIdentity}` : ""}${s.todo ? `\n${t("sidebar.todo_tag", { title: s.todo.title })}` : ""}${preview ? `\n${preview}` : ""}`}
+      data-sidebar-session=""
+      data-sidebar-context={tailShown || undefined}
       // a touch screen: rows a finger can hit (44), and room at the end for the ⋯ that is always there; the open row
       // keeps its ⋯ too, so it has room for it
       className={cx("relative z-10 flex w-full items-center gap-2 rounded-[7px] px-2 sidebar-row transition-transform duration-150 active:scale-[0.98] [@media(pointer:coarse)]:min-h-11", active && CURRENT_ROW, // room for "N agents" and the ⋯ beside it (instead of the ⋯'s own)
-        endRoom ? "pr-[108px] [@media(hover:none)]:pr-[120px]" : cx(onMenu && active && "pr-8", onMenu && "[@media(hover:none)]:pr-11"))}
+        endRoom && "lg:pointer-fine:pr-[108px]", onMenu && active && "pr-8", onMenu && "[@media(hover:none)]:pr-11")}
     >
       {/* the agent's mark before its state (#6390): what runs there, then how it is doing */}
-      {!s.assistant && <SessionMark s={s} size={14} />}
-      <span className="flex size-3.5 shrink-0 items-center justify-center"><StatusMark state={usageLimitLabel(s) && st === "unread" ? "idle" : st} awaiting={awaiting} finished={finished} unopened={unopened} waiting={backgroundWaiting(s)} /></span>
-      {prefix && <span className={prefixClass}>{prefix}</span>}
+      <span className="sidebar-session-marks">
+        {!s.assistant && <SessionMark s={s} size={14} />}
+        <span className="flex size-3.5 shrink-0 items-center justify-center"><StatusMark state={usageLimitLabel(s) && st === "unread" ? "idle" : st} awaiting={awaiting} finished={finished} unopened={unopened} waiting={backgroundWaiting(s)} /></span>
+      </span>
+      {prefix && <span className={cx("sidebar-session-prefix", prefixClass)}>{prefix}</span>}
       {/* with the mark, the title sits in the column whether a second line shows or not: the same element through a
           workflow's start and end, so the mark does not fade in again */}
       {ultra || detail.length > 0 || workflow || line || childLine || plan ? (
-        <span className={cx("flex min-w-0 flex-1 flex-col", titleMin, titleFirst)}>
+        <span className={cx("sidebar-session-copy flex min-w-0 flex-1 flex-col", titleMin, titleFirst)}>
           {ultra ? (
             <span className="flex min-w-0 items-center gap-1">
-              <span className={cx("min-w-0 truncate text-[13px]", active ? "font-medium text-ink" : "text-ink-2", st === "unread" && !active && !usageLimitLabel(s) && "font-medium text-ink")}>
+              <span className={cx("sidebar-session-title min-w-0 truncate text-[13px]", active ? "font-medium text-ink" : "text-ink-2", st === "unread" && !active && !usageLimitLabel(s) && "font-medium text-ink")}>
                 {label ?? title}
               </span>
               <UltraMark size={10} />
             </span>
           ) : (
-            <span className={cx("truncate text-[13px]", active ? "font-medium text-ink" : st === "offline" ? "text-ink-3" : "text-ink-2", st === "unread" && !active && !usageLimitLabel(s) && "font-medium text-ink")}>
+            <span className={cx("sidebar-session-title truncate text-[13px]", active ? "font-medium text-ink" : st === "offline" ? "text-ink-3" : "text-ink-2", st === "unread" && !active && !usageLimitLabel(s) && "font-medium text-ink")}>
               {label ?? title}
             </span>
           )}
@@ -357,33 +395,36 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
           </span>}
         </span>
       ) : (
-        <span className={cx("flex-1 truncate text-meta", titleMin, titleFirst, active ? "font-medium text-ink" : st === "offline" ? "text-ink-3" : "text-ink-2", st === "unread" && !active && "font-medium text-ink")}>
+        <span className={cx("flex-1 truncate text-meta sidebar-session-copy sidebar-session-title", titleMin, titleFirst, active ? "font-medium text-ink" : st === "offline" ? "text-ink-3" : "text-ink-2", st === "unread" && !active && "font-medium text-ink")}>
           {label ?? title}
         </span>
       )}
-      {host && <span className={cx("shrink-0 rounded bg-hover px-1 text-[10px] leading-4 text-ink-3", aside)}>{host}</span>}
-      {showTodoTag && s.todo && (
-        <span
-          className={cx("flex shrink-0 items-center justify-center rounded bg-hover px-1 py-0.5 text-ink-3", aside)}
-          title={t("sidebar.todo_tag", { title: s.todo.title })}
-          aria-label={t("sidebar.todo_tag", { title: s.todo.title })}
-        >
-          <Icon name="todo" size={10} stroke={2} />
-        </span>
-      )}
-      {source && <SourceTag s={s} className={aside} />}
-      {origin && <OriginMark origin={origin} size={16} className={aside} session={s} onName={setOpenerName} />}
-      {/* the row's ⋯ takes the end on hover: what is there steps aside instead of showing half under it */}
-      {tailShown && <span className={cx("max-w-[72px] min-w-6 shrink-[20] truncate text-[11px] text-ink-3", aside)}>{tail}</span>}
-      {ageAtEnd && <span data-row-age className={cx("shrink-0 text-[11px] text-ink-3", aside)}>{ago(s.updated_at, Date.now(), "narrow")}</span>}
-      {pendingCount > 0 && <span className={cx("flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-field px-1 text-[10px] font-semibold text-attention tabular-nums", aside)}>{pendingCount}</span>}
+      {(host || (showTodoTag && s.todo) || source || origin || tailShown || ageAtEnd || pendingCount > 0) && <span className="sidebar-session-meta">
+        {host && <span className={cx("shrink-0 rounded bg-hover px-1 text-[10px] leading-4 text-ink-3", aside)}>{host}</span>}
+        {showTodoTag && s.todo && (
+          <span
+            className={cx("flex shrink-0 items-center justify-center rounded bg-hover px-1 py-0.5 text-ink-3", aside)}
+            title={t("sidebar.todo_tag", { title: s.todo.title })}
+            aria-label={t("sidebar.todo_tag", { title: s.todo.title })}
+          >
+            <Icon name="todo" size={10} stroke={2} />
+          </span>
+        )}
+        {source && <SourceTag s={s} className={aside} />}
+        {origin && <OriginMark origin={origin} size={16} className={aside} session={s} onName={setOpenerName} />}
+        {/* the row's ⋯ takes the end on hover: what is there steps aside instead of showing half under it */}
+        {tailShown && <span className={cx("max-w-[72px] min-w-6 shrink-[20] truncate text-[11px] text-ink-3", aside)}>{tail}</span>}
+        {ageAtEnd && <span data-row-age className={cx("shrink-0 text-[11px] text-ink-3", aside)}>{ago(s.updated_at, Date.now(), "narrow")}</span>}
+        {pendingCount > 0 && <span className={cx("flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-field px-1 text-[10px] font-semibold text-attention tabular-nums", aside)}>{pendingCount}</span>}
+      </span>}
     </a>
   );
-  if (!onMenu) return link;
+  if (!onMenu && !long) return link;
   return (
-    <div className="group/row relative">
+    <div className="group/row relative" data-sidebar-long-title={long ? (expanded ? "open" : "closed") : undefined}>
       {link}
-      <button
+      {long && <SidebarTitleDisclosure title={label ?? title} expanded={expanded} onToggle={() => setExpanded(!expanded)} />}
+      {onMenu && <button
         type="button"
         aria-label={menuLabel}
         aria-haspopup="menu"
@@ -393,7 +434,7 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
         className={cx("absolute top-1/2 right-1 z-20 size-6 -translate-y-1/2 items-center justify-center rounded-[6px] text-ink-3 hover:text-ink group-hover/row:flex [@media(hover:none)]:right-0 [@media(hover:none)]:flex [@media(hover:none)]:size-11 [@media(hover:none)]:bg-transparent", active ? "flex hover:bg-hover" : "hidden bg-hover hover:bg-hover-2")}
       >
         <Icon name="more" size={14} />
-      </button>
+      </button>}
     </div>
   );
 }, sameProps);
@@ -598,12 +639,15 @@ export const AgentRow = memo(function AgentRow({ s, reg, hover, active, go, pinn
   const regRow = useMemo(() => reg(k), [reg, k]);
   const to: Route = { name: "agents", id: s.id };
   const unread = s.unreadCount > 0;
+  const long = (s.title?.length ?? 0) >= LONG_TITLE_LENGTH;
+  const [expanded, setExpanded] = useState(false);
   return (
-    <div className="group/row relative" onContextMenu={(e) => {
+    <div className="group/row relative" data-sidebar-long-title={long ? (expanded ? "open" : "closed") : undefined} onContextMenu={(e) => {
       e.preventDefault();
       onMenu(s, e.currentTarget);
     }}>
       <a
+        data-sidebar-session=""
         ref={regRow}
         href={href(to)}
         onClick={go(to)}
@@ -615,8 +659,8 @@ export const AgentRow = memo(function AgentRow({ s, reg, hover, active, go, pinn
         className={cx("relative z-10 flex w-full items-center gap-2 rounded-[7px] px-2 sidebar-row transition-transform duration-150 active:scale-[0.98] [@media(hover:none)]:pr-11 [@media(pointer:coarse)]:min-h-11", active && cx(CURRENT_ROW, "pr-7"))}
       >
         <AgentAvatar s={s} size={16} />
-        <span className={cx("min-w-0 flex-1 truncate text-[13px]", active || unread ? "font-medium text-ink" : "text-ink-2")}>{s.title || t("lib-format.untitled_session")}</span>
-        <span className={cx("flex shrink-0 items-center", !active && "group-hover/row:invisible")}>
+        <span className={cx("sidebar-session-copy sidebar-session-title min-w-0 flex-1 truncate text-[13px]", active || unread ? "font-medium text-ink" : "text-ink-2")}>{s.title || t("lib-format.untitled_session")}</span>
+        <span className={cx("sidebar-personal-meta flex shrink-0 items-center", !active && "group-hover/row:invisible")}>
           {unread ? (
             <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white tabular-nums">{s.unreadCount}</span>
           ) : (
@@ -624,6 +668,7 @@ export const AgentRow = memo(function AgentRow({ s, reg, hover, active, go, pinn
           )}
         </span>
       </a>
+      {long && <SidebarTitleDisclosure title={s.title} expanded={expanded} onToggle={() => setExpanded(!expanded)} />}
       <button
         type="button"
         title={pinned ? t("sidebar.unpin") : t("sidebar.pin")}

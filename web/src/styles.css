@@ -157,12 +157,12 @@
   --extension-meta-size: 11px;
   --mark-black: #000;
   --shadow-hairline: 0 0 0 1px var(--line);
-  --shadow-btn: 0 0 0 1px var(--line-strong), 0 1px 2px #1018280d;
-  --shadow-card: 0 0 0 1px var(--line), 0 1px 2px #1018280a, 0 2px 6px #10182808;
+  --shadow-btn: inset 0 0 0 1px var(--line-strong);
+  --shadow-card: 0 0 0 1px var(--line);
   --shadow-raised: 0 0 0 1px var(--line), 0 2px 10px #0000000b;
   --shadow-overlay: 0 0 0 1px var(--line), 0 8px 28px #0001;
   --shadow-nav-preview: 0 12px 40px #00000014;
-  --shadow-inset-field: inset 0 1px 2px #0000001f;
+  --shadow-inset-field: inset 0 0 0 1px var(--line-strong);
   /* The on/off switch (ui/atoms.tsx Switch, #3675): iOS's green and a translucent grey track (a little darker than iOS's in light), so the off track shows on
      every background; the knob is white with a soft shadow and no ring. */
   --switch-on: #34c759;
@@ -206,12 +206,12 @@
   --tooltip-muted: #a5a8ad;
   --tooltip-border: #2e3033;
   --shadow-hairline: 0 0 0 1px var(--line);
-  --shadow-btn: 0 0 0 1px var(--line-strong), 0 1px 2px #0000004d;
-  --shadow-card: 0 0 0 1px var(--line), 0 1px 2px #0003, 0 2px 6px #0003;
+  --shadow-btn: inset 0 0 0 1px var(--line-strong);
+  --shadow-card: 0 0 0 1px var(--line);
   --shadow-raised: 0 0 0 1px var(--line), 0 2px 10px #00000038;
   --shadow-overlay: 0 0 0 1px var(--line-strong), 0 8px 28px #00000057;
   --shadow-nav-preview: 0 12px 40px #00000060;
-  --shadow-inset-field: inset 0 1px 2px #0006;
+  --shadow-inset-field: inset 0 0 0 1px var(--line-strong);
   --switch-on: #30d158;
   --switch-off: #78788052;
   --shadow-knob: 0 2px 4px #00000066, 0 1px 1px #00000033;
@@ -329,7 +329,7 @@ body {
 @keyframes fade-in{0%{opacity:0}to{opacity:1}}
 @keyframes eq-bounce{0%,to{transform:scaleY(.35)}50%{transform:scaleY(1)}}
 @keyframes stream-in{0%{opacity:0;filter:blur(4px)}to{opacity:1;filter:blur()}}
-@keyframes pop-in{0%{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+@keyframes pop-in{0%{opacity:0;transform:scale(.985)}to{opacity:1;transform:scale(1)}}
 /* Spinners turn 100 times per cycle (lib/busy-motion.ts SPIN_TURNS): a looping CSS animation sends React's root listener an
    animationiteration event, and the page a style recalc, every cycle; at 100 turns that is once a minute or so, not every
    turn. --busy-cycles tells the reduced-motion rule below how many turns one cycle is. */
@@ -356,6 +356,62 @@ body {
 :root { --sidebar-row: 32px; --sidebar-row-pad: 4px; --sidebar-indent: 12px; }
 @utility sidebar-indent { padding-inline-start: var(--sidebar-indent); }
 @utility sidebar-row { min-height: var(--sidebar-row); padding-block: var(--sidebar-row-pad); line-height: 18px; }
+/* A contextual row keeps provenance, tab and time below the conversation. On desktop
+   a simple row with just a mark or time can still fit on one line. */
+[data-sidebar-session] {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: center;
+  align-items: start;
+  column-gap: calc(var(--spacing) * 2);
+  row-gap: 0;
+}
+.sidebar-session-marks {
+  grid-column: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing);
+  min-height: 1lh;
+}
+.sidebar-session-copy, .sidebar-session-prefix { grid-column: 2; min-width: 0; }
+.sidebar-session-title { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+.sidebar-session-meta, .sidebar-personal-meta {
+  display: flex;
+  grid-column: 2;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: calc(var(--spacing) * 1.5);
+}
+.sidebar-session-meta:empty, .sidebar-personal-meta:empty { display: none; }
+.sidebar-session-meta > .truncate { max-width: 65%; }
+.sidebar-title-disclosure { display: none; }
+@media (width >= 64rem) and (hover: hover) {
+  [data-sidebar-session]:not([data-sidebar-context]) { display: flex; align-items: center; }
+  [data-sidebar-session]:not([data-sidebar-context]) :is(.sidebar-session-marks, .sidebar-session-meta) { display: contents; }
+  [data-sidebar-session] .sidebar-session-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+}
+@media (width < 64rem), (hover: none) {
+  [data-sidebar-long-title="closed"] .sidebar-session-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .sidebar-title-disclosure:not([hidden]) {
+    display: inline-flex;
+    min-height: 1.5rem;
+    margin-inline-start: calc(var(--spacing) * 10);
+    padding-inline: var(--spacing);
+  }
+  [data-sidebar-long-title] > button[aria-haspopup] {
+    top: 0;
+    translate: none;
+  }
+}
 /* The sidebar's top-level headings (#10637): Pages, Persona chats, Personal Agents and Agents each take a box this tall,
    whatever they carry beside their title, so they stand evenly apart, folded or not (iOS's SidebarHeadingBox, #10561).
    24px is the tallest control a heading carries, the Agents title row's fold-all button (`size-6`); a touch screen's 44

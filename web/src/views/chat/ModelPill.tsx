@@ -102,6 +102,8 @@ export function ModelPill({
   const effort = shown.effort ? effortTitle(shown.effort) : "";
   // An explicit Agent launcher matches the panel even across engines; other pills keep the existing pending label.
   const target = launcher || (pending ? (pending.engine !== current.engine ? agentName(pending.engine, pending.engineLabel) : pending.provider) : "");
+  const repeatsEngine = !pending && Boolean(launcher) &&
+    [shown.engine, agentName(shown.engine, shown.engineLabel)].some((engine) => engine?.toLowerCase() === launcher?.toLowerCase());
   const label = t(
     pending
       ? (effort ? "chat-modelpill.aria_pending_effort" : "chat-modelpill.aria_pending")
@@ -119,8 +121,8 @@ export function ModelPill({
       </span>
       {(launcher || pending) && (
         <>
-          <span data-pill-target title={target} className={cx("max-w-[96px] truncate text-ink-3", launcher ? "min-w-[3ch] shrink" : "shrink-0 @max-[600px]/composer:hidden")}>{target}</span>
-          <span aria-hidden className={cx("shrink-0 text-ink-3", !launcher && "@max-[600px]/composer:hidden")}>·</span>
+          <span data-pill-target title={target} className={cx("max-w-[96px] truncate text-ink-3", launcher ? "min-w-[3ch] shrink" : "shrink-0 @max-[600px]/composer:hidden", repeatsEngine && ULTRA_HIDDEN)}>{target}</span>
+          <span aria-hidden className={cx("shrink-0 text-ink-3", !launcher && "@max-[600px]/composer:hidden", repeatsEngine && ULTRA_HIDDEN)}>·</span>
         </>
       )}
       {/* the name gives way first (a far larger shrink than the effort's): narrow, the effort truncates only once the

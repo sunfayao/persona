@@ -3,6 +3,7 @@ import { formatDate, formatRelative, t } from "../i18n";
 import { normalizeTraeCliName, sessionAgentName } from "./agent-kind";
 import { usageLimitLabel } from "./usage-limit";
 import { workLine } from "./work";
+import { readableSessionTitle } from "./session-title";
 import { closeoutLine, closeoutSuffix, shownCloseout } from "./closeout";
 
 // Missing session metadata is not permission to write. A native row (no source_kind) that carries capabilities is held
@@ -212,7 +213,7 @@ export function externalLink(s?: Pick<Session, "external_url">): string | undefi
   }
 }
 
-type SessionNameFields = Pick<Session, "title" | "cwd" | "assistant" | "slot_name" | "slot_id" | "tab_id" | "space_kind" | "host">;
+type SessionNameFields = Pick<Session, "title" | "cwd" | "assistant" | "slot_name" | "slot_id" | "tab_id" | "space_kind" | "host" | "title_manual" | "title_source" | "goal" | "todo">;
 
 export function herdrTabName(s: SessionNameFields): string {
   const kind = s.space_kind || s.host;
@@ -223,18 +224,29 @@ export function herdrTabName(s: SessionNameFields): string {
 // Keep the terminal prompt recognizer in sync with server/internal/proto/session_name.go.
 const SHELL_PROMPT_TITLE = /^[A-Za-z0-9_][A-Za-z0-9_.-]*@[A-Za-z0-9_][A-Za-z0-9_.-]*:(?:[ \t]+[^\r\n]+|[~/][^\r\n]*)$/;
 
+function sessionName(s: SessionNameFields): string {
+  const title = readableSessionTitle(s);
+  if (title || !s.title?.trim()) return title;
+  return s.goal?.objective?.trim() || s.todo?.title.trim() || "";
+}
+
 export function sessionDisplayTab(s: SessionNameFields, preferTab = false): string {
-  const title = s.title?.trim() || "";
+  const title = sessionName(s);
   return preferTab || !title || SHELL_PROMPT_TITLE.test(title) ? herdrTabName(s) : "";
 }
 
 export function sessionTitle(s: SessionNameFields, preferTab = false): string {
-  return sessionDisplayTab(s, preferTab) || s.title?.trim() || baseName(s.cwd) || t("lib-format.untitled_session");
+  const title = sessionName(s);
+  if (preferTab || !title || SHELL_PROMPT_TITLE.test(title)) {
+    const tab = herdrTabName(s);
+    if (tab) return tab;
+  }
+  return title || baseName(s.cwd) || t("lib-format.untitled_session");
 }
 
 export function sessionTitleDetail(s: SessionNameFields, preferTab: boolean): string {
   const tab = preferTab ? herdrTabName(s) : "";
-  const title = s.title?.trim() || "";
+  const title = sessionName(s);
   return tab && tab !== title ? title : "";
 }
 

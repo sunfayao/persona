@@ -6,7 +6,7 @@ import { defaultManager, MANAGER_HEADER, useShownManager } from "../lib/manager-
 // Beautiful UI Todos View: left list (sorted by status & created_at), right detail, handover dialog.
 import { lazy, memo, Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type InputHTMLAttributes, type ReactNode, type RefObject } from "react";
 import { api, apiBlob, credentialOwner, enc, errorText, getToken, subscribeCredentialOwner } from "../lib/api";
-import { ago, clock, sessionCan, shortPath, stateOf, tabLabel, uuid } from "../lib/format";
+import { ago, backgroundWaiting, clock, sessionCan, shortPath, stateOf, tabLabel, uuid } from "../lib/format";
 import { foldedState } from "../lib/child-sessions";
 import { sessionCard } from "../lib/folded-rows";
 import { byTime } from "../lib/times";
@@ -74,7 +74,8 @@ import { contextMenuProps } from "../ui/context-menu";
 import { SHEET_QUERY } from "../ui/overlay";
 import type { MenuAt } from "../ui/menu-model";
 import { SearchField } from "../ui/SearchField";
-import { StatusMark } from "../ui/StatusMark";
+import { StateTally, StatusMark } from "../ui/StatusMark";
+import { type FoldedCounts } from "../lib/folded-counts";
 import { Icon } from "../ui/icons";
 import { FoldAllButton } from "../ui/FoldAllButton";
 import { SESSION_LIST_STYLE } from "../ui/list-metrics";
@@ -114,6 +115,7 @@ import type { Route } from "../lib/router";
 import { LatestReport, ReviewBadge } from "./assistant/Supervision";
 import { TodoStageBar } from "./TodoStageBar";
 import { TodoAskLine, TodoAskPanel } from "./TodoAsk";
+import { TodoAgentPicker } from "./TodoAgentPicker";
 import { TaskCompletionCheck } from "./TaskCompletionCheck";
 import { useTodoField } from "./use-todo-field";
 import { todoUltracode } from "../lib/ultracode";
@@ -741,7 +743,7 @@ export function TodosView({
           data-testid="todos-list-column"
           data-narrow-hidden={detailOnNarrow || undefined}
           // the edge parts the list from the detail beside it; on a phone the list is the whole page and has none
-          className={cx("flex w-full flex-col border-line", requestMode ? "min-w-0 md:flex-1" : "shrink-0 md:w-[380px] lg:w-[400px]", (!requestMode || activeTodo) && "md:border-r", detailOnNarrow && "max-md:hidden")}
+          className={cx("flex w-full flex-col border-line bg-page", requestMode ? "min-w-0 md:flex-1" : "shrink-0 md:w-[380px] lg:w-[400px]", (!requestMode || activeTodo) && "md:border-r", detailOnNarrow && "max-md:hidden")}
         >
           {/* Search Bar */}
           <div className="flex items-center gap-2 p-3">
@@ -932,7 +934,7 @@ export function TodosView({
           ref={detailColumn}
           data-testid="todos-detail-column"
           data-narrow-shown={detailOnNarrow || undefined}
-          className={cx("min-h-0 flex-1 flex-col overflow-y-auto", requestMode && !activeTodo ? "md:hidden" : "md:flex", requestMode && "md:w-[440px] md:flex-none lg:w-[520px]", detailOnNarrow ? "flex" : "hidden")}
+          className={cx("min-h-0 flex-1 flex-col overflow-y-auto bg-surface", requestMode && !activeTodo ? "md:hidden" : "md:flex", requestMode && "md:w-[440px] md:flex-none lg:w-[520px]", detailOnNarrow ? "flex" : "hidden")}
         >
           {requestMode && (
             <div className="hidden shrink-0 justify-end px-2 pt-2 md:flex">
@@ -1618,8 +1620,8 @@ const TodoListItem = memo(function TodoListItem({
         onSelect(todo.id);
       }}
       className={cx(
-        "group/item flex cursor-pointer gap-2.5 rounded-control p-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-accent",
-        selected ? "bg-accent-tint/70" : "hover:bg-hover",
+        "group/item flex cursor-pointer gap-2.5 rounded-control border p-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-accent",
+        selected ? "border-accent/30 bg-accent-tint/70" : "border-transparent hover:bg-hover",
       )}
     >
       {/* Checkbox button: touch-hit makes the 16px circle a 44px target on touch, its own (no row underneath) */}
@@ -2282,6 +2284,8 @@ function TodoDetail({
   };
 
   // "Remove" for an agent that did not start, "Unlink" for the others (iOS: the row's swipe; Android: its ×).
+  const agentRosterHeading = useId();
+  const [agentPickerOpen, setAgentPickerOpen] = useState(false);
   const unlinkAgent = async (agent: TodoAgent) => {
     const failed = Boolean(agent.start_error);
     try {
@@ -2325,6 +2329,19 @@ function TodoDetail({
     off: "bg-hover text-ink-3",
     attention: "bg-field text-attention",
   }[look.tone];
+
+  const roster = activeAgents.map((agent) => {
+    const session = lookup(agent.machine_id, agent.session_id);
+    const state = session && !agent.start_error ? foldedState(session) : "offline";
+    const waiting = session && state === "working" && !session.children?.working && backgroundWaiting(session);
+    return { agent, session, state, waiting };
+  });
+  const counts: FoldedCounts = { needs_you: 0, working: 0, bg_waiting: 0, unread: 0 };
+  for (const { state, waiting } of roster) {
+    if (waiting) counts.bg_waiting++;
+    else if (state === "needs_you" || state === "working" || state === "unread") counts[state]++;
+  }
+  const attentionFirst = [...roster].sort((a, b) => Number(b.state === "needs_you") - Number(a.state === "needs_you"));
 
   const shown = shownStatus(todo, status);
   const dotState =
@@ -2391,8 +2408,6 @@ function TodoDetail({
             <span data-testid="todo-detail-steps-next">{steps.tail}</span>
           </>
         )}
-        <span className="text-ink-3">·</span>
-        <span>{t("todos.agent_count", { count: activeAgents.length })}</span>
         {responsible && (
           <>
             <span className="text-ink-3">·</span>
@@ -2436,6 +2451,129 @@ function TodoDetail({
       {/* What it waits on from the user and how to answer it (#2056) */}
       <TodoAskPanel todo={todo} />
       <HeldForBriefing todo={todo} />
+
+      <section aria-labelledby={agentRosterHeading} className="mt-5 rounded-control border border-line bg-canvas" data-testid="todo-agent-roster">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <h2 id={agentRosterHeading} className="text-sm font-semibold text-ink">
+              {t("todos.agents_section", { count: activeAgents.length })}
+            </h2>
+            <StateTally counts={counts} />
+          </div>
+          {!todo.done_at && (
+            <Button tone="secondary" size="sm" icon="link" onClick={() => setAgentPickerOpen(true)}>
+              {t("todos.link_existing_agents")}
+            </Button>
+          )}
+        </div>
+        {attentionFirst.length === 0 ? (
+          <p className="border-t border-line px-3 py-3 text-meta text-ink-3">
+            {open ? (responsible ? t("todos.no_agents_responsible", { name: responsible.name }) : t("todos.no_agents")) : t("todos.no_agents_done")}
+          </p>
+        ) : (
+          <ul className="divide-y divide-line border-t border-line">
+            {attentionFirst.map(({ agent, session, state, waiting }) => {
+              const now = taskNow(session, state === "working");
+              const displayTitle = session?.title || agent.title || t("lib-format.untitled_session");
+              const machineName = machines.find((m) => m.id === agent.machine_id)?.name;
+              const spaceTab = session ? [session.space_name, tabLabel(session)].filter(Boolean).join(" › ") : "";
+              const displaySub = [machineName, spaceTab || shortPath(session?.cwd || agent.cwd)].filter(Boolean).join(" · ");
+              const ix = sessionCard(interactions, agent.machine_id, agent.session_id);
+              const kicker = ix?.kind === "plan" ? t("todos.kicker_plan") : ix?.kind === "permission" ? t("todos.kicker_permission") : ix?.kind === "screen" ? t("todos.kicker_screen") : ix?.kind === "elicitation" ? t("todos.kicker_elicitation") : t("todos.kicker_question");
+              const sourceLabel = formatAgentSource(agent, todo.spaces, lookup);
+              const stateLabel = agent.start_error ? stateName("failed") : !session ? t("todos.ended") :
+                waiting ? stateName("bg_waiting") : state === "idle" && session.work?.just_finished ? stateName("just_finished") : stateName(state);
+              const AgentRow = session ? "button" : "div";
+
+              return (
+                <li key={JSON.stringify([agent.machine_id, agent.session_id])} className="flex items-center gap-2 px-2">
+                  <AgentRow
+                    type={session ? "button" : undefined}
+                    onClick={session ? () => openFromPage({ name: "session", mid: agent.machine_id, sid: agent.session_id }) : undefined}
+                    className={cx("my-1 flex min-w-0 flex-1 items-start gap-2 rounded-control px-1.5 py-2 text-left", session && "cursor-pointer hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent")}
+                  >
+                    <span className="mt-0.5"><StatusMark state={state} size="sm" label={false} waiting={waiting} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex min-w-0 items-center gap-2">
+                        {sourceLabel && (
+                          <span data-testid="todo-agent-source" title={sourceLabel} className="max-w-[45%] shrink-0 truncate rounded bg-hover px-1.5 py-0.5 text-meta text-ink-3">
+                            {sourceLabel}
+                          </span>
+                        )}
+                        <span data-testid="todo-agent-title" title={displayTitle} className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
+                          {displayTitle}
+                        </span>
+                      </span>
+                      <span className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-meta text-ink-3">
+                        <span className={cx("shrink-0", state === "needs_you" && "font-medium text-attention")}>{stateLabel}</span>
+                        {displaySub && <span className="min-w-0 truncate">{displaySub}</span>}
+                        {!!session?.children?.total && <span>{t("todos.linked_subagents", { count: session.children.total })}</span>}
+                      </span>
+                      {agent.start_error ? (
+                        <span className="mt-1 block truncate text-meta text-red">{t("todos.start_failed", { error: agent.start_error })}</span>
+                      ) : now || (state === "needs_you" && askText(ix)) ? (
+                        <span className="mt-1 line-clamp-2 text-meta text-ink-2">
+                          {state === "needs_you" && <span className="font-medium text-attention">{t("todos.kicker_line", { kicker })}</span>}
+                          {(state === "needs_you" && askText(ix)) || (now && (now.kind === "words" ? plainMarkdown(now.text) : now.text))}
+                        </span>
+                      ) : null}
+                    </span>
+                  </AgentRow>
+                  <span data-testid="todo-agent-time" className="shrink-0 whitespace-nowrap text-meta text-ink-3">
+                    {ago(session?.updated_at || agent.linked_at)}
+                  </span>
+                  {agent.start_error ? (
+                    <button type="button" className="shrink-0 text-meta font-medium text-red hover:underline" onClick={() => void unlinkAgent(agent)}>
+                      {t("todos.remove")}
+                    </button>
+                  ) : (
+                    <IconButton icon="x" label={t("todos.unlink_agent", { name: displayTitle })} size={28} iconSize={12} onClick={() => void unlinkAgent(agent)} />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {/* Released Agents (Participated) */}
+        {releasedAgents.length > 0 && (
+          <div className="border-t border-line px-3 py-2.5">
+            <button
+              type="button"
+              onClick={onToggleReleased}
+              aria-expanded={showReleased}
+              className="flex items-center gap-1 text-[12px] text-ink-3 hover:text-ink-2"
+            >
+              <Icon
+                name="chevron"
+                size={11}
+                className={cx("transition-transform duration-200", showReleased ? "rotate-180" : "")}
+              />
+              <span>{t("todos.released_section", { count: releasedAgents.length })}</span>
+            </button>
+            {showReleased && (
+              <div className="mt-2 flex flex-col gap-1.5">
+                {releasedAgents.map((agent) => {
+                  const mName = machines.find((m) => m.id === agent.machine_id)?.name || agent.machine_id;
+                  const displaySub = `${mName} · ${shortPath(agent.cwd)}`;
+                  return (
+                    <div
+                      key={`${agent.machine_id}/${agent.session_id}`}
+                      className="flex items-center justify-between rounded-control border border-line/60 bg-hover/40 px-3 py-2 text-[12px] text-ink-3"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="truncate font-medium text-ink-2">{agent.title || t("lib-format.untitled_session")}</span>
+                        <div className="text-[11px] text-ink-3">{displaySub}</div>
+                      </div>
+                      <span className="shrink-0 text-[11px]">{t("todos.left_at", { time: ago(agent.released_at ?? undefined) })}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+      {agentPickerOpen && <TodoAgentPicker todo={todo} machines={machines} onClose={() => setAgentPickerOpen(false)} />}
 
       {/* Due date, reminder, priority (#1683) */}
       <TodoPlanEditor todo={todo} />
@@ -2529,161 +2667,6 @@ function TodoDetail({
           </div>
         </div>
       )}
-
-      {/* Current Agents */}
-      <div className="mt-6 flex-1">
-        <div className="mb-2 text-[11.5px] font-medium tracking-[0.04em] text-ink-3">
-          {t("todos.agents_section", { count: activeAgents.length })}
-        </div>
-
-        {activeAgents.length === 0 ? (
-          <div className="rounded-control border border-dashed border-line p-6 text-center text-[13px] text-ink-3">
-            {open ? (responsible ? t("todos.no_agents_responsible", { name: responsible.name }) : t("todos.no_agents")) : t("todos.no_agents_done")}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {activeAgents.map((agent) => {
-              const session = lookup(agent.machine_id, agent.session_id);
-              const st = session ? foldedState(session) : "offline";
-              const now = taskNow(session, st === "working");
-              const isExpired = !session && !agent.start_error;
-              const displayTitle = session?.title || agent.title || t("lib-format.untitled_session");
-
-              // computer · space › tab (the computer's name is its display name in machines)
-              const mName = machines.find((m) => m.id === agent.machine_id)?.name || agent.machine_id;
-              const spaceTab = session ? [session.space_name, tabLabel(session)].filter(Boolean).join(" › ") : "";
-              const displaySub = spaceTab
-                ? `${mName} · ${spaceTab}`
-                : `${mName} · ${shortPath(session?.cwd || agent.cwd)}`;
-
-              const ix = sessionCard(interactions, agent.machine_id, agent.session_id);
-              const kicker = ix?.kind === "plan" ? t("todos.kicker_plan") : ix?.kind === "permission" ? t("todos.kicker_permission") : ix?.kind === "screen" ? t("todos.kicker_screen") : ix?.kind === "elicitation" ? t("todos.kicker_elicitation") : t("todos.kicker_question");
-              const sourceLabel = formatAgentSource(agent, todo.spaces, lookup);
-
-              return (
-                <div
-                  key={`${agent.machine_id}/${agent.session_id}`}
-                  onClick={() => {
-                    // a drill-down: Back and the sidebar stay with this to-do (#12055)
-                    if (session) {
-                      openFromPage({ name: "session", mid: agent.machine_id, sid: agent.session_id });
-                    }
-                  }}
-                  className={cx(
-                    "flex items-start gap-3 rounded-control border border-line bg-canvas p-3 transition-colors",
-                    session ? "cursor-pointer hover:bg-hover" : "",
-                  )}
-                >
-                  <div className="mt-1">
-                    <StatusMark state={agent.start_error ? "offline" : isExpired ? "offline" : st} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    {/* The source tag leads the title line (as on iOS, #3150) and is never squeezed; a long one
-                        ("Spawned by …") stops at 45% of the line, so the title keeps the rest and truncates (#3577). */}
-                    <div className="flex min-w-0 items-center gap-2">
-                      {sourceLabel && (
-                        <span
-                          data-testid="todo-agent-source"
-                          title={sourceLabel}
-                          className="max-w-[45%] shrink-0 truncate rounded bg-hover px-1.5 py-0.5 text-[10.5px] text-ink-3"
-                        >
-                          {sourceLabel}
-                        </span>
-                      )}
-                      <span data-testid="todo-agent-title" title={displayTitle} className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-ink">
-                        {displayTitle}
-                      </span>
-                      {isExpired && (
-                        <span className="shrink-0 whitespace-nowrap rounded bg-hover px-1.5 py-0.5 text-[10.5px] text-ink-3">{t("todos.ended")}</span>
-                      )}
-                    </div>
-                    <div className="mt-0.5 truncate text-[12px] text-ink-3">{displaySub}</div>
-
-                    {/* Error / Last Text */}
-                    {agent.start_error ? (
-                      <div className="mt-1.5 flex items-center justify-between gap-2 rounded bg-red-tint/50 px-2 py-1 text-[12px] text-red">
-                        <span className="truncate">{t("todos.start_failed", { error: agent.start_error })}</span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void unlinkAgent(agent);
-                          }}
-                          className="shrink-0 font-medium hover:underline"
-                        >
-                          {t("todos.remove")}
-                        </button>
-                      </div>
-                    ) : now || (st === "needs_you" && askText(ix)) ? (
-                      <div className="mt-1 line-clamp-2 text-[12.5px] text-ink-2">
-                        {st === "needs_you" && (
-                          <span className="font-medium text-attention">{t("todos.kicker_line", { kicker })}</span>
-                        )}
-                        {(st === "needs_you" && askText(ix)) || (now && (now.kind === "words" ? plainMarkdown(now.text) : now.text))}
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <span data-testid="todo-agent-time" className="whitespace-nowrap text-[11px] text-ink-3">
-                      {ago(session?.updated_at || agent.linked_at)}
-                    </span>
-                    {!agent.start_error && (
-                      <IconButton
-                        icon="x"
-                        label={t("todos.unlink_agent", { name: displayTitle })}
-                        size={24}
-                        iconSize={12}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void unlinkAgent(agent);
-                        }}
-                      />
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Released Agents (Participated) */}
-        {releasedAgents.length > 0 && (
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={onToggleReleased}
-              className="flex items-center gap-1 text-[12px] text-ink-3 hover:text-ink-2"
-            >
-              <Icon
-                name="chevron"
-                size={11}
-                className={cx("transition-transform duration-200", showReleased ? "rotate-180" : "")}
-              />
-              <span>{t("todos.released_section", { count: releasedAgents.length })}</span>
-            </button>
-            {showReleased && (
-              <div className="mt-2 flex flex-col gap-1.5">
-                {releasedAgents.map((agent) => {
-                  const mName = machines.find((m) => m.id === agent.machine_id)?.name || agent.machine_id;
-                  const displaySub = `${mName} · ${shortPath(agent.cwd)}`;
-                  return (
-                    <div
-                      key={`${agent.machine_id}/${agent.session_id}`}
-                      className="flex items-center justify-between rounded-control border border-line/60 bg-hover/40 px-3 py-2 text-[12px] text-ink-3"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <span className="truncate font-medium text-ink-2">{agent.title || agent.session_id}</span>
-                        <div className="text-[11px] text-ink-3">{displaySub}</div>
-                      </div>
-                      <span className="shrink-0 text-[11px]">{t("todos.left_at", { time: ago(agent.released_at ?? undefined) })}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
       {/* Bottom Action Bar. A done to-do can't be handed over (the hub refuses, #1856): Reopen next to it comes first. A
           failed start is open: Retry (or Hand to agent, which reopens it first) and Complete, which closes it for good as

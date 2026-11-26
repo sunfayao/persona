@@ -364,7 +364,7 @@ export function scopeHaystacks(s: Session, scope: SearchScope, ctx: EvalContext)
         { role: "agent", text: assistantProse },
       ];
     case "user":
-      return [{ role: "user", text: [userAsk, s.title].filter(Boolean).join(" · ") }];
+      return [{ role: "user", text: [userAsk, title].filter(Boolean).join(" · ") }];
     case "assistant":
       return [{ role: "agent", text: assistantProse }];
     case "errors":

@@ -2358,7 +2358,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
         {(tr.notLive || refreshFailed) && <NotLivePill error={refreshFailed} onReload={() => { tr.reload(); onRefresh?.(); }} lower={Boolean(picked && !search.open)} />}
         <div ref={scrollRef} onScroll={onScroll} data-chat-scroll className="relative h-full overflow-y-auto [overflow-anchor:none]">
           <ChatActionsContext.Provider value={actions}>
-          <div data-chat-content className="mx-auto flex w-full max-w-[880px] flex-col gap-3.5 px-5 pt-7 pb-10 sm:px-8">
+          <div data-chat-content className="mx-auto flex w-full max-w-[880px] flex-col gap-3.5 px-4 pt-4 pb-5 sm:px-8 sm:pt-6">
             {session?.start_error && (session.start_error_code ? (
               // a refusal with a code (#1642): the hub's whole sentence in the user's language, its remedy last, under a title
               <div role="alert" data-testid="start-error-coded" className="rounded-control bg-inset px-3 py-2 text-[13px]">
@@ -2498,7 +2498,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
         // at most DOCK_MAX on every width (#5375): what sits over the composer gives up its height first and scrolls in
         // its own box, the chat above shrinks by what the dock takes and is never drawn over. Should the composer alone
         // need more (a keyboard leaving little room), it grows up over the chat (justify-end) instead of down off the screen.
-        className="mx-auto flex max-h-(--dock-max) w-full max-w-[880px] flex-col justify-end gap-2 px-4 pb-4 sm:px-7 [@media(max-height:500px)]:pb-2"
+        className="mx-auto flex max-h-(--dock-max) w-full max-w-[880px] flex-col justify-end gap-1.5 px-3 pb-2 sm:px-7 sm:pb-3 [@media(max-height:500px)]:pb-2"
         style={{ "--dock-max": DOCK_MAX } as React.CSSProperties}
         onInput={pendingRecap ? dismissRecap : undefined}
         onFocus={onDockFocus}
@@ -3009,7 +3009,7 @@ export const Header = memo(function Header({
     .sort((a, b) => (a.slot_index ?? 0) - (b.slot_index ?? 0))
     .map((s) => ({
       key: s.session_id,
-      label: `${tabLabel(s) || sessionTitle(s)} · ${sessionTitle(s)}`,
+      label: [...new Set([tabLabel(s), sessionTitle(s)].filter(Boolean))].join(" · "),
       state: stateOf(s),
       checked: s.session_id === session?.session_id,
       onSelect: () => navigate({ name: "session", mid: s.machine_id, sid: s.session_id }),
@@ -3121,7 +3121,7 @@ export const Header = memo(function Header({
   return (
     <>
       {menu.anchor && <SessionReviewMenuItem onItem={setSessionReviewItems} session={assistant ? undefined : session} busy={starting} ix={interactions} />}
-      <header className="@container flex h-14 shrink-0 items-center gap-2 border-b border-line bg-page/85 px-3 backdrop-blur-md sm:px-4">
+      <header className="@container flex min-h-12 shrink-0 items-center gap-1.5 border-b border-line bg-page px-3 sm:gap-2 sm:px-4">
       <div className={headerSlot(Boolean(topCenter), "start")}>
         {onToggleSidebar && <ChatSidebarButton session={session} counted={!topCenter} onClick={onToggleSidebar} />}
       </div>
@@ -3144,7 +3144,7 @@ export const Header = memo(function Header({
             onDoubleClick={canRename && !chrome?.title ? () => preferTab && primaryTab ? setDialog("rename") : setEditing(true) : undefined}
             title={chrome?.title ? [chrome.title, chrome.sub].filter(Boolean).join(" · ") : [title, titleDetail].filter(Boolean).join("\n")}
             data-chat-title
-            className={cx(titleClass, "cursor-default truncate select-none")}
+            className={cx(titleClass, "line-clamp-2 cursor-default leading-snug wrap-anywhere select-none sm:block sm:truncate")}
           >
             {chrome?.title || title}
           </h1>

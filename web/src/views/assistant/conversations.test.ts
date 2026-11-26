@@ -18,6 +18,11 @@ describe("titles", () => {
     expect(conversationTitle({ title: "什么是 <persona-context> 标签" })).toBe("什么是 <persona-context> 标签");
   });
 
+  it("keeps a manually named conversation literal", () => {
+    const raw = '<persona-context kind="context" title="example">';
+    expect(conversationTitle({ title: raw, title_manual: true })).toBe(raw);
+  });
+
   it("calls the main conversation Persona, whatever its first message was (#1313)", () => {
     expect(conversationTitle({ title: "我的邮箱里最近有哪些需要我处理或回复的邮件？挑重要的说。" }, true)).toBe("Persona");
     expect(conversationTitle({ title: "" }, true)).toBe("Persona");

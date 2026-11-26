@@ -169,6 +169,7 @@ type todoStore interface {
 	LinkTodoSpace(ctx context.Context, todoID, machineID, space string, linkedAt time.Time, keep db.KeptLinks) (string, error)
 	UnlinkTodoSpace(ctx context.Context, todoID, machineID, space string, keep db.KeptLinks) error
 	RenameTodoSpace(ctx context.Context, machineID, oldSpace, newSpace string, keep db.KeptLinks) (bool, error)
+	AttachUnassignedTodoAgent(ctx context.Context, todoID, machineID, sessionID, title, cwd, agent string, linkedAt time.Time) (bool, error)
 	LinkTodoAgentWithSource(ctx context.Context, todoID, machineID, sessionID, title, cwd, agent, startError, source, via string, linkedAt time.Time) ([]string, error)
 	LinkTodoAgentOfDoneTask(ctx context.Context, todoID, machineID, sessionID, title, cwd, agent, startError, source, via string, linkedAt time.Time) ([]string, error)
 	AutoLinkUnlinkedTodoAgent(ctx context.Context, todoID, machineID, sessionID, title, cwd, agent, startError, source, via string, linkedAt time.Time) (bool, []string, error)
@@ -1293,55 +1294,66 @@ func (s *Service) todoRoutes() {
 	})
 
 	// PUT /api/v1/todos/{id}/agents/{mid}/{sid}: link existing agent
-	s.handle("PUT /api/v1/todos/{id}/agents/{mid}/{sid}", func(w http.ResponseWriter, r *http.Request) {
-		if !todoWriter(r) {
-			apierr.Write(w, http.StatusForbidden, errors.New("read-only role cannot modify todos"))
-			return
-		}
-		if err := s.ensureTodosLoaded(r.Context()); err != nil {
-			apierr.Write(w, http.StatusServiceUnavailable, errTodosUnavailable)
-			return
-		}
-		todoID := r.PathValue("id")
-		mid := r.PathValue("mid")
-		sid := r.PathValue("sid")
-
-		tInfo, ok := s.todoNow(todoID)
-		if !ok {
-			apierr.Write(w, http.StatusNotFound, errors.New("todo not found"))
-			return
-		}
-		if tInfo.DoneAt != nil {
-			apierr.Write(w, http.StatusConflict, errors.New("todo is already completed"))
-			return
-		}
-
-		var title, cwd, agent string
-		c, found := s.session(r.Context(), mid, sid)
-		if found {
-			title, cwd, agent = c.Title, c.Cwd, c.Agent
-		}
-		// An extension's token takes no run it cannot be shown (todo_scope.go): one in a hidden space or one off a
-		// to-do it is not shown answers 404; one the computer does not list yet, whose space cannot be told, 409
-		// agent_not_listed, to be tried again (a session just started is answered before its computer lists it).
-		if r.Header.Get(RoleHeader) == roleExtension {
-			if !found {
-				w.Header().Set("Retry-After", strconv.Itoa(todoTakeRetrySeconds))
-				apierr.WriteCode(w, http.StatusConflict, "agent_not_listed", i18n.Err("assistant-todos.agent_not_listed"))
+	linkAgent := func(keepOwner bool) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if !todoWriter(r) || (keepOwner && !fullRole(r)) {
+				apierr.Write(w, http.StatusForbidden, errors.New("read-only role cannot modify todos"))
 				return
 			}
-			if s.todoTakeRefused(r.Context(), mid, c) {
-				apierr.Write(w, http.StatusNotFound, errors.New("agent not found"))
+			if err := s.ensureTodosLoaded(r.Context()); err != nil {
+				apierr.Write(w, http.StatusServiceUnavailable, errTodosUnavailable)
 				return
 			}
+			todoID := r.PathValue("id")
+			mid := r.PathValue("mid")
+			sid := r.PathValue("sid")
+
+			tInfo, ok := s.todoNow(todoID)
+			if !ok {
+				apierr.Write(w, http.StatusNotFound, errors.New("todo not found"))
+				return
+			}
+			if tInfo.DoneAt != nil {
+				apierr.Write(w, http.StatusConflict, errors.New("todo is already completed"))
+				return
+			}
+
+			var title, cwd, agent string
+			c, found := s.session(r.Context(), mid, sid)
+			if found {
+				title, cwd, agent = c.Title, c.Cwd, c.Agent
+			}
+			// An extension's token takes no run it cannot be shown (todo_scope.go): one in a hidden space or one off a
+			// to-do it is not shown answers 404; one the computer does not list yet, whose space cannot be told, 409
+			// agent_not_listed, to be tried again (a session just started is answered before its computer lists it).
+			if keepOwner || r.Header.Get(RoleHeader) == roleExtension {
+				if !found {
+					w.Header().Set("Retry-After", strconv.Itoa(todoTakeRetrySeconds))
+					apierr.WriteCode(w, http.StatusConflict, "agent_not_listed", i18n.Err("assistant-todos.agent_not_listed"))
+					return
+				}
+				if (keepOwner && (c.Archived || c.Assistant || c.HiddenByDirectory() || c.FoldedUnder() != "")) || (r.Header.Get(RoleHeader) == roleExtension && s.todoTakeRefused(r.Context(), mid, c)) {
+					apierr.Write(w, http.StatusNotFound, errors.New("agent not found"))
+					return
+				}
+			}
+			policy := moveTodoAgent
+			if keepOwner {
+				policy = keepTodoAgentOwner
+			}
+			changed, err := s.linkTodoAgentWithPolicy(r.Context(), todoID, mid, sid, title, cwd, agent, "", "manual", "", policy)
+			if err != nil {
+				todoErr(w, err)
+				return
+			}
+			if changed {
+				s.superviseLinkedTodo(r.Context(), todoID) // the user's own todo gets a supervisor (agent_tasks.go)
+			}
+			apierr.WriteJSON(w, map[string]any{"ok": true})
 		}
-		if err := s.linkTodoAgent(r.Context(), todoID, mid, sid, title, cwd, agent); err != nil {
-			todoErr(w, err)
-			return
-		}
-		s.superviseLinkedTodo(r.Context(), todoID) // the user's own todo gets a supervisor (agent_tasks.go)
-		apierr.WriteJSON(w, map[string]any{"ok": true})
-	})
+	}
+	s.handle("PUT /api/v1/todos/{id}/agents/{mid}/{sid}", linkAgent(false))
+	s.handle("PUT /api/v1/todos/{id}/agents/{mid}/{sid}/attach", linkAgent(true))
 
 	// DELETE /api/v1/todos/{id}/agents/{mid}/{sid}: unlink agent (soft unlink: dismissed_at + released_at #762)
 	s.handle("DELETE /api/v1/todos/{id}/agents/{mid}/{sid}", func(w http.ResponseWriter, r *http.Request) {
@@ -1419,6 +1431,8 @@ func todoErr(w http.ResponseWriter, err error) {
 		apierr.Write(w, http.StatusNotFound, err)
 	case errors.Is(err, db.ErrTodoCompleted):
 		apierr.Write(w, http.StatusConflict, err)
+	case errors.Is(err, db.ErrTodoAgentAssigned):
+		apierr.WriteCode(w, http.StatusConflict, "todo_agent_link_conflict", i18n.Err("assistant-todos.agent_link_conflict"))
 	default:
 		apierr.Write(w, http.StatusInternalServerError, err)
 	}
@@ -1805,21 +1819,38 @@ func (s *Service) linkTodoAgentWithSource(ctx context.Context, todoID, mid, sid,
 	return s.linkTodoAgentWithSourceAllowingDone(ctx, todoID, mid, sid, title, cwd, agent, startError, source, via, false)
 }
 
-// linkTodoAgentWithSourceAllowingDone links the agent, refusing a todo that is done (db.ErrTodoCompleted) unless
-// allowDone: agents of done tasks stay linked (tasks_close.go retires them), new ones are not attached by hand.
+// linkTodoAgentWithSourceAllowingDone also accepts a run that started while its to-do was being completed.
 func (s *Service) linkTodoAgentWithSourceAllowingDone(ctx context.Context, todoID, mid, sid, title, cwd, agent, startError, source, via string, allowDone bool) error {
+	policy := moveTodoAgent
+	if allowDone {
+		policy = linkAgentToFinishedTodo
+	}
+	_, err := s.linkTodoAgentWithPolicy(ctx, todoID, mid, sid, title, cwd, agent, startError, source, via, policy)
+	return err
+}
+
+type todoAgentLinkPolicy uint8
+
+const (
+	moveTodoAgent todoAgentLinkPolicy = iota
+	keepTodoAgentOwner
+	linkAgentToFinishedTodo
+)
+
+// linkTodoAgentWithPolicy links the agent and broadcasts only after the ownership write succeeds.
+func (s *Service) linkTodoAgentWithPolicy(ctx context.Context, todoID, mid, sid, title, cwd, agent, startError, source, via string, policy todoAgentLinkPolicy) (bool, error) {
 	if err := s.ensureTodosLoaded(ctx); err != nil {
-		return err
+		return false, err
 	}
 	s.todos.writing.Lock()
-	err := s.writeTodoAgentLink(ctx, todoID, mid, sid, title, cwd, agent, startError, source, via, allowDone)
+	changed, err := s.writeTodoAgentLink(ctx, todoID, mid, sid, title, cwd, agent, startError, source, via, policy)
 	s.todos.writing.Unlock()
-	if err != nil {
-		return err
+	if err != nil || !changed {
+		return false, err
 	}
 	s.linksChanged(ctx)
 	s.todosChanged(ctx)
-	return nil
+	return true, nil
 }
 
 // linkTodoSpaceAgent retires fanout when a newer move/unlink published while the
@@ -1842,14 +1873,14 @@ func (s *Service) linkTodoSpaceAgent(ctx context.Context, todoID, mid, key strin
 		s.todos.writing.Unlock()
 		return false, nil
 	}
-	err := s.writeTodoAgentLink(ctx, todoID, mid, c.SessionID, c.Title, c.Cwd, c.Agent, c.StartError, "space", key, false)
+	changed, err := s.writeTodoAgentLink(ctx, todoID, mid, c.SessionID, c.Title, c.Cwd, c.Agent, c.StartError, "space", key, moveTodoAgent)
 	s.todos.writing.Unlock()
-	return err == nil, err
+	return changed, err
 }
 
 // writeTodoAgentLink writes and publishes a membership with todoBook.writing held.
 // Callers release it before notifying the hub or contacting nodes.
-func (s *Service) writeTodoAgentLink(ctx context.Context, todoID, mid, sid, title, cwd, agent, startError, source, via string, allowDone bool) error {
+func (s *Service) writeTodoAgentLink(ctx context.Context, todoID, mid, sid, title, cwd, agent, startError, source, via string, policy todoAgentLinkPolicy) (bool, error) {
 	now := time.Now().UTC()
 	// A link keeps a directory in a space (identity.InSpace): a run's directory follows its shell's cd, and where it
 	// worked tells the to-do's history as the space's for good (todosHidden, #10941).
@@ -1865,25 +1896,44 @@ func (s *Service) writeTodoAgentLink(ctx context.Context, todoID, mid, sid, titl
 		s.todos.mu.RUnlock()
 	}
 
-	if st := s.todoDB(); st != nil {
+	st := s.todoDB()
+	if st != nil {
 		link := st.LinkTodoAgentWithSource
-		if allowDone {
+		if policy == linkAgentToFinishedTodo {
 			link = st.LinkTodoAgentOfDoneTask
 		}
-		if _, err := link(ctx, todoID, mid, sid, title, cwd, agent, startError, source, via, now); err != nil {
-			return err
+		if policy == keepTodoAgentOwner {
+			changed, err := st.AttachUnassignedTodoAgent(ctx, todoID, mid, sid, title, cwd, agent, now)
+			if err != nil || !changed {
+				return false, err
+			}
+		} else if _, err := link(ctx, todoID, mid, sid, title, cwd, agent, startError, source, via, now); err != nil {
+			return false, err
 		}
 	} else {
 		t, ok := s.todoNow(todoID)
 		if !ok {
-			return db.ErrTodoNotFound
+			return false, db.ErrTodoNotFound
 		}
-		if t.DoneAt != nil && !allowDone {
-			return db.ErrTodoCompleted
+		if t.DoneAt != nil && policy != linkAgentToFinishedTodo {
+			return false, db.ErrTodoCompleted
 		}
 	}
 
 	s.todos.mu.Lock()
+	defer s.todos.mu.Unlock()
+	if policy == keepTodoAgentOwner && st == nil {
+		for id, other := range s.todos.todos {
+			for _, member := range other.Agents {
+				if member.MachineID == mid && member.SessionID == sid && member.ReleasedAt == nil {
+					if id == todoID {
+						return false, nil
+					}
+					return false, db.ErrTodoAgentAssigned
+				}
+			}
+		}
+	}
 	// mark active rows in all other todos (including completed) as released
 	for oid, other := range s.todos.todos {
 		if oid != todoID {
@@ -1930,9 +1980,7 @@ func (s *Service) writeTodoAgentLink(ctx context.Context, todoID, mid, sid, titl
 			s.todos.activeBySession[[2]string{mid, sid}] = todoID
 		}
 	}
-	s.todos.mu.Unlock()
-
-	return nil
+	return true, nil
 }
 
 // failTodo ends a todo whose agent did not start: done, with why, and its agents no longer count for it.

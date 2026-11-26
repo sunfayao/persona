@@ -148,20 +148,41 @@ export function Machines({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   }, []);
   const addAgain = useCallback((again: PendingComputer) => setAdding({ again }), []);
 
+  const views: { v: MachinesView; label: string }[] = [
+    { v: "resources", label: t("resources.title") },
+    { v: "cards", label: t("machines.view_cards") },
+    { v: "capabilities", label: t("machines.view_capabilities") },
+    { v: "procs", label: t("machines.view_procs") },
+    { v: "services", label: t("machines.view_services") },
+    { v: "files", label: t("machines.view_files") },
+    { v: "toolchain", label: t("machines.view_toolchain") },
+    { v: "network", label: t("machines-network.tab_label") },
+    { v: "storage", label: t("machines.view_storage") },
+  ];
   const add = (
-    <Button tone="primary" icon="plus" onClick={() => (canAdd ? setAdding({ again: null }) : setHelping(true))}>
-      {t("machines.add")}
+    <Button tone="primary" icon="plus" title={t("machines.add")} onClick={() => (canAdd ? setAdding({ again: null }) : setHelping(true))}>
+      <span className="@max-[26rem]/machine-views:sr-only">{t("machines.add")}</span>
     </Button>
   );
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-line px-3 sm:px-4">
+      <header className="@container/machine-views flex min-h-12 shrink-0 items-center gap-2 border-b border-line px-3 py-1 sm:px-4">
         <IconButton icon="sidebar" label={t("machines.sidebar")} onClick={onToggleSidebar} className="lg:hidden" />
-        <h1 className="text-[14px] font-semibold text-ink">{t("machines.title")}</h1>
+        <h1 className="shrink-0 text-sm font-semibold text-ink">{t("machines.title")}</h1>
         <div className="flex-1" />
-        {<Segmented compact value={view} onChange={chooseView} label={t("machines.view_label")} options={[{ v: "resources", label: t("resources.title") }, { v: "cards", label: t("machines.view_cards") }, { v: "capabilities", label: t("machines.view_capabilities") }, { v: "procs", label: t("machines.view_procs") }, { v: "services", label: t("machines.view_services") }, { v: "files", label: t("machines.view_files") }, { v: "toolchain", label: t("machines.view_toolchain") }, { v: "network", label: t("machines-network.tab_label") }, { v: "storage", label: t("machines.view_storage") }]} />}
-        <span className="text-[11.5px] text-ink-3 max-sm:hidden">{t("machines.refresh_interval", { seconds: 10 })}</span>
+        <select
+          aria-label={t("machines.view_label")}
+          value={view}
+          onChange={(event) => chooseView(event.target.value as MachinesView)}
+          className="h-8 min-w-0 max-w-48 rounded-control bg-field px-2.5 text-meta text-ink shadow-inset-field pointer-coarse:min-h-11 @min-[72rem]/machine-views:hidden"
+        >
+          {views.map(({ v, label }) => <option key={v} value={v}>{label}</option>)}
+        </select>
+        <div className="hidden @min-[72rem]/machine-views:block">
+          <Segmented compact value={view} onChange={chooseView} label={t("machines.view_label")} options={views} />
+        </div>
+        <span className="hidden shrink-0 text-submeta text-ink-3 @min-[42rem]/machine-views:block">{t("machines.refresh_interval", { seconds: 10 })}</span>
         {machines.length > 0 && canAdd && add}
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto">

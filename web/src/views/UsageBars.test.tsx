@@ -40,12 +40,13 @@ describe("the sidebar's usage strip", () => {
     // all samples older than three days
     expect(renderToStaticMarkup(<UsageBars accounts={[account("a", 10, 10, { sampled_at: iso(-80 * H) })]} now={NOW} />)).toBe("");
   });
-  it("shows the two fullest accounts as bars, the caution colour from 80%", () => {
-    const html = renderToStaticMarkup(<UsageBars accounts={[account("a", 10, 20), account("b", 85, 30), account("c", 50, 60)]} now={NOW} />);
+  it("shows the tightest two distinct providers, the caution colour from 80%", () => {
+    const html = renderToStaticMarkup(<UsageBars accounts={[account("a", 82, 20), account("b", 85, 30), account("c", 50, 60, { provider: "claude" })]} now={NOW} />);
     expect(html.match(/role="progressbar"/g)).toHaveLength(2);
     expect(html).toContain("账号 b");
     expect(html).toContain("账号 c");
     expect(html).not.toContain("账号 a");
+    expect(html).toContain("详情中还有 1 项");
     expect(html).toMatch(/bg-orange[^>]*style="width:85%/);
     expect(html).toMatch(/bg-accent[^>]*style="width:60%/);
     expect(html).toContain('aria-expanded="false"');
@@ -59,10 +60,20 @@ describe("the sidebar's usage strip", () => {
       expect(host.querySelector("[role=dialog]")).toBeNull();
       await act(async () => host.querySelector<HTMLButtonElement>("[data-usage-bars] > button")!.click());
       await vi.waitFor(() => expect(host.querySelector("[role=dialog]")?.textContent).toContain("5h"));
-      const dialog = host.querySelector("[role=dialog]");
-      expect(dialog?.textContent).toContain("网关暂时读不到，显示的是上次的数字");
-      await act(async () => host.querySelector<HTMLButtonElement>("[data-usage-bars] > button")!.click());
+      const dialog = host.querySelector<HTMLElement>("[role=dialog]")!;
+      expect(dialog.textContent).toContain("网关暂时读不到，显示的是上次的数字");
+      const compact = Array.from(dialog.querySelectorAll("button")).find((button) => button.textContent === "紧凑")!;
+      await act(async () => compact.click());
+      expect(dialog.querySelector("[data-usage-provider]")).toBeNull();
+      const provider = dialog.querySelector<HTMLButtonElement>("button[aria-expanded]")!;
+      expect(provider.textContent).toContain("Codex");
+      await act(async () => provider.click());
+      expect(provider.getAttribute("aria-expanded")).toBe("true");
+      expect(dialog.querySelector("[data-usage-provider=codex]")?.textContent).toContain("5h");
+      provider.focus();
+      await act(async () => provider.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
       expect(host.querySelector("[role=dialog]")).toBeNull();
+      expect(document.activeElement).toBe(host.querySelector("[data-usage-bars] > button"));
     } finally {
       await act(async () => root.unmount());
       host.remove();
@@ -80,7 +91,7 @@ describe("the sidebar's usage strip", () => {
 
 describe("a prepaid balance in the sidebar (#11825)", () => {
   it("shows the amount and currency beside the two fullest window accounts", () => {
-    const html = renderToStaticMarkup(<UsageBars accounts={[balanceAccount("ds", "12.34"), account("a", 10, 20), account("b", 85, 30), account("c", 50, 60)]} now={NOW} />);
+    const html = renderToStaticMarkup(<UsageBars accounts={[balanceAccount("ds", "12.34"), account("a", 10, 20), account("b", 85, 30), account("c", 50, 60, { provider: "claude" })]} now={NOW} />);
     expect(html).toContain("CNY 12.34");
     expect(html.match(/role="progressbar"/g)).toHaveLength(2); // the balance takes no bar
     expect(html).toContain("账号 b");

@@ -14,7 +14,62 @@ const firstText = "Review the weather fixture";
 const target = { machine_id: "macbook", source_id: "w1", source: "herdr", cwd, title: "weather" };
 const fixtureModel = { id: "claude-fixture", name: "Preview model", efforts: ["medium", "high"] };
 
+async function verifyDesktopProjectFolder(theme, selected) {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: theme, locale: "en-US" });
+  try {
+    const page = await context.newPage();
+    page.setDefaultTimeout(12_000);
+    await page.addInitScript((theme) => {
+      localStorage.setItem("persona.theme", theme);
+      localStorage.setItem("persona.language", "en");
+    }, theme);
+    const launchers = [
+      { name: "codex", agent: "codex", source: "zshrc" },
+      { name: "agy", agent: "agy", source: "agy" },
+      { name: "traex", agent: "traex", source: "zshrc" },
+      { name: "claude-desktop", agent: "claude", source: "claude_desktop" },
+    ];
+    await page.route("**/api/v1/pins", (route) => route.fulfill({ json: { spaces: [], sessions: [] } }));
+    await page.route("**/api/v1/workspaces", (route) => route.fulfill({ json: { workspaces: [{ ...target, source: "claude_desktop" }] } }));
+    await page.route("**/api/v1/machines/macbook/launchers", (route) =>
+      route.fulfill({ json: { default: { provider: "codex" }, launchers } }));
+    await page.route("**/api/v1/machines/macbook/launchers/*/models*", (route) => {
+      const launcher = launchers.find((l) => new URL(route.request().url()).pathname.endsWith(`/${l.name}/models`));
+      return route.fulfill({ json: { agent: launcher?.agent, models: [{ id: launcher?.name, name: `Fixture ${launcher?.name}` }] } });
+    });
+    await page.route("**/api/v1/sessions", (route) => route.request().method() === "POST"
+      ? route.fulfill({ status: 409, json: { code: "fixture_blocked", error: "Synthetic startup refusal", delivered: "none" } })
+      : route.continue());
+
+    await page.goto(`${url}/?token=mock`);
+    await page.locator(`[data-session-group='${JSON.stringify([target.machine_id, target.source_id])}'] [data-space-add] button`).first().click();
+    const draft = page.getByTestId("folder-agent-draft");
+    await draft.locator("button[data-model-pill=ready]").click();
+    const picker = page.locator("[data-model-panel]");
+    const provider = (name) => picker.locator(`[data-panel-side="${name}"]`);
+    await provider("claude-desktop").waitFor();
+    for (const { name } of launchers) await provider(name).waitFor({ timeout: 3000 });
+    await page.screenshot({ path: join(captures, `desktop-folder-${theme}.png`) });
+    await provider(selected).click();
+    await picker.getByText(`Fixture ${selected}`, { exact: true }).click();
+    await draft.locator("textarea").fill(firstText);
+    const request = page.waitForRequest((req) => req.method() === "POST" && new URL(req.url()).pathname === "/api/v1/sessions");
+    await draft.getByTestId("composer-send").click();
+    const body = (await request).postDataJSON();
+    assert.equal(body.cwd, cwd);
+    assert.equal(body.launcher, selected);
+    assert.equal(body.workspace_id, undefined);
+    assert.equal(body.host, selected === "claude-desktop" ? undefined : "herdr");
+    assert.equal(body.desktop_project_id, selected === "claude-desktop" ? target.source_id : undefined);
+    console.log(`PASS ${theme}: all Mac launchers remain selectable in a desktop project folder; ${selected} keeps the correct destination`);
+  } finally {
+    await context.close();
+  }
+}
+
 try {
+  await verifyDesktopProjectFolder("dark", "traex");
+  await verifyDesktopProjectFolder("light", "claude-desktop");
   for (const [theme, narrow] of [["dark", false], ["light", false], ["dark", true]]) {
     const tag = theme + (narrow ? "-narrow" : "-wide");
     const context = await browser.newContext({

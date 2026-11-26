@@ -7,12 +7,10 @@ import { Icon, type IconName } from "./icons";
 // The panel's header: an icon, a title (and a quieter line under it), actions, and ×.
 export function PanelHeader({ icon, title, subtitle, actions, onClose }: { icon: IconName; title: React.ReactNode; subtitle?: React.ReactNode; actions?: React.ReactNode; onClose: () => void }) {
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-line px-3">
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-[8px] bg-field text-ink-2">
-        <Icon name={icon} size={14} />
-      </span>
+    <header className="flex min-h-12 shrink-0 items-center gap-2 border-b border-line px-3 py-2">
+      <Icon name={icon} size={16} className="shrink-0 text-ink-3" />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[13.5px] font-semibold text-ink">{title}</div>
+        <div className="truncate text-sm leading-snug font-semibold text-ink max-sm:whitespace-normal max-sm:break-words">{title}</div>
         {subtitle && <div className="truncate text-[11.5px] text-ink-3">{subtitle}</div>}
       </div>
       {actions}

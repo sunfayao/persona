@@ -63,12 +63,13 @@ export function FolderAgentDraft({ draft, onToggleSidebar }: { draft: Draft; onT
     void api<WorkspaceCatalogList>("/workspaces", { signal, headers: { [MANAGER_HEADER]: manager } }).then(({ workspaces }) => {
       if (signal.aborted) return;
       const places = (workspaces ?? []).filter((w) => w.machine_id === mid && w.source_id === draft.spaceId && directoryKey(w.cwd) === directoryKey(cwd));
-      if (places.length === 1) {
-        const place = workspaceTarget(places[0], draft.owner, manager);
-        draft.workspace = place;
-        setWorkspace(place);
-      }
-      setPlaceStatus(places.length > 1 ? "unavailable" : "ready");
+      const terminalPlaces = places.filter((w) => !startsInDesktopApp({ source: w.source }));
+      const candidates = terminalPlaces.length ? terminalPlaces : places;
+      const place = candidates.length === 1 ? workspaceTarget(candidates[0], draft.owner, manager) : undefined;
+      // A desktop entry found by folder lookup is optional. Only an explicit desktop target can pin the draft to that app.
+      if (place && terminalPlaces.length) draft.workspace = place;
+      setWorkspace(place);
+      setPlaceStatus(terminalPlaces.length > 1 ? "unavailable" : "ready");
     }).catch((error) => {
       if (signal.aborted) return;
       setPlaceStatus(error instanceof ApiError && error.status === 404 ? "ready" : "unavailable");
@@ -76,18 +77,22 @@ export function FolderAgentDraft({ draft, onToggleSidebar }: { draft: Draft; onT
     return () => controller.abort();
   }, [draft, mid, manager, online, cwd, retry]);
 
-  const desktopSource = workspace?.host === CODEX_APP_SOURCE || workspace?.host === CLAUDE_DESKTOP ? workspace.host
+  const pinnedDesktopSource = startsInDesktopApp({ source: draft.workspace?.host }) ? draft.workspace?.host
     : draft.desktopProjectId && choice.launcher === "codex-app" ? CODEX_APP_SOURCE
     : draft.desktopProjectId && choice.launcher === "claude-desktop" ? CLAUDE_DESKTOP : undefined;
-  const host = desktopSource ? undefined : workspace?.host || draft.host || undefined;
+  const folderDesktopSource = startsInDesktopApp({ source: workspace?.host }) ? workspace?.host : undefined;
+  const terminalWorkspace = folderDesktopSource ? undefined : workspace;
+  const host = pinnedDesktopSource ? undefined : terminalWorkspace?.host || draft.host || undefined;
   const startHost = host || (machine ? currentHosts(machine).default : "");
-  const hostCurrent = !host || !machine || startHosts(machine).includes(host);
-  const launchers = (options?.list.launchers ?? []).filter((l) => desktopSource ? l.source === desktopSource : !startsInDesktopApp(l));
+  const launchers = (options?.list.launchers ?? []).filter((l) => pinnedDesktopSource ? l.source === pinnedDesktopSource
+    : !startsInDesktopApp(l) || l.source === folderDesktopSource);
   const configuredProvider = pickerLauncher("", options?.effective ?? {});
   const configured = configuredProvider && launchers.some((l) => l.name === configuredProvider) ? options?.effective ?? null : null;
   const picked = choice.launcher || (!configured ? initialLauncher(null, launchers) : "");
   const runs = pickerLauncher(picked, followedBinding(picked, configured));
   const launcher = launchers.find((l) => l.name === runs);
+  const desktopStart = startsInDesktopApp(launcher);
+  const hostCurrent = desktopStart || !host || !machine || startHosts(machine).includes(host);
   const followed = followedBinding(picked, configured);
   const models = useModelList(mid, runs, startCatalogHost(launcher, host, startHost));
   const agent = launcherAgent(runs, launchers, models.list);
@@ -96,7 +101,7 @@ export function FolderAgentDraft({ draft, onToggleSidebar }: { draft: Draft; onT
   const modes = providerModes ?? (launcher && (agent === "claude" || agent === "agy") ? PERMISSION_MODES.map((m) => m.id) : []);
   const permissionMode = modes.includes(mode) ? mode : undefined;
   const draftKey = `agent-draft/${draft.id}`;
-  const launcherPinned = Boolean(choice.launcher || desktopSource);
+  const launcherPinned = Boolean(choice.launcher || pinnedDesktopSource);
   const launcherReady = !launcherPinned || Boolean(launcher);
   const retryCatalog = () => setRetry((n) => n + 1);
   const blocked = !sameOwner || !hostCurrent ? { label: t("newagent.draft_destination_changed") }
@@ -130,9 +135,9 @@ export function FolderAgentDraft({ draft, onToggleSidebar }: { draft: Draft; onT
       const target = agent === "codex" ? { agentType: "codex", inlinePrompt: true } : inline;
       draft.submitting = true;
       const id = launchAgent({
-        machineId: mid, cwd, host, workspaceId: desktopSource ? undefined : workspace?.workspaceId,
-        desktopProjectId: desktopSource ? workspace?.workspaceId || draft.desktopProjectId : undefined,
-        launcher: desktopSource ? runs : picked, ...picks, permissionMode,
+        machineId: mid, cwd, host: desktopStart ? undefined : host, workspaceId: desktopStart ? undefined : terminalWorkspace?.workspaceId,
+        desktopProjectId: desktopStart ? (folderDesktopSource === launcher?.source ? workspace?.workspaceId : undefined) || draft.desktopProjectId : undefined,
+        launcher: desktopStart ? runs : picked, ...picks, permissionMode,
         displayLauncher: runs || undefined, displayEngine: runs ? agentId(providerAgent(agent, runs)) : undefined,
         displayModel: resolvedStartModel({ model: picks.model, followed, launcher, list: models.list }),
         launcherDefaultEffort: (agent === "agy" || agent === "codex" && models.list?.supports_start_effort) && Boolean(picked) && !picks.effort || undefined,

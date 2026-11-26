@@ -839,6 +839,11 @@ export async function linkAgentToTodo(todoId: string, mid: string, sid: string):
   await api(`/todos/${enc(todoId)}/agents/${enc(mid)}/${enc(sid)}`, { method: "PUT" });
 }
 
+/** Attach an available session and fail closed if another to-do has it by the time the write arrives. */
+export async function attachUnassignedTodoAgent(todoId: string, mid: string, sid: string): Promise<void> {
+  await api(`/todos/${enc(todoId)}/agents/${enc(mid)}/${enc(sid)}/attach`, { method: "PUT" });
+}
+
 export async function unlinkAgentFromTodo(todoId: string, mid: string, sid: string): Promise<void> {
   await api(`/todos/${enc(todoId)}/agents/${enc(mid)}/${enc(sid)}`, { method: "DELETE" });
 }

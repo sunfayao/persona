@@ -227,6 +227,40 @@ func TestCodexAppChatsAreListedLikeTheSidebar(t *testing.T) {
 	}
 }
 
+func TestTraexNativeContextPrefixTitle(t *testing.T) {
+	n := remoteTestNode(t)
+	home, project := n.traexHome(), t.TempDir()
+	const prompt = `<persona-context kind="context" title="Release notes" url="">
+A quoted source paragraph.
+</persona-context>
+
+Review the release checklist`
+	const manual = "Review the <persona-context> transport"
+	writeCodexApp(t, home, project, codexAppSchema+
+		codexAppRow(appChat, "", project, prompt[:36], time.Now(), 0)+
+		codexAppRow(appMigrated, "", project, prompt[:43], time.Now(), 0)+
+		codexAppRow(appOld, "", project, manual, time.Now(), 0)+
+		`ALTER TABLE threads ADD COLUMN history_mode TEXT DEFAULT 'paginated';
+      UPDATE threads SET title = '`+prompt+`';`)
+	writeCodexHistory(t, home, []historyTurn{{thread: appChat, id: "turn-1", status: "completed",
+		ordinal: 1, items: [][2]string{userItem("u1", prompt)}}})
+	history := n.traexSessions(map[string]bool{})
+	for id, want := range map[string]string{appChat: "Review the release checklist", appMigrated: "Review the release checklist", appOld: manual} {
+		if got := n.traexTitle(id); got != want {
+			t.Errorf("live: got %q, want %q", got, want)
+		}
+		var got string
+		for _, s := range history {
+			if s.SessionID == id {
+				got = s.Title
+			}
+		}
+		if got != want {
+			t.Errorf("history: got %q, want %q", got, want)
+		}
+	}
+}
+
 func TestPaginatedOpeningPromptIsOnlyAListTitle(t *testing.T) {
 	n := remoteTestNode(t)
 	home, project := n.codexHome(), t.TempDir()
