@@ -59,6 +59,8 @@ type sessionState struct {
 	StartedAt               time.Time       `json:"started_at"`
 	StopCause               proto.StopCause `json:"stop_cause,omitempty"`
 	StopCauseAt             int64           `json:"stop_cause_at,omitempty"`
+	// ResumeRequired preserves the legacy Retire action without assigning it a stop cause.
+	ResumeRequired bool `json:"resume_required,omitempty"`
 	// RanAt: when a node last saw the Agent run (unix seconds, written at most every ranAtEvery). A session whose agent
 	// ran until shortly before this node started and is gone now was stopped by the restart (interrupted.go, #11441).
 	RanAt int64 `json:"ran_at,omitempty"`

@@ -226,6 +226,7 @@ func (n *Node) startOtherAgent(ctx context.Context, launch host.Launcher, cwd, l
 				state = previous
 				state.Pane, state.Launcher, state.Cwd = pane, launcher, cwd
 				state.StopCause = proto.StopUnknown
+				state.ResumeRequired = false
 			}
 		}
 		n.putAgentState(ctx, launch, id, state)

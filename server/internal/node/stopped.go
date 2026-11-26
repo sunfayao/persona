@@ -27,7 +27,7 @@ const stoppedReason = "Agent 已停止：对话和终端可以看，它不再收
 // and automatic recovery outcomes retain their explicit Resume action.
 func (n *Node) terminalExitLaunch(id string) (sessionState, bool) {
 	st, ok := n.state.get(id)
-	if !ok || st.Pane == "" || st.Cwd == "" || st.Launcher == "" ||
+	if !ok || st.ResumeRequired || st.Pane == "" || st.Cwd == "" || st.Launcher == "" ||
 		(st.StopCause != proto.StopUnknown && st.StopCause != proto.StopExit) {
 		return st, false
 	}

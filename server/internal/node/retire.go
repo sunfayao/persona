@@ -51,7 +51,7 @@ var (
 // an after-exit close keeps the cause the Agent stopped with.
 func (n *Node) retire(ctx context.Context, id string, closeTerminal, afterExit bool, cause proto.StopCause) (done bool, err error) {
 	if !closeTerminal {
-		return n.stopWithCause(ctx, id, true, proto.StopUser)
+		return n.stopWithCause(ctx, id, true, proto.StopUnknown)
 	}
 	release := n.recovery.lock(id)
 	defer release()
@@ -127,7 +127,7 @@ func (n *Node) stopWithCause(ctx context.Context, id string, retire bool, cause 
 	}
 	stopped, err = n.quitAgent(ctx, id, a.PaneID)
 	if stopped && err == nil {
-		n.state.stopped(id, cause)
+		n.state.stopped(id, cause, retire && cause == proto.StopUnknown)
 	}
 	return stopped, err
 }

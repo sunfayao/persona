@@ -12,10 +12,11 @@ import (
 	"github.com/nwverse/persona/server/internal/transcript"
 )
 
-func (s *stateFile) stopped(id string, cause proto.StopCause) {
+func (s *stateFile) stopped(id string, cause proto.StopCause, requireResume ...bool) {
 	s.update(id, func(v *sessionState) bool {
 		v.StopCause = cause
 		v.StopCauseAt = max(time.Now().UnixNano(), v.StopCauseAt+1)
+		v.ResumeRequired = len(requireResume) > 0 && requireResume[0]
 		return true
 	})
 }
@@ -34,8 +35,9 @@ func (n *Node) recordRunning(id string) {
 	now := time.Now()
 	n.state.update(id, func(v *sessionState) bool {
 		changed := false
-		if v.StopCause != proto.StopUnknown {
+		if v.StopCause != proto.StopUnknown || v.ResumeRequired {
 			v.StopCause = proto.StopUnknown
+			v.ResumeRequired = false
 			v.StopCauseAt = max(now.UnixNano(), v.StopCauseAt+1)
 			changed = true
 		}
