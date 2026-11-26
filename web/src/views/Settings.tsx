@@ -14,6 +14,7 @@ import { install, useInstall, type InstallState } from "../lib/pwa";
 import { useStore } from "../lib/store";
 import { Button, cx, Dialog, EASE, IconButton, Loading, Menu, Spinner, toast, useMenu } from "../ui/atoms";
 import { Icon, type IconName } from "../ui/icons";
+import { SegmentedTrack } from "../ui/Segmented";
 import { setTheme, useTheme, type Theme } from "./theme";
 import { Group, Row, Pill, RowConfirm } from "./settings/SettingsParts";
 import { LanguageRow } from "./settings/LanguageRow";
@@ -228,14 +229,11 @@ export function Settings({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   );
 }
 
-/** The desktop left sidebar: a "Settings" title, then the categories. */
+/** The desktop category list sits under the page title. */
 function SettingsNav({ tab, onPick, contentId }: { tab: Tab; onPick: (k: Tab) => void; contentId: string }) {
   return (
-    <aside className="flex w-[236px] shrink-0 flex-col border-r border-line bg-inset">
-      <div className="shrink-0 border-b border-line px-3 pt-3 pb-2.5">
-        <div className="text-[14px] font-semibold text-ink">{t("settings.title")}</div>
-      </div>
-      <nav aria-label={t("settings.categories")} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
+    <aside className="flex w-44 shrink-0 flex-col border-r border-line bg-inset lg:w-48">
+      <nav aria-label={t("settings.categories")} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 pt-3">
         {TABS.map((k) => <NavRow key={k} k={k} selected={tab === k} contentId={contentId} onPick={onPick} />)}
       </nav>
     </aside>
@@ -290,22 +288,25 @@ function General() {
   return (
     <>
       <Group title={t("settings.appearance")} anchor="appearance">
-        <div className="flex gap-2 p-3" data-settings-row="theme">
-          {themes.map((th) => (
-            <button
-              key={th.k}
-              type="button"
-              onClick={() => setTheme(th.k)}
-              aria-pressed={theme === th.k}
-              className={cx(
-                "flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-control px-3 py-2 text-[12.5px] transition-[background-color,box-shadow,color] duration-150",
-                theme === th.k ? "bg-accent-tint font-medium text-accent-ink shadow-[inset_0_0_0_1px_var(--accent)]" : "text-ink-2 shadow-hairline hover:bg-hover",
-              )}
-            >
-              <Icon name={th.icon} size={14} />
-              {th.label}
-            </button>
-          ))}
+        <div className="p-2" data-settings-row="theme">
+          <SegmentedTrack role="group" label={t("settings.appearance")} className="flex rounded-control p-0.5" thumbClassName="rounded-chip">
+            {themes.map((th) => (
+              <button
+                key={th.k}
+                type="button"
+                onClick={() => setTheme(th.k)}
+                data-selected={theme === th.k}
+                aria-pressed={theme === th.k}
+                className={cx(
+                  "relative z-[1] flex min-h-8 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-chip px-2 text-meta transition-colors duration-150 pointer-coarse:min-h-11",
+                  theme === th.k ? "font-medium text-ink" : "text-ink-2 hover:text-ink",
+                )}
+              >
+                <Icon name={th.icon} size={14} />
+                {th.label}
+              </button>
+            ))}
+          </SegmentedTrack>
         </div>
         <LanguageRow />
       </Group>

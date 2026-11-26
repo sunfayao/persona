@@ -8,15 +8,15 @@ export const settingsInputClass =
 
 export function Group({ title, footer, children, right, anchor }: { title?: React.ReactNode; footer?: React.ReactNode; children: React.ReactNode; right?: React.ReactNode; anchor?: string }) {
   return (
-    <section className="mb-6" data-settings-group={anchor}>
+    <section className="mb-5 last:mb-0" data-settings-group={anchor}>
       {(title || right) && (
-        <div className="mb-1.5 flex items-end gap-2 px-1">
-          <h2 className="flex-1 text-[12px] font-medium text-ink-3">{title}</h2>
+        <div className="mb-2 flex items-center justify-end gap-2">
+          {title && <h2 className="min-w-0 flex-1 text-sm font-semibold text-ink">{title}</h2>}
           {right}
         </div>
       )}
       <div className="divide-y divide-line overflow-hidden rounded-card bg-surface shadow-card">{children}</div>
-      {footer && <p className="mt-1.5 px-1 text-[11.5px] leading-relaxed text-ink-3">{footer}</p>}
+      {footer && <p className="mt-1.5 text-submeta leading-relaxed text-ink-3">{footer}</p>}
     </section>
   );
 }
@@ -96,13 +96,13 @@ export function Row({ label, hint, children, onClick, mono, icon, wrapHint, wrap
   const body = (
     <>
       {icon && (
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-control bg-inset text-ink-2 shadow-hairline">
-          <Icon name={icon} size={14} />
+        <span className="flex shrink-0 items-center justify-center text-ink-3">
+          <Icon name={icon} size={16} />
         </span>
       )}
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[13px] text-ink">{label}</div>
-        {hint && <div className={cx("mt-0.5 text-[11.5px] text-ink-3", wrapHint ? "leading-snug" : "truncate")}>{hint}</div>}
+        <div className="truncate text-meta font-medium text-ink max-sm:whitespace-normal max-sm:break-words">{label}</div>
+        {hint && <div className={cx("mt-0.5 text-[11.5px] text-ink-3", wrapHint ? "leading-snug" : "truncate max-sm:whitespace-normal max-sm:break-words")}>{hint}</div>}
       </div>
       {children !== undefined && <div className={cx("flex min-w-0 items-center gap-2 text-[12.5px] text-ink-2", wrapValue ? "max-w-1/2 shrink break-all" : "shrink-0", stackOnNarrow && "max-sm:w-full", mono && "font-mono")}>{children}</div>}
       {onClick && <Icon name="chevronRight" size={12} stroke={2} className="shrink-0 text-ink-3" />}
@@ -136,7 +136,7 @@ export function Pill({ children, tone, animated, wrap }: { children: React.React
       style={animated ? { transitionTimingFunction: EASE } : undefined}
       className={cx(
         animated && "transition-[background-color,color,box-shadow] duration-300",
-        "inline-flex items-center rounded-full px-1.5 text-[11px] font-medium",
+        "inline-flex items-center rounded-full px-1.5 text-submeta font-medium",
         wrap ? "min-h-5 max-w-full whitespace-normal break-words py-0.5" : "h-5 shrink-0 whitespace-nowrap",
         tone === "accent" ? "bg-accent-tint text-accent-ink" : tone === "green" ? "bg-green-tint text-green" : tone === "red" ? "bg-red-tint text-red" : tone === "orange" ? "bg-orange-tint text-orange" : "bg-inset text-ink-2 shadow-hairline",
       )}

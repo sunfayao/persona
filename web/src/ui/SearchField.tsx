@@ -45,7 +45,7 @@ export function SearchField({
   autoFocus?: boolean;
 }) {
   return (
-    <label className={cx("flex items-center gap-2 rounded-control", size === "sm" ? "h-8 px-2.5" : "h-9 px-3", TONE[tone], SEARCH_FOCUS, className)}>
+    <label className={cx("flex min-w-0 items-center gap-2 rounded-control transition-shadow duration-150", size === "sm" ? "h-8 px-2.5" : "h-9 px-3", TONE[tone], SEARCH_FOCUS, className)}>
       {icon && <Icon name="search" size={13} stroke={2} className="shrink-0 text-ink-3" />}
       <input
         value={value}

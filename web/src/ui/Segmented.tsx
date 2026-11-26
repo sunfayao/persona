@@ -15,7 +15,7 @@ export function selectedBox(track: HTMLElement): ThumbBox | null {
  *  chosen segment (a transform, 200 ms on the design system's ease; none under reduced motion). The segments are the
  *  children, each a button marked `data-selected` and `relative z-[1]`; roles and keyboard stay the callers'. The thumb
  *  starts where it belongs, it does not slide in on the first paint. */
-export function SegmentedTrack({ role, label, className, thumbClassName, children, ...rest }: { role: "radiogroup" | "tablist"; label: string; className?: string; thumbClassName: string; children: React.ReactNode } & Omit<React.HTMLAttributes<HTMLDivElement>, "role" | "className">) {
+export function SegmentedTrack({ role, label, className, thumbClassName, children, ...rest }: { role: "radiogroup" | "tablist" | "group"; label: string; className?: string; thumbClassName: string; children: React.ReactNode } & Omit<React.HTMLAttributes<HTMLDivElement>, "role" | "className">) {
   const ref = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<ThumbBox | null>(null);
   const [ready, setReady] = useState(false);

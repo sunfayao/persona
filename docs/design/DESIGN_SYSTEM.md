@@ -221,6 +221,8 @@ Sizes scale with the text size.
 
 Web has seven shadow tokens (`web/src/styles.css:68-74`) plus `--shadow-knob` for the switch knob. Other shadows are inline literals. See DS-08.
 
+Static cards use a single hairline. Editable fields have a flat inset edge and pick up the accent on focus. Elevation identifies popovers, menus and other surfaces floating above the page. Settings groups use a clear heading and shared dividers. A form or side panel can use its leading icon directly on the surface.
+
 ### 2.7 Motion
 
 | Token | Value | Use |
@@ -819,6 +821,8 @@ A list row found by what is inside it, not by its own name (a Persona chat found
 - Icon buttons use a 44 px frame around a smaller visual (composer round button, viewer chrome).
 - Web buttons are 32 px tall (hit area expanded on touch). The web's touch target is `touch-hit` (an invisible 44 px square centred on the control); a ✕ in a tile's corner (an attachment's remove) uses `touch-hit-corner` instead (#11442), whose area grows out of the corner and only `--hit-in-x` / `--hit-in-y` (6 px by default) into the tile, so the tile's middle keeps its own tap. Icon buttons packed 4 px apart in a row (the Agents title row's Filter, ⋯ and +) take a real 44 px box on coarse pointers (`[@media(pointer:coarse)]:size-11`), as the fold-all button does (#10637), since centred `touch-hit` squares would overlap and the later sibling would take the earlier one's taps (#11511). A row that folds (By to-do's branch rows) is 44 px there, and its chevron, unpositioned, lets its `touch-hit` take the whole row; controls with their own action stay positioned above it. Android: Large 48, Medium 40, Small 32 dp drawn, each taking taps across 48 dp: Compose extends a smaller control's touch target to 48 dp unless a clipping parent cuts it off, so a frame around small controls clips with `clipDrawing`, not `clip` (DS-06; `TouchTargetTest` checks buttons, chips, switches and segments in every style).
 - A group of actions has at most one solid primary button. A recommended choice has an outline and a "Recommended" tag, not a second solid button. Red is for failure and destructive actions only.
+
+Web secondary actions use a neutral fill and quiet actions pick up their fill on hover. Text and icon buttons give a small press response when motion is enabled. In a touch menu long action names wrap and each row grows to fit. Menus show one state mark per item. Keyboard focus stays visible on every action.
 
 ### 3.7.1 Switches (web)
 

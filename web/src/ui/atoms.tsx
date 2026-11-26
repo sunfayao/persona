@@ -146,7 +146,7 @@ export function IconButton({
       onClick={onClick}
       onKeyDown={onKeyDown}
       className={cx(
-        "touch-hit flex shrink-0 items-center justify-center rounded-[8px] transition-[background-color,color,transform] duration-150 enabled:active:scale-[0.94] disabled:opacity-40",
+        "touch-hit flex shrink-0 items-center justify-center rounded-control transition-[background-color,color,scale] duration-150 ease-out-strong motion-safe:enabled:active:scale-95 disabled:opacity-40",
         active || pressed ? "bg-hover text-ink" : "text-ink-3 enabled:hover:bg-hover enabled:hover:text-ink",
         className,
       )}
@@ -201,28 +201,27 @@ export function Button({
   /** The button, for a page that hands the focus back to it (not the link's: `href` draws an <a>). */
   ref?: React.Ref<HTMLButtonElement>;
 }) {
-  const base = cx("inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-control px-3 text-[12.5px] font-medium transition-[background-color,color,transform,opacity,filter] duration-150", size === "sm" ? "h-7" : "h-8");
+  const base = cx("touch-hit inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-control px-3 text-meta font-medium transition-[background-color,color,scale,opacity,filter] duration-150 ease-out-strong", size === "sm" ? "h-7" : "h-8");
   if (href && !disabled && !busy) {
     // an <a> is never :enabled, so the link has its own hover / press
     const links: Record<BtnTone, string> = {
-      primary: "bg-ink text-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] hover:opacity-90",
+      primary: "bg-ink text-surface hover:opacity-90",
       accent: "bg-accent-ink text-surface hover:brightness-105",
-      secondary: "bg-surface text-ink shadow-btn hover:bg-hover",
+      secondary: "bg-field text-ink hover:bg-hover-2",
       quiet: "text-ink-2 hover:bg-hover hover:text-ink",
       danger: "bg-danger-fill text-white hover:brightness-105",
     };
     return (
-      <a href={href} target="_blank" rel="noopener noreferrer" title={title} data-testid={testId} onClick={onClick} className={cx(base, "active:scale-[0.96]", links[tone], className)}>
+      <a href={href} target="_blank" rel="noopener noreferrer" title={title} data-testid={testId} onClick={onClick} className={cx(base, "motion-safe:active:scale-[0.98]", links[tone], className)}>
         {icon ? <Icon name={icon} size={14} stroke={2.1} /> : null}
         {children}
       </a>
     );
   }
   const tones: Record<BtnTone, string> = {
-    primary: "bg-ink text-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] enabled:hover:opacity-90",
+    primary: "bg-ink text-surface enabled:hover:opacity-90",
     accent: "bg-accent-ink text-surface enabled:hover:brightness-105",
-    // dark: at 45% the ring and the light label still read as a button you can press, so a disabled one drops both
-    secondary: "bg-surface text-ink shadow-btn enabled:hover:bg-hover dark:disabled:bg-transparent dark:disabled:text-ink-3 dark:disabled:shadow-hairline",
+    secondary: "bg-field text-ink enabled:hover:bg-hover-2 dark:disabled:bg-transparent dark:disabled:text-ink-3",
     quiet: "text-ink-2 enabled:hover:bg-hover enabled:hover:text-ink",
     danger: "bg-danger-fill text-white enabled:hover:brightness-105",
   };
@@ -240,7 +239,7 @@ export function Button({
       onClick={onClick}
       className={cx(
         base,
-        "enabled:active:scale-[0.96] disabled:opacity-45",
+        "motion-safe:enabled:active:scale-[0.98] disabled:opacity-45",
         tones[tone],
         className,
       )}
@@ -795,7 +794,7 @@ function MenuPanel({
         <span
           aria-hidden
           className="pointer-events-none absolute inset-x-0 rounded-[6px] bg-hover"
-          style={{ top: box?.top ?? 0, height: box?.height ?? 0, opacity: box ? 1 : 0, transition: `top 200ms ${EASE}, height 200ms ${EASE}, opacity 120ms ease` }}
+          style={{ top: 0, transform: `translateY(${box?.top ?? 0}px)`, height: box?.height ?? 0, opacity: box ? 1 : 0, transition: `transform 140ms ${EASE}, height 140ms ${EASE}, opacity 100ms ease` }}
         />
         {loading && (
           <div className="relative z-10 flex h-8 items-center gap-2 px-2 text-[12.5px] text-ink-3 pointer-coarse:min-h-11">
@@ -883,7 +882,7 @@ function MenuRow({ item: it, asking, working, refCb, onHover, onChoose }: { item
       onClick={onChoose}
       className={cx(
         "relative z-10 flex w-full items-center gap-2 rounded-[6px] px-2 pointer-coarse:min-h-11 text-left text-[12.5px] disabled:opacity-40",
-        it.wrap || detail ? "min-h-8 py-1.5" : "h-8",
+        it.wrap || detail ? "min-h-8 py-1.5" : "h-8 pointer-coarse:h-auto pointer-coarse:py-1.5",
         it.danger ? "text-red" : "text-ink",
         asking && "bg-red-tint font-medium",
         it.dim && "opacity-55",
@@ -899,9 +898,9 @@ function MenuRow({ item: it, asking, working, refCb, onHover, onChoose }: { item
           <span id={detailId} className="mt-0.5 block text-submeta leading-snug break-words whitespace-pre-line text-ink-3">{detail}</span>
         </span>
       ) : (
-        <span className={cx("min-w-0 flex-1", it.wrap ? "break-all" : "truncate", it.mono && "font-mono")}>{label}{tag}</span>
+        <span className={cx("min-w-0 flex-1", it.wrap ? "break-all" : "truncate pointer-coarse:whitespace-normal pointer-coarse:break-words", it.mono && "font-mono")}>{label}{tag}</span>
       )}
-      {it.state && <StatePill state={it.state} />}
+      {it.state && <StatePill state={it.state} dot={false} />}
       {!working && !!it.badge && <span data-menu-badge aria-hidden={it.badgeLabel ? true : undefined} className="flex h-4.5 min-w-4.5 shrink-0 items-center justify-center rounded-full bg-field px-1 text-[10.5px] font-semibold whitespace-nowrap text-attention tabular-nums">{it.badge > 99 ? "99+" : it.badge}</span>}
       {!working && !!it.badge && it.badgeLabel && <span className="sr-only">{it.badgeLabel}</span>}
       {working ? <Spinner size={12} /> : it.hint && <span className="shrink-0 text-[11px] text-ink-3">{it.hint}</span>}
@@ -1147,7 +1146,7 @@ export function Dialog({
       ref={backdrop}
       data-closing={exit.leaving || undefined}
       inert={exit.leaving || undefined}
-      className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/25 px-4 pt-[12vh] pb-8 backdrop-blur-[2px] dark:bg-black/45 max-sm:top-(--kb-top) max-sm:bottom-auto max-sm:h-(--kb-h) max-sm:items-end max-sm:overflow-hidden max-sm:p-0"
+      className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/25 px-4 pt-[12vh] pb-8 dark:bg-black/45 max-sm:top-(--kb-top) max-sm:bottom-auto max-sm:h-(--kb-h) max-sm:items-end max-sm:overflow-hidden max-sm:p-0"
       style={{ animation: "fade-in 140ms ease-out both" }}
       onMouseDown={(e) => {
         if (e.target !== e.currentTarget) return;
@@ -1165,18 +1164,18 @@ export function Dialog({
         aria-labelledby={shown.title ? titleId : labelledBy}
         aria-describedby={describedBy}
         tabIndex={-1}
-        className="flex max-h-[calc(88vh-(--spacing(8)))] w-full max-w-(--dialog-w) animate-[slide-up_220ms_var(--ease-out-strong)_both] flex-col overflow-hidden rounded-[14px] bg-surface shadow-overlay outline-none max-sm:max-h-[calc(var(--kb-h)*0.9)] max-sm:max-w-none max-sm:animate-none max-sm:rounded-b-none max-sm:transition-transform max-sm:duration-300 max-sm:ease-(--ease-out-strong) max-sm:starting:translate-y-full"
+        className="flex max-h-[calc(88vh-(--spacing(8)))] w-full max-w-(--dialog-w) animate-[slide-up_220ms_var(--ease-out-strong)_both] flex-col overflow-hidden rounded-nav-preview bg-surface shadow-overlay outline-none max-sm:max-h-[calc(var(--kb-h)*0.9)] max-sm:max-w-none max-sm:animate-none max-sm:rounded-b-none max-sm:transition-transform max-sm:duration-300 max-sm:ease-(--ease-out-strong) max-sm:starting:translate-y-full"
         style={{ "--dialog-w": `${width}px` } as React.CSSProperties}
       >
         {shown.title && (
           <div className="flex shrink-0 items-center justify-between gap-3 px-4 pt-3.5 pb-1">
-            <h2 id={titleId} className="text-[14px] font-semibold text-ink">{shown.title}</h2>
+            <h2 id={titleId} className="min-w-0 text-card-title leading-snug font-semibold break-words text-ink">{shown.title}</h2>
             <IconButton icon="x" label={t("ui-atoms.close")} onClick={onClose} size={26} iconSize={14} />
           </div>
         )}
         <div ref={body} data-dialog-body className={cx("min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-2 pb-4 [overflow-anchor:none]", !shown.footer && "max-sm:pb-[calc(16px+env(safe-area-inset-bottom))]")}>{shown.children}</div>
         {/* data-dialog-footer: what a toast on a phone keeps clear of (Toasts) */}
-        {shown.footer && <div data-dialog-footer className="flex shrink-0 items-center justify-end gap-2 border-t border-line bg-inset px-4 py-2.5 max-sm:pb-[calc(10px+env(safe-area-inset-bottom))]">{shown.footer}</div>}
+        {shown.footer && <div data-dialog-footer className="flex shrink-0 items-center justify-end gap-2 border-t border-line bg-surface px-4 py-2.5 max-sm:pb-[calc(10px+env(safe-area-inset-bottom))]">{shown.footer}</div>}
       </div>
     </div>,
     document.body,
