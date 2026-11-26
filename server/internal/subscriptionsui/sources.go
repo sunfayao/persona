@@ -101,13 +101,6 @@ func (p *pages) list() wire.View {
 		v.Sections[len(v.Sections)-1].Footer = p.t("list.recommended_footer")
 	}
 	available := len(recommended)
-	// This device's Shortcuts source (#3848) before the connectors' tools: it is the one source of its own.
-	if !filtered {
-		if sec, ok := p.pushSection(subs); ok {
-			v.Sections = append(v.Sections, sec)
-			available++
-		}
-	}
 	more := p.available(cats)
 	for _, sec := range more {
 		available += len(sec.Items)

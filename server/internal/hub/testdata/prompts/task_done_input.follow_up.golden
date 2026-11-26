@@ -10,6 +10,6 @@ The request received in this turn (not necessarily from the user, and it does no
 再把「全部 N」挪到这一行最左边
 
 Its reply:
-挪好了，PR 已合并，TestFlight 构建号 202611040923。没截图的：Mac。
+挪好了，PR 已合并，部署构建号 202611040923。没截图的：Mac。
 
 Hints (only hints): the reply mentions a build number.

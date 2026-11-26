@@ -178,7 +178,7 @@ func TestDueTasksRunOnceAndStaleDailyOnesAreSkipped(t *testing.T) {
 	if p, _ := taskByID(h, "p"); !p.At.Equal(at(9, 32)) {
 		t.Fatalf("after a long outage: %+v", p)
 	}
-	if len(h.tasksView(context.Background(), nil)) != 3 {
+	if len(h.tasksView(context.Background())) != 3 {
 		t.Fatal("the app doesn't list a one-off that already ran")
 	}
 	// A hub that was down all morning does not send the morning briefing at noon.
@@ -292,7 +292,7 @@ func TestARunReschedulingItselfKeepsOneTask(t *testing.T) {
 	if err != nil || !strings.Contains(out, "every 30 minutes") {
 		t.Fatalf("schedule: %q, %v", out, err)
 	}
-	tasks := h.tasksView(context.Background(), nil)
+	tasks := h.tasksView(context.Background())
 	if len(tasks) != 1 {
 		t.Fatalf("still one task, got %+v", tasks)
 	}
@@ -312,7 +312,7 @@ func TestARunReschedulingItselfKeepsOneTask(t *testing.T) {
 	if out, err = h.toolScheduleFollowup(context.Background(), m, "run-2", args); err != nil || !strings.Contains(out, "already repeats") {
 		t.Fatalf("again: %q, %v", out, err)
 	}
-	if tasks = h.tasksView(context.Background(), nil); len(tasks) != 1 || !tasks[0].At.Equal(next) {
+	if tasks = h.tasksView(context.Background()); len(tasks) != 1 || !tasks[0].At.Equal(next) {
 		t.Fatalf("no second task, same next run: %+v", tasks)
 	}
 	// Turned off in the app: a run doesn't turn it back on.
@@ -331,7 +331,7 @@ func TestARunReschedulingItselfKeepsOneTask(t *testing.T) {
 	if _, err := h.toolScheduleFollowup(context.Background(), m, "run-2", other); err != nil {
 		t.Fatal(err)
 	}
-	if n := len(h.tasksView(context.Background(), nil)); n != 2 {
+	if n := len(h.tasksView(context.Background())); n != 2 {
 		t.Fatalf("a different follow-up is its own task, have %d", n)
 	}
 }
@@ -362,7 +362,7 @@ func TestARunOfADeletedTaskDoesNotBringItBack(t *testing.T) {
 		if err != nil || !strings.Contains(out, "fu_1") {
 			t.Fatalf("told it was deleted: %q, %v", out, err)
 		}
-		tasks := h.tasksView(context.Background(), nil)
+		tasks := h.tasksView(context.Background())
 		if len(tasks) != 1 || tasks[0].ID != "fu_2" || !tasks[0].At.After(time.Now().Add(50*time.Minute)) {
 			t.Fatalf("the deleted one stays deleted, the other is untouched: %+v", tasks)
 		}
@@ -372,7 +372,7 @@ func TestARunOfADeletedTaskDoesNotBringItBack(t *testing.T) {
 	if _, err := h.toolScheduleFollowup(context.Background(), "server", "run-1", other); err != nil {
 		t.Fatal(err)
 	}
-	if n := len(h.tasksView(context.Background(), nil)); n != 2 {
+	if n := len(h.tasksView(context.Background())); n != 2 {
 		t.Fatalf("a different follow-up is its own task, have %d", n)
 	}
 }
@@ -414,7 +414,7 @@ func TestARunThatCancelsItsOwnTaskCanScheduleItAgain(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			tasks := h.tasksView(ctx, nil)
+			tasks := h.tasksView(ctx)
 			if !tc.again {
 				if want := i18n.T(h.lang(ctx), tc.told, i18n.Args{"id": "fu_1", "name": title}); out != want || len(tasks) != 0 {
 					t.Fatalf("stays deleted, told so: %q (want %q), %+v", out, want, tasks)
@@ -437,7 +437,7 @@ func TestScheduleFollowupEvery(t *testing.T) {
 	if err != nil || !strings.Contains(out, "every 2 hours") {
 		t.Fatalf("%q, %v", out, err)
 	}
-	tasks := h.tasksView(context.Background(), nil)
+	tasks := h.tasksView(context.Background())
 	if len(tasks) != 1 || tasks[0].Repeat != repeatInterval || tasks[0].EveryMinutes != 120 || tasks[0].SessionID != "s1" ||
 		tasks[0].CreatedBy != "assistant" || tasks[0].PermissionMode != "" {
 		t.Fatalf("%+v", tasks)
@@ -460,14 +460,14 @@ func TestScheduleFollowupRejectsIntervalOverAWeek(t *testing.T) {
 		if out, err := h.toolScheduleFollowup(context.Background(), "server", "s1", args); err == nil || !strings.Contains(err.Error(), "7d") {
 			t.Fatalf("every=%s is refused with the range: %q, %v", every, out, err)
 		}
-		if tasks := h.tasksView(context.Background(), nil); len(tasks) != 0 {
+		if tasks := h.tasksView(context.Background()); len(tasks) != 0 {
 			t.Fatalf("every=%s saves nothing: %+v", every, tasks)
 		}
 	}
 	if _, err := h.toolScheduleFollowup(context.Background(), "server", "s1", json.RawMessage(`{"every":"7d","prompt":"x"}`)); err != nil {
 		t.Fatalf("every 7 days is the longest allowed: %v", err)
 	}
-	tasks := h.tasksView(context.Background(), nil)
+	tasks := h.tasksView(context.Background())
 	if len(tasks) != 1 || tasks[0].EveryMinutes != maxEvery {
 		t.Fatalf("one task every 7 days: %+v", tasks)
 	}
@@ -492,7 +492,7 @@ func TestScheduleOwnKeepsLongRelativeAOneOff(t *testing.T) {
 	if err != nil || !strings.Contains(out, "Rescheduled fu_1") {
 		t.Fatalf("rescheduled: %q, %v", out, err)
 	}
-	tasks := h.tasksView(context.Background(), nil)
+	tasks := h.tasksView(context.Background())
 	if len(tasks) != 1 || tasks[0].ID != "fu_1" || tasks[0].Repeat != repeatOnce || tasks[0].EveryMinutes != 0 || !tasks[0].Enabled ||
 		time.Until(tasks[0].At) < 29*24*time.Hour {
 		t.Fatalf("the same one-off, 30 days out: %+v", tasks)
@@ -590,26 +590,13 @@ func TestTaskRoutes(t *testing.T) {
 	if rec.Code != 200 || created.Task.ID == "" || created.Task.SessionID != "" || created.Task.MachineID == "" && h.hello(context.Background()).Assistant.MachineID != "" {
 		t.Fatalf("create: %d %s", rec.Code, rec.Body)
 	}
-	// Builds from before keep working: routines are the daily tasks, follow-ups the rest.
-	rec = do("GET", "/api/v1/assistant/routines", "")
-	if strings.Contains(rec.Body.String(), "fu_1") || !strings.Contains(rec.Body.String(), "morning") {
-		t.Fatalf("routines: %s", rec.Body)
-	}
-	rec = do("GET", "/api/v1/assistant/followups", "")
-	if !strings.Contains(rec.Body.String(), "fu_1") || !strings.Contains(rec.Body.String(), created.Task.ID) || strings.Contains(rec.Body.String(), "morning") {
-		t.Fatalf("follow-ups: %s", rec.Body)
-	}
-	rec = do("PUT", "/api/v1/assistant/routines", `{"routines":[{"id":"morning","title":"早报","prompt":"x2","time":"08:30","enabled":true}]}`)
-	if rec.Code != 200 {
-		t.Fatalf("put routines: %d %s", rec.Code, rec.Body)
-	}
-	if n := len(h.tasksView(context.Background(), nil)); n != 3 {
-		t.Fatalf("saving the routines leaves the other tasks alone, have %d", n)
+	if n := len(h.tasksView(context.Background())); n != 3 {
+		t.Fatalf("updating one task leaves the other tasks alone, have %d", n)
 	}
 	if p, _ := taskByID(h, "fu_1"); p.PermissionMode != "acceptEdits" {
 		t.Fatal("and their settings")
 	}
-	if rec = do("DELETE", "/api/v1/assistant/followups/fu_1", ""); rec.Code != 200 {
+	if rec = do("DELETE", "/api/v1/assistant/tasks/fu_1", ""); rec.Code != 200 {
 		t.Fatalf("delete: %d", rec.Code)
 	}
 	if rec = do("DELETE", "/api/v1/assistant/tasks/fu_1", ""); rec.Code != 404 {
@@ -748,7 +735,7 @@ func TestTasksMovedFromTheOldLists(t *testing.T) {
 		return newServiceOn(t, f, store)
 	}
 	h1 := boot()
-	tasks := h1.tasksView(ctx, nil)
+	tasks := h1.tasksView(ctx)
 	if len(tasks) != 2 || tasks[0].ID != "morning" || tasks[0].Repeat != repeatDaily || tasks[0].LastStatus != runOK ||
 		tasks[1].ID != "fu_p" || tasks[1].Repeat != repeatOnce || !tasks[1].At.Equal(due) || tasks[1].Prompt != "巡检" || !tasks[1].Enabled {
 		t.Fatalf("moved: %+v", tasks)
@@ -765,7 +752,7 @@ func TestTasksMovedFromTheOldLists(t *testing.T) {
 	if runs := h2.loadSchedule(ctx).runs; len(runs) != 1 || runs[0].RefID != "fu_p" {
 		t.Fatalf("after a restart the patrol doesn't run again: %+v", runs)
 	}
-	if n := len(h2.tasksView(ctx, nil)); n != 1 {
+	if n := len(h2.tasksView(ctx)); n != 1 {
 		t.Fatalf("nothing moved twice, the one-off that ran is hidden: %d", n)
 	}
 }
@@ -933,16 +920,12 @@ func TestScheduleReadFailureNeverOverwrites(t *testing.T) {
 	mux := h // the routes the hub relays
 	for _, req := range []struct{ method, path, body string }{
 		{"GET", "/api/v1/assistant/tasks", ""},
-		{"GET", "/api/v1/assistant/routines", ""},
-		{"GET", "/api/v1/assistant/followups", ""},
 		{"GET", "/api/v1/assistant/runs", ""},
 		{"POST", "/api/v1/assistant/tasks", `{"title":"喝水","prompt":"提醒我喝水","repeat":"once","at":"2099-01-01T09:00:00Z","enabled":true}`},
 		{"PUT", "/api/v1/assistant/tasks/rt_mine", `{"title":"我的","prompt":"p","repeat":"daily","time":"08:00","enabled":false}`},
-		{"PUT", "/api/v1/assistant/routines", `{"routines":[]}`},
 		{"POST", "/api/v1/assistant/tasks/rt_mine/run", ""},
 		{"POST", "/api/v1/assistant/tasks/rt_mine/fresh", ""},
 		{"DELETE", "/api/v1/assistant/tasks/fu_mine", ""},
-		{"DELETE", "/api/v1/assistant/followups/fu_mine", ""},
 	} {
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, httptest.NewRequest(req.method, req.path, strings.NewReader(req.body)))
@@ -963,7 +946,7 @@ func TestScheduleReadFailureNeverOverwrites(t *testing.T) {
 	store.mu.Lock()
 	store.failRead = false
 	store.mu.Unlock()
-	tasks := h.tasksView(ctx, nil)
+	tasks := h.tasksView(ctx)
 	if len(tasks) != 2 || tasks[0].ID != "rt_mine" || tasks[1].ID != "fu_mine" {
 		t.Fatalf("tasks after recovery: %+v", tasks)
 	}
@@ -983,7 +966,7 @@ func TestScheduleDefaultsWhenNothingStored(t *testing.T) {
 	if err := h.scheduleReadable(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if tasks := h.tasksView(ctx, nil); len(tasks) != len(defaultRoutines("")) {
+	if tasks := h.tasksView(ctx); len(tasks) != len(defaultRoutines("")) {
 		t.Fatalf("defaults: %+v", tasks)
 	}
 }

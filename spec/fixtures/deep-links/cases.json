@@ -1000,7 +1000,7 @@
       "reason": "unsafe"
     },
     {
-      "name": "Live Activity row",
+      "name": "stored session query link",
       "url": "persona://open?machine=mac-1&session=0b5c7e2a",
       "hubs": [
         "home"

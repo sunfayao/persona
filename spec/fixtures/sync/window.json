@@ -8,8 +8,7 @@
         "rule": "A subscription replay carries more_after: true when capped; the client keeps filling",
         "docs": "docs/protocol/protocol.md WebSocket (subscribe)",
         "code": {
-          "ios": "ChatStore.apply moreAfter",
-          "android": "capped_subscription_requests_rest"
+          "web": "web/src/views/chat/sync/sync-scenarios.test.tsx"
         }
       },
       "chat": {

@@ -37,7 +37,7 @@ import (
 // it; Persona Link builds it the same way each time, so the grant lasts until the helper itself changes.
 
 // advertiseScreenVideo says whether the computer and browser statuses carry screen_video, and whether the node asks
-// macOS for the helper's grant (askScreenPermission). On since the official TestFlight build decodes the video (#3954
+// macOS for the helper's grant (askScreenPermission). Enabled once clients could decode video (#3954
 // slices 3b and 3c); apps before it don't offer the picture switcher. screen.dial works either way.
 const advertiseScreenVideo = true
 

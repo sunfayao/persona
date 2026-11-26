@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/nwverse/persona/server/internal/proto"
 )
 
 // tasksOn300 is fleetOf300 with n open tasks from conversation "c1", each on one of the machine's sessions.
@@ -55,4 +56,19 @@ func TestSuperviseWatchListsEachMachineOnce(t *testing.T) {
 	if n := d.machines["mac"].lists; n != 1 {
 		t.Errorf("the machine's sessions were listed %d times for 10 supervised tasks, want 1", n)
 	}
+}
+
+// fleetOf300 is a manager whose one machine lists 300 finished sessions.
+func fleetOf300(logf func(string, ...any)) *Service {
+	f := newFakeHub()
+	d := newFleetDevs()
+	d.add("mac", "Mac")
+	s := New(Options{Hub: f, Logf: logf, Devices: d})
+	list := make([]proto.Session, 300)
+	for i := range list {
+		list[i] = proto.Session{SessionID: fmt.Sprintf("s%03d", i), Cwd: "/code/app", Agent: "claude",
+			Status: proto.StatusDone, PaneID: fmt.Sprintf("p%d", i), SpaceName: "app", Title: "a session", LastText: "done"}
+	}
+	d.setSessions("mac", list)
+	return s
 }

@@ -226,8 +226,6 @@ type extensions struct {
 	filtersSent []byte
 	// invalid are the extensions' ui.invalidate waiting to be told to the apps (extension_ui.go), at most one a second.
 	invalid invalidations
-	// widgets are the views drawn for widgets and the widgets each device has (extension_system.go).
-	widgets widgets
 	// nodes are plugins' programs on computers (extension_nodes.go).
 	nodes extensionNodes
 	// sandboxes are the owner's sandbox choices and the egress proxy (extension_sandbox.go).
@@ -495,9 +493,6 @@ func (h *Manager) attachExtensions(ctx context.Context) {
 	if err := reg.AddBuiltin(egoManifest(h), "", false); err != nil { // the same, for ego lite (browser.go)
 		h.logf("plugin ego: %v", err)
 	}
-	if err := reg.AddBuiltinTranslated(iphoneManifest(h), "", false, iphoneTranslations()); err != nil { // the same, for paired iPhones (iphone.go)
-		h.logf("plugin iphone: %v", err)
-	}
 	if err := reg.AddBuiltin(imessageManifest(h), "", false); err != nil { // which Mac's Messages (imessage_extension.go)
 		h.logf("plugin imessage: %v", err)
 	}
@@ -642,9 +637,6 @@ func (ps *extensions) changed(c extension.Change) {
 	if c.ID == egoExtensionID && ps.h != nil {
 		ps.h.browserChanged(ctx)
 	}
-	if c.ID == iphoneExtensionID && ps.h != nil {
-		ps.h.iphoneChanged(ctx)
-	}
 	if c.ID == imessageExtensionID && ps.h != nil {
 		ps.h.applyIMessage() // its Mac changed, or it went on or off (imessage_extension.go)
 	}
@@ -720,7 +712,6 @@ func (ps *extensions) apply(ctx context.Context, id string) {
 	ps.mu.Unlock()
 	why := tokenStopReason(ps.reg.GetExact(id))
 	if ps.h != nil {
-		ps.h.widgetsDropExtension(id)
 		ps.h.pageDropExtension(id)
 		// Switched off, upgraded (maybe to fewer scopes), uninstalled or reconfigured: its token goes now, and a new
 		// one comes with its next start.

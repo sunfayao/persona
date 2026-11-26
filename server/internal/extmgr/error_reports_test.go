@@ -48,7 +48,7 @@ func errorsPackage(t *testing.T, out string) string {
 	manifest := fmt.Sprintf(`{"manifest_version": 1, "id": "example-errors", "name": "Example Errors", "version": "1.0.0",
 		"engines": {"plugin_protocol": 1}, "runtime": {"command": {%q: "bin/errors"}, "env": {"ERRORS_OUT": %q}},
 		"activation_events": ["on_startup"],
-		"contributes": {"error_reports": [{"id": "all"}, {"id": "apps", "sources": ["web", "android"]}]},
+		"contributes": {"error_reports": [{"id": "all"}, {"id": "apps", "sources": ["web"]}]},
 		"permissions": {"error_reports": true}}`, runtime.GOOS+"-"+runtime.GOARCH, out)
 	_ = os.WriteFile(filepath.Join(dir, extension.ManifestFile), []byte(manifest), 0o644)
 	return dir

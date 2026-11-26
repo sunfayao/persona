@@ -36,17 +36,14 @@ func TestPairArgumentMistakes(t *testing.T) {
 		{"--bogus"},
 		{"--peer", "--machine", "m1"},
 		{"--peer", "--legacy"},
-		{"--peer", "--android"},
 		{"--peer", "--add"},
 		{"--peer", "--name", "n"},
 		{"--peer", "--name="},
 		{"--machine="},
 		{"--machine", "m1", "--legacy"},
-		{"--machine", "m1", "--android"},
 		{"--add"},
 		{"--name", "n"},
 		{"--machine", "m1", "--name", "n"},
-		{"--legacy", "--android"},
 	} {
 		err := pair(context.Background(), args)
 		var ue clitext.UsageError

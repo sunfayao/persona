@@ -271,7 +271,7 @@ func TestHandoffApprovedOnTheCardStartsWithATicket(t *testing.T) {
 	r := newHandoffRig(t)
 	done := r.start(handoffArgs)
 	ix := r.card()
-	if ix.ToolName != proto.SecretHandoffTool || ix.Kind != proto.IxPermission || ix.AlwaysLabel == "" || !strings.Contains(ix.Summary, "iPhone") {
+	if ix.ToolName != proto.SecretHandoffTool || ix.Kind != proto.IxPermission || ix.AlwaysLabel == "" || !strings.Contains(ix.Summary, "网页") {
 		t.Fatalf("card %+v", ix)
 	}
 	var in proto.SecretHandoffInput
@@ -621,9 +621,9 @@ func TestHandoffSummaryWithoutAnAgentName(t *testing.T) {
 		count       int
 		agent, want string
 	}{
-		{2, "Fix CI", "“Fix CI” needs 2 secrets on Box, for this run only. Approve on iPhone or the web."},
-		{1, "Fix CI", "“Fix CI” needs a secret on Box, for this run only. Approve on iPhone or the web."},
-		{2, " ", "An Agent needs 2 secrets on Box, for this run only. Approve on iPhone or the web."},
+		{2, "Fix CI", "“Fix CI” needs 2 secrets on Box, for this run only. Approve in the web app."},
+		{1, "Fix CI", "“Fix CI” needs a secret on Box, for this run only. Approve in the web app."},
+		{2, " ", "An Agent needs 2 secrets on Box, for this run only. Approve in the web app."},
 	} {
 		if got := handoffSummary(i18n.En, c.count, c.agent, "Box"); got != c.want {
 			t.Errorf("en %d %q: %q", c.count, c.agent, got)

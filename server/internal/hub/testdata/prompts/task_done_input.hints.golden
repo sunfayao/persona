@@ -1,11 +1,11 @@
 Task: 修登录崩溃
 
 Requirements when it was handed out:
-iPad 横屏时登录页崩溃，修好并补测试，走 PR 合并后发 TestFlight
+iPad 横屏时登录页崩溃，修好并补测试，走 PR 合并后部署到预览环境
 
 The Agent's last reply when it stopped:
 
 --- box
-修好了，PR https://github.com/o/r/pull/901 已合并，TestFlight 构建号 202611041200
+修好了，PR https://github.com/o/r/pull/901 已合并，部署构建号 202611041200
 
 Hints (only hints): the reply mentions a merged PR and a build number.

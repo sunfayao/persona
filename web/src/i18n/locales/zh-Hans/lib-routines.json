@@ -52,7 +52,7 @@
   "late_hours_other": "晚了 {count} 小时",
   "earlier": "更早",
   "template_meeting_title": "会前准备",
-  "template_meeting_prompt": "看看今天飞书日历和 iPhone 日历里的会。对每个需要准备的会，用 schedule_followup 在会前 10 分钟安排一次会前准备：相关文档、上次的会议纪要、还没定的事、我该说的要点。今天没有要准备的会就简单说一声。",
+  "template_meeting_prompt": "看看今天飞书日历里的会。对每个需要准备的会，用 schedule_followup 在会前 10 分钟安排一次会前准备：相关文档、上次的会议纪要、还没定的事、我该说的要点。今天没有要准备的会就简单说一声。",
   "template_weekly_title": "周报",
   "template_weekly_prompt": "帮我起草这周的周报：从飞书日历、会议纪要、文档和消息里整理这周做了什么、进展和结果、遇到的问题、下周计划；各台电脑上的 Agent 这周完成的主要改动也算进去。先给我草稿，问我要不要改，不要直接发出去。",
   "template_patrol_title": "Agent 巡检",

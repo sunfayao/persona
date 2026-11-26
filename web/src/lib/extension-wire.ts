@@ -320,7 +320,6 @@ export interface Contributes {
   speech?: NamedItem[];
   computer?: NamedItem[];
   browser?: NamedItem[];
-  iphone?: NamedItem[];
   quota?: QuotaItem[];
   usage?: UsageItem[];
   providers?: ProviderItem[];
@@ -1618,8 +1617,8 @@ export const SIZES = ["compact", "full", "small", "medium", "large", "accessory_
 export type WidgetFamily = "small" | "medium" | "large" | "accessory_circular" | "accessory_rectangular" | "accessory_inline" | (string & {});
 export const WIDGET_FAMILIES = ["small", "medium", "large", "accessory_circular", "accessory_rectangular", "accessory_inline"] as const;
 
-export type Platform = "ios" | "mac" | "android" | "web" | (string & {});
-export const PLATFORMS = ["ios", "mac", "android", "web"] as const;
+export type Platform = "web" | (string & {});
+export const PLATFORMS = ["web"] as const;
 
 /**
  * The fixed icon set: a nav_page's icon, a row's, an empty state's (UI version 3 for the last two and the icons after

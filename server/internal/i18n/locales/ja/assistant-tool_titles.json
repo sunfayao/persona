@@ -2,7 +2,6 @@
   "computer_run": "コンピュータの操作",
   "computer_state": "コンピュータの閲覧",
   "browser_run": "ブラウザのスクリプト",
-  "iphone_do": "iPhone の操作",
   "extension_ui": "拡張機能の操作",
   "persona_settings": "Persona の設定変更",
   "subscription_save": "購読の変更",
@@ -27,8 +26,6 @@
   "task_review": "サブタスクの検収",
   "dispatch_start": "別のコンピュータに依頼",
   "dispatch_read": "依頼したサブタスク",
-  "iphone_look": "iPhone の画面",
-  "iphone_status": "iPhone の状態",
   "family_phone": "iPhone",
   "family_mail": "メール"
 }

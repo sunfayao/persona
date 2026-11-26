@@ -89,10 +89,9 @@ var extLooks = &extensionLookCache{pkgs: map[string]*personaPackage{}}
 // left out (the hub's wins).
 func (h *Hub) extensionLooks() []*personaPackage {
 	var out []*personaPackage
-	own := h.builtinPersonaIDs()
 	for _, lp := range h.extReport().Looks {
 		var l extension.LookItem
-		if err := json.Unmarshal(lp.Item, &l); err != nil || slices.Contains(own, l.ID) {
+		if err := json.Unmarshal(lp.Item, &l); err != nil {
 			continue
 		}
 		pkg, err := extensionLookPackage(lp, l)

@@ -62,7 +62,6 @@ func TestPairOutputSpeaksTerminalLanguage(t *testing.T) {
 		FP:        strings.Repeat("A", 43),
 	}
 	pairURL := p.pairURL()
-	androidURL := p.URL + "/api/v1/app/android/apk?token=jp_example%2B%26"
 	legacy := &Config{PublicURL: "http://legacy.example.com:18660", Token: "a&b=+ ?"}
 	legacyURL := legacy.PairURL()
 	type outputGolden struct {
@@ -74,19 +73,19 @@ func TestPairOutputSpeaksTerminalLanguage(t *testing.T) {
 	goldens := map[string]outputGolden{
 		"en": {
 			normalBeforeQR: "Address: http://example.com\nPairing link: " + pairURL + "\n\nScan with the Persona App to pair:\n\n",
-			normalAfterQR:  "\nValid until: 2100-01-02T03:04:05Z\nPublic-key fingerprint: " + p.FP + "\nAndroid app: " + androidURL + "\n",
+			normalAfterQR:  "\nValid until: 2100-01-02T03:04:05Z\nPublic-key fingerprint: " + p.FP + "\n",
 			legacyBeforeQR: "Server: http://legacy.example.com:18660\nToken:  a&b=+ ?\n\nScan with the Persona App to pair:\n\n",
 			legacyAfterQR:  "\nCopy this link on a Mac and paste it under “Connect hub” in Persona:\n" + legacyURL + "\n",
 		},
 		"zh-Hans": {
 			normalBeforeQR: "地址：http://example.com\n配对链接：" + pairURL + "\n\n用 Persona App 扫码配对：\n\n",
-			normalAfterQR:  "\n有效期至：2100-01-02T03:04:05Z\n公钥指纹：" + p.FP + "\nAndroid 安装包：" + androidURL + "\n",
+			normalAfterQR:  "\n有效期至：2100-01-02T03:04:05Z\n公钥指纹：" + p.FP + "\n",
 			legacyBeforeQR: "Server: http://legacy.example.com:18660\nToken:  a&b=+ ?\n\n用 Persona App 扫码配对：\n\n",
 			legacyAfterQR:  "\nMac 上拷贝这条链接，在 Persona 的「连接 hub」里粘贴：\n" + legacyURL + "\n",
 		},
 		"ja": {
 			normalBeforeQR: "アドレス：http://example.com\nペアリングリンク：" + pairURL + "\n\nPersonaアプリでQRコードをスキャンしてペアリング：\n\n",
-			normalAfterQR:  "\n有効期限：2100-01-02T03:04:05Z\n公開鍵フィンガープリント：" + p.FP + "\nAndroidアプリ：" + androidURL + "\n",
+			normalAfterQR:  "\n有効期限：2100-01-02T03:04:05Z\n公開鍵フィンガープリント：" + p.FP + "\n",
 			legacyBeforeQR: "サーバー：http://legacy.example.com:18660\nトークン：a&b=+ ?\n\nPersonaアプリでQRコードをスキャンしてペアリング：\n\n",
 			legacyAfterQR:  "\nMacでこのリンクをコピーし、Personaの「ハブに接続」に貼り付けてください：\n" + legacyURL + "\n",
 		},
@@ -101,7 +100,7 @@ func TestPairOutputSpeaksTerminalLanguage(t *testing.T) {
 			})
 			cfg.PublicURL = p.URL + "/"
 			var out bytes.Buffer
-			if err := cfg.printPair(context.Background(), false, &out, true); err != nil {
+			if err := cfg.printPair(context.Background(), false, &out); err != nil {
 				t.Fatal(err)
 			}
 			if got := <-accept; got != tt.accept {
@@ -170,7 +169,6 @@ func TestPairMachineOutputSpeaksTerminalLanguage(t *testing.T) {
 
 func TestPairErrorsSpeakTerminalLanguage(t *testing.T) {
 	type errorGolden struct {
-		conflict       string
 		listen         string
 		unreachable    string
 		temporaryToken string
@@ -182,7 +180,6 @@ func TestPairErrorsSpeakTerminalLanguage(t *testing.T) {
 	}
 	goldens := map[string]errorGolden{
 		"en": {
-			conflict:       "--android needs a temporary token and cannot be combined with --legacy",
 			listen:         "The hub’s listen configuration has no valid port. Check the configuration, or use --legacy to print a legacy QR code",
 			unreachable:    "Can’t connect to the hub on this machine. It may not be running, or hub.json’s listen names an address this machine doesn’t have. Start the hub first, or use --legacy to print a legacy QR code",
 			temporaryToken: "This hub failed to create a temporary token (HTTP 502). Check that the hub is upgraded and its configuration matches, or use --legacy to print a legacy QR code",
@@ -193,7 +190,6 @@ func TestPairErrorsSpeakTerminalLanguage(t *testing.T) {
 			wrongMachine:   "This hub did not create a pairing link for computer “study”. It may not have been upgraded or restarted yet. Upgrade and restart the hub, then try again",
 		},
 		"zh-Hans": {
-			conflict:       "--android 需要临时 token，不能与 --legacy 同时使用",
 			listen:         "hub listen 配置没有有效端口；请检查配置，或用 --legacy 打印旧格式二维码",
 			unreachable:    "无法连接本机 hub：hub 可能未运行，或 hub.json 的 listen 写的不是本机的地址；请先启动 hub，或用 --legacy 打印旧格式二维码",
 			temporaryToken: "本机 hub 生成临时 token 失败（HTTP 502）；请确认 hub 已升级且配置一致，或用 --legacy 打印旧格式二维码",
@@ -204,7 +200,6 @@ func TestPairErrorsSpeakTerminalLanguage(t *testing.T) {
 			wrongMachine:   "本机 hub 没有生成电脑「study」的配对链接：hub 可能还没升级或没重启；升级并重启 hub 后再试",
 		},
 		"ja": {
-			conflict:       "--androidには一時トークンが必要なため、--legacyと同時には使えません",
 			listen:         "ハブのlisten設定に有効なポートがありません。設定を確認するか、--legacyで旧形式のQRコードを出力してください",
 			unreachable:    "このマシンのハブに接続できません。ハブが実行されていないか、hub.json の listen がこのマシンにないアドレスになっている可能性があります。ハブを起動するか、--legacyで旧形式のQRコードを出力してください",
 			temporaryToken: "このハブは一時トークンを作成できませんでした（HTTP 502）。ハブの更新と設定を確認するか、--legacyで旧形式のQRコードを出力してください",
@@ -226,14 +221,6 @@ func TestPairErrorsSpeakTerminalLanguage(t *testing.T) {
 			setPairLanguageTest(t, tt)
 			want := goldens[tt.golden]
 
-			t.Run("legacy Android conflict", func(t *testing.T) {
-				var out bytes.Buffer
-				err := (&Config{}).printPair(context.Background(), true, &out, true)
-				check(t, err, want.conflict)
-				if out.Len() != 0 {
-					t.Fatalf("conflict wrote stdout %q", out.String())
-				}
-			})
 			t.Run("invalid listen", func(t *testing.T) {
 				_, err := (&Config{Listen: "invalid"}).requestPairCode(context.Background())
 				check(t, err, want.listen)

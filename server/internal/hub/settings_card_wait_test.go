@@ -454,7 +454,7 @@ func TestOtherBusCallsKeepTwoMinutes(t *testing.T) {
 				return h.callBus(context.Background(), assistantwire.AssistantID, unanswered, nil, nil)
 			}},
 			{"what the hub asks of the manager's extensions", func() error {
-				return h.extCall(context.Background(), extwire.HubGitHubLogin, map[string]any{}, nil)
+				return h.extCall(context.Background(), extwire.HubClarificationTake, map[string]any{}, nil)
 			}},
 			{"reading one of the manager's settings", func() error {
 				text, failed, err := mgr.settingsTool(mgr.ctx, 0, `{"action":"get","key":"inbox.rules"}`)

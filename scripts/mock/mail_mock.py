@@ -2,11 +2,11 @@
 a domain of scripts/mock/mock_domains.py that moved out of mock_hub.py's "area: mail" (#11543).
 
 The accounts (GET / POST /api/v1/mail/accounts, POST …/accounts/{id}/test, DELETE …/accounts/{id}) and the mail's write
-paths: flags, sending, Google's and Microsoft's sign-in start. Nothing is sent anywhere: what the app posted is in GET
+paths: flags and sending. Nothing is sent anywhere: what the app posted is in GET
 /mock/mail. MOCK_MAIL=1 adds whole mails for the reader (an HTML one with a tracking pixel, a script and an attachment; a
-two-mail thread) and a Gmail account whose authorization ran out and a Feishu one; MOCK_GOOGLE=1 makes google/config say
-configured and google/start answer (with a made-up URL). MOCK_OUTLOOK=1: an Outlook account signed in with Microsoft
-(the web's Outlook badge and line, #2968); MOCK_OUTLOOK_CLIENT=1: its client ID is saved already. With
+two-mail thread) and a Gmail account whose authorization ran out and a Feishu one.
+MOCK_OUTLOOK=1: an Outlook account signed in with Microsoft
+(the web's Outlook badge and line, #2968). With
 MOCK_INBOX_SOURCES=none (mock_hub.py's NO_SOURCES) there is no account at all.
 
 mock_hub.py keeps the inbox's side: the two-mail thread's inbox row (MOCK_MAIL=1), among the inbox's own rows where the
@@ -15,7 +15,6 @@ switches after it still change them, and the mails made from inbox rows (MAIL_ME
 """
 import json
 import os
-import re
 import uuid
 from urllib.parse import unquote
 
@@ -25,7 +24,6 @@ MAIL_ACCOUNTS = [{"id": "acc1", "name": "个人邮箱", "email": "me@example.com
                   "imap_host": "imap.example.com", "imap_port": 993, "smtp_host": "smtp.example.com", "smtp_port": 465}]
 MAIL_LOG = {"sent": [], "flags": [], "accounts_added": [], "deleted": [], "tested": []}
 MAIL_FULL = {}
-MS_CONFIG = {"configured": False, "client_id": None, "source": None, "redirect_uri": "persona-mail-oauth://outlook"}
 
 
 def load(hub):
@@ -66,8 +64,7 @@ def load(hub):
                   "message_id": "<506@example.com>", "references": ["<505@example.com>"], "flagged": True, "seen": False,
                   "text": "改到周三下午两点吧，会议室我订好了。\n\n议程：\n1. 上季度目标回顾\n2. 下季度计划\n\nJack", "html": ""},
         }
-    if os.environ.get("MOCK_OUTLOOK_CLIENT"):
-        MS_CONFIG.update(configured=True, client_id="11111111-2222-3333-4444-555555555555", source="app")
+
 
 
 def mail_area(h, method, p, q):
@@ -118,28 +115,6 @@ def mail_area(h, method, p, q):
             h.send_json({"error": "at least one recipient is required"}, 400); return True
         MAIL_LOG["sent"].append(body)
         h.send_json({"ok": True}); return True
-    if p == "/api/v1/mail/oauth/google/config":
-        h.send_json({"configured": bool(os.environ.get("MOCK_GOOGLE"))}); return True
-    if p == "/api/v1/mail/oauth/google/start" and method == "POST":
-        if not os.environ.get("MOCK_GOOGLE"):
-            h.send_json({"error": "Google sign-in is not configured on this hub: an admin adds google.client_id to the manager's manager.json and restarts the hub. Until then, add Gmail with an app password.",
-                         "code": "google_not_configured"}, 400); return True
-        h.send_json({"auth_url": "https://accounts.example.com/o/oauth2/auth?state=mock", "callback_scheme": "com.example.mock", "state": "mock"})
-        return True
-    # Outlook's "Sign in with Microsoft": no client ID until the app saves one (MOCK_OUTLOOK_CLIENT=1: already there).
-    if p == "/api/v1/mail/oauth/microsoft/config":
-        if method == "PUT":
-            cid = (body.get("client_id") or "").strip()
-            if cid and not re.fullmatch(r"[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", cid):
-                h.send_json({"error": "这不像 client ID：Entra 应用「概述」页的「应用程序(客户端) ID」，形如 xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}, 400); return True
-            MS_CONFIG.update(configured=bool(cid), client_id=cid or None, source="app" if cid else None)
-            MAIL_LOG.setdefault("microsoft_client", []).append(cid)
-        h.send_json({k: v for k, v in MS_CONFIG.items() if v is not None}); return True
-    if p == "/api/v1/mail/oauth/microsoft/start" and method == "POST":
-        if not MS_CONFIG["configured"]:
-            h.send_json({"error": "还没有 Outlook 登录用的 client ID"}, 400); return True
-        h.send_json({"auth_url": "https://login.example.com/common/oauth2/v2.0/authorize?state=mock", "callback_scheme": "persona-mail-oauth", "state": "mock"})
-        return True
     return False
 
 

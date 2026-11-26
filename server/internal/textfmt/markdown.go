@@ -273,7 +273,7 @@ func characterReference(s []byte) (int, string) {
 	return 0, ""
 }
 
-// PlanTitle is what a plan card is called where it shows in one line (a push, the live activity, a row in the Agent
+// PlanTitle is what a plan card is called where it shows in one line (a push, the Persona Link summary, a row in the Agent
 // lists): its first line with text, without the Markdown marks (a heading's #s, emphasis, a list item's bullet or
 // checkbox, code spans, a link's target) that would show as they are.
 func PlanTitle(plan string) string {

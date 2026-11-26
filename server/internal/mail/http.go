@@ -19,13 +19,6 @@ func (s *Service) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/mail/accounts", s.handleListAccounts)
 	mux.HandleFunc("POST /api/v1/mail/accounts", s.handleAddAccount)
-	mux.HandleFunc("GET /api/v1/mail/oauth/google/config", s.handleGoogleConfig)
-	mux.HandleFunc("POST /api/v1/mail/oauth/google/start", s.handleGoogleStart)
-	mux.HandleFunc("POST /api/v1/mail/oauth/google/finish", s.handleGoogleFinish)
-	mux.HandleFunc("GET /api/v1/mail/oauth/microsoft/config", s.handleMicrosoftConfig)
-	mux.HandleFunc("PUT /api/v1/mail/oauth/microsoft/config", s.handleSetMicrosoftConfig)
-	mux.HandleFunc("POST /api/v1/mail/oauth/microsoft/start", s.handleMicrosoftStart)
-	mux.HandleFunc("POST /api/v1/mail/oauth/microsoft/finish", s.handleMicrosoftFinish)
 	mux.HandleFunc("DELETE /api/v1/mail/accounts/{aid}", s.handleDeleteAccount)
 	mux.HandleFunc("POST /api/v1/mail/accounts/{aid}/test", s.handleTestAccount)
 	mux.HandleFunc("GET /api/v1/mail/accounts/{aid}/mailboxes", s.handleMailboxes)
@@ -191,89 +184,6 @@ func (s *Service) handleAddAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	account, err := s.AddAccount(req)
-	if err != nil {
-		s.fail(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"account": account})
-}
-
-func (s *Service) handleGoogleStart(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		LoginHint string `json:"login_hint"`
-	}
-	if r.ContentLength != 0 && !decodeBody(w, r, &req) {
-		return
-	}
-	start, err := s.StartGoogleOAuth(req.LoginHint)
-	if errors.Is(err, errGoogleNotConfigured) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": googleNotConfiguredText(r), "code": "google_not_configured"})
-		return
-	}
-	if err != nil {
-		s.fail(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, start)
-}
-
-func (s *Service) handleGoogleFinish(w http.ResponseWriter, r *http.Request) {
-	var req OAuthFinishRequest
-	if !decodeBody(w, r, &req) {
-		return
-	}
-	account, err := s.FinishGoogleOAuth(r.Context(), req)
-	if err != nil {
-		s.fail(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"account": account})
-}
-
-func (s *Service) handleGoogleConfig(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, s.GoogleConfig())
-}
-
-func (s *Service) handleMicrosoftConfig(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, s.MicrosoftConfig(r.Context()))
-}
-
-// handleSetMicrosoftConfig keeps the client ID the user registered in Entra ({"client_id": ""} forgets it).
-func (s *Service) handleSetMicrosoftConfig(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		ClientID string `json:"client_id"`
-	}
-	if !decodeBody(w, r, &req) {
-		return
-	}
-	if err := s.SetMicrosoftClientID(r.Context(), req.ClientID); err != nil {
-		s.fail(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, s.MicrosoftConfig(r.Context()))
-}
-
-func (s *Service) handleMicrosoftStart(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		LoginHint string `json:"login_hint"`
-	}
-	if r.ContentLength != 0 && !decodeBody(w, r, &req) {
-		return
-	}
-	start, err := s.StartMicrosoftOAuth(r.Context(), req.LoginHint)
-	if err != nil {
-		s.fail(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, start)
-}
-
-func (s *Service) handleMicrosoftFinish(w http.ResponseWriter, r *http.Request) {
-	var req OAuthFinishRequest
-	if !decodeBody(w, r, &req) {
-		return
-	}
-	account, err := s.FinishMicrosoftOAuth(r.Context(), req)
 	if err != nil {
 		s.fail(w, err)
 		return

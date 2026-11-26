@@ -36,8 +36,8 @@ func (fakeWire) close() any                         { return map[string]any{"typ
 func (fakeWire) outputRate(in int) int              { return in }
 
 // start says whether the session only reads texts aloud (speak.go): the stand-in then says them as audio too.
-func (fakeWire) start(s session) any {
-	return map[string]any{"type": "fake.start", "read_aloud": s.ReadAloud}
+func (fakeWire) start(session) any {
+	return map[string]any{"type": "fake.start"}
 }
 
 func (fakeWire) reply(delegation, s string, final bool, _ string) []any {
@@ -76,14 +76,10 @@ type fakeLink struct {
 	closed chan struct{}
 	once   sync.Once
 
-	mu        sync.Mutex
-	n         int  // delegations made
-	readAloud bool // the session only reads texts aloud (speak.go): what it is told to say comes as audio too
-}
+	mu sync.Mutex
+	n  int // delegations made
 
-// fakeSpoken is the audio the fake dialect says a text with in a session that reads texts aloud: a tenth of a second
-// of silence at its rate (the input's, 16 kHz unless set), in two pieces.
-const fakeSpoken = 1600
+}
 
 func newFakeLink() *fakeLink {
 	return &fakeLink{out: make(chan []byte, 256), closed: make(chan struct{})}
@@ -102,19 +98,15 @@ func (f *fakeLink) Read(ctx context.Context) (websocket.MessageType, []byte, err
 
 func (f *fakeLink) Write(ctx context.Context, _ websocket.MessageType, p []byte) error {
 	var m struct {
-		Type      string `json:"type"`
-		Text      string `json:"text"`
-		Final     bool   `json:"final"`
-		ReadAloud bool   `json:"read_aloud"`
+		Type  string `json:"type"`
+		Text  string `json:"text"`
+		Final bool   `json:"final"`
 	}
 	if err := json.Unmarshal(p, &m); err != nil {
 		return err
 	}
 	switch m.Type {
 	case "fake.start":
-		f.mu.Lock()
-		f.readAloud = m.ReadAloud
-		f.mu.Unlock()
 		return f.emit(ctx, map[string]any{"type": "fake.started"})
 	case "fake.text":
 		f.mu.Lock()
@@ -123,16 +115,6 @@ func (f *fakeLink) Write(ctx context.Context, _ websocket.MessageType, p []byte)
 		f.mu.Unlock()
 		return f.emit(ctx, map[string]any{"type": "fake.delegation", "id": id, "text": m.Text})
 	case "fake.say":
-		f.mu.Lock()
-		readAloud := f.readAloud
-		f.mu.Unlock()
-		if readAloud {
-			for range 2 {
-				if err := f.emit(ctx, map[string]any{"type": "fake.voice", "audio": make([]byte, fakeSpoken)}); err != nil {
-					return err
-				}
-			}
-		}
 		return f.emit(ctx, map[string]any{"type": "fake.line", "text": m.Text})
 	case "fake.reply":
 		if m.Final { // what the model would speak about; a quiet one stays quiet

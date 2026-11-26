@@ -2,7 +2,6 @@
   "computer_run": "Computer control",
   "computer_state": "Computer view",
   "browser_run": "Browser script",
-  "iphone_do": "iPhone control",
   "extension_ui": "Extension action",
   "persona_settings": "Persona settings change",
   "subscription_save": "Subscription change",
@@ -27,8 +26,6 @@
   "task_review": "Worker review",
   "dispatch_start": "Hand off to another computer",
   "dispatch_read": "Handed-off subtask",
-  "iphone_look": "iPhone view",
-  "iphone_status": "iPhone status",
   "family_phone": "iPhone",
   "family_mail": "Mail"
 }

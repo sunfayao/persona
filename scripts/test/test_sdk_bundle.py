@@ -102,6 +102,9 @@ class SDKBundle(unittest.TestCase):
             git_env.pop(key, None)
         commit = subprocess.check_output(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"],
                                          env=git_env, text=True, timeout=30).strip()
+        dirty = subprocess.check_output(["git", "-C", ROOT, "status", "--porcelain", "--", "sdk"],
+                                        env=git_env, text=True, timeout=30)
+        version = "persona " + commit + (" (with uncommitted changes)" if dirty else "")
         for selected, preserved in [("go", "ts"), ("ts", "go")]:
             with self.subTest(selected=selected), tempfile.TemporaryDirectory() as dest:
                 other = os.path.join(dest, "sdk", preserved)
@@ -121,7 +124,7 @@ class SDKBundle(unittest.TestCase):
                     self.assertEqual(f.read(), "Unrelated extension fixture")
                 self.assertTrue(os.path.isfile(os.path.join(dest, "sdk", "VERSION")))
                 with open(os.path.join(dest, "sdk", "VERSION")) as f:
-                    self.assertEqual(f.readline().strip(), "persona " + commit)
+                    self.assertEqual(f.readline().strip(), version)
                 if selected == "ts":
                     self.assertTrue(os.path.isfile(os.path.join(dest, "sdk/ts/scripts/check-portable.ts")))
                 else:

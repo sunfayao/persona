@@ -8,7 +8,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// clientMeta is what a client says about itself in client_hello. A zero value is a legacy iOS client.
+// clientMeta is what a client says about itself in client_hello.
 // All access is protected by client.mu; identity here never replaces the authenticated device or role.
 type clientMeta struct {
 	DeviceID string          `json:"device_id"`

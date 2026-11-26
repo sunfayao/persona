@@ -1,7 +1,7 @@
 // Machine details (/machines/<id>, iOS MachineDetailView): one page, the most used on top — how the
 // computer is (online, system, which hub when there are several), its agents by herdr space (a row opens the chat),
 // its values now, CPU / memory / network / load over 1, 6 or 24 hours (hover a chart to read a moment, all follow) and
-// each core now (Linux), the system, the launchers. Its engine (which one the agents come from) follows the agents. A Mac the hub's extension cua is on for gets "Computer control" after that, and "Browser" (ego lite) while ego is on; then "iPhone control" while the extension iphone is on (a Mac or a Linux computer).
+// each core now (Linux), the system, the launchers. Its engine (which one the agents come from) follows the agents. A Mac the hub's extension cua is on for gets "Computer control" after that, and "Browser" (ego lite) while ego is on.
 // A Mac whose live screen can be shown (showsScreen) gets "View screen" in the top bar, the page's one way to it: it stays in view
 // while the page scrolls, and does not wait for Cua Driver, which the screen does not use.
 import { MoveToManager } from "../ManagerParts";
@@ -39,7 +39,6 @@ import { hubLabel, routeText } from "../../lib/mesh";
 import { machineDeployment } from "../../lib/machine-deploy";
 import { classifyConnection } from "../../lib/node-health";
 import { screenPath, showsScreen } from "../../lib/computer";
-import { osFamily } from "../../lib/machine-capabilities";
 import { openPanel } from "../../lib/panel";
 import { href, onLinkClick } from "../../lib/router";
 import { getState, refresh, useStore } from "../../lib/store";
@@ -54,7 +53,6 @@ import { MachineDeploy } from "./MachineDeploy";
 import { homeUser, LinkSwitch } from "./LinkSwitch";
 import { BrowserSection } from "./BrowserSection";
 import { ComputerSection } from "./ComputerSection";
-import { IPhoneSection } from "./IPhoneSection";
 import { EngineSection } from "./EngineSection";
 import { openEngineSection } from "./engine-anchor";
 import { BotmuxSwitch } from "./BotmuxSwitch";
@@ -439,7 +437,6 @@ export function MachineDetail({ mid, onToggleSidebar }: { mid: string; onToggleS
 
       {m.computer && <ComputerSection mid={mid} computer={m.computer} online={online} manager={m.manager} />}
       {m.browser && <BrowserSection mid={mid} browser={m.browser} online={online} />}
-      {m.iphone && <IPhoneSection mid={mid} iphone={m.iphone} online={online} mac={osFamily(m) === "macos"} />}
 
       {/* system */}
       <section>

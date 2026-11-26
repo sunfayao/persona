@@ -10,8 +10,8 @@ import (
 	"github.com/nwverse/persona/server/internal/extension"
 )
 
-// slowOfficialMarket is a new hub whose official market answers after delay, as GitHub does on a first read.
-func slowOfficialMarket(t *testing.T, delay time.Duration) (h *Manager, phone string) {
+// slowStoredMarket is a new hub whose stored market answers after delay, as GitHub does on a first read.
+func slowStoredMarket(t *testing.T, delay time.Duration) (h *Manager, phone string) {
 	t.Helper()
 	h, phone, _ = marketHub(t)
 	dir := uiPackage(t)
@@ -31,15 +31,15 @@ func slowOfficialMarket(t *testing.T, delay time.Duration) (h *Manager, phone st
 	}))
 	t.Cleanup(srv.Close)
 	h.extensions.markets.client, h.extensions.markets.githubAPI = srv.Client(), srv.URL
-	useOfficialMarket(t, "github:example/plugins", key.text)
+	storeSignedMarket(t, h, key)
 	t.Cleanup(func() { waitMarketsRead(t, h) })
 	return h, phone
 }
 
-// A new hub's first look at the catalog is the catalog (#5626): the request that adds the official market waits for
+// A new hub's first look at the catalog is the catalog (#5626): the request loading a stored market waits for
 // its first read instead of answering with the "not verified yet" placeholder, which the apps show as unreachable.
-func TestFirstCatalogWaitsForTheOfficialMarketsFirstRead(t *testing.T) {
-	h, phone := slowOfficialMarket(t, 300*time.Millisecond)
+func TestFirstCatalogWaitsForAStoredMarketsFirstRead(t *testing.T) {
+	h, phone := slowStoredMarket(t, 300*time.Millisecond)
 	code, out := call(t, h.routes(), "GET", "/api/v1/extensions/-/catalog", phone, "")
 	if code != 200 {
 		t.Fatalf("catalog: %d %v", code, out)
@@ -50,13 +50,13 @@ func TestFirstCatalogWaitsForTheOfficialMarketsFirstRead(t *testing.T) {
 		t.Fatalf("the first catalog is not the catalog: %v", out)
 	}
 	if m := markets[0].(map[string]any); m["error"] != nil || m["fetched_at"] == nil {
-		t.Fatalf("the official market still shows its placeholder: %v", m)
+		t.Fatalf("the market still shows its placeholder: %v", m)
 	}
 }
 
 // The markets list waits the same way, and a market read before is answered as it stands, without waiting again.
 func TestFirstMarketsListWaitsOnlyForAFirstRead(t *testing.T) {
-	h, phone := slowOfficialMarket(t, 300*time.Millisecond)
+	h, phone := slowStoredMarket(t, 300*time.Millisecond)
 	if list := marketList(t, h, phone); len(list) != 1 || list[0]["error"] != nil || list[0]["fetched_at"] == nil {
 		t.Fatalf("first markets list: %v", list)
 	}
@@ -82,12 +82,57 @@ func TestFirstReadWaitIsBounded(t *testing.T) {
 	was := firstReadWait
 	firstReadWait = 100 * time.Millisecond
 	t.Cleanup(func() { firstReadWait = was })
-	h, phone := slowOfficialMarket(t, 2*time.Second)
+	h, phone := slowStoredMarket(t, 2*time.Second)
 	start := time.Now()
 	if code, out := call(t, h.routes(), "GET", "/api/v1/extensions/-/catalog", phone, ""); code != 200 {
 		t.Fatalf("catalog: %d %v", code, out)
 	}
 	if took := time.Since(start); took > time.Second {
 		t.Fatalf("the request waited %v for a slow first read", took)
+	}
+}
+
+// waitMarketsRead waits for the background reads of the markets to end.
+func waitMarketsRead(t *testing.T, h *Manager) {
+	t.Helper()
+	ms := h.marketsState()
+	for deadline := time.Now().Add(10 * time.Second); ; time.Sleep(10 * time.Millisecond) {
+		ms.mu.Lock()
+		n := len(ms.reading)
+		ms.mu.Unlock()
+		if n == 0 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the markets are still being read")
+		}
+	}
+}
+
+// reloadMarkets makes h read its markets from the store again, as a restarted (or upgraded) hub does.
+func reloadMarkets(h *Manager) {
+	ms := h.marketsState()
+	ms.mu.Lock()
+	ms.loaded, ms.byID = false, nil
+	ms.mu.Unlock()
+}
+
+func marketList(t *testing.T, h *Manager, phone string) []map[string]any {
+	t.Helper()
+	code, out := call(t, h.routes(), "GET", "/api/v1/extensions/-/markets", phone, "")
+	if code != 200 {
+		t.Fatalf("markets: %d %v", code, out)
+	}
+	var list []map[string]any
+	b, _ := json.Marshal(out["markets"])
+	_ = json.Unmarshal(b, &list)
+	return list
+}
+
+func storeSignedMarket(t *testing.T, h *Manager, key marketKey) {
+	t.Helper()
+	row := extension.MarketRecord{ID: "example-market", Spec: "github:example/plugins", SigningKey: key.text, AddedAt: time.Now()}
+	if err := h.marketStore().PutExtensionMarket(t.Context(), row); err != nil {
+		t.Fatal(err)
 	}
 }

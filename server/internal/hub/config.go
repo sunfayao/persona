@@ -209,8 +209,6 @@ type Config struct {
 	Mesh MeshConfig `json:"mesh,omitempty"`
 	// Link tunes the heartbeat with the computers' Persona Links (config_link.go).
 	Link LinkConfig `json:"link,omitzero"`
-	// Personas tunes the looks: whose level a tiered look shows (persona_tiers.go).
-	Personas PersonasConfig `json:"personas,omitempty"`
 
 	dir string
 }
@@ -397,20 +395,16 @@ func (c *Config) PairURL() string {
 }
 
 // Pair prints a pairing QR code for the app (`personad hub pair`); ctx is the command's (Ctrl-C ends the wait for the hub).
-func Pair(ctx context.Context, legacy bool, android ...bool) error {
+func Pair(ctx context.Context, legacy bool) error {
 	cfg, err := runningHubConfig()
 	if err != nil {
 		return err
 	}
-	return cfg.printPair(ctx, legacy, os.Stdout, android...)
+	return cfg.printPair(ctx, legacy, os.Stdout)
 }
 
-func (c *Config) printPair(ctx context.Context, legacy bool, out io.Writer, android ...bool) error {
+func (c *Config) printPair(ctx context.Context, legacy bool, out io.Writer) error {
 	l := i18n.Terminal()
-	withAndroid := len(android) > 0 && android[0]
-	if legacy && withAndroid {
-		return errors.New(i18n.T(l, "hub-cli.pair_android_legacy_conflict"))
-	}
 	if legacy {
 		writePair(out, c)
 		return nil
@@ -424,10 +418,6 @@ func (c *Config) printPair(ctx context.Context, legacy bool, out io.Writer, andr
 	fmt.Fprint(out, i18n.T(l, "hub-cli.pair_normal_expires", i18n.Args{"expires": p.ExpiresAt.UTC().Format(time.RFC3339)}))
 	if p.FP != "" {
 		fmt.Fprint(out, i18n.T(l, "hub-cli.pair_normal_fingerprint", i18n.Args{"fingerprint": p.FP}))
-	}
-	if withAndroid {
-		download := strings.TrimRight(c.PublicURL, "/") + "/api/v1/app/android/apk?" + url.Values{"token": {p.Token}}.Encode()
-		fmt.Fprint(out, i18n.T(l, "hub-cli.pair_normal_android", i18n.Args{"url": download}))
 	}
 	return nil
 }
@@ -558,7 +548,7 @@ func (c *Config) requestPairCodeWithLang(ctx context.Context, reqBody map[string
 	return &p, nil
 }
 
-// writePair prints the server, token, the pairing QR code for the iPhone and the same link for the Mac (no camera:
+// writePair prints the server, token, the pairing QR code and its link (for use without a camera:
 // it pastes the link into "Connect hub").
 func writePair(w io.Writer, cfg *Config) {
 	l := i18n.Terminal()

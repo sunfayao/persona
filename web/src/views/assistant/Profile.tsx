@@ -21,7 +21,6 @@ const RenameAssistantDialog = lazyDialog(() => import("./RenameAssistantDialog")
 const REACH: { text: string; icon: IconName }[] = [
   { text: t("assistant-profile.reach_agents"), icon: "layers" },
   { text: t("assistant-profile.reach_lark"), icon: "chat" },
-  { text: t("assistant-profile.reach_iphone"), icon: "monitor" },
   { text: t("assistant-profile.reach_mail"), icon: "mail" },
   { text: t("assistant-profile.reach_phone"), icon: "bell" },
 ];

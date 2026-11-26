@@ -103,8 +103,6 @@ func TestScheduleMutationWriteFailure(t *testing.T) {
 		{"PUT", "tasks/daily", `{"title":"Edited","prompt":"Changed","repeat":"daily","time":"10:00","weekdays":[2,4],"enabled":false}`},
 		{"DELETE", "tasks/once", ""},
 		{"POST", "tasks/once/fresh", ""},
-		{"PUT", "routines", `{"routines":[{"id":"daily","title":"Edited","prompt":"Changed","time":"10:00","enabled":false}]}`},
-		{"DELETE", "followups/once", ""},
 	} {
 		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
 			s, f, st := scheduleStorageFixture(t)
@@ -235,7 +233,7 @@ func TestScheduleDueAdmissionWriteFailure(t *testing.T) {
 }
 
 func TestScheduleManualAdmissionWriteFailure(t *testing.T) {
-	for _, path := range []string{"tasks/once/run", "followups/once/run", "tasks/daily/run", "routines/daily/run", "tasks/interval/run"} {
+	for _, path := range []string{"tasks/once/run", "tasks/daily/run", "tasks/interval/run"} {
 		t.Run(path, func(t *testing.T) {
 			s, f, st := scheduleStorageFixture(t)
 			before, history := scheduleState(s)

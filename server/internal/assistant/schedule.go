@@ -2930,7 +2930,7 @@ func (s *Service) taskViews(ctx context.Context) []TaskView {
 // tasksView is the list as the app sees it: next runs filled in (a cron task's next few too, and its expression in words
 // in the request's language), one-offs that already ran left out. Empty while the schedule can't be read: the routes
 // check scheduleReadable first.
-func (s *Service) tasksView(ctx context.Context, keep func(Task) bool) []Task {
+func (s *Service) tasksView(ctx context.Context) []Task {
 	sc := s.loadSchedule(ctx)
 	loc, lang := s.location(ctx), s.requestCtxLang(ctx)
 	machine := s.settings(ctx).MachineID
@@ -2941,7 +2941,7 @@ func (s *Service) tasksView(ctx context.Context, keep func(Task) bool) []Task {
 	sc.mu.Unlock()
 	out := []Task{}
 	for _, t := range tasks {
-		if t.done() || (keep != nil && !keep(t)) {
+		if t.done() {
 			continue
 		}
 		t.NextRun = t.next(now, loc)
@@ -2984,7 +2984,7 @@ func (s *Service) tasksView(ctx context.Context, keep func(Task) bool) []Task {
 }
 
 func (s *Service) taskView(ctx context.Context, id string) (Task, bool) {
-	for _, t := range s.tasksView(ctx, nil) {
+	for _, t := range s.tasksView(ctx) {
 		if t.ID == id {
 			return t, true
 		}
@@ -3065,7 +3065,7 @@ func (s *Service) scheduleRoutes() {
 			apierr.Write(w, http.StatusServiceUnavailable, err)
 			return
 		}
-		tasks := s.tasksView(i18n.With(r.Context(), s.requestLang(r)), nil)
+		tasks := s.tasksView(i18n.With(r.Context(), s.requestLang(r)))
 		if !fullRole(r) {
 			for i := range tasks {
 				tasks[i].CanSkipNext, tasks[i].SkipNextToken = false, ""
@@ -3318,88 +3318,6 @@ func (s *Service) scheduleRoutes() {
 		apierr.WriteJSON(w, map[string]any{"runs": runs})
 	})
 
-	// The two lists app builds from before 2026-10-31 read and write (a task's JSON is a superset of both):
-	// routines are the daily tasks; follow-ups the once and interval ones, by their next run.
-	s.handle("GET /api/v1/assistant/routines", func(w http.ResponseWriter, r *http.Request) {
-		if err := s.scheduleReadable(r.Context()); err != nil {
-			apierr.Write(w, http.StatusServiceUnavailable, err)
-			return
-		}
-		apierr.WriteJSON(w, map[string]any{"routines": s.tasksView(r.Context(), func(t Task) bool { return t.Repeat == repeatDaily })})
-	})
-	s.handle("PUT /api/v1/assistant/routines", func(w http.ResponseWriter, r *http.Request) {
-		var in struct {
-			Routines []Task `json:"routines"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-			apierr.Write(w, http.StatusBadRequest, err)
-			return
-		}
-		now := time.Now()
-		sc, err := s.lockedSchedule(r.Context())
-		if err != nil {
-			apierr.Write(w, http.StatusServiceUnavailable, err)
-			return
-		}
-		var out []Task
-		old := map[string]Task{}
-		for _, t := range sc.tasks {
-			if t.Repeat == repeatDaily {
-				old[t.ID] = t
-			} else {
-				out = append(out, t)
-			}
-		}
-		for _, rt := range in.Routines {
-			prev, ok := old[rt.ID]
-			if !ok {
-				prev = Task{ID: "rt_" + randomHex(4), CreatedAt: now.UTC()}
-			}
-			rt.Repeat, rt.Launcher, rt.Model, rt.PermissionMode, rt.Effort, rt.SessionID = repeatDaily, prev.Launcher, prev.Model, prev.PermissionMode, prev.Effort, prev.SessionID
-			t := editTask(prev, rt, now)
-			if err := checkTask(&t, now); err != nil {
-				sc.mu.Unlock()
-				apierr.Write(w, http.StatusBadRequest, err)
-				return
-			}
-			if ok {
-				rearm(prev, &t, now)
-			} else {
-				rearm(Task{}, &t, now)
-			}
-			// Only the task endpoint can change the run settings of a task
-			// whose saved prompt has selections, including replacing that prompt.
-			if prev.PromptSelections && taskInputEditNeedsValidation(prev, t) {
-				sc.mu.Unlock()
-				apierr.Write(w, http.StatusBadRequest, errTaskSelectionsOwner)
-				return
-			}
-			out = append(out, t)
-		}
-		err = s.saveLocked(sc, out)
-		sc.mu.Unlock()
-		if err != nil {
-			apierr.Write(w, http.StatusServiceUnavailable, err)
-			return
-		}
-		s.broadcastSchedule()
-		apierr.WriteJSON(w, map[string]any{"routines": s.tasksView(r.Context(), func(t Task) bool { return t.Repeat == repeatDaily })})
-	})
-	s.handle("POST /api/v1/assistant/routines/{id}/run", s.runTaskRoute)
-	s.handle("GET /api/v1/assistant/followups", func(w http.ResponseWriter, r *http.Request) {
-		if err := s.scheduleReadable(r.Context()); err != nil {
-			apierr.Write(w, http.StatusServiceUnavailable, err)
-			return
-		}
-		list := s.tasksView(r.Context(), func(t Task) bool { return t.Repeat != repeatDaily && t.Enabled })
-		for i := range list {
-			list[i].At = list[i].NextRun
-		}
-		sort.Slice(list, func(i, j int) bool { return list[i].At.Before(list[j].At) })
-		apierr.WriteJSON(w, map[string]any{"followups": list})
-	})
-	s.handle("POST /api/v1/assistant/followups/{id}/run", s.runTaskRoute)
-	s.handle("DELETE /api/v1/assistant/followups/{id}", s.deleteTaskRoute)
 }
 
 func (s *Service) deleteTaskRoute(w http.ResponseWriter, r *http.Request) {

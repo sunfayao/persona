@@ -29,11 +29,9 @@ export interface Market {
   added_at?: string;
   /** How its index is signed (a hub with market signatures, #1848). */
   signature?: MarketSignature;
-  /** The official market every hub has (#2351), listed first; absent on other markets and older hubs. */
-  official?: boolean;
 }
 
-/** A catalog's verification status. key_changed is an official pin mismatch, never a request to trust a key. */
+/** A catalog's verification status. key_changed is an saved pin mismatch, never a request to trust a key. */
 interface MarketSignature {
   state: string;
   key_id?: string;
@@ -104,11 +102,9 @@ const M = () => `${extRoot()}/-`;
 /** A market as either kind of hub sends it: how many extensions under `extensions` (or `plugins`). */
 export const marketView = (m: Market & { plugins?: number }): Market => {
   const { plugins, ...rest } = m;
-  return { ...rest, ...(m.official ? { name: officialMarketName() } : {}), extensions: m.extensions ?? plugins ?? 0 };
+  return { ...rest, extensions: m.extensions ?? plugins ?? 0 };
 };
 
-/** The official market is Official extensions in the page's language (#5017), whatever its index (or an older hub) calls it. */
-const officialMarketName = () => t("lib-extension-market.official_name");
 
 export const addMarket = (spec: string, token?: string) => api<Market>(`${M()}/markets`, { method: "POST", json: token ? { spec, token } : { spec } }).then(marketView);
 export const removeMarket = (id: string) => api<{ ok: boolean }>(`${M()}/markets/${enc(id)}`, { method: "DELETE" });
@@ -132,8 +128,7 @@ export const getCatalog = (q?: string, market?: string, refresh?: boolean, manag
 /** A catalog as either kind of hub sends it (the list under `extensions`, or `plugins`). */
 export const catalogOf = (c: Catalog & { plugins?: CatalogItem[] }): Catalog => {
   const markets = (c.markets ?? []).map(marketView);
-  const official = new Set(markets.filter((m) => m.official).map((m) => m.id));
-  const extensions = listOf<CatalogItem>(c).map((it) => (official.has(it.market) ? { ...it, market_name: officialMarketName() } : it));
+  const extensions = listOf<CatalogItem>(c);
   return { markets, extensions, ...(c.platform ? { platform: c.platform } : {}) };
 };
 /** Both keys: a hub from before #1844 reads `plugin`, a newer one `extension` (or `plugin`). */

@@ -424,8 +424,7 @@
       "source": {
         "rule": "Never twice",
         "code": {
-          "web": "web/src/lib/echo.ts",
-          "ios": "PendingMessage.arrived"
+          "web": "web/src/lib/echo.ts"
         }
       },
       "chat": {
@@ -632,9 +631,7 @@
           "#4315"
         ],
         "code": {
-          "web": "web/src/lib/turns.ts segments",
-          "ios": "ChatStore.picturesAfterTheirText",
-          "android": "buildLineRows"
+          "web": "web/src/lib/turns.ts segments"
         }
       },
       "chat": {
@@ -940,9 +937,7 @@
           "#4315"
         ],
         "code": {
-          "web": "web/src/lib/turns.ts segments",
-          "ios": "ChatStore.picturesAfterTheirText",
-          "android": "buildLineRows"
+          "web": "web/src/lib/turns.ts segments"
         }
       },
       "chat": {
@@ -1182,9 +1177,7 @@
           "#4315"
         ],
         "code": {
-          "web": "web/src/lib/turns.ts segments",
-          "ios": "ChatBlock.build",
-          "android": "buildBlocks"
+          "web": "web/src/lib/turns.ts segments"
         }
       },
       "chat": {

@@ -42,7 +42,7 @@ func TestJudgedDelivery(t *testing.T) {
 		{"the judge's hold", "pr", "等用户批准合并", "user", reply(pr), deliveryPR, unblockUser},
 		{"live with a deploy", "live", "", "", reply(pr + "，已部署，实测通过"), deliveryLive, ""},
 		{"live with only a PR is held", "live", "", "", reply(pr), deliveryPR, ""},
-		{"merged with a TestFlight build is out", "", "", "", reply(pr + " 已合并，TestFlight 构建号 202611041200"), deliveryNone, ""},
+		{"merged with a deployed build", "", "", "", reply(pr + " 已合并，部署构建号 202611041200"), deliveryNone, ""},
 		{"merged and called live is held", "live", "", "", reply(pr + "，已合并"), deliveryMerged, ""},
 		{"the agent's own line says it is out", "live", "", "", reply(pr + "\n交付：已上线并实测；卡点：无；谁来解：无"), deliveryLive, ""},
 		{"nothing to ship stands", "none", "", "", reply("参考了 " + pr + " 的做法，结论如下"), deliveryNone, ""},

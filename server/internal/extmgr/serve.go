@@ -37,7 +37,7 @@ func (h *Manager) Run(ctx context.Context) error {
 	h.ctx = ctx
 	if ms, ok := h.store.(mailStore); ok && NewMail != nil {
 		var err error
-		if h.mail, err = NewMail(h.cfg.dir, h.secretKeyPath(), ms, h.cfg.Google, h.cfg.Microsoft); err != nil {
+		if h.mail, err = NewMail(h.cfg.dir, h.secretKeyPath(), ms, h.cfg.Google); err != nil {
 			h.logf("mail disabled: %v", err)
 			h.mail = nil
 		}
@@ -153,12 +153,6 @@ func (h *Manager) registerRoutes(api *http.ServeMux) {
 	api.HandleFunc("GET /api/v1/machines/{mid}/browser/cookies", withMachine(h.browserCookies))
 	api.HandleFunc("POST /api/v1/machines/{mid}/browser/cookies", withMachine(h.browserCookies))
 	api.HandleFunc("DELETE /api/v1/machines/{mid}/browser/cookies", withMachine(h.browserCookies))
-	api.HandleFunc("GET /api/v1/machines/{mid}/iphone", withMachine(h.getIPhone))
-	api.HandleFunc("PUT /api/v1/machines/{mid}/iphone", withMachine(h.putIPhone))
-	api.HandleFunc("POST /api/v1/machines/{mid}/iphone/{action}", withMachine(h.postIPhoneJob))
-	api.HandleFunc("GET /api/v1/iphone", h.getIPhoneList)
-	api.HandleFunc("PUT /api/v1/iphone/consent", h.putIPhoneConsent)
-	api.HandleFunc("POST /api/v1/iphone/try", h.postIPhoneTry)
 	if h.mail != nil {
 		api.Handle("/api/v1/mail/", h.mail.Handler())
 	} else {
@@ -517,9 +511,6 @@ func (h *Manager) hubCall(ctx context.Context, method string, params json.RawMes
 		}
 	}
 	switch method {
-	case extwire.HubGitHubLogin:
-		login, known := h.githubLogin(ctx)
-		return map[string]any{"login": login, "known": known}, nil
 	case extwire.HubSettingsList:
 		return map[string]any{"settings": h.settingsList(ctx)}, nil
 	case extwire.HubSettingsTool:
@@ -648,10 +639,7 @@ func (h *Manager) report() extwire.Report {
 			x.Browser, _ = json.Marshal(b)
 			x.ScreenPort = x.ScreenPort || b.Enabled
 		}
-		if p := h.iphoneOf(m); p != nil {
-			x.IPhone, _ = json.Marshal(p)
-		}
-		if x.Computer != nil || x.Browser != nil || x.IPhone != nil {
+		if x.Computer != nil || x.Browser != nil {
 			r.Machines[m.cfg.ID] = x
 		}
 	}
@@ -706,7 +694,6 @@ func (h *Manager) AgentTools(ctx context.Context, assistant bool) (agents, assis
 	if assistant {
 		assistantOnly = append(assistantOnly, h.computerTools()...)
 		assistantOnly = append(assistantOnly, h.browserTools()...)
-		assistantOnly = append(assistantOnly, h.iphoneTools()...)
 		assistantOnly = append(assistantOnly, h.subscriptionTools()...)
 		assistantOnly = append(assistantOnly, h.connectors.ToolsFor(ctx, false)...)
 	}
@@ -732,8 +719,6 @@ func (h *Manager) CallTool(ctx context.Context, machine, session, name string, a
 		return h.callComputerTool(ctx, session, name, args), true
 	case assistant && isBrowserTool(name):
 		return h.callBrowserTool(ctx, session, name, args), true
-	case assistant && isIPhoneTool(name):
-		return h.callIPhoneTool(ctx, session, name, args), true
 	case assistant && isSubscriptionTool(name):
 		return h.callSubscriptionTool(ctx, asker{machine, session}, name, args), true
 	}
@@ -747,13 +732,13 @@ func (h *Manager) ConnectorTool(name string) bool {
 
 // ToolAccess classifies every tool CallTool can dispatch, without running it. Connector reads are declared by the
 // connector; its Actions are writes. Subscription dry runs only read, while save/run can change or notify. Computer,
-// browser and iPhone control are actions for this policy even when an individual invocation only observes.
+// browser control are actions for this policy even when an individual invocation only observes.
 func (h *Manager) ToolAccess(name string) (known, readOnly bool) {
 	if h.connectors != nil && h.connectors.Offers(name) {
 		return true, h.connectors.ReadOnly(name)
 	}
 	switch {
-	case isComputerTool(name), isBrowserTool(name), isIPhoneTool(name):
+	case isComputerTool(name), isBrowserTool(name):
 		return true, false
 	case isSubscriptionTool(name):
 		return true, name == "subscription_list" || name == "subscription_get" ||

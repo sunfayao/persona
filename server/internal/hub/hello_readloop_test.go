@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// helloStore can hold the loads and writes behind client_hello and register_phone. Its gates stay closed until the
+// helloStore can hold the loads and writes behind client_hello. Its gates stay closed until the
 // test releases them, even when a store operation's context expires: the operation deadline must never race the
 // response assertion. Test cleanup releases any handler still blocked after a failure.
 type helloStore struct {

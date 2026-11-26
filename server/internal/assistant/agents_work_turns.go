@@ -608,7 +608,7 @@ var (
 
 // riskyWords mark a next step the manager must not set off itself: it is only ever a
 // card.
-var riskyWords = []string{"push", "deploy", "部署", "发布", "上线", "merge", "合并", "合入", "发消息", "回复", "评论", "testflight",
+var riskyWords = []string{"push", "deploy", "部署", "发布", "上线", "merge", "合并", "合入", "发消息", "回复", "评论",
 	"release", "推送", "推到", "comment", "发版", "提审", "send",
 	"发送", "删除", "delete", "购买", "付费", "续费", "充值", "生产", "production"} // i18n-ignore: matched against what the agent said
 

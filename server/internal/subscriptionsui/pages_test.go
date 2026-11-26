@@ -32,7 +32,6 @@ type fake struct {
 	updateErr error
 	ran       []string
 	deleted   []string
-	pushed    []subscriptions.Actor // devices whose push source was added (#3848)
 	model     subscriptions.ModelInfo
 	deleteErr error
 	// previewed are the subscriptions whose preview was handed to PreviewThings.

@@ -5,11 +5,10 @@
       "name": "resolve_no_client",
       "description": "作答回传根据连接条件和 hub 结果保留或移除交互卡片。",
       "source": [
-        "ios/Persona/App/AppModel.swift：resolve(_:_:)",
         "docs/protocol/protocol.md §3.4、§5.3"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -37,11 +36,10 @@
       "name": "resolve_network_down",
       "description": "作答回传根据连接条件和 hub 结果保留或移除交互卡片。",
       "source": [
-        "ios/Persona/App/AppModel.swift：resolve(_:_:)",
         "docs/protocol/protocol.md §3.4、§5.3"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -69,11 +67,10 @@
       "name": "resolve_success",
       "description": "作答回传根据连接条件和 hub 结果保留或移除交互卡片。",
       "source": [
-        "ios/Persona/App/AppModel.swift：resolve(_:_:)",
         "docs/protocol/protocol.md §3.4、§5.3"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -103,11 +100,10 @@
       "name": "resolve_gone",
       "description": "作答回传根据连接条件和 hub 结果保留或移除交互卡片。",
       "source": [
-        "ios/Persona/App/AppModel.swift：resolve(_:_:)",
         "docs/protocol/protocol.md §3.4、§5.3"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -137,11 +133,10 @@
       "name": "resolve_prompt_changed",
       "description": "作答回传根据连接条件和 hub 结果保留或移除交互卡片。",
       "source": [
-        "ios/Persona/App/AppModel.swift：resolve(_:_:)",
         "docs/protocol/protocol.md §3.4、§5.3"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -171,11 +166,10 @@
       "name": "resolve_error_restores_card",
       "description": "作答回传根据连接条件和 hub 结果保留或移除交互卡片。",
       "source": [
-        "ios/Persona/App/AppModel.swift：resolve(_:_:)",
         "docs/protocol/protocol.md §3.4、§5.3"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",

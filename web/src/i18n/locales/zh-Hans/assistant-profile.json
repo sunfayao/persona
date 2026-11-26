@@ -1,7 +1,6 @@
 {
   "reach_agents": "各台电脑上的 Agent：看状态、读对话、发消息、开新的",
   "reach_lark": "飞书：消息、日历、文档、会议纪要、任务、邮件",
-  "reach_iphone": "iPhone：通讯录、日历、提醒、位置、健康、照片",
   "reach_mail": "你添加的所有邮箱",
   "reach_phone": "在手机上问你、给你推送",
   "hub_machine": "hub 所在的机器",

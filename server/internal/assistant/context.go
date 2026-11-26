@@ -397,7 +397,7 @@ func snapshotAgentGroup(c proto.Session, now time.Time) snapshotAgentGroupKind {
 
 // snapshotAgents sorts the agents by what they need: the work state (agents_work.go) says what a stopped one
 // waits for or concluded. Each has its page in the web app at web ("" for none). The muted ones (the agent or its
-// space) are in none of the others: the Live Activity, the Agents badge and the inbox leave them out,
+// space) are in none of the others: the Persona Link summary, the Agents badge and the inbox leave them out,
 // so "Needs you" here does too; they are told apart, for when the user asks about them (#4562).
 func (s *Service) snapshotAgents(ctx context.Context, devices []Device, web string) (needs, unread, awaiting, waiting, done, muted []prompts.SnapshotAgent,
 	working []prompts.SnapshotAgent) {

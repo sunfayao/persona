@@ -66,7 +66,6 @@ the time. That is why `06-wire-contracts-and-extensions.md` matters for almost e
 | `web/` | The web app, the admin pages, the public share viewer, browser check scripts | `07` |
 | `integrations/` | Agent runtime packages and the runtime SDK | `06` |
 | `sdk/`, `schema/`, `spec/` | Extension SDKs, schemas that generate code, fixtures shared by server and web tests | `06` |
-| `native/iphone-bridge/` | Source of the helper the iPhone tools download | leave it unless you work on those tools |
 | `scripts/` | Test runner, deploy, generators, mock hub, privacy scan, commit hooks | `09`, `10` |
 | `docs/` | Reference material that the rule files link to | `12` |
 

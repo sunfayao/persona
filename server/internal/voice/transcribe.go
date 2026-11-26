@@ -47,7 +47,7 @@ func (pl *Plugin) transcriptionCaller(w http.ResponseWriter, r *http.Request) bo
 		return false
 	}
 	if role := r.Header.Get(extwire.HeaderRole); role != "" && role != roleFull {
-		writeHTTPJSON(w, http.StatusForbidden, map[string]any{"error": "only the manager transcribes meetings", "code": codeForbidden})
+		writeHTTPJSON(w, http.StatusForbidden, map[string]any{"error": "only the manager transcribes meetings", "code": "forbidden"})
 		return false
 	}
 	return true

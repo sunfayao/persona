@@ -64,4 +64,4 @@ type Mail interface {
 }
 
 // NewMail is set by the mail integration (mail_glue.go); secretKey is the key file the passwords are sealed with.
-var NewMail func(dataDir, secretKey string, store mailStore, google GoogleConfig, microsoft MicrosoftConfig) (Mail, error)
+var NewMail func(dataDir, secretKey string, store mailStore, google GoogleConfig) (Mail, error)

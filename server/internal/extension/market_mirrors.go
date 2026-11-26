@@ -12,7 +12,7 @@ import (
 const mirrorFetchFor = 8 * time.Second
 
 // MarketMirrors belongs to one extension manager. Neither field changes a source
-// spec, package digest, credential binding, or the official catalog signing key.
+// spec, package digest, credential binding, or the market's signing key.
 type MarketMirrors struct {
 	RegistryMirror string `json:"registry_mirror"`
 	CatalogMirror  string `json:"catalog_mirror"`

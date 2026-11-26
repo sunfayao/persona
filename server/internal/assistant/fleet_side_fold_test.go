@@ -5,7 +5,6 @@ import (
 	"os"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -194,75 +193,5 @@ func TestPublishedListFoldsSides(t *testing.T) {
 	})
 	if p.FoldedState() != proto.StateWorking {
 		t.Fatalf("the parent shows %s", p.FoldedState())
-	}
-}
-
-// The Live Activity counts a folded side session under its parent, the parent once in the state it shows with its
-// sides, as the lists do: a side's card stands for the parent, a working side makes it work, an unseen side makes it
-// finished unseen. A side whose parent the fleet does not have counts on its own, and a muted side nowhere (#7944).
-func TestFleetCountsASideUnderItsParent(t *testing.T) {
-	t0 := time.Date(2026, 11, 15, 9, 0, 0, 0, time.UTC)
-	agent := func(id, state string, mod func(*proto.Session)) fleetInput {
-		s := proto.Session{MachineID: "m", SessionID: id, Title: "agent " + id, State: state, UpdatedAt: t0}
-		if mod != nil {
-			mod(&s)
-		}
-		return fleetInput{Machine: "box", Session: &s}
-	}
-	asSide := func(s *proto.Session) { s.SetParentAgentID("parent"); s.SetFold("parent", proto.FoldedAsSide, "", nil) }
-	parent := agent("parent", proto.StateIdle, nil)
-
-	// A side that needs you, by its card: the parent's item, the side's card on it.
-	ixs := []proto.Interaction{{ID: "ix-side", MachineID: "m", SessionID: "side", Kind: proto.IxPermission, Summary: "npm test", CreatedAt: t0}}
-	st := buildFleet([]fleetInput{parent, agent("side", proto.StateNeedsYou, asSide)}, ixs)
-	if st.NeedsYou != 1 || st.Working+st.Unread != 0 || len(st.Items) != 1 || st.Items[0].ID != "m/parent" ||
-		st.Items[0].Interaction != "ix-side" || st.Items[0].Title != "agent parent" {
-		t.Fatalf("a side's card: %+v", st)
-	}
-	// A card that reached the hub before the side's row says so stands for the parent too.
-	if st := buildFleet([]fleetInput{parent, agent("side", proto.StateWorking, asSide)}, ixs); st.NeedsYou != 1 || st.Working != 0 ||
-		len(st.Items) != 1 || st.Items[0].ID != "m/parent" {
-		t.Fatalf("a side's card before its row: %+v", st)
-	}
-	// Working, from when the side began.
-	working := agent("side", proto.StateWorking, asSide)
-	working.TurnStart = t0.Add(-3 * time.Minute)
-	if st := buildFleet([]fleetInput{parent, working}, nil); st.Working != 1 || len(st.Items) != 1 || st.Items[0].ID != "m/parent" ||
-		st.WorkingSince != float64(t0.Add(-3*time.Minute).Unix()) {
-		t.Fatalf("a working side: %+v", st)
-	}
-	// Finished unseen.
-	unseen := agent("side", proto.StateUnread, func(s *proto.Session) { asSide(s); s.UpdatedAt = t0.Add(time.Minute) })
-	if st := buildFleet([]fleetInput{parent, unseen}, nil); st.Unread != 1 || st.Working+st.NeedsYou != 0 || st.Items[0].ID != "m/parent" ||
-		st.Items[0].Since != float64(t0.Add(time.Minute).Unix()) {
-		t.Fatalf("an unseen side: %+v", st)
-	}
-	// The parent awaiting the user's reply does not show its side working (the list's rule), and its row is not changed.
-	awaiting := agent("parent", proto.StateIdle, func(s *proto.Session) { s.AwaitsReply = true })
-	if st := buildFleet([]fleetInput{awaiting, working}, nil); st.Working+st.NeedsYou+st.Unread != 0 || awaiting.Session.State != proto.StateIdle {
-		t.Fatalf("a parent awaiting a reply: %+v", st)
-	}
-	// A side's own child that needs you counts for the parent too.
-	kid := agent("kid", proto.StateNeedsYou, func(s *proto.Session) {
-		s.SourceKind, s.IsSubagent, s.ParentSessionID = proto.SourceRuntime, true, "side"
-		s.SetFold("parent", "", "side", nil)
-	})
-	if st := buildFleet([]fleetInput{parent, agent("side", proto.StateIdle, asSide), kid}, nil); st.NeedsYou != 1 || len(st.Items) != 1 ||
-		st.Items[0].ID != "m/parent" {
-		t.Fatalf("a side's child: %+v", st)
-	}
-	// Without its parent (a quiet task's agent) the side counts on its own; muted, nowhere.
-	if st := buildFleet([]fleetInput{agent("side", proto.StateWorking, asSide)}, nil); st.Working != 1 || st.Items[0].ID != "m/side" {
-		t.Fatalf("a side with no parent in the fleet: %+v", st)
-	}
-	muted := agent("side", proto.StateNeedsYou, asSide)
-	muted.Muted = true
-	if st := buildFleet([]fleetInput{parent, muted}, ixs); st.NeedsYou+st.Working+st.Unread != 0 {
-		t.Fatalf("a muted side: %+v", st)
-	}
-	// Nothing folds: the agents and cards are the caller's, as they were.
-	plain := []fleetInput{parent, agent("other", proto.StateWorking, nil)}
-	if a, x := foldSidesIn(plain, ixs); &a[0] != &plain[0] || &x[0] != &ixs[0] {
-		t.Fatal("a fleet without sides was copied")
 	}
 }

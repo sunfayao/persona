@@ -1289,7 +1289,7 @@ func (s *Service) ownCard(ctx context.Context, ix proto.Interaction) proto.Inter
 	return ix
 }
 
-// toolTitle is one of the manager's own tools by its name for people ("iPhone control"), "" for any other.
+// toolTitle is one of the manager's own tools by its name for people ("Computer control"), "" for any other.
 func toolTitle(l i18n.Lang, tool string) string {
 	key := "assistant-tool_titles." + strings.ReplaceAll(tool, ".", "_")
 	if tool == "" || !i18n.Has(key) {

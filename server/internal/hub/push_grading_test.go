@@ -121,8 +121,7 @@ func (s *gradingStore) sentTable() []db.PushSent {
 	return slices.Clone(s.sentRows)
 }
 
-func (s *gradingStore) Devices(context.Context) ([]db.Device, error)  { return nil, nil }
-func (s *gradingStore) UpsertDevice(context.Context, db.Device) error { return nil }
+func (s *gradingStore) Devices(context.Context) ([]db.Device, error) { return nil, nil }
 func (s *gradingStore) SetDevicePrefs(context.Context, string, string, json.RawMessage) error {
 	return nil
 }

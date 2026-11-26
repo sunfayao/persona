@@ -165,14 +165,7 @@ func identityFixture(t *testing.T, permissionFree bool, signed ...bool) (*Regist
 		mk := &Market{Spec: spec, Client: srv.Client()}
 		if len(signed) > 0 && signed[0] {
 			key, sign := testKey(t)
-			previous := Official
-			Official.SigningKey = key
-			t.Cleanup(func() { Official = previous })
-			spec, err = ParseMarket(Official.Spec)
-			if err != nil {
-				t.Fatal(err)
-			}
-			mk.Spec, mk.TrustedKey = spec, key
+			mk.TrustedKey = key
 			payload, err := json.Marshal(MarketIndex{MarketVersion: 1, Name: "Example", Extensions: []MarketEntry{*e}})
 			if err != nil {
 				t.Fatal(err)

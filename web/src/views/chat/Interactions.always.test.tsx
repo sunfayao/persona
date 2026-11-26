@@ -17,7 +17,7 @@ await loadPages();
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const card = { id: "p_1", machine_id: "m", session_id: "s", kind: "permission", tool_name: "iphone_do", tool_input: { steps: [] } } as Interaction;
+const card = { id: "p_1", machine_id: "m", session_id: "s", kind: "permission", tool_name: "computer_run", tool_input: { command: "pwd" } } as Interaction;
 
 let host: HTMLDivElement;
 let root: Root;
@@ -45,7 +45,7 @@ describe("Always allow on a permission card", () => {
     show({ ...card, always_honored: false, tool_title: "iPhone control" });
     expect(labels()).not.toContain(t("chat-interactions.always_allow"));
     expect(labels()).toContain(t("chat-interactions.allow"));
-    expect(host.textContent).not.toContain(t("chat-interactions.always_scope_tool", { tool: "iphone_do" }));
+    expect(host.textContent).not.toContain(t("chat-interactions.always_scope_tool", { tool: "computer_run" }));
     expect(host.textContent).toContain(t("chat-interactions.permission_title", { tool: "iPhone control" }));
   });
 

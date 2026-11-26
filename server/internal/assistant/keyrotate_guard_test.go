@@ -85,8 +85,6 @@ func TestPlacesThatSealAreKnown(t *testing.T) {
 		"internal/extmgr/extension_market_routes.go":   1, // plugin_markets.token_sealed
 		"internal/extension/registry_settings.go":      1, // plugin_secrets
 		"internal/mail/store.go":                       4, // its box, encrypt and its calls: mail_accounts
-		"internal/mail/oauth.go":                       1, // the OAuth state, in the sign-in URL only
-		"internal/mail/microsoft.go":                   1, // mail.microsoft_client
 		// other keys
 		"internal/hub/secretkey.go":       3, // the hub's own secret.key
 		"internal/hub/peer_pair.go":       2, // the hub's key: linked hubs' tokens

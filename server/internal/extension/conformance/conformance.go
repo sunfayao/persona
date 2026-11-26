@@ -252,7 +252,7 @@ func Check(t T, m *extension.Manifest, run Run, init extension.InitializeParams)
 			View *extension.View `json:"view"`
 		}
 		err := hub.Call(ctx, "shortcut.run", map[string]any{"contribution": s.ID, "values": map[string]string{},
-			"ui_version": extension.UIVersion, "tz": "Asia/Shanghai", "locale": "zh-Hans-CN", "platform": "ios"}, &res)
+			"ui_version": extension.UIVersion, "tz": "Asia/Shanghai", "locale": "zh-Hans-CN", "platform": "web"}, &res)
 		switch c := code(err); {
 		case c == extension.CodeUnknownMethod || c == extension.CodeNoContribution:
 			t.Fatalf("shortcut %s: shortcut.run answered %v", s.ID, err)

@@ -62,7 +62,6 @@
   "list_separator": "、",
   "market_one": "{id}：{name}、拡張機能{count}件",
   "market_other": "{id}：{name}、拡張機能{count}件",
-  "market_official": "公式",
   "market_source": "market:<マーケットID>/<拡張機能ID> の形で指定してください（マーケットIDは personad extension market list で確認できます）",
   "market_spec_one": "{id}：{name}、拡張機能{count}件（{spec}）",
   "market_spec_other": "{id}：{name}、拡張機能{count}件（{spec}）",

@@ -63,7 +63,7 @@ cd server
 # (UTC), so an older release never replaces it and the next release does.
 BUILD="$(date -u +%Y%m%d%H%M)"
 # The nearest vX.Y.Z tag names it, a lightweight one too (a GitHub release's tag is one; plain `git describe` counts
-# annotated tags only, so builds after v0.4.0 read v0.3.1-…, #7201); testflight/<build> and other tags never do.
+# annotated tags only, so builds after v0.4.0 read v0.3.1-…, #7201); non-release tags never do.
 VERSION="$(git describe --tags --match 'v[0-9]*' --always --dirty 2>/dev/null || echo dev)-$BUILD"
 TARGETS=("$@")
 [ ${#TARGETS[@]} -eq 0 ] && read -ra TARGETS <<< "$PERSONA_MACHINES"

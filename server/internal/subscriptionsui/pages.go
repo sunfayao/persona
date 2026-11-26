@@ -33,8 +33,6 @@ type Service interface {
 	ModelOf(ctx context.Context, purpose string) subscriptions.ModelInfo
 	// PreviewThings are a dry run's items as sub would hand them to the Inbox, for trying triage on them (#5278).
 	PreviewThings(sub subscriptions.Subscription, items []subscriptions.Preview) subscriptions.TriagePreview
-	// Push makes or fills the device's push source (#3848); no items only makes it.
-	Push(ctx context.Context, by subscriptions.Actor, in subscriptions.PushRequest) (subscriptions.PushResult, error)
 }
 
 // Env is who asks and what the pages need from the rest of the manager.
@@ -63,8 +61,6 @@ type Env struct {
 	Triage func(ctx context.Context, tp subscriptions.TriagePreview) ([]Verdict, error)
 	// UIVersion is the UI version the app draws (6 when 0): an older app gets icons it knows.
 	UIVersion int
-	// Platform is the asking app's (the UI context's): only "ios" offers to add its own Shortcuts source (#3848).
-	Platform string
 	// Graph: the app has its own relationship view (#5741), which the list's Source Relationships row opens (GraphURL).
 	Graph bool
 }

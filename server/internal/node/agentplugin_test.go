@@ -103,7 +103,7 @@ func TestAgentAllowsOnlyItsOwnPersonaTools(t *testing.T) {
 		}
 	}
 	for _, asked := range []string{"dispatch_start", "dispatch_read", "phone_notify", "phone_messages_compose", "phone_calendar_create_event",
-		"mail_send", "mail_read", "iphone_do", "agent_start", "agent_send", "notify_user", "persona_settings"} {
+		"mail_send", "mail_read", "agent_start", "agent_send", "notify_user", "persona_settings"} {
 		for _, name := range compat.MCPToolNames([]string{asked}) {
 			if slices.Contains(got, name) {
 				t.Errorf("%s is allowed: it must keep its card", name)

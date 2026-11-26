@@ -50,8 +50,8 @@ func collectDevices(rows pgx.Rows) ([]Device, error) {
 // credential is the device token that wrote them: a row without one takes it, so revoking that token (Pusher.signedOut)
 // also removes a row only prefs ever made; registering sets it as usual.
 func (d *DB) SetDevicePrefs(ctx context.Context, id, credential string, prefs json.RawMessage) error {
-	_, err := d.pool.Exec(ctx, `INSERT INTO devices (device_id, name, kind, apns_token, apns_env, topic, updated_at, prefs, credential)
-		VALUES ($1, '', '', '', '', '', now(), $2, $3)
+	_, err := d.pool.Exec(ctx, `INSERT INTO devices (device_id, name, kind, updated_at, prefs, credential)
+		VALUES ($1, '', '', now(), $2, $3)
 		ON CONFLICT (device_id) DO UPDATE SET prefs = $2,
 			credential = CASE WHEN devices.credential = '' THEN EXCLUDED.credential ELSE devices.credential END`, id, []byte(prefs), credential)
 	// A revoked credential's device id is fenced.

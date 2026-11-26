@@ -12,7 +12,7 @@ import (
 )
 
 // A rollback restores the verification provenance of the version it goes back to, never the one it leaves: unsigned
-// 1.0.0 from an unofficial market, the market moved to the official address, a verified official 1.1.0, then a
+// 1.0.0 installed before the market had a stored signing key, a verified 1.1.0, then a
 // rollback must leave 1.0.0 untrusted and sandboxed by default, in memory and after a reload from storage.
 func TestRollbackRestoresVersionProvenance(t *testing.T) {
 	h := provenanceTestManager(t, nil, nil, "")
@@ -29,7 +29,7 @@ func TestRollbackRestoresVersionProvenancePostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer database.Close()
-	// The move below saves market "mine" at the official address: leave no row behind for other tests.
+	// The refresh below saves market "mine": leave no row behind for other tests.
 	clean := func() {
 		_ = database.DeleteExtension(context.Background(), "example-ui")
 		_ = database.DeleteExtensionMarket(context.Background(), "mine")
@@ -45,10 +45,6 @@ func testRollbackRestoresVersionProvenance(t *testing.T, h *Manager) {
 	t.Helper()
 	// Generated-key logic only; this does not accept the production pin.
 	key := newMarketKey(t)
-	useOfficialMarket(t, "github:example/plugins", key.text)
-	was := officialMarketKeys
-	officialMarketKeys = []string{keyIDText(t, key.text)}
-	t.Cleanup(func() { officialMarketKeys = was })
 	dir := uiPackage(t)
 	oldPackage := tarDir(t, dir)
 	setVersion(t, dir, "1.1.0")
@@ -88,17 +84,17 @@ func testRollbackRestoresVersionProvenance(t *testing.T, h *Manager) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if installed.Record.MarketKey != "" || h.extensions.fromTrustedMarket(ctx, installed) {
+	if installed.Record.MarketKey != "" {
 		t.Fatal("unsigned 1.0.0 was trusted at install")
 	}
-	if _, err := h.marketSetSpec(ctx, "mine", "github:example/plugins"); err != nil {
+	mk.TrustedKey = key.text
+	ms := h.marketsState()
+	ms.mu.Lock()
+	ms.byID["mine"].rec.SigningKey = key.text
+	ms.mu.Unlock()
+	if _, err := h.marketRead(ctx, "mine"); err != nil {
 		t.Fatal(err)
 	}
-	if h.extensions.fromTrustedMarket(ctx, installed) {
-		t.Fatal("moving the market trusted unsigned code")
-	}
-	mk.Spec.Repo, mk.TrustedKey = "plugins", key.text
-	ms := h.marketsState()
 	ms.mu.Lock()
 	signedEntry := &ms.byID["mine"].index.Extensions[0]
 	ms.mu.Unlock()
@@ -110,7 +106,7 @@ func testRollbackRestoresVersionProvenance(t *testing.T, h *Manager) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if upgraded.Record.MarketKey != key.text || !h.extensions.fromTrustedMarket(ctx, upgraded) {
+	if upgraded.Record.MarketKey != key.text {
 		t.Fatal("verified 1.1.0 did not record its provenance")
 	}
 
@@ -124,7 +120,7 @@ func testRollbackRestoresVersionProvenance(t *testing.T, h *Manager) {
 	check := func(when string, p *extension.Extension) {
 		t.Helper()
 		st := h.extensions.sandboxOf(ctx, p)
-		if p.Record.MarketKey != "" || st.Trusted || !st.Default || !st.Enabled || st.Chosen {
+		if p.Record.MarketKey != "" || !st.Default || !st.Enabled || st.Chosen {
 			t.Fatalf("%s: unsigned 1.0.0 inherited the verified 1.1.0 provenance: key=%v %+v", when, p.Record.MarketKey != "", st)
 		}
 	}
@@ -138,7 +134,7 @@ func testRollbackRestoresVersionProvenance(t *testing.T, h *Manager) {
 
 	// The owner's explicit sandbox choice is theirs and survives a rollback either way.
 	h.extensions.sandboxes.settings.On = map[string]bool{"example-ui": false}
-	if st := h.extensions.sandboxOf(ctx, reopened.Get("example-ui")); !st.Chosen || st.Enabled || st.Trusted {
+	if st := h.extensions.sandboxOf(ctx, reopened.Get("example-ui")); !st.Chosen || st.Enabled {
 		t.Fatalf("explicit sandbox choice after rollback: %+v", st)
 	}
 }

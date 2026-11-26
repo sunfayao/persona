@@ -10,7 +10,7 @@ import { chosenManager, defaultManager, pinManager, resetManagerChoice, setRoste
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const path = "/api/v1/extensions/notes/-/icon?v=1.0.0";
 const apiPath = path.slice("/api/v1".length);
-const catalog = `/api/v1/extensions/-/catalog/official/notes/icon?sha256=${"a".repeat(64)}`;
+const catalog = `/api/v1/extensions/-/catalog/example/notes/icon?sha256=${"a".repeat(64)}`;
 let host: HTMLDivElement, root: Root;
 let created: ReturnType<typeof vi.fn>, revoked: ReturnType<typeof vi.fn>;
 const flush = async () => { for (let i = 0; i < 4; i++) await act(async () => { await new Promise(r => setTimeout(r, 0)); }); };

@@ -6,8 +6,6 @@ export const passwordSuite = "opaque-ristretto255-sha512-argon2id-v1";
 export interface PasswordState { enabled: boolean; hub_id: string; hub_name: string; suite: string }
 interface PakeResponse { session: string; message: string; identity: string; suite: string }
 export interface PasswordCredential { token: string; id: string; hub_id: string }
-export interface NativeLogin { state: string; challenge: string; kind: "phone" | "desktop"; name: string }
-
 export async function passwordApi<T>(path: string, json?: unknown): Promise<T> {
   const response = await fetch(`${BASE}/api/v1/auth/password${path}`, {
     method: json === undefined ? "GET" : "POST", cache: "no-store", credentials: "omit", redirect: "error",
@@ -54,12 +52,12 @@ export class PakeClient {
   }
 }
 
-export async function loginWithPassword(password: string, native: NativeLogin | null): Promise<PasswordCredential | { code: string }> {
+export async function loginWithPassword(password: string): Promise<PasswordCredential> {
   const client = new PakeClient();
   try {
     const message = await client.call("login-start", { password });
     const response = await passwordApi<PakeResponse>("/start", {
-      message, name: native?.name || t("password.browser"), kind: native?.kind || "web", challenge: native?.challenge || "",
+      message, name: t("password.browser"), kind: "web",
     });
     if (response.suite !== passwordSuite) throw new Error(t("password.incompatible_update"));
     const proof = await client.call("login-finish", { message: response.message, identity: response.identity });
@@ -82,21 +80,4 @@ export async function registerPassword(
     const record = await client.call("register-finish", { message: response.message, identity: response.identity });
     await request("/password-login/register/finish", "POST", { session: response.session, message: record, revoke_devices: revokeDevices });
   } finally { client.close(); }
-}
-
-// The verifier stays in the native app. Only a single-use code and random state return through the app scheme.
-export function readNativeLogin(href: string): NativeLogin | null {
-  const u = new URL(href);
-  if (u.pathname !== "/login/device") return null;
-  const q = new URLSearchParams(u.hash.slice(1));
-  if (["state", "challenge", "kind", "name"].some((key) => q.getAll(key).length > 1)) {
-    throw new Error(t("password.invalid_request"));
-  }
-  const state = q.get("state") || "";
-  const challenge = q.get("challenge") || "";
-  const kind = q.get("kind");
-  const name = q.get("name") || t("password.phone");
-  if (!/^[A-Za-z0-9_-]{43}$/.test(state) || !/^[A-Za-z0-9_-]{43}$/.test(challenge) ||
-    (kind !== "phone" && kind !== "desktop") || [...name].length > 80) throw new Error(t("password.invalid_request"));
-  return { state, challenge, kind, name };
 }

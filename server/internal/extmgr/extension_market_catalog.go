@@ -1,7 +1,6 @@
 package extmgr
 
 import (
-	"cmp"
 	"slices"
 	"strings"
 	"time"
@@ -24,8 +23,6 @@ type MarketView struct {
 	Error              string     `json:"error,omitempty"`
 	FetchedAt          *time.Time `json:"fetched_at,omitempty"`
 	AddedAt            time.Time  `json:"added_at"`
-	// Official: the market every hub has without adding it (extension.Official), listed first.
-	Official bool `json:"official,omitempty"`
 	// Signature is the index's signature: signed / unsigned / invalid / key_changed,
 	// and the key it is signed by.
 	Signature MarketSignatureView `json:"signature"`
@@ -65,34 +62,19 @@ type CatalogItem struct {
 	Upgradable      bool   `json:"upgradable,omitempty"`
 }
 
-// marketBefore orders markets: the official one first, then by when they were added.
+// marketBefore orders markets: by when they were added.
 func marketBefore(a, b extension.MarketRecord) int {
-	if oa, ob := extension.IsOfficialMarket(a.Spec), extension.IsOfficialMarket(b.Spec); oa != ob {
-		if oa {
-			return -1
-		}
-		return 1
-	}
 	if c := a.AddedAt.Compare(b.AddedAt); c != 0 {
 		return c
 	}
 	return strings.Compare(a.ID, b.ID)
 }
 
-// marketName is what the apps show for a market: the official one is "Official extensions" in l whatever its index calls itself
-// (#5017), the others the name their index gives.
-func marketName(l i18n.Lang, rec extension.MarketRecord) string {
-	if extension.IsOfficialMarket(rec.Spec) {
-		return i18n.T(l, "hub-extension_market.official_name")
-	}
-	return rec.Name
-}
-
 func (h *Manager) marketView(s *marketState) MarketView {
 	l := h.userLang()
 	// The error and warnings are kept as the last read wrote them; they are shown in the owner's language, like the name.
-	v := MarketView{ID: s.rec.ID, Spec: s.rec.Spec, Name: marketName(l, s.rec), HasToken: s.rec.TokenSealed != "", Warnings: []string{},
-		Error: i18n.MarketText(l, s.rec.Error), FetchedAt: s.rec.FetchedAt, AddedAt: s.rec.AddedAt, Official: extension.IsOfficialMarket(s.rec.Spec),
+	v := MarketView{ID: s.rec.ID, Spec: s.rec.Spec, Name: s.rec.Name, HasToken: s.rec.TokenSealed != "", Warnings: []string{},
+		Error: i18n.MarketText(l, s.rec.Error), FetchedAt: s.rec.FetchedAt, AddedAt: s.rec.AddedAt,
 		Signature: MarketSignatureView{State: s.rec.Signature.State, KeyID: s.rec.Signature.KeyID}}
 	if v.Signature.State == "" { // a market read before #1848
 		v.Signature.State = extension.SigUnsigned
@@ -139,7 +121,6 @@ func (h *Manager) catalogIn(l i18n.Lang, q, market string) []CatalogItem {
 		if s.index == nil || (market != "" && market != s.rec.ID) {
 			continue
 		}
-		start := len(out)
 		for i := range s.index.Extensions {
 			e := &s.index.Extensions[i]
 			m := e.Parsed
@@ -149,30 +130,8 @@ func (h *Manager) catalogIn(l i18n.Lang, q, market string) []CatalogItem {
 			}
 			out = append(out, h.catalogItem(l, s, e, ts))
 		}
-		if extension.IsOfficialMarket(s.rec.Spec) {
-			slices.SortFunc(out[start:], officialCatalogOrder)
-		}
 	}
 	return out
-}
-
-// officialCatalogOrder orders the official market's entries: most downloaded first, then by name, then by id. No two
-// entries of a market compare equal, so the entries a filter keeps are in the order the whole catalog has them
-// (marketChannels sorts only the ones it builds).
-func officialCatalogOrder(a, b CatalogItem) int {
-	count := func(it CatalogItem) int64 {
-		if it.Downloads != nil {
-			return *it.Downloads
-		}
-		return 0
-	}
-	if c := cmp.Compare(count(b), count(a)); c != 0 {
-		return c
-	}
-	if c := strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name)); c != 0 {
-		return c
-	}
-	return strings.Compare(a.ID, b.ID)
 }
 
 // marketStates are the markets with the indexes they have now, in the catalog's order (marketBefore).
@@ -192,10 +151,10 @@ func (h *Manager) marketStates() []*marketState {
 // of it.
 func (h *Manager) catalogItem(l i18n.Lang, s *marketState, e *extension.MarketEntry, ts extension.Translations) CatalogItem {
 	m := e.Parsed
-	it := CatalogItem{Replaces: e.Replaces, Market: s.rec.ID, MarketName: marketName(l, s.rec), ID: m.ID, Name: ts.Name(l, m.Name), Version: m.Version, Description: ts.Description(l, m.Description),
+	it := CatalogItem{Replaces: e.Replaces, Market: s.rec.ID, MarketName: s.rec.Name, ID: m.ID, Name: ts.Name(l, m.Name), Version: m.Version, Description: ts.Description(l, m.Description),
 		Publisher: m.Publisher, Homepage: m.Homepage, IconURL: catalogIconURL(s.rec.ID, e), Downloads: e.Downloads, DownloadsUpdatedAt: s.index.DownloadsUpdatedAt,
 		Tags: append([]string{}, e.Tags...), Contributes: m.Contributions(), Permissions: extension.ExplainIn(l, m)}
-	if s.rec.Signature.Bad() || (extension.IsOfficialMarket(s.rec.Spec) && (s.rec.Signature.State != extension.SigSigned || s.rec.Signature.KeyID != keyIDOf(extension.Official.SigningKey))) {
+	if s.rec.Signature.Bad() || (s.rec.SigningKey != "" && (s.rec.Signature.State != extension.SigSigned || s.rec.Signature.KeyID != keyIDOf(s.rec.SigningKey))) {
 		it.Problem = i18n.T(l, "hub-extension_market.bad_signature", i18n.Args{"err": i18n.MarketText(l, s.rec.Error)})
 	} else if e.PackageFor(extension.Platform()) == nil {
 		it.Problem = i18n.T(l, "hub-extension_market.no_package", i18n.Args{"platform": extension.Platform()})
@@ -249,7 +208,7 @@ func marketEntryLocked(ms *markets, market, id string) (extension.MarketRecord, 
 	if s == nil {
 		return extension.MarketRecord{}, nil, errNoMarket
 	}
-	if s.rec.Signature.Bad() || (extension.IsOfficialMarket(s.rec.Spec) && (s.rec.Signature.State != extension.SigSigned || s.rec.Signature.KeyID != keyIDOf(extension.Official.SigningKey))) {
+	if s.rec.Signature.Bad() || (s.rec.SigningKey != "" && (s.rec.Signature.State != extension.SigSigned || s.rec.Signature.KeyID != keyIDOf(s.rec.SigningKey))) {
 		// Nothing is installed or upgraded from a market whose signature fails, not even from its last good index.
 		return extension.MarketRecord{}, nil, i18n.Err("hub-extension_market.bad_signature_install", i18n.Args{"err": s.rec.Error})
 	}

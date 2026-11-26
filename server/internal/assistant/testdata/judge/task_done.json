@@ -23,10 +23,10 @@
       "verdicts": ["done"]
     },
     {
-      "name": "testflight-beta-review-pending",
-      "title": "发 TestFlight 修复崩溃",
-      "notes": "修好启动崩溃并发一个 TestFlight。",
-      "replies": [{"machine": "mac", "text": "崩溃已修（空数组越界），PR https://github.com/example/app/pull/40 已合并。TestFlight 构建 1234 已上传，内部组已可用，外部组的 Beta 审核还在排队。"}],
+      "name": "staging-approval-pending",
+      "title": "部署到预览环境 修复崩溃",
+      "notes": "修好启动崩溃并部署到预览环境。",
+      "replies": [{"machine": "mac", "text": "崩溃已修（空数组越界），PR https://github.com/example/app/pull/40 已合并。构建 1234 已部署到预览环境，生产部署的 Beta 审核还在排队。"}],
       "verdicts": ["done"]
     },
     {

@@ -279,7 +279,7 @@ func TestAnOutcomeKeepsItsOwnRunsTime(t *testing.T) {
 			t.Errorf("%s: shown %s %q, want %s %q", when, got.In(loc).Format("01-02 15:04"), r.LastStatus,
 				wantAt.In(loc).Format("01-02 15:04"), wantStatus)
 		}
-		views := h.tasksView(context.Background(), nil)
+		views := h.tasksView(context.Background())
 		if len(views) != 1 || !views[0].LastRun.Equal(wantAt) || views[0].LastStatus != wantStatus {
 			t.Errorf("%s: the tasks API shows %+v, want last_run %s with %q", when, views, wantAt, wantStatus)
 		}

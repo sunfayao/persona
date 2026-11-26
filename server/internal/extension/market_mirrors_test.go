@@ -9,12 +9,9 @@ import (
 	"testing"
 )
 
-func TestOfficialCatalogMirrorVerifiedFallback(t *testing.T) {
+func TestSignedCatalogMirrorVerifiedFallback(t *testing.T) {
 	key, sign := testKey(t)
-	was := Official
-	Official = OfficialMarket{Spec: "github:example/market", SigningKey: key}
-	t.Cleanup(func() { Official = was })
-	payload := []byte(`{"market_version":1,"name":"Official","extensions":[]}`)
+	payload := []byte(`{"market_version":1,"name":"Example","extensions":[]}`)
 	envelope := sign(payload)
 	for _, mode := range []string{"valid", "tampered", "unsigned", "missing", "malformed"} {
 		t.Run(mode, func(t *testing.T) {
@@ -29,7 +26,7 @@ func TestOfficialCatalogMirrorVerifiedFallback(t *testing.T) {
 					case "valid":
 						_, _ = w.Write(envelope)
 					case "tampered":
-						_, _ = w.Write([]byte(strings.Replace(string(envelope), "Official", "Changed", 1)))
+						_, _ = w.Write([]byte(strings.Replace(string(envelope), "Example", "Changed", 1)))
 					case "unsigned":
 						_, _ = w.Write(payload)
 					case "missing":
@@ -47,7 +44,7 @@ func TestOfficialCatalogMirrorVerifiedFallback(t *testing.T) {
 			}))
 			defer server.Close()
 			spec, _ := ParseMarket("github:example/market")
-			market := &Market{Spec: spec, Token: "fixture-secret", Client: server.Client(), GitHubAPI: server.URL, CatalogMirror: server.URL + "/mirror.json"}
+			market := &Market{Spec: spec, TrustedKey: key, Token: "fixture-secret", Client: server.Client(), GitHubAPI: server.URL, CatalogMirror: server.URL + "/mirror.json"}
 			f, err := market.FetchSigned(context.Background())
 			if err != nil || string(f.Raw) != string(envelope) {
 				t.Fatalf("catalog mirror: %v", err)

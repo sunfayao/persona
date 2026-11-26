@@ -255,7 +255,6 @@ persona/
 ├── sdk/                         # go/ (separate module), ts/, templates/
 ├── schema/                      # configuration/, extension/, wire/: sources of generated code
 ├── spec/                        # fixtures shared by server and web tests
-├── native/iphone-bridge/        # source of the iPhone helper
 ├── scripts/                     # test/, deploy/, gen/, mock/, ci/, diag/, hooks/, privacy_check.py
 └── docs/                        # reference material
 ```

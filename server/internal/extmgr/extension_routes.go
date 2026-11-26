@@ -117,8 +117,7 @@ func entryNetworkForm(form *extension.Schema, m *extension.Manifest) *extension.
 func (ps *extensions) detail(ctx context.Context, p *extension.Extension) ExtensionDetail {
 	m := p.Full
 	l := ps.h.contextLang(ctx)
-	form := p.L10n.Schema(l, p.Schema)  // the form's text in the request's language (#897); p.Schema is shared
-	form = withoutIPhonePhones(p, form) // each iPhone's own consent, never set from a form (iphone.go)
+	form := p.L10n.Schema(l, p.Schema) // the form's text in the request's language (#897); p.Schema is shared
 	form = entryNetworkForm(form, m)
 	d := ExtensionDetail{ExtensionView: ps.view(ctx, p), Publisher: m.Publisher, Homepage: m.Homepage, Origin: p.Record.Origin,
 		PreviousVersion: p.Record.PreviousVersion, ReadOnly: p.ReadOnly(), Form: form, Permissions: extension.ExplainWith(l, m, ps.reg.Config(p)),
@@ -255,7 +254,6 @@ func (h *Manager) extensionRoutes(api *http.ServeMux) {
 	h.extensionUIRoutes(api)
 	h.extensionImageRoutes(api)
 	h.extensionLogoRoutes(api)
-	h.extensionSystemRoutes(api)
 	h.marketRoutes(api)
 	h.operationRoutes(api)
 	h.upgradeRoutes(api)
@@ -358,13 +356,6 @@ func (h *Manager) extensionRoutes(api *http.ServeMux) {
 				return
 			}
 		}
-		// The iPhones that consented are each iPhone's own word, kept as stored (iphone.go).
-		kept, err := h.keepIPhonePhones(p, in.Config)
-		if err != nil { // never the request's own phones: refused, not passed on
-			writeExtensionResponseError(w, r, http.StatusInternalServerError, "internal", err)
-			return
-		}
-		in.Config = kept
 		if isVolc(p) { // its meetings switch sets the assistant's choice and is not saved with it (volc_extension.go)
 			rest, changed, err := h.volcConfigWrite(r.Context(), p, in.Config)
 			if err != nil {
@@ -380,6 +371,7 @@ func (h *Manager) extensionRoutes(api *http.ServeMux) {
 		// Only an opted-in full editor may change entry lists. An immediate save can explicitly preserve them while
 		// still receiving the opted-in detail; older full-config drafts always preserve the hub's current arrays.
 		var cleared []string
+		var err error
 		if r.URL.Query().Get("entry_lists") == "1" && r.URL.Query().Get("preserve_entries") != "1" {
 			cleared, err = ps().reg.SetConfigClearing(r.Context(), p.Record.ID, in.Config, actor(r))
 		} else {

@@ -60,7 +60,7 @@ class VersionDescribeTests(unittest.TestCase):
             commit(repo, 'two')
             git(repo, 'tag', 'v0.4.0')  # lightweight
             head = commit(repo, 'three')
-            git(repo, 'tag', 'testflight/202611140000')
+            git(repo, 'tag', 'preview/202611140000')
             git(repo, 'tag', 'promo-v1')
             for script, commands in self.commands.items():
                 for command in commands:
@@ -78,7 +78,7 @@ class VersionDescribeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as repo:
             git(repo, 'init', '-q')
             head = commit(repo, 'one')
-            git(repo, 'tag', 'testflight/202611140000')
+            git(repo, 'tag', 'preview/202611140000')
             for script, commands in self.commands.items():
                 for command in commands:
                     with self.subTest(script=script, command=command):

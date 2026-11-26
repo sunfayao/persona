@@ -126,7 +126,7 @@ export function appPage(u: URL): { page: DeepPage; hub?: string } | null {
       const session = u.searchParams.get("session");
       if (parts.length) page = pageOfPath(u.pathname, u.search);
       else if (route) page = routePage(route);
-      else if (machine && session) page = { page: "session", machine, session }; // the iPhone's Live Activity rows
+      else if (machine && session) page = { page: "session", machine, session };
       break;
     }
     case "session":

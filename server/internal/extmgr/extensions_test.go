@@ -19,7 +19,6 @@ import (
 	"github.com/coder/websocket"
 
 	"github.com/nwverse/persona/server/internal/db/dbtest"
-	"github.com/nwverse/persona/server/internal/extension"
 	"github.com/nwverse/persona/server/internal/extension/sandbox"
 	"github.com/nwverse/persona/server/internal/extension/sourcevalidate"
 	"github.com/nwverse/persona/server/internal/voice"
@@ -109,10 +108,6 @@ func TestMain(m *testing.M) {
 		serveImagesExtensionForTest()
 		return
 	}
-	if os.Getenv("PERSONA_TEST_PLUGIN") == "system" {
-		serveSystemExtensionForTest()
-		return
-	}
 	if os.Getenv("PERSONA_TEST_PLUGIN") == "inboxui" {
 		serveInboxUIExtensionForTest()
 		return
@@ -145,8 +140,6 @@ func TestMain(m *testing.M) {
 		serveLiveExtensionForTest()
 		return
 	}
-	// The official market (#2351) is added only by the tests about it: the others' markets are their own.
-	extension.Official = extension.OfficialMarket{}
 	os.Exit(dbtest.Main(m))
 }
 

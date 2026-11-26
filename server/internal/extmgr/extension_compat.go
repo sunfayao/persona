@@ -226,7 +226,6 @@ type legacyMarketView struct {
 	Error              string              `json:"error,omitempty"`
 	FetchedAt          *time.Time          `json:"fetched_at,omitempty"`
 	AddedAt            time.Time           `json:"added_at"`
-	Official           bool                `json:"official,omitempty"`
 	Signature          MarketSignatureView `json:"signature"`
 }
 

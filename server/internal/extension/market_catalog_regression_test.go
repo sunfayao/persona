@@ -52,14 +52,11 @@ func TestCatalogRejectsUnicodeSignatureAlias(t *testing.T) {
 	}
 }
 
-func TestOfficialEntryProvenanceCannotBeForgedOrEdited(t *testing.T) {
-	was := Official
+func TestSignedEntryProvenanceCannotBeForgedOrEdited(t *testing.T) {
 	key, sign := testKey(t)
-	Official = OfficialMarket{Spec: "github:example/plugins", SigningKey: key}
-	t.Cleanup(func() { Official = was })
 	var manifest map[string]any
 	_ = json.Unmarshal([]byte(exampleManifest), &manifest)
-	payload, _ := json.Marshal(map[string]any{"market_version": 1, "name": "Official", "extensions": []any{map[string]any{"manifest": manifest, "packages": []any{map[string]any{"url": "package.tar.gz", "sha256": hex.EncodeToString(make([]byte, 32))}}}}})
+	payload, _ := json.Marshal(map[string]any{"market_version": 1, "name": "Example Market", "extensions": []any{map[string]any{"manifest": manifest, "packages": []any{map[string]any{"url": "package.tar.gz", "sha256": hex.EncodeToString(make([]byte, 32))}}}}})
 	for _, mode := range []string{"plain-index", "unsigned", "different-key", "package-edited", "parsed-manifest-edited", "manifest-edited", "serialized-copy"} {
 		t.Run(mode, func(t *testing.T) {
 			f, err := ParseCatalog(sign(payload), key)
@@ -158,10 +155,7 @@ func TestCatalogProtocolNamesAndOpaqueMaps(t *testing.T) {
 }
 
 func TestGitMirrorRelativePackageRefreshesCheckout(t *testing.T) {
-	was := Official
 	key, sign := testKey(t)
-	Official = OfficialMarket{Spec: "github:example/plugins", SigningKey: key}
-	t.Cleanup(func() { Official = was })
 	work, bare := t.TempDir(), filepath.Join(t.TempDir(), "plugins.git")
 	// A url rewrite in a temporary home's global config keeps every clone/fetch on the owned local source. Every git
 	// reads ~/.gitconfig; GIT_CONFIG_COUNT would need git 2.31, and an older git would reach the real host instead.
@@ -183,7 +177,7 @@ func TestGitMirrorRelativePackageRefreshesCheckout(t *testing.T) {
 	run(t, t.TempDir(), "clone", "-q", "--bare", work, bare)
 	for _, stale := range []bool{false, true} {
 		t.Run(map[bool]string{false: "missing", true: "stale"}[stale], func(t *testing.T) {
-			m := &Market{Spec: MarketSpec{Kind: "git", URL: "https://github.com/example/plugins.git", Ref: "main"}, Dir: t.TempDir(), allowLocal: true}
+			m := &Market{Spec: MarketSpec{Kind: "git", URL: "https://github.com/example/plugins.git", Ref: "main"}, TrustedKey: key, Dir: t.TempDir(), allowLocal: true}
 			if stale {
 				if err := m.syncGit(context.Background()); err != nil {
 					t.Fatal(err)
@@ -225,10 +219,7 @@ func TestGitMirrorRelativePackageRefreshesCheckout(t *testing.T) {
 }
 
 func TestGitMirrorCatalogDoesNotCloneForHTTPPackage(t *testing.T) {
-	was := Official
 	key, sign := testKey(t)
-	Official = OfficialMarket{Spec: "github:example/plugins", SigningKey: key}
-	t.Cleanup(func() { Official = was })
 	raw := sign([]byte(`{"market_version":1,"name":"Mirror","extensions":[]}`))
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(raw) }))
 	defer srv.Close()
@@ -236,7 +227,7 @@ func TestGitMirrorCatalogDoesNotCloneForHTTPPackage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := &Market{Spec: spec, Dir: t.TempDir(), CatalogMirror: srv.URL + "/" + IndexFile, Client: srv.Client()}
+	m := &Market{Spec: spec, TrustedKey: key, Dir: t.TempDir(), CatalogMirror: srv.URL + "/" + IndexFile, Client: srv.Client()}
 	t.Setenv("PATH", t.TempDir())
 	if _, err := m.FetchSigned(context.Background()); err != nil {
 		t.Fatal(err)

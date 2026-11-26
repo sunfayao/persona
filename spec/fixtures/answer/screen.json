@@ -5,11 +5,10 @@
       "name": "hub_screen_choice",
       "description": "终端普通选项按 hub 能力构造回答。",
       "source": [
-        "ios/Persona/Views/Interactions/InteractionViews.swift：ScreenForm.answer、typeRow",
         "server/internal/screen/dialog.go：ParseDialog、Dialog.Option"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -72,11 +71,10 @@
       "name": "hub_screen_custom",
       "description": "终端自填选项按 hub 能力构造回答。",
       "source": [
-        "ios/Persona/Views/Interactions/InteractionViews.swift：ScreenForm.answer、typeRow",
         "server/internal/screen/dialog.go：ParseDialog、Dialog.Option"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -140,11 +138,10 @@
       "name": "hub_screen_chat",
       "description": "终端转回对话选项按 hub 能力构造回答。",
       "source": [
-        "ios/Persona/Views/Interactions/InteractionViews.swift：ScreenForm.answer、typeRow",
         "server/internal/screen/dialog.go：ParseDialog、Dialog.Option"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -207,11 +204,10 @@
       "name": "legacy_screen_choice",
       "description": "终端普通选项按 hub 能力构造回答。",
       "source": [
-        "ios/Persona/Views/Interactions/InteractionViews.swift：ScreenForm.answer、typeRow",
         "server/internal/screen/dialog.go：ParseDialog、Dialog.Option"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -239,11 +235,10 @@
       "name": "legacy_screen_custom",
       "description": "终端自填选项按 hub 能力构造回答。",
       "source": [
-        "ios/Persona/Views/Interactions/InteractionViews.swift：ScreenForm.answer、typeRow",
         "server/internal/screen/dialog.go：ParseDialog、Dialog.Option"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -275,11 +270,10 @@
       "name": "legacy_screen_chat",
       "description": "终端转回对话选项按 hub 能力构造回答。",
       "source": [
-        "ios/Persona/Views/Interactions/InteractionViews.swift：ScreenForm.answer、typeRow",
         "server/internal/screen/dialog.go：ParseDialog、Dialog.Option"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -307,10 +301,10 @@
       "name": "screen_custom_blank_blocked",
       "description": "自填选项只有空白时不可发送。",
       "source": [
-        "ios/Persona/Views/Interactions/InteractionViews.swift：ScreenForm.typeRow"
+        "server/internal/screen/dialog.go"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -371,10 +365,10 @@
       "name": "raw_terminal_text",
       "description": "原始终端输入按原文发送，仅空字符串禁用。",
       "source": [
-        "ios/Persona/Views/Interactions/InteractionViews.swift：ScreenForm.terminal"
+        "server/internal/screen/dialog.go"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -402,10 +396,10 @@
       "name": "raw_terminal_empty",
       "description": "原始终端输入按原文发送，仅空字符串禁用。",
       "source": [
-        "ios/Persona/Views/Interactions/InteractionViews.swift：ScreenForm.terminal"
+        "server/internal/screen/dialog.go"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -428,10 +422,10 @@
       "name": "raw_terminal_whitespace",
       "description": "原始终端输入按原文发送，仅空字符串禁用。",
       "source": [
-        "ios/Persona/Views/Interactions/InteractionViews.swift：ScreenForm.terminal"
+        "server/internal/screen/dialog.go"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -459,10 +453,10 @@
       "name": "raw_terminal_keys",
       "description": "原始终端按键按给定顺序发送。",
       "source": [
-        "ios/Persona/Views/Interactions/InteractionViews.swift：ScreenForm.terminal"
+        "server/internal/screen/dialog.go"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -493,11 +487,10 @@
       "name": "screen_question_steps",
       "description": "终端多题标签栏解析为步骤并保留选项原文。",
       "source": [
-        "ios/Shared/ChatStore.swift：ScreenParser.dialog、steps",
-        "ios/PersonaTests/ScreenDialogTests.swift：readsTheTabBarOfSeveralQuestions"
+        "server/internal/screen/dialog.go"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -527,17 +520,16 @@
           ]
         }
       },
-      "from_test": "ScreenDialogTests.readsTheTabBarOfSeveralQuestions"
+      "derived": true
     },
     {
       "name": "screen_without_numbered_options",
       "description": "没有编号选项时不解析成对话框。",
       "source": [
-        "ios/Shared/ChatStore.swift：ScreenParser.dialog",
-        "ios/PersonaTests/ScreenDialogTests.swift：noDialogWithoutNumberedOptions"
+        "server/internal/screen/dialog.go"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -554,7 +546,7 @@
         "resolution": null,
         "dialog": null
       },
-      "from_test": "ScreenDialogTests.noDialogWithoutNumberedOptions"
+      "derived": true
     }
   ]
 }

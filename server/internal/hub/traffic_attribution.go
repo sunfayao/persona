@@ -8,24 +8,8 @@ import (
 )
 
 // Attribution is observational, never an authentication or authorization input.
-// Keep the basis: a native UA without an extension marker cannot prove the surface.
 type trafficAttribution struct {
 	platform, source, platformBasis, sourceBasis string
-}
-
-func surfaceToken(value string) string {
-	value = strings.ToLower(value)
-	compact := strings.NewReplacer("-", "", "_", "", ".", "", " ", "").Replace(value)
-	switch {
-	case strings.Contains(compact, "liveactivity"), strings.Contains(compact, "activitykit"):
-		return "liveactivity"
-	case strings.Contains(compact, "widget"):
-		return "widget"
-	case value == "app":
-		return "app"
-	default:
-		return ""
-	}
 }
 
 func (h *Hub) requestTrafficAttribution(r *http.Request, p principal) trafficAttribution {
@@ -38,21 +22,6 @@ func (h *Hub) requestTrafficAttribution(r *http.Request, p principal) trafficAtt
 	}
 	if platform := trafficPlatform(client.Platform); platform != "unknown" {
 		a.platform, a.platformBasis = platform, "client-header"
-	}
-	if source := surfaceToken(client.Platform); source != "" {
-		a.source, a.sourceBasis = source, "client-header"
-	}
-	// An explicit bounded surface hint is optional; old clients need no change.
-	if !compat.HeaderConflict(r.Header, "X-Persona-Source") {
-		value := compat.Header(r.Header, "X-Persona-Source")
-		if len(value) > 32 {
-			value = ""
-		}
-		value = strings.ToLower(strings.TrimSpace(value))
-		switch value {
-		case "app", "widget", "liveactivity":
-			a.source, a.sourceBasis = value, "source-header"
-		}
 	}
 	ua := r.UserAgent()
 	if len(ua) > 512 {
@@ -73,12 +42,8 @@ func (h *Hub) requestTrafficAttribution(r *http.Request, p principal) trafficAtt
 		switch {
 		case diagnostic:
 			a.source, a.sourceBasis = "diagnostic", "user-agent"
-		case surfaceToken(ua) != "":
-			a.source, a.sourceBasis = surfaceToken(ua), "user-agent"
 		case browser || a.platform == "web":
 			a.source, a.sourceBasis = "app", "browser"
-		case a.platform != "unknown":
-			a.source, a.sourceBasis = "app", "platform-default"
 		}
 	}
 	return a

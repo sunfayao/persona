@@ -36,10 +36,6 @@ func TestHiddenDirectoryAmbientExposure(t *testing.T) {
 			if len(needs)+len(unread)+len(awaiting)+len(waiting)+len(done)+len(muted) != 0 || len(working) != 1 || working[0].Label != "Visible work" {
 				t.Fatalf("snapshot includes hidden sessions: needs=%v unread=%v awaiting=%v waiting=%v done=%v muted=%v working=%v", needs, unread, awaiting, waiting, done, muted, working)
 			}
-			fleet := ft.s.fleetSnapshot()
-			if fleet.NeedsYou != 0 || fleet.Unread != 0 || fleet.Working != 1 {
-				t.Fatalf("live counts include hidden sessions: %+v", fleet)
-			}
 			agents, ixs, told := ft.s.fleetInputs()
 			if got := linkAttention(i18n.Default, agents, ixs, told); got.NeedsYou != 0 {
 				t.Fatalf("Link needs-you includes hidden: %+v", got)

@@ -74,7 +74,7 @@ type Todo struct {
 	Spaces          []TodoSpace `json:"spaces"`
 	Agents          []TodoAgent `json:"agents"`
 	// Quiet: a task from the main conversation while assistant.main_tasks_quiet was on (#1731,
-	// docs/assistant/unified-entry.md "Quiet tasks"): no pushes, Live Activity or task badges for its agents; the main
+	// docs/assistant/unified-entry.md "Quiet tasks"): no pushes, Persona Link alerts or task badges for its agents; the main
 	// conversation is told instead (quiet.go). Set when it is made, never changed.
 	Quiet bool `json:"quiet"`
 	// Supervision: the task's ledger when the main conversation handed it out and follows it up (#3124,

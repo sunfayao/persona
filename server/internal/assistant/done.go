@@ -55,7 +55,7 @@ type taskDoneSignals struct {
 
 var (
 	mergedWords  = lazyre.New(`(?i)\bmerged\b|\bsquash(ed)?\b|已合并|合并了|已合入|合入了|自行合并`)
-	buildNumbers = lazyre.New(`(?i)testflight[^\n]{0,40}?\d{3,}|构建号?\s*[:：#]?\s*\d{3,}|\bbuild\s*#?\s*\d{3,}`)
+	buildNumbers = lazyre.New(`(?i)构建号?\s*[:：#]?\s*\d{3,}|\bbuild\s*#?\s*\d{3,}`)
 )
 
 func doneSignals(replies []prompts.TaskDoneReply) taskDoneSignals {

@@ -12,9 +12,7 @@
           "#9140"
         ],
         "code": {
-          "web": "web/src/lib/turns.ts buildBlocks",
-          "ios": "ChatBlock.build",
-          "android": "buildBlocks"
+          "web": "web/src/lib/turns.ts buildBlocks"
         }
       },
       "chat": {
@@ -455,9 +453,7 @@
           "#9140"
         ],
         "code": {
-          "web": "web/src/lib/turns.ts buildBlocks",
-          "ios": "ChatBlock.build",
-          "android": "buildBlocks"
+          "web": "web/src/lib/turns.ts buildBlocks"
         }
       },
       "chat": {

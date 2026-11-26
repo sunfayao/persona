@@ -7,8 +7,8 @@ vi.mock("./api", () => ({ getToken: () => "" }));
 
 const KEY = "persona.look-icon";
 const cached = (id: string) => JSON.stringify({ key: `${id}@rev`, light: "data:image/png;base64,AA==", dark: "data:image/png;base64,AA==" });
-const pack: PersonaInfo = { id: "nwverse", rev: "rev", manifest: {
-  format: 1, id: "nwverse", name: "Milk Frog", avatar: { sizes: { "128": "avatar.png" } }, dot: { states: { idle: { file: "idle.png" } } },
+const pack: PersonaInfo = { id: "example-look", rev: "rev", manifest: {
+  format: 1, id: "example-look", name: "Example Frog", avatar: { sizes: { "128": "avatar.png" } }, dot: { states: { idle: { file: "idle.png" } } },
 } };
 let images: { onload: (() => void) | null; onerror: (() => void) | null }[];
 
@@ -34,21 +34,21 @@ describe("look icons after bundled look removal", () => {
   });
 
   it("discards a cached icon from a different selection or the default", async () => {
-    localStorage.setItem(KEY, cached("nwverse"));
+    localStorage.setItem(KEY, cached("example-look"));
     await import("./look-icon");
     expect(localStorage.getItem(KEY)).toBeNull();
     vi.resetModules();
     localStorage.setItem("persona.persona", "unknown-look");
-    localStorage.setItem(KEY, cached("nwverse"));
+    localStorage.setItem(KEY, cached("example-look"));
     await import("./look-icon");
     expect(localStorage.getItem(KEY)).toBeNull();
   });
 
   it("keeps a valid package's cached icon, then clears it for a missing package", async () => {
-    localStorage.setItem("persona.persona", "nwverse");
-    localStorage.setItem(KEY, cached("nwverse"));
+    localStorage.setItem("persona.persona", "example-look");
+    localStorage.setItem(KEY, cached("example-look"));
     const { setLookIcon } = await import("./look-icon");
-    expect(localStorage.getItem(KEY)).toBe(cached("nwverse"));
+    expect(localStorage.getItem(KEY)).toBe(cached("example-look"));
     setLookIcon(null);
     expect(localStorage.getItem(KEY)).toBeNull();
   });
