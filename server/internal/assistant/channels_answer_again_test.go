@@ -67,7 +67,7 @@ func TestTurnOverBeforeItsWordsAreWrittenWaitsForThem(t *testing.T) {
 	h.items = append(h.items, proto.Item{ID: "a4", Seq: 4, Role: "assistant", Kind: proto.KindText, Text: "长长的结论"})
 	clock(2 * time.Second)
 	s.checkChannelRun(r.ID)
-	if got := sentText(*sent); !strings.Contains(got, "长长的结论") || strings.Contains(got, "没有文字回答") {
+	if got := sentText(*sent); !strings.Contains(got, "长长的结论") || strings.Contains(got, "without a text answer") {
 		t.Fatalf("answer %q", got)
 	}
 }
@@ -79,7 +79,7 @@ func TestNoAnswerAsksTheConversationAgain(t *testing.T) {
 	clock(channel.AnswerSettle + time.Second)
 	s.checkChannelRun(r.ID)
 	ask := sendOnceText(h.fakeHub)
-	if len(*sent) != 0 || !strings.Contains(ask, "最终回答") || !r.Asked() {
+	if len(*sent) != 0 || !strings.Contains(ask, "Write the final") || !r.Asked() {
 		t.Fatalf("not asked again: sent %v, ask %q, run %+v", *sent, ask, r)
 	}
 	h.items = append(h.items,
@@ -113,7 +113,7 @@ func TestPlaceholderAnswerSaysWhy(t *testing.T) {
 	if !strings.Contains(got, "这一轮没产出回答，原因：") || !strings.Contains(got, "No response requested.") {
 		t.Fatalf("answer %q", got)
 	}
-	if strings.Count(sendOnceText(h.fakeHub), "最终回答") > 1 {
+	if strings.Count(sendOnceText(h.fakeHub), "Write the final") > 1 {
 		t.Fatalf("asked twice")
 	}
 }

@@ -275,8 +275,8 @@ func TestTaskStalledTimeoutNotifiesSupervisorOnce(t *testing.T) {
 
 func TestTaskStalledTimeoutRendered(t *testing.T) {
 	e := prompts.SuperviseEntry{ID: "todo_1", Title: "Fix the stall", Kind: sigTimedOut}
-	if got := prompts.RenderSupervise(prompts.Supervise{Entries: []prompts.SuperviseEntry{e}}); !strings.Contains(got, "Agent 已停止") ||
-		!strings.Contains(got, "原会话和工作区保留") {
+	if got := prompts.RenderSupervise(prompts.Supervise{Entries: []prompts.SuperviseEntry{e}}); !strings.Contains(got, "the Agent has stopped") ||
+		!strings.Contains(got, "the original session and workspace are kept") {
 		t.Fatalf("supervise:\n%s", got)
 	}
 	if got := prompts.RenderWorkerSupervise([]prompts.SuperviseEntry{e}); !strings.Contains(got, "the Agent was stopped") ||

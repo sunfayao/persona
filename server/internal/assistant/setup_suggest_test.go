@@ -600,7 +600,7 @@ func TestSetupBlockIsOnTheCardTheItemAndTheFacts(t *testing.T) {
 		t.Fatalf("brief item: %+v", body.Setup)
 	}
 	text := f.modelText()
-	if !strings.Contains(text, f.Setup.Suggestions[0].Text) || !strings.Contains(text, f.Setup.Suggestions[1].Text) || !strings.Contains(text, "不要替用户打开") {
+	if !strings.Contains(text, f.Setup.Suggestions[0].Text) || !strings.Contains(text, f.Setup.Suggestions[1].Text) || !strings.Contains(text, "do not turn on or change any of it for the user") {
 		t.Fatalf("model facts: %s", text)
 	}
 	// A block that names nothing adds no section anywhere.

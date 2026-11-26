@@ -39,7 +39,7 @@ func noMainLog(s *Service) func(part string) int {
 func supervisionTo(f *fakeHub, id, kind string) []string {
 	var out []string
 	for _, n := range f.noticesTo(id) {
-		if strings.Contains(n, "📋 督办") && strings.Contains(n, "signal="+kind) {
+		if strings.Contains(n, "📋 Supervision") && strings.Contains(n, "signal="+kind) {
 			out = append(out, n)
 		}
 	}

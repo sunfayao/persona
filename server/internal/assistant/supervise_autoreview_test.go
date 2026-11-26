@@ -184,7 +184,7 @@ func TestAutoReviewBlockingFindingsRework(t *testing.T) {
 		t.Fatalf("the reviewer's start: %v", r)
 	}
 	prompt, _ := r["prompt"].(string)
-	for _, want := range []string{"任务：修登录崩溃", "iPad 横屏时登录页崩溃，修好并补测试", "- PR 合并到 master", "- 浅色 / 深色截图贴进 PR",
+	for _, want := range []string{"Task: 修登录崩溃", "iPad 横屏时登录页崩溃，修好并补测试", "- PR 合并到 master", "- 浅色 / 深色截图贴进 PR",
 		"+if landscape { layout() }", "login/view.swift", `<review-findings count="N" blocking="M"/>`} {
 		if !strings.Contains(prompt, want) {
 			t.Errorf("the reviewer's prompt lacks %q", want)
@@ -222,7 +222,7 @@ func TestAutoReviewBlockingFindingsRework(t *testing.T) {
 		t.Fatalf("the review on the ledger: %+v", last)
 	}
 	sent := sentToAgent(f)
-	if len(sent) != 1 || !strings.Contains(sent[0], "独立评审没通过，第 1 轮返工") || !strings.Contains(sent[0], "P0 login/view.swift:11") ||
+	if len(sent) != 1 || !strings.Contains(sent[0], "the independent review did not pass, rework round 1") || !strings.Contains(sent[0], "P0 login/view.swift:11") ||
 		strings.Contains(sent[0], "review-findings") {
 		t.Fatalf("sent to the agent: %q", sent)
 	}
@@ -295,7 +295,7 @@ func TestAutoReviewCleanWaitsForReview(t *testing.T) {
 	}
 	waitFor(t, "the supervisor's message", func() bool { return len(f.notices()) == 1 })
 	msg := f.notices()[0]
-	for _, want := range []string{"待逐项复核，不代表完成", "独立评审（评审员只看了任务要求和改动", "没有阻断问题，1 条非阻断发现", "变量名可以更清楚"} {
+	for _, want := range []string{"awaiting item-by-item review; this does not mean it is done", "Independent review (the reviewer saw only the task requirements and the change", "no blocking issues, 1 non-blocking findings", "变量名可以更清楚"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("the message lacks %q:\n%s", want, msg)
 		}
@@ -326,7 +326,7 @@ func TestAutoReviewRoundLimit(t *testing.T) {
 		t.Fatalf("over the limit: state %q round %d run %+v sent %q", v.State, v.Round, v.AutoReview, sentToAgent(f))
 	}
 	waitFor(t, "the supervisor's message", func() bool { return len(f.notices()) == 1 })
-	if msg := f.notices()[0]; !strings.Contains(msg, "返工轮数用完了，还剩 1 条阻断问题") || !strings.Contains(msg, "还是会崩") {
+	if msg := f.notices()[0]; !strings.Contains(msg, "the rework rounds are used up, with 1 blocking issues left") || !strings.Contains(msg, "还是会崩") {
 		t.Fatalf("message:\n%s", msg)
 	}
 }

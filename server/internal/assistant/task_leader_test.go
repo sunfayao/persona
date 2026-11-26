@@ -926,7 +926,7 @@ func TestTaskLeaderNeedsUserGoesToItsOwnSupervisor(t *testing.T) {
 	}
 	waitFor(t, "the decision to reach the main conversation", func() bool { return len(f.notices()) == 1 })
 	n := f.notices()[0]
-	for _, want := range []string{"改登录页", "要不要顺手改注册页", "leader 推荐：先只改登录页", "leader（一个编码 Agent"} {
+	for _, want := range []string{"改登录页", "要不要顺手改注册页", "Leader recommendation: 先只改登录页", "its leader (a coding Agent"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("the main conversation's message lacks %q:\n%s", want, n)
 		}
@@ -1165,7 +1165,7 @@ func TestUnreachableLeaderEscalatesInsteadOfDropping(t *testing.T) {
 		return len(f.notices()) == 1
 	})
 	n := f.notices()[0]
-	if !strings.Contains(n, "leader（一个编码 Agent") || !strings.Contains(n, "cannot be reached") {
+	if !strings.Contains(n, "its task leader (a coding Agent") || !strings.Contains(n, "cannot be reached") {
 		t.Fatalf("the main conversation's escalation:\n%s", n)
 	}
 	// The worker's own task stays open; the leader's task is named in the decision so the conversation can act.
@@ -1241,7 +1241,7 @@ func TestLeaderResumeFailureEscalatesAndRetries(t *testing.T) {
 	s.resumeLeaderForSupervision(lead, text, kept, kept, kept, func(context.Context, error) {}, nil)
 	waitFor(t, "the failed resume to go up", func() bool { return len(f.notices()) >= 1 })
 	n := f.notices()[0]
-	if !strings.Contains(n, "改登录页") || !strings.Contains(n, w.ID) || !strings.Contains(n, "联系不上") || strings.Contains(n, "判断要用户决定") {
+	if !strings.Contains(n, "改登录页") || !strings.Contains(n, w.ID) || !strings.Contains(n, "cannot be reached") || strings.Contains(n, "decided the user must decide") {
 		t.Fatalf("the escalation must name the worker and say the leader is unreachable:\n%s", n)
 	}
 	// The leader comes back: the retry (own context, several attempts) delivers it.
@@ -1297,7 +1297,7 @@ func stopLeader(f *fakeHub, worker string) {
 func leaderEscalations(f *fakeHub) int {
 	n := 0
 	for _, m := range f.notices() {
-		n += strings.Count(m, "联系不上")
+		n += strings.Count(m, "its task leader (a coding Agent) cannot be reached")
 	}
 	return n
 }

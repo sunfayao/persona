@@ -523,8 +523,9 @@ func TestGoldenTaskHandoffCallerLanguages(t *testing.T) {
 				s, f, _ := taskHandoffTestFixture(t, "codex")
 				f.hello.Locale = locale
 				prompt := taskHandoffTestStart(t, s, f, tool)
-				language := answerLanguage(locale)
-				if language != "" && !strings.Contains(prompt, "Reply in "+language+".") {
+				// The prompt is the same English; only the name of the language to reply in differs.
+				name := map[string]string{"en": "English", "zh-Hans": "Simplified Chinese", "ja": "Japanese"}[locale]
+				if !strings.Contains(prompt, "Reply in "+name+".") {
 					t.Fatalf("caller language was lost: %s", prompt)
 				}
 				golden(t, "task_handoff."+tool+"."+locale, prompt)

@@ -145,7 +145,7 @@ func TestInboxHandoffSendsOnce(t *testing.T) {
 		t.Fatalf("sent: %v", sent)
 	}
 	text := sent[0]["text"].(string)
-	for _, want := range []string{"事件 id：lark:f1:100", `item: "lark:f1:100"`, "收件箱事件 · 张三"} {
+	for _, want := range []string{"event id: lark:f1:100", `item: "lark:f1:100"`, "Inbox matter · 张三"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the message lacks %q:\n%s", want, text)
 		}
@@ -283,14 +283,14 @@ func TestInboxSuggestFromAHandoff(t *testing.T) {
 	if len(lark.got) != 1 || lark.got[0].Text != "可以，周五上午给你" {
 		t.Fatalf("sent: %+v", lark.got)
 	}
-	told := toldMain(t, h, "已经发出")
+	told := toldMain(t, h, "and it was sent")
 	note := told[len(told)-1]
-	for _, want := range []string{"📥 收件箱事件「张三」有了下文\n", "这是 Persona 的收件箱通知", `item: "lark:f1:100"`, "对方之后的回复不会转到这里"} {
+	for _, want := range []string{"📥 Inbox matter “张三” has an update\n", "This is a Persona Inbox notice", `item: "lark:f1:100"`, "Later messages will not be forwarded here"} {
 		if !strings.Contains(note, want) {
 			t.Errorf("the note lacks %q:\n%s", want, note)
 		}
 	}
-	if strings.Contains(note, "对方回了会发到这里") {
+	if strings.Contains(note, "Their reply will be forwarded here") {
 		t.Errorf("the note promises what comes later:\n%s", note)
 	}
 	// A Persona notice: no message id, so the hub shows the apps one line instead of a bubble of the user's.
@@ -308,7 +308,7 @@ func TestInboxSuggestFromAHandoff(t *testing.T) {
 		t.Fatalf("%d once-only sends to the main conversation, want only the hand-off", len(got))
 	}
 	for _, s := range notesOf(h.f, "s1") {
-		if strings.Contains(s, "已经发出") {
+		if strings.Contains(s, "and it was sent") {
 			t.Fatalf("the processing conversation was told of the send: %s", s)
 		}
 	}
@@ -421,8 +421,8 @@ func TestInboxHandedSuggestionNotes(t *testing.T) {
 	if code, out := suggestionCall(t, h, it.ID, `{"version":1,"action":"reject"}`); code != 200 || out["suggestion"] != nil {
 		t.Fatalf("reject: %d %v", code, out)
 	}
-	told := toldMain(t, h, "驳回了你的建议")
-	if n := strings.Count(strings.Join(told, "\n"), "驳回了你的建议"); n != 1 || !strings.Contains(told[len(told)-1], `item: "lark:f1:100"`) {
+	told := toldMain(t, h, "rejected your suggestion")
+	if n := strings.Count(strings.Join(told, "\n"), "rejected your suggestion"); n != 1 || !strings.Contains(told[len(told)-1], `item: "lark:f1:100"`) {
 		t.Fatalf("told %d times:\n%s", n, told[len(told)-1])
 	}
 	if e := lastChain(h, it); e.Kind != ChainRejected {
@@ -441,7 +441,7 @@ func TestInboxHandedSuggestionNotes(t *testing.T) {
 	if code, out := suggestionCall(t, h, it.ID, `{"version":3,"action":"confirm"}`); code != 200 {
 		t.Fatalf("handback: %d %v", code, out)
 	}
-	toldMain(t, h, "交回给你去做")
+	toldMain(t, h, "returned it to you to carry out")
 	if got := notesOf(h.f, "s1"); len(got) != 0 {
 		t.Fatalf("the processing conversation was told: %v", got)
 	}
@@ -476,7 +476,7 @@ func TestInboxHandedAgentSuggestion(t *testing.T) {
 	if e.Kind != ChainAgent || e.Link == nil || e.Link.SessionID == "" || !strings.Contains(e.Text, "查一下报价单") {
 		t.Fatalf("chain: %+v", e)
 	}
-	note := toldMain(t, h, "Agent 已经开了")
+	note := toldMain(t, h, "the Agent has started")
 	if last := note[len(note)-1]; !strings.Contains(last, e.Link.SessionID) || !strings.Contains(last, `item: "lark:f1:100"`) {
 		t.Fatalf("the note:\n%s", last)
 	}

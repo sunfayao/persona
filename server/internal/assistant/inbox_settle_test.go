@@ -168,7 +168,7 @@ func settleModel(t *testing.T, reply string) (*int, *sync.Mutex, *ai.Client) {
 		}
 		_ = json.NewDecoder(r.Body).Decode(&in)
 		text := `{"handle":false,"reason":"示例"}`
-		if strings.Contains(in.System, "还要不要用户管") {
+		if strings.Contains(in.System, "Decide whether it still needs them") {
 			mu.Lock()
 			n++
 			mu.Unlock()
@@ -445,7 +445,7 @@ func TestInboxGroupInputNamesTheDirectChat(t *testing.T) {
 			if len(calls) == 0 {
 				t.Fatal("no grouping call")
 			}
-			named := strings.Contains(calls[0].User, "会话：chat:F1（示例：机器人或应用发来的私聊）")
+			named := strings.Contains(calls[0].User, "Conversation: chat:F1 (示例：机器人或应用发来的私聊)")
 			if named != (kind == KindBot) || strings.Contains(calls[0].User, "示例：群消息") {
 				t.Fatalf("input:\n%s", calls[0].User)
 			}

@@ -233,7 +233,7 @@ func TestOrphanedTaskIsFlaggedAndToldOnce(t *testing.T) {
 	if !ok || e.Orphan != orphanError {
 		t.Fatalf("digest entry = %+v %v", e, ok)
 	}
-	if text := prompts.RenderSupervise(prompts.Supervise{Entries: []prompts.SuperviseEntry{e}}); !strings.Contains(text, "没有 Agent 在做了") { // i18n-ignore: the supervisor's prompt
+	if text := prompts.RenderSupervise(prompts.Supervise{Entries: []prompts.SuperviseEntry{e}}); !strings.Contains(text, "no Agent is working on it") { // i18n-ignore: the supervisor's prompt
 		t.Fatalf("the message does not say it:\n%s", text)
 	}
 	// Told: the same stretch is not told again, whatever the later passes find.
@@ -358,7 +358,7 @@ func TestWaitingTaskWhoseAgentDiedIsToldStopped(t *testing.T) {
 	if !ok {
 		t.Fatal("the signal does not make it into the message")
 	}
-	if text := prompts.RenderSupervise(prompts.Supervise{Entries: []prompts.SuperviseEntry{e}}); !strings.Contains(text, "没有 Agent 在做了") { // i18n-ignore: the supervisor's prompt
+	if text := prompts.RenderSupervise(prompts.Supervise{Entries: []prompts.SuperviseEntry{e}}); !strings.Contains(text, "no Agent is working on it") { // i18n-ignore: the supervisor's prompt
 		t.Fatalf("the message does not say it:\n%s", text)
 	}
 }

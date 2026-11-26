@@ -37,7 +37,7 @@ func TestDigestWaitsForTheMainConversation(t *testing.T) {
 	f.hello.Assistant.MachineID = "server"
 	f.mu.Unlock()
 	waitFor(t, "the message once the hub is back", func() bool { return len(f.notices()) == 1 })
-	if n := f.notices()[0]; !strings.Contains(n, "任务「甲」") {
+	if n := f.notices()[0]; !strings.Contains(n, "Task “甲”") {
 		t.Fatalf("message:\n%s", n)
 	}
 }
@@ -87,7 +87,7 @@ func TestDigestKeptWhenRelayUnreadable(t *testing.T) {
 	f.setSessions("server", idle)
 	s.drainRelays("server", []proto.Session{idle})
 	waitFor(t, "the message", func() bool { return len(f.notices()) == 1 })
-	if n := f.notices()[0]; !strings.Contains(n, "任务「甲」") {
+	if n := f.notices()[0]; !strings.Contains(n, "Task “甲”") {
 		t.Fatalf("message:\n%s", n)
 	}
 	// Nothing is left to send it again: the signal no longer waits, it is marked told (a later sweep skips it) and the

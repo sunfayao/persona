@@ -321,7 +321,7 @@ func TestAnExtensionsRenameIsAHint(t *testing.T) {
 	if got, _ := shown("ext"); got != day+" | "+searchTitle {
 		t.Fatalf("named like any other: %q", got)
 	}
-	if c := f.modelCalls(); len(c) != 1 || !strings.Contains(c[0].User, "「/agent · 示例群 · 查一下周五发布的进度」") || !strings.Contains(c[0].User, searchAsk) {
+	if c := f.modelCalls(); len(c) != 1 || !strings.Contains(c[0].User, "“/agent · 示例群 · 查一下周五发布的进度”") || !strings.Contains(c[0].User, searchAsk) {
 		t.Fatalf("the model reads the hint with the first exchange: %+v", c)
 	}
 	rename("ext", "/agent · 示例群 · 又一句", "larkext")

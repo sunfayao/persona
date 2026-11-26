@@ -35,24 +35,24 @@ func TestContextOfATrackConversationIsItsOwn(t *testing.T) {
 	text := func(id string) string {
 		return s.Context(ctx, ContextParams{SessionID: id, MachineID: "server"}).Text
 	}
-	for id, head := range map[string]string{"health1": "**这是「QA private」空间的对话**", "plain1": "**这是「qa-plain」空间的对话**"} {
+	for id, head := range map[string]string{"health1": "**This is a conversation in the “QA private” space**", "plain1": "**This is a conversation in the “qa-plain” space**"} {
 		got := text(id)
-		if !strings.HasPrefix(got, head) || !strings.Contains(got, "\n- 现在：") || !strings.Contains(got, "- 回答语言：简体中文") {
+		if !strings.HasPrefix(got, head) || !strings.Contains(got, "\n- Now: ") || !strings.Contains(got, "- Answer in: Simplified Chinese") {
 			t.Errorf("%s: not its track's context:\n%s", id, got)
 		}
 		if n := utf8.RuneCountInString(got); n > spaceContextMax {
 			t.Errorf("%s: %d characters", id, n)
 		}
-		for _, leak := range []string{"Agents", "在线的电脑", "飞书", "待办", "知识库", "模型档位", "iPhone", "主对话"} {
+		for _, leak := range []string{"Agents", "Computers online", "Feishu", "to-dos", "knowledge base", "Model profile", "iPhone", "main conversation"} {
 			if strings.Contains(got, leak) {
 				t.Errorf("%s: its context tells %q:\n%s", id, leak, got)
 			}
 		}
 	}
-	if got := text("m1"); !strings.HasPrefix(got, "**这是主对话**") || !strings.Contains(got, "- Agents：") {
+	if got := text("m1"); !strings.HasPrefix(got, "**This is the main conversation**") || !strings.Contains(got, "- Agents: ") {
 		t.Errorf("the main conversation lost its snapshot:\n%s", got)
 	}
-	if got := text("side"); !strings.Contains(got, "- Agents：") || strings.Contains(got, "空间的对话") {
+	if got := text("side"); !strings.Contains(got, "- Agents: ") || strings.Contains(got, "conversation in the") {
 		t.Errorf("a side conversation of the main space lost its snapshot:\n%s", got)
 	}
 }

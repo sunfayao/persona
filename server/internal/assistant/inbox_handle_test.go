@@ -202,7 +202,7 @@ func TestInboxSuggestionConfirmReply(t *testing.T) {
 		confirmed.Text != "你确认了（改过文字）" {
 		t.Fatalf("chain: %v %+v", kinds, confirmed)
 	}
-	toldConv(t, h, "已经发出")
+	toldConv(t, h, "and it was sent")
 	// The same confirmation again (another device): stale, nothing more goes out.
 	if code, _ := suggestionCall(t, h, it.ID, `{"version":2,"action":"confirm"}`); code != 409 || len(lark.got) != 1 {
 		t.Fatalf("again: %d, sent %d", code, len(lark.got))
@@ -233,7 +233,7 @@ func TestInboxSuggestionConfirmReply(t *testing.T) {
 		t.Fatalf("after the other side's answer: %+v %v", it.Handling, chainKinds(it))
 	}
 	h.inbox.mu.Unlock()
-	if strings.Count(all, "有了新消息") != 1 || sentBefore == 0 {
+	if strings.Count(all, "New messages arrived for this matter") != 1 || sentBefore == 0 {
 		t.Fatalf("told: %s", all)
 	}
 
@@ -243,7 +243,7 @@ func TestInboxSuggestionConfirmReply(t *testing.T) {
 	lark.things = []connector.InboxThing{self}
 	collectAndAdmit(h)
 	h.handInbox(context.Background())
-	toldConv(t, h, "自己回复了")
+	toldConv(t, h, "replied in the source")
 	h.inbox.mu.Lock()
 	defer h.inbox.mu.Unlock()
 	if it.open() || it.DoneBy != "replied" || it.Chain[len(it.Chain)-1].Kind != ChainSelfReplied {
@@ -264,7 +264,7 @@ func TestInboxSuggestionRejectInstruct(t *testing.T) {
 	if e := lastChain(h, it); e.Kind != ChainRejected {
 		t.Fatalf("chain: %+v", e)
 	}
-	toldConv(t, h, "驳回了你的建议")
+	toldConv(t, h, "rejected your suggestion")
 	if code, _ := suggestionCall(t, h, it.ID, `{"version":1,"action":"confirm"}`); code != 409 {
 		t.Fatalf("a rejected suggestion confirmed: %d", code)
 	}
@@ -453,7 +453,7 @@ func TestInboxSuggestionHandback(t *testing.T) {
 	if code, _ := suggestionCall(t, h, it.ID, `{"version":1,"action":"confirm"}`); code != 200 || len(lark.got) != 0 {
 		t.Fatalf("handback: %d, sent %d", code, len(lark.got))
 	}
-	toldConv(t, h, "交回给你去做")
+	toldConv(t, h, "returned it to you to carry out")
 }
 
 // The suggestion tool only works in an event's conversation, and refuses blanks and unknown kinds.
@@ -585,7 +585,7 @@ func TestInboxConversationResumes(t *testing.T) {
 		t.Fatalf("no new conversation: %+v", it.Agent)
 	}
 	first := h.f.lastSend(t)["text"].(string)
-	for _, want := range []string{"原来处理它的那段对话不在了", "已经查到合入了", "再看看分支"} {
+	for _, want := range []string{"The previous handling conversation is gone", "已经查到合入了", "再看看分支"} {
 		if !strings.Contains(first, want) {
 			t.Errorf("the new conversation's first message lacks %q:\n%s", want, first)
 		}
@@ -619,7 +619,7 @@ func TestInboxFilingStopsTheConversation(t *testing.T) {
 	if code, _ := inboxCall(t, h.routes(), "POST", "/api/v1/inbox/"+it.ID+"/done", `{"done":true}`); code != 200 {
 		t.Fatal(code)
 	}
-	toldConv(t, h, "标了已处理")
+	toldConv(t, h, "marked it handled")
 	h.inbox.mu.Lock()
 	defer h.inbox.mu.Unlock()
 	if it.Handling.State != HandlingDone || it.Suggestion != nil {

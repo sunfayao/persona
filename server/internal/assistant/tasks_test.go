@@ -751,7 +751,7 @@ func TestSnapshotTaskFollowsTheAgent(t *testing.T) {
 		Activity: "在跑测试", ActivityAt: &started}
 
 	got := snapshotTask(todo, "working", []proto.Session{lead}, now)
-	if got.Last != "" || got.Doing != "在跑测试" || got.DoingFor != "3 分钟" || got.Session != "b00502b8" {
+	if got.Last != "" || got.Doing != "在跑测试" || got.DoingFor != "3 min" || got.Session != "b00502b8" {
 		t.Fatalf("tools only, no words: %+v", got)
 	}
 
@@ -781,7 +781,7 @@ func TestSnapshotTaskFollowsTheAgent(t *testing.T) {
 			{TaskID: "w0", Name: "早就停了的", Status: proto.WorkflowKilled},
 		}}
 	wfTask := snapshotTask(Todo{ID: "todo_3", Title: "各端对齐审计"}, "working", []proto.Session{wfLead}, now)
-	if len(wfTask.Workflows) != 1 || wfTask.Workflows[0].For != "14 分钟" {
+	if len(wfTask.Workflows) != 1 || wfTask.Workflows[0].For != "14 min" {
 		t.Fatalf("task workflows: %+v", wfTask.Workflows)
 	}
 	golden(t, "assistant_snapshot.workflows", prompts.RenderSnapshot(prompts.Snapshot{Now: now, Zone: "UTC",
@@ -1356,7 +1356,7 @@ func TestSnapshotListsPlansWaitingToStart(t *testing.T) {
 		t.Fatalf("plans waiting: %+v (%d)", plans, total)
 	}
 	text := prompts.RenderSnapshot(prompts.Snapshot{Now: time.Now().In(loc), Zone: loc.String(), Plans: plans, PlansTotal: total})
-	if !strings.Contains(text, "等用户点「开始」的计划") || !strings.Contains(text, "修登录崩溃") {
+	if !strings.Contains(text, "Plans waiting for the user's Start") || !strings.Contains(text, "修登录崩溃") {
 		t.Fatalf("snapshot: %s", text)
 	}
 	// Started: it is a task now, no longer a card waiting.
@@ -1402,7 +1402,7 @@ func TestTaskPlanWithdraw(t *testing.T) {
 	loc := s.location(ctx)
 	if plans, _ := s.snapshotPlans(ctx, loc, time.Now()); len(plans) != 1 || plans[0].ID != id ||
 		!strings.Contains(prompts.RenderSnapshot(prompts.Snapshot{Now: time.Now().In(loc), Zone: loc.String(), Plans: plans,
-			PlansTotal: 1}), "（"+id+"）") {
+			PlansTotal: 1}), "("+id+")") {
 		t.Fatalf("the snapshot does not name plan %s: %+v", id, plans)
 	}
 	for _, c := range []struct{ name, self, id, reason string }{

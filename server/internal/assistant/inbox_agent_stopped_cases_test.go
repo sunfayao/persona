@@ -167,7 +167,7 @@ func TestOppInboxAgentStopWaitsForAnAgentAwaitingTheUser(t *testing.T) {
 func TestOppInboxAgentStopMarkerEvictedByTheChainCapDoesNotRepeat(t *testing.T) {
 	h, it := oppStoppedHub(t)
 	h.inboxAgentTurnSettled(context.Background(), "box", "s-sub")
-	toldConv(t, h, "Agent 停了") // the first stop's own wake, before what this test counts
+	toldConv(t, h, "The Agent stopped") // the first stop's own wake, before what this test counts
 	h.inbox.mu.Lock()
 	first := len(oppStops(it))
 	for range chainMax {

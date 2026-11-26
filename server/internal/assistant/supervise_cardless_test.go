@@ -39,7 +39,7 @@ func TestReviewCardlessWaitGoesBackOnce(t *testing.T) {
 	releaseDigest(s)
 	waitFor(t, "the card-less message", func() bool { return len(f.notices()) > before })
 	n := f.notices()[before]
-	for _, want := range []string{"signal=cardless_wait", "没有任何卡片", "needs_user"} {
+	for _, want := range []string{"signal=cardless_wait", "the user has no card for it", "needs_user"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("message lacks %q:\n%s", want, n)
 		}

@@ -13,16 +13,16 @@ func TestInboxSelfRepliedPromptRestrictions(t *testing.T) {
 		Text:  "2026-11-13 14:30",
 	})
 	requireInboxWakePrompt(t, got,
-		"交 conclusion（outcome 写 done）",
-		"只交 recap 和 follow",
+		"call inbox_suggest with a conclusion (outcome done)",
+		"give only recap and follow",
 	)
 }
 
 func TestInboxSelfReadPromptRestrictions(t *testing.T) {
 	got := prompts.RenderInboxHandlingNote(prompts.NoteSelfRead, prompts.InboxHandlingNote{Owner: "示例用户"})
 	requireInboxWakePrompt(t, got,
-		"交 conclusion 了结",
-		"只交建议，或写 recap 和 follow 继续等",
+		"call inbox_suggest with a conclusion",
+		"submit only a suggestion, or recap and follow to keep waiting",
 	)
 }
 
@@ -34,20 +34,20 @@ func TestInboxCheckPromptRestrictions(t *testing.T) {
 		Checks: 2,
 	})
 	requireInboxWakePrompt(t, got,
-		"交 kind conclusion",
-		"交一条建议",
-		"给 recap 和 follow",
+		"kind conclusion",
+		"one suggestion",
+		"give recap and follow",
 	)
 }
 
 func requireInboxWakePrompt(t *testing.T, got string, outcomes ...string) {
 	t.Helper()
 	want := []string{
-		"不能自己开 Agent",
-		"不能发送任何消息",
-		"也不能直接做任何会被别人看到的动作",
-		"查看和调查只用只读工具",
-		"建议只在示例用户确认后由程序执行",
+		"Do not start Agents",
+		"send messages",
+		"visible to others in this turn",
+		"read-only",
+		"the program executes suggestions only after 示例用户 confirms",
 	}
 	want = append(want, outcomes...)
 	for _, part := range want {

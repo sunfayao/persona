@@ -68,7 +68,7 @@ func TestInboxWakeSlotsBypassUserActionsAtCapacity(t *testing.T) {
 		if code != 200 || wakeSlotsBypassTestHandlingState(out) != HandlingLooking {
 			t.Fatalf("reject at full capacity: %d %v", code, out)
 		}
-		toldConv(t, h, "驳回了你的建议")
+		toldConv(t, h, "the user rejected your suggestion")
 		wakeSlotsBypassTestRequireBusy(t, h, busy)
 	})
 
@@ -104,7 +104,7 @@ func TestInboxWakeSlotsBypassUserActionsAtCapacity(t *testing.T) {
 		if code != 200 || wakeSlotsBypassTestHandlingState(out) != HandlingLooking {
 			t.Fatalf("handback confirmation at full capacity: %d %v", code, out)
 		}
-		toldConv(t, h, "交回给你去做")
+		toldConv(t, h, "returned it to you to carry out")
 		wakeSlotsBypassTestRequireBusy(t, h, busy)
 	})
 
@@ -123,7 +123,7 @@ func TestInboxWakeSlotsBypassUserActionsAtCapacity(t *testing.T) {
 		if len(lark.got) != 1 || lark.got[0].Text != "好的，周四给你" {
 			t.Fatalf("handed-off reply sends = %+v", lark.got)
 		}
-		toldMain(t, h, "已经发出")
+		toldMain(t, h, "it was sent")
 		wakeSlotsBypassTestRequireBusy(t, h, busy)
 	})
 

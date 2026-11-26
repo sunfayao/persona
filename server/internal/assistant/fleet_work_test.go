@@ -349,12 +349,12 @@ func TestGoldenAssistantSnapshotWork(t *testing.T) {
 		return FeishuStatus{PublicURL: "http://hub.example.com:18660"}, nil
 	})
 	res := s.Context(context.Background(), ContextParams{SessionID: "side-session"})
-	head := regexp.MustCompile(`^- 现在：\d{4}-\d\d-\d\d 周[日一二三四五六] \d\d:\d\d（([^）]+)）\n`)
+	head := regexp.MustCompile(`^- Now: \d{4}-\d\d-\d\d (?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d\d:\d\d \(([^)]+)\)\n`)
 	m := head.FindStringSubmatch(res.Text)
 	if m == nil {
 		t.Fatalf("snapshot header: %q", res.Text)
 	}
-	golden(t, "assistant_snapshot.work", "- 现在：YYYY-MM-DD 周X HH:MM（"+m[1]+"）\n"+res.Text[len(m[0]):])
+	golden(t, "assistant_snapshot.work", "- Now: YYYY-MM-DD Www HH:MM ("+m[1]+")\n"+res.Text[len(m[0]):])
 }
 
 // A plan's work line says what the plan is, and a card of several questions says more follow (#4331): the user tells

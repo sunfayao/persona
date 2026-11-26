@@ -16,8 +16,8 @@ func TestSnapshotRendersTakeoverLinks(t *testing.T) {
 			{ID: "todo_old", Title: "Old card", State: "已取消", CancelledReason: "方案调整", SupersededBy: "todo_new", SupersededByLink: "https://hub.example.com/todos?id=todo_new"},
 			{ID: "todo_new", Title: "New card", State: "已交付·待看", Continues: "todo_old", ContinuesLink: "https://hub.example.com/todos?id=todo_old"},
 		}})
-	for _, want := range []string{"已由新卡 todo_new 接手（链接 https://hub.example.com/todos?id=todo_new）",
-		"接手自 todo_old（链接 https://hub.example.com/todos?id=todo_old）", "已取消：方案调整"} {
+	for _, want := range []string{"taken over by new card todo_new (link https://hub.example.com/todos?id=todo_new)",
+		"taking over from todo_old (link https://hub.example.com/todos?id=todo_old)", "已取消: 方案调整"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("snapshot lacks %q:\n%s", want, text)
 		}

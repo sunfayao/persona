@@ -139,7 +139,7 @@ func TestTaskReviewExternalInputAndSubstantiveNewReset(t *testing.T) {
 	}
 	// Agent message for round > 2 must display maxTotalReworkRounds (10), not max 2.
 	sent := sentToAgent(f)
-	if last := sent[len(sent)-1]; !strings.Contains(last, "第 4 轮返工，最多 10 轮") {
+	if last := sent[len(sent)-1]; !strings.Contains(last, "rework round 4, at most 10 rounds") {
 		t.Fatalf("expected agent prompt to show 4 of 10, got %q", last)
 	}
 

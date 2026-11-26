@@ -244,9 +244,9 @@ func TestScheduledTodoCheckSignalNamesTheAgent(t *testing.T) {
 		t.Fatalf("the supervision entry lost the Agent: %+v", e)
 	}
 	text := prompts.RenderSupervise(prompts.Supervise{Entries: []prompts.SuperviseEntry{e}})
-	if !strings.Contains(text, "signal=check") || !strings.Contains(text, "挂在它上面的定时检查没看到进展") || // i18n-ignore: the supervision message is Chinese
-		!strings.Contains(text, "不是 Agent 的汇报") || strings.Contains(text, "Agent 主动向你汇报") || // i18n-ignore
-		!strings.Contains(text, "；在 box session_id="+short("worker")) || strings.Contains(text, "在 server") { // i18n-ignore
+	if !strings.Contains(text, "signal=check") || !strings.Contains(text, "a scheduled check attached to it saw no progress") ||
+		!strings.Contains(text, "this is a hub check, not a report from the Agent") || strings.Contains(text, "the Agent is reporting to you on its own initiative") ||
+		!strings.Contains(text, "; on box session_id="+short("worker")) || strings.Contains(text, "on server") {
 		t.Fatalf("the supervision message misreads the check:\n%s", text)
 	}
 	worker := prompts.RenderWorkerSupervise([]prompts.SuperviseEntry{e})
@@ -319,7 +319,7 @@ func TestScheduledTodoCheckDecisionGoesToSupervisor(t *testing.T) {
 			}
 			e, ok := s.digestEntry(ctx, g, "")
 			text := prompts.RenderSupervise(prompts.Supervise{Entries: []prompts.SuperviseEntry{e}})
-			if !ok || !strings.Contains(text, "选了「"+label+"」") || !strings.Contains(text, "没有转给 Agent") || // i18n-ignore: the supervision message is Chinese
+			if !ok || !strings.Contains(text, "choosing “"+label+"”") || !strings.Contains(text, "this answer was not passed on to the Agent") ||
 				!strings.Contains(text, leadsTo) {
 				t.Fatalf("the supervision message lacks the option or what it leads to:\n%s", text)
 			}
@@ -428,7 +428,7 @@ func TestScheduledTodoCheckDecisionAnsweredOffTheCard(t *testing.T) {
 				}
 				text := prompts.RenderSupervise(prompts.Supervise{Entries: []prompts.SuperviseEntry{e}})
 				worker := prompts.RenderWorkerSupervise([]prompts.SuperviseEntry{e})
-				says, never := "没有转给 Agent", "已经在 Agent 的对话里" // i18n-ignore: the supervision message is Chinese
+				says, never := "this answer was not passed on to the Agent", "this answer is already in the Agent's conversation"
 				workerSays, workerNever := "the worker was not told", "already in the worker's chat"
 				if told {
 					says, never, workerSays, workerNever = never, says, workerNever, workerSays

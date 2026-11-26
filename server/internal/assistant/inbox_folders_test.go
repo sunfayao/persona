@@ -78,13 +78,13 @@ func TestFileFoldersInBatches(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("%d model calls, want 2 (20 + 5)", len(got))
 	}
-	if !strings.Contains(got[0].User, "projects/example/releases（1）") || !strings.Contains(got[0].User, "Release plan（Example Person） → projects/example/releases") {
+	if !strings.Contains(got[0].User, "projects/example/releases (1)") || !strings.Contains(got[0].User, "Release plan (Example Person) → projects/example/releases") {
 		t.Errorf("the folders in use and the user's own moves are not shown:\n%s", got[0].User)
 	}
-	if strings.Contains(got[0].User, "id：mine") || strings.Contains(got[1].User, "id：mine") {
+	if strings.Contains(got[0].User, "id: mine") || strings.Contains(got[1].User, "id: mine") {
 		t.Error("an item the user filed was sent to the model")
 	}
-	if n := strings.Count(got[0].User, "\nid："); n != 20 {
+	if n := strings.Count(got[0].User, "\nid: "); n != 20 {
 		t.Errorf("first batch has %d items", n)
 	}
 	for id, it := range h.inbox.items {
@@ -116,7 +116,7 @@ func TestFileFoldersInBatches(t *testing.T) {
 	h.inbox.items["f4"].Last = "2"
 	h.fileFolders(ctx)
 	last := calls()[len(calls())-1]
-	if len(calls()) != 3 || !strings.Contains(last.User, "id：f3") || strings.Contains(last.User, "id：f4") {
+	if len(calls()) != 3 || !strings.Contains(last.User, "id: f3") || strings.Contains(last.User, "id: f4") {
 		t.Errorf("after new messages: %d calls, last:\n%s", len(calls()), last.User)
 	}
 }

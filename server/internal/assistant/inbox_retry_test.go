@@ -83,7 +83,7 @@ func TestInboxRetryDeliversPendingNotes(t *testing.T) {
 	const source = "The quote should include delivery"
 	const instruction = "Check delivery costs before drafting"
 	const first = "Use the original item number"
-	const readNotice = "已经在来源里看过这件事的最新消息"
+	const readNotice = "read this matter's latest messages in the source without replying here"
 
 	h.inbox.mu.Lock()
 	h.inbox.tell(it, inboxNote{Name: prompts.NoteInstructed, Text: first}, true, now)
@@ -173,7 +173,7 @@ func TestInboxRetryStartsWithRecapAndChain(t *testing.T) {
 				t.Fatalf("retry did not start a fresh conversation: %+v, %+v", row.Handling, row.Agent)
 			}
 			prompt, _ := h.f.lastSend(t)["text"].(string)
-			for _, want := range []string{row.Recap, "The previous attempt timed out", "处理链条"} {
+			for _, want := range []string{row.Recap, "The previous attempt timed out", "Handling chain so far"} {
 				if !strings.Contains(prompt, want) {
 					t.Errorf("fresh conversation prompt lacks %q: %s", want, prompt)
 				}

@@ -116,7 +116,7 @@ func TestReadonlyTaskOnAnAutoAcceptProviderAllowsAll(t *testing.T) {
 				if len(f.starts) != 1 || f.starts[0]["permission_mode"] != want[launcher] {
 					t.Fatalf("read-only start = %v, want permission_mode %s", f.starts, want[launcher])
 				}
-				if prompt, _ := f.starts[0]["prompt"].(string); strings.Count(prompt, "本任务只读：不改项目文件、不提交、不对外写入") != 1 {
+				if prompt, _ := f.starts[0]["prompt"].(string); strings.Count(prompt, "This task is read-only: do not change project files, commit, or write to external systems.") != 1 {
 					t.Fatalf("read-only prompt = %q", prompt)
 				}
 			})

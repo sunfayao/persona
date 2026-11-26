@@ -1,8 +1,8 @@
-- 现在：2026-11-04 周三 11:52（UTC）
-- 模型档位：未设置（model_profiles_list 查看，model_profile_switch 切换）
-- 在线的电脑：
-- Agents：需要你 0 个，完成未看 0 个，工作中 0 个（详情用 agents_list）
-- 优先显示的开放任务详情（含个人待办；最近结束的对话任务也会列出；task_plan；问已有结果看这里，不够用 agent_read 读它的对话；要它新查、新做或改方向才用 agent_send）：
-  - 只跑工具（todo_2）：在做，mac-a session_id=c1：现在在读 tasks.go（3 分钟了）
-  - hub 重启无感（todo_1）：在做，mac-a session_id=b00502b8：已建 issue 并认领， 两个只读子任务在调查；现在在跑测试（3 分钟了）；子 Agent 在跑：Hub children lifecycle survey、Client reconnect survey
-- 已安排的跟进：没有
+- Now: 2026-11-04 Wed 11:52 (UTC)
+- Model profile: not set (model_profiles_list to view, model_profile_switch to switch)
+- Computers online: 
+- Agents: 0 need you, 0 finished unread, 0 working (details: agents_list)
+- Open task details (shown by priority, including personal to-dos; recently ended conversation tasks are listed too; task_plan; for existing results look here, and if that is not enough read its conversation with agent_read; use agent_send only to have it look something up, do something new or change direction): 
+  - 只跑工具 (todo_2): working, mac-a session_id=c1: now: 在读 tasks.go (for 3 min)
+  - hub 重启无感 (todo_1): working, mac-a session_id=b00502b8: 已建 issue 并认领， 两个只读子任务在调查; now: 在跑测试 (for 3 min); sub-agents running: Hub children lifecycle survey, Client reconnect survey
+- Scheduled follow-ups: none

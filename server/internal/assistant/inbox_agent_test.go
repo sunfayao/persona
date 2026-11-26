@@ -393,8 +393,8 @@ func TestInboxAgentPrompt(t *testing.T) {
 	it.Title = `群 "A" <b>`
 	it.Agent = &InboxAgent{Task: "查 1013 是否合入"}
 	p := newInbox().inboxAgentPrompt(it, "小明")
-	for _, want := range []string{`title="飞书 · 群 &quot;A&quot; &lt;b&gt;"`, "飞书会话 id：f1", "查 1013 是否合入",
-		"inbox_suggest", "张三：1013 合了吗？", "小明", "事件 x"} {
+	for _, want := range []string{`title="Lark · 群 &quot;A&quot; &lt;b&gt;"`, "Lark conversation id: f1", "查 1013 是否合入",
+		"inbox_suggest", "张三：1013 合了吗？", "小明", "event x"} {
 		if !strings.Contains(p, want) {
 			t.Errorf("prompt lacks %q:\n%s", want, p)
 		}
@@ -448,14 +448,14 @@ func TestInboxItemAboutATask(t *testing.T) {
 	if !h.linkTask(ctx, it, h.activeTasks(ctx)) {
 		t.Fatal("not linked")
 	}
-	if c := onlyCall(t, calls()); !strings.Contains(c.User, todo.ID+"：修登录崩溃") {
+	if c := onlyCall(t, calls()); !strings.Contains(c.User, todo.ID+": 修登录崩溃") {
 		t.Fatalf("the judge was not shown the task:\n%s", c.User)
 	}
 	if it.Agent == nil || it.Agent.TodoID != todo.ID {
 		t.Fatalf("agent = %+v", it.Agent)
 	}
 	linked := &prompts.InboxTask{ID: todo.ID, Title: "修登录崩溃", State: "在做", Last: "测试通过"}
-	if p := h.inbox.inboxAgentPromptFor(it, "示例用户", linked, 1, time.UTC); !strings.Contains(p, "正在做的任务「修登录崩溃」") || !strings.Contains(p, "测试通过") {
+	if p := h.inbox.inboxAgentPromptFor(it, "示例用户", linked, 1, time.UTC); !strings.Contains(p, "ongoing task “修登录崩溃”") || !strings.Contains(p, "测试通过") {
 		t.Fatalf("the agent is not told the task:\n%s", p)
 	}
 

@@ -10,10 +10,11 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Inspect the session.send payload, not just a directly rendered template.
+// Inspect the session.send payload, not just a directly rendered template. The prompt is English whatever the
+// owner's locale is.
 func TestWakeUsesOwnerLanguageAtDelivery(t *testing.T) {
 	for _, tc := range []struct{ locale, want string }{
-		{"en", "Persona is waking you"}, {"ja", "Personaからの再開確認"}, {"zh-Hans", "Persona 叫醒你"},
+		{"en", "Persona is waking you"}, {"ja", "Persona is waking you"}, {"zh-Hans", "Persona is waking you"},
 	} {
 		t.Run(tc.locale, func(t *testing.T) {
 			s, f := workService(t)

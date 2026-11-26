@@ -671,17 +671,10 @@ func (s *Service) replyMail(ctx context.Context, r inboxReplyReq) (bool, error) 
 	return false, err
 }
 
-// inboxPromptOwner keeps the legacy default while naming the owner in new prompt languages.
+// inboxPromptOwner is how the inbox prompts call the owner: manager.json's assistant.owner, else "the user".
 func inboxPromptOwner(hello Hello) string {
 	if owner := strings.TrimSpace(hello.Owner); owner != "" {
 		return owner
 	}
-	switch answerLanguage(hello.Locale) {
-	case i18n.Ja.Name():
-		return "ユーザー" // i18n-ignore: the owner's name inside a Japanese model prompt, not interface text
-	case "":
-		return "用户" // i18n-ignore: the legacy prompt's owner word, kept byte for byte
-	default:
-		return "the user"
-	}
+	return "the user"
 }

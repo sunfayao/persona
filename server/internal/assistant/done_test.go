@@ -91,16 +91,16 @@ func TestTaskDonePromptsGolden(t *testing.T) {
 func TestTaskDonePromptKeepsOriginalTaskWhenSourceWasLost(t *testing.T) {
 	text := prompts.RenderTaskDoneInput(prompts.TaskDoneInput{Title: "Fix login", Prompt: "Fix and test login", Criteria: []string{"Login test passes"},
 		Replies: []prompts.TaskDoneReply{{Machine: "Computer", Ask: "Answer an unrelated parser question", Text: "The question was answered."}}})
-	for _, want := range []string{"Fix and test login", "Login test passes", "不替代原任务"} { // i18n-ignore: prompt contract
+	for _, want := range []string{"Fix and test login", "Login test passes", "does not replace the original task"} { // i18n-ignore: prompt contract
 		if !strings.Contains(text, want) {
 			t.Fatalf("input lacks %q: %s", want, text)
 		}
 	}
-	if strings.Contains(text, "用户后来给它的要求") { // i18n-ignore: removed misleading prompt heading
+	if strings.Contains(text, "Requirement the user later gave it") { // i18n-ignore: removed misleading prompt heading
 		t.Fatal("an unknown source is still described as a later user requirement")
 	}
 	system := prompts.RenderTaskDone(prompts.TaskDone{Owner: "User"})
-	if strings.Contains(system, "派活时的要求已经在之前几轮里处理过") || !strings.Contains(system, "不能推断原来的要求") { // i18n-ignore: prompt contract
+	if strings.Contains(system, "the requirements when it was handed out were already handled in earlier turns") || !strings.Contains(system, "does not imply that the original request was handled in earlier turns") { // i18n-ignore: prompt contract
 		t.Fatal("new questions still implicitly complete the original task")
 	}
 }

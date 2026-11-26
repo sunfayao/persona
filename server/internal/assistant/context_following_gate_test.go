@@ -24,10 +24,10 @@ func TestSnapshotFollowingEnabledEmptyRendersExistingEmptyState(t *testing.T) {
 	h.setConfig(func(c *assistantwire.InboxConfig) { c.Agent.Enabled = true })
 
 	text := followingGateSnapshot(t, h)
-	const want = "- 在跟的事：没有"
+	const want = "- Following: none"
 	var sectionLines []string
 	for _, line := range strings.Split(text, "\n") {
-		if strings.HasPrefix(line, "- 在跟的事") {
+		if strings.HasPrefix(line, "- Following") {
 			sectionLines = append(sectionLines, line)
 		}
 	}
@@ -46,7 +46,7 @@ func TestSnapshotFollowingDisabledOmitsSectionAndItemTitles(t *testing.T) {
 	h.inbox.mu.Unlock()
 
 	text := followingGateSnapshot(t, h)
-	if strings.Contains(text, "- 在跟的事") {
+	if strings.Contains(text, "- Following") {
 		t.Errorf("a disabled inbox still has a Following up section:\n%s", text)
 	}
 	if strings.Contains(text, waiting.Title) {
@@ -62,7 +62,7 @@ func TestSnapshotFollowingStoreUnavailableOmitsSection(t *testing.T) {
 	h.st.imu.Unlock()
 
 	text := followingGateSnapshot(t, h)
-	if strings.Contains(text, "- 在跟的事") {
+	if strings.Contains(text, "- Following") {
 		t.Fatalf("an unavailable inbox store produced a Following up section instead of leaving it out:\n%s", text)
 	}
 }

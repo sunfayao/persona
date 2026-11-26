@@ -145,7 +145,7 @@ func TestInboxMailRoundReadsTheText(t *testing.T) {
 	it := h.inbox.items[list[0].ID]
 	bodyOf, context_ := it.BodyOf, it.Context
 	h.inbox.mu.Unlock()
-	if bodyOf != "9" || !strings.Contains(context_, "这周做完了示例的上线") || !strings.Contains(context_, "邮箱 me@example.com") {
+	if bodyOf != "9" || !strings.Contains(context_, "这周做完了示例的上线") || !strings.Contains(context_, "mailbox me@example.com") {
 		t.Fatalf("read into the item: body_of %q, context %q", bodyOf, context_)
 	}
 	h.collectInbox(context.Background(), roundFull)

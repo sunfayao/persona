@@ -113,7 +113,7 @@ func TestSnapshotFollowingRendersEmptyState(t *testing.T) {
 		t.Fatalf("empty inbox gave %d rows and total %d", len(rows), total)
 	}
 	out := prompts.RenderSnapshot(prompts.Snapshot{Now: time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC), Zone: "UTC", FollowingEnabled: true})
-	if !strings.Contains(out, "- 在跟的事：没有\n") || strings.Contains(out, "在跟的事（0 件）") {
+	if !strings.Contains(out, "- Following: none\n") || strings.Contains(out, "Following (0 item(s))") {
 		t.Fatalf("the empty following state is missing or has an empty count:\n%s", out)
 	}
 }
@@ -166,11 +166,11 @@ func TestSnapshotFollowingSortsCapsAndUsesOwnerZone(t *testing.T) {
 
 	snap := prompts.Snapshot{Now: early, Zone: loc.String(), FollowingEnabled: true, Following: rows, FollowingTotal: total}
 	out := prompts.RenderSnapshot(snap)
-	if !strings.Contains(out, "还有 2 件") {
+	if !strings.Contains(out, "2 more") {
 		t.Errorf("the rows beyond the bound are not counted:\n%s", out)
 	}
 	line := snapshotFollowingLine(t, out, "标题 early")
-	for _, want := range []string{"在哪：地点 early", "等谁：对方 early", "下一步：继续 early", "再看：11-13 08:30"} {
+	for _, want := range []string{"where: 地点 early", "waiting on: 对方 early", "next step: 继续 early", "check again: 11-13 08:30"} {
 		if !strings.Contains(line, want) {
 			t.Errorf("following line lacks %q: %s", want, line)
 		}
@@ -185,11 +185,11 @@ func TestSnapshotFollowingStateNotes(t *testing.T) {
 	rows, total := s.snapshotFollowing(context.Background(), time.UTC)
 	out := prompts.RenderSnapshot(prompts.Snapshot{Now: time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC), Zone: "UTC", FollowingEnabled: true, Following: rows, FollowingTotal: total})
 	ask := snapshotFollowingLine(t, out, "标题 ask")
-	if !strings.Contains(ask, "看过 3 次没动静") {
+	if !strings.Contains(ask, "checked 3 times with no movement") {
 		t.Errorf("follow-up ask has no three-check note: %s", ask)
 	}
 	due := snapshotFollowingLine(t, out, "标题 due")
-	if !strings.Contains(due, "再看：到了再看的时间") {
+	if !strings.Contains(due, "check again: time to check again has come") {
 		t.Errorf("due check has no due-time note: %s", due)
 	}
 }
@@ -251,7 +251,7 @@ func TestFitSnapshotFollowingOmitsBeforeFollowups(t *testing.T) {
 	if got := utf8.RuneCountInString(out); got > snapshotBudget {
 		t.Fatalf("fitted snapshot has %d characters, budget is %d", got, snapshotBudget)
 	}
-	want := "- 在跟的事（7 件）：这份快照放不下，没列出来，收件箱在 App 里看"
+	want := "- Following (7 item(s)): too many to fit in this snapshot, so not listed; see the Inbox in Persona"
 	if !strings.Contains(out, want) {
 		t.Errorf("omitted following section lost its total or explanation %q:\n%s", want, out)
 	}

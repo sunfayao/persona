@@ -45,14 +45,16 @@ func TestTaskFilePathsMost(t *testing.T) {
 	}
 }
 
+// The file hand-back instructions are the same English whatever the owner's locale.
 func TestTaskSuccessorFilesLanguage(t *testing.T) {
+	english := []string{"file: <absolute path on this computer>", "up to 5", "Persona will deliver them to the conversation"}
 	for _, tc := range []struct {
 		locale string
 		want   []string
 	}{
-		{locale: "zh-Hans", want: []string{"file: <这台电脑上的绝对路径>", "最多 5 个", "Persona 会把它们送到对话那边"}},
-		{locale: "en", want: []string{"file: <absolute path on this computer>", "up to 5", "Persona will deliver them to the conversation"}},
-		{locale: "ja", want: []string{"file: <このコンピューター上の絶対パス>", "最大 5 ファイル", "Persona が会話へ配送するため"}},
+		{locale: "zh-Hans", want: english},
+		{locale: "en", want: english},
+		{locale: "ja", want: english},
 	} {
 		t.Run(tc.locale, func(t *testing.T) {
 			f := newFakeHub().withMachine()
@@ -229,22 +231,23 @@ func TestTaskFileLinesInPrompts(t *testing.T) {
 		{Name: "c.md", Path: "/home/me/c.md", Local: "/x/c.md", Error: "an earlier try"},
 		{Name: "d.md", Path: "/home/me/d.md", Error: long},
 	}
-	want := []string{
-		"manual.md：/x/uploads/files/2026-11-18/ab12-manual.md",
-		"a.md：/home/me/a.md",
-		"b.zip（没取回：over 100 MB；在原电脑 /home/me/b.zip）",
-		"c.md：/x/c.md",
-		"d.md（没取回：" + clip(long, 160) + "；在原电脑 /home/me/d.md）",
+	// pairs: the notice's line, the supervision message's line.
+	want := [][2]string{
+		{"manual.md: /x/uploads/files/2026-11-18/ab12-manual.md", "manual.md: /x/uploads/files/2026-11-18/ab12-manual.md"},
+		{"a.md: /home/me/a.md", "a.md: /home/me/a.md"},
+		{"b.zip (not fetched: over 100 MB; on its computer at /home/me/b.zip)", "b.zip (not retrieved: over 100 MB; on the original computer at /home/me/b.zip)"},
+		{"c.md: /x/c.md", "c.md: /x/c.md"},
+		{"d.md (not fetched: " + clip(long, 160) + "; on its computer at /home/me/d.md)", "d.md (not retrieved: " + clip(long, 160) + "; on the original computer at /home/me/d.md)"},
 	}
 	notice := renderNotice(&quietNotice{todo: Todo{Title: "整理手册"}, state: "done", files: files}, false, "")
 	supervise := prompts.RenderSupervise(prompts.Supervise{Entries: []prompts.SuperviseEntry{
 		{ID: "todo_1", Title: "整理手册", Kind: "review", Files: taskFilePrompts(files)}}})
 	for _, w := range want {
-		if !strings.Contains(notice, "\n- "+w+"\n") {
-			t.Errorf("notice lacks %q:\n%s", w, notice)
+		if !strings.Contains(notice, "\n- "+w[0]+"\n") {
+			t.Errorf("notice lacks %q:\n%s", w[0], notice)
 		}
-		if !strings.Contains(supervise, "\n   - "+w+"\n") {
-			t.Errorf("supervision message lacks %q:\n%s", w, supervise)
+		if !strings.Contains(supervise, "\n   - "+w[1]+"\n") {
+			t.Errorf("supervision message lacks %q:\n%s", w[1], supervise)
 		}
 	}
 }

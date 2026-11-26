@@ -32,10 +32,10 @@ func TestSnapshotIsNowAndDoesNotWait(t *testing.T) {
 		t.Fatalf("waited %v for a slow source", d)
 	}
 	now := time.Now().In(loc)
-	if !strings.Contains(got, "- 现在："+now.Format("2006-01-02")+" ") || !strings.Contains(got, now.Format("15:04")+"（"+loc.String()+"）") {
+	if !strings.Contains(got, "- Now: "+now.Format("2006-01-02")+" ") || !strings.Contains(got, now.Format("15:04")+" ("+loc.String()+")") {
 		t.Fatalf("not the time now (%s):\n%s", now.Format("15:04"), got)
 	}
-	if !strings.Contains(got, "发布群（2 条）") {
+	if !strings.Contains(got, "发布群 (2 unread)") {
 		t.Fatalf("the earlier snapshot's chats are gone:\n%s", got)
 	}
 }
@@ -88,7 +88,7 @@ func TestSnapshotLinksAgentsToTheWebApp(t *testing.T) {
 		return FeishuStatus{PublicURL: "https://hub.example.com/"}, nil
 	})
 	got := snap(f)
-	if !strings.Contains(got, "链接 https://hub.example.com/s/mac-a/b00502b8-82a3）") {
+	if !strings.Contains(got, "link https://hub.example.com/s/mac-a/b00502b8-82a3)") {
 		t.Fatalf("no link to the agent:\n%s", got)
 	}
 	if strings.Contains(got, "c0ffee00") {
@@ -97,7 +97,7 @@ func TestSnapshotLinksAgentsToTheWebApp(t *testing.T) {
 
 	f = newFakeHub()
 	f.answerApp(AppFeishu, FeishuStatusGet, func(json.RawMessage) (any, error) { return nil, errors.New("no app") })
-	if got := snap(f); strings.Contains(got, "链接") || !strings.Contains(got, "session_id=b00502b8") {
+	if got := snap(f); strings.Contains(got, "link ") || !strings.Contains(got, "session_id=b00502b8") {
 		t.Fatalf("a link without a web address, or the agent is gone:\n%s", got)
 	}
 }

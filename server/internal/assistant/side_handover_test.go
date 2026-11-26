@@ -59,7 +59,7 @@ func listSide(f *fakeHub, status string) {
 func reviewsTold(f *fakeHub, conv, id string) int {
 	n := 0
 	for _, text := range f.noticesTo(conv) {
-		if strings.Contains(text, "📋 督办") && strings.Contains(text, id) {
+		if strings.Contains(text, "📋 Supervision") && strings.Contains(text, id) {
 			n++
 		}
 	}
@@ -99,7 +99,7 @@ func TestReviewLeftWaitingByASideConversationGoesToTheMainConversation(t *testin
 			told = text
 		}
 	}
-	if !strings.Contains(told, "待逐项复核，不代表完成") || !strings.Contains(told, "handed to you for review") {
+	if !strings.Contains(told, "awaiting item-by-item review; this does not mean it is done") || !strings.Contains(told, "handed to you for review") {
 		t.Fatalf("the main conversation is not told that the review is handed to it, and why:\n%s", told)
 	}
 

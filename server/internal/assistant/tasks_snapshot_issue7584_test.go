@@ -32,11 +32,11 @@ func TestLiveContextSnapshotIncludesOpenTodoRoster(t *testing.T) {
 		t.Fatal("takeSnapshot exceeded 10 seconds")
 	}
 	got := s.contextSnapshot(ctx, "", false)
-	if !strings.Contains(got, "开放待办：共 3 件（完整列表用 todo_list）") {
+	if !strings.Contains(got, "Open to-dos: 3 in total (full list: todo_list)") {
 		t.Fatalf("live context snapshot lacks open count and retrieval hint:\n%s", got)
 	}
 	for _, id := range ids {
-		if !strings.Contains(got, id+"「live fixture "+id+"」") {
+		if !strings.Contains(got, id+" “live fixture "+id+"”") {
 			t.Errorf("live context snapshot lacks %s:\n%s", id, got)
 		}
 	}
@@ -76,11 +76,11 @@ func TestSnapshotOpenTodoRosterIncludesOldAdoptedPersonalAndParked(t *testing.T)
 	}
 	text := fitSnapshot(prompts.Snapshot{Now: now, Zone: "UTC", OpenTodos: rows, OpenTodosTotal: total, OpenTodosLoaded: true})
 	for _, id := range ids {
-		if !strings.Contains(text, id+"「fixture "+id+"」") {
+		if !strings.Contains(text, id+" “fixture "+id+"”") {
 			t.Errorf("rendered open-work roster lacks %s:\n%s", id, text)
 		}
 	}
-	if !strings.Contains(text, "开放待办：共 39 件（完整列表用 todo_list）") {
+	if !strings.Contains(text, "Open to-dos: 39 in total (full list: todo_list)") {
 		t.Errorf("open count missing:\n%s", text)
 	}
 }
@@ -130,7 +130,7 @@ func TestSnapshotOpenTodoRosterCapsHugeListsWithTodoListHint(t *testing.T) {
 	if rows = snap.OpenTodos; total != snapshotOpenTodoLimit+7 || len(rows) != snapshotOpenTodoLimit {
 		t.Fatalf("rows/count = %d/%d", len(rows), total)
 	}
-	if !strings.Contains(text, "开放待办：共 107 件（完整列表用 todo_list）") || !strings.Contains(text, "其余用 todo_list 查") {
+	if !strings.Contains(text, "Open to-dos: 107 in total (full list: todo_list)") || !strings.Contains(text, "use todo_list for the rest") {
 		t.Fatalf("large roster lacks total or todo_list entrance:\n%s", text)
 	}
 	if runes(text) > snapshotBudget {
@@ -181,7 +181,7 @@ func TestFitSnapshotKeepsOpenTodoRosterWhenTaskDetailsAreOmitted(t *testing.T) {
 	s := bigSnapshot(fitNow)
 	s.OpenTodos, s.OpenTodosTotal, s.OpenTodosLoaded = rows, len(rows), true
 	got := fitSnapshot(s)
-	if !strings.Contains(got, "开放待办：共 26 件（完整列表用 todo_list）") {
+	if !strings.Contains(got, "Open to-dos: 26 in total (full list: todo_list)") {
 		t.Fatalf("open count disappeared:\n%s", got)
 	}
 	for _, row := range rows {
@@ -192,7 +192,7 @@ func TestFitSnapshotKeepsOpenTodoRosterWhenTaskDetailsAreOmitted(t *testing.T) {
 	if !strings.Contains(got, "task_plan") || !strings.Contains(got, "todo_roster_25") {
 		t.Fatalf("task retrieval hint or roster was lost:\n%s", got)
 	}
-	if !strings.Contains(got, "12 个") {
+	if !strings.Contains(got, "12 in total") {
 		t.Fatalf("full task details were not replaced by their count:\n%s", got)
 	}
 	if runes(got) > snapshotBudget {
@@ -208,10 +208,10 @@ func TestFitSnapshotCompactsOpenRosterBeforeOmittingTaskDetails(t *testing.T) {
 	s := bigSnapshot(fitNow)
 	s.OpenTodos, s.OpenTodosTotal, s.OpenTodosLoaded = rows, snapshotOpenTodoLimit, true
 	got := fitSnapshot(s)
-	if !strings.Contains(got, "仅列 ID") || !strings.Contains(got, "todo_compact_099") {
+	if !strings.Contains(got, "IDs only") || !strings.Contains(got, "todo_compact_099") {
 		t.Fatalf("compact roster did not preserve its tail ID:\n%s", got)
 	}
-	if !strings.Contains(got, "12 个") {
+	if !strings.Contains(got, "12 in total") {
 		t.Fatalf("task detail section was not omitted after roster compaction:\n%s", got)
 	}
 	if runes(got) > snapshotBudget {
@@ -298,8 +298,8 @@ func TestSnapshotCountsAFailedStartOpenAsTheAppDoes(t *testing.T) {
 		t.Fatalf("open count = %d (%v), want todo_open and todo_failed", total, rows)
 	}
 	text := fitSnapshot(prompts.Snapshot{Now: now, Zone: "UTC", OpenTodos: rows, OpenTodosTotal: total, OpenTodosLoaded: true})
-	if !strings.Contains(text, "开放待办：共 2 件") || !strings.Contains(text, "todo_failed「fixture todo_failed」（没开起来）") ||
-		!strings.Contains(text, "todo_open「fixture todo_open」") || strings.Contains(text, "todo_open「fixture todo_open」（没开起来）") {
+	if !strings.Contains(text, "Open to-dos: 2 in total") || !strings.Contains(text, "todo_failed “fixture todo_failed” (failed to start)") ||
+		!strings.Contains(text, "todo_open “fixture todo_open”") || strings.Contains(text, "todo_open “fixture todo_open” (failed to start)") {
 		t.Fatalf("roster:\n%s", text)
 	}
 }

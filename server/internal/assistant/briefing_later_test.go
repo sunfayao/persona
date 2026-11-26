@@ -219,12 +219,12 @@ func TestBriefModelIsToldHowManyNotWhich(t *testing.T) {
 			e.later("2", "todo_b", "图标要不要换？", time.Hour)
 		})
 		sent, _ := e.f.lastSend(t)["text"].(string)
-		if !strings.Contains(sent, "可以晚点答的问题 2 件") || strings.Contains(sent, "snake_case") || strings.Contains(sent, "图标要不要换") {
+		if !strings.Contains(sent, "Questions that can be answered later: 2") || strings.Contains(sent, "snake_case") || strings.Contains(sent, "图标要不要换") {
 			t.Errorf("%s: the message to the model:\n%s", name, sent)
 		}
 	}
 	plain, _ := newBriefRunEnv(t, true).f.lastSend(t)["text"].(string)
-	if strings.Contains(plain, "晚点答") {
+	if strings.Contains(plain, "answered later") {
 		t.Errorf("an empty queue is told to the model:\n%s", plain)
 	}
 }

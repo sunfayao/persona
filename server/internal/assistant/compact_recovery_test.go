@@ -28,7 +28,7 @@ func TestCompactRecoveryAssemblyAndByteBudget(t *testing.T) {
 			t.Fatalf("budget %d: %d bytes, valid=%v", budget, len(got), utf8.ValidString(got))
 		}
 		if budget >= 3072 {
-			for _, want := range []string{"压缩恢复块", "checkpoint-1", "todo/task1", "box/worker1", "direction/lead/notes", data.Decisions[0].Text, "message=m1", data.Pins[0].Text} {
+			for _, want := range []string{"Compaction recovery", "checkpoint-1", "todo/task1", "box/worker1", "direction/lead/notes", data.Decisions[0].Text, "message=m1", data.Pins[0].Text} {
 				if !strings.Contains(html.UnescapeString(got), want) {
 					t.Errorf("budget %d lost %q", budget, want)
 				}
@@ -53,7 +53,7 @@ func TestCompactRecoveryAssemblyAndByteBudget(t *testing.T) {
 func TestGoldenCompactRecoveryConfiguredSummaryLanguage(t *testing.T) {
 	f := newFakeHub().withMachine()
 	s := newTestService(t, f)
-	for _, tc := range []struct{ locale, want string }{{"zh-Hans", "压缩摘要必须使用简体中文"}, {"en", "Write every compaction summary in English"}, {"ja", "圧縮要約は必ず日本語"}} {
+	for _, tc := range []struct{ locale, want string }{{"zh-Hans", "Write every compaction summary in Simplified Chinese"}, {"en", "Write every compaction summary in English"}, {"ja", "Write every compaction summary in Japanese"}} {
 		f.hello.Locale = tc.locale
 		got := s.Context(context.Background(), ContextParams{SessionID: "ordinary", MachineID: "server"})
 		if !strings.Contains(got.CompactInstructions, tc.want) || got.Recovery != "" {

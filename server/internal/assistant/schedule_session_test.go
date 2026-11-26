@@ -43,7 +43,7 @@ func TestATaskRunsInItsOwnConversation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p := n.lastSend(t); p["session_id"] != nil && p["session_id"] != "" || strings.Contains(p["text"].(string), "还是这个任务自己的对话") {
+	if p := n.lastSend(t); p["session_id"] != nil && p["session_id"] != "" || strings.Contains(p["text"].(string), "in this task's own conversation") {
 		t.Fatalf("the first run starts a conversation with the whole message: %v", p)
 	}
 	task, _ := taskByID(h, "r")
@@ -59,7 +59,7 @@ func TestATaskRunsInItsOwnConversation(t *testing.T) {
 	if second.MachineID != "server" || second.SessionID != first.SessionID || p["session_id"] != first.SessionID || p["resume_only"] != true {
 		t.Fatalf("the second run goes into the same conversation: %+v %v", second, p)
 	}
-	if text := p["text"].(string); !strings.Contains(text, "还是这个任务自己的对话") || !strings.Contains(text, "给我今天的早报") {
+	if text := p["text"].(string); !strings.Contains(text, "in this task's own conversation") || !strings.Contains(text, "给我今天的早报") {
 		t.Fatalf("a continued run says so and still has the task's prompt: %q", text)
 	}
 	runs := waitRuns(t, h, 2)
@@ -192,7 +192,7 @@ func TestATaskStartsANewConversationWhenItsOwnCannotGoOn(t *testing.T) {
 	if task, _ := taskByID(h, "p"); task.RunSessionID != gone.SessionID {
 		t.Fatalf("and the new one is kept: %+v", task)
 	}
-	if text := n.lastSend(t)["text"].(string); !strings.Contains(text, "不用再用 schedule_followup") {
+	if text := n.lastSend(t)["text"].(string); !strings.Contains(text, "do not schedule the next run with schedule_followup") {
 		t.Fatalf("a new conversation gets the whole message again: %q", text)
 	}
 

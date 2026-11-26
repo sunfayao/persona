@@ -112,7 +112,7 @@ func TestAttachmentsOnTheSameComputerAreNotCopied(t *testing.T) {
 		t.Fatalf("copied on the same computer: %+v %+v", h, ff.uploads)
 	}
 	got := withAttachments("看图修 bug", h)
-	want := "看图修 bug\n\n用户给的文件：\n- /tmp/notes-20261109-120000.txt\n<attached_images>\n/x/conv1/images/1.png\npath: /x/conv1/images/1.png\n</attached_images>"
+	want := "看图修 bug\n\nFiles from the user:\n- /tmp/notes-20261109-120000.txt\n<attached_images>\n/x/conv1/images/1.png\npath: /x/conv1/images/1.png\n</attached_images>"
 	if got != want {
 		t.Fatalf("got\n%s\nwant\n%s", got, want)
 	}
@@ -133,7 +133,7 @@ func TestAttachmentsAreCopiedToAnotherComputer(t *testing.T) {
 		t.Fatalf("uploads %+v", ff.uploads)
 	}
 	text := h.text()
-	if !strings.Contains(text, "（已从助手那台电脑复制到这台）") || !strings.Contains(text, "/home/me/.persona/uploads/terminal/2026-11-09/ab12-1.png") ||
+	if !strings.Contains(text, "(copied from the assistant's computer to this one)") || !strings.Contains(text, "/home/me/.persona/uploads/terminal/2026-11-09/ab12-1.png") ||
 		!strings.Contains(text, "/tmp/gone.txt（") || !strings.Contains(text, "over 50 MB") || !strings.HasSuffix(text, "</attached_images>") {
 		t.Fatalf("text:\n%s", text)
 	}
@@ -192,7 +192,7 @@ func TestAgentSendHandsAttachments(t *testing.T) {
 	}
 	texts := sentToAgent(f)
 	text := texts[len(texts)-1]
-	if !strings.HasPrefix(text, "看这张图和这个文件\n\n用户给的文件（已从助手那台电脑复制到这台）：\n- /home/me/.persona/uploads/terminal/2026-11-09/ab12-n-20261109-120000.txt") ||
+	if !strings.HasPrefix(text, "看这张图和这个文件\n\nFiles from the user (copied from the assistant's computer to this one):\n- /home/me/.persona/uploads/terminal/2026-11-09/ab12-n-20261109-120000.txt") ||
 		!strings.HasSuffix(text, "<attached_images>\n/home/me/.persona/uploads/terminal/2026-11-09/ab12-1.png\npath: /home/me/.persona/uploads/terminal/2026-11-09/ab12-1.png\n</attached_images>") ||
 		!strings.Contains(res, "Attachments: 2 handed") {
 		t.Fatalf("sent %q res %q", text, res)

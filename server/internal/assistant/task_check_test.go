@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -172,15 +171,16 @@ func TestSupervisedTaskKeepsTheCheck(t *testing.T) {
 	}
 }
 
-// The judge is asked for the reason in the user's language (nothing added for Chinese, the prompt's own).
+// The judge is asked for the reason in the user's language: the prompt is the same English, only the language name
+// differs.
 func TestTaskDoneJudgeAsksInTheUsersLanguage(t *testing.T) {
-	for _, tc := range []struct{ locale, want string }{{"en", "用English写"}, {"ja", "用" + i18n.Lang("ja").Name() + "写"}, {"zh-Hans", ""}} {
+	for _, tc := range []struct{ locale, want string }{{"en", "written in English"}, {"ja", "written in Japanese"}, {"zh-Hans", "written in Simplified Chinese"}} {
 		m := &cannedJSON{answer: `{"verdict":"waiting","reason":"Waiting for CI"}`}
 		in := taskDoneInput{Owner: "User", Language: answerLanguage(tc.locale), Title: "Fix login", Replies: []prompts.TaskDoneReply{doneReply("PR open")}}
 		if _, err := judgeTaskDoneWith(context.Background(), m, in); err != nil {
 			t.Fatal(err)
 		}
-		if got := strings.Contains(m.system, "写，说结果"); got != (tc.want != "") || tc.want != "" && !strings.Contains(m.system, tc.want) {
+		if !strings.Contains(m.system, tc.want) || strings.Contains(m.system, "写，说结果") {
 			t.Fatalf("%s: system prompt:\n%s", tc.locale, m.system)
 		}
 	}

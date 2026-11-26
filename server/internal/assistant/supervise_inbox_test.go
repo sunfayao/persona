@@ -71,8 +71,8 @@ func TestInboxSignalOnLink(t *testing.T) {
 	s.superviseInbox(context.Background(), []*InboxItem{it}, map[*InboxItem]bool{it: true})
 	waitFor(t, "the message", func() bool { return len(f.notices()) == 1 })
 	n := f.notices()[0]
-	for _, want := range []string{"📋 督办", "任务「修登录崩溃」", "收件箱里有别人发来的新消息说到它（2 条）",
-		"收件箱事件 lark:f1:12「客户端发版群」，最新一条是 陈晓 发的：「登录那个崩溃今天能修好吗？ 下午要发版」",
+	for _, want := range []string{"📋 Supervision", "Task “修登录崩溃”", "new messages from other people in the Inbox mention it (2 messages)",
+		"Inbox event lark:f1:12 “客户端发版群”, newest message sent by 陈晓: “登录那个崩溃今天能修好吗？ 下午要发版”",
 		"signal=inbox"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("message lacks %q:\n%s", want, n)
@@ -89,7 +89,7 @@ func TestInboxSignalOnLink(t *testing.T) {
 	s.inbox.mu.Unlock()
 	s.superviseInbox(context.Background(), []*InboxItem{it}, nil)
 	waitFor(t, "the second message", func() bool { return len(f.notices()) == 2 })
-	if n := f.notices()[1]; !strings.Contains(n, "收件箱里有别人发来的新消息说到它\n") || !strings.Contains(n, "「好的，那我等你」") {
+	if n := f.notices()[1]; !strings.Contains(n, "new messages from other people in the Inbox mention it\n") || !strings.Contains(n, "“好的，那我等你”") {
 		t.Fatalf("second message:\n%s", n)
 	}
 }
@@ -116,7 +116,7 @@ func TestInboxSignalsCollapse(t *testing.T) {
 	}
 	waitFor(t, "the message", func() bool { return len(f.notices()) == 1 })
 	n := f.notices()[0]
-	if !strings.Contains(n, "有 1 个要你处理") || !strings.Contains(n, "（4 条）") || !strings.Contains(n, "收件箱事件 mail:acc:x:7「登录崩溃复现」，最新一条是 李雷 发的") ||
+	if !strings.Contains(n, "1 of the tasks you handed out need you") || !strings.Contains(n, "(4 messages)") || !strings.Contains(n, "Inbox event mail:acc:x:7 “登录崩溃复现”, newest message sent by 李雷") ||
 		strings.Contains(n, "急，下午要发版") {
 		t.Fatalf("message:\n%s", n)
 	}
@@ -231,7 +231,7 @@ func TestInboxSignalFromTheTwinsPass(t *testing.T) {
 			}
 			waitFor(t, "the message", func() bool {
 				for _, n := range f.notices() {
-					if strings.Contains(n, "收件箱事件 lark:f1:12「客户端发版群」") {
+					if strings.Contains(n, "Inbox event lark:f1:12 “客户端发版群”") {
 						return true
 					}
 				}

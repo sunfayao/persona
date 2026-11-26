@@ -822,7 +822,7 @@ func TestInboxRejectRecapOnlyReturnsToWaiting(t *testing.T) {
 	if state, _, _ := handlingNow(h, it); state != HandlingLooking {
 		t.Fatalf("after the rejection: %q", state)
 	}
-	toldConv(t, h, "驳回了你的建议") // the recap answers the delivered rejection and its turn
+	toldConv(t, h, "the user rejected your suggestion") // the recap answers the delivered rejection and its turn
 	if _, err := suggestTool(t, h, `{"recap":"他不要这个说法，等新口径"}`); err != nil {
 		t.Fatal(err)
 	}

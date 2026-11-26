@@ -145,7 +145,7 @@ func TestContinuationDecisionsPersistAndReachFirstPrompts(t *testing.T) {
 	}
 	// Card delegation still reads only the current to-do: carrying history to a new Agent creates no new auto-answer grant.
 	own := e.s.todoDecisionsContext(ctx, c)
-	if !strings.Contains(own, "真实设备") || strings.Contains(own, "前序任务") || strings.Contains(own, "全平台") {
+	if !strings.Contains(own, "真实设备") || strings.Contains(own, "earlier task") || strings.Contains(own, "全平台") {
 		t.Fatalf("single-todo delegation context changed: %q", own)
 	}
 
@@ -189,9 +189,9 @@ func assertContinuationDecisionPrompt(t *testing.T, s *Service, prompt string) {
 	loc := s.location(context.Background())
 	when := func(d time.Duration) string { return base.Add(d).In(loc).Format("01-02 15:04") }
 	for _, want := range []string{
-		"1. 发布平台？\n   选了：安卓\n   原因：先覆盖现有用户\n   （" + when(time.Minute) + "，前序任务「阶段 A」）",
-		"2. 发布平台？\n   选了：全平台\n   原因：避免再次返工\n   （" + when(2*time.Minute) + "，在「B Agent」的提问里答的；前序任务「阶段 B」）",
-		"3. 验收方式？\n   选了：真实设备\n   原因：模拟器不够\n   （" + when(3*time.Minute) + "，Agent 干活时记的，不是用户定的）",
+		"1. 发布平台？\n   Chose: 安卓\n   Reason: 先覆盖现有用户\n   (" + when(time.Minute) + "; earlier task “阶段 A”)",
+		"2. 发布平台？\n   Chose: 全平台\n   Reason: 避免再次返工\n   (" + when(2*time.Minute) + ", the user's answer to a question from “B Agent”; earlier task “阶段 B”)",
+		"3. 验收方式？\n   Chose: 真实设备\n   Reason: 模拟器不够\n   (" + when(3*time.Minute) + ", recorded by the Agent during the work, not decided by the user)",
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Errorf("prompt is missing %q:\n%s", want, prompt)

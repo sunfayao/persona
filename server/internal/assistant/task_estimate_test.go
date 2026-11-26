@@ -334,14 +334,15 @@ func TestCompletionRoundsAndReviewFallback(t *testing.T) {
 	})
 }
 
+// The prompt is the same English whatever the owner's locale; one golden pins it.
 func TestEstimateDuePromptLanguages(t *testing.T) {
 	s, f, todo, brief := startEstimateTask(t, nil, map[string]any{"expect_minutes": 30})
 	ctx := t.Context()
 	g := superviseSignal{Todo: todo.ID, Kind: sigEstimateDue, Key: estimateDueKey(brief), At: brief.EstimateDueAt, Minutes: 30}
 	for _, tc := range []struct{ locale, want string }{
 		{locale: "en", want: "automatic estimate reached"},
-		{locale: "zh-Hans", want: "到了系统预估"},
-		{locale: "ja", want: "自動見積もりのレビュー時点"},
+		{locale: "zh-Hans", want: "automatic estimate reached"},
+		{locale: "ja", want: "automatic estimate reached"},
 	} {
 		t.Run(tc.locale, func(t *testing.T) {
 			f.hello.Locale = tc.locale
@@ -354,7 +355,9 @@ func TestEstimateDuePromptLanguages(t *testing.T) {
 			if !strings.Contains(got, "signal=estimate_due") || !strings.Contains(got, tc.want) {
 				t.Fatalf("localized estimate_due = %s", got)
 			}
-			golden(t, "estimate_due."+tc.locale, got)
+			if tc.locale == "en" {
+				golden(t, "estimate_due.en", got)
+			}
 		})
 	}
 }

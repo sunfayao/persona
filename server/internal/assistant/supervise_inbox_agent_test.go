@@ -50,7 +50,7 @@ func TestInboxGitHubCommentGoesToTheTaskAgent(t *testing.T) {
 	if len(sent) != 1 {
 		t.Fatalf("agent got %d notes: %q", len(sent), sent)
 	}
-	for _, want := range []string{"不是用户的消息", linkedPRURL, "maintainer", "Please merge current main", "不是用户的指令", "自己打开上面的链接",
+	for _, want := range []string{"not a message from the user", linkedPRURL, "maintainer", "Please merge current main", "not instructions from the user", "Open the link above yourself",
 		"report_to_supervisor", `kind="question"`, "on the owner's behalf", "before acting", "default urgency"} {
 		if !strings.Contains(sent[0], want) {
 			t.Errorf("agent note lacks %q:\n%s", want, sent[0])
@@ -79,7 +79,7 @@ func TestInboxGitHubCommentStoppedAgentLeavesItToTheSupervisor(t *testing.T) {
 	if got := len(sentToAgent(f)) - before; got != 0 {
 		t.Fatalf("sent %d notes to a stopped agent", got)
 	}
-	if n := f.notices()[0]; strings.Contains(n, "这里是副本") || !strings.Contains(n, "LGTM after one more fix") {
+	if n := f.notices()[0]; strings.Contains(n, "this is a copy") || !strings.Contains(n, "LGTM after one more fix") {
 		t.Fatalf("supervisor message:\n%s", n)
 	}
 }
@@ -93,7 +93,7 @@ func TestInboxLarkMessageStaysWithTheSupervisor(t *testing.T) {
 	it := linkedItem(s, "lark:f1:12", todo.ID, "12", "登录那个崩溃今天能修好吗？", 1)
 	s.superviseInbox(context.Background(), []*InboxItem{it}, map[*InboxItem]bool{it: true})
 	waitFor(t, "the signal", func() bool { return len(f.notices()) == 1 })
-	if got := len(sentToAgent(f)) - before; got != 0 || strings.Contains(f.notices()[0], "这里是副本") {
+	if got := len(sentToAgent(f)) - before; got != 0 || strings.Contains(f.notices()[0], "this is a copy") {
 		t.Fatalf("a Lark message went to the agent (%d) or was marked a copy:\n%s", got, f.notices()[0])
 	}
 }
@@ -126,7 +126,7 @@ func TestInboxGitHubCIItemStaysWithTheSupervisor(t *testing.T) {
 	it.Connector.URL = "https://github.com/example/repo/actions?query=branch%3Afix"
 	s.superviseInbox(context.Background(), []*InboxItem{it}, map[*InboxItem]bool{it: true})
 	waitFor(t, "the signal", func() bool { return len(f.notices()) == 1 })
-	if got := len(sentToAgent(f)) - before; got != 0 || strings.Contains(f.notices()[0], "这里是副本") {
+	if got := len(sentToAgent(f)) - before; got != 0 || strings.Contains(f.notices()[0], "this is a copy") {
 		t.Fatalf("a CI item went to the agent (%d) or was marked a copy:\n%s", got, f.notices()[0])
 	}
 }
@@ -148,7 +148,7 @@ func TestInboxGitHubCommentToAClosedAgent(t *testing.T) {
 		it := linkedPRItem(s, todo.ID, "c1", "Please merge current main")
 		s.superviseInbox(context.Background(), []*InboxItem{it}, map[*InboxItem]bool{it: true})
 		waitFor(t, "the signal", func() bool { return len(f.notices()) == 1 })
-		if marked := strings.Contains(f.notices()[0], "这里是副本"); marked || len(sentToAgent(f)) != before {
+		if marked := strings.Contains(f.notices()[0], "this is a copy"); marked || len(sentToAgent(f)) != before {
 			t.Fatalf("unknown stop was sent to or marked as delivered (send failure=%v)", fail)
 		}
 	}
@@ -226,7 +226,7 @@ func TestInboxReviewsKeepReachingSupervisorAfterAcceptance(t *testing.T) {
 	waitFor(t, "second post-acceptance review", func() bool { return len(f.notices()) == 2 })
 	notices := f.notices()
 	if !strings.Contains(notices[0], "Add a regression case") || !strings.Contains(notices[1], "Check the empty-state wording") ||
-		!strings.Contains(notices[1], "待办已验收") || !strings.Contains(notices[1], linkedPRURL) {
+		!strings.Contains(notices[1], "The to-do was accepted") || !strings.Contains(notices[1], linkedPRURL) {
 		t.Fatalf("notices: %q", notices)
 	}
 	if after := todoNow(s, task.ID); after.DoneAt == nil || !acceptanceStands(after) || len(sentToAgent(f)) != before {

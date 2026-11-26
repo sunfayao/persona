@@ -71,12 +71,12 @@ func TestAskUserNoWaitTakesNoDefaultAfterTheUserWroteInTheChat(t *testing.T) {
 			if len(got) != 1 {
 				t.Fatalf("%d messages, want 1: %q", len(got), got)
 			}
-			for _, want := range []string{"Merge the release PR now?", "没有转成待办", "再问一次"} {
+			for _, want := range []string{"Merge the release PR now?", "did not become a to-do", "ask again"} {
 				if !strings.Contains(got[0], want) {
 					t.Errorf("message lacks %q:\n%s", want, got[0])
 				}
 			}
-			for _, not := range []string{"taken by default", "Go ahead", "todo_ask_", "→"} {
+			for _, not := range []string{"were taken by default", "Go ahead", "todo_ask_", "→"} {
 				if strings.Contains(got[0], not) {
 					t.Errorf("message has %q:\n%s", not, got[0])
 				}
@@ -114,7 +114,7 @@ func TestAskUserNoWaitRemembersTheUserWroteAcrossARestart(t *testing.T) {
 	}
 	again.mustEnd(ix.ID, expiredAnswer)
 	waitFor(t, "told once the owner is quiet", func() bool { return len(again.told("c1x1x1")) >= 1 }) // held for them meanwhile (#4925)
-	if got := again.told("c1x1x1"); len(got) != 1 || !strings.Contains(got[0], "没有转成待办") {
+	if got := again.told("c1x1x1"); len(got) != 1 || !strings.Contains(got[0], "did not become a to-do") {
 		t.Fatalf("told %q", got)
 	}
 	if list := again.askTodos(); len(list) != 0 {

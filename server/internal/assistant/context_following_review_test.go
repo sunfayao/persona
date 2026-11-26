@@ -40,11 +40,11 @@ func TestSnapshotFollowingThroughTheSnapshot(t *testing.T) {
 	<-done
 	text := fitSnapshot(*h.Service.live.snap)
 
-	if !strings.Contains(text, "- 在跟的事（1 件）：") {
+	if !strings.Contains(text, "- Following (1 item(s)): ") {
 		t.Fatalf("the snapshot has no Following up section:\n%s", text)
 	}
 	line := snapshotFollowingLine(t, text, "标题 lark:f1:1")
-	for _, want := range []string{"在哪：地点 lark:f1:1", "等谁：张工", "下一步：再问一次进度", "再看：11-14 11:30"} {
+	for _, want := range []string{"where: 地点 lark:f1:1", "waiting on: 张工", "next step: 再问一次进度", "check again: 11-14 11:30"} {
 		if !strings.Contains(line, want) {
 			t.Errorf("following line lacks %q: %s", want, line)
 		}
@@ -52,11 +52,11 @@ func TestSnapshotFollowingThroughTheSnapshot(t *testing.T) {
 	if strings.Contains(text, "标题 lark:f1:2") {
 		t.Errorf("a matter that is not being followed is in the section:\n%s", text)
 	}
-	if strings.Contains(text, "- 在跟的事：没有") {
+	if strings.Contains(text, "- Following: none") {
 		t.Errorf("a snapshot with a followed matter still says there are none:\n%s", text)
 	}
 	// The section sits with the snapshot's other lines: before the scheduled follow-ups, one top-level line.
-	if i, j := strings.Index(text, "- 在跟的事（1 件）："), strings.Index(text, "- 已安排的跟进："); i < 0 || j < 0 || i > j {
+	if i, j := strings.Index(text, "- Following (1 item(s)): "), strings.Index(text, "- Scheduled follow-ups:"); i < 0 || j < 0 || i > j {
 		t.Errorf("the section is not before the scheduled follow-ups:\n%s", text)
 	}
 }
@@ -137,14 +137,14 @@ func TestSnapshotFollowingSectionShape(t *testing.T) {
 	lines := strings.Split(text, "\n")
 	i := 0
 	for ; i < len(lines); i++ {
-		if strings.HasPrefix(lines[i], "- 在跟的事") {
+		if strings.HasPrefix(lines[i], "- Following") {
 			break
 		}
 	}
 	if i == len(lines) {
 		t.Fatalf("no Following up section:\n%s", text)
 	}
-	if !strings.Contains(lines[i], "（3 件）") || !strings.HasSuffix(lines[i], "：") {
+	if !strings.Contains(lines[i], "(3 item(s))") || !strings.HasSuffix(strings.TrimSpace(lines[i]), ":") {
 		t.Errorf("heading line = %q, want the count and a colon", lines[i])
 	}
 	rows_ := 0
@@ -152,7 +152,7 @@ func TestSnapshotFollowingSectionShape(t *testing.T) {
 		if line == "" || !strings.HasPrefix(line, "  ") {
 			break
 		}
-		if !strings.HasPrefix(line, "  - 「") {
+		if !strings.HasPrefix(line, "  - “") {
 			t.Errorf("row line without the indented bullet: %q", line)
 		}
 		rows_++
@@ -230,7 +230,7 @@ func TestSnapshotFollowingRowWithoutFollow(t *testing.T) {
 		t.Fatalf("rows = %+v, total %d", rows, total)
 	}
 	line := snapshotFollowingLine(t, prompts.RenderSnapshot(prompts.Snapshot{Now: time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC), Zone: "UTC", FollowingEnabled: true, Following: rows, FollowingTotal: total}), "没有 follow")
-	for _, want := range []string{"在哪：没写", "等谁：没写", "下一步：没写", "再看：没定时间"} {
+	for _, want := range []string{"where: not written", "waiting on: not written", "next step: not written", "check again: no time set"} {
 		if !strings.Contains(line, want) {
 			t.Errorf("following line lacks %q: %s", want, line)
 		}
@@ -254,7 +254,7 @@ func TestSnapshotFollowingSaysNoneWhenTheLastMatterEnds(t *testing.T) {
 	done := make(chan struct{})
 	h.Service.takeSnapshot(done)
 	<-done
-	if text := fitSnapshot(*h.Service.live.snap); !strings.Contains(text, "- 在跟的事（1 件）：") {
+	if text := fitSnapshot(*h.Service.live.snap); !strings.Contains(text, "- Following (1 item(s)): ") {
 		t.Fatalf("the followed matter is not in the section:\n%s", text)
 	}
 
@@ -266,10 +266,10 @@ func TestSnapshotFollowingSaysNoneWhenTheLastMatterEnds(t *testing.T) {
 	h.Service.takeSnapshot(done)
 	<-done
 	text := fitSnapshot(*h.Service.live.snap)
-	if !strings.Contains(text, "- 在跟的事：没有") {
+	if !strings.Contains(text, "- Following: none") {
 		t.Fatalf("an empty section is missing once the matter ended:\n%s", text)
 	}
-	if strings.Contains(text, "标题 lark:f1:1") || strings.Contains(text, "在跟的事（0 件）") {
+	if strings.Contains(text, "标题 lark:f1:1") || strings.Contains(text, "Following (0 item(s))") {
 		t.Fatalf("the ended matter is still in the section, or the empty state has a count:\n%s", text)
 	}
 }

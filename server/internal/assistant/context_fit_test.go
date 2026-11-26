@@ -12,10 +12,12 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// bigSnapshot fills every section the snapshot can carry, in Chinese as the real one is (a character is three bytes,
-// the budget counts characters), with lines as long as the sources let them be (#3203).
+// bigSnapshot fills every section the snapshot can carry, with Chinese data as the real one has (a character is three
+// bytes, the budget counts characters), with lines long enough to overfill the budget (#3203). The English template
+// text is longer than the Chinese it replaced, so the lines are shorter than the agents' 160-character limit to keep
+// the sections that are never left out within the budget.
 func bigSnapshot(now time.Time) prompts.Snapshot {
-	line := strings.Repeat("构建在等评审结论", 20) // 160 characters, the agents' line limit
+	line := strings.Repeat("构建在等评审结论", 16) // 128 characters
 	agents := func(n int, machine string) []prompts.SnapshotAgent {
 		out := make([]prompts.SnapshotAgent, n)
 		for i := range out {
@@ -78,16 +80,16 @@ func TestSnapshotDoneAndMutedStayCounts(t *testing.T) {
 		Working:  []prompts.SnapshotAgent{{Label: "后台在跑的编译", Machine: "build-4", Session: "work-1", Ultracode: "on"}}}
 	got := fitSnapshot(s)
 	for _, want := range []string{
-		"- Agents：需要你 1 个，完成未看 0 个，工作中 1 个（详情用 agents_list）",
-		"  - 做完的（24 小时内）：1 个，agents_list state=done 查",
-		"  - 已屏蔽（用户关了它们的通知，上面的数不算它们；别主动提，问到再说）：1 个，agents_list state=muted 查",
+		"- Agents: 1 need you, 0 finished unread, 1 working (details: agents_list)",
+		"  - Done (last 24 hours): 1 in total, query with agents_list state=done",
+		"  - Muted (the user turned off their notifications; the counts above exclude them; do not bring them up unprompted, answer only when asked): 1 in total, query with agents_list state=muted",
 		"等你批准发布", "看过还没回复", "可以合并吗", "选哪个方案",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q:\n%s", want, got)
 		}
 	}
-	for _, unwanted := range []string{"已经修完的登录问题", "已经屏蔽的巡检", "后台在跑的编译", "  - 工作中：", "done-1", "mute-1", "work-1", "测试通过", "没有新事"} {
+	for _, unwanted := range []string{"已经修完的登录问题", "已经屏蔽的巡检", "后台在跑的编译", "  - Working:", "done-1", "mute-1", "work-1", "测试通过", "没有新事"} {
 		if strings.Contains(got, unwanted) {
 			t.Errorf("done, muted or working details stayed in an under-budget snapshot (%q):\n%s", unwanted, got)
 		}
@@ -107,8 +109,8 @@ func TestFitSnapshotStaysInBudget(t *testing.T) {
 	if strings.Contains(got, strings.TrimSpace(prompts.SnapshotCut())) {
 		t.Fatalf("leaving sections out should have been enough, it was cut:\n%s", got)
 	}
-	for _, want := range []string{"  - 需要你：", "  - 在问用户、用户看过还没回的", "等用户点「开始」的计划", "没成功的定时任务",
-		"@我：", "周会"} {
+	for _, want := range []string{"  - Need you:", "  - Asking the user, seen but unanswered", "Plans waiting for the user's Start", "Scheduled tasks that did not succeed",
+		"@me:", "周会"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("%q, which is never left out, is missing:\n%s", want, got)
 		}
@@ -123,17 +125,17 @@ func TestFitSnapshotStaysInBudget(t *testing.T) {
 func TestFitSnapshotKeepsCountsOfWhatItLeavesOut(t *testing.T) {
 	got := fitSnapshot(bigSnapshot(fitNow))
 	for _, want := range []string{
-		"- Agents：需要你 6 个，完成未看 6 个，工作中 12 个",
-		"  - 做完的（24 小时内）：20 个，agents_list state=done 查",
-		"  - 已屏蔽（用户关了它们的通知，上面的数不算它们；别主动提，问到再说）：4 个，agents_list state=muted 查",
-		"- 已安排的跟进：11 个，这份快照放不下，没列出来，要看用 list_followups",
-		"- 飞书未读会话 2 个",
+		"- Agents: 6 need you, 6 finished unread, 12 working",
+		"  - Done (last 24 hours): 20 in total, query with agents_list state=done",
+		"  - Muted (the user turned off their notifications; the counts above exclude them; do not bring them up unprompted, answer only when asked): 4 in total, query with agents_list state=muted",
+		"- Scheduled follow-ups: 11 in total, too many to fit in this snapshot, so not listed; use list_followups to see them",
+		"- Feishu unread chats 2",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q:\n%s", want, got)
 		}
 	}
-	for _, wrong := range []string{"已安排的跟进：没有", "飞书：没有未读", "工作中 0 个", "完成未看 0 个"} {
+	for _, wrong := range []string{"Scheduled follow-ups: none", "Feishu: no unread", "0 working", "0 finished unread"} {
 		if strings.Contains(got, wrong) {
 			t.Errorf("a section left out reads as empty (%q):\n%s", wrong, got)
 		}
@@ -183,7 +185,7 @@ func TestFitSnapshotWhenTheLastOmitFits(t *testing.T) {
 	if n := runes(got); n > snapshotBudget {
 		t.Fatalf("%d characters, the budget is %d", n, snapshotBudget)
 	}
-	if !strings.Contains(got, "- 等用户点头才能上线的（40 件；合到一起一次列给用户批，别一件件问）：这份快照放不下") {
+	if !strings.Contains(got, "- Waiting for the user's go-ahead to ship (40 item(s); list them together for the user to approve in one go, do not ask one by one): too many to fit in this snapshot") {
 		t.Fatalf("the approvals were not left out with their count:\n%s", got)
 	}
 	if strings.Contains(got, strings.TrimSpace(prompts.SnapshotCut())) {
@@ -229,7 +231,7 @@ func TestFitSnapshotHardCutKeepsOpenTodoCountAndEntrance(t *testing.T) {
 	if !strings.HasSuffix(got, "\n"+prompts.SnapshotCut()) {
 		t.Fatalf("fixture did not exercise the hard cut:\n%s", got)
 	}
-	if !strings.Contains(got, "开放待办：共 26 件（完整列表用 todo_list）") {
+	if !strings.Contains(got, "Open to-dos: 26 in total (full list: todo_list)") {
 		t.Fatalf("the hard cut lost the protected open-todo summary:\n%s", got)
 	}
 }

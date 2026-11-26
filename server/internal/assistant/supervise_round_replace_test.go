@@ -129,10 +129,10 @@ func TestMainOnlyDigestReconcilesLegacyQueue(t *testing.T) {
 			s.sendDigest(ctx)
 
 			waitFor(t, "the main-only signal", func() bool {
-				return strings.Contains(strings.Join(f.noticesTo("conv1"), "\n"), "被模型服务出错打断了")
+				return strings.Contains(strings.Join(f.noticesTo("conv1"), "\n"), "interrupted by a model service error")
 			})
 			got := strings.Join(f.noticesTo("conv1"), "\n")
-			moved := strings.Contains(got, "50 分钟没有进展")
+			moved := strings.Contains(got, "50 minutes without progress")
 			if moved != tc.outgrown {
 				t.Fatalf("legacy work moved = %v, want %v; main notices:\n%s", moved, tc.outgrown, got)
 			}

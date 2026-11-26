@@ -7,9 +7,8 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// The background breaker's fallback note is a fact of the supervision message, so it is in the digest's language
-// like the rest of the entry (#13058): each kind's note per language is pinned by a golden, and digestEntry puts the
-// note for the owner's locale above the entry.
+// The background breaker's fallback note is a fact of the supervision message: it is the same English note whatever
+// the owner's locale, each kind's note is pinned by a golden, and digestEntry puts it above the entry.
 func TestBackgroundBreakerNoteFollowsTheDigestLanguage(t *testing.T) {
 	s, f, _, _, nextSignal := setupAllStoppedBackground(t)
 	ctx := t.Context()
@@ -24,8 +23,8 @@ func TestBackgroundBreakerNoteFollowsTheDigestLanguage(t *testing.T) {
 	} {
 		for _, tc := range []struct{ locale, want string }{
 			{"en", "The background supervisor"},
-			{"zh-Hans", "后台督办"},
-			{"ja", "バックグラウンドの監督"},
+			{"zh-Hans", "The background supervisor"},
+			{"ja", "The background supervisor"},
 		} {
 			t.Run(kind.name+"/"+tc.locale, func(t *testing.T) {
 				f.hello.Locale = tc.locale
@@ -41,7 +40,9 @@ func TestBackgroundBreakerNoteFollowsTheDigestLanguage(t *testing.T) {
 						t.Fatalf("%s note in %s lost %q: %q", kind.name, tc.locale, fact, note)
 					}
 				}
-				golden(t, "breaker_note."+kind.name+"."+tc.locale, note)
+				if tc.locale == "en" {
+					golden(t, "breaker_note."+kind.name+".en", note)
+				}
 				e, ok := s.digestEntry(ctx, g, "")
 				if !ok {
 					t.Fatal("the all_stopped entry did not render")

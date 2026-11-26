@@ -75,7 +75,7 @@ func TestMainSupervisesWithoutStartingBackground(t *testing.T) {
 	agentTurn(s, f, proto.StatusDone, "做完了，PR https://github.com/o/r/pull/7 已合并", 0)
 	waitFor(t, "main's supervision message", func() bool { return len(f.noticesTo("conv1")) == 1 })
 	n := f.noticesTo("conv1")[0]
-	for _, want := range []string{"📋 督办", "待逐项复核，不代表完成", "pull/7"} {
+	for _, want := range []string{"📋 Supervision", "awaiting item-by-item review; this does not mean it is done", "pull/7"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("main's message lacks %q:\n%s", want, n)
 		}
@@ -733,7 +733,7 @@ func TestMainSupervisesOwnTasksSettingLeavesRouteWithMain(t *testing.T) {
 	agentTurn(s, f, proto.StatusWorking, "", 0)
 	agentTurn(s, f, proto.StatusDone, "做完了", 0)
 	waitFor(t, "the main conversation's message", func() bool { return len(f.noticesTo("conv1")) == 1 })
-	if n := f.noticesTo("conv1")[0]; strings.Contains(n, "后台督办") || !strings.Contains(n, "待逐项复核，不代表完成") {
+	if n := f.noticesTo("conv1")[0]; strings.Contains(n, "background supervis") || !strings.Contains(n, "awaiting item-by-item review; this does not mean it is done") {
 		t.Fatalf("the main conversation's message:\n%s", n)
 	}
 	if got := s.settings(ctx).BackgroundSupervisor; got != "" || len(conversationStarts(f)) != 0 {
@@ -772,7 +772,7 @@ func TestBackgroundSupervisorThatCannotStartFallsBackToMain(t *testing.T) {
 	agentTurn(s, f, proto.StatusWorking, "", 0)
 	agentTurn(s, f, proto.StatusDone, "做完了", 0)
 	waitFor(t, "the main conversation's message", func() bool { return len(f.noticesTo("conv1")) == 1 })
-	if n := f.noticesTo("conv1")[0]; !strings.Contains(n, "待逐项复核，不代表完成") || strings.Contains(n, "你是后台督办对话") {
+	if n := f.noticesTo("conv1")[0]; !strings.Contains(n, "awaiting item-by-item review; this does not mean it is done") || strings.Contains(n, "This is the background supervision conversation") {
 		t.Fatalf("the main conversation's message:\n%s", n)
 	}
 	if got := s.settings(ctx).BackgroundSupervisor; got != "" {
@@ -798,7 +798,7 @@ func TestBackgroundSupervisorGoneMovesItsQueueToMain(t *testing.T) {
 	b.setQueuedLocked("gone1", []superviseSignal{g})
 	b.sent[g.id()] = g.Key
 	b.mu.Unlock()
-	if s.queueRelay("gone1", relayMsg{From: superviseTool, Tool: superviseTool, Text: "📋 督办", At: time.Now().UTC()}) == 0 {
+	if s.queueRelay("gone1", relayMsg{From: superviseTool, Tool: superviseTool, Text: "📋 Supervision", At: time.Now().UTC()}) == 0 {
 		t.Fatal("could not queue for the old background supervisor")
 	}
 
@@ -808,7 +808,7 @@ func TestBackgroundSupervisorGoneMovesItsQueueToMain(t *testing.T) {
 	}
 	waitFor(t, "the signal told again to main", func() bool {
 		for _, n := range f.noticesTo("conv1") {
-			if strings.Contains(n, "50 分钟没有进展") {
+			if strings.Contains(n, "50 minutes without progress") {
 				return true
 			}
 		}
@@ -1013,12 +1013,12 @@ func TestBackgroundSupervisorGoneAfterRestartKeepsItsQueuedMessage(t *testing.T)
 	setSettings(t, s, func(v *Settings) {
 		v.BackgroundSupervisor, v.BackgroundSupervisorMachineID, v.BackgroundSupervisorAt = "gone1", "server", &old
 	})
-	if s.queueRelay("gone1", relayMsg{From: superviseTool, Tool: superviseTool, Text: "📋 督办：重启前排队的", At: time.Now().UTC()}) == 0 {
+	if s.queueRelay("gone1", relayMsg{From: superviseTool, Tool: superviseTool, Text: "📋 Supervision: queued before the restart", At: time.Now().UTC()}) == 0 {
 		t.Fatal("could not queue for the old background supervisor")
 	}
 	s.backgroundStranded(ctx)
 	waitFor(t, "the message in the main conversation", func() bool {
-		return slices.ContainsFunc(f.noticesTo("conv1"), func(n string) bool { return strings.Contains(n, "重启前排队的") })
+		return slices.ContainsFunc(f.noticesTo("conv1"), func(n string) bool { return strings.Contains(n, "queued before the restart") })
 	})
 	if s.queuedFor("gone1") != 0 {
 		t.Fatal("the old background supervisor's queue was kept")

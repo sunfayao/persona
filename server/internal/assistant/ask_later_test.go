@@ -178,7 +178,7 @@ func TestAskUserNoWaitClosedCardIsToldOnce(t *testing.T) {
 			if len(got) != 1 {
 				t.Fatalf("%d messages, want 1: %q", len(got), got)
 			}
-			if !strings.Contains(got[0], "Merge the release PR now?") || !strings.Contains(got[0], "没有得到回答") || strings.Contains(got[0], "→") {
+			if !strings.Contains(got[0], "Merge the release PR now?") || !strings.Contains(got[0], "ended without an answer") || strings.Contains(got[0], "→") {
 				t.Fatalf("message:\n%s", got[0])
 			}
 			if list := e.askTodos(); len(list) != 0 {
@@ -231,7 +231,7 @@ func TestAskUserNoWaitSaysWhichQuestionsGotNoAnswer(t *testing.T) {
 		`{"question":"Tag it?","options":[{"label":"Yes"},{"label":"No"}]}]}`)
 	e.mustEnd(ix.ID, `{"answers":{"Tag it?":"No"}}`)
 	got := e.told("c1x1x1")
-	if len(got) != 1 || !strings.Contains(got[0], "Tag it? → No") || strings.Contains(got[0], "Merge? →") || !strings.Contains(got[0], "没有答") {
+	if len(got) != 1 || !strings.Contains(got[0], "Tag it? → No") || strings.Contains(got[0], "Merge? →") || !strings.Contains(got[0], "did not answer the ones not listed above") {
 		t.Fatalf("told %q", got)
 	}
 }

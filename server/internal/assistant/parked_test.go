@@ -352,7 +352,7 @@ func TestParkedDueComesOnceAtItsTimeAndAfterARestart(t *testing.T) {
 	s.superviseWatch(ctx, due.Add(time.Minute))
 	waitFor(t, "the parked_due message", func() bool { return len(f.notices()) > before })
 	n := f.notices()[before]
-	for _, want := range []string{"搁置到期了", "The design team has to pick the icon set first", "等别人", "已经连续搁置 1 次", "剩余搁置次数 3",
+	for _, want := range []string{"parking expired", "The design team has to pick the icon set first", "waiting on someone else", "it has been parked 1 times in a row", "with 3 parkings left",
 		"signal=parked_due"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("the message lacks %q:\n%s", want, n)
@@ -501,7 +501,7 @@ func TestDigestListsATaskParkedForTheOwnersPriorityCall(t *testing.T) {
 		t.Fatalf("digest = %+v", open)
 	}
 	facts := prompts.RenderBriefFacts(prompts.BriefFacts{Card: true, Hours: 12, Briefs: open})
-	if !strings.Contains(facts, "；搁置中，等你定优先级：Whether this goes ahead of the billing work") || strings.Contains(facts, "等用户拍板") {
+	if !strings.Contains(facts, "; parked, waiting for the user to set the priority: Whether this goes ahead of the billing work") || strings.Contains(facts, "waiting for the user's decision") {
 		t.Fatalf("the facts do not say it:\n%s", facts)
 	}
 	if ask := listedAsk(t, s, todo.ID); ask != nil {

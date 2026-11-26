@@ -94,7 +94,7 @@ func TestPRFollowupTerminalMergedNotifiesAndClears(t *testing.T) {
 	if rows := followupRows(t, s); len(rows) != 0 {
 		t.Fatalf("merged PR left %d follow-up subscriptions", len(rows))
 	}
-	if got := queuedFollowupTools(s); len(got) != 1 || !strings.Contains(got[0], "已合并") {
+	if got := queuedFollowupTools(s); len(got) != 1 || !strings.Contains(got[0], "was merged") {
 		t.Fatalf("expected one merged notice, got %v", got)
 	}
 }
@@ -111,7 +111,7 @@ func TestPRFollowupConflictNotifiesOncePerHeadAndKeepsTodoClosed(t *testing.T) {
 	if rows[0].NotifiedConflictHead != "h1" {
 		t.Fatalf("conflict head not recorded: %+v", rows[0])
 	}
-	if got := queuedFollowupTools(s); len(got) != 1 || !strings.Contains(got[0], "冲突") {
+	if got := queuedFollowupTools(s); len(got) != 1 || !strings.Contains(got[0], "merge conflict") {
 		t.Fatalf("expected one conflict notice, got %v", got)
 	}
 	// A second sweep on the same conflicting head must not re-wake the supervisor.

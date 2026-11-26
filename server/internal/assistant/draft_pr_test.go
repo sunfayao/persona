@@ -325,8 +325,8 @@ func TestDraftPRPromptGolden(t *testing.T) {
 	}
 	for _, tc := range []struct{ locale, fact string }{
 		{"en", "is still a draft"},
-		{"zh-Hans", "仍是草稿"}, // i18n-ignore: localized prompt assertion
-		{"ja", "まだドラフト"},    // i18n-ignore: localized prompt assertion
+		{"zh-Hans", "is still a draft"},
+		{"ja", "is still a draft"},
 	} {
 		t.Run(tc.locale, func(t *testing.T) {
 			s, hub, task := newPRConflictTask(t, nil)

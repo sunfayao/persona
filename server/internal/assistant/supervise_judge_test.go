@@ -47,7 +47,7 @@ func TestSupervisedDoneAfterTheUsersOwnCheck(t *testing.T) {
 	waitFor(t, "the message", func() bool { return len(f.notices()) == 1 })
 
 	n := entryLine(f.notices()[0])
-	if !strings.Contains(n, "待逐项复核，不代表完成（已合并并部署）") || strings.Contains(n, "没做完") || strings.Contains(n, "没判断出来") {
+	if !strings.Contains(n, "awaiting item-by-item review; this does not mean it is done (已合并并部署)") || strings.Contains(n, "the Agent stopped without finishing") || strings.Contains(n, "could not tell whether it finished") {
 		t.Fatalf("message:\n%s", n)
 	}
 	if v := todoNow(s, todo.ID).Supervision; v.State != reviewPending {
@@ -56,7 +56,7 @@ func TestSupervisedDoneAfterTheUsersOwnCheck(t *testing.T) {
 	f.mu.Lock()
 	in := f.judgeAsked[len(f.judgeAsked)-1]
 	f.mu.Unlock()
-	for _, want := range []string{"它上一轮的回复（同一个会话里，这一轮之前）：\n" + fullReport, "这一轮收到的请求（不一定来自用户，不替代原任务）：\n好了吗？", "它的回复：\n好了，全部完成。"} {
+	for _, want := range []string{"Its reply in the previous turn (same session, before this turn):\n" + fullReport, "The request received in this turn (not necessarily from the user, and it does not replace the original task):\n好了吗？", "Its reply:\n好了，全部完成。"} {
 		if !strings.Contains(in, want) {
 			t.Errorf("judge input lacks %q:\n%s", want, in)
 		}
@@ -75,7 +75,7 @@ func TestSupervisedUnjudgedIsNotStoppedShort(t *testing.T) {
 	agentTurn(s, f, proto.StatusWorking, "", 0)
 	agentTurn(s, f, proto.StatusDone, fullReport, 0)
 	waitFor(t, "the review message", func() bool { return len(f.notices()) == 1 })
-	if n := f.notices()[0]; !strings.Contains(n, "待逐项复核，不代表完成") {
+	if n := f.notices()[0]; !strings.Contains(n, "awaiting item-by-item review; this does not mean it is done") {
 		t.Fatalf("after one failure:\n%s", n)
 	}
 	if v := todoNow(s, todo.ID).Supervision; v.State != reviewPending {
@@ -88,7 +88,7 @@ func TestSupervisedUnjudgedIsNotStoppedShort(t *testing.T) {
 	agentTurn(s, f, proto.StatusDone, "又改了一处", 0)
 	waitFor(t, "the second message", func() bool { return len(f.notices()) == 2 })
 	n := entryLine(f.notices()[1])
-	if !strings.Contains(n, "Agent 停下了，hub 没判断出来是不是做完了（不是说没做完）(cannot tell whether it is finished: 证据不足)") || strings.Contains(n, "停下了，但没做完") {
+	if !strings.Contains(n, "the Agent stopped and the hub could not tell whether it finished (this does not mean it is unfinished)") || !strings.Contains(n, "证据不足") || strings.Contains(n, "the Agent stopped without finishing") {
 		t.Fatalf("after an unsure judgment:\n%s", n)
 	}
 }
@@ -177,7 +177,7 @@ func TestAcceptedTaskFollowUpIsNotStoppedShort(t *testing.T) {
 	agentTurn(s, f, proto.StatusWorking, "", 0)
 	agentTurn(s, f, proto.StatusDone, "README 也改好了", 0)
 	waitFor(t, "the review again", func() bool { return len(f.notices()) == 2 })
-	if n := f.notices()[1]; !strings.Contains(n, "待逐项复核，不代表完成（README 也改好了）") {
+	if n := f.notices()[1]; !strings.Contains(n, "awaiting item-by-item review; this does not mean it is done (README 也改好了)") {
 		t.Fatalf("message:\n%s", n)
 	}
 }
@@ -185,7 +185,7 @@ func TestAcceptedTaskFollowUpIsNotStoppedShort(t *testing.T) {
 // entryLine is a supervision message's first task line (what it says of the task, without the instructions).
 func entryLine(msg string) string {
 	for _, l := range strings.Split(msg, "\n") {
-		if strings.HasPrefix(l, "1. 任务") {
+		if strings.HasPrefix(l, "1. Task") {
 			return l
 		}
 	}

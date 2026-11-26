@@ -71,7 +71,7 @@ func TestAuthRelayDone(t *testing.T) {
 		t.Fatalf("cards %+v", cards)
 	}
 	got := f.sentToAgents()
-	if len(got) != 1 || !strings.Contains(got[0], "Persona 已经用用户本人已登录的账号确认了授权") || !strings.Contains(got[0], "「示例 CLI」") {
+	if len(got) != 1 || !strings.Contains(got[0], "Persona confirmed the authorization link you provided above") || !strings.Contains(got[0], "“示例 CLI”") {
 		t.Fatalf("sent %v", got)
 	}
 	if tries := e.tries(); len(tries) != 1 || tries[0] != relayLink {

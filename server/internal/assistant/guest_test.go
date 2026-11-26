@@ -103,7 +103,7 @@ func TestGuestConversationStart(t *testing.T) {
 	if len(f.prepared) != 0 || len(f.guestPrepared) != 1 {
 		t.Fatalf("prepared %v, guest prepared %v", f.prepared, f.guestPrepared)
 	}
-	if p := f.guestPrepared[0]; p["dir"] != guestDir || !strings.Contains(p["claude_md"].(string), "访客对话") {
+	if p := f.guestPrepared[0]; p["dir"] != guestDir || !strings.Contains(p["claude_md"].(string), "This is a guest conversation") {
 		t.Fatalf("guest prepare: %v", p)
 	}
 	send := f.sends[len(f.sends)-1]

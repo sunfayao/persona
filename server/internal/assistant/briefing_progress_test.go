@@ -58,7 +58,7 @@ func TestBriefListsWhatIsInProgress(t *testing.T) {
 		t.Errorf("the brief item's progress: %d of %d, %+v", len(b.Progress), b.ProgressTotal, b.Progress)
 	}
 	sent, _ := e.f.lastSend(t)["text"].(string)
-	if !strings.Contains(sent, "正在做的 9 件") || !strings.Contains(sent, "在做的事0（阶段：review）") {
+	if !strings.Contains(sent, "In progress: 9") || !strings.Contains(sent, "在做的事0 (stage: review)") {
 		t.Errorf("the model is not told what is in progress:\n%s", sent)
 	}
 }

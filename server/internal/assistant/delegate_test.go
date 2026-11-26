@@ -102,7 +102,7 @@ func TestDelegateAsksTheModel(t *testing.T) {
 	}
 	call := f.delegateAsked[0]
 	golden(t, "agent_delegate.system", prompts.RenderJSONOnly(call.System))
-	golden(t, "agent_delegate.user", regexp.MustCompile(`现在：[^\n]+`).ReplaceAllString(call.User, "现在：YYYY-MM-DD HH:MM Day"))
+	golden(t, "agent_delegate.user", regexp.MustCompile(`Now: [^\n]+`).ReplaceAllString(call.User, "Now: YYYY-MM-DD HH:MM Day"))
 
 	// The model failing is an error: the hub asks the user as the card came.
 	f.delegate = ""

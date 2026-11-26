@@ -54,7 +54,7 @@ func TestLarkCLIFYIItemIsAskedAgainWhenTheOwnerIsMentioned(t *testing.T) {
 	if !strings.Contains(got[0].User, "Example peer（@了我）: @Example user can you approve the budget today?") {
 		t.Fatalf("the triage input lost the owner's mark:\n%s", got[0].User)
 	}
-	if !strings.Contains(got[0].System, "lark-cli") || !strings.Contains(got[0].System, "「（@了我）」") {
+	if !strings.Contains(got[0].System, "lark-cli") || !strings.Contains(got[0].System, "“（@了我）”") {
 		t.Fatalf("the criteria do not say lark-cli messages carry the marks:\n%s", got[0].System)
 	}
 	if it.Tier != TierAction || !it.Urgent || it.TriagedAt != "om_2" || it.Summary != "Approve the budget today" {

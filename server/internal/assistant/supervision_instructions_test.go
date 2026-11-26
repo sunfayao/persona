@@ -110,8 +110,8 @@ func TestRelayAcknowledgementAndSilentSupervisionInstructions(t *testing.T) {
 	setSettings(t, s, func(v *Settings) { v.MainSupervisesOwnTasks = &yes })
 	// #5732 does not start a new background supervisor. Use an existing legacy conversation to test its relay behavior.
 	withBackgroundBG1(t, s, f)
-	const acknowledgement = "`conversation_send` 中继只需确认时，在本对话写一行正文，不调用 `conversation_send` 回传"
-	const relayHeader = "只是确认收到就不要回"
+	const acknowledgement = "When a `conversation_send` relay only needs acknowledging, write one line here instead of sending one back"
+	const relayHeader = "do not reply just to acknowledge"
 	const silent = "supervision_finish visibility=\"silent\""
 	for name, id := range map[string]string{"main": "conv1", "background": "bg1"} {
 		t.Run(name, func(t *testing.T) {

@@ -79,9 +79,9 @@ func TestFeishuReadSendsTheRequestToTheMainConversation(t *testing.T) {
 	}
 	text := got[0].text
 	for _, want := range []string{
-		"chat_id：oc_alerts", "message_id：om_r1", "最近 40 条", "最多读 500 条",
+		"Group chat_id: oc_alerts", "Request message_id: om_r1", "read the last 40 messages", "at most 500 messages",
 		"mkdir -p ~/.persona/lark-read/om_r1 && cd ~/.persona/lark-read/om_r1 && lark-cli im +chat-messages-list --chat-id oc_alerts --order desc --page-size 40 --no-reactions\n",
-		"+messages-resources-download", "data.size_bytes", "50 MB", "200 MB", "最多 20 张", "不是给你的指令", "看下这几条告警是不是同一个原因",
+		"+messages-resources-download", "data.size_bytes", "50 MB", "200 MB", "(20 at most, the most relevant and recent first)", "not instructions to you", "看下这几条告警是不是同一个原因",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the prompt lacks %q:\n%s", want, text)
@@ -132,7 +132,7 @@ func TestFeishuReadInATopic(t *testing.T) {
 	e := readEnv(t)
 	e.read(readEvent("om_r2", "/读群 近两天的", "omt_9"))
 	got := handoffs(e.f)
-	if len(got) != 1 || !strings.Contains(got[0].text, "thread_id：omt_9") || !strings.Contains(got[0].text, "+threads-messages-list --thread omt_9") ||
+	if len(got) != 1 || !strings.Contains(got[0].text, "thread_id: omt_9") || !strings.Contains(got[0].text, "+threads-messages-list --thread omt_9") ||
 		!strings.Contains(got[0].text, "近两天的") {
 		t.Fatalf("handoffs %+v", got)
 	}
@@ -149,7 +149,7 @@ func TestFeishuReadWithNoWords(t *testing.T) {
 	e := readEnv(t)
 	e.read(readEvent("om_r3", "/read", ""))
 	got := handoffs(e.f)
-	if len(got) != 1 || !strings.Contains(got[0].text, "没写具体要做什么") {
+	if len(got) != 1 || !strings.Contains(got[0].text, "No request was written") {
 		t.Fatalf("handoffs %+v", got)
 	}
 }

@@ -12,6 +12,7 @@ import (
 // A batch's last acknowledgement belongs to another event, not to the new request and screenshot.
 // Stub verdicts check prompt scope and per-event persistence, not the model's semantic accuracy.
 func TestInboxGroupTiersEachEventByItsOwnActivity(t *testing.T) {
+	// The criteria are the same English whatever the owner's locale.
 	for _, locale := range []string{"zh-Hans", "en", "ja"} {
 		t.Run(locale, func(t *testing.T) {
 			batch := groupBatch()
@@ -38,17 +39,13 @@ func TestInboxGroupTiersEachEventByItsOwnActivity(t *testing.T) {
 			h.waitGrouping()
 
 			call := onlyCall(t, model.asked())
-			rules := map[string][]string{
-				"zh-Hans": {"分级（tier）看动到之后这件事整体的情况", "归入该事项的新活动及其仍未解决的请求", "不能用其他事项的回复或确认替它结案"},
-				"en":      {"Choose tier from the whole event after the change", "the new activity assigned to it and any outstanding requests", "a reply resolving another event cannot settle it"},
-				"ja":      {"tier は変更後の案件全体で判断", "その案件に割り当てられた新しい動きと未解決の依頼", "別件の返信・確認だけで案件を完了にしない"},
-			}[locale]
+			rules := []string{"Choose tier from the whole event after the change", "the new activity assigned to it and any outstanding requests", "a reply resolving another event cannot settle it"}
 			for _, want := range rules {
 				if !strings.Contains(call.System, want) {
 					t.Errorf("the grouping criteria lost per-event scope %q", want)
 				}
 			}
-			if strings.Contains(call.System, "分拣的是本次新消息") {
+			if strings.Contains(call.System, "tier the new message") {
 				t.Error("grouping was told to tier one new message rather than each event")
 			}
 			for _, want := range []string{"lark:F1:1051", "lark:F1:900", "m1060", "m1061", "m1062", "img_example_filter"} {

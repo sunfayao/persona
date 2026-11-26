@@ -62,11 +62,7 @@ func TestLarkCLIDMTriageSeparatesLatestMessageFromResolvedHistory(t *testing.T) 
 					t.Fatal("the new message was not triaged")
 				}
 				call := onlyCall(t, calls())
-				labels := map[string][3]string{
-					"zh-Hans": {"本次新消息：", "会话上下文（含较早消息）：", "另一方是人"},
-					"en":      {"Newest message: ", "Conversation context (including earlier messages):", "the other party is a person"},
-					"ja":      {"最新のメッセージ：", "会話の文脈（以前のメッセージを含む）：", "相手は人"},
-				}[locale]
+				labels := [3]string{"Newest message: ", "Conversation context (including earlier messages):", "the other party is a person"}
 				latest := labels[0] + tc.latest
 				context := labels[1] + "\n" + history
 				if !strings.Contains(call.User, latest+"\n\n"+context) {
@@ -75,11 +71,7 @@ func TestLarkCLIDMTriageSeparatesLatestMessageFromResolvedHistory(t *testing.T) 
 				if !strings.Contains(call.User, labels[2]) || !strings.Contains(call.User, "（@了我）") {
 					t.Fatalf("the DM or owner-mention identity was lost:\n%s", call.User)
 				}
-				rules := map[string][]string{
-					"zh-Hans": {"较早的回复不能证明同一事项后来出现的新请求已解决", "[Image: ...] 只是未读取的图片占位"},
-					"en":      {"An earlier reply does not resolve a request raised later in the same event", "[Image: ...] is a placeholder for an unread image"},
-					"ja":      {"古い返信は、同じ案件で後から出た新しい依頼の解決を示さない", "[Image: ...] は未確認の画像を示すプレースホルダー"},
-				}[locale]
+				rules := []string{"An earlier reply does not resolve a request raised later in the same event", "[Image: ...] is a placeholder for an unread image"}
 				for _, rule := range rules {
 					if !strings.Contains(call.System, rule) {
 						t.Fatalf("the triage criteria lost %q:\n%s", rule, call.System)
@@ -120,7 +112,7 @@ func TestOnlyLarkDMTriageNamesLatestPreview(t *testing.T) {
 				it.Connector = &InboxConnector{}
 			}
 			got := prompts.RenderInboxItem(h.inbox.triagePromptItem(it, ""))
-			if strings.Contains(got, "本次新消息："+it.Preview) != tc.want || !strings.HasSuffix(strings.TrimSpace(got), it.Context) {
+			if strings.Contains(got, "Newest message: "+it.Preview) != tc.want || !strings.HasSuffix(strings.TrimSpace(got), it.Context) {
 				t.Fatalf("triage input names the newest preview incorrectly:\n%s", got)
 			}
 		})
@@ -189,7 +181,7 @@ func TestLarkDMTriagePreviewKeepsLatestMessageBoundary(t *testing.T) {
 		t.Fatalf("preview verdicts: %+v", verdicts)
 	}
 	got := onlyCall(t, calls()).User
-	if want := "本次新消息：" + thing.Preview + "\n\n会话上下文（含较早消息）：\n" + thing.Context; !strings.Contains(got, want) {
+	if want := "Newest message: " + thing.Preview + "\n\nConversation context (including earlier messages):\n" + thing.Context; !strings.Contains(got, want) {
 		t.Fatalf("the preview lost triage's newest-message boundary:\n%s", got)
 	}
 	h.inbox.mu.Lock()

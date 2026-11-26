@@ -231,7 +231,7 @@ func TestBriefFactsIncludeInboxFollowUps(t *testing.T) {
 		t.Fatalf("Card = %v, inbox loaded = %v; want a card and a completed cold-start load", facts.Card, e.s.inbox.loaded.Load())
 	}
 	if strings.Count(text, item.Title) < 2 || !strings.Contains(text, item.Follow.Who) || !strings.Contains(text, item.Follow.Next) ||
-		!strings.Contains(text, "即使上面有卡片") {
+		!strings.Contains(text, "even when a card exists above") {
 		t.Fatalf("the model did not receive both follow-up facts with the card exception:\n%s", text)
 	}
 	if !reflect.DeepEqual(*item, before) {

@@ -37,7 +37,7 @@ func TestGoldenChannelPromptDeliveries(t *testing.T) {
 					t.Fatalf("private delivery: %#v", calls)
 				}
 				text := calls[0]["text"].(string)
-				if (locale == "en" || locale == "ja") && strings.Contains(text, "私聊 Persona 机器人") {
+				if strings.Contains(text, "私聊 Persona 机器人") {
 					t.Errorf("private instructions ignored owner locale %s", locale)
 				}
 				golden(t, "channel_locale.private."+name, text)
@@ -65,7 +65,7 @@ func TestGoldenChannelPromptDeliveries(t *testing.T) {
 				advance(channel.AnswerSettle + time.Second)
 				recover.checkChannelRun(run.ID)
 				again := sendOnceText(h.fakeHub)
-				if (locale == "en" || locale == "ja") && strings.Contains(again, "没有文字回答") {
+				if strings.Contains(again, "没有文字回答") {
 					t.Errorf("recovery instructions ignored owner locale %s", locale)
 				}
 				golden(t, "channel_locale.answer_again."+name, again)
@@ -107,7 +107,7 @@ func TestGoldenChannelPromptDeliveries(t *testing.T) {
 					t.Fatalf("Feishu delivery: %#v", calls)
 				}
 				text := calls[0]["text"].(string)
-				if (locale == "en" || locale == "ja") && strings.Contains(text, "飞书机器人") {
+				if strings.Contains(text, "飞书机器人") {
 					t.Errorf("Feishu instructions ignored owner locale %s", locale)
 				}
 				golden(t, "channel_locale.feishu."+name, text)
@@ -139,8 +139,8 @@ func TestGoldenChannelPromptDeliveries(t *testing.T) {
 func TestChannelOwnerAndAudienceAcrossLocales(t *testing.T) {
 	for _, tc := range []struct{ locale, owner, topic, bot, plain, ask, overflow, unnamed, image string }{
 		{"en", "The user", "Lark group topic", "Bot: ", "plain text", "number or text", "additional images", "unnamed", "[image]"},
-		{"ja", "ユーザー", "Lark のグループトピック", "ボット：", "プレーンテキスト", "番号やテキスト", "その他の画像", "名前なし", "[画像]"},
-		{"zh-Hans", "用户", "飞书群里的话题", "机器人：", "纯文字", "回复序号或文字", "更多的图片", "未命名", "[image] [图片]"},
+		{"ja", "The user", "Lark group topic", "ボット：", "plain text", "number or text", "その他の画像", "名前なし", "[画像]"},
+		{"zh-Hans", "The user", "Lark group topic", "机器人：", "plain text", "number or text", "更多的图片", "未命名", "[image] [图片]"},
 	} {
 		t.Run(tc.locale, func(t *testing.T) {
 			ctx := t.Context()

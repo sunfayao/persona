@@ -154,12 +154,12 @@ func TestQuietTaskTellsTheMainConversation(t *testing.T) {
 	agentTurn(s, f, proto.StatusDone, "修好了，提了 https://github.com/o/r/pull/901", 0)
 	waitFor(t, "the notice", func() bool { return len(f.notices()) == 1 })
 	n := f.notices()[0]
-	for _, want := range []string{"📋 督办", "任务「修登录崩溃」（" + todo.ID + "，signal=review）：待逐项复核，不代表完成（修好了）；在 box", "修好了，提了 https://github.com/o/r/pull/901", "不是用户发的"} {
+	for _, want := range []string{"📋 Supervision", "Task “修登录崩溃” (" + todo.ID + ", signal=review): awaiting item-by-item review; this does not mean it is done (修好了); on box", "修好了，提了 https://github.com/o/r/pull/901", "not a message from the user"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("notice lacks %q:\n%s", want, n)
 		}
 	}
-	if strings.Contains(n, "来自对话") {
+	if strings.Contains(n, "From the conversation") {
 		t.Errorf("the notice went in as a relay:\n%s", n)
 	}
 	if !strings.Contains(feedKinds(s, "conv1"), "receipt") {
@@ -187,7 +187,7 @@ func TestQuietNoticesMerge(t *testing.T) {
 	agentTurn(s, f, proto.StatusDone, "用 main 做完了", 0)
 	waitFor(t, "the notice", func() bool { return len(f.notices()) == 1 })
 	n := f.notices()[0]
-	if !strings.Contains(n, "待逐项复核，不代表完成") || strings.Contains(n, "用哪个分支") || strings.Count(n, "任务「") != 1 {
+	if !strings.Contains(n, "awaiting item-by-item review; this does not mean it is done") || strings.Contains(n, "用哪个分支") || strings.Count(n, "Task “") != 1 {
 		t.Fatalf("notice:\n%s", n)
 	}
 	time.Sleep(3 * quietNoticeDelay)
@@ -210,7 +210,7 @@ func TestQuietNoticesMerge(t *testing.T) {
 	agentTurn(s3, f3, proto.StatusBlocked, "", 1)
 	s3.InteractionRaised(context.Background(), InteractionRaised{Interaction: ix})
 	waitFor(t, "the question's notice", func() bool { return len(f3.notices()) == 1 })
-	if n := f3.notices()[0]; !strings.Contains(n, "Agent 在等回答") || !strings.Contains(n, "用户没收到推送") ||
+	if n := f3.notices()[0]; !strings.Contains(n, "the Agent is waiting for an answer") || !strings.Contains(n, "the user got no notification") ||
 		!strings.Contains(n, "用哪个分支？（选项：main / dev）") {
 		t.Fatalf("notice:\n%s", n)
 	}
@@ -244,7 +244,7 @@ func TestQuietNoticeWaitsForTheTurn(t *testing.T) {
 	f.setSessions("server", idle)
 	s.drainRelays("server", []proto.Session{idle})
 	waitFor(t, "the queued notice", func() bool { return len(f.notices()) == 1 })
-	if n := f.notices()[0]; !strings.Contains(n, "第二次做完") || strings.Contains(n, "第一次做完") || strings.Contains(n, "来自对话") {
+	if n := f.notices()[0]; !strings.Contains(n, "第二次做完") || strings.Contains(n, "第一次做完") || strings.Contains(n, "From the conversation") {
 		t.Fatalf("notice:\n%s", n)
 	}
 	if !s.supervising("conv1") {
@@ -284,7 +284,7 @@ func TestNotQuietTasksAreNotTold(t *testing.T) {
 			}
 			if c.name == "side conversation" {
 				for _, n := range f.noticesTo(c.supervisor) {
-					if !strings.Contains(n, "📋 督办") {
+					if !strings.Contains(n, "📋 Supervision") {
 						t.Fatalf("a side conversation's message is not its supervision message:\n%s", n)
 					}
 				}
@@ -302,7 +302,7 @@ func TestQuietTaskFailedStart(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitFor(t, "the notice", func() bool { return len(f.notices()) == 1 })
-	if n := f.notices()[0]; !strings.Contains(n, "没开起来") || !strings.Contains(n, "no such launcher") {
+	if n := f.notices()[0]; !strings.Contains(n, "the Agent failed to start") || !strings.Contains(n, "no such launcher") {
 		t.Fatalf("notice:\n%s", n)
 	}
 }
@@ -402,12 +402,12 @@ func TestReportingConversationIsToldItsTasks(t *testing.T) {
 	}
 	waitFor(t, "the notice", func() bool { return len(sentTo("lark1")) == 1 })
 	n := sentTo("lark1")[0]
-	for _, want := range []string{"🔔 任务「修登录崩溃」做完了（box）", "https://example.com/mr/7", "从这段对话派出去的", "照这段对话一开始说的方式交代"} {
+	for _, want := range []string{"🔔 Task “修登录崩溃” finished (box)", "https://example.com/mr/7", "The task was handed out from this conversation", "opening instructions say"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("notice lacks %q:\n%s", want, n)
 		}
 	}
-	if strings.Contains(n, "主对话") {
+	if strings.Contains(n, "main conversation") {
 		t.Errorf("the notice talks of the main conversation:\n%s", n)
 	}
 	if got := f.notices(); len(got) != 0 {
@@ -714,11 +714,11 @@ func TestReportingConversationAgentStartIsToldThere(t *testing.T) {
 		return out
 	}
 	waitFor(t, "the notice", func() bool { return len(sentTo("lark1")) == 1 })
-	if n := sentTo("lark1")[0]; !strings.Contains(n, "做完了（box）") || !strings.Contains(n, "https://example.com/mr/8") {
+	if n := sentTo("lark1")[0]; !strings.Contains(n, "finished (box)") || !strings.Contains(n, "https://example.com/mr/8") {
 		t.Fatalf("notice:\n%s", n)
 	}
 	waitFor(t, "the main supervision", func() bool { return len(f.notices()) == 1 })
-	if got := f.notices(); len(got) != 1 || !strings.Contains(got[0], "📋 督办") {
+	if got := f.notices(); len(got) != 1 || !strings.Contains(got[0], "📋 Supervision") {
 		t.Fatalf("the main supervision: %q", got)
 	}
 }
@@ -793,7 +793,7 @@ func TestQuietNoticeKeptWhenRelayUnreadable(t *testing.T) {
 	f.setSessions("server", idle)
 	s.drainRelays("server", []proto.Session{idle})
 	waitFor(t, "the notice", func() bool { return len(f.notices()) == 1 })
-	if n := f.notices()[0]; !strings.Contains(n, "任务「甲」") || !strings.Contains(n, "修好了") {
+	if n := f.notices()[0]; !strings.Contains(n, "Task “甲”") || !strings.Contains(n, "修好了") {
 		t.Fatalf("notice:\n%s", n)
 	}
 	// Nothing is left to send it again: the notice no longer waits (a retry that fires finds nothing) and the queue

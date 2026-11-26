@@ -42,7 +42,7 @@ func TestAgentAutonameToolCatalog(t *testing.T) {
 				t.Fatalf("credential or arbitrary input %q is accepted: %s", forbidden, tool.InputSchema)
 			}
 		}
-		if !strings.Contains(tool.Description, "confirm this write on the phone every time") {
+		if !strings.Contains(tool.Description, "confirm this write in Persona every time") {
 			t.Fatalf("the confirmation contract: %s", tool.Description)
 		}
 	}

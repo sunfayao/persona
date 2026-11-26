@@ -60,7 +60,7 @@ func newTriageModel(t *testing.T, mode, reply string) (*triageModelStub, *ai.Cli
 			} `json:"messages"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&in)
-		if !strings.Contains(in.System, "替用户分拣") { // the judge (model 2): nothing to hand over
+		if !strings.Contains(in.System, "sorting incoming work messages") { // the judge (model 2): nothing to hand over
 			_ = json.NewEncoder(w).Encode(map[string]any{"content": []any{map[string]any{"type": "text", "text": `{"handle":false,"reason":"示例"}`}}})
 			return
 		}
@@ -284,7 +284,7 @@ func TestInboxTriageIsBusyWhileTheModelIs(t *testing.T) {
 	things := sevenThings()
 	h, _ := admitHub(t, client, &inboxConnector{things: things})
 	var out struct{ Tier string }
-	if err := client.JSON(context.Background(), "替用户分拣", "示例", &out); !ai.IsPaused(err) {
+	if err := client.JSON(context.Background(), "sorting incoming work messages", "示例", &out); !ai.IsPaused(err) {
 		t.Fatalf("the busy answer: %v", err)
 	}
 	pauseOver(t, client)
@@ -294,7 +294,7 @@ func TestInboxTriageIsBusyWhileTheModelIs(t *testing.T) {
 	slow := make(chan error, 1)
 	go func() {
 		var out struct{ Tier string }
-		slow <- client.JSON(context.Background(), "替用户分拣", "示例：一个慢请求", &out)
+		slow <- client.JSON(context.Background(), "sorting incoming work messages", "示例：一个慢请求", &out)
 	}()
 	waitFor(t, "the slow request at the upstream", func() bool { return len(model.asked()) >= 2 })
 	before := len(model.asked())

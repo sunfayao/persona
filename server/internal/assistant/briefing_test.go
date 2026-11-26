@@ -176,7 +176,7 @@ func TestBriefDoesNotSayNothingWaitsBeforeTheCardsAreRead(t *testing.T) {
 	if strings.Contains(f.countsText(), "等你") || !strings.Contains(f.countsText(), "待验收 1") {
 		t.Errorf("counts: %q", f.countsText())
 	}
-	if text := f.modelText(); !strings.Contains(text, "还没读到，不要说「没有」") {
+	if text := f.modelText(); !strings.Contains(text, "just restarted and not read yet; do not say “none”") {
 		t.Errorf("the model is told: %s", text)
 	}
 }

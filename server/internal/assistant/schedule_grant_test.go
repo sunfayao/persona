@@ -175,10 +175,10 @@ func TestScheduledRoundStartsTheKindItsOwnerGranted(t *testing.T) {
 	if send := g.f.lastSend(t); send["new_session_id"] != session2 {
 		t.Fatalf("the hub did not pick the clean round's id before it started: %v", send)
 	}
-	if c := g.s.Context(context.Background(), ContextParams{SessionID: session2}); strings.Contains(c.Text, "现在：") { // i18n-ignore
+	if c := g.s.Context(context.Background(), ContextParams{SessionID: session2}); strings.Contains(c.Text, "- Now: ") {
 		t.Fatalf("a clean round's context carried the live snapshot: %q", c.Text)
 	}
-	if c := g.s.Context(context.Background(), ContextParams{SessionID: session}); !strings.Contains(c.Text, "现在：") { // i18n-ignore
+	if c := g.s.Context(context.Background(), ContextParams{SessionID: session}); !strings.Contains(c.Text, "- Now: ") {
 		t.Fatalf("another conversation lost its live snapshot: %q", c.Text)
 	}
 	if _, out := g.plan(machine, session2, "/wt/app/deps-2"); !strings.Contains(out, "without asking") {

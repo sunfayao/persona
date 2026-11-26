@@ -410,7 +410,7 @@ func TestBackgroundBreakerTripsOnRepeatedNoOpAllStoppedAndResetsOnProgress(t *te
 	if len(mainSends) != 1 {
 		t.Fatalf("expected 1 fallback send to main conv1, got %d", len(mainSends))
 	}
-	if text, _ := mainSends[0]["text"].(string); !strings.Contains(text, "repeated_noop") || !strings.Contains(text, "连续 2 轮无进展") {
+	if text, _ := mainSends[0]["text"].(string); !strings.Contains(text, "repeated_noop") || !strings.Contains(text, "for 2 rounds in a row") {
 		t.Fatalf("fallback message to main lacks repeated_noop explanation:\n%s", text)
 	}
 

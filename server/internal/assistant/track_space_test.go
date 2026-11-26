@@ -89,8 +89,8 @@ func TestSpaceTrackPrepare(t *testing.T) {
 		strings.Count(initial, spaceStateBegin) != 1 || strings.Index(initial, spaceStateEnd) < strings.Index(initial, spaceStateBegin) {
 		t.Errorf("prepare params: %v", p)
 	}
-	if !strings.Contains(md, "# Persona 空间：QA plain") || !strings.Contains(md, "`/home/me/.persona/tracks/qa-plain`") ||
-		strings.Contains(md, "健康助手") || strings.Contains(md, "kb_update") {
+	if !strings.Contains(md, "# Persona space: QA plain") || !strings.Contains(md, "`/home/me/.persona/tracks/qa-plain`") ||
+		strings.Contains(md, "health assistant") || strings.Contains(md, "kb_update") {
 		t.Errorf("qa-plain's instructions:\n%s", md)
 	}
 
@@ -125,8 +125,8 @@ func TestSpaceClaudeMDRules(t *testing.T) {
 		f.hello.Locale = locale
 		md := s.spaceClaudeMD(ctx, "server", e)
 		for _, rule := range []string{
-			"需要用户完整读到的决定确认、清单、数字、代码或长段内容，放在本轮最后的正式回复里，不要只写在工具调用之间的进度说明里。",
-			"工作中写给用户看的每一句（工具调用之间的说明、进度、在等什么）也用这种语言，不因为读的代码、日志或资料是英文就改用英文。",
+			"Decisions to confirm, lists, numbers, code or long content that the user must be able to read in full go in this turn's final reply, not only in the progress notes between tool calls.",
+			"Every sentence you write for the user while working (notes between tool calls, progress, what you are waiting for) is in that language too, and does not switch to English because the code, logs or material you read are in English.",
 		} {
 			if !strings.Contains(md, rule) {
 				t.Errorf("locale %q: no rule %q", locale, rule)

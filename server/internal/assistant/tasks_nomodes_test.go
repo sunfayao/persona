@@ -17,7 +17,7 @@ import (
 // mode or a tier's effort; one the caller names is refused before anything starts. pi, cursor and agy (#8151) the node
 // starts with the two ignored: the hub drops them, the caller's own included, without refusing.
 
-const readonlyConstraint = "本任务只读：不改项目文件、不提交、不对外写入"
+const readonlyConstraint = "This task is read-only: do not change project files, commit, or write to external systems."
 
 // noModesService is readonlyTaskService with a store (model profiles live there), and launcher agent besides claude.
 func noModesService(t *testing.T, agent string) (*Service, *fakeHub) {

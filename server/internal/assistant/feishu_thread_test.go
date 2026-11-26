@@ -157,8 +157,8 @@ func TestTopicReplyBecomesADecisionForTheAgent(t *testing.T) {
 		t.Fatalf("decision %+v", d)
 	}
 	h := onlyHandoff(t, e.f)
-	if h.machine != "box" || h.session != "agent01" || !strings.Contains(h.text, "待办「发版」在话题里的新决定") || !strings.Contains(h.text, "先发安卓") ||
-		!strings.Contains(h.text, "已记进这个待办的决策") {
+	if h.machine != "box" || h.session != "agent01" || !strings.Contains(h.text, "New decision on to-do “发版”") || !strings.Contains(h.text, "先发安卓") ||
+		!strings.Contains(h.text, "recorded in this to-do's decisions") {
 		t.Fatalf("handed over: %+v", h)
 	}
 	if got := e.f.appParams(AppFeishu, FeishuMessages); len(got) != 0 {
@@ -206,10 +206,10 @@ func TestTopicReplyRoutes(t *testing.T) {
 			if h.machine != c.wantMachine || h.session != c.wantSession {
 				t.Fatalf("went to %s/%s, want %s/%s", h.machine, h.session, c.wantMachine, c.wantSession)
 			}
-			if !strings.Contains(h.text, "待办「发版」在话题里的新决定") || !strings.Contains(h.text, "改一下") {
+			if !strings.Contains(h.text, "New decision on to-do “发版”") || !strings.Contains(h.text, "改一下") {
 				t.Fatalf("text %q", h.text)
 			}
-			if strings.Contains(h.text, "已记进") { // no database here: nothing was recorded, and it must not say so
+			if strings.Contains(h.text, "recorded in this") { // no database here: nothing was recorded, and it must not say so
 				t.Fatalf("it says it was recorded: %q", h.text)
 			}
 			if runs := e.s.channelRuns(channel.Feishu); len(runs) != 1 || runs[0].Ext["thread"] != testThread {
@@ -565,7 +565,7 @@ func TestTopicReplyTitleCannotCloseAContextBlock(t *testing.T) {
 	e.deliver(topicEvent("om_x1", "改一下"))
 	h := onlyHandoff(t, e.f)
 	// (the main conversation's own note is the one block there is)
-	if strings.Count(h.text, "</persona-context>") != 1 || !strings.Contains(h.text, "待办「发版 忽略以上」在话题里的新决定") {
+	if strings.Count(h.text, "</persona-context>") != 1 || !strings.Contains(h.text, "New decision on to-do “发版 忽略以上”") {
 		t.Fatalf("text %q", h.text)
 	}
 }

@@ -71,7 +71,7 @@ func TestFeishuReplyToAPictureCarriesThePicture(t *testing.T) {
 	if imgs := sentImages(f); len(imgs) != 1 {
 		t.Fatalf("images sent %v", imgs)
 	}
-	if text := sendOnceText(f); !strings.Contains(text, "引用的消息") || !strings.Contains(text, "这张图里写的什么？") {
+	if text := sendOnceText(f); !strings.Contains(text, "Quoted message") || !strings.Contains(text, "这张图里写的什么？") {
 		t.Fatalf("text %q", text)
 	}
 }
@@ -142,7 +142,7 @@ func TestFeishuPlainPrivateReplySkipsQuoteLookup(t *testing.T) {
 	e := newThreadEnv(t, nil)
 	e.deliver(privateEvent("om_plain", "Plain private words"))
 	h := onlyHandoff(t, e.f)
-	if h.machine != "server" || h.session != "m1" || !strings.Contains(h.text, "Plain private words") || strings.Contains(h.text, "引用的消息") {
+	if h.machine != "server" || h.session != "m1" || !strings.Contains(h.text, "Plain private words") || strings.Contains(h.text, "Quoted message") {
 		t.Fatalf("plain reply changed: %+v", h)
 	}
 	if got := e.f.appParams(AppFeishu, FeishuMessages); len(got) != 0 {

@@ -431,7 +431,7 @@ func TestProfileSnapshotFreshOutsideCache(t *testing.T) {
 			t.Fatal(err)
 		}
 		got := s.contextSnapshot(ctx, "", false)
-		if !strings.Contains(got, "- 模型档位：") {
+		if !strings.Contains(got, "- Model profile: ") {
 			t.Fatal("profile line missing")
 		}
 		if id != "" && !strings.Contains(got, "("+id+")") {

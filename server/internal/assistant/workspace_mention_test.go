@@ -37,10 +37,11 @@ func TestWithWorkspacesFillsTheBlock(t *testing.T) {
 	got := s.withWorkspaces(context.Background(), workspaceTag+"\n\nAdd a dark mode")
 	for _, want := range []string{
 		`<persona-context kind="workspace" title="weather" url="" machine="box" cwd="/code/weather">`,
-		"machine 填 box、cwd 填 /code/weather",
-		"分支：main",
-		"「Fix login」codex，working",
-		"session ios，在 /code/weather/ios",
+		"set machine to box and cwd to /code/weather",
+		"Branch: main",
+		"Computer: box (box)",
+		"“Fix login” codex, working",
+		"session ios, in /code/weather/ios",
 		"session old",
 	} {
 		if !strings.Contains(got, want) {
@@ -50,7 +51,7 @@ func TestWithWorkspacesFillsTheBlock(t *testing.T) {
 	if strings.Index(got, "session ios") > strings.Index(got, "session old") {
 		t.Errorf("newest first:\n%s", got)
 	}
-	for _, not := range []string{"Elsewhere", "Assistant", "Computer: box"} {
+	for _, not := range []string{"Elsewhere", "Assistant", "currently offline"} {
 		if strings.Contains(got, not) {
 			t.Errorf("%q should not be there:\n%s", not, got)
 		}
@@ -70,7 +71,7 @@ func TestWithWorkspacesLeavesTheRest(t *testing.T) {
 	}
 	quote := `<persona-context kind="context" title="Another session" url="persona://session/box/s1">` + "\nFolder: /x\n</persona-context>"
 	got := s.withWorkspaces(ctx, quote+"\n"+workspaceTag+"\n\nhi")
-	if !strings.HasPrefix(got, quote+"\n") || !strings.Contains(got, "cwd 填 /code/weather") {
+	if !strings.HasPrefix(got, quote+"\n") || !strings.Contains(got, "cwd to /code/weather") {
 		t.Errorf("a quote then a workspace:\n%s", got)
 	}
 	later := "look at this: " + workspaceTag
@@ -87,7 +88,7 @@ func TestSendParamsFillsWorkspaces(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if text, _ := p["text"].(string); !strings.Contains(text, "cwd 填 /code/weather") || !strings.HasSuffix(text, "\n\nhi") {
+	if text, _ := p["text"].(string); !strings.Contains(text, "cwd to /code/weather") || !strings.HasSuffix(text, "\n\nhi") {
 		t.Fatalf("send params text:\n%s", text)
 	}
 }

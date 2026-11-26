@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"github.com/nwverse/persona/server/internal/compat"
+	"os"
 	"strings"
 	"testing"
 
@@ -55,7 +56,15 @@ func TestGoldenAssistantViewRepair(t *testing.T) {
 }
 
 func TestAssistantRichViewPromptExamplesAreValid(t *testing.T) {
-	text := prompts.RenderAssistantClaudeMD(prompts.AssistantClaudeMD{})
+	// The card manual lives in the built-in persona-view skill; CLAUDE.md only points at it.
+	raw, err := os.ReadFile("../assistantskills/builtin/persona-view/SKILL.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(raw)
+	if !strings.Contains(prompts.RenderAssistantClaudeMD(prompts.AssistantClaudeMD{}), "`persona-view` skill") {
+		t.Fatal("CLAUDE.md does not point at the persona-view skill")
+	}
 	blocks := wire.AssistantViewBlocks(text)
 	if len(blocks) != 2 {
 		t.Fatalf("prompt has %d examples, want 2", len(blocks))
@@ -65,7 +74,7 @@ func TestAssistantRichViewPromptExamplesAreValid(t *testing.T) {
 			t.Fatalf("prompt teaches an invalid view: %v", err)
 		}
 	}
-	for _, want := range []string{"view_show", "view_update", "view_get", "submit=true", "ask_user", "fallback", "自动运行"} {
+	for _, want := range []string{"view_show", "view_update", "view_get", "submit=true", "ask_user", "fallback", "runs when it scrolls into view"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("missing rich view guidance: %s", want)
 		}
@@ -101,7 +110,7 @@ func TestAssistantMachinesFromWhereItRuns(t *testing.T) {
 		}
 		return out
 	}
-	here, ssh, agent := "就是你所在的这台机器", "SSH 别名 `box-alias`，工作交给 Agent", "交给这台电脑上的 Agent"
+	here, ssh, agent := "the machine you run on", "SSH alias `box-alias`; hand work to its Agents", "hand work to the Agents on it"
 	for _, tc := range []struct {
 		at   string
 		want map[string]string
@@ -129,10 +138,10 @@ func TestAssistantClaudeMDDelegationBoundary(t *testing.T) {
 		dispatch string
 		source   string
 	}{
-		{"", "本机跑命令、读文件只限一两次调用", "改代码或多步工作用 `task_plan`", "到源码所在的电脑和目录查"},
-		{"zh-Hans", "本机跑命令、读文件只限一两次调用", "改代码或多步工作用 `task_plan`", "到源码所在的电脑和目录查"},
-		{"en", "only for quick local checks (one or two calls", "Use `task_plan` for code changes", "Use the computer and directory with the source checkout"},
-		{"ja", "手元で 1〜2 回の呼び出しで済む確認に限る", "`task_plan` で Agent に任せる", "ソースのチェックアウト先のコンピュータとディレクトリを指定する"},
+		{"", "only for quick local checks (one or two calls", "Use `task_plan` for code changes", "on the computer and in the directory that holds the source"},
+		{"zh-Hans", "only for quick local checks (one or two calls", "Use `task_plan` for code changes", "on the computer and in the directory that holds the source"},
+		{"en", "only for quick local checks (one or two calls", "Use `task_plan` for code changes", "on the computer and in the directory that holds the source"},
+		{"ja", "only for quick local checks (one or two calls", "Use `task_plan` for code changes", "on the computer and in the directory that holds the source"},
 	} {
 		for _, guide := range []bool{false, true} {
 			got := prompts.RenderAssistantClaudeMD(prompts.AssistantClaudeMD{
@@ -158,24 +167,28 @@ func TestGoldenMainHandoff(t *testing.T) {
 		Until: "11月4日 21:30", Text: "你好"}))
 }
 
-// The CLAUDE.md asks for the user's language (docs/protocol/i18n.md); zh-Hans, or a hub that says none, keeps it as it was.
+// The CLAUDE.md is English for every locale and names the user's language (docs/protocol/i18n.md); zh-Hans, or a hub that
+// says none, reads "Simplified Chinese", and only that name differs between locales.
 func TestGoldenAssistantClaudeMDLanguage(t *testing.T) {
 	ctx := context.Background()
 	f := claudeMDHub(Device{ID: "server", Name: "服务器", Kind: "local"})
 	s := newTestService(t, f)
 	before := s.claudeMD(ctx, "server", false)
-	if !strings.Contains(before, "；用中文。") {
-		t.Fatal("the Chinese CLAUDE.md lost 用中文")
+	if !strings.Contains(before, "Answer in Simplified Chinese ") {
+		t.Fatal("the default CLAUDE.md lost its answer language")
 	}
 	f.hello.Locale = "zh-Hans"
 	if got := s.claudeMD(ctx, "server", false); got != before {
 		t.Fatal("zh-Hans changed the CLAUDE.md")
 	}
-	for locale, want := range map[string]string{"en": "用English回答", "ja": "用日本語回答"} {
+	for locale, name := range map[string]string{"en": "English", "ja": "Japanese"} {
 		f.hello.Locale = locale
 		got := s.claudeMD(ctx, "server", false)
-		if !strings.Contains(got, want) || strings.Contains(got, "；用中文。") {
-			t.Fatalf("%s: no %q", locale, want)
+		if !strings.Contains(got, "Answer in "+name+" ") || strings.Contains(got, "Simplified Chinese") {
+			t.Fatalf("%s: no %q", locale, name)
+		}
+		if want := strings.ReplaceAll(before, "Simplified Chinese", name); got != want {
+			t.Fatalf("%s: the CLAUDE.md differs by more than the language name", locale)
 		}
 		// The header contains both the response language and the relay acknowledgement rule.
 		header, _, _ := strings.Cut(got, "\n## ")
@@ -189,7 +202,7 @@ func TestAssistantClaudeMDFinalResponseCompleteness(t *testing.T) {
 	ctx := context.Background()
 	f := claudeMDHub(Device{ID: "server", Name: "服务器", Kind: "local"})
 	s := newTestService(t, f)
-	const rule = "需要用户完整读到的决定确认、清单、数字、代码或长段内容，放在本轮最后的正式回复里，不要只写在工具调用之间的进度说明里。"
+	const rule = "Decisions to confirm, lists, numbers, code and long text the user must read in full go in the turn's final reply, not only in progress notes between tool calls."
 	for _, locale := range []string{"", "zh-Hans", "en", "ja"} {
 		f.hello.Locale = locale
 		if got := s.claudeMD(ctx, "server", false); !strings.Contains(got, rule) {
@@ -204,7 +217,7 @@ func TestAssistantClaudeMDProcessTextLanguage(t *testing.T) {
 	ctx := context.Background()
 	f := claudeMDHub(Device{ID: "server", Name: "服务器", Kind: "local"})
 	s := newTestService(t, f)
-	const rule = "工作中写给用户看的每一句（工具调用之间的说明、进度、在等什么）也用这种语言，不因为读的代码、日志或资料是英文就改用英文。"
+	const rule = "Everything you write for the user while working (notes between tool calls, progress, what you are waiting for) is in that language too, whatever language the code, logs or sources you read are in"
 	for _, locale := range []string{"", "zh-Hans", "en", "ja"} {
 		f.hello.Locale = locale
 		if got := s.claudeMD(ctx, "server", false); !strings.Contains(got, rule) {

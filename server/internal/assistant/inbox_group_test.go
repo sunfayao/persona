@@ -271,10 +271,10 @@ func TestInboxGroupByTheModel(t *testing.T) {
 		t.Fatalf("%d model calls", len(calls))
 	}
 	sys := calls[0].System
-	quotaClause := "这个会话里还开着的事（最多 " + fmt.Sprint(groupOpenMax) + " 件）和 " +
-		fmt.Sprint(int(groupDoneFor/(24*time.Hour))) + " 天内处理过的事（最多 " + fmt.Sprint(groupDoneMax) +
-		" 件），开着的在前（id、title、summary、tier、version、done、meta）"
-	for _, want := range []string{"示例 meta 说明：messages 是这件事的消息", "示例来源规则：接口变更都需要我", "noise（噪音）", "最多 4 次", quotaClause} {
+	quotaClause := "this conversation's open events (at most " + fmt.Sprint(groupOpenMax) + ") and events handled within " +
+		fmt.Sprint(int(groupDoneFor/(24*time.Hour))) + " days (at most " + fmt.Sprint(groupDoneMax) +
+		"), open first (id, title, summary, tier, version, done, meta)"
+	for _, want := range []string{"示例 meta 说明：messages 是这件事的消息", "示例来源规则：接口变更都需要我", "action|fyi|noise", "at most 4 in this batch", quotaClause} {
 		if !strings.Contains(sys, want) {
 			t.Errorf("system prompt lacks %q:\n%s", want, sys)
 		}
@@ -282,12 +282,12 @@ func TestInboxGroupByTheModel(t *testing.T) {
 	if strings.Contains(sys, "示例全局规则") {
 		t.Error("the batch's own rules should replace the global ones")
 	}
-	if u := calls[0].User; !strings.Contains(u, "m1060、m1061") || !strings.Contains(u, `"id":"lark:F1:1051"`) || !strings.Contains(u, `"meta":{"messages":["m1051"]}`) ||
-		!strings.Contains(u, `"done":true`) || !strings.Contains(u, "还能查 4 次") {
+	if u := calls[0].User; !strings.Contains(u, "m1060, m1061") || !strings.Contains(u, `"id":"lark:F1:1051"`) || !strings.Contains(u, `"meta":{"messages":["m1051"]}`) ||
+		!strings.Contains(u, `"done":true`) || !strings.Contains(u, "4 lookups remain") {
 		t.Errorf("first input:\n%s", u)
 	}
-	if u := calls[1].User; !strings.Contains(u, `你调了 messages_before {"message":"m1060","n":5}`) || !strings.Contains(u, "示例：周四评审 A 方案") ||
-		strings.Contains(u, "avatar:1") || !strings.Contains(u, "还能查 3 次") {
+	if u := calls[1].User; !strings.Contains(u, `You called messages_before {"message":"m1060","n":5}`) || !strings.Contains(u, "示例：周四评审 A 方案") ||
+		strings.Contains(u, "avatar:1") || !strings.Contains(u, "3 lookups remain") {
 		t.Errorf("second input:\n%s", u)
 	}
 	if len(g.tools) != 1 || g.tools[0].Thread != "chat:F1" || g.tools[0].Name != connector.GroupMessagesBefore {
@@ -349,13 +349,13 @@ func TestInboxGroupReasksAnInvalidAnswer(t *testing.T) {
 			if len(calls) != 2 {
 				t.Fatalf("%d model calls, want the initial call and one correction", len(calls))
 			}
-			if !strings.Contains(calls[1].User, "你上一次给的结果不合格：") || !strings.Contains(calls[1].User, "改好后重新给出完整结果") {
+			if !strings.Contains(calls[1].User, "Your last result was invalid:") || !strings.Contains(calls[1].User, "Correct it and return the full result") {
 				t.Fatalf("correction input lacks the problem:\n%s", calls[1].User)
 			}
 			if tc.problem != "" && !strings.Contains(calls[1].User, tc.problem) {
 				t.Errorf("correction input lacks %q:\n%s", tc.problem, calls[1].User)
 			}
-			if !strings.Contains(calls[1].User, "还能查 3 次") || strings.Contains(calls[1].User, "你调了") {
+			if !strings.Contains(calls[1].User, "3 lookups remain") || strings.Contains(calls[1].User, "You called") {
 				t.Errorf("correction did not spend only one allowance:\n%s", calls[1].User)
 			}
 			if len(g.fallbacks) != 0 {
@@ -399,7 +399,7 @@ func TestInboxGroupReasksUnterminatedAndTruncated(t *testing.T) {
 				t.Fatalf("%d model calls, want %d", len(calls), tc.calls)
 			}
 			last := calls[len(calls)-1].User
-			if !strings.Contains(last, "你上一次给的结果不合格：") || !strings.Contains(last, tc.problem) {
+			if !strings.Contains(last, "Your last result was invalid:") || !strings.Contains(last, tc.problem) {
 				t.Fatalf("correction input lacks %q:\n%s", tc.problem, last)
 			}
 			if len(g.fallbacks) != 0 {
@@ -442,7 +442,7 @@ func TestInboxGroupCorrectionSpendsAnAllowance(t *testing.T) {
 		if len(calls) != groupCalls+1 {
 			t.Fatalf("%d model calls, want three tools, the bad answer and its correction", len(calls))
 		}
-		if last := calls[groupCalls].User; !strings.Contains(last, "你上一次给的结果不合格：") || !strings.Contains(last, "不能再查了") {
+		if last := calls[groupCalls].User; !strings.Contains(last, "Your last result was invalid:") || !strings.Contains(last, "No lookups remain") {
 			t.Fatalf("the correction with no allowance left:\n%s", last)
 		}
 		if h.inbox.items["lark:F1:1061"] == nil {
@@ -493,7 +493,7 @@ func TestInboxGroupRefusalIsNotReasked(t *testing.T) {
 }
 
 // The correction is shown on the request right after the bad answer only: a tool call after a good correction carries
-// no problem, and the allowance the correction spent still shows in "还能查 N 次".
+// no problem, and the allowance the correction spent still shows in "N lookups remain".
 func TestInboxGroupCorrectionShownOnce(t *testing.T) {
 	bad := `{"assign":[{"message":"m1060","event":"lark:F1:1051"}],"events":[{"event":"lark:F1:1051","title":"示例","tier":"fyi"}]}`
 	tool := `{"tool":"search","args":{"query":"示例","n":5}}`
@@ -507,14 +507,14 @@ func TestInboxGroupCorrectionShownOnce(t *testing.T) {
 	if len(calls) != 3 {
 		t.Fatalf("%d model calls, want bad, corrected tool call, answer", len(calls))
 	}
-	if !strings.Contains(calls[1].User, "你上一次给的结果不合格：") || !strings.Contains(calls[1].User, "还能查 3 次") {
+	if !strings.Contains(calls[1].User, "Your last result was invalid:") || !strings.Contains(calls[1].User, "3 lookups remain") {
 		t.Fatalf("correction input:\n%s", calls[1].User)
 	}
-	if strings.Contains(calls[2].User, "你上一次给的结果不合格") {
+	if strings.Contains(calls[2].User, "Your last result was invalid") {
 		t.Errorf("the problem outlived the request it was for:\n%s", calls[2].User)
 	}
 	// One tool call and one correction: two allowances of the four, so the second tool call is still allowed.
-	if !strings.Contains(calls[2].User, "还能查 2 次") {
+	if !strings.Contains(calls[2].User, "2 lookups remain") {
 		t.Errorf("allowance after a correction and a tool call:\n%s", calls[2].User)
 	}
 	if h.inbox.items["lark:F1:1061"] == nil {
@@ -577,7 +577,7 @@ func TestInboxGroupFallsBackOnABadAnswer(t *testing.T) {
 	h.waitGrouping()
 
 	calls := model.asked()
-	if len(calls) != 2 || !strings.Contains(calls[1].User, "你上一次给的结果不合格：") {
+	if len(calls) != 2 || !strings.Contains(calls[1].User, "Your last result was invalid:") {
 		t.Fatalf("bad answer was not corrected once: %d calls", len(calls))
 	}
 	h.inbox.grouping.mu.Lock()
@@ -1769,7 +1769,7 @@ func TestInboxGroupReopenDropsTheClosedNote(t *testing.T) {
 	}
 	h.deliverPending(context.Background())
 	sent := notesOf(h.f, "s1")
-	if len(sent) != 1 || !strings.Contains(sent[0], "有了新消息") {
+	if len(sent) != 1 || !strings.Contains(sent[0], "New messages arrived for this matter") {
 		t.Fatalf("the conversation was told %v", sent)
 	}
 	for _, txt := range sent {
@@ -1868,7 +1868,7 @@ func TestInboxGroupReopenWakesTheTwin(t *testing.T) {
 		}
 	}()
 	waitFor(t, "the new messages told to the conversation", func() bool {
-		return strings.Contains(strings.Join(notesOf(h.f, "s1"), "\n"), "有了新消息")
+		return strings.Contains(strings.Join(notesOf(h.f, "s1"), "\n"), "New messages arrived for this matter")
 	})
 }
 
@@ -2190,11 +2190,11 @@ func TestInboxGroupEventsOpenQuotaSurvivesManyDone(t *testing.T) {
 func TestInboxGroupPromptNumbersBindToConstants(t *testing.T) {
 	text := prompts.RenderInboxGroup(prompts.InboxGroup{MaxCalls: groupCalls, NewMax: groupNewMax,
 		OpenMax: groupOpenMax, DoneMax: groupDoneMax, DoneDays: int(groupDoneFor / (24 * time.Hour))})
-	want := fmt.Sprintf("还开着的事（最多 %d 件）和 %d 天内处理过的事（最多 %d 件）", groupOpenMax, int(groupDoneFor/(24*time.Hour)), groupDoneMax)
+	want := fmt.Sprintf("open events (at most %d) and events handled within %d days (at most %d)", groupOpenMax, int(groupDoneFor/(24*time.Hour)), groupDoneMax)
 	if !strings.Contains(text, want) {
 		t.Fatalf("prompt lacks %q:\n%s", want, text)
 	}
-	if strings.Contains(text, "最多 10 件（id") {
+	if strings.Contains(text, "at most 10 events (id") {
 		t.Errorf("the old hard-coded sentence is still in the template:\n%s", text)
 	}
 }

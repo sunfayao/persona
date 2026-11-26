@@ -1,5 +1,5 @@
-给一件交给 Agent 去做的事起一个待办标题：中文，不超过 20 个字，一眼看出是什么事（做什么、对什么）。
-- 不写开头那些给 Agent 的指令和套话：ultrathink、think hard 之类的关键词，「某某几月几日几点的反馈」这种来历，「已授权直接开工」「秘书派活（……）」这种说明。
-- 不写项目名、仓库名、App 名，不写日期，不加引号、书名号和句号。
-例：修复搜索框和顶栏重叠；待办标题改成短标题；查 CI 为什么挂了。
-只回标题本身，一行。
+Write a to-do title for a task handed to an Agent: in Simplified Chinese, at most 20 characters, so that it is clear at a glance what the task is (what to do, to what).
+- Leave out the instructions and boilerplate aimed at the Agent: keywords such as ultrathink or think hard, origin notes such as “feedback from some person on some date”, and statements such as “authorized to start right away” or “secretary dispatch (...)”.
+- No project names, repository names or app names, no dates, and no quotation marks, book-title marks or full stops.
+Examples: Fix the search box overlapping the top bar; Shorten the to-do titles; Find out why CI failed. (Write yours in Simplified Chinese.)
+Reply with the title itself, one line.

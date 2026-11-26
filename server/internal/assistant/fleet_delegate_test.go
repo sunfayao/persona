@@ -281,7 +281,7 @@ func TestReanswer(t *testing.T) {
 		t.Fatalf("reanswer: %d", code)
 	}
 	sent := df.f.sentToAgents()
-	if len(sent) != 1 || !strings.HasPrefix(sent[0], "s1: ") || !strings.Contains(sent[0], "用哪个分支？ → main（助手答的是：feat/x）") {
+	if len(sent) != 1 || !strings.HasPrefix(sent[0], "s1: ") || !strings.Contains(sent[0], "用哪个分支？ → main (the assistant answered: feat/x)") {
 		t.Fatalf("sent %q", sent)
 	}
 	if !strings.Contains(df.f.eventTypes(), "interaction_reanswered") {

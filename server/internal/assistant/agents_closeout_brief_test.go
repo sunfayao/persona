@@ -54,29 +54,29 @@ func TestTaskPromptCarriesTheCloseoutForm(t *testing.T) {
 	if err := s.putTriageSwitches(ctx, TriageSwitches{Enabled: true}); err != nil {
 		t.Fatal(err)
 	}
-	if p := start(edit); !strings.HasPrefix(p, "修好登录") || !strings.Contains(p, "file: <这台电脑上的绝对路径>") || strings.Contains(p, "收尾记录") {
+	if p := start(edit); !strings.HasPrefix(p, "修好登录") || !strings.Contains(p, "file: <absolute path on this computer>") || strings.Contains(p, "Closeout record") {
 		t.Fatalf("the closeout switch is off, yet the prompt is %q", p)
 	}
 	if err := s.putTriageSwitches(ctx, TriageSwitches{Closeout: true}); err != nil {
 		t.Fatal(err)
 	}
-	if p := start(edit); !strings.HasPrefix(p, "修好登录") || !strings.Contains(p, "file: <这台电脑上的绝对路径>") || strings.Contains(p, "收尾记录") {
+	if p := start(edit); !strings.HasPrefix(p, "修好登录") || !strings.Contains(p, "file: <absolute path on this computer>") || strings.Contains(p, "Closeout record") {
 		t.Fatalf("the triage is off, yet the prompt is %q", p)
 	}
 
 	closeoutOn(t, s)
 	p := start(edit)
-	if !strings.HasPrefix(p, "修好登录") || !strings.Contains(p, "file: <这台电脑上的绝对路径>") || !strings.Contains(p, "收尾记录") || !strings.Contains(p, `<closeout status="done|not_done|blocked"`) ||
-		strings.Contains(p, "交付：") {
+	if !strings.HasPrefix(p, "修好登录") || !strings.Contains(p, "file: <absolute path on this computer>") || !strings.Contains(p, "Closeout record") || !strings.Contains(p, `<closeout status="done|not_done|blocked"`) ||
+		strings.Contains(p, "Delivery:") {
 		t.Fatalf("closeout only:\n%s", p)
 	}
 
 	deliveryOn(t, s)
 	p = start(edit)
-	if strings.Contains(p, "交付：<已上线并实测") || strings.Count(p, "<closeout status=") != 1 || !strings.Contains(p, "delivery:") || !strings.Contains(p, "unblock:") || !strings.Contains(p, "不再另写") {
+	if strings.Contains(p, "Delivery: <live and tested") || strings.Count(p, "<closeout status=") != 1 || !strings.Contains(p, "delivery:") || !strings.Contains(p, "unblock:") || !strings.Contains(p, "instead of a separate delivery line") {
 		t.Fatalf("both switches must request one structured record:\n%s", p)
 	}
-	if p := start(read); strings.Contains(p, "交付：") || !strings.Contains(p, "收尾记录") || strings.Contains(p, "那一行的后面") {
+	if p := start(read); strings.Contains(p, "Delivery:") || !strings.Contains(p, "Closeout record") || strings.Contains(p, "after that line") {
 		t.Fatalf("a read-only task has no delivery line to put the block after:\n%s", p)
 	}
 }
@@ -92,7 +92,7 @@ func TestStartedAgentsCarryTheCloseoutForm(t *testing.T) {
 	if len(f.starts) != 1 {
 		t.Fatalf("starts %v", f.starts)
 	}
-	if p, _ := f.starts[0]["prompt"].(string); !strings.Contains(p, "修登录\n\n收尾记录") || strings.Count(p, "<closeout status=") != 1 {
+	if p, _ := f.starts[0]["prompt"].(string); !strings.Contains(p, "修登录\n\nCloseout record") || strings.Count(p, "<closeout status=") != 1 {
 		t.Fatalf("agent_start:\n%s", p)
 	}
 
@@ -101,7 +101,7 @@ func TestStartedAgentsCarryTheCloseoutForm(t *testing.T) {
 	if r := dispatchCall(d, "mac", "caller-0001", "dispatch_start", `{"machine":"box","cwd":"/code/app","prompt":"run the Linux tests"}`); r.IsError {
 		t.Fatalf("dispatch: %q", resultText(r))
 	}
-	if p, _ := df.starts[0]["prompt"].(string); !strings.Contains(p, "run the Linux tests\n\n收尾记录") || strings.Count(p, "<closeout status=") != 1 {
+	if p, _ := df.starts[0]["prompt"].(string); !strings.Contains(p, "run the Linux tests\n\nCloseout record") || strings.Count(p, "<closeout status=") != 1 {
 		t.Fatalf("dispatch_start:\n%s", p)
 	}
 }
@@ -141,7 +141,7 @@ func TestCloseoutStart(t *testing.T) {
 	}
 	closeoutOn(t, s)
 	c := ask("s1", "/code/app")
-	if !strings.Contains(c, `<closeout status="done|not_done|blocked"`) || !strings.HasPrefix(c, "（Persona 给这个会话的约定") {
+	if !strings.Contains(c, `<closeout status="done|not_done|blocked"`) || !strings.HasPrefix(c, "(Persona's convention for this session") {
 		t.Fatalf("context: %q", c)
 	}
 	if c := ask("", "/code/app"); c != "" {
@@ -314,10 +314,10 @@ func TestGoldenAssistantSnapshotCloseout(t *testing.T) {
 	}
 	s.fleetTakeSnapshot(Snapshot{Work: &WorkReport{On: true, Sessions: report}})
 	res := s.Context(context.Background(), ContextParams{SessionID: "side-session"})
-	head := regexp.MustCompile(`^- 现在：\d{4}-\d\d-\d\d 周[日一二三四五六] \d\d:\d\d（([^）]+)）\n`)
+	head := regexp.MustCompile(`^- Now: \d{4}-\d\d-\d\d \w{3} \d\d:\d\d \(([^)]+)\)\n`)
 	m := head.FindStringSubmatch(res.Text)
 	if m == nil {
 		t.Fatalf("snapshot header: %q", res.Text)
 	}
-	golden(t, "assistant_snapshot.closeout", "- 现在：YYYY-MM-DD 周X HH:MM（"+m[1]+"）\n"+res.Text[len(m[0]):])
+	golden(t, "assistant_snapshot.closeout", "- Now: YYYY-MM-DD Day HH:MM ("+m[1]+")\n"+res.Text[len(m[0]):])
 }

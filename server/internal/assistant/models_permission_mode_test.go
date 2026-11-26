@@ -163,7 +163,7 @@ func TestModelProfileAndTierPermissionMode(t *testing.T) {
 		t.Fatalf("snapshot tiers missing permission_mode: %+v", snap)
 	}
 	rendered := prompts.RenderSnapshot(prompts.Snapshot{ModelProfile: snap, Now: time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC), Zone: "UTC"})
-	if !strings.Contains(rendered, "review = claude · sonnet · plan（Read and review）") {
+	if !strings.Contains(rendered, "review = claude · sonnet · plan (Read and review)") {
 		t.Fatalf("snapshot did not render tier permission_mode:\n%s", rendered)
 	}
 

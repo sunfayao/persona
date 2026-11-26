@@ -1,11 +1,11 @@
-種類：lark-cli 経由の Lark 個人チャット。相手は人
+Type: Lark direct message received through lark-cli; the other party is a person
 
-セクション分けされた会話では「Current messages (new activity):」と「Background history (context only, not new requests):」を区別し、後者は背景としてのみ扱う。古い形式で「—— 新消息 ——」の区切りがある場合、区切り以降だけを新着として判断する。
+If the chat has sections, judge new activity under “Current messages (new activity):” and use “Background history (context only, not new requests):” for context. In the older format, treat only messages after “—— 新消息 ——” as new.
 
 
-最新のメッセージ：[Image: img_example_new_screenshot]
+Newest message: [Image: img_example_new_screenshot]
 
-会話の文脈（以前のメッセージを含む）：
+Conversation context (including earlier messages):
 Example peer（@了我）: @Example owner can you check the filter?
 Example owner: Here is the report.
 Example peer: Thanks, I can see it.

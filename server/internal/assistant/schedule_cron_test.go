@@ -347,7 +347,7 @@ func TestSchedulerRunsCronTasks(t *testing.T) {
 	sentPrompt := false
 	f.mu.Lock()
 	for _, p := range f.sends {
-		if text, _ := p["text"].(string); strings.Contains(text, "看看部署") && strings.Contains(text, "⏰ 巡检（定时任务）") {
+		if text, _ := p["text"].(string); strings.Contains(text, "看看部署") && strings.Contains(text, "⏰ 巡检 (scheduled task") {
 			sentPrompt = true
 		}
 	}

@@ -332,7 +332,7 @@ func TestExternalWaitWakes(t *testing.T) {
 	}
 	s.workTick(context.Background(), time.Now().Add(6*time.Minute))
 	got := f.sentToAgents()
-	if len(got) != 1 || !strings.Contains(got[0], "部署跑完") || !strings.Contains(got[0], "先停下来问用户") {
+	if len(got) != 1 || !strings.Contains(got[0], "部署跑完") || !strings.Contains(got[0], "stop and ask the user first") {
 		t.Fatalf("sent %v", got)
 	}
 	if e := entryOf(t, s, "s1"); e.Wakes != 1 || e.WakeAt != nil {
@@ -397,7 +397,7 @@ func TestApprovedRiskyWaitIsWokenWithoutCard(t *testing.T) {
 	before := len(f.sentToAgents())
 	s.workTick(context.Background(), time.Now().Add(6*time.Minute))
 	got := f.sentToAgents()
-	if len(got) != before+1 || !strings.Contains(got[len(got)-1], "用户已经同意") {
+	if len(got) != before+1 || !strings.Contains(got[len(got)-1], "The user has already approved this step") {
 		t.Fatalf("wake %v", got[before:])
 	}
 }
@@ -703,7 +703,7 @@ func TestGoldenAgentTriage(t *testing.T) {
 	}
 	call := f.triageAsked[0]
 	golden(t, "agent_triage.system", prompts.RenderJSONOnly(call.System)) // as the hub's models.json sends it
-	golden(t, "agent_triage.user", regexp.MustCompile(`现在：[^\n]+`).ReplaceAllString(call.User, "现在：YYYY-MM-DD HH:MM Day"))
+	golden(t, "agent_triage.user", regexp.MustCompile(`Now: [^\n]+`).ReplaceAllString(call.User, "Now: YYYY-MM-DD HH:MM Day"))
 
 	golden(t, "agent_wake.timer", renderWake(agentWake{Attempt: 2, Wait: "部署跑完", Then: "跑线上测试"}))
 	golden(t, "agent_wake.agent", renderWake(agentWake{Attempt: 1, Wait: "合 PR 那个做完", Then: "rebase", Agent: "合 PR", AgentLine: "合好了"}))
@@ -1154,13 +1154,13 @@ func TestApprovedWaitIsNotAskedAgain(t *testing.T) {
 	if len(s.workCards()) != 0 || e.InteractionID != "" || e.WakeAt == nil || e.Work.On != proto.WaitExternal {
 		t.Fatalf("asked again: %+v, cards %d", e, len(s.workCards()))
 	}
-	if !strings.Contains(f.triageAsked[len(f.triageAsked)-1].User, "用户已经同意") {
+	if !strings.Contains(f.triageAsked[len(f.triageAsked)-1].User, "The user already approved") {
 		t.Fatal("the triage was not told of the approval")
 	}
 	before := len(f.sentToAgents())
 	s.workTick(context.Background(), time.Now().Add(6*time.Minute))
 	got := f.sentToAgents()
-	if len(got) != before+1 || !strings.Contains(got[len(got)-1], "用户已经同意") {
+	if len(got) != before+1 || !strings.Contains(got[len(got)-1], "The user has already approved this step") {
 		t.Fatalf("wake %v", got[before:])
 	}
 

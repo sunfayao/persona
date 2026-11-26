@@ -1107,7 +1107,7 @@ func copiesRun(r ScheduleRun, title, rawPrompt string) bool {
 	}
 	_, body := taskPromptBody(strings.TrimSpace(rawPrompt))
 	first, _, _ := strings.Cut(body, "\n")
-	return scheduleHeader.MatchString(first) && strings.HasPrefix(first, "⏰ "+r.Title+"（")
+	return scheduleHeader.MatchString(first) && (strings.HasPrefix(first, "⏰ "+r.Title+" (") || strings.HasPrefix(first, "⏰ "+r.Title+"（")) // the Chinese form older prompts hold
 }
 
 func until(t time.Time) string {

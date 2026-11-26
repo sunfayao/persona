@@ -190,7 +190,7 @@ func TestSupervisedTaskRound(t *testing.T) {
 	f.mu.Lock()
 	prompt, _ := f.starts[0]["prompt"].(string)
 	f.mu.Unlock()
-	if !strings.Contains(prompt, "验收标准") || !strings.Contains(prompt, "- 浅色 / 深色截图贴进 PR") {
+	if !strings.Contains(prompt, "Acceptance criteria") || !strings.Contains(prompt, "- 浅色 / 深色截图贴进 PR") {
 		t.Fatalf("the agent was not told the criteria:\n%s", prompt)
 	}
 
@@ -200,7 +200,7 @@ func TestSupervisedTaskRound(t *testing.T) {
 	agentTurn(s, f, proto.StatusDone, "两种走法：A 先灰度，B 直接全量。你选一个？", 0)
 	waitFor(t, "the message", func() bool { return len(f.notices()) == 1 })
 	n := f.notices()[0]
-	for _, want := range []string{"📋 督办", "Agent 停下了，但没做完(needs the user to decide: 问用两种部署走法里的哪一种)", "验收标准：PR 合并到 master；浅色 / 深色截图贴进 PR",
+	for _, want := range []string{"📋 Supervision", "the Agent stopped without finishing (needs the user to decide: 问用两种部署走法里的哪一种)", "Acceptance criteria: PR 合并到 master; 浅色 / 深色截图贴进 PR",
 		"A 先灰度，B 直接全量", "signal=idle"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("message lacks %q:\n%s", want, n)
@@ -233,7 +233,7 @@ func TestSupervisedTaskRound(t *testing.T) {
 	agentTurn(s, f, proto.StatusWorking, "", 0)
 	agentTurn(s, f, proto.StatusDone, "按 A 做完了，PR https://github.com/o/r/pull/901 已合并", 0)
 	waitFor(t, "the review message", func() bool { return len(f.notices()) == 2 })
-	if n := f.notices()[1]; !strings.Contains(n, "待逐项复核，不代表完成（PR 已合并）") || !strings.Contains(n, "pull/901") {
+	if n := f.notices()[1]; !strings.Contains(n, "awaiting item-by-item review; this does not mean it is done (PR 已合并)") || !strings.Contains(n, "pull/901") {
 		t.Fatalf("message:\n%s", n)
 	}
 	if now := todoNow(s, todo.ID); now.DoneAt != nil || now.Supervision.State != reviewPending {
@@ -256,8 +256,8 @@ func TestSupervisedTaskRound(t *testing.T) {
 			t.Fatalf("round %d: %s", round, res)
 		}
 		sent := sentToAgent(f)
-		if len(sent) != round || !strings.Contains(sent[round-1], "第 "+string(rune('0'+round))+" 轮返工") ||
-			!strings.Contains(sent[round-1], "❌ 浅色 / 深色截图贴进 PR：只有浅色") || !strings.Contains(sent[round-1], "补深色") {
+		if len(sent) != round || !strings.Contains(sent[round-1], "rework round "+string(rune('0'+round))) ||
+			!strings.Contains(sent[round-1], "❌ 浅色 / 深色截图贴进 PR: 只有浅色") || !strings.Contains(sent[round-1], "补深色") {
 			t.Fatalf("round %d sent: %q", round, sent)
 		}
 		if v := todoNow(s, todo.ID).Supervision; v.State != reviewRework || v.Round != round {
@@ -328,7 +328,7 @@ func TestDigestBatches(t *testing.T) {
 	s.signal(superviseSignal{Todo: ids[1], Kind: sigFailed, Key: "x", Detail: "box 离线"})
 	waitFor(t, "the message", func() bool { return len(f.notices()) == 1 })
 	n := f.notices()[0]
-	if !strings.Contains(n, "有 2 个要你处理") || strings.Index(n, "任务「乙」") > strings.Index(n, "任务「甲」") {
+	if !strings.Contains(n, "2 of the tasks you handed out need you") || strings.Index(n, "Task “乙”") > strings.Index(n, "Task “甲”") {
 		t.Fatalf("message:\n%s", n)
 	}
 
@@ -346,7 +346,7 @@ func TestDigestBatches(t *testing.T) {
 	f.setSessions("server", idle)
 	s.drainRelays("server", []proto.Session{idle})
 	waitFor(t, "the merged message", func() bool { return len(f.notices()) == 2 })
-	if n := f.notices()[1]; !strings.Contains(n, "25 分钟没有进展") || !strings.Contains(n, "Agent 停下了，但没做完(not finished)") {
+	if n := f.notices()[1]; !strings.Contains(n, "25 minutes without progress") || !strings.Contains(n, "the Agent stopped without finishing (没做完)") {
 		t.Fatalf("merged:\n%s", n)
 	}
 }
@@ -361,8 +361,8 @@ func TestTaskHealth(t *testing.T) {
 	}{
 		{Todo{}, nil, ""},
 		{Todo{Supervision: &Supervision{}}, []proto.Session{{State: proto.StateWorking, UpdatedAt: now}}, "normal"},
-		{Todo{Supervision: &Supervision{}}, []proto.Session{{State: proto.StateWorking, UpdatedAt: now.Add(-25 * time.Minute)}}, "stuck for 25 分钟"},
-		{Todo{Supervision: &Supervision{}}, []proto.Session{{State: proto.StateNeedsYou, StateSince: now.Add(-5 * time.Minute)}}, "waiting for an answer 5 分钟"},
+		{Todo{Supervision: &Supervision{}}, []proto.Session{{State: proto.StateWorking, UpdatedAt: now.Add(-25 * time.Minute)}}, "stuck for 25 min"},
+		{Todo{Supervision: &Supervision{}}, []proto.Session{{State: proto.StateNeedsYou, StateSince: now.Add(-5 * time.Minute)}}, "waiting for an answer 5 min"},
 		{Todo{Supervision: &Supervision{State: reviewPending}}, nil, "delivered; awaiting a look"},
 		{Todo{Supervision: &Supervision{State: reviewRework, Round: 2}}, []proto.Session{{State: proto.StateWorking, UpdatedAt: now}}, "rework round 2"},
 		{Todo{Supervision: &Supervision{State: reviewNeedsUser}}, nil, "waiting for you to handle it"},

@@ -511,7 +511,7 @@ func TestIrreversibleDecisionWaitsForFreshReviewAfterRecheck(t *testing.T) {
 			t.Fatalf("%s: told before a day passed: %v", why, pendingKinds(s, todo.ID))
 		}
 		s.sweepDecisionDeadlines(now.Add(24*time.Hour + time.Minute))
-		if !signalled(s, f, todo.ID, sigRecheck, "已交回督办") || len(decidePushes(t, f)) != pushes {
+		if !signalled(s, f, todo.ID, sigRecheck, "handed back to supervision") || len(decidePushes(t, f)) != pushes {
 			t.Fatalf("%s: no recheck after a day, or the owner was raised it before the supervisor looked", why)
 		}
 		if ask := listedAsk(t, s, todo.ID); ask != nil {
@@ -564,16 +564,16 @@ func TestOldDecisionGoesBackToItsSupervisorOnce(t *testing.T) {
 	// Check the actual DeviceAssistantSend payload contains no decision-handling manual.
 	// i18n-ignore: exact instructions in the runtime-bound supervision prompt.
 	for _, instruction := range []string{
-		"- 决定交回你核对的：", "- 用户那边没有能回答的东西的：",
-		"- 用户回「你来定」的：", "- 用户回「这不是我要的」的：", "- 用户回「先讲清背景」的：",
+		"- Decisions handed back to you to check:", "- Where the user has nothing to answer:",
+		"- Where the user replied “Decide it yourself”:", "- Where the user replied “That's not what I asked for”:", "- Where the user replied “Explain the background first”:",
 		"todo_decision_add",
 	} {
 		if got := strings.Count(n, instruction); got != 0 {
 			t.Errorf("runtime-bound event repeats instruction %q %d times", instruction, got)
 		}
 	}
-	for _, want := range []string{"等了超过一天", "已交回督办", "why_owner=irreversible，不会默认执行", "删不删旧表", "选项「先导出再删」：多花半天，数据留一份备份",
-		"推荐：删掉旧表", "等待的代价：磁盘两周后写满", "signal=recheck"} {
+	for _, want := range []string{"waited more than a day", "handed back to supervision", "why_owner=irreversible, never taken by default", "删不删旧表", "Option “先导出再删”: 多花半天，数据留一份备份",
+		"Recommendation: 删掉旧表", "Cost of waiting: 磁盘两周后写满", "signal=recheck"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("recheck message lacks %q:\n%s", want, n)
 		}
@@ -629,7 +629,7 @@ func TestUndecidableTaskGoesBackToItsSupervisorOnce(t *testing.T) {
 		s.superviseWatch(ctx, time.Now())
 		waitFor(t, "the undecidable message", func() bool { return len(f.notices()) > before })
 		n := f.notices()[before]
-		for _, want := range []string{"标着等用户决定，但用户那边没有能回答的东西", "草稿改动等用户看了再决定合不合", "signal=undecidable"} {
+		for _, want := range []string{"marked as waiting for a user decision, but there is nothing on the user's side to answer", "草稿改动等用户看了再决定合不合", "signal=undecidable"} {
 			if !strings.Contains(n, want) {
 				t.Errorf("%s: message lacks %q:\n%s", tc.name, want, n)
 			}
@@ -822,7 +822,7 @@ func TestYouDecideHandsADecisionBackToTheSupervisor(t *testing.T) {
 	}
 	waitFor(t, "the owner_cannot_answer message", func() bool { return len(f.notices()) > before })
 	n := f.notices()[before]
-	for _, want := range []string{"用户回答不了你发的决定，回的是「你来定」", "why_owner=priority）：先灰度还是直接全量", "选项「直接全量」",
+	for _, want := range []string{"the user could not answer the decision you sent; they replied “Decide it yourself”", "why_owner=priority): 先灰度还是直接全量", "Option “直接全量”",
 		"signal=owner_cannot_answer"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("message lacks %q:\n%s", want, n)
@@ -872,7 +872,7 @@ func TestYouDecideNeverTakesAnIrreversibleDecision(t *testing.T) {
 		t.Fatalf("answer: %d %s", rec.Code, rec.Body.String())
 	}
 	waitFor(t, "the owner_cannot_answer message", func() bool { return len(f.notices()) > before })
-	if n := f.notices()[before]; !strings.Contains(n, "不会默认执行") || !strings.Contains(n, "signal=owner_cannot_answer") {
+	if n := f.notices()[before]; !strings.Contains(n, "never taken by default") || !strings.Contains(n, "signal=owner_cannot_answer") {
 		t.Fatalf("message:\n%s", n)
 	}
 	s.sweepDecisionDeadlines(time.Now().Add(72 * time.Hour))
@@ -909,8 +909,8 @@ func TestNotWhatIAskedHoldsTheAgentsFollowUps(t *testing.T) {
 		t.Fatalf("answer: %d %s", rec.Code, rec.Body.String())
 	}
 	waitFor(t, "the owner_cannot_answer message", func() bool { return len(f.notices()) > before })
-	if n := f.notices()[before]; !strings.Contains(n, "回的是「这不是我要的」") || !strings.Contains(n, "signal=owner_cannot_answer") ||
-		!strings.Contains(n, "任务来历（hub 记的）") {
+	if n := f.notices()[before]; !strings.Contains(n, "they replied “That's not what I asked for”") || !strings.Contains(n, "signal=owner_cannot_answer") ||
+		!strings.Contains(n, "Task background (as the hub recorded it)") {
 		t.Fatalf("message:\n%s", n)
 	}
 	if len(sentToAgent(f)) != sent || listedAsk(t, s, todo.ID) != nil || !s.followUpsHeld("box", "s1") {
@@ -945,7 +945,7 @@ func TestExplainFirstKeepsTheDecision(t *testing.T) {
 		t.Fatalf("answer: %d %s", rec.Code, rec.Body.String())
 	}
 	waitFor(t, "the owner_cannot_answer message", func() bool { return len(f.notices()) > before })
-	if n := f.notices()[before]; !strings.Contains(n, "回的是「先讲清背景」") || !strings.Contains(n, "signal=owner_cannot_answer") {
+	if n := f.notices()[before]; !strings.Contains(n, "they replied “Explain the background first”") || !strings.Contains(n, "signal=owner_cannot_answer") {
 		t.Fatalf("message:\n%s", n)
 	}
 	ask := listedAsk(t, s, todo.ID)
@@ -975,7 +975,7 @@ func TestExplainFirstKeepsTheDecision(t *testing.T) {
 // re-issues it, then "You decide", or the background again. The hub takes the second answer and ends the round, so
 // the supervisor has to hear it, though its stopped agent said nothing new in between (#6027).
 func TestTheOwnersSecondAnswerReachesTheSupervisor(t *testing.T) {
-	for response, says := range map[string]string{respondDecideYourself: "回的是「你来定」", respondExplainFirst: "回的是「先讲清背景」"} {
+	for response, says := range map[string]string{respondDecideYourself: "they replied “Decide it yourself”", respondExplainFirst: "they replied “Explain the background first”"} {
 		t.Run(response, func(t *testing.T) {
 			s, f, todo := newSupervisedService(t)
 			waitsForReview(t, s, f, todo.ID, "两种走法：A 先灰度，B 直接全量。")
@@ -987,7 +987,7 @@ func TestTheOwnersSecondAnswerReachesTheSupervisor(t *testing.T) {
 				t.Fatalf("first answer: %d %s", rec.Code, rec.Body.String())
 			}
 			waitFor(t, "the first answer told", func() bool {
-				return slices.ContainsFunc(f.notices()[before:], func(n string) bool { return strings.Contains(n, "回的是「先讲清背景」") })
+				return slices.ContainsFunc(f.notices()[before:], func(n string) bool { return strings.Contains(n, "they replied “Explain the background first”") })
 			})
 			again := rolloutDecision()
 			again["reason"] = "登录页修复已合并；先灰度还是直接全量"

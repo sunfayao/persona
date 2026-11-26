@@ -721,7 +721,7 @@ func TestCardAnswerRecordsDecision(t *testing.T) {
 		t.Fatalf("after a second report: %+v", again)
 	}
 	// Handed to an agent: the decisions go first (the hub's TestHandoffCarriesDecisions has the whole text).
-	if res, _ := e.s.TodoHandoff(context.Background(), TodoHandoff{TodoID: todoID, Text: "发版"}); !strings.Contains(res.Text, "在「迁移 Agent」的提问里答的") ||
+	if res, _ := e.s.TodoHandoff(context.Background(), TodoHandoff{TodoID: todoID, Text: "发版"}); !strings.Contains(res.Text, "the user's answer to a question from “迁移 Agent”") ||
 		!strings.Contains(res.Text, "用哪个迁移号？") || !strings.HasSuffix(res.Text, "\n\n发版") {
 		t.Fatalf("handoff = %q", res.Text)
 	}
@@ -779,7 +779,7 @@ func TestAgentReadsAndNotesDecisions(t *testing.T) {
 		!strings.Contains(res.Content[0].Text, `"by":"user"`) {
 		t.Fatalf("read again: %+v", res)
 	}
-	if h, _ := e.s.TodoHandoff(ctx, TodoHandoff{TodoID: todoID, Text: "发版"}); !strings.Contains(h.Text, "Agent 干活时记的，不是用户定的") {
+	if h, _ := e.s.TodoHandoff(ctx, TodoHandoff{TodoID: todoID, Text: "发版"}); !strings.Contains(h.Text, "recorded by the Agent during the work, not decided by the user") {
 		t.Fatalf("handoff = %q", h.Text)
 	}
 

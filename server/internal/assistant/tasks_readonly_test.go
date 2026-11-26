@@ -84,7 +84,7 @@ func TestReadonlyTaskPlanLaunchPermissions(t *testing.T) {
 					t.Fatalf("read-only launch = %v", f.starts)
 				}
 				prompt, _ := f.starts[0]["prompt"].(string)
-				if strings.Count(prompt, "本任务只读：不改项目文件、不提交、不对外写入") != 1 {
+				if strings.Count(prompt, "This task is read-only: do not change project files, commit, or write to external systems.") != 1 {
 					t.Fatalf("read-only prompt = %q", prompt)
 				}
 				if todo := onlyTodo(s); len(todo.Agents) != 1 {
@@ -206,7 +206,7 @@ func TestReadonlyTaskLegacyStartAndRetry(t *testing.T) {
 					t.Fatalf("legacy launch = %v, todo = %+v", f.starts, onlyTodo(s))
 				}
 				prompt, _ := f.starts[0]["prompt"].(string)
-				if strings.Count(prompt, "本任务只读：不改项目文件、不提交、不对外写入") != 1 {
+				if strings.Count(prompt, "This task is read-only: do not change project files, commit, or write to external systems.") != 1 {
 					t.Fatalf("legacy read-only prompt = %q", prompt)
 				}
 			})

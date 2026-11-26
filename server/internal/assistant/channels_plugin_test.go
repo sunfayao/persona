@@ -494,7 +494,7 @@ func TestMentionChannelMainTurnCarriesOriginContextAndPublicCaution(t *testing.T
 	}
 	text, _ := p["text"].(string)
 	for _, want := range []string{"Release chat", "Release 1.3", "We ship on Friday.", "The migration is done.", "Docs are ready.", "What changed?",
-		"其他对话", "其他会话", "邮件", "健康", "明确"} {
+		"private context from other chats", "sessions", "mail", "health", "explicitly asks"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the main mention turn lost %q:\n%s", want, text)
 		}

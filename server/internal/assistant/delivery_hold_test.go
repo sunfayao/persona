@@ -79,7 +79,7 @@ func TestDeliveryHoldGoesToItsSupervisorOnce(t *testing.T) {
 	s.superviseWatch(ctx, time.Now())
 	waitFor(t, "the delivery hold message", func() bool { return len(f.notices()) > before })
 	n := f.notices()[before]
-	for _, want := range []string{"signal=delivery_hold", "等用户批授权卡实发验收", "没有能回答的卡片"} {
+	for _, want := range []string{"signal=delivery_hold", "等用户批授权卡实发验收", "the user has no card they can answer"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("message lacks %q:\n%s", want, n)
 		}

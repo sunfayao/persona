@@ -479,7 +479,7 @@ func TestPRStatusConflictSignalsWithoutRunningAgents(t *testing.T) {
 				return
 			}
 			if len(notices) != 1 || !strings.Contains(notices[0], task.PRURL) ||
-				!strings.Contains(notices[0], "head-a") || !strings.Contains(notices[0], "PR 有合并冲突") {
+				!strings.Contains(notices[0], "head-a") || !strings.Contains(notices[0], "has merge conflicts") {
 				t.Fatalf("supervisor did not receive the conflict facts: %q", notices)
 			}
 		})

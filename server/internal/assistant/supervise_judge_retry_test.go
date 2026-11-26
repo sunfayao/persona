@@ -85,7 +85,7 @@ func TestSupervisedJudgeRetryUsesLatestReply(t *testing.T) {
 	if !strings.Contains(last, "the latest reply") || strings.Contains(last, "the earlier reply") {
 		t.Fatalf("the deferred judgment did not read the latest reply:\n%s", last)
 	}
-	if got := entryLine(f.notices()[0]); !strings.Contains(got, "signal=review") || strings.Contains(got, "没判断出来") {
+	if got := entryLine(f.notices()[0]); !strings.Contains(got, "signal=review") || strings.Contains(got, "could not tell whether it finished") {
 		t.Fatalf("the recovered judgment produced the wrong signal:\n%s", got)
 	}
 }

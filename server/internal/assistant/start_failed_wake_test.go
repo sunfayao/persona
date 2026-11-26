@@ -29,7 +29,7 @@ func TestFailedStartWakesTheMainConversationAtOnce(t *testing.T) {
 	// (a) the failed-start wake, not held back by the gap
 	waitFor(t, "the failed-start supervision message in the main conversation", func() bool {
 		for _, n := range f.notices() {
-			if strings.Contains(n, "📋 督办") && strings.Contains(n, "没开起来") && strings.Contains(n, todo.ID) {
+			if strings.Contains(n, "📋 Supervision") && strings.Contains(n, "failed to start") && strings.Contains(n, todo.ID) {
 				return true
 			}
 		}

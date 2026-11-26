@@ -305,13 +305,13 @@ func TestBriefReminderComesWhenTheBriefingDoesNot(t *testing.T) {
 func TestBriefRoutineGivesTheModelTheSameFacts(t *testing.T) {
 	text := newBriefRunEnv(t, true)
 	sent, _ := text.f.lastSend(t)["text"].(string)
-	for _, want := range []string{"Persona 算好的事实", "等用户处理的 2 件", "旧的问题", "等用户验收的 1 件", "修登录崩溃", "登录不再崩溃"} {
+	for _, want := range []string{"Facts Persona worked out", "Waiting for the user: 2", "旧的问题", "Waiting for the user to verify: 1", "修登录崩溃", "登录不再崩溃"} {
 		if !strings.Contains(sent, want) {
 			t.Errorf("the message to the model lacks %q:\n%s", want, sent)
 		}
 	}
 	plain, _ := newBriefRunEnv(t, false).f.lastSend(t)["text"].(string)
-	if strings.Contains(plain, "算好的事实") || strings.Contains(plain, "旧的问题") {
+	if strings.Contains(plain, "Facts Persona worked out") || strings.Contains(plain, "旧的问题") {
 		t.Errorf("a routine without facts is given them:\n%s", plain)
 	}
 }
@@ -420,7 +420,7 @@ func TestBriefReminderGraceOnlyWhenTheCardCanGoOut(t *testing.T) {
 // phone apps do not yet.
 func TestBriefRoutineWithoutACardTellsTheModelToListTheRows(t *testing.T) {
 	sent, _ := newBriefRunEnvWith(t, true, func(e *briefRunEnv) { e.features(FeishuFeatures{Main: true}) }).f.lastSend(t)["text"].(string)
-	if !strings.Contains(sent, "这次不会发飞书卡片") || strings.Contains(sent, "你不用再逐条列") || !strings.Contains(sent, "旧的问题") {
+	if !strings.Contains(sent, "No Lark card is sent this time") || strings.Contains(sent, "so you do not need to list them one by one") || !strings.Contains(sent, "旧的问题") {
 		t.Errorf("a run without a card:\n%s", sent)
 	}
 }

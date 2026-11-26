@@ -96,7 +96,7 @@ func TestInboxDeliveredCommentPendingReviewStillWakesSupervisor(t *testing.T) {
 	g, _ := inboxSignalOf(it, true)
 	s.inboxToAgent(context.Background(), g)
 	waitFor(t, "the pending-review comment", func() bool { return len(f.notices()) == 1 })
-	if notice := f.notices()[0]; !strings.Contains(notice, "signal=inbox") || !strings.Contains(notice, "这里是副本") {
+	if notice := f.notices()[0]; !strings.Contains(notice, "signal=inbox") || !strings.Contains(notice, "this is a copy") {
 		t.Fatalf("pending review lost its delivered comment: %s", notice)
 	}
 }
@@ -133,7 +133,7 @@ func TestInboxDeliveredCommentWaitChangesDuringSend(t *testing.T) {
 			g, _ := inboxSignalOf(it, true)
 			s.inboxToAgent(context.Background(), g)
 			waitFor(t, "the wait-related comment", func() bool { return len(f.notices()) == 1 })
-			if notice := f.notices()[0]; !strings.Contains(notice, "signal=inbox") || !strings.Contains(notice, "这里是副本") {
+			if notice := f.notices()[0]; !strings.Contains(notice, "signal=inbox") || !strings.Contains(notice, "this is a copy") {
 				t.Fatalf("the task wait was hidden by successful delivery: %s", notice)
 			}
 		})

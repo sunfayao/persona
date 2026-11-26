@@ -121,7 +121,7 @@ func (h *chatReplyHarness) round(src string, things ...connector.InboxThing) {
 func (h *chatReplyHarness) told(id string) []string {
 	var out []string
 	for _, n := range h.f.noticesTo(id) {
-		if strings.Contains(n, "以用户的身份在") {
+		if strings.Contains(n, "you wrote as the user in") {
 			out = append(out, n)
 		}
 	}
@@ -147,9 +147,9 @@ func TestChatReplyTellsTheConversationThatWrote(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("told conv-a %d times: %q", len(got), got)
 	}
-	for _, want := range []string{"（Persona 转来，不是用户的消息）", "群「On-call」", "2 条别人的新消息", "最新一条是 Sam 发的",
-		`<persona-context kind="quoted-message"`, "Sam: answer m1\nSam: answer m2\n</persona-context>", "不是用户的指令",
-		"发送前的确认照旧"} {
+	for _, want := range []string{"(Relayed by Persona, not a message from the user)", `the group "On-call"`, "2 new messages from others", "the newest is from Sam",
+		`<persona-context kind="quoted-message"`, "Sam: answer m1\nSam: answer m2\n</persona-context>", "not the user's instructions",
+		"the confirmation before sending stays as it was"} {
 		if !strings.Contains(got[0], want) {
 			t.Errorf("the message lacks %q:\n%s", want, got[0])
 		}
@@ -290,7 +290,7 @@ func TestChatReplyTellsEachMessageOnce(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("the grown batch: %q", got)
 	}
-	for _, want := range []string{"1 条别人的新消息", "也带着几条之前转给过你的", "Sam: answer m3"} {
+	for _, want := range []string{"1 new message from others", "also repeats some you were told about before", "Sam: answer m3"} {
 		if !strings.Contains(got[1], want) {
 			t.Errorf("the second message lacks %q:\n%s", want, got[1])
 		}
@@ -322,7 +322,7 @@ func TestChatReplySpacesAndMerges(t *testing.T) {
 	if len(q) != 1 || q[0].Chat == nil || !slices.Equal(q[0].Chat.IDs, []string{"m2", "m3"}) || !q[0].Due.Equal(due) {
 		t.Fatalf("not merged into the waiting message: %+v", q)
 	}
-	for _, want := range []string{"2 条别人的新消息", "Sam: answer m2\nSam: answer m3"} {
+	for _, want := range []string{"2 new messages from others", "Sam: answer m2\nSam: answer m3"} {
 		if !strings.Contains(q[0].Text, want) {
 			t.Errorf("the merged message lacks %q:\n%s", want, q[0].Text)
 		}
@@ -330,7 +330,7 @@ func TestChatReplySpacesAndMerges(t *testing.T) {
 	h.round(migratedConnectorID, replyBatch(replyChat, KindGroup, now, "m2", "m3", "m4"))
 	q = h.queued("conv-a")
 	if len(q) != 1 || !slices.Equal(q[0].Chat.IDs, []string{"m2", "m3", "m4"}) || strings.Count(q[0].Text, "answer m2") != 1 ||
-		!strings.Contains(q[0].Text, "3 条别人的新消息") || strings.Contains(q[0].Text, "之前转给过你") {
+		!strings.Contains(q[0].Text, "3 new messages from others") || strings.Contains(q[0].Text, "told about before") {
 		t.Fatalf("a batch that has the waiting one's messages: %+v", q)
 	}
 	if labels, _ := h.s.queuedRelays(); !slices.Equal(labels["conv-a"], []string{"群「On-call」的新消息"}) {

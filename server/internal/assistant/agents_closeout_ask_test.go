@@ -71,7 +71,7 @@ func TestCloseoutAskOnce(t *testing.T) {
 	askTick(s)
 	got := f.sentToAgents()
 	if len(got) != 1 || !strings.HasPrefix(got[0], "s1: ") || !strings.Contains(got[0], `<closeout status="done|not_done|blocked"`) ||
-		!strings.Contains(got[0], "不要开始新的工作") {
+		!strings.Contains(got[0], "Do not start new work") {
 		t.Fatalf("sent %v", got)
 	}
 	if e := entryOf(t, s, "s1"); e.WakeAt != nil || e.Work.CloseoutAsk != closeoutAskSent {

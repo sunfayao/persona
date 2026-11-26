@@ -247,7 +247,7 @@ func TestTodoAfterReadyPRMergeExactDelivery(t *testing.T) {
 		}
 		waitFor(t, "PR merge todo_ready wake", func() bool { return len(sendsToConversation(f, "conv1")) == 1 })
 		msg := sendsToConversation(f, "conv1")[0]
-		for _, want := range []string{"signal=todo_ready", dep.ID, pre.ID, prURL, "PR 已合并", "Rebase onto main after backend merge"} {
+		for _, want := range []string{"signal=todo_ready", dep.ID, pre.ID, prURL, "PR merged", "Rebase onto main after backend merge"} {
 			if !strings.Contains(msg, want) {
 				t.Errorf("PR merge wake missing %q:\n%s", want, msg)
 			}
@@ -483,7 +483,7 @@ func TestTodoAfterReadyPromptRendering(t *testing.T) {
 		"todo_root1",
 		"todo_pre1",
 		"Schema PR",
-		"PR 已合并",
+		"PR merged",
 		"https://github.com/example/app/pull/42",
 		"Run migration script on box",
 	} {

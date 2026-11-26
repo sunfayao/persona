@@ -317,7 +317,7 @@ func TestAskTodoTakesTheDefaultAtALaterDeadline(t *testing.T) {
 	e.s.sweepDecisionDeadlines(time.Now().Add(7 * time.Hour))
 	waitFor(t, "the to-do closed", func() bool { cur := e.get(todo.ID); return cur != nil && cur.DoneAt != nil })
 	got := e.told("c1x1x1")
-	if len(got) != 1 || !strings.Contains(got[0], "按你推荐的默认选项") || !strings.Contains(got[0], "Merge") {
+	if len(got) != 1 || !strings.Contains(got[0], "your recommended options were taken by default") || !strings.Contains(got[0], "Merge") {
 		t.Fatalf("told %q", got)
 	}
 	e.s.sweepDecisionDeadlines(time.Now().Add(8 * time.Hour))
@@ -509,7 +509,7 @@ func TestInterruptedAskDefaultResumes(t *testing.T) {
 	b.mu.Unlock()
 	e.s.sweepDecisionDeadlines(time.Now().Add(7 * time.Hour))
 	waitFor(t, "the to-do closed", func() bool { cur := e.get(todo.ID); return cur != nil && cur.DoneAt != nil })
-	if got := e.told("c1x1x1"); len(got) != 1 || !strings.Contains(got[0], "按你推荐的默认选项") {
+	if got := e.told("c1x1x1"); len(got) != 1 || !strings.Contains(got[0], "your recommended options were taken by default") {
 		t.Fatalf("told %q", got)
 	}
 }

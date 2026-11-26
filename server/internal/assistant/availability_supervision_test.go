@@ -57,15 +57,15 @@ func (m planUpdateStore) UpdateTaskPlan(_ context.Context, id, from, to string, 
 // when the tiers cannot be told apart.
 func TestTaskModelRuleNamesNoModel(t *testing.T) {
 	md := prompts.RenderAssistantClaudeMD(prompts.AssistantClaudeMD{})
-	_, rest, ok := strings.Cut(md, "任务用哪一档模型")
+	_, rest, ok := strings.Cut(md, "**Model and effort**")
 	if !ok {
 		t.Fatal("CLAUDE.md has no rule for a task's model")
 	}
-	rule, _, ok := strings.Cut(rest, "写进 `why`。")
+	rule, _, ok := strings.Cut(rest, "in `why`.")
 	if !ok {
 		t.Fatal("the rule does not end with stating the choice in why")
 	}
-	for _, want := range []string{"低一档", "`medium`", "日常主力那一档", "最高一档", "先提高 `effort`", "`effort` 留空", "`tier`、`model`、`effort` 都留空", "而不是「模型设置」里 Agents 的默认", "永远优先"} {
+	for _, want := range []string{"one level below", "`medium`", "everyday Agent model is the baseline", "uses the highest", "raise `effort` first", "leave `effort` empty", "leave `tier`, `model` and `effort` empty", "the user's configured defaults", "always wins"} {
 		if !strings.Contains(rule, want) {
 			t.Errorf("the rule lacks %q", want)
 		}

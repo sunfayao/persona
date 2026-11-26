@@ -97,14 +97,14 @@ func TestOwnersDecisionEndsAParkingThatWaitsForThem(t *testing.T) {
 	}
 	waitFor(t, "the supervisor's message", func() bool { return len(f.notices()) > before })
 	n := f.notices()[before]
-	for _, want := range []string{"搁置期间用户在任务上记下了新的决定，搁置已经结束", "while parked it was waiting for: Whether this goes ahead of the billing work",
-		"这个任务已经定下的事", "Do this now or after the billing work?", "Leave it until someone runs into it", "signal=park_decided"} {
+	for _, want := range []string{"while it was parked the user recorded a new decision on the task, and the parking has ended", "while parked it was waiting for: Whether this goes ahead of the billing work",
+		"Already settled for this task", "Do this now or after the billing work?", "Leave it until someone runs into it", "signal=park_decided"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("the message lacks %q:\n%s", want, n)
 		}
 	}
 	// Handling belongs to the role-scoped system policy, not every decision event.
-	for _, manual := range []string{"搁置期间记下决定的：", "agent_send", "task_review"} {
+	for _, manual := range []string{"recorded a decision while it was parked:", "agent_send", "task_review"} {
 		if strings.Contains(n, manual) {
 			t.Errorf("the event repeats handling policy %q:\n%s", manual, n)
 		}
@@ -222,7 +222,7 @@ func TestParkedDueCarriesTheRecordedDecisions(t *testing.T) {
 	s.superviseWatch(context.Background(), time.Now().Add(3*time.Hour))
 	waitFor(t, "the parked_due message", func() bool { return len(f.notices()) > before })
 	n := f.notices()[before]
-	for _, want := range []string{"搁置到期了", "The upstream release with the fix", "这个任务已经定下的事", "What if upstream slips?",
+	for _, want := range []string{"parking expired", "The upstream release with the fix", "Already settled for this task", "What if upstream slips?",
 		"Ship our own patch after Friday"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("the message lacks %q:\n%s", want, n)
@@ -292,7 +292,7 @@ func TestDecisionStoredWhileTheLedgerFailsStillEndsTheParking(t *testing.T) {
 	before := len(f.notices())
 	releaseDigest(s)
 	waitFor(t, "the supervisor's message", func() bool { return len(f.notices()) > before })
-	if n := f.notices()[before]; !strings.Contains(n, "搁置期间用户在任务上记下了新的决定") || !strings.Contains(n, "After the billing work") {
+	if n := f.notices()[before]; !strings.Contains(n, "while it was parked the user recorded a new decision on the task") || !strings.Contains(n, "After the billing work") {
 		t.Fatalf("the message lacks the decision:\n%s", n)
 	}
 }
@@ -327,7 +327,7 @@ func TestDecisionReachesTheSupervisorThatParkedAgainBeforeItWasTold(t *testing.T
 	releaseDigest(s)
 	waitFor(t, "the supervisor's message", func() bool { return len(f.notices()) > before })
 	n := f.notices()[before]
-	for _, want := range []string{"搁置期间用户在任务上记下了新的决定", "这条消息到之前你又搁置了它", "The billing work lands first",
+	for _, want := range []string{"while it was parked the user recorded a new decision on the task", "before this message arrived you parked it again", "The billing work lands first",
 		"Do this now or after the billing work?", "After the billing work"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("the message lacks %q:\n%s", want, n)

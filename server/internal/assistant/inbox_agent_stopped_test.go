@@ -103,7 +103,7 @@ func TestInboxAgentStoppedRecordsAndWakesOnce(t *testing.T) {
 			t.Fatalf("listed chain %d exposes node bookkeeping: %+v", i, entry)
 		}
 	}
-	told := toldConv(t, h, "Agent 停了")
+	told := toldConv(t, h, "The Agent stopped")
 	for _, want := range []string{sess.LastText, "inbox_suggest", "s-sub"} {
 		if !strings.Contains(told, want) {
 			t.Errorf("notification lacks %q:\n%s", want, told)
@@ -129,7 +129,7 @@ func TestInboxAgentStoppedFailureIncludesError(t *testing.T) {
 	if e.Text != "Agent 失败了" || e.Detail != "API Error: example failed with another line" {
 		t.Fatalf("failure entry: %+v", e)
 	}
-	told := toldConv(t, h, "Agent 失败了")
+	told := toldConv(t, h, "The Agent failed")
 	if !strings.Contains(told, e.Detail) {
 		t.Fatalf("failure notice lacks the error:\n%s", told)
 	}

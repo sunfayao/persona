@@ -36,26 +36,26 @@ func TestTaskTurnEndWithoutOutputIsInterrupted(t *testing.T) {
 	}{
 		{name: "no output", items: []proto.Item{prompt, {Kind: proto.KindThinking, Role: "assistant", Text: "…"}},
 			state: "interrupted", summary: interruptedSummary, errText: silentTurnErrorIn(i18n.Default),
-			notice: []string{"被模型服务出错打断了", "这一轮没有任何输出"}},
+			notice: []string{"interrupted by a model service error", "这一轮没有任何输出"}},
 		{name: "codex, no output", agent: "codex", items: []proto.Item{prompt},
 			state: "interrupted", summary: interruptedSummary, errText: silentTurnErrorIn(i18n.Default),
 			notice: []string{"这一轮没有任何输出"}},
 		{name: "a reply", items: []proto.Item{prompt, {Kind: proto.KindToolUse, Role: "assistant", ToolName: "Edit"},
 			{Kind: proto.KindText, Role: "assistant", Text: "修好了，提了 https://github.com/o/r/pull/901"}},
 			state: "done", summary: "修好了，提了 https://github.com/o/r/pull/901",
-			notice: []string{"待逐项复核，不代表完成", "修好了"}, judged: true},
+			notice: []string{"awaiting item-by-item review; this does not mean it is done", "修好了"}, judged: true},
 		{name: "a model API error", items: []proto.Item{prompt}, turnError: "API Error: 529 overloaded",
 			state: "interrupted", summary: interruptedSummary, errText: "API Error: 529 overloaded",
-			notice: []string{"被模型服务出错打断了", "529 overloaded"}},
+			notice: []string{"interrupted by a model service error", "529 overloaded"}},
 		// The node's word counts whatever the state now: an agent gone offline after the error was still cut off.
 		{name: "a model API error, now unknown", items: []proto.Item{prompt}, turnError: "API Error: 529 overloaded", endState: proto.StateUnknown,
 			state: "interrupted", summary: interruptedSummary, errText: "API Error: 529 overloaded",
-			notice: []string{"被模型服务出错打断了", "529 overloaded"}},
+			notice: []string{"interrupted by a model service error", "529 overloaded"}},
 		// Claude Code without credentials answers with a message of its own: the turn never ran (docs/assistant/onboarding.md 4.4).
 		{name: "not logged in", items: []proto.Item{prompt, {Kind: proto.KindText, Role: "assistant", Text: "Not logged in · Please run /login"}},
 			lastText: "Not logged in · Please run /login",
 			state:    "interrupted", summary: interruptedSummary, errText: "Not logged in · Please run /login",
-			notice: []string{"被模型服务出错打断了", "Not logged in"}},
+			notice: []string{"interrupted by a model service error", "Not logged in"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			s, f := newQuietService(t)

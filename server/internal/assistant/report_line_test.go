@@ -73,7 +73,7 @@ func TestReportLineIsWritten(t *testing.T) {
 	asked := append([]modelCall(nil), f.reportLineAsked...)
 	f.mu.Unlock()
 	if len(asked) != 1 || !strings.Contains(asked[0].User, "TAIL-MARKER") || !strings.Contains(asked[0].User, "- 41 tables moved\n") ||
-		!strings.Contains(asked[0].User, "任务：Migrate the database") || !strings.Contains(asked[0].User, "汇报类型：progress") {
+		!strings.Contains(asked[0].User, "Task: Migrate the database") || !strings.Contains(asked[0].User, "Report kind: progress") {
 		t.Fatalf("asked: %+v", asked)
 	}
 	b, _ := json.Marshal(formatTodo(todoNow(s, todo.ID)))
@@ -95,13 +95,13 @@ func TestReportLineIsWritten(t *testing.T) {
 	}
 }
 
-// The line is in the user's language: Chinese without saying so, another language by name, with its own length.
+// The line is in the user's language, named in the English prompt, with the length that language gets.
 func TestReportLineLanguageFollowsLocale(t *testing.T) {
 	for _, tc := range []struct {
 		locale, has, hasNot string
 	}{
-		{"zh-Hans", "不超过 30 个字，只写一句", "个字符"},
-		{"en", "Write in English, at most 60 characters", "不超过 30"},
+		{"zh-Hans", "Write in Simplified Chinese, at most 30 characters", "at most 60"},
+		{"en", "Write in English, at most 60 characters", "Simplified Chinese"},
 	} {
 		t.Run(tc.locale, func(t *testing.T) {
 			s, f := newQuietService(t)
@@ -171,7 +171,7 @@ func TestReportLineStaleDropped(t *testing.T) {
 			} `json:"messages"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&in)
-		if !strings.Contains(in.System, "向 Persona 的一次汇报转述成一句话") || len(in.Messages) == 0 {
+		if !strings.Contains(in.System, "Paraphrase one report") || len(in.Messages) == 0 {
 			http.Error(w, `{"error":{"message":"not this test's"}}`, http.StatusBadRequest)
 			return
 		}

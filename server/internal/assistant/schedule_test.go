@@ -289,7 +289,7 @@ func TestARunReschedulingItselfKeepsOneTask(t *testing.T) {
 	copied := "⏰ 30 分钟巡检（你之前安排的跟进）\n\n" + prompt // the run copies its whole message
 	args, _ := json.Marshal(map[string]any{"at": "30m", "prompt": copied, "title": "30 分钟巡检", "new_conversation": true})
 	out, err := h.toolScheduleFollowup(context.Background(), m, "run-1", args)
-	if err != nil || !strings.Contains(out, "every 30 分钟") {
+	if err != nil || !strings.Contains(out, "every 30 minutes") {
 		t.Fatalf("schedule: %q, %v", out, err)
 	}
 	tasks := h.tasksView(context.Background(), nil)
@@ -301,7 +301,7 @@ func TestARunReschedulingItselfKeepsOneTask(t *testing.T) {
 		p.PermissionMode != "acceptEdits" || p.Launcher != "" {
 		t.Fatalf("one repeating task with the user's settings and the prompt without the ⏰ line: %+v", p)
 	}
-	if got := taskPrompt(p, p.At, p.At, time.UTC, false, false); !strings.Contains(got, "不用再用 schedule_followup") ||
+	if got := taskPrompt(p, p.At, p.At, time.UTC, false, false); !strings.Contains(got, "do not schedule the next run with schedule_followup") ||
 		strings.Count(got, "⏰") != 1 {
 		t.Fatalf("a repeating run is told it repeats by itself: %q", got)
 	}
@@ -434,7 +434,7 @@ func TestScheduleFollowupEvery(t *testing.T) {
 	m := "server"
 	setTasks(h)
 	out, err := h.toolScheduleFollowup(context.Background(), m, "s1", json.RawMessage(`{"every":"2h","prompt":"看看部署","title":"部署巡检"}`))
-	if err != nil || !strings.Contains(out, "every 2 小时") {
+	if err != nil || !strings.Contains(out, "every 2 hours") {
 		t.Fatalf("%q, %v", out, err)
 	}
 	tasks := h.tasksView(context.Background(), nil)
@@ -622,7 +622,7 @@ func TestScheduleRoutineTool(t *testing.T) {
 	f.settings = &Settings{Timezone: "Asia/Shanghai"}
 	h := newStorelessService(t, f)
 	out, err := h.toolScheduleRoutine(context.Background(), "", "", json.RawMessage(`{"title":"周报","prompt":"起草周报","time":"17:00","weekdays":[5]}`))
-	if err != nil || !strings.Contains(out, "周五 17:00") {
+	if err != nil || !strings.Contains(out, "Fri 17:00") {
 		t.Fatalf("create: %q, %v", out, err)
 	}
 	sc := h.loadSchedule(context.Background())
@@ -674,6 +674,12 @@ func TestStripScheduleHeader(t *testing.T) {
 	in := "⏰ 30 分钟巡检（你之前安排的跟进）\n（本该 10-31 11:00 运行，Persona 当时没在运行，晚了 25 分钟；看看还有没有必要按原计划做。）\n\n" +
 		"⏰ 30 分钟巡检（定时任务，每 30 分钟）\n（Persona 会按时再运行它，不用再用 schedule_followup 安排下一次。）\n\n跑 detect.sh"
 	if got := stripScheduleHeader(in); got != "跑 detect.sh" {
+		t.Fatalf("%q", got)
+	}
+	// The English headers the templates render now.
+	in = "⏰ Patrol every 30 minutes (a follow-up you scheduled)\n(It was due at 10-31 11:00, when Persona was not running, so it is 25 min late; check whether the original plan still makes sense.)\n\n" +
+		"⏰ Patrol every 30 minutes (scheduled task, every 30 minutes)\n(Persona runs it again on time; do not schedule the next run with schedule_followup.)\n\nrun detect.sh"
+	if got := stripScheduleHeader(in); got != "run detect.sh" {
 		t.Fatalf("%q", got)
 	}
 	if got := stripScheduleHeader("⏰ 提醒我喝水"); got != "⏰ 提醒我喝水" {
@@ -818,10 +824,10 @@ func TestScheduleAcrossHubRestart(t *testing.T) {
 		t.Fatalf("the missed follow-up still runs: %+v", r)
 	}
 	late := Task{Repeat: repeatOnce, Title: "看部署", Prompt: "z"}
-	if p := taskPrompt(late, at(10, 0), at(11, 45), loc, false, false); !strings.Contains(p, "晚了 1 小时") || !strings.Contains(p, "10-26 10:00") {
+	if p := taskPrompt(late, at(10, 0), at(11, 45), loc, false, false); !strings.Contains(p, "1 h late") || !strings.Contains(p, "10-26 10:00") {
 		t.Fatalf("a late follow-up is told so: %q", p)
 	}
-	if p := taskPrompt(late, at(10, 0), at(10, 0).Add(30*time.Second), loc, false, false); strings.Contains(p, "晚了") {
+	if p := taskPrompt(late, at(10, 0), at(10, 0).Add(30*time.Second), loc, false, false); strings.Contains(p, "It was due at") {
 		t.Fatalf("an on-time follow-up is not: %q", p)
 	}
 
@@ -1164,7 +1170,7 @@ func TestSnapshotScheduleTellsMisses(t *testing.T) {
 	sc.mu.Unlock()
 
 	_, _, routines, routinesTotal, misses, total := h.snapshotSchedule(context.Background(), loc, now)
-	if len(routines) != 2 || routinesTotal != 2 || routines[0].Rule != "工作日 09:00" || routines[0].LastStatus != runOK ||
+	if len(routines) != 2 || routinesTotal != 2 || routines[0].Rule != "weekdays 09:00" || routines[0].LastStatus != runOK ||
 		routines[1].LastStatus != runFailed || !strings.Contains(routines[1].LastWhy, "API Error: 503") {
 		t.Fatalf("routines: %+v (%d)", routines, routinesTotal)
 	}
@@ -1176,8 +1182,8 @@ func TestSnapshotScheduleTellsMisses(t *testing.T) {
 	}
 	text := prompts.RenderSnapshot(prompts.Snapshot{Now: now, Zone: "Asia/Shanghai", Routines: routines, RoutinesTotal: routinesTotal,
 		Missed: misses, MissedTotal: total})
-	if !strings.Contains(text, "没成功的定时任务") || !strings.Contains(text, "值守跳过了") || !strings.Contains(text, "等 8 次") ||
-		!strings.Contains(text, "早报（工作日 09:00），上次11-04 09:30 成功") || !strings.Contains(text, "上次11-05 02:30 失败：API Error: 503") {
+	if !strings.Contains(text, "Scheduled tasks that did not succeed") || !strings.Contains(text, "值守 was skipped") || !strings.Contains(text, "and others (8 times in all)") ||
+		!strings.Contains(text, "早报 (weekdays 09:00), last run 11-04 09:30 succeeded") || !strings.Contains(text, "last run 11-05 02:30 failed: API Error: 503") {
 		t.Fatalf("snapshot: %s", text)
 	}
 	for _, r := range misses {
@@ -1219,7 +1225,7 @@ func TestSnapshotScheduleLateRecordedRunAndTotals(t *testing.T) {
 	}
 	text := prompts.RenderSnapshot(prompts.Snapshot{Now: now, Zone: "Asia/Shanghai", Routines: routines, RoutinesTotal: routinesTotal,
 		Missed: misses, MissedTotal: total})
-	if !strings.Contains(text, "等 10 个") {
+	if !strings.Contains(text, "and others (10 in all)") {
 		t.Fatalf("snapshot says how many daily tasks there are: %s", text)
 	}
 }

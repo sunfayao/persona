@@ -43,14 +43,14 @@ func TestSideConversationTaskIsSupervisedByMain(t *testing.T) {
 	agentTurn(s, f, proto.StatusDone, "做完了，PR https://github.com/o/r/pull/7 已合并", 0)
 	waitFor(t, "the main conversation's supervision message", func() bool {
 		for _, n := range f.noticesTo("conv1") {
-			if strings.Contains(n, "📋 督办") {
+			if strings.Contains(n, "📋 Supervision") {
 				return true
 			}
 		}
 		return false
 	})
 	for _, n := range f.noticesTo("side1") {
-		if strings.Contains(n, "📋 督办") {
+		if strings.Contains(n, "📋 Supervision") {
 			t.Fatalf("the side conversation got the supervision message:\n%s", n)
 		}
 	}
@@ -601,7 +601,7 @@ func TestSideOriginCannotAcceptUnsupervisedLegacyTask(t *testing.T) {
 func endNotices(f *fakeHub, id string) []string {
 	var out []string
 	for _, n := range f.noticesTo(id) {
-		if strings.Contains(n, "这段对话派出去的任务") {
+		if strings.Contains(n, "that this conversation handed out") {
 			out = append(out, n)
 		}
 	}

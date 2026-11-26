@@ -192,8 +192,8 @@ func TestNoProgressReachesTheSupervisor(t *testing.T) {
 // The messages say what the hub saw: how long, how many calls, how many were waits, and what it kept doing.
 func TestNoProgressRendered(t *testing.T) {
 	e := prompts.SuperviseEntry{ID: "todo_1", Title: "等发版", Kind: sigNoProgress, Minutes: 45, Calls: 24, Waits: 23, Detail: "在等 CI; 在等待"}
-	if got := prompts.RenderSupervise(prompts.Supervise{Entries: []prompts.SuperviseEntry{e}}); !strings.Contains(got, "45 分钟没有真实进展") ||
-		!strings.Contains(got, "24 次工具调用里有 23 次") || !strings.Contains(got, "（在等 CI; 在等待）") {
+	if got := prompts.RenderSupervise(prompts.Supervise{Entries: []prompts.SuperviseEntry{e}}); !strings.Contains(got, "45 minutes without real progress") ||
+		!strings.Contains(got, "of the 24 tool calls the hub saw, 23 were idle waits") || !strings.Contains(got, "(在等 CI; 在等待)") {
 		t.Fatalf("supervise:\n%s", got)
 	}
 	if got := prompts.RenderWorkerSupervise([]prompts.SuperviseEntry{e}); !strings.Contains(got, "no real progress for 45 minutes") ||

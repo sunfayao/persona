@@ -92,7 +92,7 @@ func TestDispatchStartsOnAnotherComputerAndReadsTheResult(t *testing.T) {
 		t.Fatalf("starts %v", f.starts)
 	}
 	prompt, _ := f.starts[0]["prompt"].(string)
-	if !strings.Contains(prompt, "handed to you by another coding agent") || !strings.Contains(prompt, "fix the build") ||
+	if !strings.Contains(prompt, "this is a subtask dispatched by the coding agent") || !strings.Contains(prompt, "fix the build") ||
 		!strings.HasSuffix(prompt, "run the Linux tests and report failures") {
 		t.Fatalf("the new agent's first message:\n%s", prompt)
 	}
@@ -357,7 +357,7 @@ func TestDispatchedTaskIsSupervisedByTheMainConversation(t *testing.T) {
 	agentTurn(s, f, proto.StatusWorking, "", 0)
 	agentTurn(s, f, proto.StatusDone, "Linux 上 2 个测试失败：TestA、TestB", 0)
 	waitFor(t, "the supervision message", func() bool { return len(f.notices()) == 1 })
-	if n := f.notices()[0]; !strings.Contains(n, "📋 督办") || !strings.Contains(n, "TestA、TestB") {
+	if n := f.notices()[0]; !strings.Contains(n, "📋 Supervision") || !strings.Contains(n, "TestA、TestB") {
 		t.Fatalf("message:\n%s", n)
 	}
 	t.Logf("supervision message to the main conversation:\n%s", f.notices()[0])

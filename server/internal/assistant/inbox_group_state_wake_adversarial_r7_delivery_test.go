@@ -37,7 +37,7 @@ func TestAdversarialInboxGroupStateWakeR7OlderAgentStopDeliveryPreservesCurrentA
 	h.inboxAgentTurnSettled(ctx, "box", "agent-a")
 
 	// Do not call deliverPending: the stop itself must schedule delivery of its non-waking note.
-	told := toldConv(t, h, "Agent 停了")
+	told := toldConv(t, h, "The Agent stopped")
 	for _, want := range []string{olderResult, "agent-a"} {
 		if !strings.Contains(told, want) {
 			t.Errorf("Agent A's stop notice lacks %q:\n%s", want, told)

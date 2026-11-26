@@ -122,7 +122,7 @@ func TestContextViewErrorsAreBounded(t *testing.T) {
 	// The first reply alone fills the message: all 20 of its problems, one receipt.
 	res := nodeContext(t, s, "server", map[string]any{"session_id": conv})
 	if len(res.Receipts) != 1 || res.Receipts[0].ItemID != "item-a" || shown(res, "item-a") != 19 || shown(res, "item-b") != 0 ||
-		!strings.Contains(res.ViewErrors, "下一条消息再告诉你") || strings.Contains(res.ViewErrors, "另有") {
+		!strings.Contains(res.ViewErrors, "you will be told with the next message") {
 		t.Fatalf("first message (%d receipts)\n%s", len(res.Receipts), res.ViewErrors)
 	}
 	if n := len([]rune(res.ViewErrors)); n > viewErrorLines*(viewErrorRunes+8)+600 {
@@ -132,7 +132,7 @@ func TestContextViewErrorsAreBounded(t *testing.T) {
 
 	// Then up to five whole replies, every receipt naming a reply shown in full.
 	res = nodeContext(t, s, "server", map[string]any{"session_id": conv})
-	if len(res.Receipts) != viewErrorReplies || shown(res, "item-b") != 2 || !strings.Contains(res.ViewErrors, "下一条消息再告诉你") {
+	if len(res.Receipts) != viewErrorReplies || shown(res, "item-b") != 2 || !strings.Contains(res.ViewErrors, "you will be told with the next message") {
 		t.Fatalf("second message (%d receipts)\n%s", len(res.Receipts), res.ViewErrors)
 	}
 	for _, r := range res.Receipts {
@@ -142,7 +142,7 @@ func TestContextViewErrorsAreBounded(t *testing.T) {
 	}
 	nodeContext(t, s, "server", map[string]any{"session_id": conv, "ack": res.Receipts})
 	rest := nodeContext(t, s, "server", map[string]any{"session_id": conv})
-	if len(rest.Receipts) != 2 || strings.Contains(rest.ViewErrors, "下一条消息再告诉你") {
+	if len(rest.Receipts) != 2 || strings.Contains(rest.ViewErrors, "you will be told with the next message") {
 		t.Fatalf("the rest %+v", rest)
 	}
 }

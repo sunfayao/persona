@@ -104,7 +104,7 @@ func TestTakeoverStopTellsTheSupervisor(t *testing.T) {
 	turn(proto.StatusDone, proto.StateUnread, "查了一半，没有全部解决。")
 	s.taskTurnEnded(ctx, "box", "s2")
 	waitFor(t, "the stopped-short message", func() bool { return len(f.notices()) == 1 })
-	if n := entryLine(f.notices()[0]); !strings.Contains(n, "没做完") {
+	if n := entryLine(f.notices()[0]); !strings.Contains(n, "the Agent stopped without finishing") {
 		t.Fatalf("message:\n%s", n)
 	}
 }

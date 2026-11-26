@@ -183,12 +183,12 @@ func TestCloseoutReportsLocalDeploymentAndUpstreamMergeIndependently(t *testing.
 		name, merged, text string
 		byHead, offline    bool
 	}{
-		{"open head", proto.CloseoutNo, "没合并，本机部署包含该 PR", true, false},
-		{"unavailable head", "", "合没合查不出，本机部署包含该 PR", true, true},
-		{"merged upstream, deployed by head", proto.CloseoutYes, "已合并，本机部署包含该 PR", true, false},
-		{"unavailable subject", "", "合没合查不出，线上正在跑的版本里有它", false, true},
-		{"open subject", proto.CloseoutNo, "没合并，线上正在跑的版本里有它", false, false},
-		{"merged subject", proto.CloseoutYes, "已合并，线上正在跑的版本里有它", false, false},
+		{"open head", proto.CloseoutNo, "not merged, the local deployment includes the PR's changes", true, false},
+		{"unavailable head", "", "cannot tell whether it is merged, the local deployment includes the PR's changes", true, true},
+		{"merged upstream, deployed by head", proto.CloseoutYes, "merged, the local deployment includes the PR's changes", true, false},
+		{"unavailable subject", "", "cannot tell whether it is merged, the version running in production includes it", false, true},
+		{"open subject", proto.CloseoutNo, "not merged, the version running in production includes it", false, false},
+		{"merged subject", proto.CloseoutYes, "merged, the version running in production includes it", false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s, _, _, _, forge := deployService(t)

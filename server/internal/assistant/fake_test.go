@@ -1602,7 +1602,7 @@ func (f *fakeHub) fakeModel(t testing.TB) {
 		case strings.HasPrefix(in.System, "You sort a note the owner jotted down"): // quick capture (capture_sort.go)
 			f.captureSortAsked = append(f.captureSortAsked, modelCall{in.System, user})
 			reply, fail = f.captureSort, f.captureSort == ""
-		case strings.Contains(in.System, "起一个待办标题"): // a task's todo (todo_titles.go): none unless the test gives one
+		case strings.Contains(in.System, "起一个待办标题") || strings.HasPrefix(in.System, "Write a to-do title for a task"): // a task's todo (todo_titles.go): none unless the test gives one
 			f.todoTitleAsked = append(f.todoTitleAsked, modelCall{in.System, user})
 			reply, fail = f.todoTitleReply, f.todoTitleErr != nil
 		case strings.Contains(in.System, "盯着用户电脑上的编程 Agent") || strings.HasPrefix(in.System, "You watch coding Agents") || strings.HasPrefix(in.System, "ユーザー（呼び方："): // the Agents triage (agents_triage.go)
@@ -1614,7 +1614,7 @@ func (f *fakeHub) fakeModel(t testing.TB) {
 		case strings.Contains(in.System, "先替用户判断 Agent 的提问") || strings.HasPrefix(in.System, "You first assess questions") || strings.HasPrefix(in.System, "ユーザーのAgentからの質問を、まず"): // the delegate (delegate.go)
 			f.delegateAsked = append(f.delegateAsked, modelCall{strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(in.System), jsonOnly)), user})
 			reply, fail = f.delegate, f.delegate == ""
-		case strings.Contains(in.System, "给一件做完的任务记结论"): // the outcome of a finished task (todo_outcome.go)
+		case strings.Contains(in.System, "给一件做完的任务记结论") || strings.HasPrefix(in.System, "You record the conclusion of a finished task"): // the outcome of a finished task (todo_outcome.go)
 			f.outcomeAsked = append(f.outcomeAsked, modelCall{in.System, user})
 			reply, fail = f.outcome, f.outcome == ""
 		case strings.Contains(in.System, `{"lessons":[`): // the lessons of an accepted task (task_lessons.go), in any language

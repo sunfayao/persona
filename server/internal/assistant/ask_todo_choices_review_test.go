@@ -253,7 +253,7 @@ func TestExpiredQuestionDropWinsBeforeInlineAnswerClaim(t *testing.T) {
 			if a.DroppedAt.IsZero() || !a.AnsweredAt.IsZero() || !a.ClaimedAt.IsZero() {
 				t.Errorf("the drop must be the only terminal outcome: %+v", a)
 			}
-			if messages := e.told("c1x1x1"); len(messages) != 1 || !strings.Contains(messages[0], "没有在待办里给答案") {
+			if messages := e.told("c1x1x1"); len(messages) != 1 || !strings.Contains(messages[0], "without giving an answer in it") {
 				t.Errorf("the asking conversation needs one drop notice: %q", messages)
 			}
 			if rows, err := database.ListTodoDecisions(ctx, todo.ID, true); err != nil || len(rows) != 0 {

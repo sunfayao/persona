@@ -306,7 +306,7 @@ func TestAskTodoHandedToAnAgentIsNoTask(t *testing.T) {
 	}
 	e.must("PATCH", "/api/v1/todos/"+todo.ID, `{"done":true}`)
 	waitFor(t, "the dropped notice", func() bool { return len(e.told("c1x1x1")) > 0 })
-	if got := e.told("c1x1x1"); len(got) != 1 || !strings.Contains(got[0], "没有在待办里给答案") {
+	if got := e.told("c1x1x1"); len(got) != 1 || !strings.Contains(got[0], "without giving an answer in it") {
 		t.Fatalf("told %q, want one dropped notice", got)
 	}
 }
@@ -329,7 +329,7 @@ func TestAskTodoHandledInTheBriefingClosesIt(t *testing.T) {
 		t.Fatalf("the to-do is still open: %+v", cur)
 	}
 	waitFor(t, "the dropped notice", func() bool { return len(e.told("c1x1x1")) > 0 })
-	if got := e.told("c1x1x1"); len(got) != 1 || !strings.Contains(got[0], "没有在待办里给答案") {
+	if got := e.told("c1x1x1"); len(got) != 1 || !strings.Contains(got[0], "without giving an answer in it") {
 		t.Fatalf("told %q, want one dropped notice", got)
 	}
 	e.s.ProfileChanged(ctx) // a fresh snapshot
@@ -353,7 +353,7 @@ func TestAskTodoClosedWithoutADecisionTellsOnce(t *testing.T) {
 	e.must("PATCH", "/api/v1/todos/"+todo.ID, `{"done":true}`)
 	waitFor(t, "the dropped notice", func() bool { return len(e.told("c1x1x1")) > 0 })
 	got := e.told("c1x1x1")
-	if len(got) != 1 || !strings.Contains(got[0], "Merge the release PR now?") || !strings.Contains(got[0], "没有在待办里给答案") {
+	if len(got) != 1 || !strings.Contains(got[0], "Merge the release PR now?") || !strings.Contains(got[0], "without giving an answer in it") {
 		t.Fatalf("told %q, want one dropped notice", got)
 	}
 	e.must("PATCH", "/api/v1/todos/"+todo.ID, `{"done":false}`)
@@ -372,7 +372,7 @@ func TestAskTodoDeletedTellsTheConversation(t *testing.T) {
 	todo := e.onlyAskTodo()
 	e.must("DELETE", "/api/v1/todos/"+todo.ID, "")
 	waitFor(t, "the dropped notice", func() bool { return len(e.told("c1x1x1")) > 0 })
-	if got := e.told("c1x1x1"); len(got) != 1 || !strings.Contains(got[0], "没有在待办里给答案") {
+	if got := e.told("c1x1x1"); len(got) != 1 || !strings.Contains(got[0], "without giving an answer in it") {
 		t.Fatalf("told %q, want one dropped notice", got)
 	}
 }

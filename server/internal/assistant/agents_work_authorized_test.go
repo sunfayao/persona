@@ -41,7 +41,7 @@ func TestTaskAuthorizedWaitIsNoCard(t *testing.T) {
 		}
 		s.workTick(context.Background(), time.Now().Add(6*time.Minute))
 		got := f.sentToAgents()
-		if len(got) != 1 || !strings.Contains(got[0], "你的任务里已经交代要做这一步，Persona 已按任务授权放行：等好了就去「推进后续发布验证与节点跟踪」") {
+		if len(got) != 1 || !strings.Contains(got[0], "Your task already authorized this step, and Persona allowed it under that authorization: when the wait is over, “推进后续发布验证与节点跟踪”") {
 			t.Fatalf("supervised=%v: wake %v", supervised, got)
 		}
 

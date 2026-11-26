@@ -19,8 +19,8 @@ import (
 // own words (prompts/assistant/supervise.md); an entry names its signal, the rules for it being the static supervision
 // instructions (supervision_instructions.go).
 const (
-	roundHeader     = "这一轮通常从干净的上下文开始"
-	roundHeaderLine = roundHeader + "：之前几轮的对话不一定在你眼前，跨轮要记的都在任务台账里（简报、范围调整、已定的事、上次结论），需要时用 todo_get 看。"
+	roundHeader     = "This round usually starts from a clean context"
+	roundHeaderLine = roundHeader + ": earlier rounds of the conversation may not be in front of you. Whatever must carry across rounds is in the task ledger (brief, scope changes, settled decisions, last verdict); read it with todo_get when needed."
 	roundIdle       = "signal=" + sigIdle
 	roundReview     = "signal=" + sigReview
 )
@@ -147,7 +147,7 @@ func TestBackgroundWakeWhileARoundRuns(t *testing.T) {
 	if len(sends) != 1 || sends[0][superviseRoundParam] != true || !prompts.IsSuperviseRound(text) {
 		t.Fatalf("sent %d: %v", len(sends), sends[0])
 	}
-	for _, want := range []string{"50 分钟没有进展", "停在提问上", "被模型服务出错打断了", "signal=" + sigStalled, roundIdle, "signal=" + sigInterrupted} {
+	for _, want := range []string{"50 minutes without progress", "停在提问上", "interrupted by a model service error", "signal=" + sigStalled, roundIdle, "signal=" + sigInterrupted} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the merged round lacks %q:\n%s", want, text)
 		}
@@ -328,7 +328,7 @@ func TestBackgroundWithoutAnchorMovesLegacyWorkToMain(t *testing.T) {
 	s.drainRelays("server", listRound(f, old, proto.StatusIdle, false))
 	waitFor(t, "the moved legacy work in main", func() bool {
 		got := strings.Join(f.noticesTo("conv1"), "\n")
-		return strings.Contains(got, "50 分钟没有进展") && strings.Contains(got, "被模型服务出错打断了") && strings.Contains(got, "顺便看看")
+		return strings.Contains(got, "50 minutes without progress") && strings.Contains(got, "interrupted by a model service error") && strings.Contains(got, "顺便看看")
 	})
 	if got := s.settings(ctx).BackgroundSupervisor; got != old || len(conversationStarts(f)) != 0 || s.isArchived(old) {
 		t.Fatalf("retirement replaced or archived the old conversation: %q, %d starts, archived %v", got, len(conversationStarts(f)), s.isArchived(old))
