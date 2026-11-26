@@ -228,7 +228,7 @@ function ProviderSummary({ group, selected, detailsId, now, onClick }: { group: 
       <AgentMark agent={group.provider} label={name} decorative size={16} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-meta font-medium text-ink">{name}</span>
-        <span className="block truncate text-submeta text-ink-3">{[group.accounts.length > 1 ? tr("usage.provider_accounts", { count: group.accounts.length }) : primary.plan, reset].filter(Boolean).join(" · ")}</span>
+        <span className="block truncate text-submeta text-ink-3">{[reset, group.accounts.length > 1 ? tr("usage.provider_accounts", { count: group.accounts.length }) : primary.plan].filter(Boolean).join(" · ")}</span>
       </span>
       <span title={primary.name} className={cx("min-w-0 max-w-1/2 truncate rounded-control bg-inset px-1.5 py-0.5 text-submeta font-medium tabular-nums text-ink-2", primary.stale && "opacity-60", hasQuota && isWarn(used) && "text-orange")}>
         {hasQuota ? shown(used) : primary.balance ? balanceText(primary.balance) : "—"}
@@ -320,11 +320,11 @@ function ProviderTimeline({ accounts, now }: { accounts: UsageAccount[]; now: nu
   if (!rows.length) return null;
   const tickLabel = (h: number) => (h < 24 ? tr("usage.hours", { h }) : tr("usage.days", { d: h / 24 }));
   return (
-    <div data-usage-timeline className="border-t border-line pt-2" role="group" aria-label={tr("usage.timeline_title")}>
+    <div data-usage-timeline className="@container/usage-timeline border-t border-line pt-2" role="group" aria-label={tr("usage.timeline_title")}>
       <div className="relative h-4" style={{ marginLeft: TIMELINE_NAME_W }} aria-hidden>
         <span className="absolute right-full top-0 mr-1 whitespace-nowrap text-submeta font-semibold leading-none text-ink">{tr("usage.timeline_now")}</span>
         {TIMELINE_TICKS_HOURS.map((h, i) => (
-          <span key={h} className={cx("absolute top-0 text-submeta leading-none text-ink-3", i === TIMELINE_TICKS_HOURS.length - 1 ? "-translate-x-full" : "-translate-x-1/2")} style={{ left: `${timelinePosition(h * 3600_000) * 100}%` }}>
+          <span key={h} className={cx("absolute top-0 text-submeta leading-none text-ink-3", i === 0 && "@max-[16rem]/usage-timeline:hidden", i === TIMELINE_TICKS_HOURS.length - 1 ? "-translate-x-full" : "-translate-x-1/2")} style={{ left: `${timelinePosition(h * 3600_000) * 100}%` }}>
             {tickLabel(h)}
           </span>
         ))}
