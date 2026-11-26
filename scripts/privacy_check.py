@@ -686,8 +686,7 @@ def main():
         print("privacy_check: %d hit(s). Use placeholders (<hub address>, me@example.com); see AGENTS.md." % len(bad), file=sys.stderr)
         if hit & waivable:
             print("privacy_check: a config value that is an ordinary word and names nobody (a machine id like a room's "
-                  "name) can be marked not private with a !<word> line in private-words.txt "
-                  "(docs/operations/testing.md, \"Privacy scan\").", file=sys.stderr)
+                  "name) can be marked not private with a !<word> line in private-words.txt.", file=sys.stderr)
         sys.exit(1)
     print("privacy_check: clean (%d values checked)" % len(words))
 

@@ -860,7 +860,7 @@ class WhatGitRecordsTests(unittest.TestCase):
         (self.repo / "link.md").write_text("a plain note\n")
         self.git("add", "link.md")
         self.git("commit", "-q", "--no-verify", "-m", "base")
-        self.git("update-ref", "refs/remotes/origin/deploy", "HEAD")
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
 
     def assert_hit(self, result, where):
         self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -874,7 +874,7 @@ class WhatGitRecordsTests(unittest.TestCase):
         self.assertIn("T\tlink.md", self.git("diff", "--cached", "--name-status").stdout)
         self.assert_hit(self.scan("--staged"), "link.md:1")
         self.git("commit", "-q", "--no-verify", "-m", "link")
-        self.assert_hit(self.scan("--range", "origin/deploy..HEAD"), "link.md:1")
+        self.assert_hit(self.scan("--range", "origin/main..HEAD"), "link.md:1")
 
     def test_tracked_scan_reads_the_link_text(self):
         os.symlink("/srv/secretbox/other", self.repo / "new-link")
@@ -915,11 +915,11 @@ class RangeAndPushTests(unittest.TestCase):
         words = self.home / ".config/persona/private-words.txt"
         words.parent.mkdir(parents=True)
         words.write_text("secretbox\n")
-        (self.repo / "old.md").write_text("an old note about secretbox\n")  # on deploy already: not this branch's doing
+        (self.repo / "old.md").write_text("an old note about secretbox\n")  # on main already: not this branch's doing
         self.git("add", "old.md")
         self.git("commit", "-q", "--no-verify", "-m", "base")
-        self.git("branch", "-M", "deploy")
-        self.git("update-ref", "refs/remotes/origin/deploy", "HEAD")
+        self.git("branch", "-M", "main")
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
         self.git("checkout", "-q", "-b", "topic")
 
     def commit(self, name, text, message="change"):
@@ -929,10 +929,10 @@ class RangeAndPushTests(unittest.TestCase):
 
     def test_range_scans_only_what_the_branch_changes(self):
         self.commit("clean.md", "nothing private here\n")
-        result = self.scan("--range", "origin/deploy..HEAD")
+        result = self.scan("--range", "origin/main..HEAD")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.commit("new.md", "runs on secretbox\n")
-        result = self.scan("--range", "origin/deploy..HEAD")
+        result = self.scan("--range", "origin/main..HEAD")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("new.md:1: private value", result.stdout)
         self.assertNotIn("old.md", result.stdout)
@@ -941,11 +941,11 @@ class RangeAndPushTests(unittest.TestCase):
     def test_range_reads_the_head_not_the_worktree(self):
         self.commit("new.md", "runs on secretbox\n")
         (self.repo / "new.md").write_text("fixed locally, not committed\n")
-        self.assertNotEqual(self.scan("--range", "origin/deploy..HEAD").returncode, 0)
+        self.assertNotEqual(self.scan("--range", "origin/main..HEAD").returncode, 0)
 
     def test_range_scans_commit_messages(self):
         self.commit("clean.md", "nothing private here\n", message="tested on secretbox")
-        result = self.scan("--range", "origin/deploy..HEAD")
+        result = self.scan("--range", "origin/main..HEAD")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("message:1: private value", result.stdout)
 
@@ -964,7 +964,7 @@ class RangeAndPushTests(unittest.TestCase):
         self.git("commit", "-q", "--no-verify", "-m", "eighth")
         self.commit("old.md", "an old note\nstill secretbox\n", message="ninth")
         commits = {self.git("rev-parse", "HEAD~%d" % n).stdout.strip()[:9]: n for n in range(9)}
-        result = self.scan("--range", "origin/deploy..HEAD")
+        result = self.scan("--range", "origin/main..HEAD")
         self.assertNotEqual(result.returncode, 0)
         flagged = [(commits[c], line) for c, line in
                    (re.match(r"commit (\w+) message:(\d+)", l).groups() for l in result.stdout.splitlines()
@@ -980,7 +980,7 @@ class RangeAndPushTests(unittest.TestCase):
     def test_range_reads_every_message_with_one_git_log(self):
         self.commit("one.md", "1\n", message="first\n\nwith a body")
         self.commit("two.md", "2\n", message="second")
-        base = self.git("rev-parse", "origin/deploy").stdout.strip()
+        base = self.git("rev-parse", "origin/main").stdout.strip()
         head = self.git("rev-parse", "HEAD").stdout.strip()
         with patch.object(pc, "ROOT", str(self.repo)):
             with patch.object(pc.subprocess, "run", wraps=subprocess.run) as run:
@@ -1019,8 +1019,8 @@ class RangeAndPushTests(unittest.TestCase):
         self.assertIn("pre-push: refused", result.stderr)
         self.assertNotIn("secretbox", result.stdout + result.stderr)
 
-    def test_pre_push_scans_first_push_against_deploy(self):
-        self.git("update-ref", "refs/remotes/origin/deploy", "HEAD")
+    def test_pre_push_scans_first_push_against_main(self):
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
         remote = self.root / "remote.git"
         self.run_command("git", "init", "-q", "--bare", str(remote))
         clean = self.push_to(remote)
@@ -1035,7 +1035,7 @@ class RangeAndPushTests(unittest.TestCase):
                                             "refs/heads/private-topic").returncode, 0)
 
     def test_pre_push_falls_back_to_existing_remote_ref(self):
-        self.git("update-ref", "-d", "refs/remotes/origin/deploy")
+        self.git("update-ref", "-d", "refs/remotes/origin/main")
         remote = self.root / "remote.git"
         self.run_command("git", "init", "-q", "--bare", str(remote))
         self.git("push", "--no-verify", "-q", str(remote), "topic")
@@ -1050,8 +1050,8 @@ class RangeAndPushTests(unittest.TestCase):
         self.assertEqual(deleted.returncode, 0, deleted.stdout + deleted.stderr)
 
     def test_pre_push_refuses_new_branch_without_a_scan_base(self):
-        self.git("update-ref", "-d", "refs/remotes/origin/deploy")
-        self.git("branch", "-D", "deploy")
+        self.git("update-ref", "-d", "refs/remotes/origin/main")
+        self.git("branch", "-D", "main")
         remote = self.root / "remote.git"
         self.run_command("git", "init", "-q", "--bare", str(remote))
         result = self.push_to(remote)
@@ -1071,7 +1071,7 @@ class RangeAndPushTests(unittest.TestCase):
     def assert_refused_cleanly(self, result, ref):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("pre-push: refused %s;" % ref, result.stderr)
-        self.assertIn('docs/operations/testing.md, "Privacy scan"', result.stderr)
+        self.assertIn('AGENTS/12-version-and-policies.md', result.stderr)
         self.assertNotIn("Traceback", result.stdout + result.stderr)
         self.assertNotIn("secretbox", result.stdout + result.stderr)
 
