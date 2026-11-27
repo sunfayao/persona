@@ -20,7 +20,7 @@
   "fallback_busy": "この Mac のビデオはすでに 2 台のデバイスで表示中です。いったん VNC で表示します。",
   "how_to_turn_on": "オンにする方法",
   "turn_on_title": "この Mac でビデオをオンにする",
-  "how_settings": "その Mac の「システム設定 › プライバシーとセキュリティ › 画面収録とシステムオーディオ録音」で Persona Screen をオンにしてください。",
+  "how_settings": "その Mac で「システム設定 › プライバシーとセキュリティ › 画面収録とシステムオーディオ録音 › Persona Screen」を開き、オンにしてください。",
   "how_window": "その Mac にウインドウが表示されます。「システム設定を開く」を選んでから、Persona Screen をオンにしてください。",
   "stats_video": "ビデオ",
   "stats_capture": "キャプチャ {ms} ms",
@@ -48,5 +48,8 @@
   "tier_device_behind": "ブラウザの処理が追いつきません",
   "tier_choice": "画質を変更しました",
   "tier_seconds_ago": "{n}秒前",
-  "tier_minutes_ago": "{n}分前"
+  "tier_minutes_ago": "{n}分前",
+  "reapproval_note": "macOS 15 はこの許可を定期的に再確認します。以前は使えていたビデオが止まった場合は、もう一度許可してください。",
+  "allow_again": "もう一度許可",
+  "asked_again": "その Mac でもう一度確認しました。表示されたウインドウに答えてください。表示されない場合は、上の手順でシステム設定から Persona Screen をオンにしてください。"
 }

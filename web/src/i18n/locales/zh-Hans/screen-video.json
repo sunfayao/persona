@@ -20,7 +20,7 @@
   "fallback_busy": "这台 Mac 已经有两台设备在看视频，先用 VNC。",
   "how_to_turn_on": "怎么开",
   "turn_on_title": "为这台 Mac 打开视频",
-  "how_settings": "在那台 Mac 的「系统设置 › 隐私与安全性 › 录屏与系统录音」里打开 Persona Screen。",
+  "how_settings": "在那台 Mac 上打开「系统设置 › 隐私与安全性 › 录屏与系统录音 › Persona Screen」，把它打开。",
   "how_window": "那台 Mac 上会弹一个窗口，点「打开系统设置」，然后打开 Persona Screen。",
   "stats_video": "视频",
   "stats_capture": "采集 {ms} ms",
@@ -48,5 +48,8 @@
   "tier_device_behind": "浏览器跟不上",
   "tier_choice": "你改了画质",
   "tier_seconds_ago": "{n} 秒前",
-  "tier_minutes_ago": "{n} 分钟前"
+  "tier_minutes_ago": "{n} 分钟前",
+  "reapproval_note": "macOS 15 会不定期要求重新确认这项权限。视频以前能用、后来停了，就再允许一次。",
+  "allow_again": "再次允许",
+  "asked_again": "已经让那台 Mac 再问一次。请在那台 Mac 上回答弹出的窗口；没有弹窗的话，就按上面的路径在系统设置里打开 Persona Screen。"
 }

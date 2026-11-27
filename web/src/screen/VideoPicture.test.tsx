@@ -45,6 +45,32 @@ describe("the fallback line", () => {
       expect(dialog.textContent).toContain(t(words));
     }
   });
+
+  it("offers Allow again once macOS has asked: the Mac asks once more, and the dialog says what to do there", async () => {
+    const allowAgain = vi.fn(async () => "missing");
+    act(() => root.render(<FallbackLine fallback="notAllowed" asked onAllowAgain={allowAgain} />));
+    act(() => host.querySelector<HTMLButtonElement>('[data-testid="screen-fallback-help"]')!.click());
+    const dialog = document.querySelector('[role="dialog"]')!;
+    expect(dialog.textContent).toContain(t("screen-video.how_settings"));
+    expect(dialog.textContent).toContain(t("screen-video.reapproval_note"));
+    const again = document.querySelector<HTMLButtonElement>('[data-testid="screen-allow-again"]')!;
+    expect(again.textContent).toBe(t("screen-video.allow_again"));
+    await act(async () => again.click());
+    expect(allowAgain).toHaveBeenCalledTimes(1);
+    expect(dialog.querySelector('[role="status"]')?.textContent).toBe(t("screen-video.asked_again"));
+
+    allowAgain.mockRejectedValueOnce(new Error("the hub is away"));
+    await act(async () => again.click());
+    expect(dialog.querySelector('[role="alert"]')?.textContent).toBe("the hub is away");
+    expect(dialog.querySelector('[role="status"]')).toBeNull();
+  });
+
+  it("has no Allow again before macOS asked: its window is still to come", () => {
+    act(() => root.render(<FallbackLine fallback="notAllowed" asked={false} onAllowAgain={async () => "missing"} />));
+    act(() => host.querySelector<HTMLButtonElement>('[data-testid="screen-fallback-help"]')!.click());
+    expect(document.querySelector('[data-testid="screen-allow-again"]')).toBeNull();
+    expect(document.querySelector('[role="dialog"]')!.textContent).not.toContain(t("screen-video.reapproval_note"));
+  });
 });
 
 describe("the stats panel", () => {

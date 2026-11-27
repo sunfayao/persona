@@ -451,6 +451,14 @@ export function ScreenView({ target }: { target: ScreenTarget }) {
     setPhase({ kind: "connecting" });
   };
 
+  // "Allow again" in the dialog of a Mac that hasn't allowed video: its node asks macOS once more and says what the
+  // helper has now. Granted, the page asks for video at once; missing, the dialog says what to do on the Mac.
+  const allowAgain = useCallback(async () => {
+    const v = await allowVideoAgain(target);
+    setVideoPermission({ missing: v.permission === "missing", asked: v.asked === true });
+    return v.permission;
+  }, [target]);
+
   const live = phase.kind === "live";
   return (
     <div className={cx("flex h-dvh flex-col text-ink", target.embedded ? "bg-transparent" : "bg-canvas")}>
@@ -524,7 +532,7 @@ export function ScreenView({ target }: { target: ScreenTarget }) {
           <div className="pointer-events-none absolute top-3 right-3 left-3 z-10 flex flex-col items-center gap-2">
             {fallback && (
               <div className="pointer-events-auto">
-                <Video.FallbackLine fallback={fallback} asked={videoPermission.asked} />
+                <Video.FallbackLine fallback={fallback} asked={videoPermission.asked} onAllowAgain={allowAgain} />
               </div>
             )}
             {askData && dataChoice && live && picture === "video" && <Video.MobileDataCard onChoose={chooseData} onClose={() => setAskData(false)} />}
@@ -623,6 +631,17 @@ async function sharing(target: ScreenTarget): Promise<Computer> {
   if (!on) throw new Error(t("screen-screenview.extension_off"));
   if (!on.screen_sharing) throw new Error(t("screen-screenview.sharing_off"));
   return on;
+}
+
+/** Asks the Mac's node to ask macOS again whether Persona Screen may record its screen (hub/screen.go); the answer is
+ *  the helper's status after it. */
+function allowVideoAgain(target: ScreenTarget): Promise<{ permission?: string; asked?: boolean }> {
+  // the hub gives the Mac's node 30 s (hub/screen.go)
+  return api<{ permission?: string; asked?: boolean }>(`/machines/${encodeURIComponent(target.mid)}/screen/permission`, {
+    method: "POST",
+    token: target.token,
+    timeout: pastHub(30_000),
+  });
 }
 
 const place = (r: Rect) => ({ left: r.x, top: r.y, width: r.w, height: r.h });

@@ -4,7 +4,8 @@
 // (./video-link) over the hub's relay, draws each picture on a canvas over noVNC's at the display's place, and says why
 // when the page falls back to VNC. Input always stays on RFB: noVNC's canvas stays underneath at opacity 0.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { cx, Dialog } from "../ui/atoms";
+import { errorText } from "../lib/api";
+import { Button, cx, Dialog } from "../ui/atoms";
 import { Icon } from "../ui/icons";
 import { t } from "../i18n";
 import type { Budget, MobileData } from "./data-use";
@@ -194,9 +195,22 @@ const LINES: Record<Fallback, () => string> = {
 };
 
 /** The line that says why VNC shows while video was chosen; for `notAllowed`, with "How to turn it on": one sentence,
- *  a window to answer when macOS hasn't asked yet (`asked` false), else where in System Settings. */
-export function FallbackLine({ fallback, asked }: { fallback: Fallback; asked: boolean }) {
+ *  a window to answer when macOS hasn't asked yet (`asked` false), else where in System Settings, that macOS 15 asks to
+ *  confirm it again from time to time, and "Allow again", which has the Mac ask macOS once more (`onAllowAgain`, the
+ *  helper's permission after it). Granted, the page takes the line away; still missing, the dialog says what to do. */
+export function FallbackLine({ fallback, asked, onAllowAgain }: { fallback: Fallback; asked: boolean; onAllowAgain?: () => Promise<string | undefined> }) {
   const [how, setHow] = useState(false);
+  const [again, setAgain] = useState<{ busy: boolean; done: boolean; error: string }>({ busy: false, done: false, error: "" });
+  const allowAgain = async () => {
+    if (!onAllowAgain) return;
+    setAgain({ busy: true, done: false, error: "" });
+    try {
+      await onAllowAgain();
+      setAgain({ busy: false, done: true, error: "" });
+    } catch (e) {
+      setAgain({ busy: false, done: false, error: errorText(e) });
+    }
+  };
   const words = LINES[fallback]();
   return (
     <>
@@ -211,6 +225,24 @@ export function FallbackLine({ fallback, asked }: { fallback: Fallback; asked: b
       )}
       <Dialog open={how} onClose={() => setHow(false)} title={t("screen-video.turn_on_title")}>
         <p className="text-meta text-ink-2">{asked ? t("screen-video.how_settings") : t("screen-video.how_window")}</p>
+        {asked && <p className="mt-2 text-meta text-ink-3">{t("screen-video.reapproval_note")}</p>}
+        {asked && onAllowAgain && (
+          <div className="mt-3 flex flex-col items-start gap-2">
+            <Button busy={again.busy} onClick={() => void allowAgain()} testId="screen-allow-again">
+              {t("screen-video.allow_again")}
+            </Button>
+            {again.done && (
+              <p role="status" className="text-meta text-ink-2">
+                {t("screen-video.asked_again")}
+              </p>
+            )}
+            {again.error && (
+              <p role="alert" className="text-meta text-red">
+                {again.error}
+              </p>
+            )}
+          </div>
+        )}
       </Dialog>
     </>
   );
