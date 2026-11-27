@@ -1,6 +1,7 @@
 package screen
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -36,6 +37,36 @@ func TestReadTraeQuestionKeepsNativePageAndOptions(t *testing.T) {
 	pickFirst := strings.NewReplacer("  ❯ 3.", "    3.", "    1.", "  › 1.").Replace(traeLastPage)
 	if live := ReadTraeQuestion(pickFirst); live.Dialog.Cursor != "1" || live.Dialog.Rev != q.Dialog.Rev {
 		t.Fatalf("cursor move changed the question: %+v", live)
+	}
+}
+
+func TestReadTraeQuestionReadsTheOnlyQuestionWithItsOtherRow(t *testing.T) {
+	b, err := os.ReadFile("testdata/traecli-question-single-127.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(b)
+	q := ReadTraeQuestion(page)
+	if q == nil || !q.SubmitsAll || q.Index != 1 || q.Total != 1 || q.Left != 1 || q.Dialog.Cursor != "1" || q.FreeText != "" ||
+		q.Dialog.Header != "Question 1/1 (1 unanswered)" ||
+		q.Dialog.Question != "是否仅更新新建 DemoWidget Workspace 的 API 配置，并写入原始草稿文件（Alpha/Beta 不变、不发布）？" {
+		t.Fatalf("page = %+v", q)
+	}
+	o := q.Dialog.Options
+	if len(o) != 3 || o[0].Label != "更新新项目配置（推荐）" || !strings.HasSuffix(o[0].Detail, "将新值与Item ID、demo 站点一起写入原始草稿文件并回读验证。") ||
+		o[1].Label != "保留配置，暂缓草稿" || o[2].Kind != KindTypeSomething || o[2].Label != "Type your answer" || o[2].Detail != "" {
+		t.Fatalf("choices = %+v", o)
+	}
+	onOther := strings.NewReplacer("  ❯ 1.", "    1.", "    3. Other", "  ❯ 3. Other").Replace(page)
+	typed := ReadTraeQuestion(strings.Replace(onOther, "Type your answer.", "A synthetic  answer", 1))
+	if typed == nil || typed.FreeText != "A synthetic  answer" || typed.Dialog.Rev != q.Dialog.Rev || typed.Dialog.Cursor != "3" {
+		t.Fatalf("the typed answer was not read back on the same question: %+v", typed)
+	}
+	if left := ReadTraeQuestion(strings.Replace(page, "Type your answer.", "A synthetic answer", 1)); left == nil || len(left.Dialog.Options) != 0 {
+		t.Fatalf("a draft the cursor left offered choices: %+v", left)
+	}
+	if two := ReadTraeQuestion(strings.Replace(page, "1/1 (1 unanswered)", "2/2 (1 unanswered)", 1)); two == nil || two.SubmitsAll || len(two.Dialog.Options) != 0 {
+		t.Fatalf("the last of several pages saying submit answer was offered: %+v", two)
 	}
 }
 

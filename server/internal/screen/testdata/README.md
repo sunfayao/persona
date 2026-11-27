@@ -11,5 +11,9 @@
 - `claude-rewind-2.1.304-*`：取自 Ovis（github.com/devswha/ovis，`server/fixtures/`，MIT License，Copyright (c) 2026 devswha）。
 - `codex-0.153.4-*` / `codex-0.163.0-*`：本仓库在一个独立的 herdr 会话里起的 Codex（ChatGPT 登录）上录的，内容是编的（横幅颜色、example.com），
   路径换成了 `/private/tmp/project`；`@` 文件选择那屏会列出这台机器装的插件和 skill，没收进来。宽度是无头 herdr 窗格的 120 列。
+- `traecli-question-single-127.txt`: a TRAE CLI question of one question (`Question 1/1`, its last row `Other` with
+  `Type your answer.`), read with `herdr pane read --source visible` from a 127-column pane on 2026-11-27. The CLI's
+  version is not on the screen. Every line the agent wrote, the question and the options were replaced with neutral
+  text of the same shape; the CLI's markers, columns, scroll bar and key hints are as captured.
 
 录制：herdr 里开一个 tab 跑 claude，用 socket 的 `pane.read` 各读一次 ansi 和纯文本。入库前确认没有路径、主机名、账号。

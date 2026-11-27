@@ -1,0 +1,62 @@
+▍ My answers to your questions above:...                                                                            12:05 PM
+    answer: 使用原草稿 (Recommended)
+
+◆ 确认把三个示例字段追加到原来的 demo_widget_settings_draft 草稿文件，保留 Alpha/Beta 不变且不发布。我开始创建工作区、示
+  例数据源和测试分组，再完成资源探测与配额绑定。
+
+  Read 2 files, Searched 5 patterns, Ran 4 commands · 2 nonzero exits
+
+◆ Context compacted
+
+  Read 5 files, Searched 3 patterns
+
+◆ 我会沿用已创建的示例项目继续，避免重复创建。接下来先保存示例配置，并核验测试环境的实际服务地址；仍只更新本地草稿文
+  件，不发布、不部署服务。
+  Searched 1 pattern, Ran 7 commands, Searched 1 website · 2 nonzero exits
+
+◆ 刚才一条元数据输出意外包含了多余的字段。我会将后续输出限制为版本号、字段名和核验结果，不再输出完整对象；本轮仍保
+  留原值，不擅自修改。交付时会把这两项字段的整理列为待办。
+  Read 6 files, Searched 9 patterns, Ran 9 commands · 5 nonzero exits
+
+◆ 示例数据源、测试分组、默认分组和基础配置已建好。
+
+  探测发现该账号禁止走外部入口，两个接口都返回 403；我会按文档配置改用内部入口核验，不修改权限。另一个卡点是：demo 当前
+  版本的配置查看接口返回 404，因此配置尚未写入草稿，我没有自动替换它。                                                        ▴
+  Read 1 file, Searched 4 patterns, Ran 7 commands · 1 nonzero exit                                                           ─
+                                                                                                                             ━━
+◆ 已定位到网络差异：本机到该测试域名的默认 IPv4 连接超时，IPv6 可正常完成 TLS 请求。我会仅在本次命令进程中优先使用该          ▾
+  域名的 IPv6 地址，再执行完整的接口探测；不改系统 DNS，也不跳过创建校验。
+  Read 1 file, Searched 3 patterns, Ran 8 commands · 2 nonzero exits
+
+↳ Interacted with command · node <<'JS'
+const {httpGet,closeHttpDispatchers}=require('/opt/example/lib/node_modules/@example/demo-cli/dist/utils/
+http');
+(async()=>{try{const r=await httpGet('https://example.com/manifest/demo-service/manifest.json', {},
+{timeoutMs:20000});const v=JSON.parse(r);console.log(JSON.stringify(v));}catch(e)
+{console.log(JSON.stringify({ok:false,error:e.message,cause:e.cause?.message}));process.exitCode=1;}finally{await
+closeHttpDispatchers();}})();
+JS
+  └ stop
+
+  Read 2 files, Ran 7 commands
+
+◆ 示例拓扑已建完并回读通过：专属测试数据源，500 条记录 / 3000 次请求全部给测试，未分批、无超配。命令行的 Chat 和
+  Responses 真实探测均通过，模型回显为 demo-model-flash-economy-000000。
+
+  最后只差配置写入草稿：创建时的一次性配置未保留，而当前 demo 服务的查看接口返回 404。原草稿仍是 v2、online 0，未修
+  改。
+
+  建议仅替换这个新建、尚未接入业务的工作区的示例配置，再追加三个示例字段；这会使该项目的旧配置失效，不影响原示例项
+  目，也不会发布。
+
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  Question 1/1 (1 unanswered)
+  是否仅更新新建 DemoWidget Workspace 的 API 配置，并写入原始草稿文件（Alpha/Beta 不变、不发布）？
+
+  ❯ 1. 更新新项目配置（推荐）  只更新示例demo_widget（ws_0123456789abcdef0123456789abcdef）的配置，旧值立即失效；将新值与
+                               Item ID、demo 站点一起写入原始草稿文件并回读验证。
+    2. 保留配置，暂缓草稿      保留已建好的完整结构和现有配置，暂不追加 API 字段；配置恢复另行处理，不自动升级或部署服务。
+    3. Other                   Type your answer.
+
+  type to answer  |  tab add notes  |  enter submit answer  |  esc interrupt

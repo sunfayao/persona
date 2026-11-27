@@ -73,7 +73,10 @@ func ReadTraeQuestion(text string) *TraeQuestion {
 			return nil
 		}
 	}
-	q.SubmitsAll = identifiedFooter && strings.Contains(hints, "enter submit all")
+	// A prompt of one question says "submit answer" on its only page; Enter there submits the whole prompt, as
+	// "submit all" does on the last page of several (testdata/traecli-question-single-127.txt).
+	q.SubmitsAll = identifiedFooter && (strings.Contains(hints, "enter submit all") ||
+		(q.Total == 1 && strings.Contains(hints, "enter submit answer")))
 	canAdvance := identifiedFooter && strings.Contains(hints, "enter submit answer") && q.Index < q.Total
 	canSubmit := q.SubmitsAll && q.Left == 1
 
@@ -132,6 +135,10 @@ func ReadTraeQuestion(text string) *TraeQuestion {
 		last := &opts[len(opts)-1]
 		switch {
 		case strings.TrimSuffix(last.Label, ".") == "Type your answer":
+		// The free-text row may be "Other" with its placeholder, or what was typed, in the description column.
+		case last.Label == "Other" && strings.TrimSuffix(last.Detail, ".") == "Type your answer":
+		case last.Label == "Other" && last.Detail != "" && last.Key == q.Dialog.Cursor:
+			q.FreeText = last.Detail
 		case last.Key == q.Dialog.Cursor && strings.Contains(hints, "clear answer"):
 			q.FreeText = lastRaw
 		default:
