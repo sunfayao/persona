@@ -13,7 +13,7 @@ import { getAgentListFilters, setAgentListFilters, useAgentListFilters } from ".
 import { AgentChatListRow, AgentFilterButton, AgentFilterChips } from "./agents/AgentChatListControls";
 import { buildSpaces, isQuiet, splitAgentSessions, type Space } from "../lib/agent-groups";
 import { keyedRefs } from "../lib/keyed-refs";
-import { machineSessionOrder, machineSessionPresentation } from "../lib/herdr-tree";
+import { sidebarSessionOrder, sidebarSessionPresentation } from "../lib/herdr-tree";
 import { selectSidebarMachines } from "../lib/sidebar-machines";
 import { machineWithHub } from "../lib/mesh";
 import { backgroundWaiting, baseName, sessionTitle, stateOf, tabLabel } from "../lib/format";
@@ -606,7 +606,7 @@ function BoundedAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate,
   // The hub pages newest first for its cursors; the sidebar presents the same stable herdr order as the complete list.
   const listMenu = useMenu();
   const machineOrder = useMemo(() => machines.map((m) => m.id), [machines]);
-  const rowOrder = useMemo(() => machineSessionPresentation(machines), [machines]);
+  const rowOrder = useMemo(() => sidebarSessionPresentation(machines), [machines]);
   const listItems = agentListItems({ archives, hover, onNavigate });
   const pagedGrouping = useMemo(() => ({
     dimension: "group" as const,
@@ -676,7 +676,7 @@ function LegacyAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, 
     const own = new Set(ownIds);
     return sidebarMachines.filter((m) => own.has(m.id));
   }, [ownIds, sidebarMachines]);
-  const rowOrder = useMemo(() => machineSessionOrder(machines), [machines]);
+  const rowOrder = useMemo(() => sidebarSessionOrder(machines), [machines]);
   const { sessions: every, loaded, error: listError } = useFullAgentSessions();
   const summaryAgents = useAgentSessions();
   const pagedTransport = useStore((s) => s.features.includes(SESSIONS_LIST_FEATURE));

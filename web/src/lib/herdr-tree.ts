@@ -6,13 +6,16 @@
 // A space the host nests under another (Orca's child worktrees, `parent_space_id`) is listed inside its parent, as
 // Orca's sidebar does with "N children"; when the parent has no live agent the child stays at the top (#2073).
 import { splitAgentSessions } from "./agent-groups";
+import { foldedState } from "./child-sessions";
 import { backgroundWaiting, stateOf, tabLabel } from "./format";
 import { isSpacePinned, type AgentPins } from "./pins";
 import type { Route, SessionView } from "./router";
+import { unopened } from "./seen-outbox";
 import type { AgentState, Machine, Session } from "./types";
 import { byTime } from "./times";
 import { homeKey } from "./folded-rows";
 import type { StableRowOrder } from "./side-sessions";
+import { usageLimitLabel } from "./usage-limit";
 
 // docs/protocol/agent-states.md "Unified states": what a folded row shows for everything under it, and which pane a tab opens on.
 const URGENCY: AgentState[] = ["needs_you", "working", "unread", "idle", "unknown", "offline"];
@@ -80,6 +83,46 @@ export function machineSessionPresentation(machines: readonly Machine[]): Stable
 
 export function machineSessionOrder(machines: readonly Machine[]): (a: Session, b: Session) => number {
   return machineSessionPresentation(machines).compare;
+}
+
+/**
+ * Sidebar priority tier for an Agent session:
+ *   0: needs_you (blocked waiting for user action)
+ *   1: completed / finished awaiting view (unread, just_finished, unopened, awaits_reply — excluding usage-limit pauses)
+ *   2: working (foreground)
+ *   3: working (background waiting)
+ *   4: idle (seen / quiet)
+ *   5: unknown
+ *   6: offline
+ */
+export function sidebarSessionRank(s: Session): number {
+  const st = foldedState(s);
+  if (st === "needs_you") return 0;
+  const usageLimited = Boolean(usageLimitLabel(s));
+  if (st === "unread" && !usageLimited) return 1;
+  if (st === "idle" && (Boolean(s.work?.just_finished) || Boolean(s.awaits_reply) || (unopened(s) && !usageLimited))) return 1;
+  if (st === "working") return backgroundWaiting(s) ? 3 : 2;
+  if (st === "idle" || st === "unread") return 4;
+  if (st === "unknown") return 5;
+  return 6;
+}
+
+/** Sidebar row order: completed sessions first (after urgent needs_you), then working sessions, then seen/idle sessions
+ *  sorted newest first, with deterministic herdr placement as the tie-breaker. */
+export function sidebarSessionPresentation(machines: readonly Machine[]): StableRowOrder<Session> {
+  const base = machineSessionOrder(machines);
+  const compare = (a: Session, b: Session): number => {
+    const rank = sidebarSessionRank(a) - sidebarSessionRank(b);
+    if (rank) return rank;
+    const recent = byTime(b.updated_at, a.updated_at);
+    if (recent) return recent;
+    return base(a, b);
+  };
+  return { compare };
+}
+
+export function sidebarSessionOrder(machines: readonly Machine[]): (a: Session, b: Session) => number {
+  return sidebarSessionPresentation(machines).compare;
 }
 
 /** The tab's "Lead" (#2320): the agent in the tab's first pane (`pane_index` 0, top left, the one the others were split

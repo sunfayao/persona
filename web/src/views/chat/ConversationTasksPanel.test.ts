@@ -19,4 +19,29 @@ describe("conversation tasks", () => {
     expect(conversationTasks(todos, "main", "home", "home").map((todo) => todo.id))
       .toEqual(["dispatched", "supervised", "both"]);
   });
+
+  it("includes todos linked to an agent conversation via todo.agents, responsible, or session todo links", () => {
+    const todos = [
+      task("linked-agent", {
+        agents: [{ machine_id: "mac", session_id: "agent-1", linked_at: "2026-11-27T00:00:00Z" }],
+      }),
+      task("dismissed-agent", {
+        agents: [{ machine_id: "mac", session_id: "agent-1", linked_at: "2026-11-27T00:00:00Z", dismissed_at: "2026-11-27T01:00:00Z" }],
+      }),
+      task("other-machine", {
+        agents: [{ machine_id: "pc", session_id: "agent-1", linked_at: "2026-11-27T00:00:00Z" }],
+      }),
+      task("responsible-agent", {
+        responsible: { kind: "session", name: "Agent 1", machine_id: "mac", session_id: "agent-1" },
+      }),
+      task("session-link-only", { manager: "other-mgr" }),
+      task("unrelated", { origin: "main" }),
+    ];
+    expect(
+      conversationTasks(todos, "agent-1", "home", "home", {
+        mid: "mac",
+        linkedTodoIds: new Set(["session-link-only"]),
+      }).map((todo) => todo.id),
+    ).toEqual(["linked-agent", "responsible-agent", "session-link-only"]);
+  });
 });
