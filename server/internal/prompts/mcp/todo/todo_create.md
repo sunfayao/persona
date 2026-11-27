@@ -17,7 +17,7 @@ Record what the user asks to remember, track or be reminded of (`remind`), and a
     },
     "remind": {
       "type": "string",
-      "description": "Future reminder (user time zone/RFC3339 or relative 30m/2h/1d). Only if requested or deadline close and important."
+      "description": "Future reminder (user time zone/RFC3339 or relative 30m/2h/1d). Only when the user asks to be reminded."
     },
     "kind": {
       "type": "string",
