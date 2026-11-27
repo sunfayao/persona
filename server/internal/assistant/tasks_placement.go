@@ -146,10 +146,23 @@ func (s *Service) readonlyLauncherRefusal(ctx context.Context, m Device, params 
 	if agentStartHost(m, host) != "" || agent.agent == "agy" && host == proto.HostAgy {
 		return nil
 	}
+	// With assistant.readonly_mode prompt the owner takes read-only as an instruction (normal launcher permissions; not
+	// a security boundary), as for Codex: agy then runs it wherever its launcher runs. pi and the Cursor CLI stay
+	// refused: their tools write whatever a prompt says.
+	if agent.agent == "agy" && readonlyModeOf(s.settings(ctx)) == readonlyPrompt {
+		return nil
+	}
 	launcher, _ := params["launcher"].(string)
 	launchers := strings.Join(s.readonlyLaunchersOn(ctx, m), ", ")
 	data, _ := json.Marshal(map[string]string{"launcher": launcher, "launchers": launchers, "delivered": "none"})
-	return &rpc.Error{Code: "readonly_unsupported", Data: data, Message: i18n.T(s.lang(ctx), "assistant-tasks.readonly_launcher_unsupported",
+	key := "assistant-tasks.readonly_launcher_unsupported"
+	if agent.agent == "agy" {
+		// Its ways out include the companion. An agy defined in the login shell keeps its name over the companion's
+		// launcher (node runtimes_registry.go withShell), so no list shows the companion there, yet a start naming
+		// host agy with launcher agy still goes to it (node runtimeOfIn), and the node refuses it if none is connected.
+		key = "assistant-tasks.readonly_agy_unsupported"
+	}
+	return &rpc.Error{Code: "readonly_unsupported", Data: data, Message: i18n.T(s.lang(ctx), key,
 		i18n.Args{"machine": firstNonEmpty(m.Name, m.ID), "launcher": launcher, "agent": kindName(agent.agent), "launchers": cmp.Or(launchers, "—")})}
 }
 

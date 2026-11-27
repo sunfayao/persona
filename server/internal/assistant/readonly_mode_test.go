@@ -211,6 +211,14 @@ func TestReadonlyModeKeepsUnsupportedLaunchersRefused(t *testing.T) {
 					task.Launcher = launcher
 					ctx := context.Background()
 					_, err := s.toolTaskPlan(ctx, "readonly-chat", readonlyTaskArgs(t, task))
+					if mode == readonlyPrompt && launcher == "agy" {
+						// Prompt mode takes agy's read-only as an instruction, as Codex's (tasks_placement.go
+						// readonlyLauncherRefusal); pi and the Cursor CLI stay refused in either mode.
+						if err != nil {
+							t.Fatalf("mode prompt, launcher agy: %v, want it planned", err)
+						}
+						return
+					}
 					var refusal *rpc.Error
 					if !errors.As(err, &refusal) || refusal.Code != "readonly_unsupported" {
 						t.Fatalf("mode %s, launcher %s: got %v, want readonly_unsupported", mode, launcher, err)
