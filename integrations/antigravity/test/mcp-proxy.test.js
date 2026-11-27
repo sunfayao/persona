@@ -218,7 +218,7 @@ describe('persona_call', { timeout: 15_000 }, () => {
     assert.equal((await call('test/lists', {})).result.lists, 1)
     const unknown = await dispatch({ name: 'nope', describe: true })
     assert.equal(unknown.isError, true)
-    assert.equal(unknown.content[0].text, 'No Persona tool is named nope; persona_call with no name lists them.')
+    assert.equal(unknown.content[0].text, 'No Persona tool nope; persona_call with no name lists them.')
     assert.equal((await call('test/lists', {})).result.lists, 2)
     assert.ok(received.every((msg) => !String(msg.id).startsWith('persona-proxy-')), 'agy got the proxy\'s own answers')
   })
@@ -242,7 +242,7 @@ describe('persona_call', { timeout: 15_000 }, () => {
       '- todo_list: List the to-dos, e.g. the open ones.',
       '- inbox_move: Move an Inbox item. Required: id',
       '- quiet:',
-      `- long_one: ${'word '.repeat(32).trim()}…`,
+      `- long_one: ${'word '.repeat(60).trim()}.`,
       '',
       'persona_call {name, describe: true} returns a tool\'s whole description and arguments.',
     ].join('\n'))

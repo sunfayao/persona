@@ -47,8 +47,6 @@ const AGY_DECLARE_BUDGET = 44_000
 // A tool that does not fit whole is declared with its first paragraph, cut at a sentence's end within this many
 // characters, and where the rest is.
 const COMPACT_MAX = 1200
-// The no-name listing gives each tool's first sentence, cut at a word within this many characters.
-const SENTENCE_MAX = 160
 
 const [command, ...args] = process.argv.slice(2)
 const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'inherit'] })
@@ -184,19 +182,18 @@ function compact(tool) {
 function describeTool(name) {
   const tool = known.get(name)
   const text = tool ? JSON.stringify({ name, description: tool.description, inputSchema: tool.inputSchema })
-    : `No Persona tool is named ${name}; ${DISPATCH} with no name lists them.`
+    : `No Persona tool ${name}; ${DISPATCH} with no name lists them.`
   return { content: [{ type: 'text', text }], isError: !tool }
 }
 
 // persona_call with no name: one line for each Persona tool, those in agy's list first, then the rest.
 function listing() {
   const line = ({ name, description, inputSchema }) => {
-    // The first sentence ends at a full stop after a word or a bracket, so "e.g." does not end it.
-    let sentence = String(description || '').split('\n')[0].split(/(?<=(?:[^\s.]{2}|[)\]`'"])[.!?])\s/)[0].replace(/[.!?]$/, '')
-    if (sentence.length > SENTENCE_MAX) sentence = sentence.slice(0, sentence.lastIndexOf(' ', SENTENCE_MAX)) + '…'
-    else if (sentence) sentence += '.'
+    // The first sentence ends at a full stop after two characters that are neither a space nor a stop: "e.g." does not
+    // end it, "agents_list)." does.
+    const sentence = String(description || '').split('\n')[0].split(/(?<=[^\s.]{2}[.!?])\s/)[0].replace(/[.!?]$/, '')
     const required = Array.isArray(inputSchema?.required) && inputSchema.required.length ? ` Required: ${inputSchema.required.join(', ')}` : ''
-    return `- ${name}:${sentence && ' ' + sentence}${required}`
+    return `- ${name}:${sentence && ` ${sentence}.`}${required}`
   }
   const tools = [...known.values()]
   const group = (title, list) => list.length ? `${title}\n${list.map(line).join('\n')}\n\n` : ''
