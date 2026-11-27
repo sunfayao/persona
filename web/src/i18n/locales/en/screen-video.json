@@ -20,7 +20,7 @@
   "fallback_busy": "Two devices are already watching this Mac’s video. Showing VNC for now.",
   "how_to_turn_on": "How to turn it on",
   "turn_on_title": "Turn on video for this Mac",
-  "how_settings": "On that Mac, turn on Persona Screen in System Settings › Privacy & Security › Screen & System Audio Recording.",
+  "how_settings": "On that Mac, open System Settings › Privacy & Security › Screen & System Audio Recording › Persona Screen and turn it on.",
   "how_window": "That Mac will show a window: choose Open System Settings, then turn on Persona Screen.",
   "stats_video": "Video",
   "stats_capture": "Capture {ms} ms",
@@ -48,5 +48,8 @@
   "tier_device_behind": "This browser couldn’t keep up",
   "tier_choice": "You changed Quality",
   "tier_seconds_ago": "{n} s ago",
-  "tier_minutes_ago": "{n} min ago"
+  "tier_minutes_ago": "{n} min ago",
+  "reapproval_note": "macOS 15 asks to confirm this permission again from time to time. If video worked before and stopped, allow it again.",
+  "allow_again": "Allow again",
+  "asked_again": "That Mac was asked again. Answer the window there; if none appears, turn on Persona Screen in System Settings as above."
 }

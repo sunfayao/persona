@@ -1,0 +1,4 @@
+{
+  "no_helper": "{name} 上没有 Persona Screen（实时屏幕的视频组件，随 Persona Link 安装）。",
+  "permission_outdated": "{name} 上的 personad 太旧，不能再次向 macOS 请求权限，需要更新"
+}

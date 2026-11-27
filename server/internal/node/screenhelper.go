@@ -265,6 +265,13 @@ func (c *permissionCache) get(ctx context.Context, helper string) string {
 	return c.value
 }
 
+// forget drops the answer kept: the next get asks the helper again.
+func (c *permissionCache) forget() {
+	c.mu.Lock()
+	c.value, c.at = "", time.Time{}
+	c.mu.Unlock()
+}
+
 // current is the helper to run, as helper says, and the installed helper's version (its stamp; "" when unreadable).
 func (r *helperResolver) current(ctx context.Context, logf func(string, ...any)) (string, string) {
 	path := r.helper(ctx, logf)
@@ -318,6 +325,21 @@ func (a *askRecord) claim(stamp string) bool {
 	return os.WriteFile(f, []byte(stamp+"\n"), 0o600) == nil
 }
 
+// again records this helper version as asked whatever the record held, for the user's own "Allow again"
+// (screenPermissionAgain): false only when the record can't be written, as claim.
+func (a *askRecord) again(stamp string) bool {
+	if stamp == "" {
+		return false
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	f := a.file()
+	if err := os.MkdirAll(filepath.Dir(f), 0o700); err != nil {
+		return false
+	}
+	return os.WriteFile(f, []byte(stamp+"\n"), 0o600) == nil
+}
+
 // screenAskWait is how long askScreenPermission waits for the screen-sharing stream to sign in, and screenAskPoll how
 // often it looks. Variables for tests.
 var (
@@ -360,6 +382,32 @@ func (n *Node) askScreenPermission(pair string, done func()) {
 			logf("screen helper: asking macOS for Screen Recording: %v", err)
 		}
 	}()
+}
+
+func init() { nodeRPC(proto.MethodScreenPermission, (*Node).screenPermissionAgain) }
+
+// screenPermissionAgain is the user's "Allow again" for Persona Screen (proto.MethodScreenPermission). The ask above
+// happens once per helper version; when macOS showed no alert, or the user said no, or macOS 15 took back an earlier
+// yes (it asks to confirm such grants again from time to time), nothing asked again. Now the user asks, from the live
+// screen: the helper's answer is read afresh, and unless it is granted the helper asks macOS again, without waiting
+// for a sign-in (the user is at the Mac or watching it). It answers the helper's status after that; an alert the
+// user has yet to answer shows as missing and asked.
+func (n *Node) screenPermissionAgain(ctx context.Context, _ struct{}) (*proto.ScreenVideo, error) {
+	logf := func(string, ...any) {}
+	if n.logger != nil {
+		logf = n.logger.Printf
+	}
+	helper, stamp := screenHelpers.current(ctx, logf)
+	if !advertiseScreenVideo || helper == "" {
+		return nil, &rpc.Error{Code: "video_unavailable", Message: "no live-screen video helper on this node"}
+	}
+	screenPermissions.forget()
+	if screenPermissions.get(ctx, helper) != "granted" && screenAsks.again(stamp) {
+		if err := screenLaunch(ctx, helper, "--request-permission"); err != nil {
+			return nil, fmt.Errorf("asking macOS for Screen Recording again: %w", err)
+		}
+	}
+	return screenVideoReport(ctx, helper, stamp), nil
 }
 
 // screenVideoStatus is screen_video for the computer and browser statuses: nil while advertiseScreenVideo is off, on

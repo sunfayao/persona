@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/extmgr"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -226,5 +227,55 @@ func TestMachinesListSilentNodeIsNotOnline(t *testing.T) {
 	agents := s.describeAgents(context.Background(), "all", "", "")
 	if !strings.Contains(agents, "unresponsive machines") || !strings.Contains(agents, "Mini") || strings.Contains(agents, "Fresh (") {
 		t.Fatalf("agents_list: %s", agents)
+	}
+}
+
+// machines_list says what each computer can start (its launchers) and, on a Mac computer use or the browser is on
+// for, what can be done there now: the driver, the browser, the live screen's page or why it does not open, and
+// Persona Screen's permission with where the user allows it once macOS has asked.
+func TestMachinesListSaysWhatEachComputerCanDo(t *testing.T) {
+	f := newFakeHub()
+	f.devices = []Device{
+		{ID: "mac", Name: "Mac", Online: true, Reachable: true, ClaudeVersion: "2.1.0"},
+		{ID: "mini", Name: "Mini"},
+		{ID: "box", Name: "Box", Online: true, Reachable: true},
+	}
+	f.sessions["mac"], f.sessions["box"] = nil, nil // the computers that answer
+	f.zshrc = map[string][]proto.Launcher{"mac": {{Name: "codex", Agent: "codex", Source: "zshrc"}, {Name: "agy", Agent: "agy", Source: "zshrc"}}}
+	f.answerApp(AppFeishu, FeishuStatusGet, func(json.RawMessage) (any, error) {
+		return FeishuStatus{PublicURL: "https://hub.example.com"}, nil
+	})
+	s := newTestService(t, f)
+	s.devs = &resourceDevs{fleetDevs: newFleetDevs(), machines: map[string]*proto.Machine{"mac": {}, "mini": {}, "box": {}}}
+	s.SetExtensions(&controlsExt{controls: map[string]extmgr.MachineControl{
+		"mac":  {ComputerUse: "auto", Driver: "lcu", Browser: true, Reported: true, ScreenSharing: true, ScreenPermission: "missing", ScreenAsked: true},
+		"mini": {Browser: true, Reported: true, ScreenSharing: true, ScreenPermission: "granted"},
+	}})
+	text, err := s.toolMachinesList(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out struct {
+		Machines []machineFacts `json:"machines"`
+	}
+	if err := json.Unmarshal([]byte(text), &out); err != nil {
+		t.Fatal(err)
+	}
+	mac, mini, box := out.Machines[0], out.Machines[1], out.Machines[2]
+	if names, _ := json.Marshal(mac.Launchers.Value); string(names) != `["claude","codex","agy"]` {
+		t.Fatalf("the Mac's launchers: %s", text)
+	}
+	c := mac.Controls
+	if c == nil || c.ComputerUse != "lcu" || !c.Browser || c.LiveScreen.Value != "https://hub.example.com/screen/mac" ||
+		c.PersonaScreen != "missing_after_ask" || !strings.Contains(c.AllowIn, "Screen & System Audio Recording › Persona Screen") {
+		t.Fatalf("the Mac's controls: %s", text)
+	}
+	c = mini.Controls
+	if mini.Launchers.Reason != "connection_not_available" || c == nil || c.ComputerUse != "off" || !c.Browser ||
+		c.LiveScreen.Reason != "offline" || c.PersonaScreen != "granted" || c.AllowIn != "" {
+		t.Fatalf("a Mac away with the browser on: %s", text)
+	}
+	if box.Launchers.Reason != "launchers_not_listed" || box.Controls != nil || strings.Count(text, `"controls"`) != 2 {
+		t.Fatalf("a computer without either: %s", text)
 	}
 }

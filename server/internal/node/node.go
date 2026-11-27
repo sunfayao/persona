@@ -2791,6 +2791,10 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 			Dir         string `json:"dir"`
 			ClaudeMD    string `json:"claude_md"`
 			WorkGuideMD string `json:"work_guide_md"`
+			// AgentsMD and AgentsWorkGuideMD are AGENTS.md's text, worded for the agent that reads it (Codex,
+			// Antigravity); "" from a manager that writes claude_md and work_guide_md to both files.
+			AgentsMD          string `json:"agents_md"`
+			AgentsWorkGuideMD string `json:"agents_work_guide_md"`
 			// Connectors are the hub's signed in: the built-in skills that need one go in the directory (Requires).
 			Connectors []string `json:"connectors"`
 			// CLIs are their command lines (name → connector id), on the assistant's PATH (node/clicall.go).
@@ -2839,10 +2843,12 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 				n.logger.Printf("assistant: plugin skills: %v", err)
 			}
 		}
+		agentsMD := cmp.Or(a.AgentsMD, a.ClaudeMD)
 		if err := n.syncAssistantSkills(dir); err != nil {
 			n.logger.Printf("assistant: skills: %v", err)
 		} else if a.WorkGuideMD != "" && assistantskills.WorkGuideReady(dir) {
 			a.ClaudeMD = a.WorkGuideMD
+			agentsMD = cmp.Or(a.AgentsWorkGuideMD, a.WorkGuideMD)
 		}
 		if a.Space != nil {
 			spaceMD, err := prepareSpaceDir(dir, *a.Space)
@@ -2857,9 +2863,10 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 			}
 			return map[string]any{"cwd": dir, "plugin_skills_need": need, "space_md_digest": digestOf(spaceMD)}, nil
 		}
-		// The same instructions for both agents: Claude reads CLAUDE.md, Codex AGENTS.md.
-		for _, name := range []string{"CLAUDE.md", "AGENTS.md"} {
-			if err := os.WriteFile(filepath.Join(dir, name), []byte(a.ClaudeMD), 0o600); err != nil {
+		// Claude reads CLAUDE.md; Codex and Antigravity read AGENTS.md. Antigravity reads it again at every turn, so a
+		// file is replaced whole and only when it changed: a turn running in this directory never reads half of one.
+		for name, md := range map[string]string{"CLAUDE.md": a.ClaudeMD, "AGENTS.md": agentsMD} {
+			if err := writeIfChanged(filepath.Join(dir, name), []byte(md)); err != nil {
 				return nil, err
 			}
 		}

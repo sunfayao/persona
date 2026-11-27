@@ -4,9 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/extmgr"
+	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -36,8 +40,76 @@ type machineFacts struct {
 	TempC                *machineFact `json:"temp_c,omitempty"`
 	SampleAgeSeconds     machineFact  `json:"sample_age_seconds"`
 	WorkingAgents        machineFact  `json:"working_agents"`
+	Launchers            machineFact  `json:"launchers"`
 	FailingLaunchers     machineFact  `json:"failing_launchers"`
 	NodeOutdated         machineFact  `json:"node_outdated"`
+	// Controls: only for a Mac computer use or the browser is on for.
+	Controls *machineControls `json:"controls,omitempty"`
+}
+
+// machineControls is what can be done on a Mac besides handing work to its Agents (extmgr.MachineControl).
+type machineControls struct {
+	// ComputerUse is the driver computer_state / computer_run use there (cua, lcu; auto until the Mac says which),
+	// "off" while only the browser is on.
+	ComputerUse string `json:"computer_use"`
+	Browser     bool   `json:"browser"`
+	// LiveScreen is its live screen's page while it opens (the Mac is up and its Screen Sharing answered), else why not.
+	LiveScreen machineFact `json:"live_screen"`
+	// PersonaScreen is the live-screen video helper's Screen Recording: granted, missing, missing_after_ask (macOS
+	// asked and it is still not allowed: AllowIn says where the user allows it) or unknown; absent without the helper.
+	PersonaScreen string `json:"persona_screen,omitempty"`
+	AllowIn       string `json:"allow_in,omitempty"`
+}
+
+// controlsFacts is c as machines_list says it, for a Mac that is up or not; web is the web app's address ("" unknown).
+func controlsFacts(c extmgr.MachineControl, id string, up bool, web string) *machineControls {
+	out := &machineControls{ComputerUse: "off", Browser: c.Browser, LiveScreen: unknown("screen_sharing_off")}
+	if c.ComputerUse != "" {
+		out.ComputerUse = c.Driver
+	}
+	switch {
+	case !up:
+		out.LiveScreen = unknown("offline")
+	case !c.Reported:
+		out.LiveScreen = unknown("status_not_reported")
+	case !c.ScreenSharing:
+	case web == "":
+		out.LiveScreen = known("available") // its page in Persona has it; the hub's address is not known here
+	default:
+		out.LiveScreen = known(web + "/screen/" + url.PathEscape(id))
+	}
+	out.PersonaScreen = c.ScreenPermission
+	if screenNotAllowed(c) {
+		out.PersonaScreen, out.AllowIn = "missing_after_ask", prompts.RenderPersonaScreenAllow()
+	}
+	return out
+}
+
+// launcherNames are the launchers each reachable machine lists (launchersHere), asked of the machines at once: a slow
+// one costs its own wait, not the others'.
+func (s *Service) launcherNames(ctx context.Context, devices []Device) map[string][]string {
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	out := map[string][]string{}
+	for _, d := range devices {
+		if !d.Reachable {
+			continue
+		}
+		wg.Add(1)
+		go func(d Device) {
+			defer wg.Done()
+			list, ok := s.launchersHere(ctx, d.ID)
+			if !ok {
+				return
+			}
+			names := launcherNamesOn(d, list)
+			mu.Lock()
+			out[d.ID] = names
+			mu.Unlock()
+		}(d)
+	}
+	wg.Wait()
+	return out
 }
 
 // connectionReason follows the same categories as the machine page; unknown errors are not guessed.
@@ -95,6 +167,12 @@ func (s *Service) toolMachinesList(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("machine resource manager unavailable")
 	}
 	now := time.Now()
+	launchers := s.launcherNames(ctx, listed.Devices)
+	controls := s.machineControls()
+	web := ""
+	if len(controls) > 0 {
+		web = s.webBase(ctx)
+	}
 	rows := make([]machineFacts, 0, len(listed.Devices))
 	for _, d := range listed.Devices {
 		m, sample, outdated := s.devs.MachineResources(d.ID)
@@ -103,7 +181,16 @@ func (s *Service) toolMachinesList(ctx context.Context) (string, error) {
 			CPUBusyPercent: unknown("sample_not_reported"), Load: unknown("sample_not_reported"),
 			MemoryAvailableBytes: unknown("sample_not_reported"), Swap: unknown("sample_not_reported"), DiskFreeBytes: unknown("sample_not_reported"),
 			SampleAgeSeconds: unknown("sample_not_reported"), WorkingAgents: unknown("connection_not_available"),
-			FailingLaunchers: unknown("health_not_available"), NodeOutdated: unknown("connection_not_available")}
+			Launchers: unknown("connection_not_available"), FailingLaunchers: unknown("health_not_available"),
+			NodeOutdated: unknown("connection_not_available")}
+		if names, ok := launchers[d.ID]; ok {
+			row.Launchers = known(names)
+		} else if d.Reachable {
+			row.Launchers = unknown("launchers_not_listed")
+		}
+		if c, ok := controls[d.ID]; ok {
+			row.Controls = controlsFacts(c, d.ID, d.Reachable, web)
+		}
 		if stale, silent := s.silentNode(d, sample, now); stale {
 			row.State = "unresponsive"
 			row.StateReason = known(map[string]any{"category": "no_recent_report", "last_report_age_seconds": int64(silent.Seconds()),

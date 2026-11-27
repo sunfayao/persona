@@ -510,7 +510,7 @@ func (n *Node) spawnClaudeWith(id, cwd, launcher string, resume, spare bool, rou
 	if err != nil {
 		return nil, err
 	}
-	instructions := instructionsDigest(cwd)
+	instructions := instructionsDigest(cwd, "claude")
 	var startErr error
 	if proto.IsExternalLauncher(launcher) {
 		startErr = startExternalCommand(startCtx, cmd, stdin)

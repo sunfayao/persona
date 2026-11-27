@@ -9,6 +9,8 @@ import (
 
 	"github.com/coder/websocket"
 
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
@@ -110,4 +112,34 @@ func refuseByClose(w http.ResponseWriter, r *http.Request, status int, code stri
 		return // Accept has answered the request itself
 	}
 	_ = c.Close(websocket.StatusCode(4000+status), code)
+}
+
+// screenPermission is POST …/screen/permission, the live screen's "Allow again": a relay of the node's
+// screen.permission, which asks macOS once more whether Persona Screen may record the Mac's screen and answers the
+// helper's status (proto.ScreenVideo). The same gate as the screen itself: a full device, cua or ego on for the Mac.
+// It reads no body.
+func (h *Hub) screenPermission(w http.ResponseWriter, r *http.Request, m *Machine) {
+	if principalOf(r.Context()).Role != roleFull {
+		writeErr(w, http.StatusForbidden, errors.New("this device cannot open the screen"))
+		return
+	}
+	if !h.screenAllowed(m) {
+		writeErr(w, http.StatusForbidden, errors.New("this machine's screen is not shared"))
+		return
+	}
+	args := i18n.Args{"name": m.name()}
+	out, ok := h.callNode(w, r, m, proto.MethodScreenPermission, map[string]any{}, 30*time.Second, "hub-screen.permission_outdated", args,
+		func(err error) bool {
+			var re *rpc.Error
+			if !errors.As(err, &re) || re.Code != "video_unavailable" {
+				return false
+			}
+			writeErrCode(routeLanguageWriter{ResponseWriter: w, language: h.requestLang(r)}, http.StatusConflict, re.Code,
+				i18n.Err("hub-screen.no_helper", args))
+			return true
+		})
+	if !ok {
+		return
+	}
+	writeRawJSON(w, out)
 }

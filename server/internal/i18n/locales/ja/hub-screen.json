@@ -1,0 +1,4 @@
+{
+  "no_helper": "{name} には Persona Screen（Persona Link に含まれるライブ画面のビデオ用ヘルパー）がありません。",
+  "permission_outdated": "{name} の personad が古いため、macOS にもう一度許可を求められません。アップデートしてください"
+}

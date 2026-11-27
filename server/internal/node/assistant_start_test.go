@@ -220,7 +220,7 @@ func TestAssistantSendRestartsForNewInstructions(t *testing.T) {
 	if _, err := n.assistantSend(ctx, id, "", "", "today's calories", nil, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if p := proc(); p == first || p == nil || p.instructions != instructionsDigest(cwd) {
+	if p := proc(); p == first || p == nil || p.instructions != instructionsDigest(cwd, "claude") {
 		t.Fatal("kept the process that read the old CLAUDE.md")
 	}
 }

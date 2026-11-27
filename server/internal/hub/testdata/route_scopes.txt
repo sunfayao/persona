@@ -420,6 +420,7 @@ agents.control       POST /api/v1/interactions/{id}/resolve
 -                    POST /api/v1/machines/{mid}/preview/start
 -                    POST /api/v1/machines/{mid}/processes/{pid}/kill
 -                    POST /api/v1/machines/{mid}/reconnect
+-                    POST /api/v1/machines/{mid}/screen/permission
 -                    POST /api/v1/machines/{mid}/services/action
 -                    POST /api/v1/machines/{mid}/spaces/{wid}/rename
 -                    POST /api/v1/machines/{mid}/storage/cleanup

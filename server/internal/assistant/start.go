@@ -78,7 +78,24 @@ func (s *Service) assistantPrompt(ctx context.Context, here string, larkCLI bool
 		d.Machines = append(d.Machines, prompts.AssistantMachine{Name: m.Name, ID: m.ID, Local: local, SSHHost: m.SSHHost,
 			AgentsOnly: !local && !(d.OnHub && m.Kind == "ssh")})
 	}
+	s.withControls(ctx, d.Machines)
 	return d
+}
+
+// agentsRuntime is the runtime the directory's AGENTS.md is written for: Antigravity when the main conversation's
+// launcher runs it, else Codex, whose wording holds for any agent but Claude (which reads CLAUDE.md). Resolved from
+// what the manager keeps (providers, hub.json, the machines' last lists), never by asking a node: it runs before every
+// message.
+func (s *Service) agentsRuntime(ctx context.Context, machine string, settings Settings) string {
+	launcher := cmp.Or(s.mainLauncherNow(ctx), settings.Launcher)
+	agent := assistantKind(launcher)
+	if agent == "" {
+		agent = s.launcherKindOn(ctx, machine, launcher)
+	}
+	if agent == "agy" {
+		return prompts.RuntimeAgy
+	}
+	return prompts.RuntimeCodex
 }
 
 // prepare tells machine's node what it needs before a message to the assistant (node assistant.prepare) and answers
@@ -140,14 +157,18 @@ func (s *Service) prepareSpaceIf(ctx context.Context, machine, space string, onl
 	// The digest of the hub's own part lets the extensions' data instructions ride along when it changes (the
 	// conversation restarts for it anyway) instead of restarting it on their own (extmgr extension_assistant_data.go).
 	pluginParams := map[string]any{"machine_id": machine}
-	var own, onDemand string
+	// own and onDemand are CLAUDE.md's, the hub's part without and with the work guide; agentsOwn and agentsOnDemand
+	// the same for AGENTS.md, worded for the runtime that reads it (agentsRuntime).
+	var own, onDemand, agentsOwn, agentsOnDemand string
 	if tmpl == trackTemplateAssistant {
 		settings := s.settings(ctx)
 		d := s.assistantPrompt(ctx, machine, conns.LarkCLI, settings)
-		own = prompts.RenderAssistantClaudeMD(d)
+		agents := d
+		agents.Runtime = s.agentsRuntime(ctx, machine, settings)
+		own, agentsOwn = prompts.RenderAssistantClaudeMD(d), prompts.RenderAssistantClaudeMD(agents)
 		if settings.workGuideOn() {
-			d.WorkGuide = true
-			onDemand = prompts.RenderAssistantClaudeMD(d)
+			d.WorkGuide, agents.WorkGuide = true, true
+			onDemand, agentsOnDemand = prompts.RenderAssistantClaudeMD(d), prompts.RenderAssistantClaudeMD(agents)
 		}
 		sum := sha256.Sum256([]byte(own))
 		pluginParams["base_digest"] = hex.EncodeToString(sum[:16])
@@ -163,10 +184,14 @@ func (s *Service) prepareSpaceIf(ctx context.Context, machine, space string, onl
 		// A track's own baseline, without the instructions plugins give the main chat; their skills still go there.
 		md = s.spaceClaudeMD(ctx, machine, track)
 	}
+	var agentsMD string
+	if agentsOwn != "" {
+		agentsMD = agentsOwn + plugins.Instructions
+	}
 	digests, files := skillDigests(plugins.Skills)
 	deny := s.trackDenyDirs(ctx)
 	denyKey, _ := json.Marshal(deny)
-	given := preparedState{md: md, skills: digests, workGuide: onDemand != "", deny: string(denyKey)}
+	given := preparedState{md: md, agentsMD: agentsMD, skills: digests, workGuide: onDemand != "", deny: string(denyKey)}
 	// A track's instructions end with its SPACE.md, which the node reads (and the user edits there): the node is asked
 	// every time, and what it read is compared after (space_md_digest).
 	if onlyChanged && !files && tmpl != trackTemplateSpace {
@@ -182,6 +207,13 @@ func (s *Service) prepareSpaceIf(ctx context.Context, machine, space string, onl
 	// Older nodes read only claude_md, so they retain the complete instructions.
 	if onDemand != "" {
 		params["work_guide_md"] = onDemand + plugins.Instructions
+	}
+	// AGENTS.md's own text; older nodes write claude_md (or work_guide_md) to both files, as before.
+	if agentsMD != "" {
+		params["agents_md"] = agentsMD
+	}
+	if agentsOnDemand != "" {
+		params["agents_work_guide_md"] = agentsOnDemand + plugins.Instructions
 	}
 	if tmpl == trackTemplateSpace {
 		params["space"] = map[string]any{"slug": track.Slug, "initial_space_md": s.initialSpaceMD(ctx, track)}
@@ -222,11 +254,12 @@ func (s *Service) prepareSpaceIf(ctx context.Context, machine, space string, onl
 	return prep.Cwd, true, nil
 }
 
-// preparedState is what prepareSpaceIf gave a node for a directory: the CLAUDE.md, the plugin skills (skillDigests)
-// and the denied track directories (trackDenyDirs, as JSON).
+// preparedState is what prepareSpaceIf gave a node for a directory: the CLAUDE.md and AGENTS.md ("" when the node
+// writes the CLAUDE.md to both), the plugin skills (skillDigests) and the denied track directories (trackDenyDirs, as
+// JSON).
 type preparedState struct {
-	md, skills, deny string
-	workGuide        bool
+	md, agentsMD, skills, deny string
+	workGuide                  bool
 	// spaceMD is the digest of the SPACE.md a track's instructions ended with, as the node read it.
 	spaceMD string
 }
