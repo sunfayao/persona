@@ -42,6 +42,25 @@ describe("an agent's row", () => {
     expect(more(renderToStaticMarkup(<SessionRow {...rowProps} active />))).toMatch(/class="[^"]*\bopacity-100\b/);
     expect(more(renderToStaticMarkup(<SessionRow {...rowProps} active={false} />))).toMatch(/class="[^"]*\bopacity-0\b/);
   });
+  // the owner's report: the row under the pointer lost its "working" and the line under its title
+  it("keeps its state and details in sight under the pointer, in the one-line and the two-line layout", () => {
+    const working: Session = { ...session, status: "working", state: "working", updated_at: "2026-01-01T00:00:00Z", pane_id: "w1:p1" };
+    // the wide layout's one line (state and age at the end of the title's line), and a contextual row, whose details
+    // take a line under the title in every layout
+    const oneLine = renderToStaticMarkup(<SessionRow {...rowProps} s={working} active={false} />);
+    const twoLines = renderToStaticMarkup(<SessionRow {...rowProps} s={{ ...working, pane_id: undefined }} hint="Project" active={false} />);
+    expect(link(oneLine)).not.toContain("data-sidebar-context");
+    expect(link(twoLines)).toContain("data-sidebar-context");
+    for (const html of [oneLine, twoLines]) {
+      expect(html).toContain(`>${stateName("working")}<`);
+      expect(html).toContain("data-row-age");
+      expect(html).not.toContain("invisible"); // nothing on the row hides on hover or focus
+      // the wide layout keeps the ⋯'s slot at the row's end on every row, hovered or not: the ⋯ covers no words
+      expect(link(html)).toMatch(/class="[^"]*lg:\[@media\(hover:hover\)\]:pr-8/);
+      expect(more(html)).toMatch(/\bright-1\b/);
+      expect(more(html)).toMatch(/\bsize-6\b/);
+    }
+  });
   it("distinguishes working, background-waiting, needs-you, and quiet idle states cleanly without inactive row borders", () => {
     const workingHtml = renderToStaticMarkup(<SessionRow {...rowProps} s={{ ...session, status: "working", state: "working" }} active={false} />);
     expect(workingHtml).toContain(`>${stateName("working")}<`);
@@ -107,7 +126,7 @@ describe("where an agent was opened, as a mark at its row's end (#2526)", () => 
     expect(mark(html)).toContain("text-source-terminal");
     expect(mark(html)).toContain("<svg");
     expect(mark(html)).not.toMatch(/>终端</); // no visible word any more
-    expect(link(html)).toMatch(/title="整理文档\n终端/); // the row's tooltip names it too: the mark hides while hovered
+    expect(link(html)).toMatch(/title="整理文档\n终端/); // the row's tooltip names it too
   });
   it("draws a desktop app's own chat as a window, in its own color", () => {
     for (const patch of [{ space_kind: "codex_app", source_kind: "codex_history" }, { host: "paseo", source_kind: "runtime", source_instance_id: "paseo" }]) {
@@ -130,8 +149,8 @@ describe("where an agent was opened, as a mark at its row's end (#2526)", () => 
     expect(mark(render({ pane_id: "w1:p1" }, { endRoom: true }))).toBeUndefined();
     expect(link(render({ pane_id: "w1:p1" }, { endRoom: true }))).not.toMatch(/\n终端/);
   });
-  it("steps aside for the hover ⋯ like the rest of the row's end, and stays on the open row", () => {
-    expect(mark(render({ pane_id: "w1:p1" }))).toContain("group-hover/row:invisible");
+  it("stays in sight under the pointer like the rest of the row's end, open or not", () => {
+    expect(mark(render({ pane_id: "w1:p1" }))).not.toContain("invisible");
     expect(mark(renderToStaticMarkup(<SessionRow {...rowProps} s={{ ...session, pane_id: "w1:p1" }} active />))).not.toContain("invisible");
   });
   it("tells terminal and desktop apart by shape too: a bare prompt, and a framed window", () => {
@@ -204,6 +223,12 @@ describe("a personal agent's row", () => {
     const html = renderToStaticMarkup(<AgentRow {...props} active={false} />);
     expect(link(html)).not.toContain("aria-current");
     expect(pin(html)).toMatch(/class="[^"]*\bopacity-0\b/);
+  });
+  it("keeps its unread count in sight under the pointer, beside the hover pin's slot in the wide layout", () => {
+    const html = renderToStaticMarkup(<AgentRow {...props} s={{ ...s, unreadCount: 3 }} active={false} />);
+    expect(html).toMatch(/<span class="sidebar-personal-meta[^"]*"><span[^>]*>3<\/span>/);
+    expect(html).not.toContain("invisible");
+    expect(link(html)).toMatch(/class="[^"]*lg:\[@media\(hover:hover\)\]:pr-7/);
   });
 });
 
