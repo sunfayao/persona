@@ -7,7 +7,6 @@ import { mergeRefs } from "../../lib/tap-guard";
 import { delegateLines, isDelegating, recommendedLabels, type DelegatedAnswer } from "../../lib/delegate";
 import { Choice, DigitHint } from "./Choice";
 import { DelegatedCard } from "./Delegated";
-import { BUSY_MOTION, spinStyle } from "../../lib/busy-motion";
 import { appArchiveDeps, archiveAgent, archiveSession } from "../../lib/agent-archives";
 import { isSessionReview } from "../../lib/types";
 import type { Interaction } from "../../lib/types";
@@ -145,8 +144,9 @@ export function Card({ title, titleContent, kicker, onDismiss, busy, children, f
   }, [report, cutKey, cut]);
   const answers = about && about !== title ? `${title} · ${about}` : title;
   // said while what it answers is out of view: always for a card that asks more than its title (a command, a plan), for
-  // one that asks only its title (a question) while the title is out of view too, never a repeat of what is in view
-  const says = cut && (answers !== title || !titleShown);
+  // one that asks only its title (a question) while the title is out of view too, never a repeat of what is in view;
+  // only over answers in that row (a card without a footer answers in its body, where what it asks is in view)
+  const says = cut && Boolean(footer) && (answers !== title || !titleShown);
   // brings the whole card into view (its title and command over its answers) and the focus onto it, as the line goes
   const reveal = (e: React.MouseEvent<HTMLButtonElement>) => {
     const card = e.currentTarget.closest<HTMLElement>("[data-pending-card]");
@@ -220,16 +220,20 @@ export function Card({ title, titleContent, kicker, onDismiss, busy, children, f
       {/* while cut, the line saying what it answers sits in the row before its main answers (the row's last group), so
           the row keeps its height where it fits: a row as tall as before is in view as before */}
       {/* its tooltip is the whole of what it says (the line truncates a long command); its icon is not the send arrow */}
-      <div ref={row} data-card-actions className={cx("sticky -bottom-1 flex items-center justify-between gap-2 border-t border-line bg-inset px-3 py-2", (sending || says) && "flex-wrap", says && "[&>:last-child]:order-2")}>
-        {says && (
-          <button type="button" data-card-answers onClick={reveal} title={answers} aria-label={`${t("chat-interactions.show_card")}: ${answers}`} className="touch-hit order-1 flex min-w-0 flex-1 basis-40 items-center gap-1.5 text-left text-xs text-ink-2 transition-colors hover:text-ink max-sm:order-first max-sm:basis-full">
-            <Icon name="unfold" size={12} stroke={2.2} className="shrink-0 text-ink-3" />
-            <span className="min-w-0 truncate">{answers}</span>
-          </button>
-        )}
-        {sending && <p data-card-pending role="status" className="basis-full truncate text-[12px] text-ink-2">{sending}</p>}
-        {footer}
-      </div>
+      {/* a card whose answers are all in its body (a single-choice question: a pick sends it) has no row until it has
+          something to say there: never a strip under its options with nothing in it */}
+      {(footer || sending) && (
+        <div ref={row} data-card-actions className={cx("sticky -bottom-1 flex items-center justify-between gap-2 border-t border-line bg-inset px-3 py-2", (sending || says) && "flex-wrap", says && "[&>:last-child]:order-2")}>
+          {says && (
+            <button type="button" data-card-answers onClick={reveal} title={answers} aria-label={`${t("chat-interactions.show_card")}: ${answers}`} className="touch-hit order-1 flex min-w-0 flex-1 basis-40 items-center gap-1.5 text-left text-xs text-ink-2 transition-colors hover:text-ink max-sm:order-first max-sm:basis-full">
+              <Icon name="unfold" size={12} stroke={2.2} className="shrink-0 text-ink-3" />
+              <span className="min-w-0 truncate">{answers}</span>
+            </button>
+          )}
+          {sending && <p data-card-pending role="status" className="basis-full truncate text-[12px] text-ink-2">{sending}</p>}
+          {footer}
+        </div>
+      )}
     </div>
   );
 }
@@ -245,9 +249,9 @@ export function OptionLabel({ label }: { label: string }) {
   );
 }
 
-function SendArrow({ ready, onClick, label, busy, kbd }: { ready: boolean; onClick: () => void; label: string; busy?: boolean; /** While the card has keyboard focus: the Enter that runs this. */ kbd?: boolean }) {
+function SendArrow({ ready, onClick, label, busy, kbd, inBody }: { ready: boolean; onClick: () => void; label: string; busy?: boolean; /** While the card has keyboard focus: the Enter that runs this. */ kbd?: boolean; /** Drawn in the card's body rather than its answer row: marked as one of its answers (the tap guard, the sync views). */ inBody?: boolean }) {
   return (
-    <span className="flex items-center gap-1.5">
+    <span className="flex shrink-0 items-center gap-1.5">
       {kbd && <Kbd>Enter</Kbd>}
       <button
         type="button"
@@ -255,12 +259,54 @@ function SendArrow({ ready, onClick, label, busy, kbd }: { ready: boolean; onCli
         title={label}
         disabled={!ready || busy}
         onClick={onClick}
+        {...(inBody ? { "data-card-answer": "" } : {})}
         className="touch-hit flex size-7 items-center justify-center rounded-[8px] transition-[background-color,color,transform] duration-200 enabled:active:scale-[0.96]"
         style={{ background: ready ? "var(--ink)" : "var(--field)", color: ready ? "var(--surface)" : "var(--ink-3)", boxShadow: ready ? "inset 0 1px 0 rgba(255,255,255,0.14)" : "var(--shadow-btn)" }}
       >
         <Icon name="up" size={14} stroke={2.5} />
       </button>
     </span>
+  );
+}
+
+/**
+ * A question's own answer, written in: the last of its option rows on every question card (an agent's question, a
+ * terminal's "Type something", a multi-select's free text), in the options' column. `send` puts the send arrow at its
+ * end, for a question whose answers go from its body (a single choice: picking an option sends it); without it the
+ * card's answer row sends the text with the rest. Enter does what the arrow does.
+ */
+function WriteIn({ value, onChange, onEnter, placeholder, label, disabled, hint, inputRef, send }: {
+  value: string;
+  onChange: (value: string) => void;
+  onEnter: () => void;
+  placeholder: string;
+  label: string;
+  disabled?: boolean;
+  /** The digit that focuses it, while the card has keyboard focus. */
+  hint?: number;
+  inputRef?: RefObject<HTMLInputElement | null>;
+  send?: { label: string; ready: boolean; busy?: boolean; run: () => void };
+}) {
+  const ime = useComposition();
+  return (
+    <label className="-mx-1.5 flex items-center gap-2 rounded-control px-1.5 py-1 transition-colors focus-within:bg-hover hover:bg-hover">
+      {hint !== undefined && <DigitHint n={hint} />}
+      <span aria-hidden className="size-4 shrink-0" />
+      <input
+        ref={inputRef}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        {...ime.handlers}
+        onKeyDown={(e) => e.key === "Enter" && !ime.busy(e.nativeEvent) && onEnter()}
+        placeholder={placeholder}
+        aria-label={label}
+        // focused in a box that scrolls, it lands clear of the card's sticky answer row below and of a sticky title
+        // above (the assistant's Pending tray), rather than under either
+        className="min-h-7 min-w-0 flex-1 scroll-my-14 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-3"
+      />
+      {send && <SendArrow inBody ready={send.ready} busy={send.busy} label={send.label} onClick={send.run} />}
+    </label>
   );
 }
 
@@ -303,7 +349,6 @@ function ToolLoopCard({ ix }: { ix: Interaction }) {
 const SessionReviewCard = lazyPage(() => import("./SessionReviewCard").then((m) => m.SessionReviewCard));
 
 export function QuestionCard({ ix, canApprove, onAnswer }: { ix: Interaction; canApprove: boolean; onAnswer?: (answers: Record<string, string>) => Promise<boolean> }) {
-  const ime = useComposition();
   const qs = ix.questions ?? [];
   const localOnly = ix.tool_name === "persona_triage" && !canApprove;
   const [qi, setQi] = useState(0);
@@ -343,6 +388,9 @@ export function QuestionCard({ ix, canApprove, onAnswer }: { ix: Interaction; ca
   const onOptions = picks.every((p) => p.length > 0);
   const context = delegateLines(ix.delegate).filter((l) => !(l.key === "recommend" && onOptions));
   const last = qi === qs.length - 1;
+  // one question with one answer: a pick sends it, a written answer goes by the arrow at its end, and the card has no
+  // answer row (only a question that pages or takes several picks needs one)
+  const instant = qs.length === 1 && !q.multi_select;
   const answered = (i: number) => (picked[i]?.length ?? 0) > 0 || Boolean(custom[i]?.trim());
   // A card that became read-only after a pick must not submit that now-disabled answer. Only explicit defer choices
   // remain valid; the custom field and every message-sending option are disabled below.
@@ -376,15 +424,13 @@ export function QuestionCard({ ix, canApprove, onAnswer }: { ix: Interaction; ca
   const toggle = (label: string) => {
     if (submitting.current) return;
     if (localOnly && !q.options?.some((o) => o.label === label && o.action === "defer")) return;
-    const singleChoice = qs.length === 1 && !q.multi_select;
-    const hasCustomAnswer = singleChoice && Boolean(custom[qi]?.trim());
     setCustom((c) => ({ ...c, [qi]: "" }));
     setPicked((cur) => {
       const have = cur[qi] ?? [];
       const next = q.multi_select ? (have.includes(label) ? have.filter((x) => x !== label) : [...have, label]) : [label];
       return { ...cur, [qi]: next };
     });
-    if (singleChoice && !hasCustomAnswer) void send(label);
+    if (instant) void send(label);
     else if (!q.multi_select && !last) slide.current = window.setTimeout(() => setQi((i) => Math.min(qs.length - 1, i + 1)), 380);
   };
 
@@ -396,9 +442,11 @@ export function QuestionCard({ ix, canApprove, onAnswer }: { ix: Interaction; ca
       looking={looking}
       cardKeys={keys}
       tapGuard={tapGuard}
-      onDismiss={onAnswer ? undefined : () => resolve(ix, { dismiss: true })}
+      // a question asks for an answer: nothing on it puts the question away. The manager's own work card (a stopped
+      // Agent's triage) keeps its local dismiss, which clears that card without an Agent answer
+      onDismiss={ix.tool_name === "persona_triage" && !onAnswer ? () => resolve(ix, { dismiss: true }) : undefined}
       busy={busy}
-      footer={
+      footer={instant ? null : (
         <>
           <span className="flex items-center gap-2">
             {qs.length > 1 && (
@@ -427,7 +475,7 @@ export function QuestionCard({ ix, canApprove, onAnswer }: { ix: Interaction; ca
           </span>
           <SendArrow ready={last ? all : answered(qi) && allowed(qi)} busy={busy} kbd={keys.focused} label={last ? t("chat-interactions.send_answer") : t("chat-interactions.next_question")} onClick={() => (last ? void send() : advance())} />
         </>
-      }
+      )}
     >
       {looking && (
         <div data-delegating className="mb-2 flex items-start gap-2 rounded-control bg-inset px-2.5 py-2 text-[12px] leading-snug shadow-hairline">
@@ -458,24 +506,18 @@ export function QuestionCard({ ix, canApprove, onAnswer }: { ix: Interaction; ca
         {(q.options ?? []).map((o, i) => (
           <Choice key={o.label} on={(picked[qi] ?? []).includes(o.label)} multi={q.multi_select} label={o.label} desc={o.description} pick={picks[qi]?.length ? picks[qi].includes(o.label) : q.recommend === o.label} hint={keys.focused && i < 9 ? i + 1 : undefined} disabled={localOnly && o.action !== "defer"} onClick={() => toggle(o.label)} marker />
         ))}
-        <label className="-mx-1.5 flex items-center gap-2 rounded-control px-1.5 py-1.5 transition-colors focus-within:bg-hover hover:bg-hover">
-          <span aria-hidden className="size-4 shrink-0" />
-          <input
-            value={custom[qi] ?? ""}
-            disabled={localOnly}
-            onChange={(e) => {
-              setCustom((c) => ({ ...c, [qi]: e.target.value }));
-              if (e.target.value) setPicked((p) => ({ ...p, [qi]: [] }));
-            }}
-            {...ime.handlers}
-            onKeyDown={(e) => e.key === "Enter" && !ime.busy(e.nativeEvent) && (last ? all && void send() : answered(qi) && setQi(qi + 1))}
-            placeholder={t("chat-interactions.custom_placeholder")}
-            aria-label={t("chat-interactions.custom_answer")}
-            // focused in a box that scrolls, it lands clear of the card's sticky answer row below and of a sticky title
-            // above (the assistant's Pending tray), rather than under either
-            className="min-w-0 flex-1 scroll-my-14 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-3"
-          />
-        </label>
+        <WriteIn
+          value={custom[qi] ?? ""}
+          disabled={localOnly}
+          onChange={(value) => {
+            setCustom((c) => ({ ...c, [qi]: value }));
+            if (value) setPicked((p) => ({ ...p, [qi]: [] }));
+          }}
+          onEnter={() => (last ? all && void send() : answered(qi) && advance())}
+          placeholder={t("chat-interactions.custom_placeholder")}
+          label={t("chat-interactions.custom_answer")}
+          send={instant ? { label: t("chat-interactions.send_answer"), ready: Boolean(custom[qi]?.trim()) && allowed(qi), busy, run: () => void send() } : undefined}
+        />
       </div>
     </Card>
   );
@@ -837,8 +879,8 @@ function ScreenCard({ ix }: { ix: Interaction }) {
 }
 
 function PlainScreenCard({ ix }: { ix: Interaction }) {
-  const ime = useComposition();
   const input = useRef<HTMLInputElement>(null);
+  const writeIn = useRef<HTMLInputElement>(null);
   useLayoutEffect(() => {
     const el = input.current;
     return () => {
@@ -846,29 +888,32 @@ function PlainScreenCard({ ix }: { ix: Interaction }) {
     };
   }, []);
   const d = ix.dialog;
+  const options = d?.options ?? [];
   const trae = d?.rev?.startsWith("trae-question:") ?? false;
-  const terminalOnly = trae && !d?.options?.length;
+  const terminalOnly = trae && !options.length;
+  // a dialog read into its options is a question on the computer's screen: drawn as every question card is (option
+  // rows, the write-in row, a pick sends it), with nothing beside its answers that puts it away or ends the Agent
+  const choosing = options.length > 0;
   const terminal: Route = { name: "session", mid: ix.machine_id, sid: ix.session_id, view: "term" };
   const [text, setText] = useState("");
-  const [typing, setTyping] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const go = async (body: Record<string, unknown>, key: string) => {
     setBusy(key);
     await resolve(ix, body);
     setBusy(null);
   };
-  // digits pick the options by place (their key badges say what the computer itself reads); with no options Enter sends
-  // the text. A "type something" option's digit only opens its field, as a click does
+  // digits pick the options by place (the computer's own numbers); with no options Enter sends the text. A "type
+  // something" option's digit only puts the focus in its field, as a tap does
   const keys = useCardKeys({
     digit: (n) => {
-      const o = d?.options?.[n - 1];
+      const o = options[n - 1];
       if (!o || busy !== null) return false;
-      if (o.kind === "type_something") setTyping(o.key);
+      if (o.kind === "type_something") writeIn.current?.focus();
       else void go({ option: o.key }, o.key);
       return true;
     },
     enter: () => {
-      if (terminalOnly || busy !== null || (d?.options?.length ?? 0) > 0) return false;
+      if (terminalOnly || busy !== null || choosing) return false;
       void go({ text, keys: ["enter"] }, "text");
     },
   });
@@ -880,16 +925,15 @@ function PlainScreenCard({ ix }: { ix: Interaction }) {
       title={d?.question || t("chat-interactions.screen_title")}
       cardKeys={keys}
       tapGuard={tapGuard}
-      onDismiss={trae ? undefined : () => go({ dismiss: true }, "dismiss")}
+      // only a screen read without options can be left to the computer: what it asks is not on the card
+      onDismiss={trae || choosing ? undefined : () => go({ dismiss: true }, "dismiss")}
       busy={busy !== null}
-      footer={<div className="flex w-full min-w-0 flex-col gap-2">
+      footer={choosing ? null : <div className="flex w-full min-w-0 flex-col gap-2">
         <div className="flex min-w-0 items-center gap-2">
         {terminalOnly ? (
           <a href={href(terminal)} onClick={(e) => onLinkClick(e, terminal)} className="touch-hit text-[13px] font-medium text-accent-ink hover:underline">
             {t("chat-interactions.screen_open_terminal")}
           </a>
-        ) : d?.options?.length ? (
-          <span className="text-[11.5px] text-ink-3">{t("chat-interactions.screen_hint")}</span>
         ) : (
           <>
             <input
@@ -911,6 +955,8 @@ function PlainScreenCard({ ix }: { ix: Interaction }) {
           </>
         )}
         </div>
+        {/* a screen the hub could not read into options may be a confirmation no card can answer: closing the Agent is
+            the way out here. A question's card never offers it (the session's menu still does) */}
         {!trae && <CloseBlockedAgent ix={ix} disabled={busy !== null} />}
       </div>}
     >
@@ -919,41 +965,25 @@ function PlainScreenCard({ ix }: { ix: Interaction }) {
       {d?.detail && <ScrollFold className={DETAIL_FOLD} data-screen-detail>{d.detail}</ScrollFold>}
       {terminalOnly ? (
         <p className="text-[13px] text-ink-2">{t("chat-interactions.screen_answer_in_terminal")}</p>
-      ) : d?.options?.length ? (
+      ) : choosing ? (
         <div className="flex flex-col gap-0.5">
-          {d.options.map((o, i) =>
-            o.kind === "type_something" && typing === o.key ? (
-              <div key={o.key} className="flex items-center gap-1.5 py-1">
-                <input
-                  autoFocus
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  {...ime.handlers}
-                  onKeyDown={(e) => e.key === "Enter" && !ime.busy(e.nativeEvent) && text.trim() && go({ option: o.key, text }, o.key)}
-                  placeholder={o.label}
-                  className="h-8 min-w-0 flex-1 rounded-control bg-surface px-2.5 text-[13px] text-ink shadow-btn outline-none placeholder:text-ink-3"
-                />
-                <Button tone="primary" busy={busy === o.key} disabled={!text.trim() || busy !== null} onClick={() => go({ option: o.key, text }, o.key)}>
-                  {t("chat-interactions.send")}
-                </Button>
-              </div>
-            ) : (
-              <button
+          {options.map((o, i) =>
+            o.kind === "type_something" ? (
+              <WriteIn
                 key={o.key}
-                type="button"
+                inputRef={writeIn}
+                value={text}
                 disabled={busy !== null}
-                data-tap-answer
-                onClick={() => (o.kind === "type_something" ? setTyping(o.key) : go({ option: o.key }, o.key))}
-                className="touch-hit -mx-1.5 flex items-start gap-2 rounded-control px-1.5 py-1.5 text-left transition-colors hover:bg-hover disabled:opacity-60"
-              >
-                <span className="mt-[1px] flex h-4.5 min-w-4.5 shrink-0 items-center justify-center rounded-[5px] bg-field px-1 font-mono text-[10.5px] text-ink-2 shadow-hairline">{o.key}</span>
-                {keys.focused && i < 9 && <DigitHint n={i + 1} />}
-                <span className="min-w-0">
-                  <OptionLabel label={o.label} />
-                  {o.detail && <span className="block text-[12px] text-ink-3">{o.detail}</span>}
-                </span>
-                {busy === o.key && <span className={`ml-auto mt-1 size-3 shrink-0 rounded-full border-[1.5px] border-line-strong border-t-ink-2 ${BUSY_MOTION}`} style={spinStyle(700)} />}
-              </button>
+                onChange={setText}
+                onEnter={() => text.trim() && void go({ option: o.key, text }, o.key)}
+                placeholder={o.label}
+                label={o.label}
+                hint={keys.focused && i < 9 ? i + 1 : undefined}
+                send={{ label: t("chat-interactions.send_answer"), ready: Boolean(text.trim()), busy: busy !== null, run: () => void go({ option: o.key, text }, o.key) }}
+              />
+            ) : (
+              // the option on its way is the picked one; an answered question shown again marks its earlier pick
+              <Choice key={o.key} on={busy === null ? Boolean(o.checked) : busy === o.key} label={o.label} desc={o.detail} hint={keys.focused && i < 9 ? i + 1 : undefined} disabled={busy !== null} onClick={() => void go({ option: o.key }, o.key)} marker />
             ),
           )}
         </div>
@@ -965,7 +995,8 @@ function PlainScreenCard({ ix }: { ix: Interaction }) {
 }
 
 /** A multi-select terminal question: ticks (starting from what the computer shows) and the free text, sent together;
- *  the computer's boxes end up as here, one key at a time (node/dialogmulti.go). */
+ *  the computer's boxes end up as here, one key at a time (node/dialogmulti.go). Drawn as the agent's own multi-select
+ *  question is: check rows, the write-in row, the send arrow in the answer row. */
 function MultiScreenCard({ ix }: { ix: Interaction }) {
   const d = ix.dialog!;
   const options = d.options ?? [];
@@ -985,7 +1016,9 @@ function MultiScreenCard({ ix }: { ix: Interaction }) {
   });
   const chat = options.find((o) => o.kind === "chat");
   const answer = text.trim();
-  // digits tick the boxes by place (their key badges are the computer's own digits); Enter is the submit button's send
+  const ready = picked.size > 0 || Boolean(answer);
+  const submit = () => void go({ options: options.map((o) => o.key).filter((k) => picked.has(k)), text: answer || undefined }, "multi");
+  // digits tick the boxes by place (the computer's own digits); Enter is the send arrow's send
   const plain = options.filter((o) => !o.kind);
   const keys = useCardKeys({
     digit: (n) => {
@@ -995,8 +1028,8 @@ function MultiScreenCard({ ix }: { ix: Interaction }) {
       return true;
     },
     enter: () => {
-      if (busy !== null || (picked.size === 0 && !answer)) return false;
-      void go({ options: options.map((o) => o.key).filter((k) => picked.has(k)), text: answer || undefined }, "multi");
+      if (busy !== null || !ready) return false;
+      submit();
     },
   });
   const tapGuard = useChatCardTapGuard(ix);
@@ -1006,58 +1039,31 @@ function MultiScreenCard({ ix }: { ix: Interaction }) {
       title={d.question || t("chat-interactions.multi_title")}
       cardKeys={keys}
       tapGuard={tapGuard}
-      onDismiss={() => go({ dismiss: true }, "dismiss")}
       busy={busy !== null}
       footer={
         <>
-          {chat && (
+          {chat ? (
             <Button busy={busy === chat.key} disabled={busy !== null} onClick={() => go({ option: chat.key }, chat.key)}>
               {t("chat-interactions.say_in_chat")}
             </Button>
-          )}
-          <span className="flex-1" />
-          <Button
-            tone="primary"
-            busy={busy === "multi"}
-            disabled={busy !== null || (picked.size === 0 && !answer)}
-            onClick={() => go({ options: options.map((o) => o.key).filter((k) => picked.has(k)), text: answer || undefined }, "multi")}
-          >
-            {d.submit === "Next" ? t("chat-interactions.next_question") : t("chat-interactions.submit")}
-            {keys.focused && <Kbd>Enter</Kbd>}
-          </Button>
+          ) : <span />}
+          <SendArrow ready={ready} busy={busy !== null} kbd={keys.focused} label={d.submit === "Next" ? t("chat-interactions.next_question") : t("chat-interactions.send_answer")} onClick={submit} />
         </>
       }
     >
       {d.detail && <ScrollFold className={DETAIL_FOLD} data-screen-detail>{d.detail}</ScrollFold>}
       <div className="flex flex-col gap-0.5">
-        {options.filter((o) => !o.kind).map((o, i) => (
-          <button
-            key={o.key}
-            type="button"
-            role="checkbox"
-            aria-checked={picked.has(o.key)}
-            disabled={busy !== null}
-            data-tap-answer
-            onClick={() => toggle(o.key)}
-            className="touch-hit -mx-1.5 flex items-start gap-2 rounded-control px-1.5 py-1.5 text-left transition-colors hover:bg-hover disabled:opacity-60"
-          >
-            <span className={`mt-[1px] flex h-4.5 min-w-4.5 shrink-0 items-center justify-center rounded-[5px] px-1 font-mono text-[10.5px] shadow-hairline ${picked.has(o.key) ? "bg-accent text-white" : "bg-field text-ink-2"}`}>
-              {picked.has(o.key) ? "✓" : o.key}
-            </span>
-            {keys.focused && i < 9 && <DigitHint n={i + 1} />}
-            <span className="min-w-0">
-              <OptionLabel label={o.label} />
-              {o.detail && <span className="block text-[12px] text-ink-3">{o.detail}</span>}
-            </span>
-          </button>
+        {plain.map((o, i) => (
+          <Choice key={o.key} on={picked.has(o.key)} multi label={o.label} desc={o.detail} hint={keys.focused && i < 9 ? i + 1 : undefined} disabled={busy !== null} onClick={() => toggle(o.key)} marker />
         ))}
         {field && (
-          <input
+          <WriteIn
             value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={t("chat-interactions.other_answer")}
             disabled={busy !== null}
-            className="mt-1 h-8 min-w-0 rounded-control bg-surface px-2.5 text-[13px] text-ink shadow-btn outline-none placeholder:text-ink-3"
+            onChange={setText}
+            onEnter={() => ready && busy === null && submit()}
+            placeholder={t("chat-interactions.other_answer")}
+            label={t("chat-interactions.other_answer")}
           />
         )}
       </div>

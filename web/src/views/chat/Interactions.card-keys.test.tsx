@@ -173,10 +173,20 @@ describe("a card answering from the keyboard", () => {
     act(() => cardRoot().focus());
     await press("2"); // a key first, so the hints' state has gone through a render
     expect(host.querySelectorAll("button[aria-pressed]")[0]!.querySelectorAll("[data-key-hint]").length).toBe(1); // the digit badge
-    expect(host.querySelector("[data-card-actions] kbd")).toBeTruthy(); // the Enter badge by the send arrow
     act(() => cardRoot().blur());
     await act(async () => { await Promise.resolve(); });
     expect(hints().every((n) => n === 0)).toBe(true);
+  });
+
+  it("shows the Enter badge by the answer row's send arrow only while the card holds keyboard focus", async () => {
+    const multi = { ...question, id: "q_multi", questions: [{ ...question.questions![0], multi_select: true }] } as Interaction;
+    act(() => root.render(<InteractionCard ix={multi} />));
+    expect(host.querySelector("[data-card-actions] kbd")).toBeFalsy();
+    act(() => cardRoot().focus());
+    await press("1");
+    expect(host.querySelector("[data-card-actions] kbd")).toBeTruthy();
+    act(() => cardRoot().blur());
+    await act(async () => { await Promise.resolve(); });
     expect(host.querySelector("[data-card-actions] kbd")).toBeFalsy();
   });
 });

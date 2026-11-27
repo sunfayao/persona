@@ -69,7 +69,29 @@ describe("question card submission", () => {
     expect(calls).toEqual([{ path: "/interactions/q_single/resolve", body: { answers: { "Which library?": "A" } } }]);
   });
 
-  it("clears a nonblank custom answer and waits for explicit submission when an option is picked", async () => {
+  it("has no answer row and nothing that puts the question away: the options and the write-in row answer it", () => {
+    act(() => root.render(<InteractionCard ix={single} />));
+    expect(host.querySelector("[data-card-actions]")).toBeNull();
+    expect([...host.querySelectorAll("button")].some((b) => b.textContent === t("chat-interactions.hand_back"))).toBe(false);
+    // the send arrow is the write-in row's own, off until something is written
+    expect(sendArrow().closest("label")?.contains(customAnswer())).toBe(true);
+    expect(sendArrow().disabled).toBe(true);
+  });
+
+  it("sends a written answer by the arrow at the end of its row", async () => {
+    act(() => root.render(<InteractionCard ix={single} />));
+    const field = customAnswer();
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "  Custom library  ");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(sendArrow().disabled).toBe(false);
+    act(() => sendArrow().click());
+    await flush();
+    expect(calls).toEqual([{ path: "/interactions/q_single/resolve", body: { answers: { "Which library?": "Custom library" } } }]);
+  });
+
+  it("sends a picked option even after something was written, dropping the text", async () => {
     act(() => root.render(<InteractionCard ix={single} />));
     const field = customAnswer();
     act(() => {
@@ -78,11 +100,7 @@ describe("question card submission", () => {
     });
     act(() => option("A").click());
     await flush();
-    expect(option("A").getAttribute("aria-pressed")).toBe("true");
-    expect(calls).toEqual([]);
     expect(customAnswer().value).toBe("");
-    act(() => sendArrow().click());
-    await flush();
     expect(calls).toEqual([{ path: "/interactions/q_single/resolve", body: { answers: { "Which library?": "A" } } }]);
   });
 

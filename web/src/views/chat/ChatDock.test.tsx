@@ -397,8 +397,8 @@ describe("tap areas", () => {
   });
 
   it("covers a card's hand back, a question's options and its arrows", () => {
+    expect(hit(cards({ narrow: false, interactions: [three[0]] }), "交给电脑处理")).toBe(true);
     const html = cards({ narrow: false, interactions: [three[1]] });
-    expect(hit(html, "交给电脑处理")).toBe(true);
     expect(html).toMatch(/<button[^>]*aria-pressed="false"[^>]*class="touch-hit /);
     expect(hit(html, "下一题") || hit(html, "发送回答")).toBe(true);
   });

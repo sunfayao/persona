@@ -144,7 +144,9 @@ describe("a waiting card cut off below the dock's box", () => {
   });
 
   it("does not repeat a question whose title is in view: only once the question is out of view as well", () => {
-    draw([question, permission]);
+    // two questions: their card pages and sends from its answer row
+    const paged = { ...question, questions: [...question.questions!, { question: "Which runner?", options: [{ label: "Local" }, { label: "CI" }] }] } as Interaction;
+    draw([paged, permission]);
     openAll();
     say("q_1", true);
     expect(card("q_1").querySelector("[data-card-answers]")).toBeNull();
@@ -155,6 +157,14 @@ describe("a waiting card cut off below the dock's box", () => {
     // a tool approval's line says its command, which its title does not, title in view or not
     say("p_1", true);
     expect(card("p_1").querySelector("[data-card-answers]")).not.toBeNull();
+  });
+
+  it("gives a single-choice question no answer row to say it in: its answers are its options, in its body", () => {
+    draw([question, permission]);
+    openAll();
+    say("q_1", true, false);
+    expect(card("q_1").querySelector("[data-card-actions]")).toBeNull();
+    expect(card("q_1").querySelector("[data-card-answers]")).toBeNull();
   });
 
   it("keeps the next card mounted, with what was typed in it, when the card above it goes", () => {

@@ -21,10 +21,10 @@ import { InteractionCard } from "./Interactions";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+// a screen the hub could not read into options: a terminal question's card offers no close (Interactions.close.test.tsx)
 const ix: Interaction = {
   id: "terminal-card", machine_id: "m", session_id: "s", kind: "screen",
   screen: "Waiting for permission confirmation",
-  dialog: { options: [{ key: "1", label: "Allow once" }, { key: "2", label: "Deny" }] },
 };
 let host: HTMLDivElement;
 let root: Root;
