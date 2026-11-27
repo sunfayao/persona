@@ -165,7 +165,7 @@ func (n *Node) spawnCodexWithMode(id, cwd, launcher string, resume, spare bool, 
 	if err != nil {
 		return nil, err
 	}
-	instructions := instructionsDigest(cwd)
+	instructions := instructionsDigest(cwd, "codex")
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("start %s: %w", launcher, err)
 	}

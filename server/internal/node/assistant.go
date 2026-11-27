@@ -113,9 +113,9 @@ type assistantProc struct {
 	// turnRecovery belongs to the turn currently answering on this process. A newer request may cancel the
 	// conversation-map entry, but must not rewrite this older turn's retry budget before its result arrives.
 	turnRecovery *assistantTurnRecovery
-	// instructions is the digest of the CLAUDE.md / AGENTS.md in cwd when it started (instructionsDigest): the agent
-	// reads them only at start, so once the hub rewrites them (new prompts, assistant.prepare) the next idle message
-	// resumes the conversation in a fresh process (instructionsStale).
+	// instructions is the digest of the instructions file it read in cwd when it started (CLAUDE.md or AGENTS.md,
+	// instructionsDigest): the agent reads it only at start, so once the hub rewrites it (new prompts,
+	// assistant.prepare) the next idle message resumes the conversation in a fresh process (instructionsStale).
 	instructions  string
 	canBypass     bool // started with --permission-mode bypassPermissions: only then can it switch there (needsRestartFor)
 	busy          bool

@@ -44,9 +44,27 @@ type AssistantMachine struct {
 	// AgentsOnly: no command reaches it from where the assistant runs (the ssh aliases are the hub machine's, and a
 	// link or tailcat machine has none), only the Agents tools do.
 	AgentsOnly bool
+	// ComputerUse is the driver computer_state and computer_run are set to operate it with: cua (Cua Driver), lcu, or
+	// auto (LCU where it is set up, else Cua Driver); "" while computer use is off for it.
+	ComputerUse string
+	// Browser: browser_look and browser_run reach its ego lite.
+	Browser bool
+	// LiveScreen is its live screen's page in the web app; "" when neither computer use nor the browser is on for it,
+	// or the hub's address is not known.
+	LiveScreen string
+	// ScreenNotAllowed: macOS asked whether Persona Screen may record this Mac's screen and it still may not, so the
+	// live screen stays on the slower picture until the user allows it in System Settings.
+	ScreenNotAllowed bool
 }
 
-// AssistantClaudeMD is the assistant directory's CLAUDE.md (assistant/claude_md).
+// The runtimes the assistant's instructions are written for (AssistantClaudeMD.Runtime).
+const (
+	RuntimeClaude = "claude"
+	RuntimeCodex  = "codex"
+	RuntimeAgy    = "agy"
+)
+
+// AssistantClaudeMD is the assistant directory's CLAUDE.md (assistant/claude_md), and its AGENTS.md.
 type AssistantClaudeMD struct {
 	WorkGuide bool
 	Owner     string // "" is "user"
@@ -61,9 +79,29 @@ type AssistantClaudeMD struct {
 	// BackgroundSupervisor: the background supervisor follows up the tasks no leader supervises (#4927), so the main
 	// conversation is told it no longer reviews them itself. False keeps the text as it was.
 	BackgroundSupervisor bool
+	// Runtime is the agent that reads the file: RuntimeClaude ("" too) for CLAUDE.md; RuntimeCodex, whose wording
+	// holds for any agent but Claude, or RuntimeAgy for AGENTS.md.
+	Runtime string
+}
+
+// Claude: the text is CLAUDE.md, read by Claude Code, so it may name what only Claude Code has.
+func (d AssistantClaudeMD) Claude() bool { return d.Runtime == "" || d.Runtime == RuntimeClaude }
+
+// Operable: some computer can be operated with computer use or its browser.
+func (d AssistantClaudeMD) Operable() bool {
+	for _, m := range d.Machines {
+		if m.ComputerUse != "" || m.Browser {
+			return true
+		}
+	}
+	return false
 }
 
 func RenderAssistantClaudeMD(d AssistantClaudeMD) string { return render("assistant/claude_md", d) }
+
+// RenderPersonaScreenAllow is where the user allows Persona Screen to record a Mac's screen, for a tool result that
+// says it may not (machines_list); the machine lines of CLAUDE.md include the same text.
+func RenderPersonaScreenAllow() string { return render("assistant/persona_screen_allow", nil) }
 
 // RenderSupervisionInstructions is identical for every authorized supervisor and event.
 func RenderSupervisionInstructions() string { return render("assistant/supervision_instructions", nil) }
