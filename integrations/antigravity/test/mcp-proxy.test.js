@@ -24,8 +24,12 @@ function proxied(t, tools) {
   const proc = spawn(process.execPath, [PROXY, process.execPath, FAKE, ...args], { stdio: ['pipe', 'pipe', 'inherit'] })
   t.after(() => proc.kill())
   const waiting = new Map()
+  const received = [] // every message agy got, notifications too
+  const heard = new Set() // resolves when a notification arrives
   createInterface({ input: proc.stdout }).on('line', (line) => {
     const msg = JSON.parse(line)
+    received.push(msg)
+    for (const listener of heard) listener(msg)
     const resolve = waiting.get(msg.id)
     waiting.delete(msg.id)
     resolve?.(msg)
@@ -35,8 +39,29 @@ function proxied(t, tools) {
     waiting.set(requestID, resolve)
     proc.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: requestID, method, params }) + '\n')
   })
-  return { proc, call }
+  const notified = (method) => new Promise((resolve) => {
+    const listener = (msg) => {
+      if (msg.method !== method) return
+      heard.delete(listener)
+      resolve(msg)
+    }
+    heard.add(listener)
+  })
+  // persona_call's text: with no name its listing, with describe one tool.
+  const dispatch = async (args) => (await call('tools/call', { name: 'persona_call', arguments: args })).result
+  return { proc, call, received, notified, dispatch }
 }
+
+// Declared size as agy weighs it, the proxy's own measure.
+const size = (tool) => Buffer.byteLength(JSON.stringify({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema }))
+const object = (properties = {}, required) => ({ type: 'object', properties, ...(required && { required }) })
+// A tool personad mcp marks core with its rank, or to fill (assistant.load_all_tools on).
+const core = (rank, tool) => ({ ...tool, _meta: { 'anthropic/alwaysLoad': true, 'persona/core': true, 'persona/rank': rank } })
+const fill = (tool) => ({ ...tool, _meta: { 'anthropic/alwaysLoad': true, 'persona/fill': true } })
+// A tool of about n bytes as agy declares it.
+const sized = (name, n, description = 'Do one thing.') => ({
+  name, description, inputSchema: object({ note: { type: 'string', description: 'x'.repeat(Math.max(0, n - 130 - name.length - description.length)) } }),
+})
 
 describe('MCP proxy (#7333)', { timeout: 15_000 }, () => {
   it('adds persona_call to the server\'s tools', async (t) => {
@@ -55,21 +80,20 @@ describe('MCP proxy (#7333)', { timeout: 15_000 }, () => {
     const res = await call('tools/list', {})
     assert.deepEqual(res.result.tools.map((x) => x.name), ['persona_call'])
     const listed = await call('tools/call', { name: 'persona_call', arguments: {} })
-    assert.match(listed.result.content[0].text, /- mail_accounts: List mail accounts Arguments: \{"type":"object","properties":\{"id":\{"type":"string"\}\},"required":\["id"\]\}/)
+    assert.match(listed.result.content[0].text, /^Call through persona_call:\n- mail_accounts: List mail accounts\. Required: id$/m)
   })
 
-  it('lists a left-out tool with its whole input schema, references and alternatives included (#10756)', async (t) => {
+  it('describes a left-out tool with its whole input schema, references and alternatives included (#10756)', async (t) => {
     const schema = {
       type: 'object',
       $defs: { when: { type: 'string', enum: ['now', 'later'] } },
       properties: { at: { $ref: '#/$defs/when' }, target: { anyOf: [{ type: 'string' }, { type: 'integer' }] } },
       additionalProperties: false,
     }
-    const { call } = proxied(t, [{ name: 'cancel_followup', description: 'Cancel', inputSchema: schema }])
+    const { call, dispatch } = proxied(t, [{ name: 'cancel_followup', description: 'Cancel', inputSchema: schema }])
     await call('tools/list', {})
-    const listed = await call('tools/call', { name: 'persona_call', arguments: {} })
-    const line = listed.result.content[0].text.split('\n').find((l) => l.startsWith('- cancel_followup:'))
-    assert.deepEqual(JSON.parse(line.slice(line.indexOf('Arguments: ') + 'Arguments: '.length)), schema)
+    const described = await dispatch({ name: 'cancel_followup', describe: true })
+    assert.deepEqual(JSON.parse(described.content[0].text), { name: 'cancel_followup', description: 'Cancel', inputSchema: schema })
   })
 
   it('declares no tool smaller than persona_call, so agy never defers it (#10756)', async (t) => {
@@ -82,11 +106,10 @@ describe('MCP proxy (#7333)', { timeout: 15_000 }, () => {
     const dispatch = declared.find((x) => x.name === 'persona_call')
     assert.deepEqual(declared.map((x) => x.name), ['todo_create', 'persona_call'])
     assert.ok(declared.every((x) => x === dispatch || size(x) > size(dispatch)), 'persona_call is the smallest declared tool')
-    // The tools left out are still listed, with their arguments, and callable through it.
+    // The tools left out are still listed, and callable through it.
     const listed = await call('tools/call', { name: 'persona_call', arguments: {} })
-    assert.match(listed.result.content[0].text, /connector_read_0, .*connector_read_39, todo_create/)
-    assert.match(listed.result.content[0].text, /- connector_read_7: Read one thing Arguments: \{"type":"object","properties":\{\}\}/)
-    assert.doesNotMatch(listed.result.content[0].text, /- todo_create:/)
+    assert.match(listed.result.content[0].text, /^In your tool list:\n- todo_create: Add a to-do\.\n\nCall through persona_call:\n- connector_read_0: Read one thing\.\n/)
+    assert.match(listed.result.content[0].text, /^- connector_read_39: Read one thing\.$/m)
     const via = await call('tools/call', { name: 'persona_call', arguments: { name: 'connector_read_7', arguments: {} } })
     assert.deepEqual(JSON.parse(via.result.content[0].text), { name: 'connector_read_7', args: {} })
   })
@@ -106,7 +129,7 @@ describe('MCP proxy (#7333)', { timeout: 15_000 }, () => {
     const { call } = proxied(t)
     await call('tools/list', {})
     const list = await call('tools/call', { name: 'persona_call', arguments: {} })
-    assert.match(list.result.content[0].text, /todo_create, agents_list/)
+    assert.match(list.result.content[0].text, /^Call through persona_call:\n- todo_create: Add a to-do\.\n- agents_list: List the Agents\.\n/)
     const unknown = await call('tools/call', { name: 'persona_call', arguments: { name: 'nope' } })
     assert.match(unknown.error.message, /unknown tool nope/)
   })
@@ -116,6 +139,137 @@ describe('MCP proxy (#7333)', { timeout: 15_000 }, () => {
     proc.stdin.end()
     const [code] = await once(proc, 'exit')
     assert.equal(code, 0)
+  })
+})
+
+describe('core tools first, within agy\'s budget', { timeout: 15_000 }, () => {
+  it('declares the core tools by rank, whole, and leaves every tool not marked to persona_call', async (t) => {
+    const tools = [
+      sized('inbox_move', 900),
+      core(3, sized('agents_list', 2_000)),
+      core(1, sized('agent_read', 700)),
+      sized('todo_delete', 600),
+      core(2, sized('todo_get', 500)),
+    ]
+    const { call, dispatch } = proxied(t, tools)
+    const declared = (await call('tools/list', {})).result.tools
+    assert.deepEqual(declared.map((x) => x.name), ['agent_read', 'todo_get', 'agents_list', 'persona_call'])
+    assert.deepEqual(declared.slice(0, 3), [tools[2], tools[4], tools[1]])
+    assert.equal((await dispatch({})).content[0].text, [
+      'In your tool list:', '- agents_list: Do one thing.', '- agent_read: Do one thing.', '- todo_get: Do one thing.', '',
+      'Call through persona_call:', '- inbox_move: Do one thing.', '- todo_delete: Do one thing.', '',
+      'persona_call {name, describe: true} returns a tool\'s whole description and arguments.',
+    ].join('\n'))
+  })
+
+  it('compacts a core tool that does not fit whole, leaves out one that does not fit at all, and fills the gaps', async (t) => {
+    const paragraph = Array.from({ length: 120 }, (_, i) => `Rule ${i} says what to do.`).join(' ')
+    const plan = { name: 'task_plan', description: `${paragraph}\n\nMore rules.`, inputSchema: object({ todo_id: { type: 'string' } }, ['todo_id']) }
+    const tools = [core(1, sized('task_review', 41_500)), core(2, plan), core(3, sized('agent_start', 5_000)), core(4, sized('todo_get', 500))]
+    const { call, dispatch } = proxied(t, tools)
+    const declared = (await call('tools/list', {})).result.tools
+    assert.deepEqual(declared.map((x) => x.name), ['task_review', 'task_plan', 'todo_get', 'persona_call'])
+    assert.ok(declared.reduce((sum, x) => sum + size(x), 0) <= 44_000, 'over the budget')
+    const compacted = declared[1]
+    assert.match(compacted.description, /^Rule 0 says what to do\. .* says what to do\. Full rules: persona_call \{name: "task_plan", describe: true\}\.$/)
+    assert.ok(compacted.description.length < 1_300, compacted.description)
+    assert.deepEqual(compacted.inputSchema, plan.inputSchema)
+    assert.equal(JSON.parse((await dispatch({ name: 'task_plan', describe: true })).content[0].text).description, plan.description)
+    assert.match((await dispatch({})).content[0].text, /\n\nCall through persona_call:\n- agent_start: Do one thing\.\n\n/)
+  })
+
+  it('declares a core tool no larger than persona_call compacted, above it, so persona_call stays the smallest (#10756)', async (t) => {
+    const small = core(1, sized('machines_list', 230))
+    const tiny = core(2, { name: 'cancel_followup', description: 'Cancel.', inputSchema: object() })
+    const { call } = proxied(t, [small, tiny])
+    const declared = (await call('tools/list', {})).result.tools
+    const dispatch = declared.at(-1)
+    assert.ok(size(small) <= size(dispatch), 'the fixture is no larger than persona_call')
+    assert.deepEqual(declared.map((x) => x.name), ['machines_list', 'persona_call'])
+    assert.equal(declared[0].description, 'Do one thing. Full rules: persona_call {name: "machines_list", describe: true}.')
+    assert.ok(size(declared[0]) > size(dispatch))
+  })
+
+  it('fills what the core tools leave with the tools marked to fill, in the server\'s order', async (t) => {
+    const tools = [
+      fill(sized('inbox_move', 900)), sized('todo_delete', 600), core(1, sized('agent_read', 42_000)),
+      fill(sized('view_show', 3_000)), fill(sized('decision_record', 700)),
+    ]
+    const { call } = proxied(t, tools)
+    const declared = (await call('tools/list', {})).result.tools
+    assert.deepEqual(declared.map((x) => x.name), ['agent_read', 'inbox_move', 'decision_record', 'persona_call'])
+  })
+
+  it('keeps today\'s rule for a server that marks no tool: every tool larger than persona_call, whole, with no budget', async (t) => {
+    const tools = [sized('task_plan', 30_000), { name: 'machines_list', description: 'List', inputSchema: object() }, sized('task_review', 30_000)]
+    const { call } = proxied(t, tools)
+    const declared = (await call('tools/list', {})).result.tools
+    assert.deepEqual(declared, [tools[0], tools[2], declared.at(-1)])
+    assert.equal(declared.at(-1).name, 'persona_call')
+  })
+})
+
+describe('persona_call', { timeout: 15_000 }, () => {
+  it('describes a tool from what the server listed, and asks the server itself for a name it has not listed', async (t) => {
+    const { call, received, dispatch } = proxied(t)
+    const described = await dispatch({ name: 'todo_create', describe: true }) // before agy has listed anything
+    assert.equal(described.isError, false)
+    assert.deepEqual(JSON.parse(described.content[0].text), { name: 'todo_create', description: 'Add a to-do', inputSchema: object({ title: { type: 'string' } }) })
+    assert.equal((await call('test/lists', {})).result.lists, 1)
+    const unknown = await dispatch({ name: 'nope', describe: true })
+    assert.equal(unknown.isError, true)
+    assert.equal(unknown.content[0].text, 'No Persona tool is named nope; persona_call with no name lists them.')
+    assert.equal((await call('test/lists', {})).result.lists, 2)
+    assert.ok(received.every((msg) => !String(msg.id).startsWith('persona-proxy-')), 'agy got the proxy\'s own answers')
+  })
+
+  it('lists each tool on one line: its first sentence and required arguments, those in agy\'s list first', async (t) => {
+    const tools = [
+      { name: 'todo_list', description: 'List the to-dos, e.g. the open ones. Filters narrow it.', inputSchema: object({ state: { type: 'string' } }) },
+      core(1, { name: 'agent_send', description: `Send a message to an Agent (from agents_list). ${'It waits. '.repeat(40)}`,
+        inputSchema: object({ to: { type: 'string' }, text: { type: 'string' } }, ['to', 'text']) }),
+      { name: 'inbox_move', description: 'Move an Inbox item\nto a folder.', inputSchema: object({ id: { type: 'string' } }, ['id']) },
+      { name: 'quiet', inputSchema: object() },
+      { name: 'long_one', description: `${'word '.repeat(60).trim()}.`, inputSchema: object() },
+    ]
+    const { call, dispatch } = proxied(t, tools)
+    await call('tools/list', {})
+    assert.equal((await dispatch({})).content[0].text, [
+      'In your tool list:',
+      '- agent_send: Send a message to an Agent (from agents_list). Required: to, text',
+      '',
+      'Call through persona_call:',
+      '- todo_list: List the to-dos, e.g. the open ones.',
+      '- inbox_move: Move an Inbox item. Required: id',
+      '- quiet:',
+      `- long_one: ${'word '.repeat(32).trim()}…`,
+      '',
+      'persona_call {name, describe: true} returns a tool\'s whole description and arguments.',
+    ].join('\n'))
+  })
+
+  it('learns the server\'s new tools when it says they changed, before agy hears of it', async (t) => {
+    const { call, received, notified, dispatch } = proxied(t)
+    await call('tools/list', {})
+    const changed = notified('notifications/tools/list_changed')
+    const browser = { name: 'browser_look', description: 'Look at a page. Then act.', inputSchema: object({ url: { type: 'string' } }, ['url']) }
+    await call('test/change', { tools: [{ name: 'agents_list', description: 'List the Agents', inputSchema: object() }, browser] })
+    await changed
+    const listing = (await dispatch({})).content[0].text
+    assert.match(listing, /^- browser_look: Look at a page\. Required: url$/m)
+    assert.doesNotMatch(listing, /todo_create/)
+    assert.deepEqual(JSON.parse((await dispatch({ name: 'browser_look', describe: true })).content[0].text), browser)
+    assert.equal((await call('test/lists', {})).result.lists, 2)
+    assert.ok(received.every((msg) => !String(msg.id).startsWith('persona-proxy-')), 'agy got the proxy\'s own answers')
+  })
+
+  it('adds a sentence about persona_call to the server\'s instructions', async (t) => {
+    const { call } = proxied(t)
+    const init = await call('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'agy', version: '1' } })
+    assert.equal(init.result.instructions, 'Persona tools reach the fixture. Call a Persona tool that is not in your tool list with ' +
+      'persona_call {name, arguments}; persona_call with no arguments lists every Persona tool, and persona_call ' +
+      '{name, describe: true} returns a tool\'s whole description and arguments.')
+    assert.equal(init.result.protocolVersion, '2025-06-18')
   })
 })
 
@@ -150,7 +304,9 @@ describe('command gate tools', { timeout: 15_000 }, () => {
     const listed = await call('tools/list', {})
     assert.deepEqual(listed.result.tools.map((x) => x.name), ['persona_call'])
     const text = (await call('tools/call', { name: 'persona_call', arguments: {} })).result.content[0].text
-    assert.ok(text.includes(`- ex_api: Run ex. Arguments: ${JSON.stringify(short.inputSchema)}`), text)
+    assert.ok(text.includes('- ex_api: Run ex. Required: args'), text)
+    const described = (await call('tools/call', { name: 'persona_call', arguments: { name: 'ex_api', describe: true } })).result
+    assert.deepEqual(JSON.parse(described.content[0].text), short)
   })
 })
 
