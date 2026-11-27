@@ -221,6 +221,9 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 				}
 			}
 		}
+		if a.Agent == traexAgent && s.Status != proto.StatusOffline && s.Status != proto.StatusInterrupted {
+			s.Background = n.traexBackground(id) // the transcript scan above reads only Claude's
+		}
 		if a.Agent != "codex" && a.Agent != traexAgent {
 			n.terminalModesRow(&s, rollout)
 		}

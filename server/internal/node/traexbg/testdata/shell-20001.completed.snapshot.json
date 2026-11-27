@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "task_id": "20001",
+  "kind": "shell",
+  "status": "completed",
+  "exit_code": 0,
+  "last_agent_message": null,
+  "updated_at": "2026-11-27T03:24:10.300000000Z",
+  "output_ref": {
+    "shell_text": {
+      "path": "/home/user/.trae/cli/sessions/2026/11/27/rollout-2026-11-27T03-20-00-01a00000-0000-7000-8000-00000000000a.artifacts/tool-results/task_output-20001.txt"
+    }
+  }
+}

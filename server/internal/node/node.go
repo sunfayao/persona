@@ -36,6 +36,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/node/machdiag"
 	"github.com/sunfayao/persona/server/internal/node/ports"
 	"github.com/sunfayao/persona/server/internal/node/preview"
+	"github.com/sunfayao/persona/server/internal/node/traexbg"
 	"github.com/sunfayao/persona/server/internal/nodeproto"
 	"github.com/sunfayao/persona/server/internal/nodeupdate"
 	"github.com/sunfayao/persona/server/internal/prompts"
@@ -362,6 +363,10 @@ type Node struct {
 	// started with (assistant_context.go).
 	ctxSent  map[string]map[string]string
 	ctxTools map[string][]string
+
+	// traexBg: the background commands TRAE CLI conversations still run (traex.go traexBackground), made on first use.
+	traexBgOnce sync.Once
+	traexBg     *traexbg.Reader
 
 	// ports: the agents' listening ports (ports.go); streams: the forwarded connections to them (streams.Mux).
 	portsOnce sync.Once
