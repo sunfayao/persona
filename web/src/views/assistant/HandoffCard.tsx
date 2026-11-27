@@ -74,7 +74,7 @@ export const HandoffCard = memo(function HandoffCard({ item: feed }: { item: Fee
     await suggestionAct(item, "confirm", reply && draft !== card.text ? draft : undefined);
   };
   const retry = async () => {
-    if (item) await suggestionAct(item, "confirm", undefined, undefined, card.version);
+    if (item) await suggestionAct(item, "confirm", undefined, card.version);
   };
   const heading = (() => {
     switch (st.state) {

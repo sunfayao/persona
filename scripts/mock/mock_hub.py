@@ -9173,14 +9173,11 @@ if MOCK_INBOX_EVENTS:
             if _x["id"] in _event_mutes: _x["mutes"] = _event_mutes[_x["id"]]
 
 
-# MOCK_INBOX_TODO=1: a to-do suggestion (#6480) on the mail "Can we move the design review?": title, and a due day two days on
-# (MOCK_INBOX_TODO=time: with a time, so All Day is off).
+# MOCK_INBOX_TODO=1: a to-do suggestion (#6480) on the mail "Can we move the design review?": its title.
 if os.environ.get("MOCK_INBOX_TODO"):
     _td = next((x for x in INBOX if x["id"] == "mail:acc1:t4:504"), None)
     if _td is not None:
-        _due = (NOW + timedelta(days=2)).astimezone()
-        _td["suggestion"] = {"version": 1, "kind": "todo", "text": "确认设计评审改到周二下午", "at": ago(minutes=2),
-                             "due": _due.replace(hour=15, minute=0, second=0, microsecond=0).isoformat() if os.environ["MOCK_INBOX_TODO"] == "time" else _due.strftime("%Y-%m-%d")}
+        _td["suggestion"] = {"version": 1, "kind": "todo", "text": "确认设计评审改到周二下午", "at": ago(minutes=2)}
         _td["status"] = "action"
 
 
@@ -9421,7 +9418,7 @@ def inbox_suggestion(iid, body):
             _chain_add(x, "agent", "开了子会话：" + text[:40], link={"type": "session", "machine_id": "m1", "session_id": "s-mock-agent"})
             h.update(state="agent", since=ago()); x["status"] = "working"
         elif s["kind"] == "todo":  # Add to to-dos (#6480): the row is filed with a link to the to-do
-            INBOX_ACTIONS.append({"route": "suggestion", "text": body.get("text"), "due": body.get("due")})
+            INBOX_ACTIONS.append({"route": "suggestion", "text": body.get("text")})
             _chain_add(x, "done", "已转成待办", link={"type": "todo", "id": "todo-" + x["id"]})
             x["done_at"], x["done_by"] = ago(), "todo"
         else:  # a conclusion: Got it files it (the chain says so)

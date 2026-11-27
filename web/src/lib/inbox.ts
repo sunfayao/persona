@@ -1497,7 +1497,7 @@ async function readSuggestionItem(item: InboxItem): Promise<void> {
 }
 
 /** Run only the displayed suggestion version; reconcile its outcome with updates received while it was in flight. */
-export async function suggestionAct(item: InboxItem, action: SuggestionAction, text?: string, due?: string, expectedVersion = item.suggestion?.version): Promise<boolean> {
+export async function suggestionAct(item: InboxItem, action: SuggestionAction, text?: string, expectedVersion = item.suggestion?.version): Promise<boolean> {
   const current = suggestionSnapshot(item);
   const s = current.suggestion;
   const key = itemKey(current);
@@ -1512,7 +1512,7 @@ export async function suggestionAct(item: InboxItem, action: SuggestionAction, t
   set({ sending: [...state.sending, key] });
   try {
     // A Retry confirms the frozen server payload; it never submits the current editor's draft as a new send.
-    const r = await actOnSuggestion(itemPath(current.id), s.version, action, confirmation && attempt ? undefined : text, undefined, current.manager, due);
+    const r = await actOnSuggestion(itemPath(current.id), s.version, action, confirmation && attempt ? undefined : text, undefined, current.manager);
     if (r.ok) {
       if (r.item?.id === current.id) reconcileSuggestionItem(current, r.item);
       toast(actedText(s, action), "ok");

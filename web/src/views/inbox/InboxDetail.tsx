@@ -13,7 +13,7 @@ import { agentDraft, agentWorking, isDone, itemKey, kindLabel, labelIsUrgent, mu
 import { lineSummary } from "../../lib/inbox-markdown";
 import { canDraft, muteShortName, muteTitle, policyMenuTitle, sourceLine } from "../../lib/inbox-page";
 import { rowMeta } from "../../lib/inbox-now";
-import { openTodoDialog } from "./InboxTodoDialog";
+import { addTodos } from "../../lib/inbox-actions";
 import { openFolderDialog, useFoldersShown } from "./InboxFolders";
 import { openPolicyDialog } from "./PolicyDialog";
 import { useInboxItemPlace } from "../../lib/extension-slots";
@@ -177,7 +177,7 @@ function ItemDetail({ item, loaded }: { item?: InboxItem; loaded: boolean }) {
               {moreMenu.anchor && (
                 <Menu anchor={moreMenu.anchor} onClose={moreMenu.close} align="right" width={224}
                   items={[
-                    ...(!done ? [{ key: "todo", label: t("inbox-inboxlist.todo_add_short"), icon: "todo" as const, onSelect: () => openTodoDialog([item]) }] : []),
+                    ...(!done ? [{ key: "todo", label: t("inbox-inboxlist.todo_add_short"), icon: "todo" as const, onSelect: () => void addTodos([item]) }] : []),
                     ...(canPin ? [{ key: "pins", label: t("inbox-inboxdetail.pin_messages"), icon: "pin" as const, onSelect: () => setPins(true) }] : []),
                     ...muteRows.map((r, i) => (i === 0 && canPin ? { ...r, divider: true } : r)),
                     ...(foldersShown ? [{ key: "folder", label: t("inbox-folders.move_menu"), hint: item.folder, icon: "folder" as const, divider: true, onSelect: () => openFolderDialog(item) }] : []),

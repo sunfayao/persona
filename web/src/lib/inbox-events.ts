@@ -236,10 +236,10 @@ export type SuggestionResult =
  * The version shown goes with it, so a suggestion that changed since is not run: the hub answers 409 suggestion_stale
  * with the item as it is now.
  */
-export async function actOnSuggestion(path: string, version: number, action: SuggestionAction, text?: string, clientID = uuid(), manager?: string, due?: string): Promise<SuggestionResult> {
+export async function actOnSuggestion(path: string, version: number, action: SuggestionAction, text?: string, clientID = uuid(), manager?: string): Promise<SuggestionResult> {
   try {
     // the item's manager (another than the default: docs/assistant/managers.md "Clients") is named on its request
-    const item = await api<InboxItem>(`${path}/suggestion`, { method: "POST", json: { version, action, text: text || undefined, due: due || undefined, client_id: clientID }, headers: itemHeaders(manager) });
+    const item = await api<InboxItem>(`${path}/suggestion`, { method: "POST", json: { version, action, text: text || undefined, client_id: clientID }, headers: itemHeaders(manager) });
     return { ok: true, item };
   } catch (e) {
     if (e instanceof ApiError && e.status === 409 && e.body?.code === "suggestion_stale") {
