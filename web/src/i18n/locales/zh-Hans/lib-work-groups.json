@@ -1,10 +1,8 @@
 {
-  "read_files_other": "读取 {count} 个文件",
-  "searches_other": "搜索 {count} 次",
-  "listings_other": "列出目录 {count} 次",
   "working": "正在工作…",
   "worked_for": "已工作 {duration}",
   "work": "工作过程",
+  "thought": "思考",
   "dur_seconds": "{s}s",
   "dur_minutes_seconds": "{m}m {s}s",
   "dur_minutes": "{m}m",

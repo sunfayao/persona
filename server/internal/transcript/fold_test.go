@@ -52,12 +52,12 @@ func longCodexRollout(t testing.TB, commands, notes, replies int) string {
 
 func foldable(it proto.Item) bool {
 	return it.Kind == proto.KindToolUse || it.Kind == proto.KindToolResult || it.Kind == proto.KindThinking ||
-		(it.Kind == proto.KindText && it.Narration) || (it.Kind == proto.KindImage && it.ToolUseID != "")
+		(it.Kind == proto.KindImage && it.ToolUseID != "")
 }
 
-// The phone's first page of a long session carries the prompts, the replies and one fold per run of work (tools,
-// thoughts) with its counts — not the work itself, which the chat shows folded anyway. Opening a fold fetches
-// exactly what it stands for.
+// The phone's first page of a long session carries the prompts, everything the agent said (its commentary too) and
+// one fold per run of work (tools, thoughts) with its counts — not the work itself, which the chat shows folded
+// anyway. Opening a fold fetches exactly what it stands for.
 func TestFoldedFirstPageOfALongSession(t *testing.T) {
 	f := NewFile(longCodexRollout(t, 650, 110, 6))
 	if _, err := f.Refresh(); err != nil {
@@ -68,8 +68,8 @@ func TestFoldedFirstPageOfALongSession(t *testing.T) {
 	folded := FoldWork(page)
 	b, _ := json.Marshal(folded)
 	t.Logf("first page: %d items, %d bytes; folded: %d items, %d bytes", len(page), len(whole), len(folded), len(b))
-	if len(folded) > 40 || len(b) > 32<<10 {
-		t.Fatalf("the folded first page has %d items, %d bytes; want at most 40 items and 32 KB", len(folded), len(b))
+	if len(folded) > 240 || len(b) > 64<<10 {
+		t.Fatalf("the folded first page has %d items, %d bytes; want at most 240 items and 64 KB", len(folded), len(b))
 	}
 
 	var kept []string
@@ -84,13 +84,37 @@ func TestFoldedFirstPageOfALongSession(t *testing.T) {
 			kept = append(kept, it.ID)
 		}
 	}
+	// the runs of work on the page, each item's run by its id: commentary between commands can leave a run too short
+	// to be worth a fold (FoldWork's foldMinItems and foldMinBytes)
+	short := map[string]bool{}
+	for i := 0; i < len(page); {
+		if !foldable(page[i]) {
+			i++
+			continue
+		}
+		j, size := i, 0
+		for j < len(page) && foldable(page[j]) {
+			size += len(page[j].Text) + len(page[j].ToolInput)
+			j++
+		}
+		for _, it := range page[i:j] {
+			short[it.ID] = j-i < foldMinItems && size < foldMinBytes
+		}
+		i = j
+	}
 	var got []string
 	var folds []proto.Item
 	ftools, fthoughts := 0, 0
 	for _, it := range folded {
 		if it.Kind != proto.KindFold {
 			if foldable(it) {
-				t.Fatalf("work left unfolded on the page: %+v", it)
+				if !short[it.ID] {
+					t.Fatalf("work left unfolded on the page: %+v", it)
+				}
+				if it.Kind == proto.KindToolUse {
+					ftools++
+				}
+				continue
 			}
 			got = append(got, it.ID)
 			continue
@@ -145,9 +169,10 @@ func TestFoldedFirstPageOfALongSession(t *testing.T) {
 	}
 }
 
-// A running page still has an assistant answer to show; once its final answer arrives, the earlier commentary joins
-// the completed work. Both reads go through the same real rollout pagination as the chat's first page.
-func TestFoldedPageKeepsRunningCommentaryVisible(t *testing.T) {
+// Every piece of commentary stays on the page in the open, while the turn runs and once its final answer is in: the
+// chat draws an answer's words in the order they were written, nothing folded or replaced. Both reads go through the
+// same real rollout pagination as the chat's first page.
+func TestFoldedPageKeepsEveryCommentaryVisible(t *testing.T) {
 	path := longCodexRollout(t, 6, 2, 1)
 	complete, err := os.ReadFile(path)
 	if err != nil {
@@ -162,24 +187,21 @@ func TestFoldedPageKeepsRunningCommentaryVisible(t *testing.T) {
 	if _, err := f.Refresh(); err != nil {
 		t.Fatal(err)
 	}
-	page, _, _ := f.PageTurns(0, 2, 2000)
-	folded := FoldWorkLatest(page)
-	visible := 0
-	for _, it := range folded {
-		if it.Kind == proto.KindText && it.Narration {
-			visible++
-			if it.Text != "note 4 before the next command" {
-				t.Fatalf("the visible commentary is not the latest: %+v", it)
+	said := func(items []proto.Item) (notes []string, final int) {
+		for _, it := range items {
+			if it.Kind == proto.KindText && it.Narration {
+				notes = append(notes, it.Text)
+			}
+			if it.Kind == proto.KindText && it.Text == "second answer" {
+				final++
 			}
 		}
+		return notes, final
 	}
-	if visible != 1 {
-		t.Fatalf("a running folded page hides its latest commentary: %+v", folded)
-	}
-	for _, it := range FoldWork(page) {
-		if it.Kind == proto.KindText && it.Narration {
-			t.Fatalf("a historical page keeps commentary visible without knowing no final answer follows: %+v", it)
-		}
+	want := "note 0 before the next command|note 4 before the next command"
+	page, _, _ := f.PageTurns(0, 2, 2000)
+	if notes, _ := said(FoldWork(page)); strings.Join(notes, "|") != want {
+		t.Fatalf("a running page keeps every commentary in order: %v", notes)
 	}
 
 	if err := os.WriteFile(path, complete, 0o644); err != nil {
@@ -189,18 +211,9 @@ func TestFoldedPageKeepsRunningCommentaryVisible(t *testing.T) {
 		t.Fatal(err)
 	}
 	page, _, _ = f.PageTurns(0, 2, 2000)
-	folded = FoldWorkLatest(page)
-	final := 0
-	for _, it := range folded {
-		if it.Kind == proto.KindText && it.Narration {
-			t.Fatalf("finished commentary escaped the work fold: %+v", it)
-		}
-		if it.Kind == proto.KindText && it.Text == "second answer" {
-			final++
-		}
-	}
-	if final != 1 {
-		t.Fatalf("the finished page lost its final answer: %+v", folded)
+	notes, final := said(FoldWork(page))
+	if strings.Join(notes, "|") != want || final != 1 {
+		t.Fatalf("the finished page keeps its commentary and its final answer: %v, %d", notes, final)
 	}
 }
 

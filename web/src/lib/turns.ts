@@ -1,7 +1,7 @@
 import { CONTEXT_RE, FILE_RE, PERSONA_SERVERS, canonicalTool } from "./compatibility";
-// Items → what the chat shows: every user message opens a segment; the segment shows
-// the message, one work row folding the tools / thoughts / notices / intermediate replies, and the agent's last
-// words before the next message as the answer.
+// Items → what the chat shows: every user message opens a segment; the segment shows the message and the agent's
+// answer to it: its words in the order it wrote them, each stretch of tools / thoughts / notices between them one folded
+// row (lib/work-groups.ts). Its last words before the next message are the answer's (`answer`).
 
 import { t } from "../i18n";
 import { errorSignature, isRetryText, parseAPIError, type APIErrorInfo } from "./api-errors";
@@ -711,9 +711,10 @@ export function personaToolVerb(rawName?: string): { verb: string; what?: string
 
 // ── exchanges and lines (iOS ChatBlock.build + ChatLines) ──────────────────────────
 // Items group into exchanges (`Turn`): what you said (messages typed while the agent worked join the exchange they were
-// sent during), everything the agent did, and its answer; recaps stand between them. A background task that wakes the
-// idle agent starts an exchange of its own (#9140): the turn before it had ended, and its last words stay its answer.
-// The lines are then what the chat draws, one per row.
+// sent during), everything the agent did, and its answer; recaps stand between them. The agent's own background work
+// reporting back to it (a wake: a background command or subagent finishing, a task update) continues the exchange it
+// belongs to: one answer from one message to the next, as the Claude desktop app draws it. The lines are then what the
+// chat draws, one per row.
 
 interface Turn {
   id: string;
@@ -740,7 +741,7 @@ function isAnswerText(i: Item): boolean {
 }
 
 /** What woke the idle agent (docs/protocol/protocol.md `wake`): a background task's notice, or a subagent's report as
- *  its call's result. The turn before it was over, so it starts an exchange as a message does (#9140). */
+ *  its call's result. Its work goes on in the exchange it belongs to. */
 const isWake = (i: Item) => i.wake === true;
 
 function newTurn(id: string): Turn {
@@ -856,12 +857,13 @@ export function buildBlocks(items: Item[], background = false): Block[] {
       continue;
     }
     if (isWake(it)) {
-      // A background task woke the idle agent: the turn before it was over, and the last words of that turn stay its
-      // answer. The work it woke is an exchange of its own that opens with the notice, where a message would be
-      // (#9140: kept in the exchange before it, each woken turn's last words took the answer's place and the real
-      // answer folded into the work). After a recap it simply follows the recap.
-      close();
-      cur = newTurn(it.id);
+      // The agent's own background work reported back: the same answer goes on (its earlier words stay where they
+      // are, the notice is a quiet step of the work that follows). After an interruption, or a recap or a compaction
+      // between, the work it woke is an exchange of its own that opens with the notice.
+      if (!cur || cur.trailing.length) {
+        close();
+        cur = newTurn(it.id);
+      }
       add(cur, it);
       continue;
     }
@@ -917,9 +919,9 @@ export type ChatLine =
   /** A quiet supervision round, including all its segments and notices, never the next real input. `source`: a
    *  background round's (another conversation, a scheduled task, a follow-up); absent for supervision. */
   | { kind: "supervision"; id: string; lines: ChatLine[]; live: boolean; source?: MessageSource }
-  /** A message (or none), one work row for what the agent did after it, the agent's last words. */
+  /** A message (or none) and the agent's one answer to it: its words in order, a row for each stretch of work between. */
   | { kind: "segment"; id: string; seg: Segment; live: boolean }
-  /** A notice of its own line: a wake that opens new work, "Interrupted" after an exchange. */
+  /** A notice of its own line after an exchange: "Interrupted", a model's refusal. */
   | { kind: "notice"; id: string; item: Item }
   /** Where the context was compacted: a divider across the chat (lib/compaction.ts). */
   | { kind: "compact"; id: string; item: Item }
@@ -940,24 +942,10 @@ export interface ChatLinesOptions {
 
 function turnLines(t: Turn, live: boolean, results?: ReadonlyMap<string, Item>): ChatLine[] {
   const out: ChatLine[] = [];
-  let ordered = t.ordered;
-  // work a background task woke the agent for opens with that notice, where a message would be (a subagent's report
-  // that woke it is drawn under its call, so it opens with the work)
-  const woke = ordered[0] && isWake(ordered[0]) ? ordered[0] : undefined;
-  if (woke) {
-    if (woke.kind === "notice") out.push({ kind: "notice", id: woke.id, item: woke });
-    ordered = ordered.slice(1);
-  }
-  const segs = segments(ordered, results);
-  // woken and at work with nothing of it here yet: its work row
-  if (woke && live && !segs.length) segs.push({ id: `seg:${woke.id}`, steps: [], tools: 0, thoughts: 0, replies: 0, folds: [] });
-  // what the background task that woke it used is the work it woke
-  if (woke && segs[0]) {
-    countUsage(segs[0], woke);
-    if (segs[0].ttftMs === undefined && typeof woke.ttft_ms === "number" && Number.isFinite(woke.ttft_ms) && woke.ttft_ms >= 0) {
-      segs[0].ttftMs = woke.ttft_ms;
-    }
-  }
+  // work a wake opened (no message before it): its notice is the first step of that work, and the exchange keeps the
+  // wake's key from before its first step to its last (a subagent's report that woke it is drawn under its call)
+  const woke = t.ordered[0] && isWake(t.ordered[0]) ? t.ordered[0] : undefined;
+  const segs = segments(t.ordered, results);
   // stopped after everything it did (not an exchange that went on after it): its last words are not a finished reply
   const end = segs.at(-1), at = t.ordered.at(-1)?.seq ?? 0;
   if (end && !live && t.trailing.some((n) => isInterruptNotice(n) && n.seq > at)) end.cut = true;
@@ -965,8 +953,6 @@ function turnLines(t: Turn, live: boolean, results?: ReadonlyMap<string, Item>):
   if (end) for (const n of t.trailing) countUsage(end, n);
   segs.forEach((seg, k) => {
     const opening = k === 0 && !seg.user && woke;
-    // the work a wake opened is known by the wake: its row keeps its key from before its first step to its last
-    if (opening) Object.assign(seg, { id: `seg:${woke.id}`, start: woke.ts });
     out.push({ kind: "segment", id: opening ? `exchange-${woke.seq}` : segmentIdentity(seg), seg, live: live && k === segs.length - 1 });
   });
   for (const n of t.trailing) out.push({ kind: "notice", id: n.id, item: n });

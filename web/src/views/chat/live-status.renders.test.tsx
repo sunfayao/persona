@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The status line changes about once a second while an agent works (#5417): only the live group's thinking card reads
+// The status line changes about once a second while an agent works (#5417): only the live stretch's thinking card reads
 // it. It used to come down through ChatView and SegmentView into every work group's props, so each push regrouped the
 // live turn and rendered every one of its work groups again.
 import { act } from "react";
@@ -90,42 +90,40 @@ describe("status-line pushes", () => {
     for (let s = 1; s <= 5; s++) act(() => receiveLive({ machine_id: "m", session_id: "s", live: { verb: "Frosting", thinking: true, elapsed_s: s } }));
     expect(titles.n).toBe(0);
     expect(host.querySelector('[data-thinking="live"]')).toBeNull();
-    act(() => (host.querySelector("[data-work-group] > button") as HTMLButtonElement).click());
-    expect(host.querySelectorAll('[data-thinking="live"]')).toHaveLength(1); // once, in the live inner group (#5155)
+    act(() => (host.querySelector('[data-work-group="live"] > button') as HTMLButtonElement).click());
+    expect(host.querySelectorAll('[data-thinking="live"]')).toHaveLength(1); // once, in the live stretch (#5155)
     titles.n = 0;
     act(() => receiveLive({ machine_id: "m", session_id: "s", live: { verb: "Frosting", thinking: false, elapsed_s: 6 } }));
     expect(titles.n).toBe(0);
     expect(host.querySelector('[data-thinking="live"]')).toBeNull();
   });
 
-  it("keeps narration through new tool calls, replaces it on new words, and folds it when the turn ends", () => {
+  it("keeps narration in place through new tool calls and new words, and every stretch folded when the turn ends", () => {
     let transcript: Item[] = [it_({ role: "user", kind: "text", text: "Check the change" }, 0),
       it_({ role: "assistant", kind: "text", text: "The fix is ready; checking it now" }, 1)];
     const draw = (live = true) => act(() => root.render(<SegmentView seg={segments(transcript)[0]} live={live} mid="m" sid="s" expandFold={async () => {}} />));
-    const preview = () => host.querySelector("[data-latest-text]")!;
+    const paragraphs = () => [...host.querySelectorAll("[data-words]")];
     draw();
+    const narration = paragraphs()[0];
     for (let n = 1; n <= 7; n++) {
       transcript = [...transcript, ...toolRun(n, n * 2)];
       draw();
-      expect(preview().textContent).toContain("The fix is ready; checking it now");
-      expect(host.querySelectorAll("[data-latest-text]")).toHaveLength(1);
+      expect(paragraphs()).toEqual([narration]);
+      expect(narration.textContent).toContain("The fix is ready; checking it now");
+      // the calls after it are one stretch, the live one, under it
+      expect(host.querySelectorAll("[data-work-group]")).toHaveLength(1);
       expect(host.querySelector("[data-live-preview]")).toBeNull();
     }
     transcript = [...transcript, it_({ role: "assistant", kind: "text", text: "Reviewing the final result" }, 17),
       it_({ role: "assistant", kind: "thinking", text: "  " }, 18)];
     draw();
-    expect(preview().textContent).toContain("Reviewing the final result");
-    expect(preview().textContent).not.toContain("The fix is ready; checking it now");
-
-    act(() => (host.querySelector('[data-work-group="live"] > button') as HTMLButtonElement).click());
-    expect(host.querySelector("[data-work-detail]")?.textContent).toContain("The fix is ready; checking it now");
-    act(() => (host.querySelector('[data-work-group="live"] > button') as HTMLButtonElement).click());
+    expect(paragraphs().map((p) => p.textContent)).toEqual(["The fix is ready; checking it now", "Reviewing the final result"]);
+    expect(paragraphs()[0]).toBe(narration);
+    expect(host.querySelector("[data-latest-text]")?.textContent).toContain("Reviewing the final result");
     transcript = [...transcript, it_({ role: "assistant", kind: "text", text: "The change is verified." }, 19)];
     draw(false);
-    expect(host.querySelector("[data-live-preview]")).toBeNull();
-    expect(host.textContent).toContain("The change is verified.");
-    expect(host.querySelector("[data-latest-text]")?.textContent).not.toContain("Reviewing the final result");
-    expect(host.querySelector("[data-work-group] > button")?.getAttribute("aria-expanded")).toBe("false");
-    expect((host.querySelector("[data-work-detail]")?.parentElement?.parentElement as HTMLElement)?.style.opacity).toBe("0");
+    expect(paragraphs().map((p) => p.textContent)).toEqual(["The fix is ready; checking it now", "Reviewing the final result", "The change is verified."]);
+    expect(host.querySelector("[data-latest-text]")?.textContent).toBe("The change is verified.");
+    expect([...host.querySelectorAll("[data-work-group] > button")].map((b) => b.getAttribute("aria-expanded"))).toEqual(["false"]);
   });
 });

@@ -510,7 +510,7 @@ describe("in the chat's flow", () => {
     expect(card.closest("[data-work-group]")).not.toBeNull();
     expect(card.dataset.workflowOpens).toBe("panel"); // an Agent's chat: its head opens the Background tasks panel
     expect(card.querySelector("[data-task-status]")!.textContent).toBe("已完成");
-    expect(q("[data-work-group]")!.textContent).toContain("已工作"); // the Grep before it folded
+    expect(q("[data-work-group]")!.textContent).toContain("搜索 1 次"); // the Grep before it, in the same stretch
   });
 
   it("ends in place: the same card turns its status word, nothing leaves the chat", () => {

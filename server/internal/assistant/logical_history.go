@@ -370,11 +370,7 @@ func (s *Service) logicalHistoryPage(ctx context.Context, st logicalConversation
 		page.MoreAfter = false
 	}
 	if p.FoldWork && p.After == nil && p.Through == nil {
-		if p.Before == nil || *p.Before <= 0 {
-			page.Items = transcript.FoldWorkLatest(page.Items)
-		} else {
-			page.Items = transcript.FoldWork(page.Items)
-		}
+		page.Items = transcript.FoldWork(page.Items)
 	}
 	if p.LazyImages {
 		page.Items = proto.WithoutImageData(page.Items)

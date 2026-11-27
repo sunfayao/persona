@@ -53,7 +53,7 @@ describe("stabilizeLines", () => {
   });
 
   it("sees the start a wake gives work that has no message", () => {
-    // turnLines sets seg.start from the wake in place
+    // segments() starts the work at the wake, its first step
     const wake = (ts: string): Item => ({ id: "n1#0", seq: 1, role: "system", kind: "notice", text: "后台命令完成", wake: true, ts }); // i18n-ignore
     const items = (ts: string) => [wake(ts), tool(2, "x"), res(3, "x"), a(4, "done")];
     const before = run(undefined, items("2026-01-01T00:00:00Z"));

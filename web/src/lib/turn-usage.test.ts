@@ -140,22 +140,22 @@ describe("an exchange's usage", () => {
   });
 
   it("counts what woke a turn in the work it woke, and marks only the chat's first exchange with tokens as its first round", () => {
-    // the page starts at a wake: its own line, then the work it woke
+    // the page starts at a wake: the work it woke, the wake its first step
     const wake: Item = { id: "w1#0", seq: 1, role: "system", kind: "notice", wake: true, text: "Background command finished", task: { kind: "shell", status: "completed", task_id: "b1" }, usage: [opus({ in: 5 })] };
     const items = [wake, a(2, "built", [opus({ out: 2 })]), u(3, "hi"), a(4, "hello"), u(5, "again"), a(6, "sure", [opus({ out: 1 })])];
     const lines = chatLines(items);
-    expect(lines.map((l) => l.kind)).toEqual(["notice", "segment", "segment", "segment"]);
+    expect(lines.map((l) => l.kind)).toEqual(["segment", "segment", "segment"]);
     const segs = segOf(lines);
     expect(segs.map((s) => models(s)?.[0])).toEqual([tokens({ in: 5, out: 2 }), undefined, tokens({ out: 1 })]);
     expect(segs.map((s) => s.usage?.first)).toEqual([true, undefined, undefined]);
   });
 
-  it("counts a wake after an answer, and the work it woke, in an exchange of its own (#9140)", () => {
+  it("counts a wake after an answer, and the work it woke, in the exchange it continues", () => {
     const wake: Item = { id: "w5#0", seq: 5, role: "system", kind: "notice", wake: true, text: "Background command finished", task: { kind: "shell", status: "completed", task_id: "b1" }, usage: [opus({ in: 5 })] };
     const items = [u(1, "check the trains"), a(2, "running", [opus({ out: 3 })]), u(3, "what to pack?"), a(4, "a rain jacket", [opus({ out: 4 })]), wake, a(6, "three trains run", [opus({ out: 6 })])];
     const segs = segOf(chatLines(items));
-    expect(segs.map((s) => models(s)?.[0])).toEqual([tokens({ out: 3 }), tokens({ out: 4 }), tokens({ in: 5, out: 6 })]);
-    expect(segs.map((s) => s.answer?.id)).toEqual(["a2#0", "a4#0", "a6#0"]);
+    expect(segs.map((s) => models(s)?.[0])).toEqual([tokens({ out: 3 }), tokens({ in: 5, out: 10 })]);
+    expect(segs.map((s) => s.answer?.id)).toEqual(["a2#0", "a6#0"]);
   });
 
   it("is one string for the reply's props, the same for the same usage", () => {

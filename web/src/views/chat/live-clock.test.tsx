@@ -65,7 +65,7 @@ describe("live clock (#3534)", () => {
     act(() =>
       root.render(
         <LiveClockContext.Provider value={(d) => (n += d)}>
-          <WorkGroup g={{ kind: "group", id: "work-done", children: [], live: false, durationMs: 3000, startedAt: Date.now() - 5000 }} p={props} />
+          <WorkGroup g={{ kind: "group", id: "work-done", children: [], live: false, startedAt: Date.now() - 5000 }} p={props} />
         </LiveClockContext.Provider>,
       ),
     );

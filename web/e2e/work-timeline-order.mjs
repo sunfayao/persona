@@ -90,49 +90,45 @@ try {
           socket.send(JSON.stringify({ type: "sessions", machine_id: MID, sessions: [session] }));
         }
       } else if (state === "reloaded") await page.reload();
-      const group = page.locator("[data-work-group]").first();
+      // one answer: the words in the order they were written, each stretch of work between them one folded row
+      const segment = page.locator("[data-segment]");
+      const stretches = segment.locator(":scope > [data-work-group]");
       const slot = page.locator("[data-latest-text]").last();
       const current = state === "live" ? b : ["streaming", "persisted"].includes(state) ? d : final;
       await slot.getByText(current, { exact: true }).waitFor();
-      const button = group.locator(":scope > button");
-      if (["live", "completed", "reloaded"].includes(state)) assert.equal(await button.getAttribute("aria-expanded"), "false");
-      if (await button.getAttribute("aria-expanded") === "false") await button.press("Enter");
-      const detail = group.locator("[data-work-detail]").first();
-      const runs = detail.locator("[data-work-group] > button");
-      assert.equal(await runs.count(), 2);
-      assert.equal(await runs.first().innerText(), "Ran 1 command");
-      assert.equal(await runs.last().innerText(), "Read 1 file · Searched 1 time · Edited 1 file");
+      const words = ["A: I’ll inspect", b, ...(state === "live" ? [] : [d]), ...(["completed", "reloaded"].includes(state) ? [final] : [])];
+      for (const text of [b, d, final]) assert.equal(await count(text), words.includes(text) ? 1 : 0, `${state}: ${text} appears once, or not yet`);
+      const heads = stretches.locator(":scope > button");
+      const titles = await heads.allInnerTexts();
+      assert.equal(titles[0], "Ran 1 command");
+      assert.match(titles[1], state === "live" ? /^Working… · Read 1 file · Searched 1 time · Edited 1 file/ : /^Read 1 file · Searched 1 time · Edited 1 file$/);
+      for (const title of titles) assert.doesNotMatch(title, /Worked for/, `${state}: no stretch says how long it took`);
+      if (["live", "completed", "reloaded"].includes(state)) for (const head of await heads.all()) assert.equal(await head.getAttribute("aria-expanded"), "false");
+      for (const head of (await heads.all()).slice(0, 2)) if (await head.getAttribute("aria-expanded") === "false") await head.press("Enter");
+      const detail = segment.locator("[data-work-detail]");
       if (state === "live") {
-        assert.equal(await runs.first().getAttribute("aria-expanded"), "false");
-        assert.equal(await runs.last().getAttribute("aria-expanded"), "true");
         assert.equal(await detail.locator("[data-live-edit-diff]").count(), 1);
         assert.equal(await detail.locator('[data-tool-use="edit"] [data-tool-duration]').innerText(), "30s");
-        assert.equal(await page.locator(".border-tool-rail").count(), 1, "one rail in the inspected trace");
       }
-      for (const run of await runs.all()) if (await run.getAttribute("aria-expanded") === "false") await run.press("Enter");
       assert.equal(await detail.locator('[data-tool-use="first"] [data-tool-duration]').count(), 0, "29 second call has no duration");
       assert.equal(await detail.locator('[data-tool-use="first"] > button').getAttribute("title"), "Run the first check");
       await detail.getByText(/echo later-check/).waitFor();
-      assert.equal(await count(current), 1, `${state}: latest text appears once`);
-      assert.equal(await detail.getByText(current, { exact: true }).count(), 0, `${state}: latest stays outside the trace`);
-      const actual = await detail.innerText();
-      const expected = ["A: I’ll inspect", "echo first-check", ...(state === "live" ? [] : ["B: I found"]), "echo later-check"];
+      const actual = await segment.innerText();
+      const expected = ["A: I’ll inspect", "echo first-check", b, "echo later-check", ...words.slice(2)];
       let position = -1;
       for (const text of expected) {
         const next = actual.indexOf(text);
         assert.ok(next > position, `${state}: ${text} out of order in ${actual}`);
         position = next;
       }
-      assert.match(await button.getAttribute("title"), /start of the exchange/);
       if (["completed", "reloaded"].includes(state)) {
-        assert.match(await button.innerText(), /Worked for 1m 20s/);
-        assert.equal(await count(b), 1);
-        assert.equal(await count(d), 1);
+        // how long the turn worked, once, after the time under its last words
+        assert.deepEqual(await page.locator("[data-work-time]").allInnerTexts(), ["Worked for 1m 20s"]);
         assert.equal(await detail.locator("[data-live-edit-diff]").count(), 0);
       }
       await page.waitForFunction(() => {
-        const detail = document.querySelector("[data-work-detail]");
-        return detail && detail.getBoundingClientRect().height > 100 && Number(getComputedStyle(detail.parentElement).opacity) > .99;
+        const details = [...document.querySelectorAll("[data-work-detail]")];
+        return details.length >= 2 && details.every((detail) => detail.getBoundingClientRect().height > 20 && Number(getComputedStyle(detail.parentElement).opacity) > .99);
       });
       await slot.evaluate(el => Promise.all(el.getAnimations({ subtree: true }).filter(a => a.effect?.getTiming().iterations !== Infinity).map(a => a.finished.catch(() => {}))));
       assert.deepEqual(errors, [], "no page errors");
@@ -140,7 +136,7 @@ try {
       if (["live", "reloaded"].includes(state)) await page.locator("[data-segment]").filter({ has: slot }).screenshot({ path: join(output, `${state}-${theme}-${textSize}-${width}.png`) });
     }
     await context.close();
-    console.log(`PASS ${theme}/${textSize}: ${width}px: live → streaming → persisted → completed → reload, unique text and clock boundaries`);
+    console.log(`PASS ${theme}/${textSize}: ${width}px: live → streaming → persisted → completed → reload, words in order, one row per stretch`);
   }
 } finally {
   await browser.close();

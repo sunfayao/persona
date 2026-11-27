@@ -706,15 +706,15 @@ func TestCodexBackgroundFold(t *testing.T) {
 	if len(got) != 5 {
 		t.Fatalf("items: %d, want message, thinking, call, result, answer: %+v", len(got), got)
 	}
-	pending := foldWork([]proto.Item{got[2]}, false)
+	pending := FoldWork([]proto.Item{got[2]})
 	if len(pending) != 1 || pending[0].Kind != proto.KindToolUse {
 		t.Fatalf("a pending call stays visible: %+v", pending)
 	}
-	orphan := foldWork([]proto.Item{got[3]}, false)
+	orphan := FoldWork([]proto.Item{got[3]})
 	if len(orphan) != 1 || orphan[0].Kind != proto.KindToolResult {
 		t.Fatalf("a result whose call is on an older page stays visible: %+v", orphan)
 	}
-	finished := foldWork([]proto.Item{got[1], got[2], got[3]}, false)
+	finished := FoldWork([]proto.Item{got[1], got[2], got[3]})
 	if len(finished) != 1 || finished[0].Kind != proto.KindFold || finished[0].Fold == nil || finished[0].Fold.Tools != 1 {
 		t.Fatalf("a finished call folds with the work around it: %+v", finished)
 	}

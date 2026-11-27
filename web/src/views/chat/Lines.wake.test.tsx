@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// #2602: work a background task woke the agent for stays in an ordinary summary, never a tool drawer of its own kind.
-// #9140: that summary is the woken turn's own; the answer of the turn before the wake stays on screen.
+// The agent's own background work reporting back (a wake) continues the same answer: one block from one message to the
+// next, its earlier words where they were, no notice pill or divider, the notice a quiet step of the work it woke.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -35,54 +35,40 @@ describe.each(["assistant", "agents"] as const)("%s background continuation", (s
       {lines.map((line) => <ChatLineView key={line.id} line={line} mid="machine" sid="session" expandFold={async () => {}} />)}
     </ChatContext.Provider>));
   }
-  it("keeps the answer before a wake and gives the woken work a collapsed summary of its own", () => {
+  const words = () => [...host.querySelectorAll("[data-words]")];
+  it("continues the answer across a wake: one block, earlier words in place, no pill, the notice inside the work", () => {
     render(first, false);
-    const answered = slots()[0];
-    expect(answered.textContent).toContain("Earlier progress.");
+    const earlier = words()[0];
+    expect(earlier.textContent).toContain("Earlier progress.");
     const live = [...first, wake, tool(5), item(6, "text", "New progress."), tool(7)];
     render(live, true);
-    // the turn before the wake was over: its last words stay where they were, its summary is untouched
-    expect(slots()[0]).toBe(answered);
-    expect(answered.textContent).toContain("Earlier progress.");
-    // the woken work opens with its notice and has one summary and one text slot of its own
-    expect(host.textContent).toContain(wake.text);
-    expect(host.querySelectorAll("[data-segment]")).toHaveLength(2);
-    expect(headers()).toHaveLength(2);
-    expect(slots()).toHaveLength(2);
-    const woken = slots()[1];
-    expect(woken.textContent).toContain("New progress.");
-    expect(document.querySelector('[role="dialog"]')).toBeNull();
-    // nothing opens by itself, during execution or after it (super rule 2)
-    expect(headers().map((h) => h.getAttribute("aria-expanded"))).toEqual(["false", "false"]);
+    // one block for the one message; the words before the wake stay the same element, where they were
+    expect(host.querySelectorAll("[data-segment]")).toHaveLength(1);
+    expect(words()[0]).toBe(earlier);
+    expect(words().map((w) => w.textContent)).toEqual(["Earlier progress.", "New progress."]);
+    // no pill, no line of its own: the notice names the stretch it opened, folded like any other
+    expect(host.querySelector("[data-line] > .flex.justify-center")).toBeNull();
+    expect(host.textContent).not.toContain(wake.text);
+    expect(headers().map((h) => h.querySelector(".truncate")?.textContent)).toEqual(["运行 1 条命令", "运行 1 条命令", "正在工作… · 运行 1 条命令"]);
+    expect(headers().map((h) => h.getAttribute("aria-expanded"))).toEqual(["false", "false", "false"]);
     act(() => headers()[1].click());
-    for (const h of host.querySelectorAll<HTMLButtonElement>("[data-work-detail] [data-work-group] > button")) if (h.getAttribute("aria-expanded") === "false") act(() => h.click());
-    for (const seq of [5, 7]) expect(details().join("\n")).toContain(`echo example-${seq}`);
-    expect(details().join("\n")).not.toContain("echo example-2");
+    expect(details().join("\n")).toContain(wake.text);
+    expect(details().join("\n")).toContain("echo example-5");
     const done = [...live, item(9, "text", "Final result.")];
     render(done, false);
-    expect(slots()[0]).toBe(answered);
-    expect(answered.textContent).toContain("Earlier progress.");
-    expect(slots()[1]).toBe(woken);
-    expect(woken.textContent).toContain("Final result.");
-    expect(headers().map((h) => h.getAttribute("aria-expanded"))).toEqual(["false", "false"]);
-    // every step stays inspectable in the summary of the turn it belongs to
-    act(() => headers()[1].click());
-    expect(details().join("\n")).toContain("New progress.");
-    act(() => headers()[0].click());
-    expect(details().join("\n")).toContain("echo example-2");
+    expect(host.querySelectorAll("[data-segment]")).toHaveLength(1);
+    expect(words()[0]).toBe(earlier);
+    expect(words().map((w) => w.textContent)).toEqual(["Earlier progress.", "New progress.", "Final result."]);
+    expect(slots().map((s) => s.textContent)).toEqual(["Final result."]);
   });
-  it("draws work a wake started after a recap under the recap, without an empty live placeholder", () => {
+  it("draws work a wake started after a recap under the recap, without a pill or an empty live placeholder", () => {
     const recap = item(4, "recap", "Earlier context.");
     const resumed = [...first, recap, { ...wake, id: "wake5#0", seq: 5 }, tool(6), item(7, "text", "Resumed progress.")];
     render(resumed, true);
     expect(host.querySelectorAll("[data-segment]")).toHaveLength(2);
-    expect(headers()).toHaveLength(2);
-    expect(slots().map((s) => s.textContent)).toEqual([expect.stringContaining("Earlier progress."), expect.stringContaining("Resumed progress.")]);
-    act(() => headers()[1].click());
-    expect(details().join("\n")).toContain("echo example-6");
+    expect(host.querySelector("[data-line] > .flex.justify-center")).toBeNull();
+    expect(words().map((s) => s.textContent)).toEqual(["Earlier progress.", "Resumed progress."]);
     render([...resumed, item(8, "text", "Resumed final result.")], false);
-    expect(headers()[1].getAttribute("aria-expanded")).toBe("false");
-    expect(slots()[1].textContent).toContain("Resumed final result.");
-    expect(slots()[0].textContent).toContain("Earlier progress.");
+    expect(slots().map((s) => s.textContent)).toEqual(["Earlier progress.", "Resumed final result."]);
   });
 });

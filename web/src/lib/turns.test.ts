@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PERSONA_SERVERS } from "./compatibility";
-import { chatLines, freshWords, humanizeTool, isLoopTick, mcpServerName, mergeItems, withoutFolded, parseUserText, pickSubject, segments, openRecap, personaToolVerb, supervisionTool, supervisionVisible, toolChip, toolDisplayName, toolLabel, formatDuration } from "./turns";
+import { chatLines, exchangeSteps, freshWords, humanizeTool, isLoopTick, mcpServerName, mergeItems, withoutFolded, parseUserText, pickSubject, segments, openRecap, personaToolVerb, supervisionTool, supervisionVisible, toolChip, toolDisplayName, toolLabel, formatDuration } from "./turns";
 import type { Item } from "./types";
 
 const u = (seq: number, text: string, extra: Partial<Item> = {}): Item => ({ id: `u${seq}#0`, seq, role: "user", kind: "text", text, ...extra });
@@ -248,13 +248,14 @@ describe("chatLines", () => {
     expect(openRecap(mid, mid[1].kind === "recaps" ? mid[1].items[0] : undefined)).toBeUndefined();
   });
 
-  // #9140: a background task that wakes the idle agent starts an exchange of its own. The turn before it had ended, so
-  // its last words stay its answer; the chat still ends on the newest words (#3783), now the woken exchange's.
-  const answers = (ls: ReturnType<typeof chatLines>) => ls.flatMap((l) => (l.kind === "segment" && l.seg.answer ? [l.seg.answer.text] : []));
+  // The agent's own background work reporting back (a wake) continues the answer it belongs to: from one message to
+  // the next there is one answer, its words in order, no notice line between (the Claude desktop app's turn).
+  const words = (l: ReturnType<typeof chatLines>[number] | undefined) =>
+    l?.kind === "segment" ? exchangeSteps(l.seg).flatMap((s) => (s.kind === "text" ? [s.item.text] : [])) : [];
   const seg = (l: ReturnType<typeof chatLines>[number] | undefined) => (l?.kind === "segment" ? l.seg : undefined);
 
-  it("keeps the answer to a newer question when a background task reports back after it (#9140)", () => {
-    // the issue's timeline: A's background check is still running, B is asked and answered, then three notifications
+  it("keeps background results in the answer to the message they came after, every piece of words in order", () => {
+    // A's background check is still running, B is asked and answered, then three notifications
     const items = [
       u(1, "Check which trains run on Saturday."),
       tool(2, "a"),
@@ -275,42 +276,20 @@ describe("chatLines", () => {
       u(17, "Thanks. Book the 08:10."),
     ];
     const ls = chatLines(items);
-    expect(kinds(ls)).toEqual(["segment", "segment", "notice", "segment", "notice", "segment", "notice", "segment", "segment"]);
-    // four final texts between the two messages: each is the answer of its own exchange
-    expect(answers(ls)).toEqual([
-      "The timetable check is running in the background.",
+    // one line per message, no notice between
+    expect(kinds(ls)).toEqual(["segment", "segment", "segment"]);
+    expect(words(ls[1])).toEqual([
       "Pack a rain jacket, two shirts and walking shoes.",
       "First result: the 08:10 runs on Saturday.",
       "Second result: the 10:40 runs too.",
       "All done: three trains run on Saturday.",
     ]);
-    // the answer to B is no step of any work summary
-    expect(ls.some((l) => seg(l)?.steps.some((s) => s.kind === "text" && s.item.text?.startsWith("Pack a rain jacket")))).toBe(false);
-    // each woken exchange opens with its notification and holds only its own work
-    expect(ls[2].kind === "notice" && ls[2].item.id).toBe("n7#0");
-    expect(seg(ls[3])?.user).toBeUndefined();
-    expect(seg(ls[3])?.steps.map((s) => s.id)).toEqual(["t8#0"]);
-    expect(seg(ls[5])?.steps).toEqual([]);
-    expect(seg(ls[7])?.steps.map((s) => s.id)).toEqual(["t14#0"]);
-    expect(seg(ls[1])?.steps).toEqual([]);
+    expect(seg(ls[1])?.answer?.text).toBe("All done: three trains run on Saturday.");
+    // the notifications are quiet steps of the work they woke, in order
+    expect(exchangeSteps(seg(ls[1])!).map((s) => s.id)).toEqual(["a6#0", "n7#0", "t8#0", "a10#0", "n11#0", "a12#0", "n13#0", "t14#0", "a16#0"]);
   });
 
-  it("answers a woken exchange with its own words and leaves the exchange before it alone", () => {
-    const items = [
-      u(1, "run the tests in the background"),
-      a(2, "started, I will tell you when it ends — this is the long one"),
-      wake(3, "tests"),
-      tool(4, "x"),
-      res(5, "x"),
-      a(6, "all green"),
-    ];
-    const ls = chatLines(items);
-    expect(kinds(ls)).toEqual(["segment", "notice", "segment"]);
-    expect(answers(ls)).toEqual(["started, I will tell you when it ends — this is the long one", "all green"]);
-    expect(seg(ls[2])?.steps.map((s) => s.id)).toEqual(["t4#0"]);
-  });
-
-  it("keeps a long-running agent's newest words at the bottom of a long history", () => {
+  it("keeps a long-running agent's newest words last, every update in the one answer", () => {
     const long = "a full summary of everything so far. ".repeat(60);
     const items: Item[] = [u(1, "keep going until it is merged"), a(2, long)];
     let seq = 3;
@@ -318,64 +297,65 @@ describe("chatLines", () => {
       items.push(wake(seq++, `wait ${n}`), tool(seq++, `t${n}`), res(seq++, `t${n}`), a(seq++, `update ${n}`));
     }
     const ls = chatLines(items);
-    expect(seg(ls[ls.length - 1])?.answer?.text).toBe("update 7");
-    // the summary stays the answer of the turn that wrote it, and every update the answer of its own
-    expect(answers(ls)).toEqual([long, ...Array.from({ length: 8 }, (_, n) => `update ${n}`)]);
-    expect(ls.filter((l) => l.kind === "notice")).toHaveLength(8);
+    expect(kinds(ls)).toEqual(["segment"]);
+    expect(seg(ls[0])?.answer?.text).toBe("update 7");
+    expect(words(ls[0])).toEqual([long, ...Array.from({ length: 8 }, (_, n) => `update ${n}`)]);
   });
 
-  it("shows the work a wake started as live under its notice, before and after its first step", () => {
+  it("keeps the exchange live and its key when a wake continues it, before and after its first step", () => {
     const before = [u(1, "watch the deploy"), a(2, "watching it"), wake(3, "deploy")];
-    // woken, nothing of the new work here yet: a live work row of its own, the answer before it untouched
     const woken = chatLines(before, { live: true });
-    expect(kinds(woken)).toEqual(["segment", "notice", "segment"]);
-    expect(woken[0].kind === "segment" && woken[0].live).toBe(false);
-    expect(seg(woken[0])?.answer?.text).toBe("watching it");
-    expect(woken[2].kind === "segment" && woken[2].live).toBe(true);
-    expect(woken.some((line) => line.id === "live")).toBe(false);
-    // its row keeps its key as steps come and when its words land
+    expect(kinds(woken)).toEqual(["segment"]);
+    expect(woken[0].kind === "segment" && woken[0].live).toBe(true);
     const working = chatLines([...before, tool(4, "x"), res(5, "x")], { live: true });
-    expect(working[2].id).toBe(woken[2].id);
-    expect(seg(working[2])?.id).toBe(seg(woken[2])?.id);
+    expect(working[0].id).toBe(woken[0].id);
     const done = chatLines([...before, tool(4, "x"), res(5, "x"), a(6, "deployed")]);
-    expect(done[2].id).toBe(woken[2].id);
-    expect(answers(done)).toEqual(["watching it", "deployed"]);
+    expect(done[0].id).toBe(woken[0].id);
+    expect(words(done[0])).toEqual(["watching it", "deployed"]);
   });
 
-  it("puts work a wake started after the recap that came before it", () => {
+  it("puts work a wake started after a recap under the recap, as an exchange that opens with the wake", () => {
     const ls = chatLines([u(1, "go"), a(2, "started the build, waiting for it"), recap(3, "waiting for the build"), wake(4, "build"), a(5, "ok")]);
-    expect(kinds(ls)).toEqual(["segment", "recaps", "notice", "segment"]);
-    expect(answers(ls)).toEqual(["started the build, waiting for it", "ok"]);
+    expect(kinds(ls)).toEqual(["segment", "recaps", "segment"]);
+    expect(seg(ls[2])?.user).toBeUndefined();
+    expect(seg(ls[2])?.steps.map((s) => s.id)).toEqual(["n4#0"]);
+    expect(seg(ls[2])?.answer?.text).toBe("ok");
+    expect(ls[2].id).toBe("exchange-4");
+    const live = chatLines([u(1, "go"), a(2, "waiting"), recap(3, "context"), wake(4, "build"), tool(5, "x")], { live: true });
+    expect(kinds(live)).toEqual(["segment", "recaps", "segment"]);
+    expect(live[0].kind === "segment" && live[0].live).toBe(false);
+    expect(live[2].kind === "segment" && live[2].live).toBe(true);
+    expect(live.some((line) => line.id === "live")).toBe(false);
   });
 
-  it("marks the woken exchange live when a wake arrives after a recap", () => {
-    const ls = chatLines([u(1, "go"), a(2, "waiting"), recap(3, "context"), wake(4, "build"), tool(5, "x")], { live: true });
-    expect(kinds(ls)).toEqual(["segment", "recaps", "notice", "segment"]);
-    expect(ls[0].kind === "segment" && ls[0].live).toBe(false);
-    expect(ls[3].kind === "segment" && ls[3].live).toBe(true);
-    expect(ls.some((line) => line.id === "live")).toBe(false);
+  it("starts a new exchange for a wake after an interruption, still without a notice line for it", () => {
+    const ls = chatLines([u(1, "go"), tool(2, "x"), notice(3, "已中断"), wake(4, "build"), a(5, "the build finished")]);
+    expect(kinds(ls)).toEqual(["segment", "notice", "segment"]);
+    expect(ls[1].kind === "notice" && ls[1].item.id).toBe("n3#0");
+    expect(seg(ls[2])?.answer?.text).toBe("the build finished");
   });
 
-  it("starts an exchange at a subagent's report that woke the agent, drawn under its call", () => {
+  it("continues the answer at a subagent's report that woke the agent, drawn under its call", () => {
     const launch: Item = { id: "t2#0", seq: 2, role: "assistant", kind: "tool_use", tool_use_id: "agent", tool_name: "Agent", tool_input: { description: "Review", run_in_background: true } };
     const report: Item = { id: "r5#0", seq: 5, role: "user", kind: "tool_result", tool_use_id: "agent", text: "Review finished.", wake: true, task: { kind: "agent", status: "completed" } };
     const ls = chatLines([u(1, "review it"), launch, { ...res(3, "agent"), text: "Async agent launched successfully" }, a(4, "The review is running."), report, a(6, "The review found nothing.")]);
-    // no notice line: the report belongs to the call that launched it
-    expect(kinds(ls)).toEqual(["segment", "segment"]);
-    expect(answers(ls)).toEqual(["The review is running.", "The review found nothing."]);
+    expect(kinds(ls)).toEqual(["segment"]);
+    expect(words(ls[0])).toEqual(["The review is running.", "The review found nothing."]);
   });
 
-  it("keeps a message typed while the woken agent works in the woken exchange", () => {
+  it("gives a message typed while the woken agent works its own line", () => {
     const ls = chatLines([u(1, "go"), a(2, "started"), wake(3, "build"), tool(4, "x"), res(5, "x"), u(6, "also check the logs", { queued: true }), a(7, "build is up, logs are clean")]);
-    expect(kinds(ls)).toEqual(["segment", "notice", "segment", "segment"]);
-    expect(answers(ls)).toEqual(["started", "build is up, logs are clean"]);
-    expect(seg(ls[3])?.user?.text).toBe("also check the logs");
+    expect(kinds(ls)).toEqual(["segment", "segment"]);
+    expect(seg(ls[0])?.steps.map((s) => s.id)).toEqual(["n3#0", "t4#0"]);
+    expect(seg(ls[1])?.user?.text).toBe("also check the logs");
+    expect(seg(ls[1])?.answer?.text).toBe("build is up, logs are clean");
   });
 
-  it("opens work a wake started on its own with the wake notice", () => {
+  it("opens work a wake started on its own with the wake as its first step", () => {
     const ls = chatLines([wake(1, "build"), tool(2, "x"), res(3, "x"), a(4, "build is up")]);
-    expect(kinds(ls)).toEqual(["notice", "segment"]);
-    expect(ls[1].kind === "segment" && ls[1].seg.answer?.text).toBe("build is up");
+    expect(kinds(ls)).toEqual(["segment"]);
+    expect(seg(ls[0])?.steps.map((s) => s.id)).toEqual(["n1#0", "t2#0"]);
+    expect(seg(ls[0])?.answer?.text).toBe("build is up");
   });
 
   it("turns API errors into cards and folds retries of the same one", () => {

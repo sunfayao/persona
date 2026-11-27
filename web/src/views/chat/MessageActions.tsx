@@ -37,6 +37,7 @@ const replyBar = () => import("./ReplyBar");
 const ReplyBar = lazy(() => replyBar().then((m) => ({ default: m.ReplyBar })));
 // what the exchange cost, at the end of a touch screen's row (the reply bar has it on hover)
 const TurnUsage = lazy(() => replyBar().then((m) => ({ default: m.TurnUsage })));
+const WorkTime = lazy(() => replyBar().then((m) => ({ default: m.WorkTime })));
 const SelectMessageText = lazyDialog(() => replyBar().then((m) => m.SelectMessageText));
 const MessageMenu = lazyOverlay(() => replyBar().then((m) => m.MessageMenu));
 
@@ -299,6 +300,11 @@ export function MessageActions({
             <Icon name="more" size={14} />
           </button>
           {latest && ts && <span data-latest-time className="-ml-3 text-[12px] whitespace-nowrap text-ink-3 tabular-nums">{clock(ts)}</span>}
+          {usageMs !== undefined && (
+            <Suspense fallback={null}>
+              <WorkTime ms={usageMs} className="-ml-3" />
+            </Suspense>
+          )}
           {usage && (
             <Suspense fallback={null}>
               <TurnUsage usage={usage} ms={usageMs} ttftMs={ttftMs} persona={chat?.assistant} touch />

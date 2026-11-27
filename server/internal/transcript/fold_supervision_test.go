@@ -88,11 +88,9 @@ func TestFoldRetainsSilentFinishAlongsideAReply(t *testing.T) {
 				{ID: "result", Seq: 3, Kind: proto.KindToolResult, ToolUseID: "finish", Text: `{"visibility":"silent"}`},
 				{ID: "reply", Seq: 4, Kind: proto.KindText, Role: "assistant", Text: "The example build passed."},
 			}
-			for _, fold := range []func([]proto.Item) []proto.Item{FoldWork, FoldWorkLatest} {
-				page := fold(items)
-				if len(page) != len(items) || page[1].ID != "call" || page[2].ID != "result" || page[3].ID != "reply" {
-					t.Fatalf("silent disposition and reply must survive transit together: %+v", page)
-				}
+			page := FoldWork(items)
+			if len(page) != len(items) || page[1].ID != "call" || page[2].ID != "result" || page[3].ID != "reply" {
+				t.Fatalf("silent disposition and reply must survive transit together: %+v", page)
 			}
 		})
 	}

@@ -1,4 +1,4 @@
-// Transcript notices, recaps and model errors. Background continuation belongs to the normal execution summary.
+// Transcript notices, recaps and model errors. Background continuation belongs to the answer it continues.
 import { memo, Suspense, useMemo, useState } from "react";
 import { lineItemIds } from "../../lib/chat-search";
 import { useChatContext } from "./chat-context";
@@ -9,7 +9,6 @@ import { retryable, type APIErrorInfo } from "../../lib/api-errors";
 import { isImageLimitError } from "../../lib/compact-resend";
 import type { RecoveryExhaustedView } from "../../lib/model-fallback";
 import { runAction, turnErrorFix, type TurnFix } from "../../lib/readiness";
-import { wakeSummary } from "../../lib/tasks";
 import { type ChatLine, type OpenRecap } from "../../lib/turns";
 import { sourceLabel } from "../../lib/message-source";
 import type { Item } from "../../lib/types";
@@ -129,21 +128,11 @@ function SupervisionLine({ line, ...props }: LineProps & { line: Extract<ChatLin
   );
 }
 
-/** A notice on a line of its own: a wake opening new work (a centered capsule), "Interrupted", a long local command's output. */
+/** A notice on a line of its own after an exchange: "Interrupted", a model's refusal, a long local command's output.
+ *  The agent's own background work reporting back is part of its answer, never a line here. */
 function LineNotice({ item, assistant }: { item: Item; assistant?: boolean }) {
   const [open, setOpen] = useState(false);
   if (item.model_refusal) return <Suspense fallback={null}><RefusalNotice item={item} plain={assistant} /></Suspense>;
-  if (item.wake) {
-    const w = wakeSummary(item);
-    return (
-      <div className="flex justify-center">
-        <span className="flex max-w-full min-w-0 items-center gap-1.5 rounded-full bg-inset px-3 py-1 text-[12px] text-ink-2 shadow-hairline" title={clock(item.ts)}>
-          <Icon name="bell" size={12} className={cx("shrink-0", w.failed ? "text-red" : "text-accent")} />
-          <span className="min-w-0 truncate">{w.text}</span>
-        </span>
-      </div>
-    );
-  }
   const text = item.text ?? "";
   if (!text.includes("\n") && text.length <= 60) {
     return (

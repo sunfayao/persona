@@ -89,8 +89,8 @@ async function verify(browser, pages, theme, textSize) {
     page.on("pageerror", error => errors.push(String(error)));
     await page.goto(base);
     assert.equal(await page.locator("html").getAttribute("data-text-size"), textSize || null);
-    const chat = page.locator("[data-chat-scroll]"), slots = chat.locator("[data-latest-text]");
-    const answer = slots.filter({ hasText: "Here is the finished report." }), chartImage = answer.getByRole("img", { name: "Chart" });
+    const chat = page.locator("[data-chat-scroll]"), words = chat.locator("[data-words]");
+    const answer = words.filter({ hasText: "Here is the finished report." }), chartImage = answer.getByRole("img", { name: "Chart" });
     const checkFirst = async () => {
       await chartImage.waitFor();
       assert.equal(await chartImage.evaluate(img => img.complete && img.naturalWidth), 160);
@@ -100,11 +100,13 @@ async function verify(browser, pages, theme, textSize) {
     await answer.evaluate(el => { el.dataset.answered = "true"; });
     backlog = pages.after;
     socket.send(JSON.stringify({ ...pages.update, type: "items", machine_id: "example", session_id: sid }));
+    // the background update continues the same answer: its words after the first ones, no pill or line for the wake
     const checkBoth = async () => {
-      await slots.getByText("The check is complete.", { exact: true }).waitFor();
-      await chat.getByText(wakeLabel, { exact: true }).waitFor();
+      await chat.locator("[data-latest-text]").getByText("The check is complete.", { exact: true }).waitFor();
+      assert.equal(await chat.getByText(wakeLabel, { exact: true }).count(), 0);
       await checkFirst();
-      assert.equal(await slots.count(), 2);
+      assert.equal(await words.count(), 2);
+      assert.equal(await chat.locator("[data-segment]").count(), 1);
       assert.equal(await chat.locator("[data-work-detail]:visible").count(), 0);
       assert.equal(await chat.getByText("Synthetic private scheduling context.").count(), 0);
     };

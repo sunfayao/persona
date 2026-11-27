@@ -227,8 +227,8 @@ a new screen reuses the one beside it.
   are `ComposerPanel.tsx` (`+` and `@`), `SlashPalette.tsx` (`/`), `PermissionPicker.tsx` and `ModelPill.tsx`.
 - Bubbles: the user's own message is `--user-bubble`; a relayed message and a tool's inline detail stay
   `--neutral-bubble`. Replies are unboxed.
-- Reply bar (`ReplyBar.tsx`): only under a finished turn's last reply, never under narration in a work summary or a
-  reply still streaming. The pointer over the reply or keyboard focus shows it, and it lingers 250 ms; touch screens
+- Reply bar (`ReplyBar.tsx`): only under a finished turn's last words, never under its earlier words or a reply still
+  streaming; after the time it says how long the turn worked. The pointer over the reply or keyboard focus shows it, and it lingers 250 ms; touch screens
   keep a copy and ⋯ row instead. A reply cut short by an error carries a line saying so.
 - Dividers: `ModelChangeDivider`, `EngineSwitchDivider` and `ModeChangeDivider` are hairlines either side of one line
   of words, `role="separator"`, not controls.
@@ -388,9 +388,12 @@ toast: the chat empties in place and the old chat is archived.
 
 ### 4.4 Tool execution collapsed
 
-Tool execution is one summary line that never opens by itself and expands by hand (`WorkGroup.tsx`, `Collapse`). The
-opened summary is a flat run of narration and action groups on one rail; earlier live groups start collapsed, the
-current one opens inside the trace the reader opened, and the final reply appears once. Rows lead with the file, query
+From one message to the next the agent gives one answer, the same for every agent type: its words in the order it
+wrote them, nothing replaced as it goes on, and between them each stretch of tool activity as one quiet summary line
+that says in words what was done ("Ran 3 commands · Edited 2 files"), never opens by itself and expands by hand to its
+steps on one rail (`WorkGroup.tsx`, `Collapse`). Its own background work reporting back continues the same answer, with
+no divider. While it works, one live line at the end of the answer says Working with the clock; how long the finished
+turn worked is said once, after the time under its answer, never on a stretch. Rows lead with the file, query
 or command; a call's own elapsed time is a quiet suffix on wide rows and the row's title on compact ones (nothing for
 sub-second or unfinished calls). A failed call's red ✕ and output stay; a call that was denied,
 refused or interrupted gets a gray mark with its word (Denied, Did not run, Interrupted) because it is not an error.
