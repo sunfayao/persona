@@ -31,7 +31,11 @@ import (
 //     then the text sent with compact_if_full, so the node runs the runtime's own /compact and sends once it is done
 //     (node compact_before_send.go). Only a failed compaction, or a runtime Persona cannot compact, falls back to a
 //     replacement, saying why;
-//   - refused for user/unknown stops, offline computers, or the node's own start refusals.
+//   - refused for user/unknown stops, offline computers, or the node's own start refusals. The main conversation's own
+//     agent_send, which acts for the owner, also resumes an Agent that ended without an owner's Stop (told to quit:
+//     exit; ended on its own: unknown) when its node takes that (capabilities.delegated_resume): session.start with
+//     resume_delegated, which the node rechecks under the same lock (node stop_provenance.go). An owner's Stop (user)
+//     stays the owner's Resume's, and so does every stop a lead, a scheduled run or an automatic follow-up meets.
 
 // stoppedRefusal is agent_send's answer for a stopped agent without resume: nothing was sent, and how to choose.
 func stoppedRefusal(c proto.Session) error {
@@ -47,12 +51,38 @@ func stoppedRefusal(c proto.Session) error {
 		"When you cannot tell, ask the owner (ask_user, or task_review needs_user): reuse this agent, or start a new one", agentLabel(c))
 }
 
+// exitedTerminal: c is a Persona terminal Agent that ended without an owner's Stop (told to quit, or on its own),
+// which its node lets only the owner's own message start again (node stopped.go terminalExitLaunch: capabilities.send
+// on a stopped row). A message of the assistant's is refused there, so for agent_send it is stopped all the same, and
+// resume applies to it (stoppedAgent leaves it out: the owner's own messages still go to it as before).
+func exitedTerminal(c proto.Session) bool {
+	if c.Assistant || c.SourceKind != "" || c.IsSubagent || c.Capabilities == nil || !c.Capabilities.Send || !c.Capabilities.Terminal {
+		return false
+	}
+	if c.Status != proto.StatusOffline && c.Status != proto.StatusInterrupted {
+		return false
+	}
+	return c.Capabilities.StopCause == proto.StopUnknown || c.Capabilities.StopCause == proto.StopExit
+}
+
 // resumeAllowed checks a resume before anything is asked or started: a reason, the computer reachable, room left in
 // the agent's context, and a task of self's it will be on (one it is on, or task, which the send's checks go on with).
+// Only recorded non-user stops: the automatic flows that resume (rework, routed PR events, inbox forwards) use it.
 func (s *Service) resumeAllowed(ctx context.Context, self string, am Device, c proto.Session, why string, task *sendTask) error {
+	_, err := s.resumeCheck(ctx, self, am, c, why, task, false)
+	return err
+}
+
+// resumeCheck is resumeAllowed for agent_send. forOwner: the call is the main conversation's, which acts for the
+// owner and may also resume an Agent that ended without an owner's Stop (exit, unknown) when its node takes that;
+// delegated then says the resume needs session.start's resume_delegated.
+func (s *Service) resumeCheck(ctx context.Context, self string, am Device, c proto.Session, why string, task *sendTask,
+	forOwner bool) (delegated bool, err error) {
 	cause := proto.StopUnknown
+	nodeTakes := false
 	if c.Capabilities != nil {
 		cause = c.Capabilities.StopCause
+		nodeTakes = c.Capabilities.DelegatedResume
 	}
 	if c.Archived {
 		// Archive snapshots may predate the stop or a later user close. Only the node's saved cause authorizes resume.
@@ -63,44 +93,67 @@ func (s *Service) resumeAllowed(ctx context.Context, self string, am Device, c p
 		err := s.call(cctx, am.ID, "session.info", map[string]any{"session_id": c.SessionID}, &info)
 		cancel()
 		if err != nil {
-			return resumeFailed(c, am, fmt.Errorf("could not verify the node's stop cause: %w", err))
+			return false, resumeFailed(c, am, fmt.Errorf("could not verify the node's stop cause: %w", err))
 		}
 		cause = info.StopCause
 	}
 	if !cause.AllowsSupervisorResume() {
-		s.noteManualResume(am.ID, c.SessionID) // the next decision on its task links its terminal (decision_terminal.go)
-		return fmt.Errorf("%s cannot be resumed by the assistant: stop cause is %s. User stops and unknown causes require "+
-			"the user's Resume on its terminal page. Give that instruction separately from the choices on a decision card. Nothing was started or sent", agentLabel(c), cause)
+		if !forOwner || !cause.AllowsDelegatedResume() || !nodeTakes {
+			s.noteManualResume(am.ID, c.SessionID) // the next decision on its task links its terminal (decision_terminal.go)
+			return false, resumeRefused(c, am, cause, forOwner, nodeTakes)
+		}
+		delegated = true // an Agent that ended without an owner's Stop, resumed for the owner (node resume_delegated)
 	}
 	if why == "" {
-		return fmt.Errorf("resume_why is required: say why this agent's own context is needed (the user sees it). Nothing was started or sent")
+		return false, fmt.Errorf("resume_why is required: say why this agent's own context is needed (the user sees it). Nothing was started or sent")
 	}
 	if d, ok := s.device(ctx, am.ID); !ok || !d.Reachable {
-		return resumeFailed(c, am, machineOffline(am.Name))
+		return false, resumeFailed(c, am, machineOffline(am.Name))
 	}
 	if contextFull(c) && !compactable(c) {
-		return resumeFailed(c, am, fmt.Errorf("its context is nearly full (%d of %d tokens) and %s, so it cannot be compacted "+
+		return false, resumeFailed(c, am, fmt.Errorf("its context is nearly full (%d of %d tokens) and %s, so it cannot be compacted "+
 			"before your text goes in", c.ContextTokens, c.ContextWindow, notCompactable(c)))
 	}
 	if task != nil {
-		return nil // sendTaskAllowed checks it next, as for any hand-off
+		return delegated, nil // sendTaskAllowed checks it next, as for any hand-off
 	}
 	if err := s.ensureTodosLoaded(ctx); err != nil {
-		return err
+		return false, err
 	}
 	t, ok := s.openTodoOfAgent(am.ID, c.SessionID)
 	if !ok {
 		if !s.isMain(ctx, self) {
-			return fmt.Errorf("%s is on no open task of yours: a resumed agent must be supervised, and only the main "+
+			return false, fmt.Errorf("%s is on no open task of yours: a resumed agent must be supervised, and only the main "+
 				"conversation and a direction's lead supervise agents. Nothing was started or sent", agentLabel(c))
 		}
-		return fmt.Errorf("%s is on no open task of yours: a resumed agent must be supervised. Give task to make it your "+
-			"task as you resume it. Nothing was started or sent", agentLabel(c))
+		return false, fmt.Errorf("%s is on no open task of yours: a resumed agent must be supervised. Give task (a title and "+
+			"done_when for the follow-up) to make it your task as you resume it. Nothing was started or sent", agentLabel(c))
 	}
 	if err := othersTask(c, t, self); err != nil {
-		return fmt.Errorf("%w; it is not yours to resume. Nothing was started or sent", err)
+		return false, fmt.Errorf("%w; it is not yours to resume. Nothing was started or sent", err)
 	}
-	return nil
+	return delegated, nil
+}
+
+// resumeRefused is why stopped agent c may not be resumed by this caller (forOwner: the main conversation's
+// agent_send; nodeTakes: its node takes a resume for the owner), and what to do instead. Nothing was started or sent.
+func resumeRefused(c proto.Session, am Device, cause proto.StopCause, forOwner, nodeTakes bool) error {
+	label := agentLabel(c)
+	switch {
+	case cause == proto.StopUser:
+		return fmt.Errorf("%s was stopped by the owner (stop cause is user): only the owner's Resume on its terminal page brings "+
+			"it back. Ask the owner to press Resume there (give that instruction separately from the choices on a decision "+
+			"card), or start a replacement for the work. Nothing was started or sent", label)
+	case cause.AllowsDelegatedResume() && !forOwner:
+		return fmt.Errorf("%s ended without the owner's Stop (stop cause is %s): only the main conversation's own agent_send may "+
+			"resume it for the owner, or the owner with Resume on its terminal page. Nothing was started or sent", label, cause)
+	case cause.AllowsDelegatedResume() && !nodeTakes:
+		return fmt.Errorf("%s ended without the owner's Stop (stop cause is %s), but the node on %s is older than resuming such an "+
+			"Agent for the owner: ask the owner to press Resume on its terminal page, or to update that computer's node "+
+			"(machine_redeploy), or start a replacement for the work. Nothing was started or sent", label, cause, am.Name)
+	}
+	return fmt.Errorf("%s cannot be resumed by the assistant: stop cause is %s. Only the owner's Resume on its terminal page "+
+		"brings it back; give that instruction separately from the choices on a decision card. Nothing was started or sent", label, cause)
 }
 
 // contextFull: what the model saw in c's latest reply fills proto.ContextNearlyFullShare of its window (both known).
@@ -189,16 +242,21 @@ func resumeFailed(c proto.Session, am Device, err error) error {
 }
 
 // resumeParams are the node's session.start params for resuming c with text as its first message: the user's Resume
-// (the node fills in what the session ran with) plus the prompt and an eligibility recheck on that node.
-func resumeParams(c proto.Session, text string) map[string]any {
-	return map[string]any{"resume_session_id": c.SessionID, "prompt": text, "resume_automatic": true}
+// (the node fills in what the session ran with) plus the prompt and an eligibility recheck on that node; delegated:
+// the main conversation's resume for the owner of an Agent that ended without an owner's Stop (resumeCheck).
+func resumeParams(c proto.Session, text string, delegated bool) map[string]any {
+	p := map[string]any{"resume_session_id": c.SessionID, "prompt": text, "resume_automatic": true}
+	if delegated {
+		p["resume_delegated"] = true
+	}
+	return p
 }
 
 // resumeAndSend resumes stopped agent c of am with params' text as its first message (resumeParams) and says so in
 // conversation self: on task's card when the send made or found one, else on the open task of self's it is on.
 // handed is what the receipt says of the attachments. The text is noted before it goes, as any agent_send's
 // (noteAgentSend, #7539).
-func (s *Service) resumeAndSend(ctx context.Context, self string, am Device, c proto.Session, params map[string]any, why, told, handed string,
+func (s *Service) resumeAndSend(ctx context.Context, self string, am Device, c proto.Session, delegated bool, params map[string]any, why, told, handed string,
 	task *handedTask) (string, error) {
 	text, _ := params["text"].(string)
 	wait := 5 * time.Minute // a resume can take minutes
@@ -215,7 +273,7 @@ func (s *Service) resumeAndSend(ctx context.Context, self string, am Device, c p
 		Session proto.Session `json:"session"`
 	}
 	full := contextFull(c) // resumeAllowed let only a compactable one through
-	startParams := resumeParams(c, text)
+	startParams := resumeParams(c, text, delegated)
 	if full {
 		// Resumed without a first message, then the text sent with compact_if_full: the node compacts it with its own
 		// /compact first and sends once that is done (#11137).

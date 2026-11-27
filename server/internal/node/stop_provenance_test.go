@@ -204,3 +204,118 @@ func TestResumeConsumesItsPreviousStopEvenWhenStartFails(t *testing.T) {
 		})
 	}
 }
+
+// The main conversation's resume for the owner (resume_delegated) also takes an Agent that ended without an owner's
+// Stop: told to quit (exit) or ended on its own (unknown). It reaches the same terminal path as the owner's
+// Resume. An owner's Stop, a cause this build does not know and launcher or permission overrides are still refused
+// with nothing touched, and so is exit or unknown without resume_delegated.
+func TestDelegatedResumeTakesAnAgentThatEndedWithoutAnOwnersStop(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		cause     proto.StopCause
+		delegated bool
+		mode      string
+		allowed   bool
+	}{
+		{"exit", proto.StopExit, true, "", true},
+		{"ended on its own", proto.StopUnknown, true, "", true},
+		{"idle", proto.StopIdle, true, "", true},
+		{"owner's stop", proto.StopUser, true, "", false},
+		{"future cause", proto.StopCause("future"), true, "", false},
+		{"permission override", proto.StopExit, true, "bypassPermissions", false},
+		{"exit without delegation", proto.StopExit, false, "", false},
+		{"unknown without delegation", proto.StopUnknown, false, "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			n, f, _ := keptAgent(t)
+			provenanceHerdr(n)
+			n.claudeStart, n.claudeReady = 20*time.Millisecond, 20*time.Millisecond
+			if tc.cause != proto.StopUnknown {
+				n.state.stopped(sidA, tc.cause)
+			}
+			_, err := request(t, n, "session.start", map[string]any{
+				"resume_session_id": sidA, "resume_automatic": true, "resume_delegated": tc.delegated,
+				"prompt": "Continue with the follow-up", "permission_mode": tc.mode,
+			})
+			var command string
+			for _, call := range f.calls() {
+				if call.Method == "pane.send_input" {
+					command += str(call.Params["text"])
+				}
+			}
+			if !tc.allowed {
+				if err == nil {
+					t.Fatal("refused resume succeeded")
+				}
+				if code, _ := refusalOf(t, err); code != "resume_not_allowed" {
+					t.Fatalf("unexpected refusal: %v", err)
+				}
+				if calls := f.trace("pane.send_input", "tab.create", "workspace.create"); len(calls) != 0 {
+					t.Fatalf("a refused resume touched the terminal: %v", calls)
+				}
+				if got := n.stopCause(sidA); got != tc.cause {
+					t.Fatalf("a refused resume changed the stop cause to %s", got)
+				}
+				return
+			}
+			if code := refusalCode(err); code == "resume_not_allowed" {
+				t.Fatalf("delegated resume refused: %v", err)
+			}
+			// The scripted shell does not launch Claude; reaching its resume command is the boundary under test.
+			if !strings.Contains(command, "--resume "+sidA) {
+				t.Fatalf("delegated resume did not reach the terminal path (err %v)", err)
+			}
+			if got := n.stopCause(sidA); got != proto.StopUnknown {
+				t.Fatalf("the resume left stop cause %s, want it consumed", got)
+			}
+		})
+	}
+}
+
+// A delegated resume whose start may still bring the Agent up marks the attempt: another delegated resume within
+// delegatedResumeSettle is refused with nothing touched, so it is never started twice (#8214); after it, one goes.
+func TestDelegatedResumeWaitsOutAnUncertainStart(t *testing.T) {
+	n, f, _ := keptAgent(t)
+	provenanceHerdr(n)
+	n.claudeStart, n.claudeReady = 20*time.Millisecond, 20*time.Millisecond
+	n.state.stopped(sidA, proto.StopExit)
+	params := map[string]any{"resume_session_id": sidA, "resume_automatic": true, "resume_delegated": true, "prompt": "Continue"}
+	_, _ = request(t, n, "session.start", params) // the scripted shell never runs claude: an uncertain start
+	f.reset()
+	_, err := request(t, n, "session.start", params)
+	if err == nil {
+		t.Fatal("a second delegated resume went while the first may still come up")
+	}
+	if code, _ := refusalOf(t, err); code != "resume_not_allowed" || !strings.Contains(err.Error(), "may still bring it up") {
+		t.Fatalf("unexpected refusal: %v", err)
+	}
+	if len(f.trace("pane.send_input", "tab.create", "workspace.create")) != 0 {
+		t.Fatal("the second resume touched the terminal")
+	}
+	n.state.update(sidA, func(v *sessionState) bool { // the settle window has passed
+		v.StopCauseAt = time.Now().Add(-delegatedResumeSettle - time.Second).UnixNano()
+		return true
+	})
+	if err := n.supervisorResumeAllowed(sidA, "", "", true); err != nil {
+		t.Fatalf("after the settle window: %v", err)
+	}
+	if err := n.supervisorResumeAllowed(sidA, "", "", false); err == nil {
+		t.Fatal("a supervisor's resume took an unknown stop")
+	}
+}
+
+// A stopped row says whether its node takes the main conversation's resume for it: an Agent that ended without an
+// owner's Stop does, an owner's Stop does not.
+func TestStoppedRowSaysWhetherItTakesADelegatedResume(t *testing.T) {
+	for cause, want := range map[proto.StopCause]bool{proto.StopUnknown: true, proto.StopExit: true, proto.StopIdle: true,
+		proto.StopUser: false, proto.StopCause("future"): false} {
+		n, _, _ := keptAgent(t)
+		provenanceHerdr(n)
+		n.state.stopped(sidA, cause)
+		row := proto.Session{SessionID: sidA, Agent: "claude", Host: proto.EngineHerdr, Status: proto.StatusOffline}
+		n.markStopped(&row)
+		if row.Capabilities == nil || row.Capabilities.DelegatedResume != want {
+			t.Fatalf("cause %q: capabilities %+v, want delegated_resume %v", cause, row.Capabilities, want)
+		}
+	}
+}

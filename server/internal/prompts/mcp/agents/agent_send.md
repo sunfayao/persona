@@ -1,4 +1,4 @@
-Send what the user asked for to an Agent. A busy Agent may queue it. A stopped Agent needs resume and resume_why when its context is needed. Recorded non-user stops (including quota/capacity errors) allow resume. User, exit or unknown stops need the user's Resume. It must be supervised (give task unless on an open task of yours). A nearly full Agent is compacted first. For unrelated work use agent_start. Unsure: ask_user. An unstarted branch starts on its first message. Only /exit or /quit stops a running Agent and keeps the tab. The owner's controls close another conversation's Agent.
+Send what the user asked for to an Agent. A busy Agent may queue it. Follow-up work on what an Agent already did (same computer and directory: agents_list shows its reuse=) goes to that Agent in its own context instead of a new one. A stopped Agent needs resume and resume_why. Recorded non-user stops (including quota/capacity errors) allow resume; the main conversation, acting for the owner, also resumes an Agent that ended without the owner's Stop (exit, or unknown: it ended on its own). An owner's Stop (user) needs the owner's Resume. It must be supervised (give task with the follow-up's title and done_when unless on an open task of yours). A nearly full Agent is compacted first. For unrelated work use agent_start. Unsure: ask_user. An unstarted branch starts on its first message. Only /exit or /quit stops a running Agent and keeps the tab. The owner's controls close another conversation's Agent.
 
 For dialog_open, retry with dismiss_notice only when Enter alone closes the notice. For permissions and pickers, tell the user or use interaction_answer.
 
@@ -29,7 +29,7 @@ Use `handoff` for an already-stopped to-do you supervise. A node acknowledgement
     },
     "resume": {
       "type": "boolean",
-      "description": "resume this stopped agent with its context, text as its first message"
+      "description": "resume this stopped agent with its context on its own launcher, text as its first message"
     },
     "resume_why": {
       "type": "string",

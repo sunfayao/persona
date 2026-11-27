@@ -928,6 +928,7 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		Prompt                  string        `json:"prompt"`
 		ResumeSessionID         string        `json:"resume_session_id"`
 		ResumeAutomatic         bool          `json:"resume_automatic"`
+		ResumeDelegated         bool          `json:"resume_delegated"` // with resume_automatic: the main conversation's resume for the owner (stop_provenance.go)
 		A2AWakeOnSend           bool          `json:"a2a_wake_on_send"`
 		ResumeOutsideHealth     bool          `json:"resume_outside_health"` // session.start: an extension's resume the hub does not list (resumeOutsideHealth)
 		Host                    string        `json:"host"`                  // session.start: the enabled host to open in ("" the default host, #2576)
@@ -1664,8 +1665,9 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 				echoImages = len(p.Images)
 			}
 		}
+		delegated := p.ResumeAutomatic && p.ResumeDelegated
 		if p.ResumeAutomatic {
-			if err := n.supervisorResumeAllowed(p.ResumeSessionID, p.PermissionMode, p.Launcher); err != nil {
+			if err := n.supervisorResumeAllowed(p.ResumeSessionID, p.PermissionMode, p.Launcher, delegated); err != nil {
 				return nil, err
 			}
 		}
@@ -1679,6 +1681,13 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 				// user: resume_failed, which the assistant may try again, never unknown (#11441).
 				id := p.ResumeSessionID
 				defer func() { n.noteResumeFailed(id, resultErr) }()
+			}
+		} else if delegated {
+			// The main conversation's resume of an Agent that ended without an owner's Stop (exit, unknown) marks its
+			// attempt as unknown now: another delegated resume waits out delegatedResumeSettle, so a start that may
+			// still come up is never started twice (#8214). A failed one stays unknown, as the owner's own does.
+			if err := n.saveStopCause(ctx, p.ResumeSessionID, proto.StopUnknown); err != nil {
+				return nil, err
 			}
 		}
 		if p.ResumeSessionID != "" && p.Host == "" {

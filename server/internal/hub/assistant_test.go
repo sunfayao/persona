@@ -45,9 +45,15 @@ func TestAgentsList(t *testing.T) {
 	agents := func(args string) string {
 		return textOf(h.callAssistantTool(context.Background(), m, "", "agents_list", json.RawMessage(args)))
 	}
+	// The default list puts what goes on first, then the idle Agents that follow-up work can go back to.
 	out := agents(`{}`)
-	if !strings.Contains(out, "修登录") || strings.Contains(out, "旧的") || !strings.Contains(out, "正在跑测试") {
-		t.Fatalf("active list:\n%s", out)
+	working, idle := strings.Index(out, "session_id=aaaaaaaa-1 "), strings.Index(out, "session_id=bbbbbbbb-2 ")
+	if working < 0 || idle < working || !strings.Contains(out, "正在跑测试") ||
+		strings.Index(out, "Idle, live and at rest") > idle || !strings.Contains(out, "reuse=agent_send") {
+		t.Fatalf("default list:\n%s", out)
+	}
+	if w := agents(`{"state":"working"}`); !strings.Contains(w, "修登录") || strings.Contains(w, "旧的") {
+		t.Fatalf("working list:\n%s", w)
 	}
 	if all := agents(`{"state":"all","query":"old"}`); !strings.Contains(all, "旧的") || strings.Contains(all, "修登录") {
 		t.Fatalf("query filter:\n%s", all)

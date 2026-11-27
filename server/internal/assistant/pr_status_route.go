@@ -586,7 +586,7 @@ func (s *Service) deliverPREventToAgent(ctx context.Context, t Todo, ev prRouted
 		"text":          prompt,
 		"client_msg_id": msgID,
 	}
-	if _, err := s.resumeAndSend(ctx, self, am, lastStopped, params, why, prompt, "", nil); err != nil {
+	if _, err := s.resumeAndSend(ctx, self, am, lastStopped, false, params, why, prompt, "", nil); err != nil {
 		return "", err
 	}
 	return prRouteOutcomeResumed, nil

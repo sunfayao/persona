@@ -37,6 +37,10 @@ type SessionCapabilities struct {
 	PermissionModes PermissionModeSet `json:"permission_modes,omitempty"`
 	// StopCause qualifies stopped-session recovery; absent/unknown never permits a supervisor resume.
 	StopCause StopCause `json:"stop_cause,omitempty"`
+	// DelegatedResume: this stopped Agent's node takes session.start's resume_delegated for it, the main conversation's
+	// resume for the owner of an Agent that ended without an owner's Stop (StopCause.AllowsDelegatedResume). Absent
+	// from older nodes, which refuse such a resume: only the owner's Resume brings those Agents back there.
+	DelegatedResume bool `json:"delegated_resume,omitempty"`
 	// A2AWakeOnSend lets a runtime accept task updates for an idle-retired session.
 	A2AWakeOnSend bool `json:"a2a_wake_on_send,omitempty"`
 	// SupervisionPolicy reports that a runtime-hosted session accepts manager-owned supervision_instructions

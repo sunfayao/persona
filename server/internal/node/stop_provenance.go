@@ -146,11 +146,30 @@ func (n *Node) noteGatewayStop(s *proto.Session) {
 	})
 }
 
+// delegatedResumeSettle: how long after a resume of a session consumed its stop (or anything else recorded an
+// unknown one) the main conversation's delegated resume of it is refused. A start that ended uncertain (a line typed
+// into a shell, a slow Claude) may still bring the Agent up, and a second start must not run it twice (#8214).
+const delegatedResumeSettle = 5 * time.Minute
+
 // Called again under the session's recovery lock: a cached assistant row must not
-// undo a user close that happened after that row was listed.
-func (n *Node) supervisorResumeAllowed(id, mode, launcher string) error {
-	cause := n.stopCause(id)
-	if !validID(id) || !cause.AllowsSupervisorResume() {
+// undo a user close that happened after that row was listed. delegated: the main conversation's resume for the
+// owner (session.start resume_delegated), which also takes an Agent that ended without an owner's Stop (exit, unknown;
+// proto.StopCause.AllowsDelegatedResume), never an owner's Stop.
+func (n *Node) supervisorResumeAllowed(id, mode, launcher string, delegated bool) error {
+	st, _ := n.state.get(id)
+	cause := st.StopCause
+	allowed := cause.AllowsSupervisorResume()
+	if !allowed && delegated && cause.AllowsDelegatedResume() && validID(id) {
+		if at := time.Unix(0, st.StopCauseAt); cause == proto.StopUnknown && st.StopCauseAt > 0 && time.Since(at) < delegatedResumeSettle {
+			return refusal("resume_not_allowed", fmt.Sprintf("A start of this session began at %s and may still bring it up; "+
+				"check it, and resume it again after %s.", at.UTC().Format(time.RFC3339), at.Add(delegatedResumeSettle).UTC().Format(time.RFC3339)), nil)
+		}
+		allowed = true
+	}
+	if !validID(id) || !allowed {
+		if delegated {
+			return refusal("resume_not_allowed", fmt.Sprintf("Resume for the owner is refused: stop cause is %s. Use the owner's Resume.", cause), nil)
+		}
 		return refusal("resume_not_allowed", fmt.Sprintf("Supervisor resume is refused: stop cause is %s. Use the owner's Resume.", cause), nil)
 	}
 	if mode != "" || launcher != "" {

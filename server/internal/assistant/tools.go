@@ -291,7 +291,8 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 	case "agents_list":
 		var a struct{ State, Machine, Query string }
 		_ = json.Unmarshal(args, &a)
-		return s.describeAgents(ctx, a.State, a.Machine, a.Query, s.agentCallerSpace(ctx, machine, self)), nil
+		// The main conversation acts for the owner: its reuse hints include resuming an Agent that ended on its own.
+		return s.describeAgentsFor(ctx, s.isMain(ctx, self), a.State, a.Machine, a.Query, s.agentCallerSpace(ctx, machine, self)), nil
 	case "agent_read":
 		var a struct {
 			Machine   string `json:"machine"`
@@ -342,9 +343,12 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		if strings.TrimSpace(a.Text) == "" {
 			return "", fmt.Errorf("text is empty")
 		}
+		// A terminal Agent that ended without an owner's Stop takes only the owner's own message on its node: for this
+		// tool it is stopped too, and resume brings it back (exitedTerminal).
+		stopped := stoppedAgent(c) || exitedTerminal(c)
 		var handoff *preparedHandoff
 		if a.Handoff != nil {
-			if a.Task != nil || a.Resume || c.Status == proto.StatusOffline || stoppedAgent(c) || exitText(a.Text) {
+			if a.Task != nil || a.Resume || c.Status == proto.StatusOffline || stopped || exitText(a.Text) {
 				return "", fmt.Errorf("a handoff needs an existing running Agent and a work message")
 			}
 			handoff, err = s.prepareTaskHandoff(ctx, self, am.ID, c.SessionID, *a.Handoff)
@@ -352,8 +356,8 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 				return "", err
 			}
 		}
-		resume := ""
-		if stoppedAgent(c) { // read-only (#4754): a message does not start it; only a resume asked for does (#8099)
+		resume, delegated := "", false
+		if stopped { // read-only (#4754): a message does not start it; only a resume asked for does (#8099)
 			if exitText(a.Text) {
 				return fmt.Sprintf("%s has already stopped: nothing was sent.", agentLabel(c)), nil
 			}
@@ -361,7 +365,8 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 				return "", stoppedRefusal(c)
 			}
 			resume = cleanWhy(a.ResumeWhy)
-			if err := s.resumeAllowed(ctx, self, am, c, resume, a.Task); err != nil {
+			// The main conversation acts for the owner: it may also resume an Agent that ended without an owner's Stop.
+			if delegated, err = s.resumeCheck(ctx, self, am, c, resume, a.Task, s.isMain(ctx, self)); err != nil {
 				return "", err
 			}
 		}
@@ -442,7 +447,7 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		sending, _ := params["text"].(string)
 		// A resume goes through the user's Resume's node call, the text as its first message (agent_resume.go).
 		if resume != "" {
-			receipt, err := s.resumeAndSend(ctx, self, am, c, params, resume, a.Text, handed.said(), task)
+			receipt, err := s.resumeAndSend(ctx, self, am, c, delegated, params, resume, a.Text, handed.said(), task)
 			if err != nil {
 				return "", err
 			}
@@ -1503,11 +1508,147 @@ func (s *Service) findAgentInSpace(ctx context.Context, machine, id string, spac
 	return Device{}, proto.Session{}, fmt.Errorf("no agent %s (use agents_list)", id)
 }
 
+// agents_list's default view (state "" or "active") lists what goes on, then the Agents follow-up work can go back to:
+// the live ones at rest (agentsIdleShown of them) and the ones that ended in the last agentsEndedWindow
+// (agentsEndedShown), newest first. Every other state lists at most agentsListShown rows.
+const (
+	agentsListShown   = 60
+	agentsIdleShown   = 15
+	agentsEndedShown  = 10
+	agentsEndedWindow = 24 * time.Hour
+)
+
+// agentsGroup is a row's group in agents_list's default view.
+type agentsGroup int
+
+const (
+	agentsGroupActive agentsGroup = iota // needs the user, works, finished unread, or asks the user
+	agentsGroupIdle                      // live and at rest: agent_send goes on with it now
+	agentsGroupEnded                     // stopped in the last agentsEndedWindow: reuse= says how to go on with it
+)
+
+// agentsActiveRow: c is in the default view's first group (a seen one still asking the user too, #5096).
+func agentsActiveRow(c proto.Session) bool {
+	st := agentsListState(c)
+	return st == proto.StateNeedsYou || st == proto.StateWorking || st == proto.StateUnread || c.AwaitsReply
+}
+
+// agentsEndedRow: c's Agent no longer runs (offline, or cut off by a restart: interrupted).
+func agentsEndedRow(c proto.Session) bool {
+	return c.Status == proto.StatusOffline || c.Status == proto.StatusInterrupted || c.State == proto.StateOffline
+}
+
+// agentsListRank orders agents_list's rows: needs you, working, finished unread (and asking the user), then every
+// other row together, so that the latest update comes first among them. Ranking offline rows with the ones that need
+// the user, as a state missing from the old order did, buried what is going on under old stopped sessions.
+func agentsListRank(c proto.Session) int {
+	switch agentsListState(c) {
+	case proto.StateNeedsYou:
+		return 0
+	case proto.StateWorking:
+		return 1
+	case proto.StateUnread:
+		return 2
+	}
+	if c.AwaitsReply {
+		return 2
+	}
+	return 3
+}
+
+// agentModel is the model c runs on, as agents_list says it: the transcript's, else the one Persona started it with.
+func agentModel(c proto.Session) string {
+	if c.Model != "" {
+		return c.Model
+	}
+	if c.RequestedModel != nil {
+		return *c.RequestedModel
+	}
+	return ""
+}
+
+// reuseHint says how follow-up work goes on with c in its own context, for agents_list; forOwner: the caller is the
+// main conversation, which may also resume an Agent that ended without an owner's Stop (agent_resume.go). "" while it
+// works, needs the user or asks the user: those come first.
+func reuseHint(c proto.Session, forOwner bool) string {
+	if c.Assistant {
+		return ""
+	}
+	if !agentsEndedRow(c) {
+		if st := agentsListState(c); (st == proto.StateIdle || st == proto.StateUnread) && !c.AwaitsReply {
+			return "agent_send (live: it goes on in its own context)"
+		}
+		return ""
+	}
+	if !stoppedAgent(c) && !exitedTerminal(c) {
+		if c.SourceKind != "" && (c.Capabilities == nil || !c.Capabilities.Send) {
+			return "view-only (start a new Agent for more work)"
+		}
+		return "agent_send (its node starts it again)"
+	}
+	cause, nodeTakes := proto.StopUnknown, false
+	if c.Capabilities != nil {
+		cause, nodeTakes = c.Capabilities.StopCause, c.Capabilities.DelegatedResume
+	}
+	switch {
+	case cause.AllowsSupervisorResume(), cause.AllowsDelegatedResume() && forOwner && nodeTakes:
+		return fmt.Sprintf("agent_send resume=true (stop=%s)", cause)
+	case cause == proto.StopUser:
+		return "the owner's Resume only (stop=user: the owner stopped it)"
+	case cause.AllowsDelegatedResume() && forOwner:
+		return fmt.Sprintf("the owner's Resume (stop=%s; its computer's node is too old for agent_send resume)", cause)
+	case cause.AllowsDelegatedResume():
+		return fmt.Sprintf("the main conversation's agent_send resume=true, or the owner's Resume (stop=%s)", cause)
+	}
+	return fmt.Sprintf("the owner's Resume only (stop=%s)", cause)
+}
+
+// agentTodoRef is the to-do an Agent works for, or else the latest one it worked for (closed), for agents_list.
+type agentTodoRef struct {
+	id     string
+	closed bool
+	at     time.Time
+}
+
+// agentTodos maps (machine, session) to agentTodoRef; nil when the to-dos cannot be read.
+func (s *Service) agentTodos(ctx context.Context) map[[2]string]agentTodoRef {
+	if s.ensureTodosLoaded(ctx) != nil {
+		return nil
+	}
+	s.todos.mu.RLock()
+	defer s.todos.mu.RUnlock()
+	out := map[[2]string]agentTodoRef{}
+	for k, id := range s.todos.activeBySession {
+		if t := s.todos.todos[id]; t != nil && t.DoneAt == nil {
+			out[k] = agentTodoRef{id: id}
+		}
+	}
+	for _, t := range s.todos.todos {
+		if t.DoneAt == nil {
+			continue
+		}
+		for _, a := range t.Agents {
+			k := [2]string{a.MachineID, a.SessionID}
+			if cur, ok := out[k]; ok && (!cur.closed || !t.DoneAt.After(cur.at)) {
+				continue
+			}
+			out[k] = agentTodoRef{id: t.ID, closed: true, at: *t.DoneAt}
+		}
+	}
+	return out
+}
+
+// describeAgents is agents_list for a caller other than the main conversation (see describeAgentsFor).
 func (s *Service) describeAgents(ctx context.Context, state, machine, query string, spaces ...string) string {
 	space := ""
 	if len(spaces) > 0 {
 		space = spaces[0]
 	}
+	return s.describeAgentsFor(ctx, false, state, machine, query, space)
+}
+
+// describeAgentsFor is agents_list's answer; forOwner: the caller is the main conversation (reuseHint).
+func (s *Service) describeAgentsFor(ctx context.Context, forOwner bool, state, machine, query, space string) string {
 	if state == "" {
 		state = "active"
 	}
@@ -1550,8 +1691,9 @@ func (s *Service) describeAgents(ctx context.Context, state, machine, query stri
 		pending[k] = append(pending[k], pendingCard{clip(what, max(400-utf8.RuneCountInString(id), 1)) + id, isFolded, source})
 	}
 	type row struct {
-		m Device
-		c proto.Session
+		m     Device
+		c     proto.Session
+		group agentsGroup
 	}
 	var rows []row
 	var offline, unresponsive []string
@@ -1586,6 +1728,7 @@ func (s *Service) describeAgents(ctx context.Context, state, machine, query stri
 				continue
 			}
 			c.State = c.FoldedState()
+			group := agentsGroupActive
 			// Archived ones are out of the apps' lists: only "archived" lists them, and "all" with them marked.
 			switch state {
 			case "all":
@@ -1594,8 +1737,23 @@ func (s *Service) describeAgents(ctx context.Context, state, machine, query stri
 					continue
 				}
 			case "active":
-				if st := agentsListState(c); st != proto.StateNeedsYou && st != proto.StateWorking && st != proto.StateUnread && !c.AwaitsReply {
-					continue // a seen one still asking the user is active too (#5096)
+				switch {
+				case agentsActiveRow(c):
+				case muted[c.SessionID]: // muted ones stay out of the reuse groups, as out of Done (state=muted lists them)
+					continue
+				case agentsEndedRow(c):
+					if c.UpdatedAt.IsZero() || now.Sub(c.UpdatedAt) >= agentsEndedWindow {
+						continue
+					}
+					group = agentsGroupEnded
+				case agentsListState(c) == proto.StateIdle:
+					group = agentsGroupIdle
+				default:
+					continue
+				}
+			case "ended":
+				if !agentsEndedRow(c) {
+					continue
 				}
 			case "done":
 				if snapshotAgentGroup(c, now) != snapshotAgentDone || muted[c.SessionID] {
@@ -1619,25 +1777,38 @@ func (s *Service) describeAgents(ctx context.Context, state, machine, query stri
 					continue
 				}
 			}
-			rows = append(rows, row{m, c})
+			rows = append(rows, row{m, c, group})
 		}
 	}
-	order := map[string]int{proto.StateNeedsYou: 0, proto.StateWorking: 1, proto.StateUnread: 2, proto.StateIdle: 3}
 	sort.SliceStable(rows, func(i, j int) bool {
-		oi, oj := order[agentsListState(rows[i].c)], order[agentsListState(rows[j].c)]
-		if oi != oj {
-			return oi < oj
+		if rows[i].group != rows[j].group {
+			return rows[i].group < rows[j].group
+		}
+		if ri, rj := agentsListRank(rows[i].c), agentsListRank(rows[j].c); ri != rj {
+			return ri < rj
 		}
 		return rows[i].c.UpdatedAt.After(rows[j].c.UpdatedAt)
 	})
-	if len(rows) > 60 {
-		rows = rows[:60]
+	// Bound each group (the default view's) or the whole list, newest first within each, and say what was left out.
+	limits := map[agentsGroup]int{agentsGroupActive: agentsListShown}
+	if state == "active" {
+		limits[agentsGroupIdle], limits[agentsGroupEnded] = agentsIdleShown, agentsEndedShown
 	}
-	var b strings.Builder
-	if len(rows) == 0 {
-		b.WriteString("No agents match.\n")
-	}
+	shown := map[agentsGroup]int{}
+	more := map[agentsGroup]int{}
+	kept := rows[:0]
 	for _, r := range rows {
+		if shown[r.group] >= limits[r.group] {
+			more[r.group]++
+			continue
+		}
+		shown[r.group]++
+		kept = append(kept, r)
+	}
+	rows = kept
+	todos := s.agentTodos(ctx)
+	var b strings.Builder
+	writeRow := func(r row) {
 		c := r.c
 		fmt.Fprintf(&b, "- [%s] %s · machine=%s session_id=%s · %s", agentsListLabel(c), agentLabel(c), r.m.ID, c.SessionID, c.Cwd)
 		if c.SourceKind != "" {
@@ -1654,6 +1825,22 @@ func (s *Service) describeAgents(ctx context.Context, state, machine, query stri
 			if c.OffLauncher { // its claude was resumed without Persona's command (#11792)
 				fmt.Fprintf(&b, " (off_launcher: started on it, but its claude now runs without Persona's start command, "+
 					"e.g. herdr's bare resume after a restart, so not on %s; agent_switch to %s brings it back)", c.Launcher, c.Launcher)
+			}
+		}
+		if model := agentModel(c); model != "" { // with launcher=: the model a reuse goes on with
+			fmt.Fprintf(&b, " · model=%s", model)
+			if c.Effort != "" {
+				fmt.Fprintf(&b, " effort=%s", c.Effort)
+			}
+		}
+		if c.ContextTokens > 0 && c.ContextWindow > 0 {
+			fmt.Fprintf(&b, " · context=%d%%", int(c.ContextTokens)*100/int(c.ContextWindow))
+		}
+		if t, ok := todos[[2]string{r.m.ID, c.SessionID}]; ok {
+			if t.closed {
+				fmt.Fprintf(&b, " · todo=%s (closed)", t.id)
+			} else {
+				fmt.Fprintf(&b, " · todo=%s", t.id)
 			}
 		}
 		if to := s.queuedSwitchOf(r.m.ID, c.SessionID); to != "" { // agents_switch queued it for the end of its turn
@@ -1688,9 +1875,18 @@ func (s *Service) describeAgents(ctx context.Context, state, machine, query stri
 		if state == "muted" {
 			b.WriteString(" · muted")
 		}
+		if hint := reuseHint(c, forOwner); hint != "" && state != "muted" {
+			fmt.Fprintf(&b, " · reuse=%s", hint)
+		}
 		b.WriteString("\n")
-		if (state == "done" || state == "muted") && c.Work != nil && c.Work.Phase != proto.WorkWorking && c.Work.Line != "" {
-			fmt.Fprintf(&b, "    conclusion: %s\n", clip(oneLine(c.Work.Line), 200))
+		// A row of the reuse groups (and of done, muted and ended) says what it concluded, which is what a reuse needs.
+		conclusion := ""
+		if c.Work != nil && c.Work.Phase != proto.WorkWorking && c.Work.Line != "" {
+			conclusion = clip(oneLine(c.Work.Line), 200)
+		}
+		reuseRow := r.group != agentsGroupActive || state == "ended"
+		if conclusion != "" && (state == "done" || state == "muted" || reuseRow) {
+			fmt.Fprintf(&b, "    conclusion: %s\n", conclusion)
 		}
 		for _, w := range runningWorkflows(c, now) { // its turn ended to wait for them: not done (#2935)
 			fmt.Fprintf(&b, "    background workflow running (waiting on its result; not finished): %s\n", prompts.RenderSnapshotWorkflow(w))
@@ -1706,11 +1902,53 @@ func (s *Service) describeAgents(ctx context.Context, state, machine, query stri
 		if upstreamRow(c) {
 			fmt.Fprintf(&b, "    upstream error: %s\n", clip(oneLine(c.TurnError), 300))
 		}
-		// Why it waits, while it does (a dialog's first line, a host's reason), as the apps' rows show it; else its last words.
+		// Why it waits, while it does (a dialog's first line, a host's reason), as the apps' rows show it; else its last
+		// words, which a reuse row leaves to its conclusion when it has one.
 		if last := c.LastText; c.State == proto.StateNeedsYou && strings.TrimSpace(c.AttentionReason) != "" {
 			fmt.Fprintf(&b, "    last said: %s\n", clip(oneLine(c.AttentionReason), 200))
-		} else if last != "" {
+		} else if last != "" && (!reuseRow || conclusion == "") {
 			fmt.Fprintf(&b, "    last said: %s\n", clip(oneLine(last), 200))
+		}
+	}
+	byGroup := map[agentsGroup][]row{}
+	for _, r := range rows {
+		byGroup[r.group] = append(byGroup[r.group], r)
+	}
+	if len(rows) == 0 && len(more) == 0 {
+		b.WriteString("No agents match.\n")
+	}
+	for _, g := range []agentsGroup{agentsGroupActive, agentsGroupIdle, agentsGroupEnded} {
+		list := byGroup[g]
+		if state == "active" && (len(rows) > 0 || len(more) > 0) {
+			switch {
+			case g == agentsGroupActive:
+				b.WriteString("Active (needs you, working, finished unread):\n")
+				if len(list) == 0 && more[g] == 0 {
+					b.WriteString("- none\n")
+				}
+			case len(list) == 0 && more[g] == 0:
+				continue
+			case g == agentsGroupIdle:
+				b.WriteString("Idle, live and at rest (newest first; agent_send goes on with one in its own context):\n")
+			default:
+				fmt.Fprintf(&b, "Ended in the last %d hours (newest first; reuse= says how to go on with one in its own context):\n",
+					int(agentsEndedWindow.Hours()))
+			}
+		}
+		for _, r := range list {
+			writeRow(r)
+		}
+		if n := more[g]; n > 0 {
+			switch {
+			case state != "active":
+				fmt.Fprintf(&b, "(%d more not shown, older ones: narrow with machine, query or state)\n", n)
+			case g == agentsGroupIdle:
+				fmt.Fprintf(&b, "(%d more idle: agents_list state=idle)\n", n)
+			case g == agentsGroupEnded:
+				fmt.Fprintf(&b, "(%d more ended in the last %d hours: agents_list state=ended)\n", n, int(agentsEndedWindow.Hours()))
+			default:
+				fmt.Fprintf(&b, "(%d more active: narrow with machine, query or state)\n", n)
+			}
 		}
 	}
 	if len(offline) > 0 {

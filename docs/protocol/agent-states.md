@@ -282,6 +282,13 @@ List order (the same for all three groupings): Needs you → Unread → Awaiting
 
 - The list is grouped by state, newest first within a group. Normally that's `updated_at`, but a working agent's `updated_at` changes with every step and would jump around within the group,
   so "Working" uses `state_since`: the hub records when each agent entered its current state (in memory; after a hub restart it counts from the restart).
+- The assistant's `agents_list` lists, by default, what goes on (needs you, working, finished unread, asking the user),
+  then up to 15 idle Agents and up to 10 that ended (`offline`) in the last 24 hours, newest first. Muted and archived Agents
+  are left out, as are Agents that ended longer ago (`state: "ended"` lists all stopped ones). Each line carries `launcher=`,
+  `model=`, `context=`, `todo=` (the open to-do, or the latest closed one) and `reuse=`, which says how follow-up work goes on
+  in the Agent's own context: `agent_send` while it is live, `agent_send` with `resume` once it stopped (`stop=` gives the
+  cause), or only the owner's Resume after the owner's Stop. `state: "all"` puts the active states first and then every
+  other row by `updated_at`.
 
 ## Spaces / slots (multi-tab collaboration)
 

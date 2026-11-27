@@ -11,23 +11,28 @@ func TestStopCauseJSONAndResumeEligibility(t *testing.T) {
 		name     string
 		cause    StopCause
 		eligible bool
+		// delegated: the main conversation may resume it for the owner (an Agent that ended without an owner's Stop).
+		delegated bool
 	}{
-		{name: "unknown"},
+		{name: "unknown", delegated: true},
 		{name: "user", cause: StopUser},
-		{name: "idle", cause: StopIdle, eligible: true},
-		{name: "task completed", cause: StopTaskCompleted, eligible: true},
-		{name: "restart", cause: StopRestart, eligible: true},
-		{name: "resume failed", cause: StopResumeFailed, eligible: true},
-		{name: "compact failed", cause: StopCompactFailed, eligible: true},
-		{name: "gateway quota", cause: StopUsageLimit, eligible: true},
-		{name: "gateway capacity", cause: StopTransientError, eligible: true},
-		{name: "exit", cause: StopExit},
+		{name: "idle", cause: StopIdle, eligible: true, delegated: true},
+		{name: "task completed", cause: StopTaskCompleted, eligible: true, delegated: true},
+		{name: "restart", cause: StopRestart, eligible: true, delegated: true},
+		{name: "resume failed", cause: StopResumeFailed, eligible: true, delegated: true},
+		{name: "compact failed", cause: StopCompactFailed, eligible: true, delegated: true},
+		{name: "gateway quota", cause: StopUsageLimit, eligible: true, delegated: true},
+		{name: "gateway capacity", cause: StopTransientError, eligible: true, delegated: true},
+		{name: "exit", cause: StopExit, delegated: true},
 		{name: "future", cause: StopCause("future_cause")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.cause.AllowsSupervisorResume(); got != tt.eligible {
 				t.Fatalf("AllowsSupervisorResume() = %v, want %v", got, tt.eligible)
+			}
+			if got := tt.cause.AllowsDelegatedResume(); got != tt.delegated {
+				t.Fatalf("AllowsDelegatedResume() = %v, want %v", got, tt.delegated)
 			}
 			if tt.cause == StopUnknown {
 				return

@@ -10,7 +10,8 @@ const (
 	StopTaskCompleted StopCause = "task_completed"
 	StopRestart       StopCause = "restart"
 	// StopExit: the Agent was told to quit (/exit, /quit sent through Persona): its session ended (#10355). Like a
-	// user stop it never permits a supervisor resume.
+	// user stop it never permits a supervisor resume; unlike one, the main conversation may resume it for the owner
+	// (AllowsDelegatedResume).
 	StopExit StopCause = "exit"
 	// StopResumeFailed: the assistant's own resume of an Agent that stopped without the user (one of the causes above
 	// that allow it) did not bring it up (#11441). The user did nothing, so the assistant may try again.
@@ -34,4 +35,12 @@ func (c StopCause) String() string {
 
 func (c StopCause) AllowsSupervisorResume() bool {
 	return c == StopIdle || c == StopTaskCompleted || c == StopRestart || c == StopResumeFailed || c == StopCompactFailed || c == StopUsageLimit || c == StopTransientError
+}
+
+// AllowsDelegatedResume: the main conversation may resume the Agent for the owner (agent_send with resume, the
+// node's session.start with resume_delegated): every cause a supervisor may resume, and an Agent that ended without an
+// owner's Stop, told to quit (exit) or ended on its own (unknown, the empty cause). Never an owner's Stop (user), and
+// never a cause this build does not know, which may be a stop of the owner's.
+func (c StopCause) AllowsDelegatedResume() bool {
+	return c.AllowsSupervisorResume() || c == StopExit || c == StopUnknown
 }

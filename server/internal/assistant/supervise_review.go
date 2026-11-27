@@ -905,7 +905,7 @@ func (s *Service) resumeStoppedTaskAgent(ctx context.Context, t Todo, c proto.Se
 	if err := s.resumeAllowed(ctx, t.Origin, am, c, "rework of this task", nil); err != nil {
 		return "", err
 	}
-	return s.resumeAndSend(ctx, t.Origin, am, c, map[string]any{"text": text}, "rework of this task", text, "", nil)
+	return s.resumeAndSend(ctx, t.Origin, am, c, false, map[string]any{"text": text}, "rework of this task", text, "", nil)
 }
 
 // ownerWaitError refuses accepting task id while its latest stretch of work stopped on a decision only the owner can

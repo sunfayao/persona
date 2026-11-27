@@ -125,7 +125,9 @@ func (n *Node) markStopped(s *proto.Session) {
 		return
 	}
 	n.noteGatewayStop(s)
-	s.Capabilities = &proto.SessionCapabilities{Read: true, Terminal: true, StopCause: n.stopCause(s.SessionID)}
+	cause := n.stopCause(s.SessionID)
+	// DelegatedResume: this node takes the main conversation's resume of it for the owner (stop_provenance.go).
+	s.Capabilities = &proto.SessionCapabilities{Read: true, Terminal: true, StopCause: cause, DelegatedResume: cause.AllowsDelegatedResume()}
 	if _, resume := n.terminalExitLaunch(s.SessionID); resume && !s.Archived {
 		s.Capabilities.Send = true
 		return

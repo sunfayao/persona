@@ -1099,7 +1099,7 @@ func (s *Service) deliverInboxForwardToTodo(ctx context.Context, it *InboxItem, 
 			"text":          envelope,
 			"client_msg_id": clientMsgID,
 		}
-		if _, err := s.resumeAndSend(ctx, supervisorSelf, am, c, params, resumeWhy, envelope, "", nil); err != nil {
+		if _, err := s.resumeAndSend(ctx, supervisorSelf, am, c, false, params, resumeWhy, envelope, "", nil); err != nil {
 			if sendUnknown(err) {
 				return todoForwardDelivery{
 					status:      todoForwardUncertain,
@@ -1210,7 +1210,7 @@ func (s *Service) retryUncertainInboxForward(ctx context.Context, t Todo, canoni
 			"text":          envelope,
 			"client_msg_id": clientMsgID,
 		}
-		if _, err := s.resumeAndSend(ctx, supervisorSelf, am, *matched, params, resumeWhy, envelope, "", nil); err != nil {
+		if _, err := s.resumeAndSend(ctx, supervisorSelf, am, *matched, false, params, resumeWhy, envelope, "", nil); err != nil {
 			return stayUncertain(err.Error())
 		}
 		return todoForwardDelivery{

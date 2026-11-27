@@ -103,7 +103,7 @@ func TestSupervisorResumeAfterFinishedTerminalClosed(t *testing.T) {
 	if c := n.stopCause(sidA); c != proto.StopTaskCompleted {
 		t.Fatalf("stop cause after the close = %q", c)
 	}
-	if err := n.supervisorResumeAllowed(sidA, "", ""); err != nil {
+	if err := n.supervisorResumeAllowed(sidA, "", "", false); err != nil {
 		t.Fatalf("supervisor resume refused after the close: %v", err)
 	}
 	f.reset()
