@@ -43,7 +43,8 @@ type InboxSuggestion struct {
 	Text     string `json:"text"`
 	Note     string `json:"note,omitempty"`
 	Handback bool   `json:"handback"`
-	// Due is when a to-do suggestion is due: a day (2006-01-02, all day) or a moment (RFC 3339); "" none.
+	// Due is a to-do suggestion's due time from before inbox_suggest stopped taking one (a day 2006-01-02 or a moment in
+	// RFC 3339): stored rows still carry it, so it is read and listed as stored, but never set or applied.
 	Due       string      `json:"due,omitempty"`
 	MachineID string      `json:"machine_id,omitempty"`
 	Changes   []DocChange `json:"changes,omitempty"`

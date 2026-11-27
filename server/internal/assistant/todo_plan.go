@@ -17,10 +17,10 @@ import (
 
 // A todo's plan (#1683): when it is due (a moment, or a day in the
 // user's time zone), when the phone is reminded of it, and its priority. The apps set them through POST / PATCH
-// /api/v1/todos, the assistant through its todo_* tools (todo_tools.go). remindLoop pushes each reminder once, when it is
-// due: claimed in the store first, so neither a restart nor a second manager pushes it again.
+// /api/v1/todos; the assistant's todo_* tools (todo_tools.go) set and show only the reminder. remindLoop pushes each
+// reminder once, when it is due: claimed in the store first, so neither a restart nor a second manager pushes it again.
 
-// dayLayout is how a due day is written (the API's due_date, the tools' due).
+// dayLayout is how a due day is written (the API's due_date).
 const dayLayout = "2006-01-02"
 
 // setPlan takes the plan of row (a stored todo, or one made in memory), the project it is in (todo_project.go), when

@@ -1,6 +1,6 @@
 {
   "name": "todo_list",
-  "description": "List Persona to-dos (not Feishu tasks): open/failed starts by default, due first and undated last. Returns id, title/state, priority/project, due/reminder, agents and first note line; times use the user's time zone. Filter by the schema fields. Find an id here before edits; use todo_get for details.",
+  "description": "List Persona to-dos (not Feishu tasks): open/failed starts by default, open first, then newest first. Returns id, title/state, project, reminder, agents and first note line; times use the user's time zone. Filter by the schema fields. Find an id here before edits; use todo_get for details.",
   "input_schema": {
     "type": "object",
     "properties": {
@@ -12,18 +12,6 @@
           "all"
         ],
         "description": "Default: open."
-      },
-      "due_before": {
-        "type": "string",
-        "description": "Due no later than this date (inclusive through day's end) or datetime (user's time zone/RFC3339); excludes undated to-dos."
-      },
-      "due_after": {
-        "type": "string",
-        "description": "Due from this date/datetime onward; excludes undated to-dos."
-      },
-      "overdue": {
-        "type": "boolean",
-        "description": "Open and past due."
       },
       "with_agents": {
         "type": "boolean",

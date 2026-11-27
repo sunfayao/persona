@@ -50,9 +50,6 @@ func (s *Service) toolTodo(ctx context.Context, machine, self, name string, args
 func (s *Service) toolTodoList(ctx context.Context, args json.RawMessage) (string, error) {
 	var a struct {
 		Status     string `json:"status"`
-		DueBefore  string `json:"due_before"`
-		DueAfter   string `json:"due_after"`
-		Overdue    bool   `json:"overdue"`
 		WithAgents *bool  `json:"with_agents"`
 		Query      string `json:"query"`
 		Project    string `json:"project"`
@@ -70,25 +67,7 @@ func (s *Service) toolTodoList(ctx context.Context, args json.RawMessage) (strin
 		a.Limit = 50
 	}
 	a.Limit = min(a.Limit, 200)
-	now, loc := time.Now(), s.location(ctx)
-	var before, after time.Time
-	if a.DueBefore != "" {
-		at, day, err := readToolTime(a.DueBefore, now, loc)
-		if err != nil {
-			return "", fmt.Errorf("due_before: %w", err)
-		}
-		before = at
-		if day {
-			before = at.AddDate(0, 0, 1).Add(-time.Second) // through that day
-		}
-	}
-	if a.DueAfter != "" {
-		at, _, err := readToolTime(a.DueAfter, now, loc)
-		if err != nil {
-			return "", fmt.Errorf("due_after: %w", err)
-		}
-		after = at
-	}
+	loc := s.location(ctx)
 	kind := strings.ToLower(strings.TrimSpace(a.Kind))
 	if kind != "" && kind != "todo" && kind != db.KindConcern {
 		return "", fmt.Errorf("kind must be todo or concern, not %q", a.Kind)
@@ -114,13 +93,6 @@ func (s *Service) toolTodoList(ctx context.Context, args json.RawMessage) (strin
 		if status == "open" && done && t.StartError == "" || status == "done" && !done {
 			return true
 		}
-		by, hasDue := t.dueBy(loc)
-		if (!before.IsZero() || !after.IsZero()) && !hasDue || !before.IsZero() && by.After(before) || !after.IsZero() && by.Before(after) {
-			return true
-		}
-		if a.Overdue && !t.overdue(now, loc) {
-			return true
-		}
 		if a.WithAgents != nil && *a.WithAgents != todoHasAgents(t) {
 			return true
 		}
@@ -132,7 +104,7 @@ func (s *Service) toolTodoList(ctx context.Context, args json.RawMessage) (strin
 		}
 		return q != "" && !strings.Contains(strings.ToLower(t.Title+"\n"+t.Notes), q)
 	})
-	sortTodosByDue(list, loc)
+	sortToolTodos(list)
 
 	if len(list) == 0 {
 		return "No to-dos match.", nil
@@ -144,7 +116,7 @@ func (s *Service) toolTodoList(ctx context.Context, args json.RawMessage) (strin
 			fmt.Fprintf(&b, "… and %d more: filter, or raise limit (at most 200).\n", len(list)-a.Limit)
 			break
 		}
-		b.WriteString("- " + todoLine(t, now, loc) + "\n")
+		b.WriteString("- " + todoLine(t, loc) + "\n")
 		if n := oneLine(t.Notes); n != "" {
 			b.WriteString("  notes: " + clip(n, 160) + "\n")
 		}
@@ -157,9 +129,9 @@ func (s *Service) toolTodoGet(ctx context.Context, machine, self string, args js
 	if err != nil {
 		return "", err
 	}
-	now, loc := time.Now(), s.location(ctx)
+	loc := s.location(ctx)
 	var b strings.Builder
-	b.WriteString(todoLine(t, now, loc) + "\n")
+	b.WriteString(todoLine(t, loc) + "\n")
 	fmt.Fprintf(&b, "created %s, updated %s\n", t.CreatedAt.In(loc).Format(toolTimeLayout), t.UpdatedAt.In(loc).Format(toolTimeLayout))
 	if brief, ok := s.briefOfTodo(t.ID); ok {
 		fmt.Fprintf(&b, "scope_revision: %s\n", brief.scopeRevision().Format(time.RFC3339Nano))
@@ -276,9 +248,7 @@ func (s *Service) toolTodoCreate(ctx context.Context, machine, self string, args
 	var a struct {
 		Title              string          `json:"title"`
 		Notes              string          `json:"notes"`
-		Due                string          `json:"due"`
 		Remind             string          `json:"remind"`
-		Priority           string          `json:"priority"`
 		Project            string          `json:"project"`
 		Kind               string          `json:"kind"`
 		PartOf             json.RawMessage `json:"part_of"`
@@ -308,17 +278,9 @@ func (s *Service) toolTodoCreate(ctx context.Context, machine, self string, args
 	}
 	now, loc := time.Now(), s.location(ctx)
 	var plan db.TodoEdit
-	if err := setToolDue(&plan, a.Due, now, loc); err != nil {
-		return "", err
-	}
 	if err := setToolRemind(&plan, a.Remind, now, loc); err != nil {
 		return "", err
 	}
-	pr, err := todoPriority(a.Priority)
-	if err != nil {
-		return "", err
-	}
-	plan.Priority = &pr
 	if err := s.setTodoProject(ctx, &a.Project, &plan); err != nil {
 		return "", err
 	}
@@ -338,14 +300,14 @@ func (s *Service) toolTodoCreate(ctx context.Context, machine, self string, args
 		if bindings != nil {
 			return "", fmt.Errorf("to-do %s already exists; associations were not changed: read todo_repositories_get and edit with todo_repositories_set", t.ID)
 		}
-		return "Already there, not created again: " + todoLine(t, now, loc), nil
+		return "Already there, not created again: " + todoLine(t, loc), nil
 	}
 	if kind == db.KindConcern {
 		t, err := s.createConcern(ctx, title, strings.TrimSpace(a.Notes), plan, bindings)
 		if err != nil {
 			return "", fmt.Errorf("the concern could not be saved, nothing changed: %w", err)
 		}
-		return "Concern recorded (it stays open until you report its outcome with concern_report): " + todoLine(t, now, loc), nil
+		return "Concern recorded (it stays open until you report its outcome with concern_report): " + todoLine(t, loc), nil
 	}
 	if ok, err := s.confirmOutbound(ctx, machine, self, "todo_create", "", title, args); err != nil || !ok {
 		return todoNotAllowed(err)
@@ -357,26 +319,24 @@ func (s *Service) toolTodoCreate(ctx context.Context, machine, self string, args
 			return "", fmt.Errorf("the to-do could not be saved, nothing changed: %w", err)
 		}
 		return "Created as a piece of " + t.PartOf + " (to have an Agent do it when its turn comes, use task_plan with todo_id " + t.ID +
-			"): " + todoLine(t, now, loc), nil
+			"): " + todoLine(t, loc), nil
 	}
 	t, err := s.createPlainTodo(ctx, title, strings.TrimSpace(a.Notes), plan, bindings)
 	if err != nil {
 		return "", fmt.Errorf("the to-do could not be saved, nothing changed: %w", err)
 	}
-	return "Created: " + todoLine(t, now, loc), nil
+	return "Created: " + todoLine(t, loc), nil
 }
 
 func (s *Service) toolTodoUpdate(ctx context.Context, machine, self string, args json.RawMessage) (string, error) {
 	var a struct {
-		ID       string          `json:"id"`
-		Title    json.RawMessage `json:"title"`
-		Notes    json.RawMessage `json:"notes"`
-		Due      json.RawMessage `json:"due"`
-		Remind   json.RawMessage `json:"remind"`
-		Priority json.RawMessage `json:"priority"`
-		Project  json.RawMessage `json:"project"`
-		PartOf   json.RawMessage `json:"part_of"`
-		After    json.RawMessage `json:"after"`
+		ID      string          `json:"id"`
+		Title   json.RawMessage `json:"title"`
+		Notes   json.RawMessage `json:"notes"`
+		Remind  json.RawMessage `json:"remind"`
+		Project json.RawMessage `json:"project"`
+		PartOf  json.RawMessage `json:"part_of"`
+		After   json.RawMessage `json:"after"`
 	}
 	if err := json.Unmarshal(args, &a); err != nil {
 		return "", fmt.Errorf("arguments: %w", err)
@@ -402,13 +362,7 @@ func (s *Service) toolTodoUpdate(ctx context.Context, machine, self string, args
 			return nil
 		}},
 		{"notes", a.Notes, func(v string) error { v = strings.TrimSpace(v); e.Notes = &v; return nil }},
-		{"due", a.Due, func(v string) error { e.SetDue = true; return setToolDue(&e, v, now, loc) }},
 		{"remind", a.Remind, func(v string) error { e.SetRemind = true; return setToolRemind(&e, v, now, loc) }},
-		{"priority", a.Priority, func(v string) error {
-			pr, err := todoPriority(v)
-			e.Priority = &pr
-			return err
-		}},
 		{"project", a.Project, func(v string) error { return s.setTodoProject(ctx, &v, &e) }},
 	} {
 		v, set, err := optionalText(f.raw, f.name)
@@ -434,7 +388,7 @@ func (s *Service) toolTodoUpdate(ctx context.Context, machine, self string, args
 	e.PartOf, e.After = links.PartOf, links.After
 	changed = changed || !pieces.empty()
 	if !changed {
-		return "", errors.New("nothing to change: give title, notes, due, remind, priority, project, part_of or after")
+		return "", errors.New("nothing to change: give title, notes, remind, project, part_of or after")
 	}
 	if ok, err := s.confirmOutbound(ctx, machine, self, "todo_update", "", t.Title, args); err != nil || !ok {
 		return todoNotAllowed(err)
@@ -443,7 +397,7 @@ func (s *Service) toolTodoUpdate(ctx context.Context, machine, self string, args
 	if err != nil {
 		return "", fmt.Errorf("the change could not be saved, nothing changed: %w", err)
 	}
-	return "Updated: " + todoLine(out, now, loc), nil
+	return "Updated: " + todoLine(out, loc), nil
 }
 
 func (s *Service) toolTodoDone(ctx context.Context, machine, self, name string, args json.RawMessage) (string, error) {
@@ -452,9 +406,9 @@ func (s *Service) toolTodoDone(ctx context.Context, machine, self, name string, 
 		return "", err
 	}
 	complete := name == "todo_complete"
-	now, loc := time.Now(), s.location(ctx)
+	loc := s.location(ctx)
 	if complete == (t.DoneAt != nil) {
-		return "Nothing to do, it already is: " + todoLine(t, now, loc), nil
+		return "Nothing to do, it already is: " + todoLine(t, loc), nil
 	}
 	if complete && t.isConcern() {
 		return "", fmt.Errorf("%s is a concern: it closes only when you report its outcome to the user with concern_report", t.ID)
@@ -479,9 +433,9 @@ func (s *Service) toolTodoDone(ctx context.Context, machine, self, name string, 
 		return "", fmt.Errorf("the change could not be saved, nothing changed: %w", err)
 	}
 	if complete {
-		return "Completed: " + todoLine(out, now, loc), nil
+		return "Completed: " + todoLine(out, loc), nil
 	}
-	return "Reopened: " + todoLine(out, now, loc), nil
+	return "Reopened: " + todoLine(out, loc), nil
 }
 
 func (s *Service) toolTodoDelete(ctx context.Context, machine, self string, args json.RawMessage) (string, error) {
@@ -550,19 +504,17 @@ func (s *Service) toolTodoArg(args json.RawMessage) (Todo, error) {
 	return formatTodo(t), nil
 }
 
-// openTodoLike is an open todo with this title, the due date of plan and its project: a create retried (or a list of
-// to-dos handed in twice) is not made twice.
+// openTodoLike is an open todo with this title, kind and plan's project: a create retried (or a list of to-dos handed
+// in twice) is not made twice.
 func (s *Service) openTodoLike(title, kind string, plan db.TodoEdit) (Todo, bool) {
-	probe := Todo{}
-	probe.setPlan(db.TodoRow{DueAt: plan.DueAt, DueDate: plan.DueDate})
+	project := ""
 	if plan.Project != nil {
-		probe.Project = *plan.Project
+		project = *plan.Project
 	}
 	s.todos.mu.RLock()
 	defer s.todos.mu.RUnlock()
 	for _, t := range s.todos.todos {
-		if t.DoneAt == nil && t.Kind == kind && strings.TrimSpace(t.Title) == title && t.DueDate == probe.DueDate && t.Project == probe.Project &&
-			(t.DueAt == nil) == (probe.DueAt == nil) && (t.DueAt == nil || t.DueAt.Equal(*probe.DueAt)) {
+		if t.DoneAt == nil && t.Kind == kind && strings.TrimSpace(t.Title) == title && t.Project == project {
 			return formatTodo(copyTodoLocked(t)), true
 		}
 	}
@@ -579,29 +531,14 @@ func todoHasWork(t Todo) bool {
 	return t.Origin != "" || t.Supervision != nil || todoHasAgents(t)
 }
 
-// sortTodosByDue orders todos as the tools list them: open first, then by due moment (none last), priority, newest.
-func sortTodosByDue(list []Todo, loc *time.Location) {
-	rank := map[string]int{db.PriorityHigh: 0, "": 1, db.PriorityLow: 2}
+// sortToolTodos orders todos as the tools list them: open first, then newest first.
+func sortToolTodos(list []Todo) {
 	slices.SortStableFunc(list, func(a, b Todo) int {
 		if (a.DoneAt == nil) != (b.DoneAt == nil) {
 			if a.DoneAt == nil {
 				return -1
 			}
 			return 1
-		}
-		ad, aok := a.dueBy(loc)
-		bd, bok := b.dueBy(loc)
-		if aok != bok {
-			if aok {
-				return -1
-			}
-			return 1
-		}
-		if c := ad.Compare(bd); aok && c != 0 {
-			return c
-		}
-		if c := rank[a.Priority] - rank[b.Priority]; c != 0 {
-			return c
 		}
 		return b.CreatedAt.Compare(a.CreatedAt)
 	})
@@ -610,8 +547,8 @@ func sortTodosByDue(list []Todo, loc *time.Location) {
 // toolTimeLayout is how the tools write a moment for the model: the year and the weekday, so neither is guessed.
 const toolTimeLayout = "2006-01-02 Mon 15:04"
 
-// todoLine is one todo for the model: id, title, state, priority, due date, reminder and agents.
-func todoLine(t Todo, now time.Time, loc *time.Location) string {
+// todoLine is one todo for the model: id, title, state, project, pieces, reminder, agents and who is responsible.
+func todoLine(t Todo, loc *time.Location) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s %q [", t.ID, clip(oneLine(t.Title), 120))
 	if t.StartError != "" {
@@ -620,9 +557,6 @@ func todoLine(t Todo, now time.Time, loc *time.Location) string {
 		b.WriteString("done")
 	} else {
 		b.WriteString("open")
-	}
-	if t.Priority != "" {
-		b.WriteString(", " + t.Priority + " priority")
 	}
 	if t.isConcern() {
 		b.WriteString(", concern")
@@ -634,7 +568,6 @@ func todoLine(t Todo, now time.Time, loc *time.Location) string {
 		fmt.Fprintf(&b, " · project %s", t.Project)
 	}
 	b.WriteString(pieceLine(t))
-	b.WriteString(todoDue(t, now, loc))
 	if t.RemindAt != nil {
 		fmt.Fprintf(&b, " · remind %s", t.RemindAt.In(loc).Format(toolTimeLayout))
 		if t.RemindedAt != nil {
@@ -656,24 +589,6 @@ func todoLine(t Todo, now time.Time, loc *time.Location) string {
 	return b.String()
 }
 
-// todoDue is todoLine's due date, with how far off (or overdue) it is while the todo is open; "" when it has none.
-func todoDue(t Todo, now time.Time, loc *time.Location) string {
-	var b strings.Builder
-	if t.DueAt != nil {
-		fmt.Fprintf(&b, " · due %s", t.DueAt.In(loc).Format(toolTimeLayout))
-	} else if d, err := time.Parse(dayLayout, t.DueDate); err == nil {
-		fmt.Fprintf(&b, " · due %s (the whole day)", d.Format("2006-01-02 Mon"))
-	}
-	if by, ok := t.dueBy(loc); ok && t.DoneAt == nil {
-		if t.overdue(now, loc) {
-			fmt.Fprintf(&b, " (overdue, %s)", ago(by))
-		} else {
-			fmt.Fprintf(&b, " (%s)", until(by))
-		}
-	}
-	return b.String()
-}
-
 // readToolTime reads a time the model wrote, in the user's time zone loc: a day "2006-01-02" (its start; day true), a
 // moment in RFC 3339 or "2006-01-02 15:04", or 30m / 2h / 1d from now.
 func readToolTime(v string, now time.Time, loc *time.Location) (time.Time, bool, error) {
@@ -686,27 +601,6 @@ func readToolTime(v string, now time.Time, loc *time.Location) (time.Time, bool,
 	}
 	t, err := parseWhen(v, now, loc)
 	return t, false, err
-}
-
-// setToolDue sets due date v ("" clears it) into e: a day stays a day, a moment a moment.
-func setToolDue(e *db.TodoEdit, v string, now time.Time, loc *time.Location) error {
-	if strings.TrimSpace(v) == "" {
-		e.DueAt, e.DueDate = nil, nil
-		return nil
-	}
-	e.SetDue = true
-	at, day, err := readToolTime(v, now, loc)
-	if err != nil {
-		return fmt.Errorf("due: %w", err)
-	}
-	if day {
-		d := time.Date(at.Year(), at.Month(), at.Day(), 0, 0, 0, 0, time.UTC)
-		e.DueAt, e.DueDate = nil, &d
-		return nil
-	}
-	u := at.UTC()
-	e.DueAt, e.DueDate = &u, nil
-	return nil
 }
 
 // setToolRemind sets reminder v ("" clears it) into e; a moment past by more than a minute is refused (a wrong year or

@@ -25,11 +25,9 @@ const (
 )
 
 type suggestionReq struct {
-	Version int     `json:"version"`
-	Action  string  `json:"action"`
-	Text    *string `json:"text"`
-	// Due is a to-do suggestion's due time as the user left it (a day or a moment, "" none); absent keeps the suggestion's.
-	Due      *string `json:"due"`
+	Version  int     `json:"version"`
+	Action   string  `json:"action"`
+	Text     *string `json:"text"`
 	ClientID string  `json:"client_id"`
 }
 
@@ -190,11 +188,7 @@ func (s *Service) actOnSuggestion(ctx context.Context, id string, in suggestionR
 		return s.confirmAgent(ctx, it, g, text, edited)
 	}
 	if g.Kind == SuggestTodo {
-		due := g.Due
-		if in.Due != nil {
-			due = strings.TrimSpace(*in.Due)
-		}
-		return s.confirmTodo(ctx, it, text, due)
+		return s.confirmTodo(ctx, it, text)
 	}
 	return s.confirmReply(ctx, it, g, text, edited, last, in.ClientID)
 }
