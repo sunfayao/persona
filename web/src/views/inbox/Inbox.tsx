@@ -3,7 +3,6 @@
 // narrow: the opened item takes the list's place, with a way back. "Select" (top right) picks several items to mark them
 // done at once (#2059).
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { TodoDialogHost } from "./InboxTodoDialog";
 import { useInbox, refreshInbox, loadRoutedItem, type InboxItem } from "../../lib/inbox";
 import { useScope } from "../../lib/current-assistant";
 import { ItemManager, otherManager, sameManager } from "../../lib/manager-choice";
@@ -106,7 +105,6 @@ export function Inbox({ id, manager, onToggleSidebar }: { id?: string; manager?:
       </div>
       <PolicyDialogHost />
       <FolderDialogHost />
-      <TodoDialogHost />
       {composing && (
         <ItemManager.Provider value={composer}>
           <ComposeDialog draftKey="new" initial={newDraft(accounts[0]?.id ?? "")} accounts={accounts} onClose={() => setComposing(false)} />

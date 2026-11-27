@@ -120,7 +120,7 @@ describe("the hand-off card", () => {
     expect(host.querySelector('[data-testid="handoff-card-confirm"]')).toBeNull();
     expect(host.querySelector("time")?.dateTime).toBe("2026-11-18T13:00:00Z");
     await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="handoff-card-retry"]')!.click());
-    expect(box.acted[0].slice(1)).toEqual(["confirm", undefined, undefined, 2]);
+    expect(box.acted[0].slice(1)).toEqual(["confirm", undefined, 2]);
   });
   it.each(["unknown", "sending"] as const)("shows the %s receipt without Send, Edit, or Retry", status => {
     box.items = [open({ suggestion_attempts: [attempted(status)] })];

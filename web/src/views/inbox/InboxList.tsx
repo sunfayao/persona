@@ -38,8 +38,7 @@ import { TriageBanner } from "./TriageBanner";
 import { UnreadNotice } from "./UnreadNotice";
 import { EventMark } from "./InboxEvent";
 import { todoForwardLabel } from "./InboxTaskLinks";
-import { canMerge, mergeItems } from "../../lib/inbox-actions";
-import { openTodoDialog } from "./InboxTodoDialog";
+import { addTodos, canMerge, mergeItems } from "../../lib/inbox-actions";
 import { FolderBar, FolderLine, FolderSettingsDialog, openFolderDialog, useFoldersShown } from "./InboxFolders";
 import { folderCrumbs, UNFILED } from "../../lib/inbox-folders";
 import { AgentWorking, Chip, Count, DraftCard, Glyph, ItemAvatar, Spark, StatusMenu, Tag, type GlyphName } from "./InboxParts";
@@ -347,10 +346,10 @@ export function InboxList({ selected, routed, picked = null, onPicked, listBesid
     void setAllDone(chosen, "done");
     onPicked?.(null);
   };
-  // Merge: the picked rows become one row (undoable); Add to to-dos asks the due time once. Both end selecting when they went through.
+  // Merge: the picked rows become one row; Add to to-dos makes one to-do per row. Both are undoable and end selecting when they went through.
   const mergeable = canMerge(chosen);
   const mergeChosen = () => void mergeItems(chosen).then((ok) => ok && onPicked?.(null));
-  const todoChosen = () => openTodoDialog(chosen, () => onPicked?.(null));
+  const todoChosen = () => void addTodos(chosen).then((n) => n > 0 && onPicked?.(null));
   // Clean up all files them as Dismiss (dismiss): the user set them aside, they did not handle them.
   const runBulk = () => {
     if (!openInView.length) return;
@@ -955,7 +954,7 @@ export function rowMenu(it: InboxItem, done: boolean, folders = false): MenuItem
       ? { key: "undone", label: t("inbox-inboxlist.move_back"), icon: "inbox", onSelect: () => void setDone(it, false) }
       : { key: "done", label: t("inbox-inboxlist.done"), icon: "check", onSelect: () => void markFromRow(it, true, true) }, // a menu pick: "Undo" on any screen (#4162)
   ];
-  if (!done) items.splice(1, 0, { key: "todo", label: t("inbox-inboxlist.todo_add_short"), icon: "todo", onSelect: () => openTodoDialog([it]) });
+  if (!done) items.splice(1, 0, { key: "todo", label: t("inbox-inboxlist.todo_add_short"), icon: "todo", onSelect: () => void addTodos([it]) });
   (it.mutes ?? []).forEach((m, i) => items.push({ key: `mute:${m.tag}:${m.value}`, label: muteTitle(m), detail: muteShortName(m), icon: "bellOff", divider: i === 0, onSelect: () => void muteItem(it, m) }));
   // then a rule for each: the tier its items get, what the AI twin does with them
   (it.mutes ?? []).forEach((m, i) => items.push({ key: `policy:${m.tag}:${m.value}`, label: policyMenuTitle(m), detail: muteShortName(m), icon: "target", divider: i === 0, onSelect: () => openPolicyDialog({ item: it, option: m, source: it.source }) }));
