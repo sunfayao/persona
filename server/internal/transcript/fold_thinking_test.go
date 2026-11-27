@@ -53,18 +53,20 @@ func TestFoldLatestThinkingPreservesRangeAndOriginal(t *testing.T) {
 	}
 }
 
-func TestFoldWorkFoldsNarrationWithoutCallingItThinking(t *testing.T) {
+func TestFoldWorkKeepsCommentaryInTheOpen(t *testing.T) {
 	run := []proto.Item{
 		{ID: "note#0", Seq: 1, Role: "assistant", Kind: proto.KindText, Text: "The focused tests pass.", Narration: true},
 		{ID: "call#0", Seq: 2, Role: "assistant", Kind: proto.KindToolUse, ToolUseID: "call", ToolName: "Bash"},
 		{ID: "result#0", Seq: 3, Role: "user", Kind: proto.KindToolResult, ToolUseID: "call", Text: "ok"},
-		{ID: "final#0", Seq: 4, Role: "assistant", Kind: proto.KindText, Text: "All checks passed."},
+		{ID: "more#0", Seq: 4, Role: "assistant", Kind: proto.KindToolUse, ToolUseID: "more", ToolName: "Bash"},
+		{ID: "more-r#0", Seq: 5, Role: "user", Kind: proto.KindToolResult, ToolUseID: "more", Text: "ok"},
+		{ID: "final#0", Seq: 6, Role: "assistant", Kind: proto.KindText, Text: "All checks passed."},
 	}
 	folded := FoldWork(run)
-	if len(folded) != 2 || folded[0].Fold == nil || folded[0].Fold.Items != 3 {
-		t.Fatalf("commentary stays with its work: %+v", folded)
+	if len(folded) != 3 || folded[0].ID != "note#0" || folded[1].Fold == nil || folded[1].Fold.Items != 4 || folded[2].ID != "final#0" {
+		t.Fatalf("commentary stays in the open, its work folds after it: %+v", folded)
 	}
-	if fo := folded[0].Fold; fo.Thoughts != 0 || fo.LatestThinking != nil {
+	if fo := folded[1].Fold; fo.Thoughts != 0 || fo.LatestThinking != nil {
 		t.Fatalf("assistant narration is not Reasoning: %+v", fo)
 	}
 	wire, err := json.Marshal(run[0])

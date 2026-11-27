@@ -221,7 +221,7 @@ func TestRuntimeRewindResetsRewatchCursor(t *testing.T) {
 	}
 }
 
-func TestRuntimeLatestFoldKeepsCurrentNarration(t *testing.T) {
+func TestRuntimeFoldKeepsNarrationOnEveryPage(t *testing.T) {
 	n, _ := runtimeNode(t)
 	rt, _ := listedRuntime(t, n, "fold")
 	items := []proto.Item{
@@ -259,12 +259,8 @@ func TestRuntimeLatestFoldKeepsCurrentNarration(t *testing.T) {
 					folds++
 				}
 			}
-			want := 0
-			if before == 0 {
-				want = 1
-			}
-			if narration != want || folds != 1 || page.History != "h" || page.ToSeq != 5 {
-				t.Fatalf("folded page = %s; want narration=%d, one fold and preserved span", raw, want)
+			if narration != 1 || folds != 1 || page.History != "h" || page.ToSeq != 5 {
+				t.Fatalf("folded page = %s; want the narration in the open, one fold and preserved span", raw)
 			}
 		})
 	}

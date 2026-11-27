@@ -225,11 +225,7 @@ func (n *Node) runtimeHandle(ctx context.Context, h *runtimeConn, method string,
 		if json.Unmarshal(page["items"], &items) != nil {
 			return out, nil, true
 		}
-		if p.BeforeSeq == 0 {
-			items = transcript.FoldWorkLatest(items)
-		} else {
-			items = transcript.FoldWork(items)
-		}
+		items = transcript.FoldWork(items)
 		folded, _ := json.Marshal(nonNil(items))
 		page["items"] = folded
 		return page, nil, true

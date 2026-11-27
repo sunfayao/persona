@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// #5155: an opened summary is cindy's timeline: the narration in order and an inner summary for each run of work
-// between, opening with it (super rule 2: opening the summary shows every tool call); thoughts with words are rows.
+// The stretches of an exchange: the words in the open in order, each run of work between them one folded row that
+// says in words what it did and opens by hand to its rows (super rule 2); thoughts with words are rows (#5155).
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -55,32 +55,28 @@ function draw(s: Segment, isLive: boolean, style: "agents" | "assistant" = "agen
 const groupsShown = () => [...host.querySelectorAll<HTMLElement>("[data-work-group]")];
 const head = (g: HTMLElement) => g.querySelector<HTMLButtonElement>(":scope > button")!;
 const title = (g: HTMLElement) => head(g).textContent ?? "";
-const outer = () => groupsShown()[0];
-const inner = () => groupsShown().slice(1);
 const tap = (b: HTMLElement) => act(() => b.click());
+const openAll = () => { for (const g of groupsShown()) if (head(g).getAttribute("aria-expanded") === "false" && !head(g).disabled) tap(head(g)); };
 // thought rows come in their own chunk (WorkGroup.tsx lazy): wait for it once something opened
 const loaded = () => act(async () => { await vi.dynamicImportSettled(); });
 const rows = () => [...host.querySelectorAll("[data-action-row]")].map((r) => r.textContent ?? "");
 const thoughtRows = () => [...host.querySelectorAll<HTMLElement>('[data-thinking="words"] > div')];
 
-describe.each(["agents", "assistant"] as const)("%s: the timeline", (style) => {
-  it("a finished turn is one folded line; opened, its narration and inner summaries, each open with every row", async () => {
+describe.each(["agents", "assistant"] as const)("%s: the stretches", (style) => {
+  it("a finished turn: each stretch a folded row in words, its words in the open between them; opened, every row", async () => {
     draw(seg(finished), false, style);
-    expect(groupsShown()).toHaveLength(1);
-    expect(head(outer()).getAttribute("aria-expanded")).toBe("false");
+    expect(groupsShown().map(title)).toEqual(["运行 1 条命令", "运行 2 条命令"]);
+    expect(groupsShown().map((g) => head(g).getAttribute("aria-expanded"))).toEqual(["false", "false"]);
+    expect(host.textContent).toContain("Found the setting.");
     expect(host.querySelector("[data-latest-text]")?.textContent).toContain("Final result.");
-    expect(host.textContent).not.toContain("Found the setting.");
-    tap(head(outer()));
+    // in order: the first stretch, the words, the second stretch, the answer
+    const text = host.textContent!;
+    expect(text.indexOf("运行 1 条命令")).toBeLessThan(text.indexOf("Found the setting."));
+    expect(text.indexOf("Found the setting.")).toBeLessThan(text.indexOf("运行 2 条命令"));
+    openAll();
     await loaded();
-    expect(inner()).toHaveLength(2);
-    expect(inner().map(title)).toEqual(["运行 1 条命令", "运行 2 条命令"]);
-    expect(inner().map((g) => head(g).getAttribute("aria-expanded"))).toEqual(["true", "true"]);
     expect(rows().join(" ")).toContain("echo 3");
     expect(rows().join(" ")).toContain("echo 9");
-    // in order: the first run, the narration, the second run
-    const detail = outer().querySelector("[data-work-detail]")!.textContent!;
-    expect(detail.indexOf("echo 3")).toBeLessThan(detail.indexOf("Found the setting."));
-    expect(detail.indexOf("Found the setting.")).toBeLessThan(detail.indexOf("echo 6"));
     // a thought without words is no row; one with words is
     expect(thoughtRows().map((r) => r.textContent)).toEqual(["Read the config first.", "Line one line two"]);
     // backtick code reads as code on the row too, without its backticks
@@ -88,24 +84,18 @@ describe.each(["agents", "assistant"] as const)("%s: the timeline", (style) => {
     expect(host.textContent).not.toContain("思考");
   });
 
-  it("each inner summary keeps its own open / closed choice, also when the outer one opens again and after a remount", () => {
+  it("each stretch keeps its own open / closed choice, also after a remount", () => {
     draw(seg(finished), false, style);
-    tap(head(outer()));
-    tap(head(inner()[0]));
-    expect(head(inner()[0]).getAttribute("aria-expanded")).toBe("false");
-    tap(head(outer()));
-    tap(head(outer()));
-    expect(inner().map((g) => head(g).getAttribute("aria-expanded"))).toEqual(["false", "true"]);
+    tap(head(groupsShown()[1]));
     act(() => root.unmount());
     root = createRoot(host);
     draw(seg(finished), false, style);
-    expect(head(outer()).getAttribute("aria-expanded")).toBe("true");
-    expect(inner().map((g) => head(g).getAttribute("aria-expanded"))).toEqual(["false", "true"]);
+    expect(groupsShown().map((g) => head(g).getAttribute("aria-expanded"))).toEqual(["false", "true"]);
   });
 
   it("a thought with a line break opens in place to its whole text and stays open after a remount", async () => {
     draw(seg(finished), false, style);
-    tap(head(outer()));
+    openAll();
     await loaded();
     const long = thoughtRows()[1];
     expect(long.getAttribute("aria-expanded")).toBe("false");
@@ -121,71 +111,35 @@ describe.each(["agents", "assistant"] as const)("%s: the timeline", (style) => {
     expect(thoughtRows()[1].getAttribute("aria-expanded")).toBe("true");
   });
 
-  it("live: the last run is Working… with its own clock, earlier runs are done; nothing opens by itself", async () => {
+  it("live: the last stretch is Working… with the clock, earlier ones are done; nothing opens by itself", async () => {
     draw(seg(running), true, style);
-    expect(groupsShown()).toHaveLength(1);
-    expect(title(outer())).toContain("正在工作…");
-    expect(head(outer()).getAttribute("aria-expanded")).toBe("false");
-    expect(host.querySelector("[data-latest-text]")?.textContent).toContain("Checking once more.");
-    tap(head(outer()));
-    await loaded();
-    const [first, second, going] = inner();
+    const [first, second, going] = groupsShown();
     expect([title(first), title(second)]).toEqual(["运行 1 条命令", "运行 2 条命令"]);
     expect(going.dataset.workGroup).toBe("live");
-    expect(title(going)).toBe("运行 1 条命令");
-    expect([first, second, going].map(g => head(g).getAttribute("aria-expanded"))).toEqual(["false", "false", "true"]);
+    expect(title(going)).toMatch(/^正在工作… · 运行 1 条命令/);
+    expect(going.querySelector("[data-work-elapsed]")).not.toBeNull();
+    expect(host.querySelectorAll("[data-work-elapsed]")).toHaveLength(1);
+    expect(groupsShown().map((g) => head(g).getAttribute("aria-expanded"))).toEqual(["false", "false", "false"]);
+    expect(host.textContent).toContain("Found the setting.");
+    expect(host.textContent).toContain("Checking once more.");
+    tap(head(going));
+    await loaded();
     expect(rows().join(" ")).toContain("echo 13");
   });
 
-  it("shows current narration once, then restores it between its tools when newer words arrive (#10246)", async () => {
-    const prefix = [tool(1), words(3, "Current narration B."), tool(4)];
-    draw(seg(prefix), true, style);
-    expect(head(outer()).getAttribute("aria-expanded")).toBe("false");
-    tap(head(outer()));
-    await loaded();
-    const occurrences = (text: string) => (host.textContent ?? "").split(text).length - 1;
-    expect(occurrences("Current narration B.")).toBe(1);
-    expect(outer().textContent).not.toContain("Current narration B.");
-    expect(rows().join(" ")).toContain("echo 4");
-    // A newly streamed segment replaces B in the slot: B is now inspectable in chronology.
-    const ctx: ChatContextValue = { tasks: emptyTaskIndex(), subagents: [], scope: "x:", lineStyle: style };
-    act(() => root.render(<ChatContext.Provider value={ctx}><SegmentView key={segmentIdentity(seg(prefix))} seg={seg(prefix)} live mid="m" sid="s" streaming="New narration D." expandFold={async () => {}} /></ChatContext.Provider>));
-    expect(occurrences("Current narration B.")).toBe(1);
-    expect(occurrences("New narration D.")).toBe(1);
-    const detail = outer().querySelector("[data-work-detail]")!.textContent!;
-    expect(detail.indexOf("echo 1")).toBeLessThan(detail.indexOf("Current narration B."));
-    expect(detail.indexOf("Current narration B.")).toBeLessThan(detail.indexOf("echo 4"));
-    draw(seg([...prefix, words(6, "New narration D.")]), true, style);
-    expect(occurrences("New narration D.")).toBe(1);
-    draw(seg([...prefix, words(6, "New narration D."), words(7, "Final answer.")]), false, style);
-    expect(head(outer()).getAttribute("aria-expanded")).toBe("false");
-    tap(head(outer()));
-    expect(occurrences("Final answer.")).toBe(1);
-    expect(occurrences("Current narration B.")).toBe(1);
-    expect(occurrences("New narration D.")).toBe(1);
-    act(() => root.unmount());
-    root = createRoot(host);
-    draw(seg([...prefix, words(6, "New narration D."), words(7, "Final answer.")]), false, style);
-    expect(occurrences("Final answer.")).toBe(1);
-    expect(occurrences("Current narration B.")).toBe(1);
-  });
-
-  it("the live Thinking line is drawn once, in the innermost live group", () => {
+  it("the live Thinking line is drawn once, in the live stretch", () => {
     live.thinking = true;
     draw(seg(running), true, style);
-    tap(head(outer()));
+    tap(head(groupsShown().at(-1)!));
     const lines = host.querySelectorAll('[data-thinking="live"]');
     expect(lines).toHaveLength(1);
-    expect(inner().at(-1)?.contains(lines[0])).toBe(true);
+    expect(groupsShown().at(-1)?.contains(lines[0])).toBe(true);
     expect(lines[0].textContent).toContain("正在思考");
-    // without a timeline the outer group is the live one
-    draw(seg([tool(1), tool(2, false)]), true, style);
-    expect(host.querySelectorAll('[data-thinking="live"]')).toHaveLength(1);
   });
 
   it("an opened thought's words can be selected and copied: a click that ends a selection does not fold it; keys toggle it", async () => {
     draw(seg(finished), false, style);
-    tap(head(outer()));
+    openAll();
     await loaded();
     const row = () => thoughtRows()[1];
     expect(row().getAttribute("role")).toBe("button");
@@ -208,45 +162,43 @@ describe.each(["agents", "assistant"] as const)("%s: the timeline", (style) => {
     expect(row().getAttribute("aria-expanded")).toBe("true");
   });
 
-  it("thoughts without words are no steps: a turn of nothing else has no summary, and they split no rows", async () => {
+  it("thoughts without words are no steps: a turn of nothing else has no stretch, and they split no rows", async () => {
     draw(seg([thought(1, ""), words(4, "Just an answer.")]), false, style);
     expect(groupsShown()).toHaveLength(0);
     expect(host.querySelector("[data-latest-text]")?.textContent).toContain("Just an answer.");
     // live, the turn still says it is at work
     draw(seg([thought(1, "")]), true, style);
     expect(groupsShown()).toHaveLength(1);
-    expect(head(outer()).disabled).toBe(true);
-    // between two narrations they make no empty inner summary; between two calls they leave one block of rows
+    expect(head(groupsShown()[0]).disabled).toBe(true);
+    // between two pieces of words they make no empty stretch; between two calls they leave one block of rows
     draw(seg([tool(1), words(2, "First."), thought(3, ""), words(4, "Second."), tool(5), thought(6, " "), tool(7), words(9, "Done.")]), false, style);
-    tap(head(outer()));
+    expect(groupsShown().map(title)).toEqual(["运行 1 条命令", "运行 2 条命令"]);
+    tap(head(groupsShown()[1]));
     await loaded();
-    expect(inner().map(title)).toEqual(["运行 1 条命令", "运行 2 条命令"]);
-    const blocks = [...outer().querySelectorAll("[data-action-row]")].map((r) => r.parentElement);
-    expect(blocks[1]).toBe(blocks[2]);
+    const blocks = [...groupsShown()[1].querySelectorAll("[data-action-row]")].map((r) => r.parentElement);
+    expect(blocks[0]).toBe(blocks[1]);
   });
 
-  it("while the exchange runs, a call without its result spins in a finished inner group too; in history it does not", async () => {
+  it("while the exchange runs, a call without its result spins in a finished stretch too; in history it does not", () => {
     const steps = [tool(1, false), words(2, "Started the build."), tool(3), words(4, "Checking the logs.")];
     const status = () => [...host.querySelectorAll("[data-action-row] [role=img]")].map((e) => e.getAttribute("aria-label"));
     draw(seg(steps), true, style);
-    tap(head(outer()));
-    expect(inner().map((g) => g.dataset.workGroup)).toEqual(["done", "done"]);
-    for (const g of inner()) tap(head(g));
+    expect(groupsShown().slice(0, 2).map((g) => g.dataset.workGroup)).toEqual(["done", "done"]);
+    openAll();
     expect(status()).toEqual(["进行中", "完成"]);
     draw(seg([...steps, words(9, "Done.")]), false, style);
-    if (head(outer()).getAttribute("aria-expanded") === "false") tap(head(outer()));
+    openAll();
     expect(status()[0]).toBe("完成");
   });
 
-  it("a search hit in a thought opens the summary, its inner group and the row; Back closes them again", async () => {
+  it("a search hit in a thought opens its stretch and the row; Back closes them again", async () => {
     draw(seg(finished), false, style);
     act(() => revealItem("x:", "th8#0"));
-    // the row's chunk comes in after the summary opened: the hit is still asked for, so it opens on arrival
+    // the row's chunk comes in after the stretch opened: the hit is still asked for, so it opens on arrival
     await loaded();
-    expect(head(outer()).getAttribute("aria-expanded")).toBe("true");
-    expect(head(inner()[1]).getAttribute("aria-expanded")).toBe("true");
-    expect(thoughtRows()[1].getAttribute("aria-expanded")).toBe("true");
+    expect(groupsShown().map((g) => head(g).getAttribute("aria-expanded"))).toEqual(["false", "true"]);
+    expect(thoughtRows()[0].getAttribute("aria-expanded")).toBe("true");
     act(() => undoReveals());
-    expect(head(outer()).getAttribute("aria-expanded")).toBe("false");
+    expect(head(groupsShown()[1]).getAttribute("aria-expanded")).toBe("false");
   });
 });

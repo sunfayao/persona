@@ -19,23 +19,15 @@ const (
 	foldThinkingPreviewChars = 512
 )
 
-// FoldWork replaces each run of the agent's work in a historical page — tool calls with their results and images,
-// thoughts and Codex commentary — with one KindFold item that counts it (proto.Fold). The prompts, final replies and
-// notices stay as they are. A chat shows that work folded into one line, yet a long Codex exchange made the phone's
-// first page 1400 rows and a megabyte of it (docs/protocol/protocol.md "Folded work").
-func FoldWork(items []proto.Item) []proto.Item {
-	return foldWork(items, false)
-}
-
-// FoldWorkLatest is FoldWork for the latest page: its newest commentary may still be the running turn's current
-// answer, so it stays visible until a final answer follows it.
-func FoldWorkLatest(items []proto.Item) []proto.Item {
-	return foldWork(items, true)
-}
-
+// FoldWork replaces each run of the agent's work in a page — tool calls with their results and images, and thoughts —
+// with one KindFold item that counts it (proto.Fold). The prompts, everything the agent said (Codex commentary
+// included: the chat keeps every piece of an answer in the open, in order) and notices stay as they are, and a run
+// ends at each of them. A long Codex exchange made the phone's first page 1400 rows and a megabyte of it
+// (docs/protocol/protocol.md "Folded work").
+//
 // A call whose result is not in the page (still running) and a result whose call is not (on an older page) are not
 // folded: the app pairs them with what comes later or earlier, and a fold hides them from that.
-func foldWork(items []proto.Item, latestPage bool) []proto.Item {
+func FoldWork(items []proto.Item) []proto.Item {
 	results, agents := map[string]*proto.Item{}, map[string]bool{}
 	taskUses := map[string]proto.Item{}
 	for i := range items {
@@ -50,26 +42,11 @@ func foldWork(items []proto.Item, latestPage bool) []proto.Item {
 			results[it.ToolUseID] = it
 		}
 	}
-	// The latest commentary is the turn's current answer until a final answer follows it. Keep it visible on a
-	// running page; once a final answer exists, all earlier commentary belongs to the completed work.
-	latestNarration := -1
-	if latestPage {
-		for i := len(items) - 1; i >= 0; i-- {
-			if items[i].Role == "assistant" && items[i].Kind == proto.KindText {
-				if items[i].Narration {
-					latestNarration = i
-				}
-				break
-			}
-		}
-	}
 	inFold := func(index int) bool {
 		it := items[index]
 		switch it.Kind {
 		case proto.KindThinking:
 			return true
-		case proto.KindText:
-			return it.Narration && index != latestNarration
 		case proto.KindToolUse, proto.KindToolResult, proto.KindImage: // a tool's image goes with its call
 			// a subagent's call stays on the page: the chat draws it as a card, which never folds (#5602)
 			use, hasUse := taskUses[it.ToolUseID]

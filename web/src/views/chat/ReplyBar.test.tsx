@@ -199,7 +199,9 @@ describe("what the exchange cost, after the time", () => {
     await draw({ usage: OPUS_TURN, usageMs: 65_000 });
     expect(catalog).toHaveBeenCalledExactlyOnceWith("/launchers/catalog", expect.objectContaining({ method: "POST", json: { ids: ["claude-opus-5-5"] } }));
     expect(bar().lastElementChild).toBe(usageText());
-    expect(usageText()?.previousElementSibling?.tagName).toBe("TIME");
+    // the time, how long the turn worked (said once, here), then what it was worth
+    expect(usageText()?.previousElementSibling?.textContent).toBe("已工作 1m 5s");
+    expect(usageText()?.previousElementSibling?.previousElementSibling?.tagName).toBe("TIME");
     expect(usageText()?.textContent).toBe("价值 $0.35");
     expect(usageText()?.className).toContain("ml-1.5");
     enter();

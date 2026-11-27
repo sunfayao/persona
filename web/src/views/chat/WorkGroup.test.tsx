@@ -17,22 +17,22 @@ const use = (id: string, name: string, input: Record<string, unknown>, ts = 0): 
 const res = (id: string, text = "ok", ts = 1): Item => ({ id: `${id}-r#0`, seq: 1, role: "user", kind: "tool_result", tool_use_id: `c-${id}`, text, ts: at(ts) });
 const tool = (id: string, name: string, input: Record<string, unknown>, done = true): ToolStep => ({ kind: "tool", id: `${id}#0`, use: use(id, name, input), result: done ? res(id) : undefined, images: [] });
 const props: WorkProps = { mid: "m", sid: "s", scope: "t:", expandFold: async () => {}, agentStatus: () => "completed" };
-const group = (children: Step[], live: boolean, durationMs?: number): WorkGroupNode => ({ kind: "group", id: `work-${live}`, children: children.map((step) => ({ kind: "step", step })), live, durationMs, startedAt: T0 });
+const group = (children: Step[], live: boolean): WorkGroupNode => ({ kind: "group", id: `work-${live}`, children: children.map((step) => ({ kind: "step", step })), live, startedAt: T0 });
 
 describe("WorkGroup", () => {
   it("its header, a subagent card's and a plan's are a finger tall on a touch screen (#1996)", () => {
     const coarse = "[@media(pointer:coarse)]:min-h-10";
-    const head = renderToStaticMarkup(<WorkGroup g={group([tool("t1", "Grep", { pattern: "x" })], false, 3000)} p={props} />);
+    const head = renderToStaticMarkup(<WorkGroup g={group([tool("t1", "Grep", { pattern: "x" })], false)} p={props} />);
     // the margin gives back what the height adds, so the group does not move
     expect(head).toContain(`[@media(pointer:coarse)]:-my-[7.5px] ${coarse}`);
     expect(renderToStaticMarkup(<SubagentCard step={tool("a1", "Task", { description: "查", prompt: "p" })} status="completed" mid="m" />)).toContain(coarse);
     expect(renderToStaticMarkup(<PlanCard id="p" todos={[{ content: "读", status: "pending" }]} />)).toContain(coarse);
   });
 
-  it("while live: only a collapsed summary, spinner and clock, with no preview", () => {
+  it("while live: one collapsed row, spinner, what it did so far and the clock, with no preview", () => {
     const html = renderToStaticMarkup(<WorkGroup g={group([tool("t1", "Bash", { command: "ls", description: "看目录" }, false)], true)} p={props} />);
     expect(html).toContain('data-work-group="live"');
-    expect(html).toContain(">正在工作…<");
+    expect(html).toContain(">正在工作… · 运行 1 条命令<");
     expect(html).toMatch(/font-mono text-\[12px\][^>]*>(\d+[smh]? ?)+<|font-mono text-\[12px\][^>]*>[\d天小时分 ]+</);
     expect(html).not.toContain("data-live-preview");
     expect(html).not.toContain(">看目录<");
@@ -40,9 +40,11 @@ describe("WorkGroup", () => {
     expect(html).not.toContain("data-work-detail"); // a lazy Collapse: nothing until it opens
   });
 
-  it("done: layers and 已工作 Xs, folded", () => {
-    const html = renderToStaticMarkup(<WorkGroup g={group([tool("t1", "Bash", { command: "ls" })], false, 65_000)} p={props} />);
-    expect(html).toContain(">已工作 1m 5s<");
+  it("done: what it did in words, folded, never how long it took", () => {
+    const html = renderToStaticMarkup(<WorkGroup g={group([tool("t1", "Bash", { command: "ls" }), tool("t2", "Edit", { file_path: "/a.ts" })], false)} p={props} />);
+    expect(html).toContain(">运行 1 条命令 · 编辑 1 个文件<");
+    expect(html).not.toContain("已工作");
+    expect(html).not.toContain("data-work-elapsed");
     expect(html).toContain('aria-expanded="false"');
     expect(html).not.toContain("data-live-preview");
   });
@@ -283,16 +285,17 @@ describe("the user's bubble and the answer", () => {
     expect(html).toContain("[&amp;_.prose-j]:text-[length:var(--chat-body)]!");
   });
 
-  it("an exchange: the answer without a bubble at 15 / 1.6, the work before it folded", () => {
+  it("an exchange: the answer without a bubble at 15 / 1.6, the work before it one folded row in words", () => {
     const user: Item = { id: "u1#0", seq: 1, role: "user", kind: "text", text: "看一下", ts: at(0) };
     const seg = { id: "s", user: { id: "u1#0", text: "看一下", images: [], contexts: [], ts: at(0) }, steps: [tool("t2", "Read", { file_path: "/a.ts" })], answer: { id: "a3#0", seq: 3, role: "assistant", kind: "text", text: "看完了。", ts: at(9) } as Item, tools: 1, thoughts: 0, replies: 0, folds: [], start: user.ts };
     const html = renderToStaticMarkup(<SegmentView seg={seg} live={false} mid="m" sid="s" expandFold={async () => {}} />);
     expect(html).toContain("[&amp;_.prose-j]:text-[length:var(--chat-body)]!");
-    expect(html).toContain(">已工作 9s · 读取 1 个文件<");
-    expect(html.indexOf("已工作")).toBeLessThan(html.indexOf("看完了。"));
+    expect(html).toContain(">读取 1 个文件<");
+    expect(html).not.toContain("已工作");
+    expect(html.indexOf("读取 1 个文件")).toBeLessThan(html.indexOf("看完了。"));
   });
 
-  it("live words occupy the same slot after the folded work on every conversation (#2602)", () => {
+  it("live words come after the work, and the live indicator once at the very end", () => {
     const user: Item = { id: "u1#0", seq: 1, role: "user", kind: "text", text: "跑一遍测试", ts: at(0) };
     const seg = { id: "s", user: { id: "u1#0", text: "跑一遍测试", images: [], contexts: [], ts: at(0) }, steps: [], tools: 0, thoughts: 0, replies: 0, folds: [], start: user.ts };
     const live = (batchedWords?: boolean) =>
@@ -300,7 +303,8 @@ describe("the user's bubble and the answer", () => {
     expect(live()).not.toContain('data-work-group="live"');
     const agent = live(true);
     expect(agent).toContain('data-work-group="live"');
-    expect(agent.indexOf('data-work-group="live"')).toBeLessThan(agent.indexOf('data-answer="streaming"'));
+    expect(agent.indexOf('data-answer="streaming"')).toBeLessThan(agent.indexOf('data-work-group="live"'));
+    expect(agent.match(/data-work-group="live"/g)).toHaveLength(1);
     // no live words yet: the row as before
     const waiting = renderToStaticMarkup(<SegmentView seg={seg} live mid="m" sid="s" batchedWords expandFold={async () => {}} />);
     expect(waiting).toContain('data-work-group="live"');

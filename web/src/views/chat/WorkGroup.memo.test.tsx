@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // A streamed delta re-renders its SegmentView (the `streaming` prop changes), but not the steps of its turn: their
 // props stay the same objects, so StepView and FreshAnswer skip. Words that just came in still learn it
-// (fresh-words.ts): only the latest visible words (#2602), and no others.
+// (fresh-words.ts): only those words, and no others.
 import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -37,7 +37,7 @@ const tool = (n: number): Step => ({
   images: [],
 });
 
-// a live turn: words between tool calls, every run of words a top-level StepView -> FreshAnswer
+// a live turn: words between tool calls, each piece of words in the open
 const steps = [1, 3, 5, 7, 9].flatMap((n) => [text(n), tool(n + 1)]);
 const seg: Segment = { id: "seg", steps, tools: 5, thoughts: 0, replies: 5, folds: [], start: at(0) };
 const ctx: ChatContextValue = { tasks: emptyTaskIndex(), subagents: [], scope: "" };
@@ -69,12 +69,13 @@ function draw(streaming?: string) {
   );
 }
 
-describe("StepView / FreshAnswer memo", () => {
-  it("a streamed delta does not re-render the steps of its turn", () => {
+describe("Words memo", () => {
+  it("a streamed delta does not re-render the words already there", () => {
     draw("w");
-    expect(drawn).toHaveLength(0); // old persisted narration is hidden while the single live text streams
+    // every paragraph stays in the open while the live words stream after them
+    expect(drawn.map((d) => d.text)).toEqual(["words 1", "words 3", "words 5", "words 7", "words 9"]);
     expect(host.querySelector("[data-work-detail]")).toBeNull();
-    expect(host.textContent).not.toContain("words 9");
+    drawn.length = 0;
     for (let i = 0; i < 10; i++) draw("w" + "x".repeat(i + 1));
     expect(drawn).toHaveLength(0);
     expect(host.querySelector('[data-answer="streaming"]')).not.toBeNull();
@@ -85,9 +86,8 @@ describe("StepView / FreshAnswer memo", () => {
     drawn.length = 0;
     act(() => addFreshWords("m", "s", ["a9#0"]));
     expect(drawn).toEqual([{ text: "words 9", fade: true }]);
-    // words hidden in the summary, and the same words in another chat, are not these
-    act(() => addFreshWords("m", "s", ["a7#0"]));
-    act(() => addFreshWords("m", "other", ["a9#0"]));
+    // the same words in another chat are not these
+    act(() => addFreshWords("m", "other", ["a7#0"]));
     expect(drawn).toHaveLength(1);
   });
 });

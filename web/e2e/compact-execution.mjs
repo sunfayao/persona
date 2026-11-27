@@ -80,15 +80,21 @@ async function verify(browser, kind, theme, width) {
   const path = kind === "main" ? "/" : kind === "ordinary" ? `/persona/${sid}` : `/s/example/${sid}`;
   await page.goto(base.replace(/\/$/, "") + path);
   const chat = page.locator("[data-chat-scroll]");
-  const summary = chat.locator("[data-work-group] > button").first();
-  const slot = chat.locator("[data-latest-text]");
+  // one answer per message: its words in the open in order, each stretch of work between them one folded row
+  const rows = chat.locator("[data-segment] > [data-work-group]");
+  const heads = rows.locator(":scope > button");
+  const words = chat.locator("[data-segment] [data-words] [data-answer]");
+  const slot = chat.locator("[data-latest-text]").last();
+  const expanded = () => heads.evaluateAll((bs) => bs.map((b) => b.getAttribute("aria-expanded")));
+  const said = () => words.allInnerTexts().then((ts) => ts.map((t) => t.trim()));
   await slot.getByText("Latest progress: checking the example build.", { exact: true }).waitFor();
-  assert.equal(await summary.getAttribute("aria-expanded"), "false");
-  assert.equal(await chat.locator("[data-work-group]").count(), 1);
+  assert.deepEqual(await said(), ["First progress: the example files are loaded.", "Latest progress: checking the example build."]);
+  assert.deepEqual(await rows.evaluateAll((gs) => gs.map((g) => g.dataset.workGroup)), ["done", "done", "live"]);
+  assert.deepEqual(await expanded(), ["false", "false", "false"]);
   assert.equal(await chat.locator("[data-action-row]:visible").count(), 0);
-  assert.equal(await chat.getByText("First progress: the example files are loaded.", { exact: true }).count(), 0);
-  await slot.evaluate((el) => { el.dataset.identity = "fixed-text-slot"; });
-  // After a reload the chat's header can still grow a line, moving the summary under a click: wait until it holds still.
+  assert.equal(await chat.getByText(/Worked for/).count(), 0, "no stretch says how long it took");
+  await words.first().evaluate((el) => { el.dataset.identity = "first-words"; });
+  // After a reload the chat's header can still grow a line, moving a row under a click: wait until it holds still.
   const stillThenClick = async (target) => {
     let last = "";
     for (let i = 0; i < 20; i++) {
@@ -99,62 +105,51 @@ async function verify(browser, kind, theme, width) {
     }
     await target.click();
   };
+  const openAll = async () => { for (const head of await heads.all()) if (await head.getAttribute("aria-expanded") === "false" && await head.isEnabled()) await stillThenClick(head); };
   const shot = async (state) => {
-    const expanded = state.endsWith("expanded");
-    // Keep the full manually opened trace in the screenshot rather than behind the fixed composer.
-    if (expanded) await page.setViewportSize({ width, height: 1800 });
-    if (expanded) await page.waitForFunction(() => {
-      const frame = document.querySelector("[data-work-detail]")?.parentElement?.parentElement;
-      return frame && frame.getBoundingClientRect().height > 120 && Number(getComputedStyle(frame).opacity) > 0.99;
-    });
+    const opened = state.endsWith("expanded");
+    // Keep the opened stretches in the screenshot rather than behind the fixed composer.
+    if (opened) await page.setViewportSize({ width, height: 1800 });
+    if (opened) await page.waitForFunction(() => [...document.querySelectorAll("[data-work-detail]")].every((d) => Number(getComputedStyle(d.parentElement.parentElement).opacity) > 0.99));
     assert.deepEqual(errors, [], "no page errors");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, "no horizontal overflow");
     await page.screenshot({ path: join(shots, `web-${kind}-${width}-${theme}-${state}.png`) });
-    if (expanded) await page.setViewportSize({ width, height: 900 });
+    if (opened) await page.setViewportSize({ width, height: 900 });
   };
   await shot("running");
   items = changed;
   socket.send(JSON.stringify({ type: "items", machine_id: "example", session_id: sid, items: changed.filter((i) => i.seq >= 10) }));
   await slot.getByText("New progress: reviewing the final checks.", { exact: true }).waitFor();
-  assert.equal(await slot.getAttribute("data-identity"), "fixed-text-slot", "text updates in the same slot");
-  assert.equal(await chat.getByText("Latest progress: checking the example build.", { exact: true }).count(), 0);
-  await summary.click();
-  await chat.locator('[data-action-row="Bash"]').first().waitFor();
-  assert.equal(await summary.getAttribute("aria-expanded"), "true");
-  assert(await chat.getByText("First progress: the example files are loaded.", { exact: true }).isVisible());
-  // #5155: opened, the narration and an inner summary for each run between, all open with it; the last run is live
-  const inner = chat.locator("[data-work-detail] [data-work-group]");
-  assert.deepEqual(await inner.evaluateAll((gs) => gs.map((g) => [g.dataset.workGroup, g.querySelector(":scope > button").getAttribute("aria-expanded")])),
-    [["done", "true"], ["done", "true"], ["live", "true"]]);
-  await page.waitForFunction(() => document.querySelector("[data-work-detail]")?.parentElement?.parentElement?.style.gridTemplateRows === "1fr");
+  // nothing is replaced: the earlier words stay, the same elements, and the new ones come after them
+  assert.deepEqual(await said(), ["First progress: the example files are loaded.", "Latest progress: checking the example build.", "New progress: reviewing the final checks."]);
+  assert.equal(await words.first().getAttribute("data-identity"), "first-words");
+  assert.deepEqual(await rows.evaluateAll((gs) => gs.map((g) => g.dataset.workGroup)), ["done", "done", "done", "live"]);
+  await heads.last().click();
+  await chat.locator('[data-action-row="Read"]').first().waitFor();
+  assert.equal(await heads.last().getAttribute("aria-expanded"), "true");
   await shot("running-expanded");
   items = finished;
   live = false;
   socket.send(JSON.stringify({ type: "items", machine_id: "example", session_id: sid, items: finished.filter((i) => i.seq >= 13) }));
   socket.send(JSON.stringify({ type: "sessions", machine_id: "example", sessions: [session()] }));
   await slot.getByText("Final result: the example tests and build passed. No further action is needed.", { exact: true }).waitFor();
-  await page.waitForFunction(() => document.querySelector("[data-work-group] > button")?.getAttribute("aria-expanded") === "false");
+  await page.waitForFunction(() => [...document.querySelectorAll("[data-segment] > [data-work-group] > button")].every((b) => b.getAttribute("aria-expanded") === "false"));
   await chat.locator("[data-work-detail]").first().waitFor({ state: "detached" });
   await page.getByText("Running", { exact: true }).waitFor({ state: "hidden" });
-  assert.equal(await slot.getAttribute("data-identity"), "fixed-text-slot", "completion uses the same slot");
+  assert.equal(await words.first().getAttribute("data-identity"), "first-words", "completion keeps the words where they were");
   assert.equal(await chat.locator("[data-action-row]:visible").count(), 0);
   await shot("completed");
-  await summary.click();
-  assert(await chat.getByText("New progress: reviewing the final checks.", { exact: true }).isVisible());
+  await openAll();
   assert.equal(await chat.locator("[data-action-row]:visible").count(), 4);
-  assert.deepEqual(await inner.evaluateAll((gs) => gs.map((g) => [g.dataset.workGroup, g.querySelector(":scope > button").getAttribute("aria-expanded")])),
-    [["done", "true"], ["done", "true"], ["done", "true"], ["done", "true"]]);
-  await page.waitForFunction(() => document.querySelector("[data-work-detail]")?.parentElement?.parentElement?.style.gridTemplateRows === "1fr");
   await shot("completed-expanded");
-  await summary.click();
+  for (const head of await heads.all()) await head.click();
   await page.reload();
   await slot.getByText("Final result: the example tests and build passed. No further action is needed.", { exact: true }).waitFor();
-  assert.equal(await summary.getAttribute("aria-expanded"), "false", "reloaded history is folded");
-  await stillThenClick(summary);
-  assert.equal(await chat.locator("[data-action-row]:visible").count(), 4);
-  // Reload creates a new document; mark that document's slot before checking wake-time identity.
-  await slot.evaluate((el) => { el.dataset.identity = "fixed-text-slot"; });
-  // A background wake reopens this exchange before its recap. A historical manual choice must not reopen the run.
+  assert.deepEqual(await expanded(), ["false", "false", "false", "false"], "reloaded history is folded");
+  await stillThenClick(heads.first());
+  assert.equal(await chat.locator("[data-action-row]:visible").count(), 1);
+  await heads.first().click();
+  // A background wake after a recap: the work it woke is an exchange under the recap, with no pill or line for the wake.
   const resumed = [...finished,
     item(15, "system", "recap", { text: "Synthetic prior context." }),
     item(16, "system", "notice", { wake: true, text: "Synthetic background work resumed." }),
@@ -167,40 +162,33 @@ async function verify(browser, kind, theme, width) {
   socket.send(JSON.stringify({ type: "items", machine_id: "example", session_id: sid, items: resumed.filter((i) => i.seq >= 15) }));
   socket.send(JSON.stringify({ type: "sessions", machine_id: "example", sessions: [session()] }));
   await slot.getByText("Wake progress: checking the follow-up.", { exact: true }).waitFor();
-  await page.waitForFunction(() => document.querySelector("[data-work-group] > button")?.getAttribute("aria-expanded") === "false");
-  await chat.locator("[data-work-detail]").first().waitFor({ state: "detached" });
-  assert.equal(await chat.locator("[data-work-group]").count(), 1, "no extra placeholder or wake drawer");
-  assert.equal(await slot.getAttribute("data-identity"), "fixed-text-slot", "wake retains the same text slot");
+  assert.equal(await chat.getByText("Synthetic background work resumed.").count(), 0, "no pill or line for the wake");
+  assert.deepEqual(await rows.evaluateAll((gs) => gs.map((g) => g.dataset.workGroup)), ["done", "done", "done", "done", "done", "live"]);
   await shot("wake-running");
-  await summary.click();
-  assert.equal(await chat.locator("[data-action-row]:visible").count(), 6);
+  await heads.nth(4).click();
+  await chat.getByText("Synthetic background work resumed.").waitFor();
   await shot("wake-running-expanded");
   items = [...resumed, item(21, "user", "tool_result", { tool_use_id: "call-20", text: "Synthetic follow-up passed." }), text(22, "Wake final result: follow-up complete.")];
   live = false;
   socket.send(JSON.stringify({ type: "items", machine_id: "example", session_id: sid, items: items.filter((i) => i.seq >= 21) }));
   socket.send(JSON.stringify({ type: "sessions", machine_id: "example", sessions: [session()] }));
   await slot.getByText("Wake final result: follow-up complete.", { exact: true }).waitFor();
-  await page.waitForFunction(() => document.querySelector("[data-work-group] > button")?.getAttribute("aria-expanded") === "false");
-  await chat.locator("[data-work-detail]").first().waitFor({ state: "detached" });
   await page.getByText("Running", { exact: true }).waitFor({ state: "hidden" });
-  assert.equal(await slot.getAttribute("data-identity"), "fixed-text-slot");
+  assert.equal(await heads.last().getAttribute("aria-expanded"), "false");
   await shot("wake-completed");
-  await summary.click();
-  assert.equal(await chat.locator("[data-action-row]:visible").count(), 6);
-  await shot("wake-completed-expanded");
   await page.reload();
   await slot.getByText("Wake final result: follow-up complete.", { exact: true }).waitFor();
-  assert.equal(await summary.getAttribute("aria-expanded"), "false");
-  await stillThenClick(summary);
-  assert.equal(await chat.locator("[data-action-row]:visible").count(), 6);
-  console.log(`PASS ${kind} ${width} ${theme}: collapsed running/completed, same text slot, manual trace, recap wake and reload`);
+  assert.equal(await heads.last().getAttribute("aria-expanded"), "false");
+  await stillThenClick(heads.last());
+  await chat.locator('[data-action-row="Bash"]:visible').first().waitFor();
+  console.log(`PASS ${kind} ${width} ${theme}: words in order while running and done, one folded row per stretch, recap wake and reload`);
   await context.close();
 }
 let browser;
 try {
   browser = await chromium.launch({ executablePath: executable, args: ["--no-sandbox"] });
   for (const kind of ["main", "ordinary", "agent"]) for (const width of [1280, 390]) for (const theme of ["light", "dark"]) await verify(browser, kind, theme, width);
-  console.log("PASS compact-execution browser verification: 12 real-app scenarios, 96 screenshots, no production writes");
+  console.log("PASS compact-execution browser verification: 12 real-app scenarios, no production writes");
 } catch (error) {
   console.error("FAIL compact-execution browser verification", error);
   process.exitCode = 1;

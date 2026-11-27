@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { t } from "../../i18n";
 import { exactTime, relativeTime } from "../../lib/relative-time";
+import { workDuration } from "../../lib/work-groups";
 import { Button, copyText, cx, Dialog, Menu, toast } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
 import { REPLY_BAR_FADE_MS, REPLY_BAR_LINGER_MS } from "../../ui/motion";
@@ -27,6 +28,11 @@ import { useChatActions, type ChatActions } from "./chat-actions";
 import type { RewindRestore } from "../../lib/rewind";
 
 export { TurnUsage };
+
+/** How long the exchange worked, once, quietly after the time of its answer ("Worked for 35m 40s"). */
+export function WorkTime({ ms, className }: { ms: number; className?: string }) {
+  return <span data-work-time className={cx("flex h-6 cursor-default items-center text-[12px] whitespace-nowrap text-ink-3", className)}>{t("lib-work-groups.worked_for", { duration: workDuration(ms) })}</span>;
+}
 
 /** The left edge of what shows `el`: the nearest box that clips it sideways (the chat's scroller), or the window's. */
 function shownLeft(el: HTMLElement): number {
@@ -185,7 +191,7 @@ async function copyQuietly(text: string): Promise<boolean> {
 /** `itemId`: where "Start a new session" branches, when the conversation can. `more`: the message's actions (Copy and
  *  Select have their own controls); no ⋯ without any others. `pinned`: the
  *  chat's last message, whose time stays shown without the pointer. `usage`: what the exchange used (lib/turn-usage.ts
- *  usageKey), `usageMs` its work time, `persona` a Persona conversation's plain cost. */
+ *  usageKey), `usageMs` how long it worked (said after the time), `persona` a Persona conversation's plain cost. */
 export function ReplyBar({ text, ts, itemId, more: actions, pinned, usage, usageMs, ttftMs, persona, translation }: { text: string; ts?: string; itemId?: string; more: Action[]; pinned?: boolean; usage?: string; usageMs?: number; ttftMs?: number; persona?: boolean; translation?: ReplyTranslation }) {
   const chat = useChatActions();
   const branch = moreActions(itemId, chat?.fork, chat?.assistant)[0];
@@ -341,6 +347,7 @@ export function ReplyBar({ text, ts, itemId, more: actions, pinned, usage, usage
           {time}
         </time>
       )}
+      {usageMs !== undefined && <WorkTime ms={usageMs} className="ml-1.5" />}
       {usage &&
         (pinned ? (
           // a pinned reply's time stays; what it cost comes with the pointer, as the buttons do

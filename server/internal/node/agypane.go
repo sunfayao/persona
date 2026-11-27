@@ -689,9 +689,7 @@ func (h agyHistory) page(p agyPageParams) any {
 		start = agyIndex(items, items[start].Seq)
 	}
 	items = agyLightItems(items[start:])
-	if p.FoldWork && p.BeforeSeq == 0 {
-		items = transcript.FoldWorkLatest(items)
-	} else if p.FoldWork {
+	if p.FoldWork {
 		items = transcript.FoldWork(items)
 	}
 	return withSpan(map[string]any{"items": nonNil(items), "has_more": start > 0}, span, false)

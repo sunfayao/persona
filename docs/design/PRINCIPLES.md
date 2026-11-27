@@ -27,7 +27,7 @@ Common tasks work out of the box, with no setup, and the defaults suit most peop
 Complex capabilities sit behind settings or an advanced entry and open on request.
 
 - New advanced options default to off and live in Settings or an advanced group, not on the main chat or Agents screens.
-- Detail opens on request: tool execution stays one summary line; expert terms and raw values (model IDs, ports, paths, hub, node, MCP) appear only in the advanced area that needs them, or come with a plain explanation (`DESIGN_SYSTEM.md` section 5).
+- Detail opens on request: each stretch of tool execution stays one summary line; expert terms and raw values (model IDs, ports, paths, hub, node, MCP) appear only in the advanced area that needs them, or come with a plain explanation (`DESIGN_SYSTEM.md` section 5).
 - A new look is an opt-in style; the default style stays pixel-identical.
 
 **How to check**: with the feature off, before and after screenshots of the primary screens are identical; name where the option lives and that it is off by default.

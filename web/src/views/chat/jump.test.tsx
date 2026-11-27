@@ -53,7 +53,6 @@ afterEach(() => {
 const flush = async () => {
   for (let i = 0; i < 5; i++) await act(async () => { await Promise.resolve(); });
 };
-const button = (pick: (b: HTMLButtonElement) => boolean) => [...host.querySelectorAll("button")].find(pick);
 
 async function draw(shown: Item[] = items) {
   const ctx = { tasks: buildTaskIndex(shown), subagents: [], scope, jumpToCall: (call: string) => { jumps.push(call); openToCall(scope, call); } };
@@ -75,7 +74,8 @@ describe("跳到发起的这一步", () => {
     const later = [...host.querySelectorAll<HTMLElement>("[data-group-id]")].at(-1)!.querySelector("button")!;
     await act(async () => later.click());
     await flush();
-    const notice = button((b) => b.textContent?.includes("后台命令") === true);
+    // the notice's own row inside the opened stretch (the stretch's row says it in its words too)
+    const notice = [...host.querySelectorAll<HTMLButtonElement>("[data-work-detail] button")].find((b) => b.textContent?.includes("后台命令") === true);
     expect(notice, "the notice's row").toBeTruthy();
     await act(async () => notice!.click());
     const jump = host.querySelector<HTMLButtonElement>("[data-jump-to-call]");

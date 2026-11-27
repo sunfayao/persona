@@ -248,11 +248,7 @@ func (s *Service) historyCall(ctx context.Context, machine, method string, raw j
 		s.logf("assistant: persist history page: %v", err)
 	}
 	if p.FoldWork && p.After == nil && p.Through == nil {
-		if p.Before == nil || *p.Before <= 0 {
-			source.Items = transcript.FoldWorkLatest(source.Items)
-		} else {
-			source.Items = transcript.FoldWork(source.Items)
-		}
+		source.Items = transcript.FoldWork(source.Items)
 	}
 	if p.LazyImages {
 		source.Items = proto.WithoutImageData(source.Items)
@@ -410,11 +406,7 @@ func (s *Service) historyPage(ctx context.Context, st conversationHistoryStore, 
 		answer.MoreAfter = false
 	}
 	if p.FoldWork && p.After == nil && p.Through == nil {
-		if p.Before == nil || *p.Before <= 0 {
-			answer.Items = transcript.FoldWorkLatest(answer.Items)
-		} else {
-			answer.Items = transcript.FoldWork(answer.Items)
-		}
+		answer.Items = transcript.FoldWork(answer.Items)
 	}
 	if p.LazyImages {
 		answer.Items = proto.WithoutImageData(answer.Items)

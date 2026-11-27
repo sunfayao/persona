@@ -7,11 +7,11 @@ import { withChildSessions } from "../../lib/child-cards";
 import { agentStatus, isNestedSubagentStep, nestedSubagentStatus, nestingKey, subagentFor, withNestedSubagents } from "../../lib/tasks";
 import { turnImages } from "../../lib/turn-images";
 import { TurnImages } from "./TurnImages";
-import { exchangeSteps, segmentIdentity, isLoopTick, isOwnMessage, type Context, type Segment, type UserMessage } from "../../lib/turns";
+import { exchangeSteps, isLoopTick, isOwnMessage, type Context, type Segment, type UserMessage } from "../../lib/turns";
 import { usageKey } from "../../lib/turn-usage";
 import type { Item } from "../../lib/types";
 import { ENGINE_SWITCH_KIND } from "../../lib/engine-switch";
-import { planCardStep, workBlocks, type ToolStep, type WorkNode } from "../../lib/work-groups";
+import { planCardStep, workBlocks, workTime, type ToolStep, type WorkNode } from "../../lib/work-groups";
 import { NO_WORKFLOW_CALLS } from "../../lib/workflows";
 import { channelOf, useChannels } from "../../lib/channels";
 import { splitQuotes } from "../../lib/drafts";
@@ -43,7 +43,7 @@ import { useFoldScroll } from "./fold-scroll";
 import { useChatContext } from "./chat-context";
 import { useFreshWords } from "./fresh-words";
 import { Icon } from "../../ui/icons";
-import { WorkGroup, WorkNodes, type WorkProps } from "./WorkGroup";
+import { StepView, WorkGroup, type WorkProps } from "./WorkGroup";
 import { TurnChanges, turnChangesHeight } from "./TurnChanges";
 import { turnChanges } from "../../lib/turn-changes";
 import type { Step } from "../../lib/turns";
@@ -301,16 +301,16 @@ export const Answer = memo(function Answer({ item, streaming, mid, sid, fade, st
   );
 });
 
-/** Freshness reaches only the single visible persisted text, not every paragraph hidden in its execution summary: it
- *  reads its own id (fresh-words.ts), so a new reply renders these words, not every exchange. `done`: its turn is over,
- *  so the words have the bar under them (cindy: never while the turn runs). */
-const LatestAnswer = memo(function LatestAnswer({ item, streaming, mid, sid, noCloseout, done, cut, usage, usageMs, ttftMs }: { item?: Item; streaming?: string; mid: string; sid: string; noCloseout?: boolean; done?: boolean; cut?: boolean; usage?: string; usageMs?: number; ttftMs?: number }) {
+/** A piece of the agent's words in its exchange. It fades in once when it just came in: it reads its own id
+ *  (fresh-words.ts), so a new reply renders these words, not every exchange. `latest`: the exchange's latest words (the
+ *  closeout reader, the cut-short line and, with `done`, the reply bar: cindy never draws the bar while the turn runs). */
+const Words = memo(function Words({ item, streaming, mid, sid, latest, noCloseout, done, cut, usage, usageMs, ttftMs }: { item?: Item; streaming?: string; mid: string; sid: string; latest?: boolean; noCloseout?: boolean; done?: boolean; cut?: boolean; usage?: string; usageMs?: number; ttftMs?: number }) {
   const persisted = streaming === undefined ? item?.id : undefined;
   const fresh = useFreshWords(mid, sid, persisted);
   const bar = Boolean(done && persisted);
   const stripCloseout = useCloseoutReader(Boolean(noCloseout));
   if (stripCloseout && item?.text?.trim() && !item.full_size && !stripCloseout(item.text)) return null;
-  return <div data-latest-text><Answer item={item} streaming={streaming} mid={mid} sid={sid} fade={persisted ? fresh : undefined} stripCloseout={stripCloseout} bar={bar || undefined} cut={cut} usage={bar ? usage : undefined} usageMs={bar ? usageMs : undefined} ttftMs={bar ? ttftMs : undefined} /></div>;
+  return <div data-latest-text={latest || undefined} data-words><Answer item={streaming === undefined ? item : undefined} streaming={streaming} mid={mid} sid={sid} fade={persisted ? fresh : undefined} stripCloseout={stripCloseout} bar={bar || undefined} cut={cut} usage={bar ? usage : undefined} usageMs={bar ? usageMs : undefined} ttftMs={bar ? ttftMs : undefined} /></div>;
 });
 
 export const SegmentView = memo(function SegmentView({
@@ -321,7 +321,6 @@ export const SegmentView = memo(function SegmentView({
   streaming,
   batchedWords,
   expandFold,
-  beforeWords,
   trace,
   offscreen,
   busy,
@@ -331,13 +330,11 @@ export const SegmentView = memo(function SegmentView({
   mid: string;
   sid: string;
   streaming?: string;
-  /** The live words are an agent's as Claude shows them: a batch
-   *  of lines at a time, and still while a tool runs. The live work row stays above this text slot; the headless assistant's
-   *  words stream as they are written and stand for it. */
+  /** The live words are an agent's as Claude shows them: a batch of lines at a time, and still while a tool runs. The
+   *  live indicator stays at the end, under them; the headless assistant's words stream as they are written and stand
+   *  for it. */
   batchedWords?: boolean;
   expandFold: (f: Item) => Promise<boolean | void>;
-  /** Drawn between the work and the agent's last words (the wakes chip, #3783); above the work while it is live. */
-  beforeWords?: ReactNode;
   /** An opened supervision round shows its original input instead of the injected hint. */
   trace?: boolean;
   /** A finished exchange before the last two: off screen it is not drawn (the `seg-cv` class), and the chat watches its
@@ -366,29 +363,39 @@ export const SegmentView = memo(function SegmentView({
   const p = useMemo<WorkProps>(() => {
     const agent = (s: ToolStep) =>
       isNestedSubagentStep(s) ? nestedSubagentStatus(subagentFor(subagents, s.use)) : agentStatus(s.result, subagentFor(subagents, s.use), live, s.use.tool_use_id ? tasks.notes.get(s.use.tool_use_id) : undefined);
-    return { mid, sid, scope, expandFold, agentStatus: agent, segment: seg.id, workflowCalls, trace, lineStyle, turnLive: live, plan };
-  }, [mid, sid, scope, expandFold, subagents, tasks, live, seg.id, workflowCalls, trace, lineStyle, plan]);
-  const identity = segmentIdentity(seg);
+    return { mid, sid, scope, expandFold, agentStatus: agent, segment: seg.id, workflowCalls, trace, turnLive: live, plan };
+  }, [mid, sid, scope, expandFold, subagents, tasks, live, seg.id, workflowCalls, trace, plan]);
   const last = steps.at(-1);
+  // live words that are not yet the last persisted words: written after everything here
   const newWords = streaming !== undefined && (last?.kind !== "text" || last.item.text?.trimEnd() !== streaming.trimEnd());
   const nodes = useMemo(
-    () => workBlocks(steps, { live, turnStart, streaming: newWords, identity }),
-    [steps, live, turnStart, newWords, identity],
+    () => workBlocks(steps, { live, turnStart, streaming: newWords }),
+    [steps, live, turnStart, newWords],
   );
   useCallSeeker(scope, nodes);
-  // the pictures the agent looked at this turn, between its work and its last words
+  // the pictures the agent looked at this turn, before its last words
   const images = useMemo(() => turnImages(seg, getState().machines.find((m) => m.id === mid)?.name), [seg, mid]);
-  // The text slot is fixed during the run and after completion. Streamed text replaces persisted narration.
-  let cut = nodes.length;
-  const tail = nodes[cut - 1];
-  if (tail?.kind === "step" && tail.step.kind === "text") cut--;
-  const latest = nodes.at(-1);
-  const latestItem = latest?.kind === "step" && latest.step.kind === "text" ? latest.step.item : undefined;
+  // One continuous answer: every piece of words stays where it was written, each stretch of work between them a row.
+  // Its last words are the answer's (the reply bar once the turn is over, also with a stretch after them: a stopped
+  // turn's, a child session's card); words still streaming are drawn after everything, in place of the last persisted
+  // words when they are those words.
+  const tail = nodes.at(-1);
+  const latestWords = newWords ? undefined : lastWords(nodes);
+  // Streamed words and the item they land as are one element: the item takes the stream's key, and keeps it after.
+  const streamKeys = useRef<{ next: number; current?: string; items: Map<string, string> }>({ next: 0, items: new Map() }).current;
+  if (newWords) streamKeys.current ??= `streaming-${streamKeys.next++}`;
+  else if (streamKeys.current && latestWords) {
+    if (!streamKeys.items.has(latestWords.id)) streamKeys.items.set(latestWords.id, streamKeys.current);
+    streamKeys.current = undefined;
+  }
   // The card above the transcript shows this exchange's closeout (#3612): its last words are drawn without the raw
   // block, and not at all when the block was all they said.
   const noCloseout = closeoutSegment === seg.id && streaming === undefined;
-  const working = live && (streaming === undefined || batchedWords) && !nodes.some((n) => n.kind === "group" && n.live);
-  const liveRow = working && <WorkGroup g={{ kind: "group", id: `work-live-${seg.id}`, children: [], live: true, startedAt: Date.parse(turnStart ?? "") || undefined }} p={p} />;
+  // the exchange's one live indicator, at its end: the live tail stretch, else this row (the headless assistant's
+  // streaming words stand for it)
+  const working = live && (streaming === undefined || batchedWords) && !(tail?.kind === "group" && tail.live);
+  const since = useMemo(() => (working ? workTime(steps, turnStart).since : undefined), [working, steps, turnStart]);
+  const liveRow = working && <WorkGroup g={{ kind: "group", id: `work-live-${seg.id}`, children: [], live: true, startedAt: since }} p={p} />;
   const imageStrip = images.length > 0 && <TurnImages images={images} mid={mid} sid={sid} cwd={getSession(mid, sid)?.cwd} />;
   const box = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
@@ -405,12 +412,33 @@ export const SegmentView = memo(function SegmentView({
   const changes = useMemo(() => (counted ? turnChanges(own, cwd) : null), [counted, own, cwd]);
   // the web pages the finished exchange used, in a Persona conversation and an Agent's alike (#9132)
   const sourced = !live && !trace && Boolean(seg.user) && own.some(webStep);
-  // what the finished exchange used, for its reply bar (#5426): the work summary's time when it has one summary
+  // what the finished exchange used (#5426) and how long it worked, said once under its answer
   const usage = !live && !trace ? usageKey(seg.usage) : undefined;
-  const groups = usage ? nodes.filter((n) => n.kind === "group") : [];
-  const usageMs = groups.length === 1 ? groups[0].durationMs : undefined;
+  const usageMs = useMemo(() => (!live && !trace && steps.some((s) => s.kind !== "text") ? workTime(steps, turnStart).ms : undefined), [live, trace, steps, turnStart]);
   const switched = Boolean(seg.engineSwitch);
   const guess = useMemo(() => (offscreen ? ({ "--seg-est": `${segmentHeight(seg.user, nodes, divided, switched) + (changes ? 12 + turnChangesHeight(changes) : 0) + (sourced ? 14 + SOURCES_HEIGHT : 0)}px` } as CSSProperties) : undefined), [offscreen, seg.user, nodes, divided, switched, changes, sourced]);
+  // One keyed list, so a paragraph stays the same element when newer words come after it, and streamed words stay the
+  // same element when they land: the pictures the agent looked at go before its latest words.
+  const words = (key: string, w: ReactNode) => (
+    <Fragment key={key}>
+      <Suspense fallback={null}>{w}</Suspense>
+    </Fragment>
+  );
+  const drawn: ReactNode[] = [];
+  for (const n of nodes) {
+    if (n.kind === "group") drawn.push(<WorkGroup key={n.id} g={n} p={p} />);
+    else if (n.step.kind !== "text") drawn.push(<StepView key={n.step.id} step={n.step} p={p} live={live} />);
+    else if (n.step.item !== latestWords) drawn.push(words(streamKeys.items.get(n.step.id) ?? n.step.id, <Words item={n.step.item} mid={mid} sid={sid} />));
+    else {
+      if (imageStrip) drawn.push(<Fragment key="turn-images">{imageStrip}</Fragment>);
+      drawn.push(words(streamKeys.items.get(n.step.id) ?? n.step.id, <Words item={n.step.item} streaming={streaming} mid={mid} sid={sid} latest noCloseout={noCloseout || undefined}
+        done={(!live && !busy && streaming === undefined) || undefined} cut={(!live && seg.cut) || undefined} usage={usage} usageMs={usageMs} ttftMs={!live && !trace ? seg.ttftMs : undefined} />));
+    }
+  }
+  if (newWords) {
+    if (imageStrip) drawn.push(<Fragment key="turn-images">{imageStrip}</Fragment>);
+    drawn.push(words(streamKeys.current!, <Words streaming={streaming} mid={mid} sid={sid} latest />));
+  } else if (!latestWords && imageStrip) drawn.push(<Fragment key="turn-images">{imageStrip}</Fragment>);
   return (
     <section ref={box} className={offscreen ? "seg-cv flex flex-col gap-3.5" : "flex flex-col gap-3.5"} style={guess} data-segment>
       {/* the first message the conversation's new engine got (#5054): the switch divider above it, the user's words below */}
@@ -418,18 +446,23 @@ export const SegmentView = memo(function SegmentView({
       {trace && seg.user?.rawInput && !seg.user.promptHidden && !seg.user.sourceInTrace ? <RawInjectedInput items={seg.user.rawInput} mid={mid} sid={sid} /> : seg.user && (seg.user.source ? <SourceMessage msg={seg.user} mid={mid} sid={sid} /> : seg.user.injected ? <InjectedHint msg={seg.user} sid={sid} /> : seg.user.parts ? <MergedBubble msg={seg.user} mid={mid} sid={sid} /> : seg.user.from ? <PeerMessage msg={seg.user} /> : isLoopTick(seg.user) ? <LoopTick msg={seg.user} /> : <UserBubble msg={seg.user} mid={mid} sid={sid} />)}
       {/* the reply below came from another model than the one before it (cindy: after the message that started it) */}
       {seg.modelChange && <ModelChangeDivider from={seg.modelChange.from} to={seg.modelChange.to} />}
-      {/* Work stays collapsed above the single latest-text slot. */}
-      {live && <Fragment key="before-words">{beforeWords}</Fragment>}
-      <WorkNodes nodes={nodes.slice(0, cut)} p={p} live={live} fade />
+      {/* the words and the stretches of work between them, in the order they came; each stretch a collapsed row */}
+      {drawn}
       {liveRow}
-      {imageStrip}
-      {!live && <Fragment key="before-words">{beforeWords}</Fragment>}
-      {(latestItem || streaming !== undefined) && <Suspense key="latest-text" fallback={null}><LatestAnswer item={streaming === undefined ? latestItem : undefined} streaming={streaming} mid={mid} sid={sid} noCloseout={noCloseout || undefined} done={(!live && !busy) || undefined} cut={(!live && seg.cut) || undefined} usage={usage} usageMs={usageMs} ttftMs={!live && !trace ? seg.ttftMs : undefined} /></Suspense>}
       {sourced && <Suspense key="turn-sources" fallback={null}><TurnSources steps={own} /></Suspense>}
       {changes && <TurnChanges key="turn-changes" changes={changes} mid={mid} sid={sid} cwd={cwd} />}
     </section>
   );
 });
+
+/** The last piece of words among an exchange's nodes. */
+function lastWords(nodes: WorkNode[]): Item | undefined {
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const n = nodes[i];
+    if (n.kind === "step" && n.step.kind === "text") return n.step.item;
+  }
+  return undefined;
+}
 
 /** The Sources row's height as drawn (TurnSources.tsx: one line of chips), for an exchange's estimate. */
 const SOURCES_HEIGHT = 28;

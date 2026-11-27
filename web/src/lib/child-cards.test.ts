@@ -5,7 +5,7 @@ import { childCall, childCardKey, childPlaces, childSessionOf, exchangeStarts, i
 import { sameValue } from "./stable-lines";
 import { chatLines, exchangeSteps, segments, type ChatLine, type Step } from "./turns";
 import type { Item, Session } from "./types";
-import { workBlocks, type WorkGroupNode } from "./work-groups";
+import { workBlocks, workTime, type WorkGroupNode } from "./work-groups";
 
 const T0 = Date.parse("2026-11-12T10:00:00Z");
 const ts = (s: number) => new Date(T0 + s * 1000).toISOString();
@@ -99,9 +99,11 @@ describe("withChildSessions", () => {
   it("a child that started long after the exchange's steps neither splits its work nor lengthens it", () => {
     const group = (n: ReturnType<typeof workBlocks>) => n.filter((x): x is WorkGroupNode => x.kind === "group");
     const without = group(workBlocks(steps, { live: false }));
-    const late = group(workBlocks(withChildSessions(steps, [{ sid: "k", at: ts(9000) }]), { live: false }));
+    const lateSteps = withChildSessions(steps, [{ sid: "k", at: ts(9000) }]);
+    const late = group(workBlocks(lateSteps, { live: false }));
     expect(late.length).toBe(1);
-    expect(late[0].durationMs).toBe(without[0].durationMs);
+    expect(late[0].id).toBe(without[0].id);
+    expect(workTime(lateSteps).ms).toBe(workTime(steps).ms);
   });
 
   it("a nested child (a child's own child, folded under the same session) is a card of its own, by its start", () => {

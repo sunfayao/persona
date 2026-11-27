@@ -23,7 +23,7 @@ const tool = (n: number): Step => ({
   images: [],
 });
 const steps = (from: number, count: number): WorkNode[] => Array.from({ length: count }, (_, i) => ({ kind: "step", step: tool(from + i) }));
-const flat = (count: number, live = false): WorkGroupNode => ({ kind: "group", id: "work-big", children: steps(1, count), live, startedAt: T0, durationMs: 4_200_000 });
+const flat = (count: number, live = false): WorkGroupNode => ({ kind: "group", id: "work-big", children: steps(1, count), live, startedAt: T0 });
 const props: WorkProps = { mid: "m", sid: "s", scope: "big:", expandFold: async () => {}, agentStatus: () => "completed" };
 /** An exchange's work as SegmentView draws it: its groups answer "Jump to the step that started it" (jump.ts). */
 function Exchange({ g }: { g: WorkGroupNode }) {
@@ -70,8 +70,8 @@ describe("a long work summary opens a screenful at a time (audit item 90)", () =
 
   it("shares one budget with the groups nested in it", () => {
     const words = (n: number): WorkNode => ({ kind: "step", step: { kind: "text", id: `w${n}#0`, item: { id: `w${n}#0`, seq: n, role: "assistant", kind: "text", text: `progress ${n}`, ts: at(n) } } });
-    const inner = (n: number, from: number): WorkGroupNode => ({ kind: "group", id: `work-inner-${n}`, children: steps(from, 50), live: false, startedAt: T0, durationMs: 60_000 });
-    const timeline: WorkGroupNode = { kind: "group", id: "work-timeline", children: [inner(1, 1), words(1000), inner(2, 101), words(1001), inner(3, 201)], live: false, startedAt: T0, durationMs: 600_000 };
+    const inner = (n: number, from: number): WorkGroupNode => ({ kind: "group", id: `work-inner-${n}`, children: steps(from, 50), live: false, startedAt: T0 });
+    const timeline: WorkGroupNode = { kind: "group", id: "work-timeline", children: [inner(1, 1), words(1000), inner(2, 101), words(1001), inner(3, 201)], live: false, startedAt: T0 };
     act(() => root.render(<WorkGroup g={timeline} p={props} />));
     act(() => header().click());
     // nested groups open with their timeline: the first is whole, the second only what is left of the first screenful

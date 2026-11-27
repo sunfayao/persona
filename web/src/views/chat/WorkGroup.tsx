@@ -1,18 +1,18 @@
-// One folded execution summary while running or completed; manual expansion reveals its complete trace (#2602): with
-// intermediate narration and flat action groups, with one rail and one latest-text slot (#10247).
+// A stretch of an exchange's work: one quiet collapsed row that says in words what was done, opening by hand to its
+// steps on one rail (#2602). The tail stretch of a live exchange is the exchange's one live indicator: spinner,
+// "Working…" and the clock of the current run of work.
 import { lazy, memo, Suspense, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { childSessionOf, isChildSessionStep } from "../../lib/child-cards";
 import { useSessionLive } from "../../lib/live";
 import { useStore } from "../../lib/store";
 import type { Item } from "../../lib/types";
-import { actionSummary, groupTitle, nestedLineDefault, togglesLiveOverride, workLineOpen, workLineOpens, isAgentStep, isPlanStep, isRowStep, isWorkflowStep, planTodos, workDuration, type AgentStatus, type ToolStep, type WorkGroupNode, type WorkLineStyle, type WorkNode } from "../../lib/work-groups";
+import { actionSummary, groupOpens, groupTitle, workLineOpen, isAgentStep, isPlanStep, isRowStep, isWorkflowStep, planTodos, workDuration, type AgentStatus, type ToolStep, type WorkGroupNode, type WorkNode } from "../../lib/work-groups";
 import type { WorkflowCalls } from "../../lib/workflows";
 import type { Step } from "../../lib/turns";
 import { Collapse, cx, Spinner, useNow } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
 import { ActionRow } from "./ActionRow";
 import { LiveClockContext } from "./chat-context";
-import { useFreshWords } from "./fresh-words";
 import { inOpenedFold, openFoldRange, useExpanded, useLiveOverride } from "./expanded";
 import { useReveal } from "./search-reveal";
 import { stepWeight, useStepBudget, withinBudget } from "./work-budget";
@@ -43,19 +43,14 @@ export interface WorkProps {
   agentStatus: (s: ToolStep) => AgentStatus;
   /** The Workflow calls whose run the hub lists (#3434): those draw the run's card. */
   workflowCalls?: WorkflowCalls;
-  /** An action group inside the manually opened summary; it shares the outer rail and indentation. */
+  /** Inside an open stretch. */
   nested?: boolean;
-  /** Inline edits belong only to the current action run inside the manually opened trace. */
-  currentRun?: boolean;
-  /** Inside an open group: whether its outermost group is live. A call without its result spins while it is, in every
-   *  inner group, a finished one too (the run was over, the call may not be); nested groups keep their outer's. */
+  /** Inside an open stretch: whether it is the live one, whose edits show inline. */
   rowsLive?: boolean;
   /** The exchange these steps are of (its segment's id): what of it the reader opened is kept under it. */
   segment?: string;
   /** Show every tool's original input/result in place in an opened supervision trace. */
   trace?: boolean;
-  /** How its work lines open (work-groups.ts workLineOpen): "assistant" in a Persona conversation; "agents" when unset. */
-  lineStyle?: WorkLineStyle;
   /** The exchange these steps are of is still running. */
   turnLive?: boolean;
   /** The step that draws the exchange's plan card (work-groups.ts planCardStep; "" for none): its other plan updates are
@@ -89,28 +84,19 @@ function LiveThinking({ mid, sid }: { mid: string; sid: string }) {
 /** `limit`: inside an open group whose budget (work-budget.ts) does not reach all of this one, how many of its steps it
  *  draws for now. */
 export const WorkGroup = memo(function WorkGroup({ g, p, limit }: { g: WorkGroupNode; p: WorkProps; limit?: number }) {
-  // an outer group whose folded steps the reader just opened: open under whatever key it has once they are in
-  const style = p.lineStyle ?? "agents";
-  const turnLive = Boolean(p.turnLive ?? g.live) && g.live && !p.nested;
+  const turnLive = g.live && !p.nested;
   const key = `${p.scope}${g.id}`;
-  const [remembered, setRemembered] = useExpanded(key, p.nested ? (!p.rowsLive || g.live) && nestedLineDefault(style) : inOpenedFold(p.scope, g.seq));
-  // All conversation styles keep manual run toggles separately, then collapse on completion (#2602).
-  const runToggle = togglesLiveOverride(style, turnLive);
-  const [liveOverride, setLiveOverride] = useLiveOverride(key, runToggle);
-  const setOpen = runToggle ? setLiveOverride : setRemembered;
-  // A run just superseded by narration closes inside the trace the reader opened.
-  const [wasLive, setWasLive] = useState(g.live);
-  if (wasLive !== g.live) {
-    setWasLive(g.live);
-    if (p.nested && p.rowsLive && wasLive) setRemembered(false);
-  }
+  // a stretch inside a fold the reader opened starts open once its steps are in; one nested in an open one is open
+  const [remembered, setRemembered] = useExpanded(key, p.nested ? true : inOpenedFold(p.scope, g.seq));
+  // a choice made while it runs lasts while it runs; once done it is closed again unless the reader opens it
+  const [liveOverride, setLiveOverride] = useLiveOverride(key, turnLive);
+  const setOpen = turnLive ? setLiveOverride : setRemembered;
   const actions = useMemo(() => actionSummary(g), [g]);
-  const heading = p.nested && actions.text ? actions.text : groupTitle(g);
+  const heading = useMemo(() => groupTitle(g), [g]);
   const [loading, setLoading] = useState(false);
-  const opens = workLineOpens(g, style, turnLive);
-  const open = workLineOpen({ style, turnLive, remembered, liveOverride }) && opens;
-  const rowsLive = p.nested ? Boolean(p.rowsLive) : g.live;
-  const inside = useMemo(() => ({ ...p, nested: true, rowsLive, currentRun: g.live }), [p, rowsLive, g.live]);
+  const opens = groupOpens(g);
+  const open = workLineOpen({ turnLive, remembered, liveOverride }) && opens;
+  const inside = useMemo(() => ({ ...p, nested: true, rowsLive: g.live }), [p, g.live]);
   const toggle = () => {
     const next = !open;
     setOpen(next);
@@ -130,8 +116,7 @@ export const WorkGroup = memo(function WorkGroup({ g, p, limit }: { g: WorkGroup
     return () => setOpen(false);
   });
   // an open group's folded steps are fetched: opened just now, or remembered open when the chat comes back (#1996: it
-  // stayed at "Loading N steps" then); once in, the folds are gone and this has nothing left to do. The outer group fetches
-  // its nested groups' folds too.
+  // stayed at "Loading N steps" then); once in, the folds are gone and this has nothing left to do.
   const folds = useMemo(() => (open && !p.nested ? foldsOf(g) : []), [open, p.nested, g]);
   const foldKey = folds.map((f) => f.id).join(" ");
   const expandFold = p.expandFold;
@@ -163,15 +148,15 @@ export const WorkGroup = memo(function WorkGroup({ g, p, limit }: { g: WorkGroup
         onClick={opens ? toggle : undefined}
         disabled={!opens}
         aria-expanded={opens ? open : undefined}
-        title={p.nested && actions.text ? actions.text : g.clock ? t(g.clock === "run" ? "chat-workgroup.run_clock" : "chat-workgroup.exchange_clock") : undefined}
+        title={heading}
         // on a touch screen 40 tall, the margin taking back what it adds, so nothing around it moves
         className={cx("group flex w-full min-w-0 items-center gap-1.5 rounded-[10px] px-2 py-[3px] text-left select-none [@media(pointer:coarse)]:-my-[7.5px] [@media(pointer:coarse)]:min-h-10", opens ? "cursor-pointer transition-[background-color,color] duration-150 ease-(--ease-out-strong) hover:bg-tool-hover/90 motion-reduce:transition-none" : "cursor-default")}
       >
-        <span className={cx("inline-flex h-[1lh] shrink-0 items-center", !p.nested && g.live ? "text-status-accent" : "text-tool-ink", opens && "transition-colors duration-150 group-hover:text-ink motion-reduce:transition-none")}>{p.nested ? <Icon name={actions.icon} size={14} /> : g.live ? <Spinner size={14} /> : <Icon name="layers" size={14} />}</span>
+        <span className={cx("inline-flex h-[1lh] shrink-0 items-center", g.live ? "text-status-accent" : "text-tool-ink", opens && "transition-colors duration-150 group-hover:text-ink motion-reduce:transition-none")}>{g.live ? <Spinner size={14} /> : <Icon name={actions.icon} size={14} />}</span>
         <span className={cx("min-w-0 translate-y-[1px] truncate text-[length:var(--chat-secondary)] text-tool-ink", opens && "transition-[color,translate,transform] duration-150 ease-(--ease-out-strong) group-hover:translate-x-[1px] group-hover:text-ink motion-reduce:transition-none motion-reduce:group-hover:translate-x-0")}>{heading}</span>
         <span className="flex-1" />
         {loading && <Spinner size={11} />}
-        {!p.nested && g.live && g.startedAt !== undefined && <Elapsed since={g.startedAt} />}
+        {g.live && g.startedAt !== undefined && <Elapsed since={g.startedAt} />}
         {opens && <Icon name="chevronRight" size={14} stroke={2.2} className="shrink-0 text-tool-ink transition-[transform,color] duration-200 ease-(--ease-out-strong) group-hover:text-ink motion-reduce:transition-none" style={{ transform: open ? "rotate(90deg)" : "none" }} />}
       </button>
       {open && failed && !loading && (
@@ -182,20 +167,19 @@ export const WorkGroup = memo(function WorkGroup({ g, p, limit }: { g: WorkGroup
       )}
       <Collapse open={open} lazy className="motion-safe:duration-[220ms]">
         <div className={cx("mt-1 flex min-w-0 flex-col gap-2 py-[2px]", !p.nested && "ml-[14px] border-l border-tool-rail pl-3")} data-work-detail>
-          <WorkNodes nodes={g.children} p={inside} live={rowsLive} limit={drawn} />
-          {/* once, in the innermost live group: a live timeline's last run is live too */}
-          {g.live && !g.children.some((c) => c.kind === "group" && c.live) && <LiveThinking mid={p.mid} sid={p.sid} />}
+          {/* a call without its result spins while the exchange runs, in a finished stretch too (it may still be going) */}
+          <WorkNodes nodes={g.children} p={inside} live={p.turnLive ?? g.live} limit={drawn} />
+          {g.live && <LiveThinking mid={p.mid} sid={p.sid} />}
         </div>
       </Collapse>
     </div>
   );
 });
 
-/** Nodes in order; tool calls next to each other sit together without a gap, like cindy's tool segments; each subagent
- *  is a card of its own, in the order it was launched (#5030). `fade`: the agent's words among them that just
- *  came in fade in (fresh-words.ts); not inside a group. `limit`: only the first that many steps for now (an open
- *  group's budget, work-budget.ts); absent, all of them. */
-export function WorkNodes({ nodes, p, live, fade, limit }: { nodes: WorkNode[]; p: WorkProps; live?: boolean; fade?: boolean; limit?: number }) {
+/** A stretch's steps in order; tool calls next to each other sit together without a gap, like cindy's tool segments;
+ *  each subagent is a card of its own, in the order it was launched (#5030). `limit`: only the first that many steps
+ *  for now (an open group's budget, work-budget.ts); absent, all of them. */
+function WorkNodes({ nodes, p, live, limit }: { nodes: WorkNode[]; p: WorkProps; live?: boolean; limit?: number }) {
   const { shown, limits } = withinBudget(nodes, limit);
   const runs: (WorkNode | ToolStep[])[] = [];
   for (const n of shown) {
@@ -211,29 +195,22 @@ export function WorkNodes({ nodes, p, live, fade, limit }: { nodes: WorkNode[]; 
         Array.isArray(run) ? (
           <div key={run[0].id} className="flex min-w-0 flex-col">
             {run.map((s) => (
-              <ActionRow key={s.id} step={s} running={live && !s.result} mid={p.mid} sid={p.sid} trace={p.trace} inlineDiff={Boolean(p.nested && p.currentRun && p.rowsLive)} />
+              <ActionRow key={s.id} step={s} running={live && !s.result} mid={p.mid} sid={p.sid} trace={p.trace} inlineDiff={Boolean(p.nested && p.rowsLive)} />
             ))}
           </div>
         ) : run.kind === "group" ? (
           <WorkGroup key={run.id} g={run} p={p} limit={limits?.get(run)} />
         ) : (
-          <StepView key={run.step.id} step={run.step} p={p} live={live} fade={fade} />
+          <StepView key={run.step.id} step={run.step} p={p} live={live} />
         ),
       )}
     </>
   );
 }
 
-/** Words that fade in if they just came in: each reads its own id in fresh-words.ts, so a new reply renders its own
- *  words, not the chat's. Memo: a streamed delta re-renders the segment, not these. */
-const FreshAnswer = memo(function FreshAnswer({ item, mid, sid }: { item: Item; mid: string; sid: string }) {
-  const fade = useFreshWords(mid, sid, item.id);
-  return <Answer item={item} mid={mid} sid={sid} fade={fade} />;
-});
-
 /** A step on its own: in the open, or inside an open group. Memo: its props stay the same objects while the reply
  *  streams (SegmentView memoizes steps and p on the segment), so a delta skips every step of the turn. */
-export const StepView = memo(function StepView({ step, p, live, fade }: { step: Step; p: WorkProps; live?: boolean; fade?: boolean }) {
+export const StepView = memo(function StepView({ step, p, live }: { step: Step; p: WorkProps; live?: boolean }) {
   switch (step.kind) {
     case "tool":
       if (p.trace) return <ActionRow step={step} running={live && !step.result} mid={p.mid} sid={p.sid} trace />;
@@ -245,7 +222,7 @@ export const StepView = memo(function StepView({ step, p, live, fade }: { step: 
     case "thinking":
       return <Suspense fallback={null}><ThinkingRow item={step.item} scope={p.scope} /></Suspense>;
     case "text":
-      return fade ? <FreshAnswer item={step.item} mid={p.mid} sid={p.sid} /> : <Answer item={step.item} mid={p.mid} sid={p.sid} />;
+      return <Answer item={step.item} mid={p.mid} sid={p.sid} />;
     case "notice":
       return <NoticeRow item={step.item} mid={p.mid} sid={p.sid} />;
     case "image":
