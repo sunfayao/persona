@@ -541,6 +541,7 @@ func (ps *extensions) changed(c extension.Change) {
 	if ps.h != nil && ps.h.opts.TranscriptionChanged != nil {
 		defer ps.h.opts.TranscriptionChanged()
 	}
+	defer ps.toolsChanged() // its settings may have turned tools on or off (Cua's and ego's machines, say)
 	ctx := ps.ctx
 	if ctx == nil {
 		ctx = context.Background()
@@ -787,6 +788,14 @@ func (ps *extensions) apply(ctx context.Context, id string) {
 				go ps.h.migrateGitHubConfig(context.WithoutCancel(ctx), id)
 			}
 		}
+	}
+	ps.toolsChanged() // its connectors came or went with it
+}
+
+// toolsChanged tells the assistant that the extensions' tools may have changed (Options.ToolsChanged).
+func (ps *extensions) toolsChanged() {
+	if ps.h != nil && ps.h.opts.ToolsChanged != nil {
+		ps.h.opts.ToolsChanged()
 	}
 }
 

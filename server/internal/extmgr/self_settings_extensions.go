@@ -292,11 +292,13 @@ func (h *Manager) setExtensionSettings(id, title string, v json.RawMessage) (*se
 			if err := h.checkExtensionSettings(p, raw); err != nil {
 				return "", err
 			}
+			toolsBefore := h.assistantToolNames(ctx)
 			cleared, err := h.extensions.reg.SetConfigPreservingEntries(ctx, id, raw, "assistant")
 			if err != nil {
 				return "", settingsError(err)
 			}
 			out := title + " updated; " + extensionDisplayName(p) + " restarts with them."
+			out += toolChangeText(toolsBefore, h.assistantToolNames(ctx))
 			if len(cleared) > 0 {
 				out += " Secrets bound to the old settings were deleted: " + strings.Join(cleared, ", ") + "."
 			}
@@ -417,4 +419,43 @@ func (h *Manager) fieldValueText(l i18n.Lang, f extension.Field, v json.RawMessa
 		return h.machineName(s)
 	}
 	return s
+}
+
+// assistantToolNames are the names of the tools the extensions offer the assistant now (AgentTools), sorted.
+func (h *Manager) assistantToolNames(ctx context.Context) []string {
+	agents, assistantOnly := h.AgentTools(ctx, true)
+	names := make([]string, 0, len(agents)+len(assistantOnly))
+	for _, t := range slices.Concat(agents, assistantOnly) {
+		names = append(names, t.Name)
+	}
+	slices.Sort(names)
+	return slices.Compact(names)
+}
+
+// toolChangeText says which tools a settings change gave or took away, so the conversation that made it knows what it
+// can call now (turning ego on for a Mac brings browser_look and browser_run): "" when the change moved none. A
+// connector that starts again may add its tools a moment later; the conversation's tool list follows by itself.
+func toolChangeText(before, after []string) string {
+	var gained, lost []string
+	for _, n := range after {
+		if !slices.Contains(before, n) {
+			gained = append(gained, n)
+		}
+	}
+	for _, n := range before {
+		if !slices.Contains(after, n) {
+			lost = append(lost, n)
+		}
+	}
+	out := ""
+	if len(gained) > 0 {
+		out += " New tools: " + strings.Join(gained, ", ") + "."
+	}
+	if len(lost) > 0 {
+		out += " Tools no longer offered: " + strings.Join(lost, ", ") + "."
+	}
+	if out != "" {
+		out += " Running conversations are sent their new tool list."
+	}
+	return out
 }
