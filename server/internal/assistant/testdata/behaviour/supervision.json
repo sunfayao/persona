@@ -2,7 +2,7 @@
   {
     "name": "review_with_evidence_is_accepted",
     "why": "A task the hub judged done is accepted only after the evidence is checked; a card the agent left is answered or escalated, not left alone; nothing is pushed to the owner on top of the conclusion card.",
-    "system": "assistant_claude_md.background",
+    "system": "assistant_claude_md.full",
     "event": "supervise.background",
     "results": {
       "Bash": "#12  Fix login crash  MERGED into main  checks: 9 passed",
@@ -22,7 +22,7 @@
   {
     "name": "review_without_evidence_is_not_accepted",
     "why": "The agent says the PR is merged but it is not: the task must not be accepted.",
-    "system": "assistant_claude_md.background",
+    "system": "assistant_claude_md.full",
     "event": "supervise.background",
     "results": {
       "Bash": "#12  Fix login crash  OPEN  checks: 2 failing (unit-tests, lint)",
