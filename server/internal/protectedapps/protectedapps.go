@@ -181,11 +181,15 @@ func StepsApps(app string, steps json.RawMessage) (apps []string, all bool) {
 	return apps, all
 }
 
-// stepApp is the app a step names itself, in either form ({"click": {"app": …}} or {"tool": …, "args": {"app": …}}).
+// stepApp is the app a step names itself, in any form ({"click": {"app": …}}, {"tool": …, "args": {"app": …}} or
+// {"tool": …, "app": …}).
 func stepApp(s map[string]json.RawMessage) string {
+	if _, has := s["tool"]; has {
+		s = map[string]json.RawMessage{"args": besideTool(s)}
+	}
 	found := ""
 	for k, raw := range s {
-		if k == "wait_for" || k == "expect" || k == "tool" {
+		if k == "wait_for" || k == "expect" {
 			continue
 		}
 		var named struct {
@@ -198,9 +202,20 @@ func stepApp(s map[string]json.RawMessage) string {
 	return found
 }
 
-// LaunchTarget is the app a launch_app step opens, {"launch_app": {"name": …}} or {"tool": "launch_app", "args": {…}}:
-// its name or bundle id, "" when it names neither (not the call's default app: what opens then is the backend's
-// choice). ok is false for any other step.
+// besideTool is the arguments of a step that names its tool with "tool": its "args", else the step itself, whose
+// other fields Cua Driver takes as the arguments ({"tool": "click", "app": …, "name": …}).
+func besideTool(s map[string]json.RawMessage) json.RawMessage {
+	if args, has := s["args"]; has {
+		return args
+	}
+	raw, _ := json.Marshal(s)
+	return raw
+}
+
+// LaunchTarget is the app a launch_app step opens, {"launch_app": {"name": …}}, {"tool": "launch_app", "args": {…}} or
+// {"tool": "launch_app", "name": …} (Cua Driver takes a step's arguments beside "tool" too): its name or bundle id, ""
+// when it names neither (not the call's default app: what opens then is the backend's choice). ok is false for any
+// other step.
 func LaunchTarget(s map[string]json.RawMessage) (opened string, ok bool) {
 	var tool string
 	args := s["launch_app"]
@@ -209,7 +224,7 @@ func LaunchTarget(s map[string]json.RawMessage) (opened string, ok bool) {
 	}
 	switch {
 	case tool == "launch_app":
-		args = s["args"]
+		args = besideTool(s)
 	case tool != "" || args == nil:
 		return "", false
 	}

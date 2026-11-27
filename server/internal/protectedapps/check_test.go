@@ -117,6 +117,10 @@ func TestCheckNamedOrAimed(t *testing.T) {
 			{"a script", "run_script", `{"script": "await cua.getApp(\"系统设置\")"}`, "named"},
 			{"moved", "set_window_frame", `{"pid": 3341, "window_id": 18640, "x": 0, "y": 0}`, "named"},
 			{"a prompt by name", "click", `{"app": "SecurityAgent"}`, "named"},
+			// Cua Driver also takes a step's arguments beside its "tool".
+			{"a step's app beside its tool", "run_steps", `{"steps": [{"tool": "click", "app": "System Settings", "name": "x"}]}`, "named"},
+			{"opened beside its tool", "run_steps", `{"steps": [{"tool": "launch_app", "name": "System Settings"}]}`, "named"},
+			{"its window beside its tool", "run_steps", `{"steps": [{"tool": "click", "window_id": 18640, "x": 1, "y": 1}]}`, "named"},
 		})
 	}
 }

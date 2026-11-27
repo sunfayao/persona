@@ -656,9 +656,9 @@ func targetOf(tool string, raw json.RawMessage) target {
 	return t
 }
 
-// stepsTargets is each action of a run_steps call: a step names its tool ({"tool": …, "args": …} or {<tool>: args});
-// one naming no window has the call's default (app, window, pid, window_id), or the window of the step before.
-// A step that is only a check (wait_for, expect) acts on nothing.
+// stepsTargets is each action of a run_steps call: a step names its tool ({"tool": …, "args": …}, {"tool": …,
+// <arguments>} or {<tool>: args}); one naming no window has the call's default (app, window, pid, window_id), or the
+// window of the step before. A step that is only a check (wait_for, expect) acts on nothing.
 func stepsTargets(call json.RawMessage) []target {
 	var c struct {
 		Steps []map[string]json.RawMessage `json:"steps"`
@@ -671,7 +671,7 @@ func stepsTargets(call json.RawMessage) []target {
 		if raw, has := s["tool"]; has {
 			var tool string
 			_ = json.Unmarshal(raw, &tool)
-			actions = append(actions, [2]any{tool, s["args"]})
+			actions = append(actions, [2]any{tool, besideTool(s)})
 		} else {
 			keys := make([]string, 0, len(s))
 			for k := range s {

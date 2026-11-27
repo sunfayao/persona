@@ -45,6 +45,28 @@ func TestScriptAndStepsApps(t *testing.T) {
 	if !UnnamedSteps("", json.RawMessage(`[{"press_key": {"key": "return"}}]`)) || UnnamedSteps("Notes", json.RawMessage(`[{"press_key": {"key": "return"}}]`)) {
 		t.Error("unnamed steps")
 	}
+	// A step's arguments beside its "tool", as Cua Driver takes them too.
+	beside := json.RawMessage(`[{"tool": "launch_app", "name": "Notes"}, {"tool": "click", "app": "Calculator", "name": "7"}]`)
+	if apps, all := StepsApps("", beside); strings.Join(apps, ",") != "Notes,Calculator" || !all || UnnamedSteps("", beside) {
+		t.Errorf("beside the tool: %v %v", apps, all)
+	}
+	for _, c := range []struct {
+		step, opened string
+		ok           bool
+	}{
+		{`{"launch_app": {"name": "Notes"}}`, "Notes", true},
+		{`{"tool": "launch_app", "args": {"bundle_id": "com.apple.Notes"}}`, "com.apple.Notes", true},
+		{`{"tool": "launch_app", "name": "Notes"}`, "Notes", true},
+		{`{"tool": "launch_app"}`, "", true},
+		{`{"tool": "click", "name": "Notes"}`, "", false},
+		{`{"click": {"app": "Notes"}}`, "", false},
+	} {
+		var s map[string]json.RawMessage
+		_ = json.Unmarshal([]byte(c.step), &s)
+		if opened, ok := LaunchTarget(s); opened != c.opened || ok != c.ok {
+			t.Errorf("%s: %q %v", c.step, opened, ok)
+		}
+	}
 }
 
 func TestActs(t *testing.T) {
