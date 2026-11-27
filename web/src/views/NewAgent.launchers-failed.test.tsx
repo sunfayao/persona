@@ -106,7 +106,7 @@ describe("New agent when a computer's launchers can't be read (#10952)", () => {
     expect(pill().disabled).toBe(false);
     expect(spinning()).toBe(false);
     expect(pill().textContent).toContain("模型读取失败");
-    expect(pill().querySelector("svg.text-red")).not.toBeNull(); // the warning
+    expect(pill().querySelector("svg.text-red")).toBeNull(); // a quiet mark: red beside the box means Full access
     // the reason is on the page, not only in a toast that goes away
     expect(failedLine()!.textContent).toContain("没读到这台电脑的模型，仍可以用它的默认模型启动");
     expect(failedLine()!.textContent).toContain("请求超时");
