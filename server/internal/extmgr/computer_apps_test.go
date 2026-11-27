@@ -94,9 +94,9 @@ func TestComputerAppsAreAskedOnce(t *testing.T) {
 	if res := h.callComputerTool(short, "conv1234", "computer_run", json.RawMessage(`{"machine": "mac", "steps": `+calc+`}`)); res.IsError {
 		t.Fatalf("always allowed: not asked again: %+v", res)
 	}
-	// Calculator is allowed, but a call in it that opens Terminal asks about Terminal, every time.
+	// Calculator is allowed, but a call in it that opens Terminal asks about Terminal, every time. (A launch_app step
+	// is refused before any card: Cua Driver does not run one in steps, TestComputerRunStepsCuaDriverWouldNotRun.)
 	for _, args := range []string{
-		`{"machine": "mac", "app": "Calculator", "steps": [{"launch_app": {"name": "Terminal"}}]}`,
 		`{"machine": "mac", "script": "const a = await cua.getApp(\"Calculator\"); await cua.launch(\"Terminal\"); return 1"}`,
 	} {
 		done := make(chan proto.ToolResult, 1)
