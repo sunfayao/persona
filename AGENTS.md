@@ -118,8 +118,9 @@ Details → [AGENTS/07-frontend-development.md](AGENTS/07-frontend-development.m
 
 **You must not report a result from a run without the test database, and you must not run a whole big package with
 plain `go test`.** Server tests run on the Linux build machine through `scripts/test/server_test_env.py`; a whole
-run goes through `scripts/test/go_test_partitioned.py` with `-p 12` and takes about three minutes. Compare every
-failure with the trunk before you call it yours or not yours, and report what ran and what it printed.
+run goes through `scripts/test/go_test_partitioned.py` with `-p 16` and takes about a minute. Every test is a fixed
+unit test (no real waiting, no child process, no listener but `httptest`, milliseconds). Compare every failure with
+the trunk before you call it yours or not yours, and report what ran and what it printed.
 
 Details → [AGENTS/09-testing.md](AGENTS/09-testing.md)
 
@@ -272,8 +273,8 @@ gofmt -l internal cmd
 # --- server: tests ---
 python3 -I ../scripts/test/server_test_env.py --database-file "$PERSONA_TEST_PROFILE" -- \
   go test -count=1 ./internal/<package> -run '^TestName$'
-GOMAXPROCS=8 python3 -I ../scripts/test/server_test_env.py --database-file "$PERSONA_TEST_PROFILE" -- \
-  python3 -I ../scripts/test/go_test_partitioned.py go test -count=1 -p 12 -timeout 30m ./...
+GOMAXPROCS=24 python3 -I ../scripts/test/server_test_env.py --database-file "$PERSONA_TEST_PROFILE" -- \
+  python3 -I ../scripts/test/go_test_partitioned.py go test -count=1 -p 16 -timeout 30m ./...
 
 # --- server: regenerate records (read the diff afterwards) ---
 UPDATE_GOLDEN=1 go test ./internal/<package> -run Golden
@@ -283,11 +284,13 @@ go test -count=1 ./internal/hub -run '^TestWireSamples$' -update
 
 # --- repository checks (from the root) ---
 scripts/test/check-fast.sh                      # gofmt, migration freeze, English-only prompts, privacy
+for d in ci deploy diag mock test; do (cd scripts/$d && python3 -m unittest discover -p 'test_*.py') || break; done
 python3 scripts/gen/extension_schema.py --check # generated wire code matches the schemas
 
 # --- web (in web/) ---
 npm ci --no-audit --no-fund
 npx tsc -b && npx vitest run <files> && npm run build
+npx vitest run --maxWorkers=24                  # every web test
 
 # --- look at the web app against made-up data ---
 PORT=18760 python3 -I scripts/mock/mock_hub.py
