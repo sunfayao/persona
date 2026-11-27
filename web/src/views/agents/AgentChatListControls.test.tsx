@@ -21,6 +21,7 @@ vi.hoisted(() => {
 import { t } from "../../i18n";
 import { getAgentListFilters, filterAgentList, resetAgentListFilters } from "../../lib/agent-list-filters";
 import { closePalette, getPalette } from "../../lib/palette";
+import { stateName } from "../../lib/state-labels";
 import { getState, reset, savePins, upsertSession } from "../../lib/store";
 import type { Machine, Session } from "../../lib/types";
 import { AgentsList, Sidebar } from "../Sidebar";
@@ -191,6 +192,20 @@ describe("Agents list Filter menu (#4397) on the title row, the search in ⌘K (
     const updatedRows = [...host.querySelectorAll<HTMLElement>('[data-testid="agent-chatlist-row"]')];
     expect(updatedRows[0].getAttribute("data-session-id")).toBe("s1");
     expect(updatedRows[0].getAttribute("data-pinned")).toBe("true");
+  });
+  it("keeps a row's state and time in sight under the pointer: its first line keeps the slot of the pin and ⋯", async () => {
+    seed();
+    localStorage.setItem("persona.agentChatList", "1");
+    await act(async () => {
+      root.render(<AgentsList route={{ name: "agent-list" }} onNewAgent={() => {}} />);
+    });
+    const row = host.querySelector<HTMLElement>('[data-testid="agent-chatlist-row"][data-session-id="s1"]')!;
+    const state = [...row.querySelectorAll("span")].find((el) => el.textContent === stateName("working"))!;
+    expect(state).toBeTruthy();
+    expect(row.querySelector('[class*="invisible"]')).toBeNull(); // nothing on the row hides on hover or focus
+    const actions = row.querySelector('[data-testid="agent-row-pin-button"]')!.parentElement!;
+    expect(actions.querySelectorAll("button")).toHaveLength(2);
+    expect(state.parentElement!.className.split(/\s+/)).toContain("pr-13");
   });
   it("narrows by the query ⌘K put on the list: a chip that reopens ⌘K, counted on the button, cleared by × or Reset", async () => {
     seed();

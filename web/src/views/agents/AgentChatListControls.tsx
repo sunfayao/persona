@@ -470,8 +470,10 @@ export const AgentChatListRow = memo(function AgentChatListRow({
 
         {/* Center column: Title + Time, Second line (Evidence snippet or Last message), Inline metadata */}
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          {/* Line 1: Inline StatusMark + Pinned + Session Title + Ultracode + Inline State + Relative Activity Time */}
-          <span className="flex min-w-0 items-center gap-1.5">
+          {/* Line 1: Inline StatusMark + Pinned + Session Title + Ultracode + Inline State + Relative Activity Time.
+              It keeps the slot of the pin and ⋯ above its end (shown on hover, always on a touch screen), so the state
+              and time stay in sight under them and hovering moves nothing */}
+          <span className={cx("flex min-w-0 items-center gap-1.5", onMenu ? "pr-13" : "pr-6")}>
             <span className={cx("inline-flex w-2.5 shrink-0 items-center justify-center", quietMark && "opacity-35")}>
               <StatusMark state={markState} size="sm" awaiting={awaiting} finished={finished} unopened={unopened} waiting={bgWait} />
             </span>
@@ -494,12 +496,12 @@ export const AgentChatListRow = memo(function AgentChatListRow({
             </span>
             {ultra && <UltraMark size={10} />}
             {statePill && (
-              <span aria-hidden className={cx("shrink-0 text-[11px] font-medium whitespace-nowrap group-hover/row:invisible", statePill.cls)}>
+              <span aria-hidden className={cx("shrink-0 text-[11px] font-medium whitespace-nowrap", statePill.cls)}>
                 {statePill.label}
               </span>
             )}
             {timeLabel && (
-              <span className="shrink-0 text-[11px] text-ink-3 tabular-nums group-hover/row:invisible">
+              <span className="shrink-0 text-[11px] text-ink-3 tabular-nums">
                 {timeLabel}
               </span>
             )}

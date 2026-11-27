@@ -190,12 +190,12 @@ const SOURCE_ICON = { terminal: { name: "run", tone: "text-source-terminal" }, d
 /** Where the agent was opened (#2526), as a mark: a terminal or a desktop app's window in its own color, Lark's mark for a
  *  Lark group (a click opens its Feishu topic). Nothing for other sources. Its name is the tooltip and what a screen reader
  *  reads. At the row's end, so the title starts where an unmarked one does (#3043). */
-function SourceTag({ s, className }: { s: Session; className?: string }) {
+function SourceTag({ s }: { s: Session }) {
   const source = sessionSource(s);
   if (!source) return null;
   const label = sourceName(source);
   const mark = source === "feishu" ? <BrandMark brand="lark" size={16} fit="badge" /> : <Icon name={SOURCE_ICON[source].name} size={14} className={SOURCE_ICON[source].tone} />;
-  const cls = cx("flex size-4 shrink-0 items-center justify-center", className);
+  const cls = "flex size-4 shrink-0 items-center justify-center";
   if (source === "feishu" && s.external_url) {
     // a link inside the row's link: opened by hand, so the row does not navigate too
     const open = (e: React.SyntheticEvent) => {
@@ -314,8 +314,6 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
   // (lib/background-work.ts, so the ones a parent also lists as its own background agents count once)
   const children = !s.assistant ? runningChildren(s) : 0;
   const childLine = children ? t("assistant-tasks.subagents_count_running", { count: backgroundWork(s)?.subagents ?? children }) : "";
-  // what sits at the row's end steps aside for the hover ⋯; the open row leaves room for its ⋯ instead
-  const aside = active ? undefined : "group-hover/row:invisible";
   // behind a prefix (a tab's name, a pane's agent) the title keeps room for a few characters: the prefix shrinks first
   const titleMin = prefix ? ROW_TITLE_MIN : "min-w-0";
   // with words at the end (where it came from, a hint) the title keeps its own width first: those words give way before it does
@@ -352,14 +350,15 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
       onBlur={() => hover(null)}
       aria-current={active ? "page" : undefined}
       aria-description={source === "terminal" && tabIdentity ? tabIdentity : undefined}
-      // its mark's name is in the row's tooltip too: the mark steps aside while the row is hovered
+      // its marks' names are in the row's tooltip too
       title={`${title}${titleDetail ? `\n${titleDetail}` : ""}${source ? `\n${sourceName(source)}` : ""}${origin ? `\n${openerFrom(origin, openerName)}` : ""}${subtitle ? `\n${subtitle}` : ""}${hint ? `\n${hint}` : ""}${tabIdentity ? `\n${tabIdentity}` : ""}${s.todo ? `\n${t("sidebar.todo_tag", { title: s.todo.title })}` : ""}${preview ? `\n${preview}` : ""}`}
       data-sidebar-session=""
       data-sidebar-context={tailShown || undefined}
       // a touch screen: rows a finger can hit (44), and room at the end for the ⋯ that is always there; the open row
-      // keeps its ⋯ too, so it has room for it
+      // keeps its ⋯ too, so it has room for it. Nothing at the row's end hides for the hover ⋯: in the wide layout, where
+      // the state and age sit at the end of the title's line, every row keeps the ⋯'s slot, so hovering moves nothing
       className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-[background-color,box-shadow,color,transform] duration-200 ease-(--ease-out-strong) active:scale-[0.985] [@media(pointer:coarse)]:min-h-11", rowTone, // room for "N agents" and the ⋯ beside it (instead of the ⋯'s own)
-        endRoom && "lg:pointer-fine:pr-[108px]", onMenu && active && "pr-8", onMenu && "[@media(hover:none)]:pr-11")}
+        endRoom ? "lg:pointer-fine:pr-[108px]" : onMenu && "lg:[@media(hover:hover)]:pr-8", onMenu && active && "pr-8", onMenu && "[@media(hover:none)]:pr-11")}
     >
       {/* Clean borderless harness icon + inline status indicator (no overlapping cutout ring) */}
       <span
@@ -428,26 +427,25 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
       )}
       {(statePill || host || (showTodoTag && s.todo) || source || origin || tailShown || ageAtEnd || pendingCount > 0) && <span className="sidebar-session-meta">
         {statePill && (
-          <span aria-hidden className={cx("shrink-0 text-[11px] font-medium whitespace-nowrap", statePill.cls, aside)}>
+          <span aria-hidden className={cx("shrink-0 text-[11px] font-medium whitespace-nowrap", statePill.cls)}>
             {statePill.label}
           </span>
         )}
-        {host && <span className={cx("shrink-0 text-[10.5px] text-ink-3", aside)}>{host}</span>}
+        {host && <span className="shrink-0 text-[10.5px] text-ink-3">{host}</span>}
         {showTodoTag && s.todo && (
           <span
-            className={cx("flex shrink-0 items-center justify-center text-ink-3", aside)}
+            className="flex shrink-0 items-center justify-center text-ink-3"
             title={t("sidebar.todo_tag", { title: s.todo.title })}
             aria-label={t("sidebar.todo_tag", { title: s.todo.title })}
           >
             <Icon name="todo" size={11} stroke={2} />
           </span>
         )}
-        {source && <SourceTag s={s} className={aside} />}
-        {origin && <OriginMark origin={origin} size={16} className={aside} session={s} onName={setOpenerName} />}
-        {/* the row's ⋯ takes the end on hover: what is there steps aside instead of showing half under it */}
-        {tailShown && <span className={cx("max-w-[72px] min-w-6 shrink-[20] truncate text-[11px] text-ink-3", aside)}>{tail}</span>}
-        {ageAtEnd && <span data-row-age className={cx("shrink-0 text-[11px] text-ink-3 tabular-nums", aside)}>{ago(s.updated_at, Date.now(), "narrow")}</span>}
-        {pendingCount > 0 && <span className={cx("shrink-0 text-[11px] font-semibold text-attention tabular-nums", aside)}>{pendingCount}</span>}
+        {source && <SourceTag s={s} />}
+        {origin && <OriginMark origin={origin} size={16} session={s} onName={setOpenerName} />}
+        {tailShown && <span className="max-w-[72px] min-w-6 shrink-[20] truncate text-[11px] text-ink-3">{tail}</span>}
+        {ageAtEnd && <span data-row-age className="shrink-0 text-[11px] text-ink-3 tabular-nums">{ago(s.updated_at, Date.now(), "narrow")}</span>}
+        {pendingCount > 0 && <span className="shrink-0 text-[11px] font-semibold text-attention tabular-nums">{pendingCount}</span>}
       </span>}
     </a>
   );
@@ -691,11 +689,12 @@ export const AgentRow = memo(function AgentRow({ s, reg, hover, active, go, pinn
         onBlur={() => hover(null)}
         aria-current={active ? "page" : undefined}
         title={`${s.title || t("lib-format.untitled_session")} · ${providerLabel(s.provider)}`}
-        className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-[background-color,box-shadow,color,transform] duration-200 ease-(--ease-out-strong) active:scale-[0.985] [@media(hover:none)]:pr-11 [@media(pointer:coarse)]:min-h-11", active && cx(CURRENT_ROW, "pr-7"))}
+        // the wide layout keeps the hover pin's slot at the row's end, so its unread count or age stays in sight under the pointer
+        className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-[background-color,box-shadow,color,transform] duration-200 ease-(--ease-out-strong) active:scale-[0.985] lg:[@media(hover:hover)]:pr-7 [@media(hover:none)]:pr-11 [@media(pointer:coarse)]:min-h-11", active && cx(CURRENT_ROW, "pr-7"))}
       >
         <AgentAvatar s={s} size={16} />
         <span className={cx("sidebar-session-copy sidebar-session-title min-w-0 flex-1 truncate text-[13px]", active || unread ? "font-medium text-ink" : "font-normal text-ink-2")}>{s.title || t("lib-format.untitled_session")}</span>
-        <span className={cx("sidebar-personal-meta flex shrink-0 items-center", !active && "group-hover/row:invisible")}>
+        <span className="sidebar-personal-meta flex shrink-0 items-center">
           {unread ? (
             <span className="shrink-0 text-[11px] font-semibold text-accent-ink tabular-nums">{s.unreadCount}</span>
           ) : (
