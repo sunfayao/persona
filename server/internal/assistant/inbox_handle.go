@@ -381,7 +381,7 @@ func inboxProcessingPrompt(turn, text string) string {
 		return text
 	}
 	return text + "\n\n[Persona Inbox processing turn: include processing_turn: \"" + turn +
-		"\" in inbox_suggest or inbox_draft calls for this prompt. If superseded, end this turn.]"
+		"\" in inbox_suggest calls for this prompt. If superseded, end this turn.]"
 }
 
 // deliverNotes sends what waits for the event's conversation into it. A conversation found gone is dropped: a note

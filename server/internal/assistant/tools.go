@@ -33,9 +33,11 @@ import (
 // interaction queue and inbox call those apps' data methods (tools_apps.go); one that is still an app's to run goes to
 // that app (AppTool).
 
-// toolNames are the tools only assistant conversations get; their descriptions and schemas are in prompts/mcp
+// toolNames are the tools only assistant conversations get; their descriptions and schemas are in prompts/mcp.
+// inbox_draft is not offered any more: inbox_suggest's reply does what it did. Its handler stays (runTool) so a call
+// from an older conversation or a stored suggestion still works.
 var toolNames = []string{"resource_status", "ask_user", "notify_user", "supervision_finish", "schedule_followup", "schedule_routine", "schedule_state_set", "delete_routine", "list_followups",
-	"cancel_followup", "machines_list", "machine_redeploy", "agents_list", "agent_read", "agent_send", "agent_switch", "agents_switch", "agent_interrupt", "agent_start", "agent_supervise", "agent_archive", "agent_unarchive", "agent_autoname", "agent_autoname_receipt", "interaction_answer", "ask_escalate", "inbox_suggest", "inbox_draft",
+	"cancel_followup", "machines_list", "machine_redeploy", "agents_list", "agent_read", "agent_send", "agent_switch", "agents_switch", "agent_interrupt", "agent_start", "agent_supervise", "agent_archive", "agent_unarchive", "agent_autoname", "agent_autoname_receipt", "interaction_answer", "ask_escalate", "inbox_suggest",
 	"inbox_folders", "inbox_move", "inbox_post", "persona_settings", "secret_run", "skill_import",
 	"model_profiles_list", "model_profile_get", "model_profile_switch", "model_profile_rollback",
 	"repositories_list", "repository_get", "repository_add", "view_show", "view_update", "view_get",
