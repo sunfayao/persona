@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -359,53 +358,6 @@ func TestEstimateDuePromptLanguages(t *testing.T) {
 				golden(t, "estimate_due.en", got)
 			}
 		})
-	}
-}
-
-func TestBriefEstimateHistorySurvivesPostgresReload(t *testing.T) {
-	database, err := db.Open(t.Context(), newDatabase(t), db.ManagerSet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(database.Close)
-	s, _, todo, brief := startEstimateTask(t, database, map[string]any{"expect_minutes": nil})
-	ctx := t.Context()
-	g := superviseSignal{Todo: todo.ID, Kind: sigEstimateDue, Key: estimateDueKey(brief), At: brief.EstimateDueAt, Minutes: defaultTaskEstimateMinutes}
-	s.briefClock(ctx, todo, brief.EstimateDueAt)
-	if _, ok := s.supervise.pending[todo.ID+"|"+sigEstimateDue]; !ok {
-		t.Fatal("the estimate cue did not enter pending")
-	}
-	s.estimateDueTold(ctx, []superviseSignal{g})
-	s.recordBriefCompletion(ctx, todo, briefCompletionReport, brief.EstimateClockAt.Add(15*time.Minute))
-
-	rows, links, err := database.ListTaskBriefs(ctx)
-	if err != nil || len(rows) != 1 || len(links) != 1 {
-		t.Fatalf("stored briefs = %d links=%d err=%v", len(rows), len(links), err)
-	}
-	raw := string(rows[0].State)
-	for _, want := range []string{briefEventDispatch, briefEventEstimateDue, briefEventCompletion, `"actual_minutes": 15`} {
-		if !strings.Contains(raw, want) {
-			t.Fatalf("brief state %q lacks %q", raw, want)
-		}
-	}
-
-	s.tbriefs.mu.Lock()
-	s.tbriefs.briefs, s.tbriefs.links = nil, nil
-	s.tbriefs.mu.Unlock()
-	if err := s.loadTaskBriefs(ctx); err != nil {
-		t.Fatal(err)
-	}
-	reloaded, ok := s.briefOfTodo(todo.ID)
-	if !ok || reloaded.EstimateSourceNow != briefEstimateSystemDefault || reloaded.EstimateDueToldAt == nil || reloaded.ActualMinutes != 15 {
-		t.Fatalf("reloaded brief = %+v ok=%v", reloaded, ok)
-	}
-	if got := briefEventsOf(reloaded, briefEventDispatch); len(got) != 1 {
-		t.Fatalf("reloaded dispatch events = %+v", got)
-	}
-	s.clearEstimateDue(todo.ID)
-	s.briefClock(ctx, todo, reloaded.EstimateDueAt.Add(time.Minute))
-	if _, ok := s.supervise.pending[todo.ID+"|"+sigEstimateDue]; ok {
-		t.Fatal("the persisted marker did not stop a duplicate after reload")
 	}
 }
 

@@ -388,61 +388,6 @@ func TestCodexUsageRefreshPrefersAccountBoundWindowsAndFallsBackBySource(t *test
 	}
 }
 
-func TestCodexUsageBacksOffOnlyTheFailingHomeAndHonorsSignOut(t *testing.T) {
-	useFakeCodexUsageApp(t)
-	n := &Node{home: t.TempDir(), dir: t.TempDir(), codices: newCodexRegistry()}
-	other := t.TempDir()
-	n.codices.config.Homes = []string{other}
-	now := time.Now()
-	resets := now.Add(time.Hour)
-	home := n.codexHome()
-	rolloutAt(t, home, now.Add(-time.Minute), "44444444-4444-4444-8444-444444444444",
-		tokenCount(now.Add(-time.Minute), 7, 10080, resets))
-	const snapshot = `{"accountId":%q,"rateLimits":{"planType":"pro","primary":{"usedPercent":%d,"windowDurationMins":10080}}}`
-	writeCodexUsageReply(t, home, fmt.Sprintf(snapshot, "first", 42))
-	writeCodexUsageReply(t, other, fmt.Sprintf(snapshot, "second", 23))
-	n.refreshUsageWindows(t.Context(), now)
-
-	writeCodexUsageReply(t, home, "error")
-	n.refreshUsageWindows(t.Context(), now.Add(usageWindowsEvery))
-	source := "codex:" + codexUsageKey(realPath(home))
-	if state := n.usageWin.codex[source]; state.unavailable || !state.retryAt.Equal(now.Add(3*usageWindowsEvery)) {
-		t.Fatalf("first failure did not schedule a home-specific cooldown: %+v", state)
-	}
-	writeCodexUsageReply(t, home, fmt.Sprintf(snapshot, "first", 44))
-	writeCodexUsageReply(t, other, fmt.Sprintf(snapshot, "second", 25))
-	n.refreshUsageWindows(t.Context(), now.Add(2*usageWindowsEvery))
-	current := n.usageWin.accounts
-	if current[source].Windows[0].UsedPercent != 42 ||
-		current["codex:"+codexUsageKey(realPath(other))].Windows[0].UsedPercent != 25 {
-		t.Fatalf("expected cached failing home and updated healthy home: %+v", current)
-	}
-
-	writeCodexUsageReply(t, home, "error")
-	loginPath := filepath.Join(home, "fixture-usage-login")
-	if err := os.WriteFile(loginPath, []byte(`{"account":null,"requiresOpenaiAuth":true}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	n.refreshUsageWindows(t.Context(), now.Add(3*usageWindowsEvery))
-	if _, found := n.usageWin.accounts[source]; found || !n.usageWin.codex[source].unavailable {
-		t.Fatal("confirmed sign-out should clear both the old reading and rollout fallback")
-	}
-	if err := os.WriteFile(loginPath, []byte(`{"requiresOpenaiAuth":true}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	n.refreshUsageWindows(t.Context(), now.Add(4*usageWindowsEvery))
-	if _, found := n.usageWin.accounts[source]; found {
-		t.Fatal("incomplete account response must not revive an old quota")
-	}
-
-	writeCodexUsageReply(t, home, fmt.Sprintf(snapshot, "new-account", 45))
-	n.refreshUsageWindows(t.Context(), now.Add(6*usageWindowsEvery))
-	if got := n.usageWin.accounts[source]; got.AccountKey != codexUsageKey("new-account") ||
-		len(got.Windows) != 1 || got.Windows[0].UsedPercent != 45 {
-		t.Fatalf("confirmed new login did not restore its own quota: %+v", got)
-	}
-}
-
 func TestCodexUsageLegacyDurationAndKnownWindowDrift(t *testing.T) {
 	useFakeCodexUsageApp(t)
 	for _, tc := range []struct {

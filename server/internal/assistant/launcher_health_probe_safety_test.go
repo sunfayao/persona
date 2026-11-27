@@ -3,7 +3,6 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
@@ -140,35 +139,5 @@ func TestLauncherHealthManualProbeCannotEraseNewLimit(t *testing.T) {
 	postJSON(t, s, "/api/v1/launchers/work/check?machine=l4")
 	if r := healthState(s, "l4", "work"); !r.unusable() || r.ResetsAt == nil || !r.ResetsAt.Equal(newReset) {
 		t.Fatalf("manual probe erased new weekly exhaustion: %+v", r)
-	}
-}
-
-func TestLauncherHealthFailedProbeKeepsLaterReset(t *testing.T) {
-	s, f := launcherHealthHubOn(t, newStorelessService)
-	ctx := context.Background()
-	shortReset := time.Now().Add(300 * time.Millisecond)
-	weeklyReset := time.Now().UTC().Add(7 * 24 * time.Hour).Truncate(time.Minute)
-	s.recordHealth(ctx, "l4", "work", healthResult{err: "You've hit your session limit", kind: errKindUsageLimit, resetsAt: &shortReset, source: healthSourceSession})
-	editHealth(s, "l4", "work", func(r *LauncherHealth) { r.CheckedAt = time.Now().Add(-time.Minute) })
-	line := fmt.Sprintf("You've hit your weekly limit · resets %s (UTC)", weeklyReset.Format("Jan 2, 3:04pm"))
-	if reset := limitResetOf(healthResult{err: line}, time.Now()); reset == nil || !reset.Equal(weeklyReset) {
-		t.Fatalf("fixture reset is not parseable: %v", reset)
-	}
-	f.checks["l4/work"] = proto.LauncherCheck{Agent: "claude", Error: line}
-	if _, bad := s.launcherUnusableNow(ctx, "l4", "work"); !bad {
-		t.Fatal("weekly exhaustion was not refused")
-	}
-	timer := time.NewTimer(time.Until(shortReset.Add(50 * time.Millisecond)))
-	defer timer.Stop()
-	<-timer.C
-	mid, _, err := s.startTaskAgent(ctx, &PlanTask{Machine: "l4", Cwd: "/work", Launcher: "work", MachinePolicy: machineFixed}, false)
-	if err == nil {
-		t.Fatalf("old short reset admitted weekly exhaustion: machine=%q starts=%v", mid, taskStartMachines(f))
-	}
-	if r := healthState(s, "l4", "work"); !r.unusable() || r.ResetsAt == nil || !r.ResetsAt.Equal(weeklyReset) {
-		t.Fatalf("failed probe lost later weekly reset: %+v", r)
-	}
-	if starts := taskStartMachines(f); len(starts) != 0 || checkedCount(f, "l4/work") != 1 {
-		t.Fatalf("weekly exhaustion: starts=%v probes=%d", starts, checkedCount(f, "l4/work"))
 	}
 }

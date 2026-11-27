@@ -114,41 +114,6 @@ func TestHiddenDirectoryArchiveRowsRemainHidden(t *testing.T) {
 	}
 }
 
-func TestHiddenDirectoryColdSupervision(t *testing.T) {
-	ctx := context.Background()
-	database, err := db.Open(ctx, newDatabase(t), db.ManagerSet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(database.Close)
-	seedTodos(t, database, db.TodoRow{ID: "visibility-task", Title: "Check change"})
-	if err := database.PutTodoSupervision(ctx, db.TodoSupervisionRow{TodoID: "visibility-task", Supervisor: "main", UpdatedAt: time.Now()}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := database.LinkTodoAgentWithSource(ctx, "visibility-task", "mac", "cold-agent", "Worker", "/code/hidden", "codex", "", "manual", "", time.Now()); err != nil {
-		t.Fatal(err)
-	}
-	ft := newFleetTest(t)
-	ft.s.store = func() Store { return database }
-	hideExposureDirectory(ft.s, "mac", "/code/hidden")
-	ft.d.setSessions("mac", []proto.Session{{SessionID: "cold-agent", Cwd: "/code/hidden", Agent: "codex", Status: proto.StatusWorking}})
-	if ft.s.todosLoaded() {
-		t.Fatal("test must begin before task inventory loads")
-	}
-	c, ok := ft.s.decoratedSession("mac", "cold-agent")
-	if !ok || c.HiddenByDirectory() {
-		t.Fatalf("persisted active supervision hidden on first read: %+v", c)
-	}
-	// Finish first-load publication before the synthetic database closes.
-	published := make(chan struct{})
-	ft.s.inOrder(func() { close(published) })
-	select {
-	case <-published:
-	case <-time.After(5 * time.Second):
-		t.Fatal("first-load publication did not finish")
-	}
-}
-
 type visibilityTodoReadFailure struct{ *db.DB }
 
 func (*visibilityTodoReadFailure) ListTodos(context.Context) ([]db.TodoRow, error) {

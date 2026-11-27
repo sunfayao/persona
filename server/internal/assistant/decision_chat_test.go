@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/db"
-	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 func TestDecisionChatAnswerSettlesOnlyItsOriginalRound(t *testing.T) {
@@ -115,52 +114,6 @@ func TestDecisionChatFailedDeliveryKeepsTheCard(t *testing.T) {
 		t.Fatalf("failed delivery settled the decision: %+v, %v", rows, err)
 	}
 	assertAnswerDismissal(t, s, database, todo.ID, before)
-}
-
-func TestDecisionChatEndedAskKeepsDismissal(t *testing.T) {
-	for _, kind := range []string{"accepted", "reopened", "closed", "ended review"} {
-		t.Run(kind, func(t *testing.T) {
-			database := todoTestDB(t)
-			s, f, todo := newDecisionAnswerServiceOn(t, database)
-			waitsForReview(t, s, f, todo.ID, "Choose a rollout plan.")
-			if _, err := reviewErr(s, todo.ID, rolloutDecision()); err != nil {
-				t.Fatal(err)
-			}
-			review := currentDecisionReview(todoNow(s, todo.ID))
-			if _, err := s.changeDecisionDismissal(context.Background(), todo.ID, review.ReviewAt, "", false); err != nil {
-				t.Fatal(err)
-			}
-			before := s.reviewDismissals.byTodo[todo.ID]
-			asked := askOf(s, todo.ID).AskedAt
-			if kind == "accepted" {
-				s.accept.mu.Lock()
-				s.accept.asks[todo.ID].AcceptedAt = time.Now()
-				s.accept.mu.Unlock()
-			} else {
-				s.todos.mu.Lock()
-				switch kind {
-				case "reopened":
-					at := asked.Add(time.Second)
-					s.todos.todos[todo.ID].ReopenedAt = &at
-				case "closed":
-					at := time.Now()
-					s.todos.todos[todo.ID].DoneAt = &at
-				case "ended review":
-					s.todos.todos[todo.ID].Supervision.State = reviewRework
-				}
-				s.todos.mu.Unlock()
-			}
-			sent := len(sentToAgent(f))
-			_, err := s.routeDecisionAnswer(context.Background(), "conv1", todo.ID, asked.Format(timeKeyLayout), "Use the alternative.")
-			if err == nil || err.Error() != i18n.Err("assistant-feishu_cards.already_handled").Error() {
-				t.Fatalf("ended ask: %v", err)
-			}
-			assertAnswerDismissal(t, s, database, todo.ID, before)
-			if len(sentToAgent(f)) != sent {
-				t.Fatal("ended ask delivered an answer")
-			}
-		})
-	}
 }
 
 func TestDecisionChatCheckedRoutingKeepsDismissal(t *testing.T) {

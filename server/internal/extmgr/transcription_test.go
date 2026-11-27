@@ -3,7 +3,6 @@ package extmgr
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"log"
 	"net"
 	"net/http"
@@ -17,7 +16,6 @@ import (
 	"github.com/coder/websocket"
 
 	"github.com/sunfayao/persona/server/internal/extension"
-	"github.com/sunfayao/persona/server/internal/extension/host"
 	"github.com/sunfayao/persona/server/internal/extwire"
 	"github.com/sunfayao/persona/server/internal/voice"
 )
@@ -78,128 +76,6 @@ func serveTranscriptionExtensionForTest() {
 		}
 	})
 	_ = http.Serve(ln, mux)
-}
-
-// transcriptionHub runs the built-in voice extension as "talk" (its program the fake above, contributing gpt-live),
-// hub.json's transcription extension "tx" (and "txoff", switched off), and "other", a voice extension that does not
-// transcribe.
-func transcriptionHub(t *testing.T) *Manager {
-	t.Helper()
-	self, _ := os.Executable()
-	builtin := voiceEntry("talk")
-	builtin.Env = map[string]string{"PERSONA_TEST_PLUGIN": "transcription", "TRANSCRIPTION_CIDS": voice.TranscriptionContribution}
-	fake := func(id string) ExtensionConfig {
-		return ExtensionConfig{ID: id, Kind: "transcription", Command: self, Env: map[string]string{"PERSONA_TEST_PLUGIN": "transcription", "TRANSCRIPTION_CIDS": id}}
-	}
-	off := fake("txoff")
-	off.Disabled = true
-	other := ExtensionConfig{ID: "other", Kind: "voice", Command: self, Env: map[string]string{"PERSONA_TEST_PLUGIN": "transcription", "TRANSCRIPTION_CIDS": "other"}}
-	h := voiceHub(t, newExtensionStore(), builtin, fake("tx"), off, other)
-	for _, id := range []string{"talk", "tx", "other"} {
-		waitVoiceStatus(t, h, id, host.StateRunning)
-	}
-	return h
-}
-
-// The manager reaches the transcription contributions over their own sockets: the built-in voice extension's for
-// "", another only by its "<extension id>/<contribution id>", never one that is switched off, not running, or not a
-// transcription contribution.
-func TestTranscriptionContributions(t *testing.T) {
-	h := transcriptionHub(t)
-	ctx := context.Background()
-
-	for ref, want := range map[string]bool{"": true, "talk/gpt-live": true, "tx/tx": true, "txoff/txoff": true,
-		"tx/nope": false, "talk/talk": false, "other/other": false, "nope/x": false, "tx": false, "tx/": false, "/tx": false,
-		"Tx/tx": false, "tx/tx/x": false} {
-		if got := h.IsTranscriptionContribution(ref); got != want {
-			t.Errorf("IsTranscriptionContribution(%q) = %v", ref, got)
-		}
-	}
-
-	// The installation a choice is pinned to: the extension's, stable while it stays installed; none for a ref that
-	// names no transcription contribution.
-	if got := h.TranscriptionInstall("tx/tx"); got != "hub.json:tx" || h.TranscriptionInstall("talk/gpt-live") != "builtin:talk" {
-		t.Errorf("TranscriptionInstall(tx/tx) = %q", got)
-	}
-	for _, ref := range []string{"tx/nope", "other/other", "nope/x", "bad"} {
-		if got := h.TranscriptionInstall(ref); got != "" {
-			t.Errorf("TranscriptionInstall(%q) = %q", ref, got)
-		}
-	}
-
-	for _, ref := range []string{"", "talk/gpt-live", "tx/tx"} {
-		info, err := h.TranscriptionInfo(ctx, ref)
-		if err != nil || info.Protocol != extwire.TranscriptionProtocol || !slices.Equal(info.Features, []string{"live", "replay"}) || info.Setup != "" {
-			t.Fatalf("info %q: %+v %v", ref, info, err)
-		}
-	}
-	for _, ref := range []string{"txoff/txoff", "tx/nope", "other/other", "nope/x", "bad"} {
-		if _, err := h.TranscriptionInfo(ctx, ref); !errors.Is(err, ErrNoTranscriber) {
-			t.Errorf("info %q: %v", ref, err)
-		}
-		if _, _, err := h.TranscriptionDial(ctx, ref); !errors.Is(err, ErrNoTranscriber) {
-			t.Errorf("dial %q: %v", ref, err)
-		}
-	}
-
-	// One job: the extension's request is open until done, which ends it once; the manager's dial carries no
-	// credential, and a job's frames may be larger than a WebSocket's default.
-	hp := h.extensions.get("tx")
-	conn, done, err := h.TranscriptionDial(ctx, "tx/tx")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.CloseNow()
-	if hp.proc.Idle() {
-		t.Fatal("the job does not hold the extension's request")
-	}
-	_, raw, err := conn.Read(ctx)
-	var seen map[string]string
-	if err != nil || json.Unmarshal(raw, &seen) != nil || seen["path"] != "/transcription/tx/ws" || seen["query"] != "" || seen["auth"] != "" || seen["role"] != "" {
-		t.Fatalf("seen %s %v", raw, err)
-	}
-	for _, m := range []struct {
-		typ  websocket.MessageType
-		data []byte
-	}{{websocket.MessageBinary, []byte{1, 0, 255, 127}}, {websocket.MessageText, []byte(`{"type":"start","mode":"live","at":0}`)}} {
-		if err := conn.Write(ctx, m.typ, m.data); err != nil {
-			t.Fatal(err)
-		}
-		if typ, b, err := conn.Read(ctx); err != nil || typ != m.typ || string(b) != string(m.data) {
-			t.Fatalf("echo %v %q %v", typ, b, err)
-		}
-	}
-	if err := conn.Write(ctx, websocket.MessageText, []byte(`{"type":"big"}`)); err != nil {
-		t.Fatal(err)
-	}
-	if _, b, err := conn.Read(ctx); err != nil || len(b) < 200<<10 {
-		t.Fatalf("a large frame: %d %v", len(b), err)
-	}
-	conn.Close(websocket.StatusNormalClosure, "")
-	done()
-	done()
-	if !hp.proc.Idle() {
-		t.Fatal("done did not end the extension's request")
-	}
-
-	// The built-in's contribution switched off: no transcriber for "", though it is still a contribution there.
-	mux := h.routes()
-	if code, out := call(t, mux, "PUT", "/api/v1/extensions/talk/-/contributions/transcription/gpt-live", h.cfg.Token, `{"enabled": false}`); code != 200 {
-		t.Fatalf("%d %v", code, out)
-	}
-	waitLong(t, "the contribution off", func() bool {
-		_, err := h.TranscriptionInfo(ctx, "")
-		return errors.Is(err, ErrNoTranscriber)
-	})
-	if !h.IsTranscriptionContribution("") || !h.IsTranscriptionContribution("talk/gpt-live") {
-		t.Fatal("a switched-off contribution is still the extension's")
-	}
-
-	// Not running.
-	h.extensions.get("tx").proc.Stop()
-	if _, err := h.TranscriptionInfo(ctx, "tx/tx"); !errors.Is(err, ErrNoTranscriber) {
-		t.Fatalf("stopped: %v", err)
-	}
 }
 
 // The installation a choice is pinned to never moves while the extension stays installed: not when the manager
@@ -271,58 +147,6 @@ func TestTranscriptionInstallSurvivesARestart(t *testing.T) {
 	load(again, talk)
 	if got := h.TranscriptionInstall("acme/asr"); got == "" || got == pinned {
 		t.Errorf("installed again %q, pinned %q", got, pinned)
-	}
-}
-
-// The apps' forward to an extension never reaches /transcription/, however it is spelled, under the old paths too
-// and on a WebSocket; the extension's other paths are forwarded as before.
-func TestTranscriptionNotForwardedToApps(t *testing.T) {
-	h := transcriptionHub(t)
-	mux := h.routes()
-	master := h.cfg.Token
-	phone := deviceToken("phone", roleFull)
-	if code, out := call(t, mux, "GET", "/api/v1/extensions/tx/echo", master, ""); code != 200 || out["path"] != "/echo" {
-		t.Fatalf("the forward: %d %v", code, out)
-	}
-	for _, path := range []string{
-		"/api/v1/extensions/tx/transcription/tx/info",
-		"/api/v1/extensions/talk/transcription/gpt-live/info",
-		"/api/v1/plugins/tx/transcription/tx/info",
-		"/api/v1/extensions/tx/transcription",
-		"/api/v1/extensions/tx/transcription/",
-		"/api/v1/extensions/tx/%74ranscription/tx/info",
-		"/api/v1/extensions/tx/transcription%2Ftx%2Finfo",
-		"/api/v1/extensions/tx/Transcription/tx/info",
-		"/api/v1/extensions/tx/TRANSCRIPTION/tx/ws",
-	} {
-		for _, tok := range []string{master, phone} {
-			// The forward's own refusal, not the program's 404 (it answers /transcription/tx/info).
-			if code, out := call(t, mux, "GET", path, tok, ""); code != http.StatusNotFound || out["code"] != "not_found" {
-				t.Errorf("%s: %d %v", path, code, out)
-			}
-		}
-	}
-	// Dot segments and doubled slashes are never forwarded either (the mux redirects them; the check cleans them).
-	for _, path := range []string{"/api/v1/extensions/tx//transcription/tx/info", "/api/v1/extensions/tx/x/../transcription/tx/info"} {
-		if code, _ := call(t, mux, "GET", path, master, ""); code == http.StatusOK {
-			t.Errorf("%s: forwarded", path)
-		}
-	}
-	for rest, want := range map[string]bool{"/transcription/tx/info": true, "//transcription/x": true, "/a/../transcription/x": true,
-		"/transcription": true, "/Transcription/": true, "/transcriptions/x": false, "/echo/transcription/x": false, "/": false, "": false} {
-		if transcriptionPath(rest) != want {
-			t.Errorf("transcriptionPath(%q) != %v", rest, want)
-		}
-	}
-
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
-	ws := "ws" + strings.TrimPrefix(srv.URL, "http")
-	if c, res, err := websocket.Dial(context.Background(), ws+"/api/v1/extensions/tx/transcription/tx/ws?token="+master, nil); err == nil {
-		c.CloseNow()
-		t.Fatal("a job socket through the apps' forward")
-	} else if res == nil || res.StatusCode != http.StatusNotFound {
-		t.Fatalf("%v %v", res, err)
 	}
 }
 

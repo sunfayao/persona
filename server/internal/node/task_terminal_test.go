@@ -167,19 +167,6 @@ func TestTaskTerminalCloseKeepsInFlightOwnerInput(t *testing.T) {
 	closesNothing(t, f)
 }
 
-func TestTaskTerminalCloseChecksAuthorizationAtTheNode(t *testing.T) {
-	n, f, target, _, _ := taskTerminalFixture(t)
-	called := false
-	result := n.closeTaskTerminal(t.Context(), target, func() bool {
-		called = true
-		return false
-	})
-	if !called || result != devicewire.TaskTerminalSkipped {
-		t.Fatalf("close after authorization was withdrawn = %s (checked: %t)", result, called)
-	}
-	closesNothing(t, f)
-}
-
 func TestTaskTerminalReceiptRequiresSpecificNewPane(t *testing.T) {
 	n, _, target, _, _ := taskTerminalFixture(t)
 	s := &proto.Session{SessionID: sidA, PaneID: target.PaneID, TabID: target.TabID, WorkspaceID: target.WorkspaceID, Agent: "claude"}

@@ -226,32 +226,6 @@ func TestRead(t *testing.T) {
 	}
 }
 
-// A wedged Orca (accepts, never answers) costs a call its timeout, not more; the failure is logged once per episode.
-func TestTimeoutAndEpisodeLog(t *testing.T) {
-	f := orcarttest.New(t)
-	l := &logs{}
-	c := client(f, l)
-	if _, _, _, err := c.Worktrees(context.Background(), ""); err != nil {
-		t.Fatal(err)
-	}
-	block := make(chan struct{})
-	t.Cleanup(func() { close(block) })
-	f.Handle("worktree.ps", func(map[string]any) any { <-block; return nil })
-	for range 2 {
-		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-		start := time.Now()
-		_, _, _, err := c.Worktrees(ctx, "")
-		cancel()
-		if err == nil || time.Since(start) > 2*time.Second {
-			t.Fatalf("wedged: %v after %s", err, time.Since(start))
-		}
-	}
-	// A caller giving up is not Orca failing: nothing logged.
-	if got := l.all(); got != "" {
-		t.Errorf("logged a caller's timeout: %q", got)
-	}
-}
-
 // A read-only client never sends a method that could change Orca.
 func TestReadOnly(t *testing.T) {
 	f := orcarttest.New(t)

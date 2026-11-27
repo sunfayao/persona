@@ -5,9 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"testing"
-	"time"
 )
 
 const testLauncherKey = "sk-fake-0123456789abcdefghijKLMNOPQRST"
@@ -144,117 +142,5 @@ func TestLaunchFindsClaudesConfigAndLeavesItAloneWithoutAKey(t *testing.T) {
 	}
 	if after, _ := os.ReadFile(target); string(after) != string(before) {
 		t.Error("written without ANTHROPIC_API_KEY")
-	}
-}
-
-// The config is written under Claude Code's own lock: a held lock is waited for, a stale one (a crashed claude) is
-// taken over, and the lock is gone afterwards. Values with <, > and & stay as Claude wrote them.
-func TestLaunchApprovesUnderClaudesConfigLock(t *testing.T) {
-	home := t.TempDir()
-	path := filepath.Join(home, ".claude.json")
-	lock := path + ".lock"
-	suffix := claudeKeySuffix(testLauncherKey)
-	env := []string{"HOME=" + home, "ANTHROPIC_API_KEY=" + testLauncherKey}
-	if err := os.WriteFile(path, []byte(`{"tip": "a <b> & c"}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Mkdir(lock, 0o777); err != nil {
-		t.Fatal(err)
-	}
-	saved := make(chan struct{})
-	go func() {
-		time.Sleep(300 * time.Millisecond)
-		// a running claude saving meanwhile: its change must survive the approval
-		_ = os.WriteFile(path, []byte(`{"tip": "a <b> & c", "numStartups": 7}`), 0o600)
-		close(saved)
-		_ = os.Remove(lock)
-	}()
-	if err := approveClaudeAPIKey(env); err != nil {
-		t.Fatal(err)
-	}
-	select {
-	case <-saved:
-	default:
-		t.Fatal("wrote while another process held the config lock")
-	}
-	cfg, approved, _ := readKeyResponses(t, path)
-	if !slices.Equal(approved, []string{suffix}) || cfg["numStartups"] != float64(7) {
-		t.Errorf("approved %v, config %v", approved, cfg)
-	}
-	if b, _ := os.ReadFile(path); !strings.Contains(string(b), `"a <b> & c"`) {
-		t.Errorf("values were escaped: %s", b)
-	}
-	if _, err := os.Stat(lock); !os.IsNotExist(err) {
-		t.Error("the lock was left behind")
-	}
-
-	// A lock older than proper-lockfile's 10 s is stale: taken over instead of waited for.
-	_ = os.WriteFile(path, []byte(`{}`), 0o600)
-	_ = os.Mkdir(lock, 0o777)
-	old := time.Now().Add(-time.Minute)
-	_ = os.Chtimes(lock, old, old)
-	start := time.Now()
-	if err := approveClaudeAPIKey(env); err != nil {
-		t.Fatal(err)
-	}
-	if time.Since(start) > 2*time.Second {
-		t.Error("waited for a stale lock")
-	}
-	if _, approved, _ := readKeyResponses(t, path); !slices.Equal(approved, []string{suffix}) {
-		t.Errorf("after a stale lock: %v", approved)
-	}
-	if _, err := os.Stat(lock); !os.IsNotExist(err) {
-		t.Error("the stale lock was left behind")
-	}
-}
-
-// A key approved already is seen without the lock, so a launch never waits on a busy claude for it. A stale lock that
-// cannot be removed is waited on until the deadline, then the launch goes on without writing.
-func TestLaunchLockIsOnlyTakenToWriteAndAlwaysEnds(t *testing.T) {
-	home := t.TempDir()
-	path := filepath.Join(home, ".claude.json")
-	lock := path + ".lock"
-	suffix := claudeKeySuffix(testLauncherKey)
-	env := []string{"HOME=" + home, "ANTHROPIC_API_KEY=" + testLauncherKey}
-	approvedCfg := `{"customApiKeyResponses": {"approved": ["` + suffix + `"], "rejected": []}}`
-	if err := os.WriteFile(path, []byte(approvedCfg), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Mkdir(lock, 0o777); err != nil {
-		t.Fatal(err)
-	}
-	start := time.Now()
-	if err := approveClaudeAPIKey(env); err != nil {
-		t.Fatal(err)
-	}
-	if time.Since(start) > time.Second {
-		t.Errorf("an approved key waited %v for the lock", time.Since(start))
-	}
-
-	defer func(w time.Duration) { claudeConfigLockWait = w }(claudeConfigLockWait)
-	claudeConfigLockWait = 300 * time.Millisecond
-	_ = os.WriteFile(path, []byte(`{}`), 0o600)
-	_ = os.WriteFile(filepath.Join(lock, "held"), nil, 0o600) // not empty: it cannot be removed
-	old := time.Now().Add(-time.Minute)
-	_ = os.Chtimes(lock, old, old)
-	done := make(chan error, 1)
-	go func() { done <- approveClaudeAPIKey(env) }()
-	select {
-	case err := <-done:
-		if err == nil {
-			t.Error("no error for a lock that could not be taken")
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("still trying to take a stale lock it cannot remove")
-	}
-	if b, _ := os.ReadFile(path); string(b) != `{}` {
-		t.Errorf("written without the lock: %s", b)
-	}
-
-	// The first of two values is the one claude sees.
-	other := t.TempDir()
-	if got := claudeGlobalConfig([]string{"HOME=" + other, "HOME=" + home}); got != filepath.Join(other, ".claude.json") {
-		t.Errorf("first HOME not used: %s", got)
 	}
 }

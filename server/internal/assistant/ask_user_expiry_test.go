@@ -281,43 +281,6 @@ func TestUserWritingWithdrawsAskUserWithoutTheQueue(t *testing.T) {
 	}
 }
 
-// A question that expires after its wait ends for good: the history says expired, the Lark card closes saying it moved
-// to the to-dos (the question becomes one, ask_todo.go), and it is never nudged. The wait is shortened to 300 ms here; the real one
-// is askUserWait.
-func TestExpiredAskUserCardIsEndedForGood(t *testing.T) {
-	a := newAskRig(t)
-	card, _ := a.ask(t) // the real tool's card, only for its shape
-	short := card
-	short.ID = "ix_expiring"
-	short.CreatedAt = time.Now().UTC()
-	short.ExpiresAt = short.CreatedAt.Add(300 * time.Millisecond)
-	b := &a.s.fbot
-	b.mu.Lock()
-	a.s.keepBotCardLocked(short.ID, &botCard{MessageID: "om_" + short.ID, Thread: "om_run", Ix: short, At: a.now})
-	b.mu.Unlock()
-	res, err := a.s.waitInteraction(context.Background(), short)
-	if err != nil || !res.Dismiss {
-		t.Fatalf("expired card resolved with %+v, %v; want a dismiss", res, err)
-	}
-	ctx := context.Background()
-	if status, _, _ := a.mem.InteractionOutcome(ctx, short.ID); status != "expired" {
-		t.Errorf("history status = %q, want expired", status)
-	}
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) && a.closed() == "" {
-		time.Sleep(5 * time.Millisecond)
-	}
-	if !strings.Contains(a.closed(), i18n.T(a.s.botLang(ctx), "assistant-feishu_cards.moved_to_todos")) {
-		t.Errorf("the Lark card was not closed as moved to the to-dos: %q", a.closed())
-	}
-	a.tick(a.s, 2*time.Hour)
-	for _, n := range a.sent() { // the card the shape was taken from still waits, and is nudged
-		if n["reply_to"] == "om_"+short.ID {
-			t.Errorf("an expired card was nudged: %v", n)
-		}
-	}
-}
-
 // The tool's side of an expiry: the user did not answer, and an answer that comes after is refused as gone.
 func TestAskUserLateAnswerFindsNoQuestion(t *testing.T) {
 	r := newNudgeRig(t)

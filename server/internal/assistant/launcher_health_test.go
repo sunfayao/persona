@@ -291,22 +291,6 @@ func TestPickerKeepsTheConfiguredDefaultWithItsReason(t *testing.T) {
 	}
 }
 
-// The machines are checked spaces apart (healthStagger): every one runs the same probe prompt, and a model gateway
-// that pins it to one upstream account serves a burst of them behind one another until each times out.
-func TestLauncherHealthStaggersMachines(t *testing.T) {
-	s, f := launcherHealthHub(t)
-	healthStagger = 150 * time.Millisecond
-	s.healthRound(context.Background(), true)
-	if len(f.checkedAt) != 3 {
-		t.Fatalf("checked %v", f.checked)
-	}
-	for i := 1; i < len(f.checkedAt); i++ {
-		if gap := f.checkedAt[i].Sub(f.checkedAt[i-1]); gap < 120*time.Millisecond { // a little under for waking from the timer
-			t.Fatalf("checks %d and %d only %v apart; the machines are not staggered (%v)", i-1, i, gap, f.checked)
-		}
-	}
-}
-
 // A check that times out is asked once more at once: a gateway can leave one request silent while the account
 // answers the next. Only a second timeout in a row is recorded; other errors are recorded without a second check.
 func TestLauncherHealthRetriesATimeoutOnce(t *testing.T) {

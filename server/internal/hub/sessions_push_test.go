@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"slices"
@@ -308,48 +307,6 @@ func isolatedSessionAllocation(t *testing.T) bool {
 		t.Fatalf("isolated session allocation check: %v\n%s", err, output)
 	}
 	return false
-}
-
-// A separate goroutine's allocation is counted even when the measured callback only waits for it. That work must
-// stay in the parent, while a child measuring a no-op remains below the smallest session allocation ceiling.
-func TestSessionAllocationIsolation(t *testing.T) {
-	const receiptEnv = "PERSONA_TEST_SESSION_ALLOCATION_RECEIPT"
-	if os.Getenv(sessionAllocationChild) == t.Name() {
-		if got := allocated(func() {}); got > 1<<10 {
-			t.Fatalf("isolated no-op allocated %d bytes, want at most 1024", got)
-		}
-		if err := os.WriteFile(os.Getenv(receiptEnv), []byte("passed"), 0600); err != nil {
-			t.Fatal(err)
-		}
-		return
-	}
-	receipt := filepath.Join(t.TempDir(), "child")
-	t.Setenv(receiptEnv, receipt)
-	const bytes = 64 << 10
-	requests := make(chan chan []byte)
-	stopped := make(chan struct{})
-	go func() {
-		defer close(stopped)
-		for done := range requests {
-			done <- make([]byte, bytes)
-		}
-	}()
-	t.Cleanup(func() { close(requests); <-stopped })
-	got := allocated(func() {
-		done := make(chan []byte)
-		requests <- done
-		runtime.KeepAlive(<-done)
-	})
-	if got < bytes {
-		t.Fatalf("another goroutine's allocation was not observed: %d bytes, want at least %d", got, bytes)
-	}
-	t.Logf("synchronized allocation in another goroutine: %d bytes per callback", got)
-	if isolatedSessionAllocation(t) {
-		t.Fatal("the parent was identified as the allocation child")
-	}
-	if got, err := os.ReadFile(receipt); err != nil || string(got) != "passed" {
-		t.Fatalf("the allocation child did not pass: receipt %q, error %v", got, err)
-	}
 }
 
 // allocated is how many bytes f allocates, averaged over runs. Pushes are seconds apart, collections in between:

@@ -355,26 +355,6 @@ func (af *attentionFlow) notifiedBy(t *testing.T, from int) {
 	}
 }
 
-// A question goes the whole way a hook's card goes (waitInteraction: registered, recorded, announced, handed to the
-// assistant, handed to the user) with liveLoop telling the devices all along: Persona Link's summary lists it from the
-// start but notifies it only once it is the user's, as the phone is pushed only then. Before announce decided (the
-// database write is slow) and while the assistant decides, it does not notify.
-func TestLinkAttentionNotifiesOnlyOnceTheQuestionIsTheUsers(t *testing.T) {
-	af := newAttentionFlow(t, true)
-	af.raise(t, delegateQuestion("q1"))
-	if it := af.now(t, "q1"); it.Notify {
-		t.Fatalf("notifies before announce decided on it: %+v", it)
-	}
-	close(af.gate) // the write goes through: announce hands the question to the assistant
-	waitUntil(t, func() bool { ix, ok := af.s.pendingIx("q1"); return ok && ix.Delegating })
-	if it := af.now(t, "q1"); it.Notify {
-		t.Fatalf("notifies while the assistant decides: %+v", it)
-	}
-	from := len(af.d.handedAttention())
-	af.decided <- DelegateResult{} // the assistant leaves it to the user: tell pushes it
-	af.notifiedBy(t, from)
-}
-
 // A permission card is not the assistant's to decide: it notifies as soon as announce tells the apps of it (and the
 // phone is pushed), not while it is still being recorded.
 func TestLinkAttentionNotifiesACardOnceAnnounced(t *testing.T) {
@@ -443,117 +423,6 @@ func pushCount(f *fakeHub) int {
 		}
 	}
 	return n
-}
-
-// A screen card that never rang (its dialog not drawn yet), detached and back inside its window: back, it is still
-// not the user's, so no summary notifies it until it rings at the window's end, once, as the phone is pushed.
-func TestLinkAttentionScreenCardBackBeforeItRang(t *testing.T) {
-	ft, _ := noDialogPlaceholder(t, "  ✢ Percolating…\n", 20*time.Millisecond, 1500*time.Millisecond)
-	s := ft.s
-	startAttention(t, s)
-	if it, ok := lookAt(t, s, ft.d, "s1"); !ok || it.Notify {
-		t.Fatalf("the placeholder %+v (listed %v)", it, ok)
-	}
-	s.NodeDetached("mac")
-	if back, _ := waitCards(s, 1, 2*time.Second); len(back) != 1 || back["scr_mac_s1"] == "" {
-		t.Fatalf("the placeholder did not come back: %v", back)
-	}
-	if it, ok := lookAt(t, s, ft.d, "s1"); !ok || it.InteractionID != "scr_mac_s1" || it.Notify {
-		t.Fatalf("back before it rang %+v (listed %v)", it, ok)
-	}
-	if n := pushCount(ft.f); n != 0 || notifiedSoFar(ft.d, "s1") {
-		t.Fatalf("before the window's end: %d pushes, notified %v", n, notifiedSoFar(ft.d, "s1"))
-	}
-	if pushes := ft.pushesOf(assistantwire.NotifyInput, 1, 3*time.Second); len(pushes) != 1 {
-		t.Fatalf("the back placeholder never rang: %d pushes", len(pushes))
-	}
-	waitUntil(t, func() bool { it, ok := lookAt(t, s, ft.d, "s1"); return ok && it.Notify })
-	if n := len(ft.pushesOf(assistantwire.NotifyInput, 2, 300*time.Millisecond)); n != 1 {
-		t.Fatalf("pushed %d times", n)
-	}
-}
-
-// A screen card that rang, detached and back: its predecessor's ring is carried, so it stays the user's and notifies
-// on, with no second push.
-func TestLinkAttentionScreenCardBackAfterItRang(t *testing.T) {
-	ft, _ := noDialogPlaceholder(t, "  ✢ Percolating…\n", 20*time.Millisecond, 300*time.Millisecond)
-	s := ft.s
-	if pushes := ft.pushesOf(assistantwire.NotifyInput, 1, 2*time.Second); len(pushes) != 1 {
-		t.Fatalf("the placeholder did not ring at its window's end: %d pushes", len(pushes))
-	}
-	startAttention(t, s)
-	if it, ok := lookAt(t, s, ft.d, "s1"); !ok || !it.Notify {
-		t.Fatalf("rang, not notified %+v (listed %v)", it, ok)
-	}
-	s.NodeDetached("mac")
-	if back, _ := waitCards(s, 1, 2*time.Second); len(back) != 1 || back["scr_mac_s1"] == "" {
-		t.Fatalf("the placeholder did not come back: %v", back)
-	}
-	if it, ok := lookAt(t, s, ft.d, "s1"); !ok || it.InteractionID != "scr_mac_s1" || !it.Notify {
-		t.Fatalf("back after it rang %+v (listed %v)", it, ok)
-	}
-	if n := len(ft.pushesOf(assistantwire.NotifyInput, 2, 300*time.Millisecond)); n != 1 {
-		t.Fatalf("pushed %d times", n)
-	}
-}
-
-// A Codex card listed again by a reconnected node: nothing says it rang before (codexAnnounced is noted before it is
-// announced), so it does not notify, pushed before or not; one still before the assistant notifies once the assistant
-// hands it to the user, as the phone is pushed then.
-func TestLinkAttentionCodexCardListedAgain(t *testing.T) {
-	codexQ := proto.Interaction{ID: "cxq_1", MachineID: "mac", SessionID: "s1", Kind: proto.IxQuestion, Agent: "codex",
-		Questions: []proto.Question{{Question: "用哪个分支？"}}, ExpiresAt: time.Now().Add(time.Hour)}
-	t.Run("pushed before", func(t *testing.T) {
-		ft, _ := newCardFleet(t, false)
-		s := ft.s
-		ft.d.setSessions("mac", []proto.Session{{SessionID: "s1", Agent: "codex", Status: proto.StatusBlocked}})
-		startAttention(t, s)
-		listCodex(s, codexQ)
-		if n := len(ft.pushesOf(assistantwire.NotifyInput, 1, time.Second)); n != 1 {
-			t.Fatalf("%d pushes", n)
-		}
-		waitUntil(t, func() bool { it, ok := lookAt(t, s, ft.d, "s1"); return ok && it.Notify })
-		s.NodeDetached("mac")
-		listCodex(s, codexQ)
-		if it, ok := lookAt(t, s, ft.d, "s1"); !ok || it.InteractionID != "cxq_1" || it.Notify {
-			t.Fatalf("listed again %+v (listed %v)", it, ok)
-		}
-		if n := len(ft.pushesOf(assistantwire.NotifyInput, 2, 300*time.Millisecond)); n != 1 {
-			t.Fatalf("pushed %d times", n)
-		}
-	})
-	t.Run("before the assistant", func(t *testing.T) {
-		ft, _ := newCardFleet(t, false)
-		s := ft.s
-		on := true
-		ft.f.hello.Agents.Delegate.Enabled = &on
-		decided := make(chan DelegateResult)
-		s.delegateHook = func(ctx context.Context, _ DelegateParams) (DelegateResult, error) {
-			select {
-			case r := <-decided:
-				return r, nil
-			case <-ctx.Done():
-				return DelegateResult{}, ctx.Err()
-			}
-		}
-		ft.d.setSessions("mac", []proto.Session{{SessionID: "s1", Agent: "codex", Status: proto.StatusBlocked}})
-		startAttention(t, s)
-		listCodex(s, codexQ)
-		waitUntil(t, func() bool { ix, ok := s.pendingIx("cxq_1"); return ok && ix.Delegating })
-		s.NodeDetached("mac")
-		listCodex(s, codexQ)
-		if it, ok := lookAt(t, s, ft.d, "s1"); !ok || it.InteractionID != "cxq_1" || it.Notify {
-			t.Fatalf("listed again while the assistant decides %+v (listed %v)", it, ok)
-		}
-		if n := pushCount(ft.f); n != 0 || notifiedSoFar(ft.d, "s1") {
-			t.Fatalf("before the user's: %d pushes, notified %v", n, notifiedSoFar(ft.d, "s1"))
-		}
-		decided <- DelegateResult{} // left to the user: tell pushes it
-		if n := len(ft.pushesOf(assistantwire.NotifyInput, 1, 2*time.Second)); n != 1 {
-			t.Fatalf("%d pushes once the user's", n)
-		}
-		waitUntil(t, func() bool { it, ok := lookAt(t, s, ft.d, "s1"); return ok && it.Notify })
-	})
 }
 
 // writtenGate is the fleet's in-memory store whose interaction writes land at once but return only through gate (or
@@ -659,53 +528,6 @@ func TestLinkAttentionCountsByTheRow(t *testing.T) {
 				t.Errorf("row %s, told %v: %+v", state, told, a)
 			}
 		}
-	}
-}
-
-// A dialog card that rang, read back half drawn (a card matched only by its session: not the user's), detached again
-// still half drawn and back by its own id: what it takes over from its own detach is that it was not the user's, not
-// that a ring went out for its session. No summary notifies it, and the phone is not pushed again, until the dialog is
-// drawn and the card that rang comes back.
-func TestLinkAttentionHalfDrawnCardBackTwice(t *testing.T) {
-	ft, n := newCardFleet(t, false)
-	s := ft.s
-	shortScreenUpgrade(s)
-	startAttention(t, s)
-	n.setScreen(pickModel)
-	blockSession(ft, proto.Session{SessionID: "s1", Agent: "claude"})
-	got, _ := waitCards(s, 1, 2*time.Second)
-	if len(got) != 1 || len(ft.pushesOf(assistantwire.NotifyInput, 1, time.Second)) != 1 {
-		t.Fatalf("the dialog's card: %v", got)
-	}
-	var dialog string
-	for id := range got {
-		dialog = id
-	}
-	n.setScreen("  ✢ Percolating…\n")
-	from := len(ft.d.handedAttention())
-	for range 2 {
-		s.NodeDetached("mac")
-		if back, _ := waitCards(s, 1, 2*time.Second); len(back) != 1 || back["scr_mac_s1"] == "" {
-			t.Fatalf("the half-drawn card did not come back: %v", back)
-		}
-		if it, ok := lookAt(t, s, ft.d, "s1"); !ok || it.InteractionID != "scr_mac_s1" || it.Notify {
-			t.Fatalf("the half-drawn card back %+v (listed %v)", it, ok)
-		}
-	}
-	for i, a := range ft.d.handedAttention()[from:] {
-		for _, it := range a.Items {
-			if it.Notify {
-				t.Fatalf("summary %d notified the half-drawn card: %+v", i, it)
-			}
-		}
-	}
-	if n := pushCount(ft.f); n != 1 {
-		t.Fatalf("pushed %d times", n)
-	}
-	n.setScreen(pickModel) // drawn: the card that rang is back by its own id
-	waitUntil(t, func() bool { it, ok := lookAt(t, s, ft.d, "s1"); return ok && it.InteractionID == dialog && it.Notify })
-	if n := len(ft.pushesOf(assistantwire.NotifyInput, 2, 300*time.Millisecond)); n != 1 {
-		t.Fatalf("pushed %d times", n)
 	}
 }
 

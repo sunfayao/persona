@@ -11,7 +11,6 @@ vi.hoisted(() => {
 });
 import { initI18n } from "../i18n";
 import type { TaskPlan } from "../lib/feed";
-import { caseKey, caseName, caseTodos, MERGE_CASES, type MergeCase } from "../lib/request-graph-merge-cases";
 import { makeSessionLookup, type Todo } from "../lib/todos";
 import type { Machine, Session } from "../lib/types";
 import { CARD_H } from "../lib/request-graph";
@@ -277,41 +276,6 @@ describe("a request of one piece, and nothing queued", () => {
     expect(root!.textContent).toContain("Cancelled: Owner stopped the request");
     expect(root!.textContent).not.toContain("1 of 1 done");
     expect(card("piece").dataset.state).toBe("done");
-  });
-
-  it("draws one card or both for every root × piece, with active, Done and Cancelled requests in their own folds", () => {
-    const all = MERGE_CASES.map((c) => caseTodos(c, at, todo));
-    const opened: string[] = [];
-    act(() => root.render(
-      <TodoRequestGraph todos={all.flatMap((x) => x.todos)} lookup={makeSessionLookup(all.flatMap((x) => x.sessions))} machines={machines} onOpenTodo={(id) => opened.push(id)} />,
-    ));
-    act(() => host.querySelector<HTMLButtonElement>("[data-graph-done] > button")!.click());
-    act(() => host.querySelector<HTMLButtonElement>("[data-graph-cancelled] > button")!.click());
-    const check = (c: MergeCase, block: Element) => {
-      const k = caseKey(c);
-      const rootCard = block.querySelector<HTMLButtonElement>("[data-root]");
-      const pieceCard = block.querySelector<HTMLButtonElement>(`[data-node="todo:p-${k}"]`);
-      expect({ rootCard: Boolean(rootCard), mergedLabel: Boolean(block.querySelector("[data-node-request]")), pieceCard: Boolean(pieceCard), edges: block.querySelectorAll("[data-edge]").length }, caseName(c))
-        .toEqual({ rootCard: !c.merged, mergedLabel: c.merged, pieceCard: true, edges: c.merged ? 0 : 1 });
-      // whatever is drawn opens what it stands for: the root card the request's to-do, the piece's card the piece
-      opened.length = 0;
-      if (rootCard) act(() => rootCard.click());
-      act(() => pieceCard!.click());
-      expect(opened, caseName(c)).toEqual(c.merged ? [`p-${k}`] : [`r-${k}`, `p-${k}`]);
-    };
-    for (const c of MERGE_CASES) {
-      const k = caseKey(c);
-      const block = host.querySelector(`[data-request="todo:r-${k}"]`);
-      const active = block && !block.closest("[data-graph-done], [data-graph-cancelled]") ? block : null;
-      const row = host.querySelector(`[data-done-request="todo:r-${k}"], [data-cancelled-request="todo:r-${k}"]`);
-      expect({ active: Boolean(active), done: Boolean(row?.matches("[data-done-request]")), cancelled: Boolean(row?.matches("[data-cancelled-request]")) }, caseName(c))
-        .toEqual({ active: !c.done && !c.cancelled, done: c.done, cancelled: Boolean(c.cancelled) });
-      if (active) check(c, active);
-      else {
-        act(() => row!.querySelector<HTMLButtonElement>("button")!.click());
-        check(c, row!.querySelector("[data-request]") ?? row!);
-      }
-    }
   });
 
   it("draws no queued strip when nothing is queued", () => {

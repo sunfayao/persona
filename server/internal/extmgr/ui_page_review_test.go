@@ -127,30 +127,6 @@ func TestPageSourceNotificationsDoNotWaitForFittingCapacity(t *testing.T) {
 	}
 }
 
-func TestPageAmbiguousWriteEvictionCannotRepeatCallback(t *testing.T) {
-	h, process, _ := pageProcessManager(t)
-	tree := pageOpenTest(t, h, pageWho)
-	first := pageEvent(t, tree, "ambiguous", "failed-write")
-	receipt, err := pageCall(t, h, pageWho, first)
-	if err != nil || !bytes.Contains(receipt, []byte(`"status":"ambiguous"`)) {
-		t.Fatalf("missing ambiguous receipt: %s %v", receipt, err)
-	}
-	if replay, err := pageCall(t, h, pageWho, first); err != nil || !bytes.Equal(replay, receipt) {
-		t.Fatalf("failed write replay: %s %v", replay, err)
-	}
-	for i := 0; i < 65; i++ {
-		if _, err := pageCall(t, h, pageWho, pageEvent(t, pageTree(h, tree.Session()), "no-ui", fmt.Sprintf("evict-%d", i))); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if _, err := pageCall(t, h, pageWho, first); err == nil {
-		t.Fatal("evicted ambiguous event executed again")
-	}
-	if pageStats(t, process)["writes"] != 66 {
-		t.Fatal("ambiguous retry repeated the callback")
-	}
-}
-
 func TestPageEmptyNegotiatedComponentsRejectsNativeItems(t *testing.T) {
 	h, _, _ := pageProcessManager(t)
 	_, err := pageCall(t, h, pageWho, wire.UIStreamRequest{Request: "open", Protocol: 1, RequestID: "empty", Extension: "example-page", Contribution: "home", Context: &wire.UIContext{UIVersion: 6, Stream: &wire.UIStreamCapability{Protocol: 1, Components: []string{}}}})

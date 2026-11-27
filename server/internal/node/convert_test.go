@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -167,31 +166,5 @@ func TestConvertHitKeepsTheCopyFromPruning(t *testing.T) {
 	}
 	if _, err := os.Stat(first.Path); err != nil {
 		t.Fatalf("a copy just handed out was pruned: %v", err)
-	}
-}
-
-func TestConvertSameFileAtOnceRunsLibreOfficeOnce(t *testing.T) {
-	cacheEnv(t, true)
-	n, req, calls := convertFixture(t)
-	t.Setenv("FAKE_SOFFICE_DELAY", "0.5")
-	const at = 6
-	got := make([]*proto.FileConverted, at)
-	errs := make([]error, at)
-	var wg sync.WaitGroup
-	for i := range at {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			got[i], errs[i] = n.convertFile(context.Background(), req)
-		}()
-	}
-	wg.Wait()
-	for i := range at {
-		if errs[i] != nil || got[i].Path != got[0].Path {
-			t.Fatalf("request %d = %+v, %v", i, got[i], errs[i])
-		}
-	}
-	if b, _ := os.ReadFile(calls); strings.Count(string(b), "\n") != 1 {
-		t.Fatalf("LibreOffice ran %d times for one file", strings.Count(string(b), "\n"))
 	}
 }

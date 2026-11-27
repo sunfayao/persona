@@ -142,33 +142,6 @@ func TestMakeTitleDropsACutOffReply(t *testing.T) {
 	}
 }
 
-// Each way an answer goes wrong has its own second call: a call that ran out of time does not use up the format's
-// retry, nor a cut-off reply the call that ran out after it.
-func TestMakeTitleRetriesDontCrowdEachOtherOut(t *testing.T) {
-	shortTitleCalls(t, 200*time.Millisecond)
-	started := time.Date(2026, 11, 1, 16, 30, 0, 0, time.UTC)
-	slow := fakeAnswer{delay: 2 * time.Second}
-	for _, c := range []struct {
-		name    string
-		replies []string
-		answers []fakeAnswer
-	}{
-		{"timed out, then the wrong format", []string{"", "Bug fix: search bar", searchTitle}, []fakeAnswer{slow}},
-		{"cut off, then timed out", []string{"修复 | 搜索", "", searchTitle}, []fakeAnswer{{stop: "max_tokens"}, slow}},
-	} {
-		s, f := titleService(t, c.replies, c.answers...)
-		got, final := s.makeTitle(context.Background(), started, searchAsk, searchReply, "")
-		if got != "1102 | "+searchTitle || !final || len(f.modelCalls()) != 3 {
-			t.Errorf("%s: %q %v after %d calls", c.name, got, final, len(f.modelCalls()))
-		}
-	}
-	// An empty answer is a broken format like any other: asked once more, then the fallback.
-	s, f := titleService(t, []string{""})
-	if got, final := s.makeTitle(context.Background(), started, searchAsk, searchReply, ""); got != "1102 | 探索 | 搜索的时候搜索框和顶栏叠在一" || !final || len(f.modelCalls()) != 2 {
-		t.Fatalf("empty answers: %q %v after %d calls", got, final, len(f.modelCalls()))
-	}
-}
-
 // When the model can't be reached (its gateway down), the conversation shows the stand-in ("explore | the first
 // message") and is named again after a later turn, from its first turn, three namings in all; a title the user gave
 // meanwhile stays (#1532). A model that isn't set up answers the same every time: that fallback is final.

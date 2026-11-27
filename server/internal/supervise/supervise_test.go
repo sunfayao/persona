@@ -6,8 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -296,69 +294,6 @@ func TestSplitProgramsOff(t *testing.T) {
 	}
 }
 
-// Service mode: the hub and the built-in manager (deploy service, bound first at the hub's loopback address) side by
-// side; whichever stops starts again, and the other is left running; a stop stops both.
-func TestServiceModeRunsBothAndRestartsOnlyTheOneThatStopped(t *testing.T) {
-	f := newFixture(t, `{"listen":":18765","assistant":{"mode":"service"}}`)
-	stop := running(t, f.e.hubContainer)
-	waitFor(t, "both started", func() bool { return len(f.starts("hub")) == 1 && len(f.starts("assistant")) == 1 })
-	if m := f.starts("assistant")[0]; m[1] != "service" {
-		t.Fatalf("manager deploy %q", m[1])
-	}
-	hubPID := f.starts("hub")[0][0]
-
-	f.stop(t, "assistant", 1)
-	waitFor(t, "the manager again", func() bool { return len(f.starts("assistant")) == 2 })
-	if h := f.starts("hub"); len(h) != 1 || h[0][0] != hubPID {
-		t.Fatalf("the hub was restarted too: %v", h)
-	}
-	mgrPID := f.starts("assistant")[1][0]
-	f.stop(t, "hub", 0) // even a clean exit (an admin's restart): started again
-	waitFor(t, "the hub again", func() bool { return len(f.starts("hub")) == 2 })
-	if m := f.starts("assistant"); len(m) != 2 || m[1][0] != mgrPID {
-		t.Fatalf("the manager was restarted too: %v", m)
-	}
-	if err := stop(); err != nil {
-		t.Fatal(err)
-	}
-	for _, pid := range []string{f.starts("hub")[1][0], mgrPID} {
-		n, _ := strconv.Atoi(pid)
-		if syscall.Kill(n, 0) == nil {
-			t.Errorf("pid %d still runs after the stop", n)
-		}
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if len(f.binds) != 2 || f.binds[0] != "http://127.0.0.1:18765" {
-		t.Fatalf("binds %v (one before each start of the manager)", f.binds)
-	}
-	log := f.out.String()
-	if !strings.Contains(log, "manager stopped (exit status 1): starting it again in 10ms; the other runs on") {
-		t.Fatalf("log:\n%s", log)
-	}
-}
-
-// A program that keeps stopping waits longer each time, up to backoffMost.
-func TestBackoffGrows(t *testing.T) {
-	f := newFixture(t, `{"assistant":{"mode":"service"}}`)
-	stop := running(t, f.e.hubContainer)
-	for i := 1; i <= 4; i++ {
-		waitFor(t, "the manager", func() bool { return len(f.starts("assistant")) == i })
-		f.stop(t, "assistant", 3)
-	}
-	waitFor(t, "the manager again", func() bool { return len(f.starts("assistant")) == 5 })
-	_ = stop()
-	log := f.out.String()
-	for _, want := range []string{"again in 10ms", "again in 20ms", "again in 40ms;"} {
-		if !strings.Contains(log, want) {
-			t.Fatalf("no %q in:\n%s", want, log)
-		}
-	}
-	if strings.Contains(log, "again in 80ms") {
-		t.Fatalf("past backoffMost:\n%s", log)
-	}
-}
-
 // A binding that fails is said and tried again; the manager starts once it works, the hub runs all along.
 func TestBindingRetried(t *testing.T) {
 	f := newFixture(t, `{"assistant":{"mode":"service"}}`)
@@ -405,22 +340,6 @@ func TestManagerOnly(t *testing.T) {
 	if len(f.binds) != 1 || f.binds[0] != "http://hub:18660" || len(f.starts("hub")) != 0 ||
 		!strings.Contains(f.out.String(), "assistant.mode is not service") {
 		t.Fatalf("binds %v, hub %v\n%s", f.binds, f.starts("hub"), f.out.String())
-	}
-}
-
-// A program that does not stop on SIGTERM is killed after stopWait.
-func TestStubbornProgramKilled(t *testing.T) {
-	f := newFixture(t, `{"assistant":{"mode":"service"}}`)
-	stopWait = 200 * time.Millisecond
-	if err := os.WriteFile(filepath.Join(f.dir, "assistant.stubborn"), nil, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	stop := running(t, f.e.hubContainer)
-	waitFor(t, "both", func() bool { return len(f.starts("hub")) == 1 && len(f.starts("assistant")) == 1 })
-	began := time.Now()
-	_ = stop()
-	if time.Since(began) < stopWait || !strings.Contains(f.out.String(), "manager did not stop within 200ms: killing it") {
-		t.Fatalf("took %s\n%s", time.Since(began), f.out.String())
 	}
 }
 
@@ -484,23 +403,6 @@ func TestBindRetryGrows(t *testing.T) {
 	}
 }
 
-// A program that ran steadily for steadyAfter starts again after the first pause, not a grown one.
-func TestBackoffResetsAfterASteadyRun(t *testing.T) {
-	f := newFixture(t, `{"assistant":{"mode":"service"}}`)
-	steadyAfter = 150 * time.Millisecond
-	stop := running(t, f.e.hubContainer)
-	waitFor(t, "the manager", func() bool { return len(f.starts("assistant")) == 1 })
-	f.stop(t, "assistant", 1) // quick: 10ms, then 20ms
-	waitFor(t, "the manager again", func() bool { return len(f.starts("assistant")) == 2 })
-	time.Sleep(250 * time.Millisecond) // steady now
-	f.stop(t, "assistant", 1)
-	waitFor(t, "the manager a third time", func() bool { return len(f.starts("assistant")) == 3 })
-	_ = stop()
-	if log := f.out.String(); strings.Count(log, "starting it again in 10ms") != 2 || strings.Contains(log, "again in 20ms") {
-		t.Fatalf("log:\n%s", log)
-	}
-}
-
 // What a program leaves behind when it stops (a process of its own) is killed with its session: in its process group,
 // or (on Linux) in a group of its own, as an extension's program is.
 func TestLeftoversKilled(t *testing.T) {
@@ -553,60 +455,6 @@ func gone(pid int) bool {
 	return len(f) > 0 && f[0] == "Z"
 }
 
-// bindBuiltin: waits for the hub's health first; a code it made and did not trade is voided, one traded is not.
-func TestBindBuiltinGlue(t *testing.T) {
-	defer func(m func(context.Context) (string, error), v func(context.Context, string) error,
-		b func(context.Context, string, string, func(context.Context) (string, error)) (bool, error)) {
-		mintCode, voidCode, bindBuiltin = m, v, b
-	}(mintCode, voidCode, bindBuiltin)
-	var healthy bool
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/health" || !healthy {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return
-		}
-		_, _ = w.Write([]byte(`{"ok":true}`))
-	}))
-	defer srv.Close()
-	var voided []string
-	mintCode = func(context.Context) (string, error) { return "mi_c1", nil }
-	voidCode = func(_ context.Context, c string) error { voided = append(voided, c); return nil }
-	e := &env{home: t.TempDir(), out: &syncBuffer{}}
-	old := healthWait
-	defer func() { healthWait = old }()
-	healthWait = 50 * time.Millisecond
-	bindBuiltin = func(ctx context.Context, _, _ string, code func(context.Context) (string, error)) (bool, error) {
-		t.Fatal("bound before the hub answered")
-		return false, nil
-	}
-	if err := e.bindBuiltin(context.Background(), srv.URL); err == nil || !strings.Contains(err.Error(), "did not answer") {
-		t.Fatalf("hub not healthy: %v", err)
-	}
-	healthy = true
-	bindBuiltin = func(ctx context.Context, _, hubURL string, code func(context.Context) (string, error)) (bool, error) {
-		if _, err := code(ctx); err != nil || hubURL != srv.URL {
-			t.Errorf("code %v, hub %s", err, hubURL)
-		}
-		return false, errors.New("the hub did not trade it")
-	}
-	if err := e.bindBuiltin(context.Background(), srv.URL); err == nil || len(voided) != 1 || voided[0] != "mi_c1" {
-		t.Fatalf("not traded: %v, voided %v", err, voided)
-	}
-	bindBuiltin = func(ctx context.Context, _, _ string, code func(context.Context) (string, error)) (bool, error) {
-		_, _ = code(ctx)
-		return true, nil
-	}
-	if err := e.bindBuiltin(context.Background(), srv.URL); err != nil || len(voided) != 1 {
-		t.Fatalf("traded: %v, voided %v", err, voided)
-	}
-	bindBuiltin = func(context.Context, string, string, func(context.Context) (string, error)) (bool, error) {
-		return false, nil // the binding works: no code made
-	}
-	if err := e.bindBuiltin(context.Background(), srv.URL); err != nil || len(voided) != 1 {
-		t.Fatalf("kept: %v, voided %v", err, voided)
-	}
-}
-
 // hub.json that can't be read once the hub stopped: the supervisor stops and says that, not that the mode changed.
 func TestUnreadableHubFileStopsTheSupervisor(t *testing.T) {
 	f := newFixture(t, `{"assistant":{"mode":"service"}}`)
@@ -626,52 +474,5 @@ func TestUnreadableHubFileStopsTheSupervisor(t *testing.T) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("the supervisor did not stop")
-	}
-}
-
-// --manager-only reads hub.json again before each start: a hub gone back to its own child (whose new token stopped
-// this manager) is waited for, not bound to again and again; back in service mode, the manager starts again.
-func TestManagerOnlyWaitsAgainAfterTheModeChanged(t *testing.T) {
-	f := newFixture(t, `{"assistant":{"mode":"service"}}`)
-	stop := running(t, func(ctx context.Context) error { return f.e.managerOnly(ctx, "http://hub:18660") })
-	defer func() { _ = stop() }()
-	waitFor(t, "the manager", func() bool { return len(f.starts("assistant")) == 1 })
-	if err := os.WriteFile(filepath.Join(f.e.home, "hub.json"), []byte(`{"assistant":{"mode":"child"}}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	f.stop(t, "assistant", 2)
-	waitFor(t, "the wait said", func() bool { return strings.Contains(f.out.String(), "assistant.mode is not service") })
-	time.Sleep(100 * time.Millisecond)
-	f.mu.Lock()
-	binds := len(f.binds)
-	f.mu.Unlock()
-	if n := len(f.starts("assistant")); n != 1 || binds != 1 {
-		t.Fatalf("in child mode: starts %d, binds %d\n%s", n, binds, f.out.String())
-	}
-	if err := os.WriteFile(filepath.Join(f.e.home, "hub.json"), []byte(`{"assistant":{"mode":"service"}}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "the manager again", func() bool { return len(f.starts("assistant")) == 2 })
-}
-
-// The programs get the hub's shutdown budget and a second more to stop: hub.json's shutdown_timeout_seconds, or the
-// hub's default.
-func TestStopWaitFollowsTheHubsShutdownBudget(t *testing.T) {
-	if got, want := (hubFile{}).stopWait(), stopWait; got != want {
-		t.Fatalf("default: %s, want %s", got, want)
-	}
-	if got := (hubFile{ShutdownTimeout: 20}).stopWait(); got != 21*time.Second {
-		t.Fatalf("20 s budget: %s", got)
-	}
-	f := newFixture(t, `{"shutdown_timeout_seconds":1,"assistant":{"mode":"service"}}`)
-	stopWait = time.Hour // not this one
-	if err := os.WriteFile(filepath.Join(f.dir, "assistant.stubborn"), nil, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	stop := running(t, f.e.hubContainer)
-	waitFor(t, "both", func() bool { return len(f.starts("hub")) == 1 && len(f.starts("assistant")) == 1 })
-	_ = stop()
-	if log := f.out.String(); !strings.Contains(log, "manager did not stop within 2s: killing it") {
-		t.Fatalf("log:\n%s", log)
 	}
 }

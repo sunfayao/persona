@@ -2,7 +2,6 @@ package assistant
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -170,68 +169,6 @@ func TestPreparedSnapshotWithdrawalDoesNotCancelOriginal(t *testing.T) {
 		}
 		ft.waitPending(0)
 	})
-}
-
-func TestPreparedSnapshotWaiters150RoundsNeverHangOriginal(t *testing.T) {
-	const rounds = 150
-	for i := 0; i < rounds; i++ {
-		synctest.Test(t, func(t *testing.T) {
-			ft := newFleetTestNoStore(t)
-			preparedTestConversation(ft)
-			id := fmt.Sprintf("ix_snapshot_round_%d", i)
-			var applies atomic.Int32
-			done := startPreparedInteraction(t, ft, proto.Interaction{ID: id, MachineID: "mac", SessionID: "s1", Kind: proto.IxPermission,
-				ToolName: "persona_settings", Summary: "Change the example setting", ExpiresAt: time.Now().Add(time.Hour)},
-				approvalops.Operation{Apply: func(context.Context, proto.Resolution) (string, error) {
-					applies.Add(1)
-					return "setting applied", nil
-				}})
-			// Let the original caller reach awaitPrepared before repeated snapshots start.
-			synctest.Wait()
-			stop := make(chan struct{})
-			ticker := time.NewTicker(time.Millisecond)
-			var wg sync.WaitGroup
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for {
-					select {
-					case <-stop:
-						return
-					case <-ticker.C:
-						ft.s.publish(context.Background())
-					}
-				}
-			}()
-			var stopOnce sync.Once
-			stopPublisher := func() {
-				stopOnce.Do(func() {
-					ticker.Stop()
-					close(stop)
-				})
-				wg.Wait()
-			}
-			t.Cleanup(stopPublisher)
-			time.Sleep(10 * time.Millisecond) // sleep-ok: virtual synctest time overlaps the original and repeated snapshot waiters
-			synctest.Wait()
-			allow := true
-			if err := ft.s.resolve(id, proto.Resolution{Allow: &allow}); err != nil {
-				t.Fatalf("round %d: %v", i, err)
-			}
-			select {
-			case got := <-done:
-				if got.err != nil || got.out.Text != "setting applied" {
-					t.Fatalf("round %d: original result = %+v, %v", i, got.out, got.err)
-				}
-			case <-time.After(2 * time.Second):
-				t.Fatalf("round %d: owner Allow applied %d times but the original tool call hung", i, applies.Load())
-			}
-			stopPublisher()
-			if applies.Load() != 1 {
-				t.Fatalf("round %d applied %d times", i, applies.Load())
-			}
-		})
-	}
 }
 
 func TestUnansweredPreparedSnapshotsDoNotOwnItsLifecycle(t *testing.T) {

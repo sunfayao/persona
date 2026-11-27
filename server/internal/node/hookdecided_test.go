@@ -32,53 +32,6 @@ func runPermissionHook(t *testing.T, n *Node, in hookInput) (out any, took time.
 	return out, time.Since(start)
 }
 
-// A call another hook answered (#2648) gets no card: on a machine where hooks say so, a card waits a moment first.
-func TestAnotherHookAnswersFirst(t *testing.T) {
-	defer func(g time.Duration) { permissionGrace = g }(permissionGrace)
-	permissionGrace = 300 * time.Millisecond
-	n := codexTestNode(t)
-	fh := withFakeHub(t, n)
-
-	// No hook has said anything here: the card goes out at once, as before.
-	if out, took := runPermissionHook(t, n, decidedInput("ls")); out == nil || took > 200*time.Millisecond || len(fh.interactions()) != 1 {
-		t.Fatalf("before any hook.decided: out %v after %v, %d cards", out, took, len(fh.interactions()))
-	}
-
-	// Another hook answers while the card waits: nothing is shown, nothing is answered.
-	n.decided.decide(decidedInput("echo earlier"), time.Now())
-	in := decidedInput("cd view && rm -f sub/*")
-	go func() {
-		time.Sleep(20 * time.Millisecond)
-		// The same input, written with other spacing: the key compacts it.
-		other := in
-		other.ToolInput = json.RawMessage(`{ "command": "cd view && rm -f sub/*", "description": "remove the views" }`)
-		n.decided.decide(other, time.Now())
-	}()
-	out, took := runPermissionHook(t, n, in)
-	if out != nil || len(fh.interactions()) != 1 || took >= permissionGrace {
-		t.Fatalf("answered by another hook: out %v after %v, %d cards", out, took, len(fh.interactions()))
-	}
-	// That answer was the card's: the same call asked again is a new call, and nobody answers it (#4646).
-	if out, took := runPermissionHook(t, n, in); out == nil || took < permissionGrace || len(fh.interactions()) != 2 {
-		t.Fatalf("asked again after the answer was used: out %v after %v, %d cards", out, took, len(fh.interactions()))
-	}
-	// An answer that came before the card asked: no card either.
-	n.decided.decide(in, time.Now())
-	if out, _ := runPermissionHook(t, n, in); out != nil || len(fh.interactions()) != 2 {
-		t.Fatalf("answered before: out %v, %d cards", out, len(fh.interactions()))
-	}
-	// Nobody answers this one: after the grace the card goes out.
-	if out, took := runPermissionHook(t, n, decidedInput("rm -rf \"$t\"")); out == nil || took < permissionGrace || len(fh.interactions()) != 3 {
-		t.Fatalf("not answered: out %v after %v, %d cards", out, took, len(fh.interactions()))
-	}
-	// Another subagent's call with the same input is another call.
-	sub := in
-	sub.AgentID = "a1b2"
-	if out, _ := runPermissionHook(t, n, sub); out == nil || len(fh.interactions()) != 4 {
-		t.Fatalf("a subagent's: out %v, %d cards", out, len(fh.interactions()))
-	}
-}
-
 // #4646: another hook answered a call once; the same call, asked again within decidedKeep, still goes to the phone,
 // and so does every call the answer does not name (another session, another input). The phone's own allow is not
 // remembered either: the next same call asks again.

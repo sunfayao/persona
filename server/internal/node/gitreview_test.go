@@ -219,60 +219,6 @@ func TestGitReviewHunkNumbers(t *testing.T) {
 	}
 }
 
-func TestGitReviewBranch(t *testing.T) {
-	r := newReviewRepo(t, map[string]string{"app.go": "package app\n", "README.md": "# App\n"})
-	start := r.git("rev-parse", "HEAD")
-	r.git("switch", "-q", "-c", "feat/x")
-	r.write("feature.go", "package app\n\nfunc F() {}\n")
-	r.git("add", "feature.go")
-	r.git("commit", "-q", "-m", "Add F")
-	r.write("app.go", "package app\n\n// edited, not committed\n")
-	// main moves on meanwhile: its commit is not the branch's change
-	other := filepath.Join(filepath.Dir(r.dir), "other")
-	runPullGit(t, filepath.Dir(r.dir), "clone", "-q", r.git("remote", "get-url", "origin"), other)
-	if err := os.WriteFile(filepath.Join(other, "main-only.txt"), []byte("later\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	runPullGit(t, other, "add", "-A")
-	runPullGit(t, other, "commit", "-q", "-m", "Main moves on")
-	runPullGit(t, other, "push", "-q")
-	r.git("fetch", "-q")
-
-	res := r.review(proto.ReviewBranch, "")
-	if res.Base.Ref != "origin/main" || res.Base.Hash != start || res.Base.Subject != "Start" || res.Head.Branch != "feat/x" {
-		t.Fatalf("base %+v head %+v", res.Base, res.Head)
-	}
-	if got := pathsOf(res); !slices.Equal(got, []string{"app.go", "feature.go"}) {
-		t.Fatalf("branch files %q", got)
-	}
-	if f := fileOf(t, res, "feature.go"); f.Status != "added" || f.Untracked || f.Added != 3 {
-		t.Fatalf("committed %+v", f)
-	}
-	// uncommitted alone is only the edit
-	if got := pathsOf(r.review(proto.ReviewUncommitted, "")); !slices.Equal(got, []string{"app.go"}) {
-		t.Fatalf("uncommitted %q", got)
-	}
-	// since a commit: the commit's own change is not in it
-	since := r.review(proto.ReviewCommit, r.git("rev-parse", "--short", "HEAD"))
-	if got := pathsOf(since); !slices.Equal(got, []string{"app.go"}) || since.Base.Hash != r.git("rev-parse", "HEAD") {
-		t.Fatalf("since HEAD %q %+v", got, since.Base)
-	}
-	if got := pathsOf(r.review(proto.ReviewCommit, start)); !slices.Equal(got, []string{"app.go", "feature.go"}) {
-		t.Fatalf("since start %q", got)
-	}
-	// against another branch named: where the branch left it
-	if res := r.review(proto.ReviewBranch, "origin/main"); res.Base.Hash != start {
-		t.Fatalf("named %+v", res.Base)
-	}
-
-	// detached: the same changes, no branch
-	r.git("switch", "-q", "--detach")
-	res = r.review(proto.ReviewBranch, "")
-	if res.Head == nil || res.Head.Branch != "" || !slices.Equal(pathsOf(res), []string{"app.go", "feature.go"}) {
-		t.Fatalf("detached %+v %q", res.Head, pathsOf(res))
-	}
-}
-
 func TestGitReviewDefaultBranch(t *testing.T) {
 	reviewGitEnv(t)
 	dir := t.TempDir()

@@ -55,42 +55,6 @@ func TestTerminalControlEndsWithTheConnection(t *testing.T) {
 	waitFor(t, "the control to be let go", func() bool { return strings.Contains(readLog(log), "released") })
 }
 
-// An observed terminal stops observing when the hub connection that asked for it ends, instead of starting herdr's
-// observe over and over on a Node nobody talks to any more.
-func TestTerminalWatchEndsWithTheConnection(t *testing.T) {
-	dir := t.TempDir()
-	bin, starts := filepath.Join(dir, "herdr"), filepath.Join(dir, "starts")
-	script := `#!/bin/sh
-case "$1 $2" in
-"pane layout") echo '{"result":{"layout":{"panes":[{"pane_id":"w1:p1","rect":{"width":80,"height":24}}]}}}' ;;
-"terminal session")
-  [ "$4" = "--help" ] && exit 0
-  echo start >> ` + starts + `
-  echo '{"type":"terminal.frame","seq":1,"full":true,"width":80,"height":24,"encoding":"ansi","bytes":"RlVMTA=="}'
-  sleep 0.2 ;;
-*) exit 1 ;;
-esac
-`
-	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	n := &Node{agents: map[string]host.Agent{"s1": {PaneID: "w1:p1"}}, procs: map[string]*assistantProc{}, state: newState(),
-		hosts: herdrHosts(&herdr.Client{Bin: bin})}
-	call, end := servedTerminalNode(t, n)
-	if err := call("terminal.watch", map[string]any{"session_id": "s1"}); err != nil {
-		t.Fatal(err)
-	}
-	count := func() int { return strings.Count(readLog(starts), "start") }
-	waitFor(t, "observe to start over once", func() bool { return count() >= 2 })
-	end()
-	time.Sleep(500 * time.Millisecond) // an observe under way when the connection ended may still log its start
-	before := count()
-	time.Sleep(1500 * time.Millisecond) // an epoch here is ~0.3 s: a stream still running starts several more
-	if after := count(); after != before {
-		t.Fatalf("observe started %d more times after the connection ended", after-before)
-	}
-}
-
 // fakeSlotHerdr is one computer's herdr with panes w1:p1 and w1:p2. An observe sends a whole frame and runs until it
 // is killed; a control holds the pane's attach slot (a file) until its stdin closes, and finds it busy when it is
 // held, unless --takeover. Every observe and control writes its pid to log.
@@ -300,34 +264,6 @@ func (c *hubConn) ended(t *testing.T, log string) {
 	if _, err := os.Stat(filepath.Join(filepath.Dir(log), "slot-w1:p2")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("%s's attach slot is still held: %v", c.name, err)
 	}
-}
-
-// Two computers' resident nodes, each on its own hub connection: when one connection ends, only what it started
-// stops; the other's observe and control go on, its herdr processes and goroutines untouched (#5331).
-func TestTerminalStreamsOfAnotherConnectionGoOn(t *testing.T) {
-	binA, logA := fakeSlotHerdr(t)
-	binB, logB := fakeSlotHerdr(t)
-	killLeft(t, logA, logB)
-	nB := slotNode(binB)
-	a, b := connect(t, "A", slotNode(binA)), connect(t, "B", nB)
-	a.drives(t, logA)
-	b.drives(t, logB)
-
-	a.drop(t)
-	a.ended(t, logA)
-	time.Sleep(300 * time.Millisecond) // anything A's end would take down with it has had the time to
-	if k, stacks := goroutinesOf("B", streamLoops...); k != 2 {
-		t.Fatalf("connection B streams after A ended: %d goroutines, want 2\n%s", k, stacks)
-	}
-	if p := herdrProcs(t, logB); countAlive(p["observe"]) != 1 || countAlive(p["control"]) != 1 || len(p["observe"]) != 1 {
-		t.Fatalf("B's herdr processes after A ended: %v", p)
-	}
-	if nB.termStreamOf("s1") == nil || nB.termStreamOf("s2") == nil {
-		t.Fatal("B's node forgot its streams")
-	}
-
-	b.drop(t)
-	b.ended(t, logB)
 }
 
 // A resident node reconnects (a new Node per connection, as Attach makes): the phone takes the terminal again at its

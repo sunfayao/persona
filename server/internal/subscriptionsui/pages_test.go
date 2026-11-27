@@ -318,7 +318,7 @@ func TestSwitchesConfirmBeforeTurningOn(t *testing.T) {
 	f.subs["sub_outlook"] = s
 	v := draw(t, f, env(i18n.ZhHans, true), state{P: pageSource, ID: "sub_outlook"})
 	in := item(v, "d.to_inbox")
-	if in.Control == nil || in.Control.On || !strings.Contains(in.Control.Action.Confirm, "信息过滤") {
+	if in.Control == nil || in.Control.On || !strings.Contains(in.Control.Action.Confirm, "信息筛选") {
 		t.Errorf("an off switch does not say what turning it on does: %+v", in.Control)
 	}
 	res := handle(t, f, env(i18n.ZhHans, true), state{P: pageSource, ID: "sub_outlook"}, "dest", map[string]string{"to": "to_inbox", "to_inbox": "true"})

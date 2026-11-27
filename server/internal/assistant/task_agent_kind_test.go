@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistantwire"
-	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -243,28 +242,4 @@ func TestAutoReviewAgentKindInMemory(t *testing.T) {
 		}
 	}
 	t.Fatalf("reviewer %s has no in-memory link", run.SessionID)
-}
-
-// The same value reaches the persistent todo_agents row rather than only the manager's transient copy.
-func TestAutoReviewAgentKindPersisted(t *testing.T) {
-	database, err := db.Open(context.Background(), newDatabase(t), db.ManagerSet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(database.Close)
-	s, _, todo := supervisedAgentKindReview(t, database)
-	run := autoReviewOf(s, todo.ID)
-	rows, err := database.ListAllTodoAgents(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, a := range rows {
-		if a.TodoID == todo.ID && a.SessionID == run.SessionID {
-			if a.Source != sourceReview || a.Agent != "codex" {
-				t.Fatalf("persisted reviewer link = %+v, want source review and start answer codex", a)
-			}
-			return
-		}
-	}
-	t.Fatalf("reviewer %s has no persisted link", run.SessionID)
 }

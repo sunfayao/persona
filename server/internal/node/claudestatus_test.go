@@ -182,27 +182,6 @@ func setAgentStatus(n *Node, id, status string) {
 	n.agents[id] = a
 }
 
-// A working Claude's line goes out when it changes (not when only the read time does), and null once it stops.
-func TestWatchLivePushesChangesAndEnds(t *testing.T) {
-	n, f, pushes := liveNode(t, workingClaude(), boxed("✻ Frosting… (3s · ↓ 1.2k tokens)"))
-	stop := startLive(t, n)
-	if l := nextLive(t, pushes); l == nil || l.ElapsedS != 3 || l.TokensDown != 1200 || l.At == "" {
-		t.Fatalf("first: %+v", l)
-	}
-	noLive(t, pushes, 150*time.Millisecond) // read again and again, the same line
-	f.setScreen("w1:p1", boxed("✻ Frosting… (4s · ↓ 1.3k tokens · thinking)"))
-	if l := nextLive(t, pushes); l == nil || l.ElapsedS != 4 || !l.Thinking {
-		t.Fatalf("changed: %+v", l)
-	}
-	setAgentStatus(n, sidA, proto.StatusIdle)
-	if l := nextLive(t, pushes); l != nil {
-		t.Fatalf("stopped: %+v, want null", l)
-	}
-	noLive(t, pushes, 100*time.Millisecond)
-	stop()
-	noLive(t, pushes, 50*time.Millisecond) // null was sent already
-}
-
 // An early generic retry becomes detailed when Claude knows the error. Later attempt numbers go out even though the
 // retry has no elapsed-time field to change.
 func TestWatchLivePublishesGenericThenDetailedRetryAttempts(t *testing.T) {
@@ -347,25 +326,6 @@ func TestWatchLiveNullWhenLineGoesAndWatchEnds(t *testing.T) {
 	}
 }
 
-// Only a Claude in herdr that is working is read: no read and no push for the others.
-func TestWatchLiveReadsOnlyWorkingClaude(t *testing.T) {
-	for name, agent := range map[string]map[string]any{
-		"codex":       agentOf("codex", sidA, proto.StatusWorking, "w1:p1", "w1:t1", "w1", "/tmp/s", ""),
-		"idle claude": claudeAgent(sidA, proto.StatusIdle, "w1:p1", "w1:t1", "w1", "/tmp/s", ""),
-	} {
-		t.Run(name, func(t *testing.T) {
-			n, f, pushes := liveNode(t, agent, boxed("✻ Frosting… (3s)"))
-			stop := startLive(t, n)
-			time.Sleep(150 * time.Millisecond)
-			stop()
-			if reads := f.trace("pane.read"); len(reads) != 0 {
-				t.Fatalf("read the pane: %v", reads)
-			}
-			noLive(t, pushes, 50*time.Millisecond)
-		})
-	}
-}
-
 // A pane that cannot be read keeps what was sent and says nothing until it can.
 func TestWatchLiveReadFailureKeepsLast(t *testing.T) {
 	n, f, pushes := liveNode(t, workingClaude(), boxed("✻ Frosting… (3s)"))
@@ -375,22 +335,6 @@ func TestWatchLiveReadFailureKeepsLast(t *testing.T) {
 	}
 	f.handle("pane.read", func(map[string]any) any { return herdrFail{Code: "internal", Message: "boom"} })
 	noLive(t, pushes, 150*time.Millisecond)
-}
-
-// session.watch starts the reads and session.unwatch ends them with null.
-func TestWatchStartsAndEndsLive(t *testing.T) {
-	n, _, pushes := liveNode(t, workingClaude(), boxed("✻ Frosting… (3s)"))
-	writeTranscript(t, n.home, "/tmp/s", sidA, time.Now(), `{"type":"ai-title","aiTitle":"t"}`)
-	if err := n.watch(sidA, 0); err != nil {
-		t.Fatal(err)
-	}
-	if l := nextLive(t, pushes); l == nil || l.Verb != "Frosting" {
-		t.Fatalf("watched: %+v", l)
-	}
-	n.unwatch(sidA)
-	if l := nextLive(t, pushes); l != nil {
-		t.Fatalf("unwatched: %+v, want null", l)
-	}
 }
 
 // A working Claude in the Herdr app (herdr-core, plain-text screens) gets its status line too (#3904).

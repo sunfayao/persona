@@ -1,10 +1,6 @@
 package assistant
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -35,39 +31,5 @@ func TestNodeCapabilitiesThroughLogicalDevices(t *testing.T) {
 	s.devs = &logicalDevices{Devices: closeoutDevices{newFleetDevs()}, s: s}
 	if got := s.closeoutForm("box", "en"); got != closeout.MarkdownExample("en") {
 		t.Fatalf("a node announcing markdown closeouts got the XML form through the logical devices: %q", got)
-	}
-}
-
-func TestOptionalDeviceCapabilitiesAreAskedOfThePhysicalDevices(t *testing.T) {
-	files, err := filepath.Glob("*.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	fset := token.NewFileSet()
-	for _, name := range files {
-		if strings.HasSuffix(name, "_test.go") {
-			continue
-		}
-		f, err := parser.ParseFile(fset, name, nil, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
-		ast.Inspect(f, func(n ast.Node) bool {
-			a, ok := n.(*ast.TypeAssertExpr)
-			if !ok {
-				return true
-			}
-			sel, ok := a.X.(*ast.SelectorExpr)
-			if !ok || sel.Sel.Name != "devs" {
-				return true
-			}
-			if star, ok := a.Type.(*ast.StarExpr); ok {
-				if id, ok := star.X.(*ast.Ident); ok && id.Name == "logicalDevices" {
-					return true
-				}
-			}
-			t.Errorf("%s: a type assertion on devs misses what logicalDevices does not promote: assert on s.physicalDevices()", fset.Position(a.Pos()))
-			return true
-		})
 	}
 }

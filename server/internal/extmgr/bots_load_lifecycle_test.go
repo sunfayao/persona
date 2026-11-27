@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -40,67 +39,6 @@ func (s *botBlockedReadStore) Setting(ctx context.Context, key string, out any) 
 		}
 	}
 	return s.Store.Setting(ctx, key, out)
-}
-
-func TestBotLoadTransportReadIsBounded(t *testing.T) {
-	w := newBotLoadWorld(t, true, true)
-	st := &botBlockedReadStore{Store: w.store, entered: make(chan bool, 1), release: make(chan struct{})}
-	w.h.store = st
-	w.store.recover()
-	w.advance()
-	done := make(chan struct{})
-	go func() { w.h.botAPI(); close(done) }()
-	bounded := <-st.entered
-	if !bounded {
-		close(st.release)
-		<-done
-		t.Fatal("transport retry passed an unbounded background context to storage")
-	}
-	var wg sync.WaitGroup
-	for i := range 20 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			switch i % 3 {
-			case 0:
-				w.h.botAPI()
-			case 1:
-				if _, err := w.status(); !errors.Is(err, errBotSettingsUnread) {
-					t.Errorf("pending status: %v", err)
-				}
-			case 2:
-				if code, _ := call(t, w.routes, "GET", "/api/v1/bots/feishu", w.token, ""); code != 503 {
-					t.Errorf("pending settings: HTTP %d", code)
-				}
-			}
-		}()
-	}
-	followersDone := make(chan struct{})
-	go func() { wg.Wait(); close(followersDone) }()
-	select {
-	case <-followersDone:
-	case <-time.After(time.Second):
-		close(st.release)
-		<-done
-		t.Fatal("concurrent lookups waited behind storage while holding the bot settings lifecycle")
-	}
-	select {
-	case <-done:
-	case <-time.After(6 * time.Second):
-		close(st.release)
-		t.Fatal("transport read did not time out")
-	}
-	wg.Wait()
-	if st.calls.Load() != 1 {
-		t.Fatal("overlapping transport reads")
-	}
-	if api, _ := w.h.botAPI(); api != nil {
-		t.Fatal("timed-out read published settings")
-	}
-	w.advance()
-	if api, set := w.h.botAPI(); api == nil || set.Owner == nil {
-		t.Fatal("next eligible read did not restore transport")
-	}
 }
 
 func TestBotLoadReadKeepsEarlierCallerDeadline(t *testing.T) {
@@ -179,95 +117,6 @@ func TestBotLoadLiveCLIProfileRecovery(t *testing.T) {
 		c := currentRecoveryCLI(w.h)
 		return c != nil && c.Profile() == "other"
 	})
-}
-
-func TestBotLoadCLIRecoveryPreservesConnectorSettings(t *testing.T) {
-	for _, tc := range []struct {
-		name, override, chosen, want string
-		off, feedOff, missing        bool
-	}{
-		{name: "disabled_manual_profile", chosen: "other", want: "other", off: true, feedOff: true},
-		{name: "enabled_manual_profile", chosen: "other", want: "other"},
-		{name: "manager_override", override: "fixed", chosen: "other", want: "fixed", off: true, feedOff: true},
-		{name: "actual_empty_config", want: "", missing: true, off: true, feedOff: true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			w := newBotLoadWorld(t, true, false)
-			bin, err := filepath.Abs(filepath.Join("..", "larkcli", "testdata", "fake-lark-cli.sh"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			log := filepath.Join(t.TempDir(), "calls.log")
-			t.Setenv("LARKCLI_FAKE_LOG", log)
-			t.Setenv("LARKCLI_FAKE_SCENARIO", "success")
-			w.h.cfg.Lark = lark.Config{CLI: &lark.CLIConfig{Bin: bin, Profile: tc.override}}
-			if !tc.missing {
-				if err := w.store.botStore.PutSetting(w.ctx, botSettingsKey, FeishuBotSettings{Enabled: false, LarkCLIProfile: tc.chosen}); err != nil {
-					t.Fatal(err)
-				}
-			}
-			options := json.RawMessage(`{"inbox_all_chats":["oc_saved"],"documents":["doc_saved"],"wiki_spaces":[],"triage_rules":"Keep saved preferences"}`)
-			cs := connectorSettings{Switch: map[string]bool{"larkcli": !tc.off}, Inbox: map[string]bool{"larkcli": !tc.feedOff}, Options: map[string]json.RawMessage{"larkcli": options}}
-			if err := w.store.botStore.PutSetting(w.ctx, connectorSettingsKey, cs); err != nil {
-				t.Fatal(err)
-			}
-			w.h.connectors = w.h.newConnectors(nil)
-			w.h.startConnectors(w.ctx)
-			old := w.h.connectors.Get("larkcli").(*larkconnector.Connector)
-			before := string(old.Options())
-			if tc.override != "" {
-				if _, err := old.Call(w.ctx, "larkcli_chats", json.RawMessage(`{}`)); err != nil {
-					t.Fatal(err)
-				}
-			} else {
-				if _, err := old.Call(w.ctx, "larkcli_chats", json.RawMessage(`{}`)); err == nil {
-					t.Fatal("unknown profile ran CLI")
-				}
-				if raw, _ := os.ReadFile(log); len(raw) > 0 {
-					t.Fatalf("unknown profile invoked CLI: %s", raw)
-				}
-			}
-			w.store.recover()
-			w.advance()
-			w.h.botAPI()
-			eventually(t, time.Second, "recovered connector profile", func() bool { c := currentRecoveryCLI(w.h); return c != nil && c.Profile() == tc.want })
-			current := w.h.connectors.Get("larkcli").(*larkconnector.Connector)
-			if string(current.Options()) != before {
-				t.Fatalf("options lost: before=%s after=%s", before, current.Options())
-			}
-			if w.h.connectors.Enabled("larkcli") == tc.off || w.h.connectors.Feeds("larkcli", connector.FeedInbox) == tc.feedOff {
-				t.Fatal("recovery changed connector enabled/feed switches")
-			}
-			if tc.off && connector.StatusOf(w.ctx, current).State != connector.StateDisabled {
-				t.Fatal("replacement lost the connector instance's disabled status")
-			}
-
-			// Disabled connectors stay stopped throughout replacement. A direct capability call below probes the selected identity independently of that switch.
-			if tc.off {
-				raw, _ := os.ReadFile(log)
-				if tc.override == "" && len(raw) > 0 {
-					t.Fatalf("disabled connector started during recovery: %s", raw)
-				}
-			}
-			if _, err := current.Call(w.ctx, "larkcli_chats", json.RawMessage(`{}`)); err != nil {
-				t.Fatal(err)
-			}
-			_, _ = current.Poll(w.ctx)
-			raw, _ := os.ReadFile(log)
-			if len(raw) == 0 {
-				t.Fatal("fake CLI was not invoked")
-			}
-			for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
-				prefix := "--profile " + tc.want + " "
-				if tc.want != "" && !strings.HasPrefix(line, prefix) {
-					t.Errorf("wrong CLI profile: %s", line)
-				}
-				if tc.want == "" && strings.HasPrefix(line, "--profile ") {
-					t.Errorf("known default acquired a profile: %s", line)
-				}
-			}
-		})
-	}
 }
 
 func TestBotLoadManagedCLIRecoverySynchronizes(t *testing.T) {

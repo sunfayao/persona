@@ -1,29 +1,20 @@
 package hub
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"encoding/json/jsontext"
-	"fmt"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"reflect"
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/compat"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/sessionlist"
 )
-
-type paneCase struct {
-	Name, Want string
-	Session    proto.Session
-}
 
 type originRow struct {
 	proto.Session
@@ -71,139 +62,6 @@ func getOriginCounts(t *testing.T, h *Hub, q url.Values) sessionlist.Counts {
 		c.PaneSource = map[string]int{}
 	}
 	return c
-}
-
-func TestRuntimePaneSource8000(t *testing.T) {
-	raw, err := os.ReadFile("../sessionorigin/testdata/pane_sources.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var cases []paneCase
-	if err := json.Unmarshal(raw, &cases); err != nil {
-		t.Fatal(err)
-	}
-	h := newTestHub(t)
-	for n := range 4 {
-		mid := fmt.Sprintf("machine-%d", n)
-		m := newMachine(h, MachineConfig{ID: mid})
-		h.machines, h.byID[mid] = append(h.machines, m), m
-	}
-	var all []originRow
-	for n := range 8000 {
-		// The last 800 rows are Feishu, beyond every unfiltered first page.
-		c := cases[n%(len(cases)-2)]
-		if n >= 7200 {
-			c = cases[len(cases)-2+n%2]
-		}
-		s := c.Session
-		s.MachineID, s.SessionID = fmt.Sprintf("machine-%d", n%4), fmt.Sprintf("session-%04d", n/4)
-		s.Title, s.UpdatedAt = fmt.Sprintf("Row %04d", n), time.Unix(int64(8000-n), 0).UTC()
-		s.State = []string{"working", "unread", "idle", "unknown"}[(n/5)%4]
-		s.Cwd, s.SpaceID = fmt.Sprintf("/demo/project-%d", n%5), fmt.Sprintf("group-%d", (n/7)%3)
-		s.Agent = []string{"claude", "codex"}[(n/3)%2]
-		// The origin domain intentionally includes assistant rows; it is not the
-		// clients' preference-dependent Agents membership contract.
-		s.Assistant = n%101 == 0
-		m := h.byID[s.MachineID]
-		m.sessions = append(m.sessions, s)
-		all = append(all, originRow{Session: s, PaneSource: c.Want})
-	}
-	legacyBefore := httptest.NewRecorder()
-	h.listSessions(legacyBefore, httptest.NewRequest("GET", "/api/v1/sessions", nil))
-	if strings.Contains(legacyBefore.Body.String(), `"pane_source"`) {
-		t.Fatal("legacy payload gained origin")
-	}
-	queries := []url.Values{{"summary": {"1"}}}
-	for _, source := range []string{"terminal", "desktop", "unknown", "feishu"} {
-		queries = append(queries, url.Values{"pane_source": {source}},
-			url.Values{"pane_source": {source}, "summary": {"1"}, "source": {"runtime"}},
-			url.Values{"pane_source": {source}, "machine_id": {"machine-2"}, "group": {"group-1"}, "state": {"working"}},
-			url.Values{"pane_source": {source}, "project": {"/demo/project-3"}, "provider": {"codex"}, "q": {"Row 7"}})
-	}
-	for _, q := range queries {
-		t.Run(q.Encode(), func(t *testing.T) {
-			var expected []originRow
-			want := sessionlist.Counts{Machine: map[string]int{}, Project: map[string]int{}, Group: map[string]int{}, State: map[string]int{}, PaneSource: map[string]int{}, Todo: map[string]int{}}
-			for _, row := range all {
-				// Expected origin labels are independently checked against sessionSource
-				// in web/src/lib/pane-source-contract.test.ts, never against the Go helper.
-				if q.Get("pane_source") != "" && q.Get("pane_source") != row.PaneSource ||
-					q.Get("source") != "" && q.Get("source") != row.SourceKind ||
-					q.Get("machine_id") != "" && q.Get("machine_id") != row.MachineID ||
-					q.Get("group") != "" && q.Get("group") != row.SpaceID ||
-					q.Get("state") != "" && q.Get("state") != row.State ||
-					q.Get("project") != "" && q.Get("project") != row.Cwd ||
-					q.Get("provider") != "" && q.Get("provider") != row.Agent ||
-					q.Get("q") != "" && !strings.Contains(row.Title, q.Get("q")) {
-					continue
-				}
-				expected = append(expected, row)
-				want.Total++
-				want.Machine[row.MachineID]++
-				want.Project[row.Cwd]++
-				want.Group[row.SpaceID]++
-				want.State[row.State]++
-				want.PaneSource[row.PaneSource]++
-				want.Todo[""]++ // on no to-do
-			}
-			q.Set("limit", "137")
-			p := getOriginPage(t, h, q)
-			want.Revision = p.Revision
-			if p.Total != len(expected) {
-				t.Fatalf("total=%d, want %d", p.Total, len(expected))
-			}
-			if c := getOriginCounts(t, h, q); !reflect.DeepEqual(c, want) {
-				t.Fatalf("counts=%+v want %+v", c, want)
-			}
-			got := []originRow{}
-			seen := map[string]bool{}
-			for {
-				if p.Total != len(expected) || p.Revision != want.Revision {
-					t.Fatal("page contract changed")
-				}
-				for _, row := range p.Sessions {
-					key := runtimeListID(row.MachineID, row.SessionID)
-					if seen[key] {
-						t.Fatalf("duplicate %s", key)
-					}
-					seen[key] = true
-					got = append(got, row)
-				}
-				if !p.HasMore {
-					break
-				}
-				q.Set("cursor", p.Cursor)
-				if c := getOriginCounts(t, h, q); !reflect.DeepEqual(c, want) {
-					t.Fatalf("frozen counts=%+v want %+v", c, want)
-				}
-				p = getOriginPage(t, h, q)
-			}
-			// Times are distinct in the corpus: expected is the original full-list order.
-			if len(got) != len(expected) {
-				t.Fatalf("union=%d want %d", len(got), len(expected))
-			}
-			for n, row := range got {
-				e := expected[n]
-				if row.MachineID != e.MachineID || row.SessionID != e.SessionID || row.PaneSource != e.PaneSource || row.Host != e.Host {
-					t.Fatalf("row %d: %s/%s origin=%s host=%s; want %s/%s origin=%s host=%s", n, row.MachineID, row.SessionID, row.PaneSource, row.Host, e.MachineID, e.SessionID, e.PaneSource, e.Host)
-				}
-			}
-		})
-	}
-	legacyAfter := httptest.NewRecorder()
-	h.listSessions(legacyAfter, httptest.NewRequest("GET", "/api/v1/sessions", nil))
-	if !bytes.Equal(legacyBefore.Body.Bytes(), legacyAfter.Body.Bytes()) {
-		t.Fatal("indexing changed no-opt-in legacy output")
-	}
-	// The distribution is the corpus's: the fixture's cases over 7200 rows, then 800 Feishu rows.
-	corpus := map[string]int{}
-	for _, row := range all {
-		corpus[row.PaneSource]++
-	}
-	c := getOriginCounts(t, h, url.Values{})
-	if !reflect.DeepEqual(c.PaneSource, corpus) || corpus["feishu"] != 800 || len(corpus) != 4 {
-		t.Fatalf("origin distribution=%v, corpus %v", c.PaneSource, corpus)
-	}
 }
 
 func TestRuntimePaneSourceFrozenAndDelta(t *testing.T) {

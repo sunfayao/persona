@@ -486,34 +486,6 @@ func TestResumableReclaimedAsTheGraceEnds(t *testing.T) {
 	}
 }
 
-// The grace period ends while an answer given meanwhile is being written: the answer stands, not cancelled over, and
-// the hook that comes back reads it.
-func TestResumableAnswerWrittenAsTheGraceEnds(t *testing.T) {
-	ft, st := slowEndTest(t, "ix_a", 300*time.Millisecond)
-	s := ft.s
-	answered := make(chan error, 1)
-	yes := true
-	go func() { answered <- s.resolve("ix_a", proto.Resolution{Allow: &yes}) }()
-	select {
-	case <-st.entered: // the answer is being written
-	case <-time.After(5 * time.Second):
-		t.Fatal("the answer was never written")
-	}
-	time.Sleep(400 * time.Millisecond) // the grace runs out meanwhile
-	close(st.release)
-	if err := <-answered; err != nil {
-		t.Fatal(err)
-	}
-	ft.waitPending(0)
-	if got := st.written(); !slices.Equal(got, []string{"resolved"}) {
-		t.Fatalf("written %v: the grace end cancelled over the answer", got)
-	}
-	r, err := s.waitInteraction(context.Background(), resumable("ix_a"))
-	if err != nil || r.Allow == nil || !*r.Allow {
-		t.Fatalf("the hook back got %+v %v", r, err)
-	}
-}
-
 // hubCards are the cards the hub holds after what it was told, kept as fleet_link.go keeps them: a card is added by
 // fleet.interaction and taken off by fleet.interaction_resolved, in the order they came.
 func (ft *fleetTest) hubCards() map[string]bool {

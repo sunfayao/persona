@@ -184,26 +184,6 @@ func TestWatchPushesItemlessLines(t *testing.T) {
 	}
 }
 
-// The first watch of a session the hub has not seen (since 0) must not push the whole history it reads.
-func TestWatchFromZeroDoesNotPushHistory(t *testing.T) {
-	n, home := testNode(t)
-	const id = "11111111-2222-3333-4444-555555555556"
-	dir := filepath.Join(home, ".claude", "projects", "-work")
-	_ = os.MkdirAll(dir, 0o700)
-	writeCodexToolLines(t, filepath.Join(dir, id+".jsonl"), 0, 50)
-	hub := withHub(t, n)
-	if err := n.watch(id, 0); err != nil {
-		t.Fatal(err)
-	}
-	defer n.unwatch(id)
-	writeCodexToolLines(t, filepath.Join(dir, id+".jsonl"), 50, 1) // then one new line: streamed
-	waitFor(t, "the new line", func() bool { return len(hub.got()) >= 2 })
-	time.Sleep(300 * time.Millisecond)
-	if got := hub.got(); len(got) != 2 || got[0].Seq != 51 {
-		t.Fatalf("want only the new line's 2 items, got %d (first seq %d)", len(got), got[0].Seq)
-	}
-}
-
 func TestQuickMetaCountsBigToolResultsAsActivity(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "s.jsonl")

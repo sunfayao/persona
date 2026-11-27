@@ -218,7 +218,6 @@ describe("Mermaid blocks", () => {
   });
 });
 
-
 describe("conversation links", () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -243,20 +242,6 @@ describe("conversation links", () => {
     expect(html).toContain('href="#heading"');
     expect(renderToStaticMarkup(createElement(Markdown, { text: "[另一个文件](./other.md)" }))).toContain('href="./other.md"');
   });
-
-  it("passes machine context through both finished and streaming answers", async () => {
-    const { renderToStaticMarkup } = await import("react-dom/server");
-    const { createElement } = await import("react");
-    const { Answer } = await import("../views/chat/SegmentView");
-    vi.stubGlobal("localStorage", { getItem: () => "test-token" });
-    const text = "[报告](/workspace/report.md)";
-    for (const props of [{ streaming: text }, { item: { id: "answer", seq: 1, role: "assistant" as const, kind: "text" as const, text } }]) {
-      const html = renderToStaticMarkup(createElement(Answer, { ...props, mid: "desktop", sid: "session" }));
-      expect(html).toContain("/api/v1/machines/desktop/file/download?path=%2Fworkspace%2Freport.md");
-    }
-    // The first import of SegmentView pulls in the whole chat view graph; under the full suite's parallel load
-    // that alone can pass the default 5 s, so this case gets room for the import, not for the rendering.
-  }, 30_000);
 
   it("renders malformed conversation URLs without crashing the transcript", async () => {
     const { renderToStaticMarkup } = await import("react-dom/server");

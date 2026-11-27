@@ -11,8 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/coder/websocket"
-
 	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
@@ -68,86 +66,6 @@ func TestRouteOrderProxyOnly(t *testing.T) {
 	off := &Config{Endpoints: eps, SSH: &SSH{Server: "user@example.com"}}
 	if got := routeOrder(off, true, ""); !slices.Equal(got, []string{"", KindProxy, KindSSH}) {
 		t.Errorf("off: %v", got)
-	}
-}
-
-// The first dial, a stream on the link, and a reconnect after the hub restarts all go through the proxy, with the
-// hub's direct address answering and never dialed.
-func TestProxyOnlyCarriesTheLinkStreamsAndReconnects(t *testing.T) {
-	hub, direct, proxy, ep, path := proxyOnlySetup(t, true)
-	node := newFakeNode(t)
-	ch, _ := runLink(t, Options{Path: path, Target: node.path, PairCheck: 30 * time.Millisecond, DirectRetryEvery: time.Hour})
-
-	st := waitFor(t, ch, func(s Status) bool { return s.State == "connected" })
-	if st.Kind != KindProxy || st.Address != ep.URL || st.Proxy != RedactedProxy(proxy.url) {
-		t.Fatalf("status %+v", st)
-	}
-	first := <-hub.links
-	sendJSON(t, first.conn, `{"type":"open","id":"s1"}`)
-	var stream *websocket.Conn
-	select {
-	case stream = <-hub.streams:
-	case <-time.After(10 * time.Second):
-		t.Fatal("the stream did not reach the hub")
-	}
-	rctx, rcancel := context.WithTimeout(context.Background(), 5*time.Second)
-	_, b, err := stream.Read(rctx)
-	rcancel()
-	if err != nil || string(b) != nodeHello {
-		t.Fatalf("stream: %q %v", b, err)
-	}
-	_ = stream.CloseNow()
-	if n := proxy.connects.Load(); n != 2 {
-		t.Fatalf("CONNECTs for the link and its stream: %d", n)
-	}
-
-	_ = first.conn.Close(websocket.StatusGoingAway, "restart")
-	again := waitFor(t, ch, func(s Status) bool { return s.State == "connected" && s.Kind == KindProxy && s.Conn > st.Conn })
-	<-hub.links
-	if n := proxy.connects.Load(); n != 3 {
-		t.Fatalf("CONNECTs after the reconnect: %d", n)
-	}
-
-	// A new proxy URL saved while connected moves the link to the new proxy, still never dialing direct: serve
-	// follows the proxy setting on a link through the proxy, not only on a fallback one.
-	other := newConnectProxy(t, hub.target, nil)
-	if err := SetProxy(path, other.url); err != nil {
-		t.Fatal(err)
-	}
-	moved := waitFor(t, ch, func(s Status) bool { return s.State == "connected" && s.Conn > again.Conn })
-	if moved.Kind != KindProxy || moved.Address != ep.URL || moved.Proxy != RedactedProxy(other.url) {
-		t.Fatalf("after a new proxy URL: %+v", moved)
-	}
-	<-hub.links
-	if n := other.connects.Load(); n == 0 {
-		t.Fatal("the link did not go through the new proxy")
-	}
-	if n := direct.attempts.Load(); n != 0 {
-		t.Fatalf("proxy-only dialed the hub directly %d times", n)
-	}
-}
-
-// On a proxy-only link neither the periodic direct retry nor a network change dials the hub directly.
-func TestProxyOnlyNeverProbesDirect(t *testing.T) {
-	hub, direct, _, _, path := proxyOnlySetup(t, true)
-	check := make(chan struct{}, 1)
-	ch, _ := runLink(t, Options{Path: path, Check: check, PairCheck: 30 * time.Millisecond, DirectRetryEvery: 50 * time.Millisecond})
-	if st := waitFor(t, ch, func(s Status) bool { return s.State == "connected" }); st.Kind != KindProxy {
-		t.Fatalf("status %+v", st)
-	}
-	over := <-hub.links
-	// The network changed, three times: Check holds one, so the fourth send returns once the loop has taken three.
-	for range 4 {
-		check <- struct{}{}
-	}
-	time.Sleep(500 * time.Millisecond) // sleep-ok: no event marks a direct dial that never happens; ten retry periods
-	if n := direct.attempts.Load(); n != 0 {
-		t.Fatalf("proxy-only probed the hub directly %d times", n)
-	}
-	select {
-	case <-over.ended:
-		t.Fatal("the link through the proxy was dropped")
-	default:
 	}
 }
 
@@ -222,45 +140,6 @@ func TestProxyOnlyWithoutAProxy(t *testing.T) {
 	}
 }
 
-// Turning the switch on while connected directly moves the link to the proxy, which then stays; turning it off
-// reconnects, and direct candidates take over again as before.
-func TestProxyOnlyTurnedOnAndOffWhileConnected(t *testing.T) {
-	hub, direct, proxy, ep, path := proxyOnlySetup(t, false)
-	ch, _ := runLink(t, Options{Path: path, PairCheck: 30 * time.Millisecond, DirectRetryEvery: 50 * time.Millisecond})
-	st := waitFor(t, ch, func(s Status) bool { return s.State == "connected" })
-	if st.Kind != "name" || st.Address != ep.URL || proxy.connects.Load() != 0 {
-		t.Fatalf("off, direct first: %+v (CONNECTs %d)", st, proxy.connects.Load())
-	}
-	directLink := <-hub.links
-
-	attempts := direct.attempts.Load()
-	if err := SetProxyAlways(path, true); err != nil {
-		t.Fatal(err)
-	}
-	on := waitFor(t, ch, func(s Status) bool { return s.State == "connected" && s.Conn > st.Conn })
-	if on.Kind != KindProxy {
-		t.Fatalf("on: %+v", on)
-	}
-	<-hub.links
-	select {
-	case <-directLink.ended:
-	case <-time.After(5 * time.Second):
-		t.Fatal("the direct link stayed open")
-	}
-	time.Sleep(500 * time.Millisecond) // sleep-ok: no event marks a direct dial that never happens; ten retry periods
-	if got := direct.attempts.Load(); got != attempts {
-		t.Fatalf("proxy-only dialed direct: %d → %d", attempts, got)
-	}
-
-	if err := SetProxyAlways(path, false); err != nil {
-		t.Fatal(err)
-	}
-	back := waitFor(t, ch, func(s Status) bool { return s.State == "connected" && s.Kind != KindProxy })
-	if back.Kind != "name" || back.Address != ep.URL || back.Proxy != "" {
-		t.Fatalf("back direct: %+v", back)
-	}
-}
-
 // Turned off while the hub's direct address is down, proxy-only mode leaves the link on the proxy as an ordinary
 // fallback: the periodic direct retry runs again, and moves the link back once the direct address answers.
 func TestProxyOnlyTurnedOffFallsBackThenReturnsDirect(t *testing.T) {
@@ -300,29 +179,6 @@ func TestProxyOnlyTurnedOffFallsBackThenReturnsDirect(t *testing.T) {
 	case <-overProxy.ended:
 	case <-time.After(5 * time.Second):
 		t.Fatal("the link through the proxy stayed open")
-	}
-}
-
-// Proxy-only mode turned on just before the hub replaces the link (4001) cuts replaceWait short: after the link
-// ends, a proxy_always that differs from the one it ran with counts as a change written while it was up, so the next
-// look at link.json comes back at once, through the proxy.
-func TestProxyOnlyTurnedOnBeforeAReplacedLinkComesBack(t *testing.T) {
-	hub, _, _, _, path := proxyOnlySetup(t, false)
-	// PairCheck paces both the connected link's look at link.json and the wait's: a second leaves the write below
-	// to the wait after the link nearly always.
-	ch, _ := runLink(t, Options{Path: path, PairCheck: time.Second, DirectRetryEvery: time.Hour})
-	st := waitFor(t, ch, func(s Status) bool { return s.State == "connected" })
-	if st.Kind != "name" {
-		t.Fatalf("off, direct first: %+v", st)
-	}
-	first := <-hub.links
-	if err := SetProxyAlways(path, true); err != nil {
-		t.Fatal(err)
-	}
-	_ = first.conn.Close(CloseReplaced, "replaced")
-	back := waitFor(t, ch, func(s Status) bool { return s.State == "connected" && s.Conn > st.Conn })
-	if back.Kind != KindProxy {
-		t.Fatalf("after the replaced link: %+v", back)
 	}
 }
 

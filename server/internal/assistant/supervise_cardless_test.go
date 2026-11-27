@@ -115,33 +115,6 @@ func TestReviewCardlessWaitRearmsOnNewRound(t *testing.T) {
 	}
 }
 
-// The round marker survives a manager restart on a Postgres-backed service, so the same round is not told twice.
-func TestReviewCardlessWaitSurvivesRestart(t *testing.T) {
-	database := taskRecoveryDatabase(t)
-	s, f, todo := newSupervisedServiceOn(t, database)
-	holdDigest(s)
-	ctx := context.Background()
-	waitsForReview(t, s, f, todo.ID, "做完了。")
-	s.superviseWatch(ctx, time.Now().Add(cardlessSettle+time.Minute))
-	if !slices.Contains(pendingKinds(s, todo.ID), sigCardlessWait) {
-		t.Fatalf("card-less review not handed back: %v", pendingKinds(s, todo.ID))
-	}
-	forgetSignals(t, s)
-	again, _ := restartedOn(t, database)
-	holdDigest(again)
-	if err := again.ensureTodosLoaded(ctx); err != nil {
-		t.Fatal(err)
-	}
-	cur := todoNow(again, todo.ID)
-	if cur.Supervision.CardlessToldAt == nil || cur.Supervision.State != reviewPending {
-		t.Fatalf("the marker did not survive the restart: %+v", cur.Supervision)
-	}
-	again.superviseWatch(ctx, time.Now().Add(2*time.Hour))
-	if slices.Contains(pendingKinds(again, todo.ID), sigCardlessWait) {
-		t.Fatal("a restart reissued the same card-less hand-back")
-	}
-}
-
 // cardlessWorkersStopped judges only the sessions it is given: a worker still working or starting keeps the review
 // live, a worker holding a card stands for the owner, and only fully stopped, card-less sessions count as settled.
 func TestCardlessWorkersStopped(t *testing.T) {

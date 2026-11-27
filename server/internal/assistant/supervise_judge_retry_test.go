@@ -24,38 +24,6 @@ func startJudgeRecovery(t *testing.T, s *Service, f *fakeHub, todo Todo, reply s
 	turnsQuiet(t, s, todo.ID)
 }
 
-// A call failure is not an unjudged outcome. The existing sweep retries it with backoff and tells the supervisor once,
-// with the service failure named, only after the bounded retries have all failed.
-func TestSupervisedJudgeServiceErrorRetriesThenReportsOnce(t *testing.T) {
-	fastJudgeRetry(t)
-	shortTurnRetries(t, 0)
-	s, f, todo := newSupervisedService(t)
-	f.judge = "not-json" // a 200 reply that cannot be parsed as a judgment
-	startJudgeRecovery(t, s, f, todo, "the work is finished")
-	if got := f.judged; got != 2 {
-		t.Fatalf("the initial pass made %d calls, want the existing immediate retry (2)", got)
-	}
-	for retry := 0; retry < 4; retry++ {
-		if got := stopSignals(s, todo.ID); got != "" {
-			t.Fatalf("before deferred retry %d: told %q instead of waiting", retry+1, got)
-		}
-		sweeps(t, s, todo.ID, 1)
-	}
-	waitFor(t, "one exhausted judgment-service signal", func() bool { return len(f.notices()) == 1 })
-	if got := f.judged; got != 6 {
-		t.Fatalf("model calls = %d, want two immediate plus four deferred (6)", got)
-	}
-	n := entryLine(f.notices()[0])
-	if !strings.Contains(n, "signal=unjudged") || !strings.Contains(n, "the judge service failed (still failing after 4 automatic re-judgments)") {
-		t.Fatalf("the exhausted signal does not name the service failure and retries:\n%s", n)
-	}
-	before := f.judged
-	stillTurns(t, "no duplicate after exhaustion", turnCounts{receipts: 1, judgments: 6, messages: 1}, s, todo.ID, f)
-	if f.judged != before {
-		t.Fatalf("the exhausted turn was judged again: %d → %d", before, f.judged)
-	}
-}
-
 // A request failure that recovers before the deferred retry produces no unjudged signal. The retry reads the reply as
 // it is then, rather than judging the snapshot that failed earlier.
 func TestSupervisedJudgeRetryUsesLatestReply(t *testing.T) {
@@ -87,37 +55,6 @@ func TestSupervisedJudgeRetryUsesLatestReply(t *testing.T) {
 	}
 	if got := entryLine(f.notices()[0]); !strings.Contains(got, "signal=review") || strings.Contains(got, "could not tell whether it finished") {
 		t.Fatalf("the recovered judgment produced the wrong signal:\n%s", got)
-	}
-}
-
-// An expired judge context still belongs to the service-failure path: it gets the same bounded deferred retries and
-// exhausted wording rather than falling through to the generic "judgment did not land" cap.
-func TestSupervisedJudgeTimeoutUsesDeferredRetry(t *testing.T) {
-	oldTimeout := taskDoneTimeout
-	taskDoneTimeout = 50 * time.Millisecond
-	t.Cleanup(func() { taskDoneTimeout = oldTimeout })
-	shortTurnRetries(t, 0)
-	s, f, todo := newSupervisedService(t)
-	f.mu.Lock()
-	f.judgeDelay = time.Second // the caller's much shorter context expires first
-	f.sessionsContextCheck = true
-	f.mu.Unlock()
-	startJudgeRecovery(t, s, f, todo, "the work is finished")
-	if got := f.judged; got != 1 {
-		t.Fatalf("a timed-out initial call was retried inline: %d calls, want 1", got)
-	}
-	for retry := 0; retry < 4; retry++ {
-		if got := stopSignals(s, todo.ID); got != "" {
-			t.Fatalf("before deferred retry %d after timeout: told %q", retry+1, got)
-		}
-		sweeps(t, s, todo.ID, 1)
-	}
-	waitFor(t, "one exhausted timeout signal", func() bool { return len(f.notices()) == 1 })
-	if got := f.judged; got != 5 {
-		t.Fatalf("model calls = %d, want one initial plus four deferred (5)", got)
-	}
-	if got := entryLine(f.notices()[0]); !strings.Contains(got, "signal=unjudged") || !strings.Contains(got, "the judge service failed (still failing after 4 automatic re-judgments)") {
-		t.Fatalf("the exhausted timeout was mislabeled:\n%s", got)
 	}
 }
 

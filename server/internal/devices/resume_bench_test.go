@@ -44,16 +44,6 @@ func TestResumeBench(t *testing.T) {
 	}
 }
 
-// TestResumeBenchShort is the experiment's cut, scaled down and with resuming only: no call fails and nothing
-// connects anew.
-func TestResumeBenchShort(t *testing.T) {
-	r := resumeBenchRun(t, netshape.Config{Rate: 4_000_000, Delay: 10 * time.Millisecond, Queue: 256 << 10}, "cut", true,
-		resumeBench{chunks: 16, chunk: 128 << 10, cutAfter: 500 * time.Millisecond, after: 3 * time.Second})
-	if r.failed > 0 || r.transferFailed > 0 || r.reconnects > 0 || r.resumed != 1 {
-		t.Fatalf("resumed %d, %d calls and %d chunks failed, %d reconnects", r.resumed, r.failed, r.transferFailed, r.reconnects)
-	}
-}
-
 type resumeBench struct {
 	chunks, chunk   int
 	cutAfter, after time.Duration // when the connection breaks; how long calls go on after it

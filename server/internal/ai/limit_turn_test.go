@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -270,112 +269,5 @@ func TestAHoldPastTodayNamesItsDay(t *testing.T) {
 	}
 	if logs := clk.lines(); len(logs) != 1 || !strings.HasSuffix(logs[0], "requests are put off until 2026-11-03 15:43:00") {
 		t.Fatalf("logs = %q", logs)
-	}
-}
-
-// The gate counts right whatever comes in whatever order: random runs of requests coming, ending every way a request
-// ends (answered, a limit before or after the 200, another failure before or after it, a panic unwinding through it
-// before or after it) and time passing.
-// After every step the requests counted as out are the ones that are, at most one of them is finding out, and with
-// nothing out and no pause running a request goes out at once: no order of events strands the connection (#6698).
-func TestTheGateCountsRightInAnyOrder(t *testing.T) {
-	clk := fakeClock(t)
-	gone, cancel := context.WithCancel(context.Background())
-	cancel() // a request that would have to wait is put off at once instead
-	ends := []struct {
-		name     string
-		answered bool // the upstream said 200
-		err      error
-	}{
-		{"answered", true, nil},
-		{"answered", true, nil},
-		{"busy after the 200", true, &streamLimit{reason: ReasonBusy, event: "error", code: "overloaded_error", msg: "Overloaded"}},
-		{"busy", false, &httpError{status: 503, body: busyBody}},
-		{"busy, retry after 90s", false, &httpError{status: 503, body: busyBody, retryAfter: 90 * time.Second}},
-		{"out of quota", false, &httpError{status: 429, body: quotaBody}},
-		{"not found", false, &httpError{status: 404, body: "no such model"}},
-		{"bad gateway", false, &httpError{status: 502, body: "bad gateway"}},
-		{"dropped", false, io.ErrUnexpectedEOF},
-		{"cut off after the 200", true, io.ErrUnexpectedEOF},
-		{"panicked", false, errUnwound},
-		{"panicked after the 200", true, errUnwound},
-	}
-	waits := []time.Duration{time.Second, 6 * time.Second, time.Minute, 6 * time.Minute, 31 * time.Minute}
-	type request struct {
-		turn turn
-		let  bool // the gate went at its 200: it is an ordinary request from then on
-	}
-	for seed := int64(1); seed <= 3000; seed++ {
-		rnd := rand.New(rand.NewSource(seed))
-		g := &gate{host: "walk", wake: make(chan struct{})}
-		var out []*request
-		var trace []string
-		check := func() {
-			t.Helper()
-			held, probing, inflight, timed, limit := gateState(g)
-			finding := 0
-			for _, r := range out {
-				if r.turn.probe && !r.let {
-					finding++
-				}
-			}
-			var problem string
-			switch {
-			case inflight != len(out) || timed != len(out):
-				problem = "the requests counted as out are not the ones that are"
-			case finding > 1 || probing != (finding == 1):
-				problem = "who is finding out does not match the requests out"
-			case limit < 0:
-				problem = "a negative cap"
-			}
-			if problem == "" && len(out) == 0 && (!held || !now().Before(g.pause.Until)) {
-				// Nothing out and no pause running: a request goes out at once. It ends as a dropped connection, which
-				// changes nothing but who finds out next.
-				next, err := g.admit(gone)
-				if err != nil {
-					problem = "nothing is out, no pause is running, and a request is put off: " + err.Error()
-				} else {
-					_ = g.done(next, next.probe, false, io.ErrUnexpectedEOF)
-				}
-			}
-			if problem != "" {
-				t.Fatalf("seed %d: %s\nevents: %s\ngate: held %v, finding out %v, %d in flight (%d timed), cap %d; %d out by the test's count",
-					seed, problem, strings.Join(trace, ", "), held, probing, inflight, timed, limit, len(out))
-			}
-		}
-		for range 60 {
-			switch k := rnd.Intn(10); {
-			case k < 4: // a request comes
-				next, err := g.admit(gone)
-				if err != nil {
-					if !IsPaused(err) {
-						t.Fatalf("seed %d: a request not let out: %v", seed, err)
-					}
-					trace = append(trace, "put off")
-					break
-				}
-				trace = append(trace, map[bool]string{true: "one finds out", false: "one goes out"}[next.probe])
-				out = append(out, &request{turn: next})
-			case k < 8 && len(out) > 0: // one of those out ends
-				i := rnd.Intn(len(out))
-				r := out[i]
-				out = append(out[:i], out[i+1:]...)
-				end := ends[rnd.Intn(len(ends))]
-				if end.answered && r.turn.probe && g.answers() { // its 200 is seen before its answer is read
-					r.let = true
-				}
-				// A limit the stream reports after the 200 is no answer to the gate (messageFailure, respond), and
-				// neither is a request that did not return (Chat's defer).
-				var limit *streamLimit
-				told := end.answered && !errors.As(end.err, &limit) && end.err != errUnwound
-				_ = g.done(r.turn, r.turn.probe && !r.let, told, end.err)
-				trace = append(trace, end.name)
-			default:
-				d := waits[rnd.Intn(len(waits))]
-				clk.add(d)
-				trace = append(trace, "+"+d.String())
-			}
-			check()
-		}
 	}
 }

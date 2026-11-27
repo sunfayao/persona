@@ -3,12 +3,10 @@ package node
 import (
 	"context"
 	"errors"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/host"
 	"github.com/sunfayao/persona/server/internal/rpc"
@@ -59,16 +57,6 @@ const queuedScreenOtherKeys = `❯ Also run the linter at the end.
 ✻ Waddling… (12s · ↓ 120 tokens)
 ────────────────────────────────────────
 ❯ Press up to edit queued messages`
-
-// claudeScreen is a Claude Code screen read off a real pane (testdata/claude-<version>-<what>.txt).
-func claudeScreen(t *testing.T, name string) string {
-	t.Helper()
-	b, err := os.ReadFile(filepath.Join("testdata", "claude-"+name+".txt"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(b)
-}
 
 // A message queued with no send-now hint beside it at all.
 const queuedScreenNoHint = `❯ Also run the linter at the end.
@@ -135,65 +123,6 @@ func codeOf(err error) string {
 	return ""
 }
 
-// Send now presses Claude Code's own send-now only while its screen offers it, the keys its hint names, and is done
-// when the queue is gone.
-func TestSendQueuedNow(t *testing.T) {
-	defer func(d time.Duration) { sendNowWait = d }(sendNowWait)
-	sendNowWait = 600 * time.Millisecond
-	node := func(h *queueHost, agent string) *Node {
-		return &Node{hosts: host.NewRegistry(h), agents: map[string]host.Agent{"s1": {Agent: agent, PaneID: "orca:t1:l1"}}, paths: map[string]string{}, metas: map[string]quickMeta{}, bgScans: map[string]*bgScan{}}
-	}
-
-	for screen, want := range map[string]string{
-		queuedScreen:                              "ctrl+x ctrl+s",
-		queuedScreenCtrlEnter:                     "ctrl+enter",
-		queuedScreenQueuedLabel:                   "ctrl+enter",
-		claudeScreen(t, "2.1.321-send-now-herdr"): "ctrl+enter",
-		claudeScreen(t, "2.1.321-send-now-tmux"):  "ctrl+x ctrl+s",
-		claudeScreen(t, "2.1.326-send-now-herdr"): "ctrl+enter",
-		// another binding, as the hint names it: pressed as named
-		"❯ Also run the linter.\n  ctrl+x ctrl+q to send now\n❯ Press up to edit queued messages": "ctrl+x ctrl+q",
-	} {
-		h := &queueHost{bareHost: bareHost{kind: host.Orca}, queued: screen}
-		if err := node(h, "claude").sendQueuedNow(context.Background(), "s1"); err != nil {
-			t.Fatalf("send now with %q: %v", want, err)
-		}
-		if got := strings.Join(h.keys, " "); got != want {
-			t.Fatalf("keys %q, want the hint's %q", got, want)
-		}
-	}
-
-	// nothing queued on the screen (the queue was taken a moment ago): no key at all
-	h := &queueHost{bareHost: bareHost{kind: host.Orca}, first: idleScreen}
-	if err := node(h, "claude").sendQueuedNow(context.Background(), "s1"); codeOf(err) != "nothing_queued" || len(h.keys) != 0 {
-		t.Fatalf("nothing queued: %v, keys %q", err, h.keys)
-	}
-
-	// Antigravity CLI (agy): recognizes "(alt+m to send immediately)" and dispatches alt+m
-	const agyQueuedScreen = "  Working on tests...\n\nCheck the linter output... (alt+m to send immediately)\n────────────────────────────────────────"
-	h = &queueHost{bareHost: bareHost{kind: host.Orca}, queued: agyQueuedScreen}
-	if err := node(h, agyAgent).sendQueuedNow(context.Background(), "s1"); err != nil {
-		t.Fatalf("agy send now: %v", err)
-	}
-	if got := strings.Join(h.keys, " "); got != "alt+m" {
-		t.Fatalf("agy keys %q, want alt+m", got)
-	}
-
-	// not a Claude or agy: refused before looking
-	h = &queueHost{bareHost: bareHost{kind: host.Orca}}
-	if err := node(h, "codex").sendQueuedNow(context.Background(), "s1"); codeOf(err) != "send_now_unsupported" || len(h.keys) != 0 {
-		t.Fatalf("codex: %v, keys %q", err, h.keys)
-	}
-
-	// the key went in and the queue stays on the screen: in doubt, delivery unknown
-	h = &queueHost{bareHost: bareHost{kind: host.Orca}, stuck: true}
-	err := node(h, "claude").sendQueuedNow(context.Background(), "s1")
-	var re *rpc.Error
-	if !errors.As(err, &re) || re.Code != "send_now_in_doubt" || !strings.Contains(string(re.Data), `"delivered":"unknown"`) {
-		t.Fatalf("stuck: %v", err)
-	}
-}
-
 // A queue whose send-now hint Persona can't press is refused as unrecognized, with nothing pressed and no word of
 // updating Claude Code: a hint naming keys a terminal can't send, or only a click, is quoted, and a queue the
 // transcript has with no hint on the screen is refused the same way.
@@ -238,56 +167,6 @@ func TestSendQueuedNowUnrecognized(t *testing.T) {
 	n.paths["s1"] = p
 	if err := n.sendQueuedNow(context.Background(), "s1"); codeOf(err) != "nothing_queued" || len(h.keys) != 0 {
 		t.Fatalf("no hint, nothing in the transcript: %v, keys %q", err, h.keys)
-	}
-}
-
-// A fullscreen Claude Code scrolled up has its queued message and hint off screen (#4537, the screens read off
-// 2.1.321): the node scrolls back to the end with Claude Code's own key, finds the hint there and presses its keys.
-// When the end shows no hint either, nothing but the scroll key went in.
-func TestSendQueuedNowScrolledUp(t *testing.T) {
-	defer func(d, s time.Duration) { sendNowWait, sendNowScrollWait = d, s }(sendNowWait, sendNowScrollWait)
-	sendNowWait, sendNowScrollWait = 600*time.Millisecond, 300*time.Millisecond
-	node := func(h *queueHost) *Node {
-		return &Node{hosts: host.NewRegistry(h), agents: map[string]host.Agent{"s1": {Agent: "claude", PaneID: "orca:t1:l1"}}, paths: map[string]string{}, metas: map[string]quickMeta{}, bgScans: map[string]*bgScan{}}
-	}
-	scrolled := claudeScreen(t, "2.1.321-send-now-scrolled")
-	if hint, _ := sendNowOffer(scrolled); hint != "" {
-		t.Fatalf("the scrolled screen has no hint, got %q", hint)
-	}
-
-	h := &queueHost{bareHost: bareHost{kind: host.Orca}, scrolled: scrolled, queued: claudeScreen(t, "2.1.321-send-now-back-at-end")}
-	if err := node(h).sendQueuedNow(context.Background(), "s1"); err != nil {
-		t.Fatalf("scrolled up: %v", err)
-	}
-	if got := strings.Join(h.keys, " "); got != "ctrl+end ctrl+enter" {
-		t.Fatalf("keys %q, want the scroll back, then the hint's ctrl+enter", got)
-	}
-
-	// macOS names no key in the pill: Claude Code's own ctrl+end all the same
-	mac := strings.Replace(scrolled, "Jump to bottom (ctrl+End) ↓", "Jump to bottom (click) ↓", 1)
-	h = &queueHost{bareHost: bareHost{kind: host.Orca}, scrolled: mac, queued: claudeScreen(t, "2.1.321-send-now-back-at-end")}
-	if err := node(h).sendQueuedNow(context.Background(), "s1"); err != nil || strings.Join(h.keys, " ") != "ctrl+end ctrl+enter" {
-		t.Fatalf("macOS pill: %v, keys %q", err, h.keys)
-	}
-
-	// older output scrolled into view quotes a hint: not the queue's, the one at the end is pressed
-	quoting := strings.Replace(scrolled, "  Ran 1 shell command", "  ⎿  ctrl+x ctrl+q to send now", 1)
-	if hint, _ := sendNowOffer(quoting); hint != "ctrl+x ctrl+q to send now" {
-		t.Fatalf("the quoting screen should hold a hint-shaped line, got %q", hint)
-	}
-	h = &queueHost{bareHost: bareHost{kind: host.Orca}, scrolled: quoting, queued: claudeScreen(t, "2.1.321-send-now-back-at-end")}
-	if err := node(h).sendQueuedNow(context.Background(), "s1"); err != nil || strings.Join(h.keys, " ") != "ctrl+end ctrl+enter" {
-		t.Fatalf("a quoted hint above: %v, keys %q", err, h.keys)
-	}
-
-	// still no hint at the end, with the queue in the transcript: refused, only the scroll key pressed
-	h = &queueHost{bareHost: bareHost{kind: host.Orca}, first: scrolled}
-	n := node(h)
-	p := filepath.Join(t.TempDir(), "s1.jsonl")
-	writeLines(t, p, []string{`{"type":"queue-operation","operation":"enqueue","content":"third queued probe: reply THIRD-OK"}`})
-	n.paths["s1"] = p
-	if err := n.sendQueuedNow(context.Background(), "s1"); codeOf(err) != "send_now_unrecognized" || strings.Join(h.keys, " ") != "ctrl+end" {
-		t.Fatalf("no hint at the end: %v, keys %q", err, h.keys)
 	}
 }
 

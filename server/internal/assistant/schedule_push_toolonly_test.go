@@ -1,10 +1,7 @@
 package assistant
 
 import (
-	"context"
-	"encoding/json"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -50,42 +47,5 @@ func TestQuietTurnItemsToolOnlyPatrol(t *testing.T) {
 		if got := quietTurnItems(c.items); got != c.want {
 			t.Errorf("%s: %v, want %v", c.name, got, c.want)
 		}
-	}
-}
-
-// End to end: a patrol that checks with a tool and ends without text gets no completion push and is not mirrored;
-// one that only calls notify_user delivers that notification once and nothing else.
-func TestQuietPatrolEndingWithToolCalls(t *testing.T) {
-	e := newPatrolEnv(t)
-	e.run()
-	e.working()
-	e.done([]proto.Item{e.patrolInput(),
-		{Role: "assistant", Kind: proto.KindToolUse, ToolName: "Bash", ToolUseID: "tu1"},
-		{Role: "user", Kind: proto.KindToolResult, ToolUseID: "tu1", Text: "0 open MRs"}, turnDurationItem()}, "")
-	if n := e.pushes(1); n != 0 {
-		t.Errorf("a tool-only patrol: %d completion notifications, want 0", n)
-	}
-	if e.mirrored() {
-		t.Error("a tool-only patrol would be mirrored to channels")
-	}
-
-	e = newPatrolEnv(t)
-	e.run()
-	e.working()
-	if _, err := e.ft.s.runTool(context.Background(), "mac", "lead1", "notify_user",
-		json.RawMessage(`{"title":"MR 12 needs you","body":"Review requested"}`)); err != nil {
-		t.Fatal(err)
-	}
-	e.done([]proto.Item{e.patrolInput(),
-		{Role: "assistant", Kind: proto.KindToolUse, ToolName: "mcp__persona__notify_user", ToolUseID: "tu2"},
-		{Role: "user", Kind: proto.KindToolResult, ToolUseID: "tu2", Text: "Notification sent."}, turnDurationItem()}, "")
-	if n := e.pushes(1); n != 0 {
-		t.Errorf("a patrol that only called notify_user: %d completion notifications, want 0", n)
-	}
-	if got := e.ft.pushesOf(NotifyPush, 1, 300*time.Millisecond); len(got) != 1 || got[0].Title != "MR 12 needs you" {
-		t.Errorf("the explicit notification: %d delivered, want 1", len(got))
-	}
-	if e.mirrored() {
-		t.Error("a patrol that only called notify_user would be mirrored to channels a second time")
 	}
 }

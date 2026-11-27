@@ -78,39 +78,6 @@ func (repositoryFailStore) Setting(context.Context, string, any) (bool, error) {
 	return false, errors.New("synthetic private store detail")
 }
 
-func TestRepositoryPostgresPersistenceAndIsolation(t *testing.T) {
-	dsn := newDatabase(t)
-	database, err := db.Open(t.Context(), dsn, db.ManagerSet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	s, calls := repositoryService(t, database)
-	w := placeDo(s, "", "POST", repoBase, repoExample)
-	var saved struct{ Repository RepositoryBinding }
-	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &saved) != nil {
-		t.Fatalf("save: %d %s", w.Code, w.Body)
-	}
-	database.Close()
-	database, err = db.Open(t.Context(), dsn, db.ManagerSet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(database.Close)
-	s, _ = repositoryService(t, database)
-	if got, err := s.repositoryByID(t.Context(), saved.Repository.ID); err != nil || got.ID != saved.Repository.ID || *calls != 1 {
-		t.Fatalf("reopen: %+v %v", got, err)
-	}
-	otherDB, err := db.Open(t.Context(), newDatabase(t), db.ManagerSet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(otherDB.Close)
-	other, _ := repositoryService(t, otherDB)
-	if got, err := other.repositoryByID(t.Context(), saved.Repository.ID); err == nil {
-		t.Fatalf("cross-manager database: %+v", got)
-	}
-}
-
 type repositoryCASStore struct {
 	Store
 	saved bool

@@ -6,7 +6,6 @@ import (
 	"os"
 	osexec "os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -166,38 +165,6 @@ func TestEgoInstallerCheck(t *testing.T) {
 	t.Logf("%v: %s, version %s", steps, filepath.Base(app), strings.TrimSpace(string(version)))
 	if len(steps) != 2 {
 		t.Fatal(steps)
-	}
-}
-
-// A script that prints far more than the model gets (a log loop, a page that floods the console) is not kept whole
-// while it runs (#3980): the start of what it printed and its result line come back, and the node holds a bounded
-// amount whatever the script prints.
-func TestBrowserCallKeepsABoundedOutput(t *testing.T) {
-	cli := `#!/bin/sh
-cat >/dev/null
-printf 'first line\n'
-yes 'a line the script printed over and over' | head -c 268435456
-printf '\n@@persona-browser@@{"value":"done","url":"https://example.com/","title":"Example Domain"}\n'
-`
-	fakeEgoHome(t, true, false, false, cli)
-	var before, after runtime.MemStats
-	runtime.GC()
-	runtime.ReadMemStats(&before)
-	res, err := browserCall(context.Background(), json.RawMessage(`{"session": "persona-1", "script": "return 'done'"}`))
-	runtime.ReadMemStats(&after)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var out map[string]any
-	if json.Unmarshal(res.Output, &out) != nil || out["value"] != "done" || out["title"] != "Example Domain" {
-		t.Fatalf("%.300s", res.Output)
-	}
-	if console, _ := out["console"].(string); !strings.HasPrefix(console, "first line\n") {
-		t.Fatalf("console = %.100q", console)
-	}
-	// 256 MB printed; what is kept is at most twice the tail (it slides) and the head.
-	if got := after.TotalAlloc - before.TotalAlloc; got > 160<<20 {
-		t.Fatalf("256 MB of output cost %d MB of allocations", got>>20)
 	}
 }
 

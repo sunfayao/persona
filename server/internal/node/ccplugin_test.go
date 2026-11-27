@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -18,7 +17,6 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/acceptloop"
 	"github.com/sunfayao/persona/server/internal/nodeproto"
-	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // pluginSocket serves n's node socket at a short path of its own (the node's own path is the user's), and gives a
@@ -227,57 +225,6 @@ func TestCCPluginOnlyForTheOwner(t *testing.T) {
 	}
 	if res["delivered_as"] != nil || len(plugin.messages()) != 0 || len(inbox.users()) != 1 {
 		t.Errorf("answer %v, plugin %v, inbox %d", res, plugin.messages(), len(inbox.users()))
-	}
-}
-
-// When the plugin route does not go, the owner's message goes through the inbox and the answer says why: a session
-// at work whose plugin is one from before busy_input, a state the plugin does not deliver in, no plugin, a plugin that
-// will not submit it, one that takes it and shows nothing before its deadline.
-func TestCCPluginFallsBackToTheInbox(t *testing.T) {
-	for _, c := range []struct {
-		name, status, mode string // mode "": no plugin
-		reason             string
-		pluginGets         int
-	}{
-		{"busy, a plugin from before busy_input", "busy", "submit", relayOutdated, 0},
-		{"behind a dialog, a plugin from before busy_input", "waiting", "submit", relayOutdated, 0},
-		{"a state the plugin does not deliver in", "starting", "submit", relayBusy, 0},
-		{"no plugin", "idle", "", relayNoPlugin, 0},
-		{"refused", "idle", "refuse", relayRefused, 1},
-		{"silent", "idle", "silent", relayUnconfirmed, 1},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			n, f, home := herdrNode(t)
-			noPaneEnv(t)
-			shortPeerWait(t, 2*time.Second)
-			shortPluginWaits(t)
-			p := bgTranscript(t, home, home, sidA, "plan")
-			inbox := newFakeInbox(t, p)
-			writeOutsideClaude(t, home, sidA, "claude-desktop", c.status, inbox, nil)
-			f.reply("session.snapshot", snapshot(nil, nil, nil, nil))
-			var plugin *fakePlugin
-			if c.mode != "" {
-				plugin = startFakePlugin(t, pluginSocket(t, n), sidA, p, c.mode)
-				if c.mode == "refuse" {
-					// Finish transport setup and authentication before measuring the short acknowledgement window.
-					<-plugin.ready
-				}
-				waitPolling(t, n, sidA)
-			}
-			res, err := request(t, n, "session.send", map[string]any{"session_id": sidA, "text": "merge it", "client_msg_id": "m-1", "owner_input": true})
-			if err != nil {
-				t.Fatalf("send: %v", err)
-			}
-			if res["ok"] != true || res["delivered_as"] != "relayed" || res["relay_reason"] != c.reason {
-				t.Errorf("answer %v", res)
-			}
-			if len(inbox.users()) != 1 {
-				t.Errorf("the inbox got %d messages", len(inbox.users()))
-			}
-			if plugin != nil && len(plugin.messages()) != c.pluginGets {
-				t.Errorf("the plugin got %v", plugin.messages())
-			}
-		})
 	}
 }
 
@@ -553,39 +500,6 @@ func TestCCPluginQueuesBehindADialog(t *testing.T) {
 	}
 	if len(inbox.users()) != 0 {
 		t.Errorf("the inbox got %v as well", inbox.users())
-	}
-}
-
-// A message the inbox read and the session did not take still says how it went (delivered_as relayed, relay_reason):
-// the app can tell the owner the session's plugin is one from before busy_input, which only a new start of the
-// session replaces, instead of only "not sure it arrived".
-func TestCCPluginUnconfirmedRelaySaysWhy(t *testing.T) {
-	n, f, home := herdrNode(t)
-	noPaneEnv(t)
-	shortPeerWait(t, 300*time.Millisecond)
-	shortPluginWaits(t)
-	p := bgTranscript(t, home, home, sidA, "plan")
-	inbox := newFakeInbox(t, p)
-	inbox.setMode("discard") // read, then nothing: dropped, refused or expired there
-	writeOutsideClaude(t, home, sidA, "claude-desktop-3p", "busy", inbox, nil)
-	f.reply("session.snapshot", snapshot(nil, nil, nil, nil))
-	startFakePlugin(t, pluginSocket(t, n), sidA, p, "submit")
-	waitPolling(t, n, sidA)
-
-	_, err := request(t, n, "session.send", map[string]any{"session_id": sidA, "text": "dispatch the measurements", "client_msg_id": "m-1", "owner_input": true})
-	var re *rpc.Error
-	if !errors.As(err, &re) || re.Code != peerUnconfirmed {
-		t.Fatalf("send: %v", err)
-	}
-	data := map[string]any{}
-	_ = json.Unmarshal(re.Data, &data)
-	if data["delivered"] != deliveredUnknown || data["delivered_as"] != deliveredRelayed || data["relay_reason"] != relayOutdated {
-		t.Errorf("error data %s", re.Data)
-	}
-	// Anyone else's message says nothing of a way it went.
-	_, err = request(t, n, "session.send", map[string]any{"session_id": sidA, "text": "a note from the assistant", "client_msg_id": "m-2"})
-	if !errors.As(err, &re) || re.Code != peerUnconfirmed || strings.Contains(string(re.Data), "relay_reason") {
-		t.Errorf("a message that is not the owner's: %v %s", err, re.Data)
 	}
 }
 

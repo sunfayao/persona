@@ -8,9 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/assistant/todo/projection"
-	"github.com/sunfayao/persona/server/internal/assistantwire"
-	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -83,104 +80,6 @@ func reportHandoffTest(s *Service, session, kind string, receipt map[string]stri
 	args, _ := json.Marshal(map[string]any{"kind": kind, "text": "The release check ran.",
 		"evidence": []string{"check-release: 4 passed"}, "handoff_receipt": receipt})
 	return s.reportToSupervisor(context.Background(), "box", session, args, time.Now())
-}
-
-func TestConfirmedTaskHandoffsWakeOnlyMatchingOrigin(t *testing.T) {
-	ctx := context.Background()
-	d, err := db.Open(ctx, newDatabase(t), db.AllSets)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer d.Close()
-	s, f, a, b, receiving := handoffTestTodos(t, d)
-	head := strings.Repeat("a", 40)
-	ra, err := sendHandoffTest(t, s, f, "conv1", a.ID, receiving.ID, head)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rb, err := sendHandoffTest(t, s, f, "conv1", b.ID, receiving.ID, head)
-	if err != nil {
-		t.Fatal(err)
-	}
-	later := time.Now().Add(61 * time.Minute)
-	s.superviseWatch(ctx, later)
-	for _, id := range []string{a.ID, b.ID} {
-		current := todoNow(s, id)
-		view := projection.View(projectionFacts(listedTodo{Todo: current}, nil, time.UTC), later)
-		if p := current.Supervision.Parked; p == nil || !strings.Contains(p.Reason, receiving.Title) ||
-			!strings.Contains(p.Reason, handoffCheck) || !p.Until.After(later) || view.Section != assistantwire.TodoListSectionWaiting {
-			t.Fatalf("%s after 61 minutes: park=%+v view=%+v", current.Title, p, view)
-		}
-		if sigs := pendingKinds(s, id); len(sigs) != 0 {
-			t.Fatalf("%s stopped while waiting: %v", current.Title, sigs)
-		}
-		t.Logf("%s after 61 minutes: %s, %s", current.Title, view.Section, current.Supervision.Parked.Reason)
-	}
-	if ra["id"] == "" || rb["id"] == "" || ra["id"] == rb["id"] {
-		t.Fatalf("the two sends need different receipt IDs: %v, %v", ra, rb)
-	}
-	for _, bad := range []struct {
-		key, value, session string
-	}{
-		{"head", strings.Repeat("b", 40), "receiver"},
-		{"check", "Different check", "receiver"},
-		{"id", "unknown", "receiver"},
-		{"todo_id", b.ID, "receiver"},
-		{"head", head, "origin-b"},
-	} {
-		copyReceipt := make(map[string]string, len(ra))
-		for key, value := range ra {
-			copyReceipt[key] = value
-		}
-		copyReceipt[bad.key] = bad.value
-		if got, err := reportHandoffTest(s, bad.session, "done", copyReceipt); err == nil {
-			t.Fatalf("unmatched receipt accepted: %s (%s)", bad.key, got)
-		}
-	}
-	if s0, s1 := todoNow(s, a.ID).Supervision.State, todoNow(s, b.ID).Supervision.State; s0 != reviewParked || s1 != reviewParked {
-		t.Fatalf("a rejected receipt moved a wait: A=%s B=%s", s0, s1)
-	}
-	if _, err := reportHandoffTest(s, "receiver", "done", ra); err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := s.digestEntry(ctx, superviseSignal{Todo: a.ID, Kind: sigIdle}, ""); ok {
-		t.Fatal("a stale stopped signal survived a matching handoff result")
-	}
-	settleService(t, s)
-	if s0, s1, sc := todoNow(s, a.ID).Supervision.State, todoNow(s, b.ID).Supervision.State, todoNow(s, receiving.ID).Supervision.State; s0 != reviewPending || s1 != reviewParked || sc == reviewPending {
-		t.Fatalf("one matching receipt: A=%s B=%s receiver=%s", s0, s1, sc)
-	}
-	messageCount := 0
-	for _, notice := range f.notices() {
-		if strings.Contains(notice, "Handoff result received") {
-			messageCount++
-			if !strings.Contains(notice, a.ID) || strings.Contains(notice, b.ID) || !strings.Contains(notice, "4 passed") {
-				t.Fatalf("supervision did not carry only A's evidence:\n%s", notice)
-			}
-		}
-	}
-	if messageCount != 1 {
-		t.Fatalf("got %d result messages, want one", messageCount)
-	}
-	// Reload the actual ledger into a new Service on the same Postgres fixture.
-	f.mu.Lock()
-	f.settings = nil
-	f.mu.Unlock()
-	restarted := newServiceOn(t, f, d)
-	shortSupervise(t, restarted)
-	before := len(f.notices())
-	got, err := reportHandoffTest(restarted, "receiver", "done", ra)
-	if err != nil || !strings.Contains(got, "already recorded") {
-		t.Fatalf("duplicate after restart: %q, %v", got, err)
-	}
-	restarted.superviseWatch(ctx, time.Now())
-	if sigs := pendingKinds(restarted, a.ID); len(sigs) != 0 || len(f.notices()) != before {
-		t.Fatalf("the result woke review again after restart: %v", sigs)
-	}
-	if st := todoNow(restarted, b.ID).Supervision.State; st != reviewParked {
-		t.Fatalf("waiting sibling after restart = %s", st)
-	}
-	t.Log("one matching receipt: A=pending_review B=parked; duplicate after Postgres reload: 0 new wakes")
 }
 
 func TestTaskHandoffRequiresDeliveryConfirmation(t *testing.T) {

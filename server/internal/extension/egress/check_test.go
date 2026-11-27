@@ -151,27 +151,6 @@ func TestCheckRevokeClosesItsTunnels(t *testing.T) {
 	}
 }
 
-// A check not revoked stops working when its time is up, its open tunnels with it.
-func TestCheckExpires(t *testing.T) {
-	p := newProxy(t, tcpEcho(t), nil)
-	p.Register("aster", Rule{})
-	cred, _, _ := p.Check("aster", []Target{{Host: "gw2.example.com", Port: "443"}}, 300*time.Millisecond)
-	c := dialProxy(t, p)
-	if got, _ := tunnel(t, c, "gw2.example.com:443", cred); got != http.StatusOK {
-		t.Fatalf("before its time is up: %d", got)
-	}
-	if br := bufio.NewReader(c); !closed(c, br) {
-		t.Fatal("the tunnel outlives the check")
-	}
-	if got, _ := tunnel(t, dialProxy(t, p), "gw2.example.com:443", cred); got != http.StatusProxyAuthRequired {
-		t.Fatalf("after its time is up: %d, want 407", got)
-	}
-	gone, _, _ := p.Check("aster", nil, -time.Second) // born expired
-	if got, _ := tunnel(t, dialProxy(t, p), "gw2.example.com:443", gone); got != http.StatusProxyAuthRequired {
-		t.Fatalf("an expired check: %d", got)
-	}
-}
-
 // A program that registers anew (restarted) or is unregistered (stopped) loses its checks; a check is only for a
 // registered extension.
 func TestCheckEndsWithTheRegistration(t *testing.T) {

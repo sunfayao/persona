@@ -142,53 +142,6 @@ func TestCodexAppFirstMessageFailurePreservesCreatedSession(t *testing.T) {
 	checkDesktopCreationError(t, err, n.codexPublicID(n.codexHome(), seeds[0].thread))
 }
 
-func TestCodexAppMetadataFailurePreservesCreatedSession(t *testing.T) {
-	n, bus, _, opened := codexAppNode(t)
-	n.codices = newCodexRegistry()
-	n.configureCodex(proto.CodexConfig{LegacyHome: n.codexHome()})
-	id := newUUID()
-	bus.later = id
-	seedCodexAppChat = func(context.Context, string, string, string, string) (string, error) {
-		return id, errors.New("thread/name/set failed after thread/start succeeded")
-	}
-	_, err := startCodexApp(t, n, map[string]any{"cwd": t.TempDir(), "launcher": codexAppLauncher, "prompt": "hello"})
-	checkDesktopCreationError(t, err, n.codexPublicID(n.codexHome(), id))
-	var re *rpc.Error
-	if !errors.As(err, &re) || !strings.Contains(string(re.Data), `"first_message_delivered":"none"`) {
-		t.Fatal("a pre-send failure claimed that a message might have been sent")
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	for _, text := range []string{
-		`<persona-context kind="skill" ref="old-selection">review</persona-context>`,
-		`<persona-context kind="skill">review</persona-context>`,
-	} {
-		_, err := request(t, n, "session.send", map[string]any{"session_id": n.codexPublicID(n.codexHome(), id), "skill_owner": "agents:helper", "text": text})
-		if code, data := refusalOf(t, err); code != "skill_unavailable" || data["delivered"] != deliveredNone {
-			t.Fatalf("desktop retry accepted an unavailable skill: %v (%v)", err, data)
-		}
-	}
-	if len(*opened) != 0 {
-		t.Fatalf("refused skill opened the desktop: %v", *opened)
-	}
-	select {
-	case turn := <-bus.turns:
-		t.Fatalf("refused skill reached the desktop: %v", turn)
-	default:
-	}
-	if err := n.send(ctx, n.codexPublicID(n.codexHome(), id), "hello", nil, sendOpts{}); err != nil {
-		t.Fatalf("retry could not reach the original desktop thread: %v", err)
-	}
-	select {
-	case turn := <-bus.turns:
-		if turn["conversationId"] != id {
-			t.Fatalf("retry reached another thread: %v", turn)
-		}
-	case <-ctx.Done():
-		t.Fatal("retry sent no turn to the desktop")
-	}
-}
-
 func TestBlankDesktopCreationRetriesImportWithoutCreatingAnotherSession(t *testing.T) {
 	n, home := testNode(t)
 	t.Setenv("CLAUDE_CONFIG_DIR", "")

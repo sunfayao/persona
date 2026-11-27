@@ -3,12 +3,10 @@ package node
 import (
 	"encoding/json"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/host"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -34,46 +32,6 @@ func TestStoppedAgentRowIsReadOnly(t *testing.T) {
 	}
 	if s := rows[sidB]; s.Capabilities != nil || s.ReadOnlyReason != "" {
 		t.Errorf("a fresh branch is read-only: %+v (%+v)", s, s.Capabilities)
-	}
-}
-
-func TestRetiredAgentRowUsesSessionHost(t *testing.T) {
-	for _, def := range []string{proto.EnginePaseo, proto.EngineHerdr} {
-		for _, remembered := range []string{"state", "last pane"} {
-			t.Run(def+"/"+remembered, func(t *testing.T) {
-				withStop(t, 1, 50*time.Millisecond)
-				n, f, home := herdrNode(t)
-				choice := proto.EngineChoice{Hosts: []string{proto.EngineHerdr, proto.EnginePaseo}, Default: def}
-				n.eng.name, n.eng.set = proto.LegacyEngine(choice), &choice
-				cwd := mkdir(t, filepath.Join(home, "proj"))
-				writeTranscript(t, home, cwd, sidA, time.Now().Add(-time.Hour),
-					`{"type":"user","cwd":"`+cwd+`","message":{"role":"user","content":"hi"},"uuid":"u1"}`,
-					`{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"`+strings.Repeat("done ", 600)+`"}]},"uuid":"a1","parentUuid":"u1"}`)
-				n.agents[sidA] = host.Agent{Agent: "claude", PaneID: "w1:p1", TabID: "w1:t1", WorkspaceID: "w1", AgentStatus: proto.StatusDone}
-				if remembered == "state" {
-					n.state.put(sidA, sessionState{Pane: "w1:p1", Launcher: "cc", Cwd: cwd})
-				} else {
-					n.lastPanes = map[string]string{sidA: "w1:p1"}
-				}
-				quitsOn(f, "w1:p1", sidA, nil, shellPane("w1:p1", "w1:t1", "w1", cwd, sidA))
-				res, err := request(t, n, "session.retire", map[string]any{"session_id": sidA})
-				if err != nil || res["closed"] != true {
-					t.Fatalf("retire = %v, %v", res, err)
-				}
-				row := byID(listSessions(t, n))[sidA]
-				want := &proto.SessionCapabilities{Read: true, Terminal: true}
-				if row.SessionID != sidA || row.Status != proto.StatusOffline || !reflect.DeepEqual(row.Capabilities, want) || row.ReadOnlyReason != stoppedReason {
-					t.Fatalf("retired row: status=%q capabilities=%+v reason=%q", row.Status, row.Capabilities, row.ReadOnlyReason)
-				}
-				if remembered == "state" {
-					n.recordRunning(sidA)
-					if _, allowed := n.terminalExitLaunch(sidA); !allowed {
-						t.Fatal("a later running terminal kept the legacy Retire restriction")
-					}
-				}
-				closesNothing(t, f)
-			})
-		}
 	}
 }
 

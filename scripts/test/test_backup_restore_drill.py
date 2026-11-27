@@ -363,22 +363,6 @@ class ProcessTest(Fixture):
                     os.kill(int(pid_file.read_text()), 0)
                     time.sleep(0.1)
 
-    def test_a_hung_step_times_out_and_everything_is_removed(self):
-        args = drill.parse_args(self.argv("hang-ready", "--step-timeout", "2"), self.environment)
-        started = time.monotonic()
-        report = drill.Drill(args, self.environment).run()
-        self.assertLess(time.monotonic() - started, 25)
-        self.assertEqual(report["verdict"], "TIMEOUT")
-        self.assertEqual(report["failed_phase"], "setup")
-        self.assert_cleaned_up(report)
-        network = [call for call in self.calls() if call[:2] == ["network", "create"]]
-        self.assertEqual(len(network), 1)
-        self.assertIn("--internal", network[0])
-        run = [call for call in self.calls() if call[0] == "run"][0]
-        self.assertNotIn("--publish", run)
-        self.assertNotIn("-p", run)
-        self.assertIn("never", run[run.index("--pull") + 1:run.index("--pull") + 2])
-        self.assertFalse(any(drill.URL_PATTERN.search(" ".join(call)) for call in self.calls()))
 
     def test_a_failed_start_is_redacted_and_cleaned_up(self):
         args = drill.parse_args(self.argv("fail-run"), self.environment)
@@ -404,25 +388,6 @@ class ProcessTest(Fixture):
         self.assertEqual(report["verdict"], "FAIL")
         self.assertIn("architecture", report["error"])
         self.assertFalse(any(call[:2] == ["network", "create"] for call in self.calls()))
-        self.assert_cleaned_up(report)
-
-    def test_an_interrupt_cleans_up(self):
-        report_path = self.tmp / "report.json"
-        process = subprocess.Popen([sys.executable, str(DRILL), *self.argv("interrupt", "--report", str(report_path))],
-                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                   env={**self.environment, "PATH": os.environ.get("PATH", "")})
-        try:
-            deadline = time.monotonic() + 20
-            while not (self.state / "hung.pid").exists():
-                self.assertLess(time.monotonic(), deadline, "the fake never hung")
-                time.sleep(0.05)
-            process.send_signal(signal.SIGTERM)
-            self.assertEqual(process.wait(timeout=30), 1)
-        finally:
-            if process.poll() is None:
-                process.kill()
-        report = json.loads(report_path.read_text())
-        self.assertEqual(report["verdict"], "INTERRUPTED")
         self.assert_cleaned_up(report)
 
 

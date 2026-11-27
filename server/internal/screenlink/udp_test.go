@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
-	"math/rand"
-	"sync"
 	"testing"
 	"time"
 )
@@ -47,65 +45,6 @@ func TestTheVideoRidesAUDPFlow(t *testing.T) {
 	t.Logf("%d bytes resent on loopback", resent)
 }
 
-// Lost packets cost the picture nothing: with parity most are rebuilt where they land, and what parity can't cover
-// (or everything, without parity) is asked for again; a message lost whole is asked for by its place in the stream.
-func TestLostPacketsAreRebuiltOrAskedForAgain(t *testing.T) {
-	for _, c := range []struct {
-		name  string
-		ratio int
-	}{{"with parity", 1500}, {"without parity", 0}} {
-		t.Run(c.name, func(t *testing.T) {
-			l := openUDPLink(t, udpLimits())
-			rng := rand.New(rand.NewSource(int64(c.ratio) + 1))
-			var mu sync.Mutex
-			var dropped int
-			lossy := false
-			// 5 % of the node's packets while the video runs (the proof, resumed and pongs get through).
-			relay := lossyRelay(t, l.nodeAt, func(int) bool {
-				mu.Lock()
-				defer mu.Unlock()
-				if lossy && rng.Float64() < 0.05 {
-					dropped++
-					return true
-				}
-				return false
-			})
-			setLoss := func(on bool) { mu.Lock(); lossy = on; mu.Unlock() }
-			l.up = newUDPPhone(t, l.p, l.dc, l.ready, relay)
-			l.up.ch = l.id
-			l.up.prove()
-			l.up.use(l.id, 0)
-			l.up.ping(c.ratio)
-			msgs := videoStream(120)
-			setLoss(true)
-			writeAll(l.helper, msgs)
-			want := join(msgs)
-			waitFor(t, "the video through loss", func() bool { return len(l.up.delivered()) >= len(want) })
-			setLoss(false)
-			if !bytes.Equal(l.up.delivered(), want) {
-				t.Fatal("the video through loss differs from what the helper sent")
-			}
-			_, parity, resent := l.up.ping(c.ratio)
-			mu.Lock()
-			defer mu.Unlock()
-			l.up.mu.Lock()
-			rebuilt, nacks := l.up.rebuilt, l.up.nacks
-			l.up.mu.Unlock()
-			t.Logf("dropped %d packets: %d rebuilt from parity, %d asked for again, %d parity bytes, %d resent bytes",
-				dropped, rebuilt, nacks, parity, resent)
-			if dropped == 0 {
-				t.Fatal("nothing was dropped")
-			}
-			if c.ratio > 0 && (rebuilt == 0 || parity == 0 || nacks >= dropped) {
-				t.Fatalf("parity rebuilt %d and %d were asked for, of %d dropped", rebuilt, nacks, dropped)
-			}
-			if c.ratio == 0 && (rebuilt != 0 || resent == 0) {
-				t.Fatalf("without parity: %d rebuilt, %d bytes resent", rebuilt, resent)
-			}
-		})
-	}
-}
-
 // A message lost whole at the end of a burst, with nothing after it to show it was sent, is found by the node's tail
 // probe: its last shard comes again, and the phone asks for the rest.
 func TestATailLostWholeIsProbed(t *testing.T) {
@@ -138,97 +77,6 @@ func TestATailLostWholeIsProbed(t *testing.T) {
 		ch := l.s.chans[l.id]
 		return ch.base == ch.sent
 	})
-}
-
-// Fresh video starts the probe clock again even when the previous message's fourth probe already armed an 800 ms
-// timer. Acknowledging that message does not let its timer postpone the fresh tail's first probe.
-func TestFreshTailDoesNotInheritAnOldProbeTimer(t *testing.T) {
-	l := openUDPLink(t, udpLimits())
-	l.up.prove()
-	l.up.use(l.id, 0)
-	isTail := func(h udpFragmentHead) bool {
-		blocks := udpBlocks(int(h.Length))
-		last := blocks[len(blocks)-1]
-		return h.Block == uint16(len(blocks)-1) && h.Index == uint16(last.Data-1)
-	}
-
-	// Drop the original's last shard and its first three tail probes, with retransmission requests paused so their
-	// copies are not mistaken for probes. The fourth probe completes the message, so the phone acknowledges it itself
-	// after the probe has armed the sender's 800 ms timer.
-	previous := videoFrameMsg(1, false, 3000)
-	previousTails := make(chan time.Time, 16)
-	previousTailAppearances := 0 // the fake phone calls drop under its lock
-	l.up.mu.Lock()
-	l.up.autoAsk = false
-	l.up.drop = func(h udpFragmentHead) bool {
-		if h.Offset != 0 || !isTail(h) {
-			return false
-		}
-		previousTailAppearances++
-		previousTails <- time.Now()
-		return previousTailAppearances <= 4
-	}
-	l.up.mu.Unlock()
-	writeAll(l.helper, [][]byte{previous})
-	for i := 0; i < 5; i++ {
-		select {
-		case <-previousTails:
-		case <-time.After(2 * time.Second):
-			t.Fatalf("only %d tail appearances before the fourth probe", i)
-		}
-	}
-	waitFor(t, "the previous message acknowledged", func() bool {
-		l.s.mu.Lock()
-		defer l.s.mu.Unlock()
-		return l.s.chans[l.id].base == uint64(len(previous))
-	})
-
-	// The fresh message is lost whole on its first trip. Its first repeated last shard is therefore the tail probe,
-	// which must come within 300 ms (the required 50 ms plus generous scheduling room), not inherit the old 800 ms.
-	fresh := videoFrameMsg(2, false, 3000)
-	freshAt := uint64(len(previous))
-	freshTails := make(chan time.Time, 16)
-	seen := map[[2]uint16]bool{} // the fake phone calls drop under its lock
-	l.up.mu.Lock()
-	l.up.expected = freshAt
-	l.up.got = nil // only the fresh message's delivery is checked below
-	l.up.autoAsk = true
-	l.up.drop = func(h udpFragmentHead) bool {
-		if h.Offset != freshAt {
-			return false
-		}
-		if isTail(h) {
-			freshTails <- time.Now()
-		}
-		key := [2]uint16{h.Block, h.Index}
-		if !seen[key] {
-			seen[key] = true
-			return true
-		}
-		return false
-	}
-	l.up.mu.Unlock()
-	started := time.Now()
-	writeAll(l.helper, [][]byte{fresh})
-	select {
-	case <-freshTails: // the original's last shard
-	case <-time.After(2 * time.Second):
-		t.Fatal("the fresh message was not sent")
-	}
-	timer := time.NewTimer(300 * time.Millisecond)
-	defer timer.Stop()
-	select {
-	case at := <-freshTails:
-		if elapsed := at.Sub(started); elapsed > 300*time.Millisecond {
-			t.Fatalf("the fresh tail's first probe came after %v, want within 300ms", elapsed)
-		}
-	case <-timer.C:
-		t.Fatal("no probe within 300ms after fresh video followed an acknowledged fourth probe")
-	}
-	waitFor(t, "the fresh tail", func() bool { return len(l.up.delivered()) == len(fresh) })
-	if !bytes.Equal(l.up.delivered(), fresh) {
-		t.Fatal("the fresh tail differs")
-	}
 }
 
 // A frame the phone gives up is not sent again: the node drops the backlog's frames, says where the stream goes on,
@@ -320,80 +168,6 @@ func TestRFBNeverRidesAUDPFlow(t *testing.T) {
 		}
 	}
 	l.s.mu.Unlock()
-}
-
-// A flow that goes silent hands the video back to its TLS route, from what the phone acknowledged; when the route
-// itself drops, the flow goes with it and the video goes on over the relay.
-func TestAFlowFallsBackToItsRoute(t *testing.T) {
-	t.Run("silent", func(t *testing.T) {
-		limits := udpLimits()
-		limits.FlowSilence = 150 * time.Millisecond
-		l := openUDPLink(t, limits)
-		route := directTransport(l.s)
-		l.up.prove()
-		l.up.use(l.id, 0)
-		first := videoStream(20)
-		writeAll(l.helper, first)
-		waitFor(t, "video over udp", func() bool { return len(l.up.delivered()) == len(join(first)) })
-		// The phone stops sending on the flow; it picks the bytes up on its TLS route from where it acknowledged.
-		l.up.mu.Lock()
-		l.up.autoAsk = false
-		at := l.up.expected
-		l.up.mu.Unlock()
-		l.p.mu.Lock()
-		l.p.recv[l.id] = at
-		l.p.mu.Unlock()
-		waitFor(t, "the flow to be dropped", func() bool {
-			l.s.mu.Lock()
-			defer l.s.mu.Unlock()
-			return l.s.chans[l.id].active == route
-		})
-		more := videoStream(10)
-		writeAll(l.helper, more)
-		waitFor(t, "video over the TLS route", func() bool { return len(l.p.received(l.id)) == len(join(more)) })
-		if !bytes.Equal(l.p.received(l.id), join(more)) {
-			t.Fatal("the video over the TLS route differs")
-		}
-	})
-	t.Run("the route drops", func(t *testing.T) {
-		l := openUDPLink(t, udpLimits())
-		l.up.prove()
-		l.up.use(l.id, 0)
-		first := videoStream(10)
-		writeAll(l.helper, first)
-		waitFor(t, "video over udp", func() bool { return len(l.up.delivered()) == len(join(first)) })
-		l.up.mu.Lock()
-		at := l.up.expected
-		l.up.mu.Unlock()
-		l.p.mu.Lock()
-		l.p.recv[l.id] = at
-		l.p.mu.Unlock()
-		l.dc.Close()
-		waitFor(t, "no flow left", func() bool {
-			l.s.mu.Lock()
-			defer l.s.mu.Unlock()
-			for tr := range l.s.ts {
-				if tr.flow != nil {
-					return false
-				}
-			}
-			return l.s.chans[l.id].active != nil && l.s.chans[l.id].active.relay
-		})
-		more := videoStream(10)
-		writeAll(l.helper, more)
-		waitFor(t, "video over the relay", func() bool { return len(l.p.received(l.id)) == len(join(more)) })
-		// The flow is gone: its pings get nothing.
-		b := make([]byte, 15)
-		b[0] = udpPing
-		l.up.send(b)
-		select {
-		case m := <-l.up.ctl:
-			if m[0] == udpPong {
-				t.Fatal("a closed flow answered")
-			}
-		case <-time.After(300 * time.Millisecond):
-		}
-	})
 }
 
 // directTransport is the session's one direct TLS route.

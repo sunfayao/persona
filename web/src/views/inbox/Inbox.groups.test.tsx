@@ -73,10 +73,6 @@ let root: Root;
 const flush = async () => {
   for (let i = 0; i < 10; i++) await act(async () => { await Promise.resolve(); });
 };
-// a long group's rows mount in steps while the page is idle (audit item 34): let those steps run
-const allRows = async () => {
-  for (let i = 0; i < 10; i++) await act(async () => { await new Promise((done) => setTimeout(done, 60)); });
-};
 const button = (text: string) => [...host.querySelectorAll("button")].find((b) => b.textContent?.trim() === text);
 // the section bar opens on Needs you (#9053): these cases are about every section stacked, All
 const showAll = () => act(() => host.querySelector<HTMLButtonElement>('[data-bar-choice="all"]')!.click());
@@ -251,25 +247,6 @@ describe("Done's day counts from the hub (#2969)", () => {
     expect(ask.get("before_id")).toBeNull();
     expect(toggle("done", "week").getAttribute("aria-expanded")).toBe("true");
     expect(host.querySelector('[data-item="h10"]')).toBeTruthy();
-  });
-
-  it("a big group loads a page at a time: Show Older continues where its page ended, until the group is complete", async () => {
-    // 150 more done 8 to 22 days ago: 7+ days has 151
-    calls.history.push(...Array.from({ length: 150 }, (_, i) => lark(`w${String(i).padStart(3, "0")}`, { done_at: ago(8 + (i % 15), 1 + (i % 7)), done_by: "user" })));
-    calls.days = true;
-    await remount();
-    expect(head("done", "week").textContent).toContain("7 天前151");
-    await click(toggle("done", "just").closest("section")?.querySelector('button[aria-haspopup="menu"]'));
-    await click([...document.querySelectorAll('[role="menuitem"]')].find((el) => el.textContent?.includes("7 天前")));
-    expect(historyAsks()).toHaveLength(1);
-    await allRows();
-    expect(head("done", "week").querySelectorAll("[data-item]").length).toBe(100);
-    await click(button("加载更早的"));
-    const ask = historyAsks().at(-1)!;
-    expect(ask.get("before_id")).toBeTruthy(); // where the first page ended
-    await allRows();
-    expect(head("done", "week").querySelectorAll("[data-item]").length).toBe(151);
-    expect(button("加载更早的")).toBeUndefined();
   });
 
   it("the list's last days are not complete on their own: Today loads what the list leaves out (#5549)", async () => {

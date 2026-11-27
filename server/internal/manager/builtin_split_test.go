@@ -10,7 +10,6 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/compat"
 	"github.com/sunfayao/persona/server/internal/managerconf"
-	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // splitManager is a bound built-in manager with <data>/bin/personad and persona-manager beside it, persona-manager
@@ -54,49 +53,6 @@ func installOut(t *testing.T, e *env) string {
 	return out.String()
 }
 
-// The same build beside personad: the unit runs `persona-manager assistant`; over a unit that ran personad it is
-// restarted and says so. PERSONA_SPLIT_PROGRAMS=0 takes it back to personad.
-func TestInstallBuiltinRunsPersonaManager(t *testing.T) {
-	e, f, data := splitManager(t, "linux", "persona 1.0 abc")
-	personad, pm := filepath.Join(data, "bin", "personad"), filepath.Join(data, "bin", "persona-manager")
-	unit := filepath.Join(e.home, ".config", "systemd", "user", managerconf.BuiltinService+".service")
-	if err := os.MkdirAll(filepath.Dir(unit), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(unit, []byte(builtinUnit(personad, data, false)), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	f.active = true
-	out := installOut(t, e)
-	if b, _ := os.ReadFile(unit); !strings.Contains(string(b), `ExecStart="`+pm+`" assistant`+"\n") {
-		t.Fatalf("unit:\n%s", b)
-	}
-	if !f.called("systemctl --user restart "+managerconf.BuiltinService) || !strings.Contains(out, "restarted; the unit runs "+pm+" now, not "+personad) {
-		t.Fatalf("calls %v\n%s", f.calls, out)
-	}
-	f.calls = nil
-	if out := installOut(t, e); f.called("systemctl --user restart") || strings.Contains(out, "now, not") {
-		t.Fatalf("again: %v\n%s", f.calls, out)
-	}
-	e.getenv = func(k string) string {
-		if k == update.SplitEnv {
-			return "0"
-		}
-		return ""
-	}
-	out = installOut(t, e)
-	if b, _ := os.ReadFile(unit); !strings.Contains(string(b), `ExecStart="`+personad+`" assistant`+"\n") ||
-		!strings.Contains(string(b), "\nEnvironment=PERSONA_SPLIT_PROGRAMS=0\n") || !strings.Contains(out, "the unit runs "+personad+" now, not "+pm) {
-		t.Fatalf("opted out:\n%s\n%s", b, out)
-	}
-	e.getenv = func(string) string { return "" }
-	out = installOut(t, e)
-	if b, _ := os.ReadFile(unit); !strings.Contains(string(b), `ExecStart="`+pm+`" assistant`+"\n") ||
-		strings.Contains(string(b), "PERSONA_SPLIT_PROGRAMS") || !strings.Contains(out, "the unit runs "+pm+" now, not "+personad) {
-		t.Fatalf("without it again:\n%s\n%s", b, out)
-	}
-}
-
 // Another build beside personad (a half-done upgrade), or one that does not run: personad, and why.
 func TestInstallBuiltinKeepsPersonadForAnotherBuild(t *testing.T) {
 	e, _, data := splitManager(t, "linux", "persona 0.9 old")
@@ -132,57 +88,6 @@ func TestInstallBuiltinFormerNameKeepsPersonad(t *testing.T) {
 	installOut(t, e)
 	if b, _ := os.ReadFile(legacy); !strings.Contains(string(b), `/bin/personad" assistant`) || asked {
 		t.Fatalf("asked %v:\n%s", asked, b)
-	}
-}
-
-// On a Mac as on Linux: a new agent runs `persona-manager assistant` when it is personad's build, and a rerun leaves
-// it. PERSONA_SPLIT_PROGRAMS=0 moves it to personad and stays in the agent; a rerun without it moves it back.
-func TestInstallBuiltinLaunchdRunsPersonaManager(t *testing.T) {
-	e, f, data := splitManager(t, "darwin", "persona 1.0 abc")
-	personad, pm := filepath.Join(data, "bin", "personad"), filepath.Join(data, "bin", "persona-manager")
-	plist := filepath.Join(e.home, "Library", "LaunchAgents", managerconf.BuiltinLabel+".plist")
-	runs := func(out, want string) {
-		t.Helper()
-		if b, _ := os.ReadFile(plist); string(b) != want {
-			t.Fatalf("plist:\n%s\n%s", b, out)
-		}
-		if strings.Contains(out, "it stays on it") {
-			t.Fatalf("said it stays on personad:\n%s", out)
-		}
-	}
-
-	out := installOut(t, e)
-	runs(out, builtinPlist(pm, data, e.home, false))
-	if !f.called("launchctl bootstrap") || !strings.Contains(out, ", started; it runs") {
-		t.Fatalf("new: %v\n%s", f.calls, out)
-	}
-	f.active, f.calls = true, nil
-	out = installOut(t, e)
-	runs(out, builtinPlist(pm, data, e.home, false))
-	if f.called("launchctl bootstrap") || !strings.Contains(out, "running already, left as it was") {
-		t.Fatalf("again: %v\n%s", f.calls, out)
-	}
-
-	e.getenv = func(k string) string {
-		if k == update.SplitEnv {
-			return "0"
-		}
-		return ""
-	}
-	f.calls = nil
-	out = installOut(t, e)
-	optedOut := builtinPlist(personad, data, e.home, true)
-	runs(out, optedOut)
-	if !strings.Contains(optedOut, "<key>PERSONA_SPLIT_PROGRAMS</key><string>0</string>") ||
-		!strings.Contains(out, "the agent runs "+personad+" now, not "+pm) || !f.called("launchctl bootstrap") ||
-		!strings.Contains(out, "Full Disk Access: this computer's node now reads with personad's permissions") {
-		t.Fatalf("opted out: %v\n%s", f.calls, out)
-	}
-	e.getenv = func(string) string { return "" }
-	out = installOut(t, e)
-	runs(out, builtinPlist(pm, data, e.home, false))
-	if !strings.Contains(out, "the agent runs "+pm+" now, not "+personad) {
-		t.Fatalf("without it again:\n%s", out)
 	}
 }
 

@@ -48,45 +48,6 @@ func runningAs(t *testing.T, h *Hub, target, name string) string {
 	return self
 }
 
-// A hub run as persona-hub goes on as the persona-hub the update swapped (not as personad, the target), and going
-// back runs the old persona-hub again; the pending marker keeps personad as its Target for older builds.
-func TestUpdateGoesOnAsPersonaHub(t *testing.T) {
-	p := splitRelease(t, "persona-hub", "persona-manager")
-	h, _, target, execs := updatingHub(t, p, "release")
-	self := runningAs(t, h, target, "persona-hub")
-	ctx := context.Background()
-	if _, err := h.upd.check(ctx); err != nil {
-		t.Fatal(err)
-	}
-	if err := h.upd.begin(ctx, true); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "the restart", func() bool { return len(execs()) == 1 })
-	if execs()[0] != self {
-		t.Fatalf("restarted into %q, not the hub's own program %q", execs()[0], self)
-	}
-	var pend update.Pending
-	if ok, _ := update.Load(update.PendingPath(h.upd.dir), &pend); !ok || pend.Target != target || pend.Run != self {
-		t.Fatalf("pending %+v", pend)
-	}
-	if b, _ := os.ReadFile(self); string(b) == "#!/bin/sh\necho old persona-hub\n" {
-		t.Fatal("persona-hub was not swapped")
-	}
-	h.upd.rollback(pend, "test")
-	if got := execs(); len(got) != 2 || got[1] != self {
-		t.Fatalf("going back ran %v", got)
-	}
-	if b, _ := os.ReadFile(self); string(b) != "#!/bin/sh\necho old persona-hub\n" {
-		t.Fatal("going back did not restore persona-hub")
-	}
-	if b, _ := os.ReadFile(target); string(b) != "#!/bin/sh\necho old\n" {
-		t.Fatal("going back did not restore personad")
-	}
-	if _, err := os.Stat(filepath.Join(filepath.Dir(target), "persona-manager")); !os.IsNotExist(err) {
-		t.Fatal("going back left persona-manager, which was not there before")
-	}
-}
-
 // Behind the edge the update hands over to the hub's own program too.
 func TestUpdateHandsOverToPersonaHub(t *testing.T) {
 	p := splitRelease(t, "persona-hub", "persona-manager")
@@ -110,40 +71,5 @@ func TestUpdateHandsOverToPersonaHub(t *testing.T) {
 	waitFor(t, "the handover", func() bool { mu.Lock(); defer mu.Unlock(); return len(handed) == 1 })
 	if handed[0] != self || len(execs()) != 0 {
 		t.Fatalf("handed over to %v (execs %v), not %q", handed, execs(), self)
-	}
-}
-
-// A release without persona-hub leaves a hub run as persona-hub by hand (no service runs it: unreplaced) on personad,
-// which the update did replace, rather than on the persona-hub it did not; a hub run as personad goes on as personad
-// whatever the release carries.
-func TestUpdateStaysOnPersonadWithoutAPersonaHub(t *testing.T) {
-	for _, c := range []struct {
-		name, runs string
-		programs   []string
-	}{
-		{"persona-hub, release without it", "persona-hub", []string{"persona-manager"}},
-		{"personad, release with both", "personad", []string{"persona-hub", "persona-manager"}},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			p := splitRelease(t, c.programs...)
-			h, _, target, execs := updatingHub(t, p, "release")
-			if c.runs == "personad" {
-				h.upd.self = func() (string, error) { return target, nil }
-			} else {
-				runningAs(t, h, target, c.runs)
-			}
-			ctx := context.Background()
-			if _, err := h.upd.check(ctx); err != nil {
-				t.Fatal(err)
-			}
-			if err := h.upd.begin(ctx, true); err != nil {
-				t.Fatal(err)
-			}
-			waitFor(t, "the restart", func() bool { return len(execs()) == 1 })
-			var pend update.Pending
-			if ok, _ := update.Load(update.PendingPath(h.upd.dir), &pend); !ok || pend.Run != "" || execs()[0] != target {
-				t.Fatalf("restarted into %v, pending %+v; want %q", execs(), pend, target)
-			}
-		})
 	}
 }

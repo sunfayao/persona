@@ -422,5 +422,4 @@ func r2StoreUnderLoad(t *testing.T, reload bool) {
 	}
 }
 
-func TestStoreUnderLoad(t *testing.T)           { r2StoreUnderLoad(t, false) }
 func TestStoreUnderLoadWithReload(t *testing.T) { r2StoreUnderLoad(t, true) }

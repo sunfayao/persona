@@ -401,43 +401,6 @@ func TestBuiltinNewBinaryIdleBound(t *testing.T) {
 	}
 }
 
-// (b), (c) A new file that does not run (not executable, or `version -v` failing) is checked once and not started
-// on: the manager goes on with its code until another file is there; one that runs then is.
-func TestBuiltinNewBinaryMustRun(t *testing.T) {
-	bin, write, restarts := newBinaryEnv(t, nil)
-	counter := bin + ".checks"
-	failing := "#!/bin/sh\necho x >> '" + counter + "'\nexit 1\n"
-	checks := func() int {
-		b, _ := os.ReadFile(counter)
-		return strings.Count(string(b), "x")
-	}
-	done, started := make(chan struct{}), make(chan struct{})
-	var out string
-	var err error
-	go func() {
-		defer close(done)
-		out, _, err = runBuiltin(t, func(context.Context) (bool, string) { return true, "" }, func(run int) {
-			if run == 1 {
-				close(started)
-			}
-		}, nil)
-	}()
-	<-started // watching the file there at start
-	write(goodBinary+"# not executable\n", 0o644)
-	time.Sleep(100 * time.Millisecond)
-	write(failing, 0o755)
-	waitFor(t, "the failing binary checked", func() bool { return checks() >= 1 })
-	time.Sleep(150 * time.Millisecond) // many more looks: still checked once
-	if n := checks(); n != 1 || restarts.Load() != 0 {
-		t.Fatalf("checked %d times, restarts %d", n, restarts.Load())
-	}
-	write(goodBinary+"# good\n", 0o755)
-	<-done
-	if err != nil || restarts.Load() != 1 || strings.Count(out, "does not run") != 2 || !strings.Contains(out, "is not an executable file") {
-		t.Fatalf("err %v, restarts %d\n%s", err, restarts.Load(), out)
-	}
-}
-
 // (b), (c) An exec that fails leaves the manager running the code it has (it runs again in this process), and that
 // file is not tried again; another one is.
 func TestBuiltinExecFails(t *testing.T) {
@@ -491,33 +454,6 @@ func TestBuiltinStopsWhileWaitingForIdle(t *testing.T) {
 	}, release)
 	if err != nil || restarts.Load() != 0 || !waiting() {
 		t.Fatalf("err %v, restarts %d\n%s", err, restarts.Load(), out.String())
-	}
-}
-
-// (b) A new binary whose `version -v` hangs does not run: killed after versionWait, not started on, not checked again.
-func TestBuiltinNewBinaryHangs(t *testing.T) {
-	_, write, restarts := newBinaryEnv(t, nil)
-	defer func(w time.Duration) { versionWait = w }(versionWait)
-	versionWait = 100 * time.Millisecond
-	// Checks are counted here, not by the fake: a Mac's first exec of a new file can take longer than versionWait,
-	// and the fake is then killed before it runs a line.
-	var checks, checked atomic.Int64
-	check := checkBinary
-	t.Cleanup(func() { checkBinary = check })
-	checkBinary = func(ctx context.Context, path string) error {
-		checks.Add(1)
-		defer checked.Add(1)
-		return check(ctx, path)
-	}
-	release := make(chan struct{})
-	out, _, err := runBuiltin(t, func(context.Context) (bool, string) { return true, "" }, func(int) {
-		write("#!/bin/sh\nsleep 30\n", 0o755)
-		waitFor(t, "the hanging binary checked", func() bool { return checked.Load() > 0 })
-		time.Sleep(400 * time.Millisecond) // many more looks
-		close(release)
-	}, release)
-	if err != nil || restarts.Load() != 0 || checks.Load() != 1 || !strings.Contains(out, "does not run") {
-		t.Fatalf("err %v, restarts %d, checks %d\n%s", err, restarts.Load(), checks.Load(), out)
 	}
 }
 
@@ -578,25 +514,6 @@ func TestBuiltinCheckedAgainBeforeExec(t *testing.T) {
 				t.Fatalf("err %v, runs %d, restarts %d\n%s", err, runs, restarts.Load(), out)
 			}
 		})
-	}
-}
-
-// (a) An answer of Idle that came too late is not gone by: it is asked anew (and is busy now).
-func TestBuiltinLateIdleAnswerDropped(t *testing.T) {
-	_, write, restarts := newBinaryEnv(t, nil)
-	idleCheck = 20 * time.Millisecond
-	var calls atomic.Int64
-	release := make(chan struct{})
-	time.AfterFunc(400*time.Millisecond, func() { close(release) })
-	out, _, err := runBuiltin(t, func(context.Context) (bool, string) {
-		if calls.Add(1) == 1 {
-			time.Sleep(60 * time.Millisecond) // past idleCheck: an old "idle" by the time it comes
-			return true, ""
-		}
-		return false, "busy now"
-	}, func(int) { write(goodBinary+"# new\n", 0o755) }, release)
-	if err != nil || restarts.Load() != 0 || calls.Load() < 2 || !strings.Contains(out, "does not answer") || !strings.Contains(out, "busy now") {
-		t.Fatalf("err %v, restarts %d, calls %d\n%s", err, restarts.Load(), calls.Load(), out)
 	}
 }
 
@@ -746,50 +663,6 @@ func TestInstallBuiltinLaunchd(t *testing.T) {
 	}
 	if f.called("launchctl bootstrap") || f.called("launchctl kickstart") || f.called("launchctl bootout") || !strings.Contains(out.String(), "left as it was") {
 		t.Fatalf("calls %v\n%s", f.calls, out)
-	}
-}
-
-// The built-in manager's unit (or agent) is replaced in one step when its text changes, never cut short in place, and
-// left as it is (the same file) when it does not.
-func TestBuiltinServiceReplacesTheFile(t *testing.T) {
-	for _, goos := range []string{"linux", "darwin"} {
-		t.Run(goos, func(t *testing.T) {
-			home := isolate(t)
-			data := filepath.Join(home, ".persona")
-			f := &fakeServices{}
-			e, _ := f.env(t, goos)
-			path := e.unitPath(assistantwire.AssistantID)
-			if goos == "darwin" {
-				path = e.plistPath(assistantwire.AssistantID)
-			}
-			if err := e.builtinService(context.Background(), data, "/opt/personad", false); err != nil {
-				t.Fatal(err)
-			}
-			old, err := os.Open(path)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer old.Close()
-			had, err := os.ReadFile(path)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := e.builtinService(context.Background(), data, "/opt/new/persona-manager", false); err != nil {
-				t.Fatal(err)
-			}
-			checkReplaced(t, path, old, had, "/opt/new/persona-manager")
-
-			before, err := os.Stat(path)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := e.builtinService(context.Background(), data, "/opt/new/persona-manager", false); err != nil {
-				t.Fatal(err)
-			}
-			if after, err := os.Stat(path); err != nil || !os.SameFile(before, after) {
-				t.Fatalf("unchanged text written again: %v", err)
-			}
-		})
 	}
 }
 

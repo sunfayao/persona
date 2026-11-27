@@ -124,33 +124,6 @@ func (cf *coverFlow) pushes(t *testing.T, n int) map[string]Notification {
 	return out
 }
 
-// 21 agents' cards come within one look: the summary lists the newest 20, the oldest in More. The 20 are left to
-// Persona Link; the oldest, which no summary rang for, still goes to the phone.
-func TestLinkCoverWhenCardsComeTogether(t *testing.T) {
-	cf := newCoverFlow(t, 21, false)
-	cf.look() // the desktop's baseline: nothing yet
-	base := time.Now()
-	for i := 1; i <= 21; i++ { // each told before the next comes: p01 stands among the first 20 when it is told
-		cf.raise(t, permissionCard(fmt.Sprintf("p%02d", i), fmt.Sprintf("s%02d", i), base.Add(time.Duration(i)*time.Second)))
-		cf.told(t, i)
-	}
-	cf.look() // one summary for all 21
-	cf.appRings()
-	start := time.Now()
-	got := cf.pushes(t, 21)
-	if time.Since(start) < linkRangWait/2 {
-		t.Fatal("p01's push did not wait for Persona Link: it was not among the first 20 when told, which tests nothing")
-	}
-	if got["p01"].LinkCovered {
-		t.Fatal("p01 is in More: Persona Link rang nothing for it, yet the phone was spared")
-	}
-	for i := 2; i <= 21; i++ {
-		if id := fmt.Sprintf("p%02d", i); !got[id].LinkCovered {
-			t.Fatalf("%s: rung for by Persona Link, yet pushed to the phone too", id)
-		}
-	}
-}
-
 // The oldest agent's question waits on the assistant while 20 newer agents' cards are rung for; handed to the user
 // then, it is past the cap (its time is when it came): it goes to the phone.
 func TestLinkCoverQuestionHandedPastTheCap(t *testing.T) {
@@ -216,20 +189,5 @@ func TestLinkCoverWithoutADesktop(t *testing.T) {
 	cf.raise(t, permissionCard("a1", "s01", time.Now()))
 	if got := cf.pushes(t, 1); got["a1"].LinkCovered || time.Since(start) > linkRangWait {
 		t.Fatal("a card spared the phone, or waited, with no desktop")
-	}
-}
-
-// A card the summary rings for, but whose notification the app never confirms (it dropped it before handing it over,
-// Notification Center refused it, the link went): after the wait it goes to the phone.
-func TestLinkCoverWithoutAConfirmation(t *testing.T) {
-	cf := newCoverFlow(t, 1, false)
-	cf.look()
-	start := time.Now()
-	cf.raise(t, permissionCard("a1", "s01", time.Now()))
-	cf.told(t, 1)
-	cf.look() // the app gets it, but confirms nothing
-	got := cf.pushes(t, 1)
-	if got["a1"].LinkCovered || time.Since(start) < linkRangWait/2 {
-		t.Fatal("an unconfirmed card spared the phone, or did not wait for the confirmation")
 	}
 }

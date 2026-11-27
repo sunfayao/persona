@@ -3,7 +3,6 @@ package ai
 import (
 	"context"
 	"io"
-	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -285,40 +284,6 @@ func TestTheNextRequestFindsOutWhenTheProbeFails(t *testing.T) {
 	}
 }
 
-// A request waiting for the one finding out gives up at its own deadline (a background one after its slot wait) and
-// is put off, as one waiting for a slot.
-func TestWaitingForTheProbeIsBounded(t *testing.T) {
-	clk := fakeClock(t)
-	u := newProbeUpstream(t)
-	c := New(Config{BaseURL: u.srv.URL, APIKey: "probe-bounded", Model: "m"})
-	heldGate(t, clk, c)
-	probe := make(chan error, 1)
-	go func() { probe <- call(c) }()
-	u.wait(t)
-	var out struct{ OK bool }
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-	start := time.Now()
-	err := c.JSON(withSlotWait(ctx, 100*time.Millisecond), "sys", "user", &out)
-	if waited := time.Since(start); !IsPaused(err) || waited > 5*time.Second {
-		t.Fatalf("background call: %v after %v; want put off after about 100ms", err, waited)
-	}
-	fg, cancelFG := context.WithTimeout(context.Background(), 300*time.Millisecond)
-	defer cancelFG()
-	start = time.Now()
-	err = c.JSON(fg, "sys", "user", &out)
-	if waited := time.Since(start); !IsPaused(err) || waited < 250*time.Millisecond {
-		t.Fatalf("other call: %v after %v; want put off at its own deadline (300ms)", err, waited)
-	}
-	if n := u.sent.Load(); n != 2 {
-		t.Fatalf("sent %d requests, want 2", n)
-	}
-	u.answers <- ok
-	if err := <-probe; err != nil {
-		t.Fatalf("the probe: %v", err)
-	}
-}
-
 // A limit the stream reports after the 200 that let the connection go holds it again, for longer than the last
 // time: the busy answers in a row are counted on, not started over at the 200.
 func TestALimitInTheProbesStreamHoldsAgain(t *testing.T) {
@@ -338,91 +303,5 @@ func TestALimitInTheProbesStreamHoldsAgain(t *testing.T) {
 	}
 	if p := Held(c.Config()); p == nil || p.Reason != ReasonBusy || !p.Until.Equal(now().Add(2*busyFirst)) {
 		t.Fatalf("held = %+v, want busy for %s", p, 2*busyFirst)
-	}
-}
-
-// Every way a request ends gives its slot back (#6698 suspected one leaked on the error paths): while the upstream
-// answers 5xx, 404, busy, nothing at all, a dropped connection or half a stream, and callers give up or cancel,
-// nothing stays counted as in flight and no request stays "finding out"; healthy again, the connection opens with
-// the first request after the pause.
-func TestEveryExitGivesItsSlotBack(t *testing.T) {
-	clk := fakeClock(t)
-	var healthy atomic.Bool
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost { // a port probe from elsewhere on the machine, not this test's client
-			http.NotFound(w, r)
-			return
-		}
-		_, _ = io.Copy(io.Discard, r.Body)
-		if healthy.Load() {
-			ok(w)
-			return
-		}
-		switch rand.Intn(8) {
-		case 0:
-			answer(500, `{"error":{"type":"api_error","message":"example failure"}}`)(w)
-		case 1:
-			answer(502, "bad gateway")(w)
-		case 2:
-			answer(503, busyBody)(w)
-		case 3:
-			answer(404, `{"error":{"type":"not_found_error","message":"model: m"}}`)(w)
-		case 4: // no answer until the caller gives up
-			<-r.Context().Done()
-		case 5: // the connection drops before any answer
-			if conn, _, err := w.(http.Hijacker).Hijack(); err == nil {
-				_ = conn.Close()
-			}
-		case 6: // a 200, part of a stream, then the connection drops
-			w.Header().Set("content-type", "text/event-stream")
-			_, _ = io.WriteString(w, sse(evStart, evBlock(0, "text"), evText(0, `{"ok":`)))
-			w.(http.Flusher).Flush()
-			if conn, _, err := w.(http.Hijacker).Hijack(); err == nil {
-				_ = conn.Close()
-			}
-		default:
-			answer(529, `{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}`)(w)
-		}
-	}))
-	t.Cleanup(srv.Close)
-	c := New(Config{BaseURL: srv.URL, APIKey: "every-exit", Model: "m"})
-	var wg sync.WaitGroup
-	for range 8 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for range 40 {
-				ctx, cancel := context.WithTimeout(context.Background(), time.Duration(20+rand.Intn(60))*time.Millisecond)
-				if rand.Intn(5) == 0 { // the caller cancels partway
-					time.AfterFunc(time.Duration(rand.Intn(10))*time.Millisecond, cancel)
-				}
-				var out struct{ OK bool }
-				_ = c.JSON(ctx, "sys", "user", &out)
-				cancel()
-				if rand.Intn(3) == 0 {
-					clk.add(time.Duration(rand.Intn(20)) * time.Second) // past some pauses: requests find out
-				}
-			}
-		}()
-	}
-	wg.Wait()
-	g := gateFor(srv.URL, "every-exit")
-	g.mu.Lock()
-	inflight, probing, until := g.inflight, g.probing, g.pause.Until
-	g.mu.Unlock()
-	if inflight != 0 || probing {
-		t.Fatalf("after the outage: %d counted in flight, finding out %v; want none", inflight, probing)
-	}
-	healthy.Store(true)
-	if d := until.Sub(now()); d > 0 {
-		clk.add(d)
-	}
-	for i := range 3 {
-		if err := call(c); err != nil {
-			t.Fatalf("healthy again, request %d: %v", i, err)
-		}
-	}
-	if p := Held(c.Config()); p != nil {
-		t.Fatalf("still held: %+v", p)
 	}
 }

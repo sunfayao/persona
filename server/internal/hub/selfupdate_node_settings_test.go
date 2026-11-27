@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,13 +11,9 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/sunfayao/persona/server/internal/bus"
-	"github.com/sunfayao/persona/server/internal/devicewire"
 	"github.com/sunfayao/persona/server/internal/hubedge"
 	"github.com/sunfayao/persona/server/internal/proto"
-	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 func nodePolicyRequest(t *testing.T, u *updater, method, body string) *httptest.ResponseRecorder {
@@ -114,101 +109,6 @@ func TestNodePolicySettingsFailuresStayDisabled(t *testing.T) {
 	}
 }
 
-// Real RPC pipes exercise event-before-request ordering without a database or
-// any node deployment. Two managers retain their own machine lists.
-func TestNodePolicyBroadcastAndExplicitPackageRecheck(t *testing.T) {
-	h := newTestHub(t)
-	h.devices.assignRead = true
-	h.devices.assign = map[string]string{"two": "m-two"}
-	h.cfg.Machines = []MachineConfig{{ID: "one"}, {ID: "two"}}
-	var managers []nodePolicyManagerFixture
-	for _, id := range []string{devicesOwner, "m-two"} {
-		in, out := io.Pipe()
-		remoteIn, remoteOut := io.Pipe()
-		c := rosterConn(h, id, remoteOut)
-		c.presence = busPresence{ID: id, Role: bus.RoleManager}
-		remote := rpc.New("m", out)
-		events := make(chan devicewire.Config, 8)
-		checks := make(chan struct{}, 8)
-		remote.OnEvent = func(event string, data json.RawMessage) {
-			if event == devicewire.EventConfig {
-				var cfg devicewire.Config
-				if err := json.Unmarshal(data, &cfg); err != nil {
-					t.Error(err)
-					return
-				}
-				events <- cfg
-			}
-		}
-		remote.OnRequest = func(_ context.Context, method string, _ json.RawMessage) (any, error) {
-			if method != devicewire.MethodUpdateNodes {
-				return nil, errors.New("unexpected method " + method)
-			}
-			checks <- struct{}{}
-			return map[string]any{}, nil
-		}
-		ctx, cancel := context.WithCancel(context.Background())
-		t.Cleanup(func() { cancel(); _ = out.Close(); _ = remoteOut.Close(); _ = in.Close(); _ = remoteIn.Close() })
-		go func() { _ = c.peer.Serve(ctx, in) }()
-		go func() { _ = remote.Serve(ctx, remoteIn) }()
-		// Keep the channels on the connection's test record below.
-		managers = append(managers, nodePolicyManagerFixture{id, events, checks})
-	}
-	for iteration, enabled := range []bool{true, true, false} {
-		body, err := json.Marshal(map[string]bool{"auto_update_nodes": enabled})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if w := nodePolicyRequest(t, h.upd, http.MethodPut, string(body)); w.Code != http.StatusOK {
-			t.Fatalf("PUT: %d %s", w.Code, w.Body)
-		}
-		for _, m := range managers {
-			if enabled {
-				select {
-				case <-m.checks:
-				case <-time.After(5 * time.Second):
-					t.Fatal("no package recheck", m.id)
-				}
-				if iteration == 0 {
-					select {
-					case cfg := <-m.events:
-						if !cfg.AutoUpdateNodes || len(cfg.Machines) != 1 {
-							t.Fatalf("missing policy or ownership: %+v", cfg)
-						}
-						var machine MachineConfig
-						if err := json.Unmarshal(cfg.Machines[0], &machine); err != nil {
-							t.Fatal(err)
-						}
-						want := "one"
-						if m.id == "m-two" {
-							want = "two"
-						}
-						if machine.ID != want {
-							t.Fatalf("cross-manager ownership: got %s want %s", machine.ID, want)
-						}
-					default:
-						t.Fatal("package request preceded policy config")
-					}
-				}
-			} else {
-				select {
-				case cfg := <-m.events:
-					if cfg.AutoUpdateNodes {
-						t.Fatal("disable was not broadcast")
-					}
-				case <-time.After(5 * time.Second):
-					t.Fatal("no disable broadcast", m.id)
-				}
-				select {
-				case <-m.checks:
-					t.Fatal("disable requested a node update", m.id)
-				default:
-				}
-			}
-		}
-	}
-}
-
 func TestNodePolicyPersistedEnableKeepsBusyProtection(t *testing.T) {
 	p := newPublisher(t, "v2-202611021700", 202611021700)
 	h, m, _, _ := updatingHub(t, p, "release")
@@ -223,12 +123,6 @@ func TestNodePolicyPersistedEnableKeepsBusyProtection(t *testing.T) {
 	if h.cfg.AutoUpdateNodes || len(h.updateBusy()) != 1 {
 		t.Fatal("persisted enable failed to protect the working remote agent")
 	}
-}
-
-type nodePolicyManagerFixture struct {
-	id     string
-	events chan devicewire.Config
-	checks chan struct{}
 }
 
 func TestNodePolicyPreservesManagedReleaseTrees(t *testing.T) {

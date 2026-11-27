@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/channel"
-	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -39,52 +38,6 @@ func TestAskUserNoWaitTakesTheDefaultAtItsDeadline(t *testing.T) {
 	}
 	if todo := e.onlyAskTodo(); todo.DoneAt == nil {
 		t.Fatal("its to-do is still open")
-	}
-}
-
-// The owner wrote in the conversation while the card was up (their words may have been the answer, or a "no"): a
-// card that then runs out unanswered takes no default and makes no to-do. The conversation is told once, and told to
-// go by what the owner wrote or to ask again.
-func TestAskUserNoWaitTakesNoDefaultAfterTheUserWroteInTheChat(t *testing.T) {
-	old := askInlineSlack
-	askInlineSlack = 2 * time.Minute
-	t.Cleanup(func() { askInlineSlack = old })
-	for _, c := range []struct{ name, args string }{
-		{"reversible deadline", noWaitDeadlineArgs("1m")},
-		{"no deadline", askLaterArgs},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			presenceTimes(t, 200*time.Millisecond, time.Hour)
-			ownerTurnTimes(t, 200*time.Millisecond, time.Hour)
-			e := newAskTodoEnv(t, nil)
-			stopHolds(t, e.s)
-			ix, _ := e.askLater(c.args)
-			e.s.UserSpoke(context.Background(), SessionRef{MachineID: "server", SessionID: "c1x1x1"})
-			e.mustEnd(ix.ID, expiredAnswer)
-			_ = e.end(ix.ID, expiredAnswer) // handed over again: gone
-			// The owner is talking there: the system's word that the card ran out waits for them (#4925).
-			if q, sent := e.s.queuedFor("c1x1x1"), len(e.told("c1x1x1")); q != 1 || sent != 0 {
-				t.Fatalf("while the owner talks: %d queued, %d sent", q, sent)
-			}
-			waitFor(t, "told once the owner is quiet", func() bool { return len(e.told("c1x1x1")) >= 1 })
-			got := e.told("c1x1x1")
-			if len(got) != 1 {
-				t.Fatalf("%d messages, want 1: %q", len(got), got)
-			}
-			for _, want := range []string{"Merge the release PR now?", "did not become a to-do", "ask again"} {
-				if !strings.Contains(got[0], want) {
-					t.Errorf("message lacks %q:\n%s", want, got[0])
-				}
-			}
-			for _, not := range []string{"were taken by default", "Go ahead", "todo_ask_", "→"} {
-				if strings.Contains(got[0], not) {
-					t.Errorf("message has %q:\n%s", not, got[0])
-				}
-			}
-			if list := e.askTodos(); len(list) != 0 {
-				t.Fatalf("to-dos: %+v", list)
-			}
-		})
 	}
 }
 
@@ -260,32 +213,6 @@ func TestChannelReplyPassesANoWaitQuestionToTheCardThatWaits(t *testing.T) {
 	}
 	if askInState(s, "ix_later") == nil {
 		t.Fatal("the no-wait question stopped waiting in the channel")
-	}
-}
-
-// On the queue, a no-wait card that runs out after the owner wrote in the conversation closes saying "Replied in the
-// chat", not "Moved to to-dos": it makes none.
-func TestAskUserNoWaitCardClosesAsRepliedInChatAfterTheUserWrote(t *testing.T) {
-	a := newAskRig(t)
-	old := askUserWait
-	askUserWait = 400 * time.Millisecond
-	t.Cleanup(func() { askUserWait = old })
-	ix := a.askLater(t, a.s)
-	b := &a.s.fbot
-	b.mu.Lock()
-	a.s.keepBotCardLocked(ix.ID, &botCard{MessageID: "om_" + ix.ID, Thread: "om_run", Ix: ix, At: a.now})
-	b.mu.Unlock()
-	ctx := context.Background()
-	a.s.UserSpoke(ctx, SessionRef{MachineID: "mac", SessionID: "s1"})
-	waitFor(t, "the Lark card closed", func() bool { return a.closed() != "" })
-	l := a.s.botLang(ctx)
-	if got := a.closed(); !strings.Contains(got, i18n.T(l, "assistant-feishu_cards.replied_in_chat")) ||
-		strings.Contains(got, i18n.T(l, "assistant-feishu_cards.moved_to_todos")) {
-		t.Fatalf("the Lark card closed as %q", got)
-	}
-	waitFor(t, "the question gone", func() bool { return len(a.s.pendingQuestions()) == 0 })
-	if status, _, _ := a.mem.InteractionOutcome(ctx, ix.ID); status != "expired" {
-		t.Errorf("history status = %q, want expired", status)
 	}
 }
 

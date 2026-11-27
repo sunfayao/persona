@@ -53,28 +53,6 @@ func fakeBuiltinRoute(t *testing.T, builtin bool, method string, params json.Raw
 	return method, params
 }
 
-// The cua and ego tests again, with nodes that have the built-in programs: the same flows, answers and checks,
-// every call over plugin.node.call.
-func TestBuiltinProgramsSameFlows(t *testing.T) {
-	fakeNodesBuiltin = true
-	t.Cleanup(func() { fakeNodesBuiltin = false })
-	for name, test := range map[string]func(*testing.T){
-		"ComputerExtensionIsOffUntilTurnedOnForAMachine": TestComputerExtensionIsOffUntilTurnedOnForAMachine,
-		"ComputerToolsCallTheNode":                       TestComputerToolsCallTheNode,
-		"ComputerJobs":                                   TestComputerJobs,
-		"TheCursorAndTheClickSound":                      TestTheCursorAndTheClickSound,
-		"NoAutoLock":                                     TestNoAutoLock,
-		"ComputerTellsReachTheMacInOrder":                TestComputerTellsReachTheMacInOrder,
-		"CallApps":                                       TestCallApps,
-		"ComputerAppsAreAskedOnce":                       TestComputerAppsAreAskedOnce,
-		"EgoExtension":                                   TestEgoExtension,
-		"BrowserCookies":                                 TestBrowserCookies,
-		"IMessageExtensionPicksTheMac":                   TestIMessageExtensionPicksTheMac,
-	} {
-		t.Run(name, test)
-	}
-}
-
 // Every old method, both ways: a node with the built-in programs gets plugin.node.call {id, method, params} with the
 // params byte for byte; one without gets the old name and the same params; the answer reads the same.
 func TestCallBuiltinRoutes(t *testing.T) {

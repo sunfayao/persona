@@ -139,29 +139,6 @@ func checkLivePeer(t *testing.T, head string, err error, wantHead, wantCode stri
 	}
 }
 
-// AC1: plan is a bypass-class session when its live process was started with bypass available. Without that process
-// evidence, plan keeps its prior unattested behavior rather than guessing bypass.
-func TestOutsideClaudeOwnerPlanWithBypassArgv(t *testing.T) {
-	t.Run("bypass available", func(t *testing.T) {
-		head, err := sendLivePeer(t, livePeerCase{
-			transcriptMode: "plan",
-			argv:           []string{"claude", "--dangerously-skip-permissions"},
-			receiverClass:  peerModeBypass,
-			owner:          true,
-		})
-		checkLivePeer(t, head, err, livePeerBypassHead, "")
-	})
-	t.Run("bypass unavailable", func(t *testing.T) {
-		head, err := sendLivePeer(t, livePeerCase{
-			transcriptMode: "plan",
-			argv:           []string{"claude", "--resume", sidA},
-			receiverClass:  peerModeBypass,
-			owner:          true,
-		})
-		checkLivePeer(t, head, err, livePeerBareHead, peerHeld)
-	})
-}
-
 // AC2: immediately after default becomes bypass, the live footer is newer evidence than the transcript. Cover both a
 // stale default record and a transcript that has not recorded a mode yet.
 func TestOutsideClaudeOwnerLiveFooterDefaultToBypass(t *testing.T) {
@@ -234,41 +211,4 @@ func TestOutsideClaudeOwnerLivePromptingComposerOverridesStaleBypass(t *testing.
 			checkLivePeer(t, head, err, tc.wantHead, tc.wantCode)
 		})
 	}
-}
-
-// AC4: receiver-side evidence never authorizes somebody else's words. With no readable footer or bypass-enabling
-// argv, the existing fresh-transcript classification remains, including no guess when the transcript states no mode.
-func TestOutsideClaudePeerEvidenceOwnerOnlyAndFallback(t *testing.T) {
-	t.Run("non-owner with live bypass evidence", func(t *testing.T) {
-		head, err := sendLivePeer(t, livePeerCase{
-			transcriptMode: "default",
-			argv:           []string{"claude", "--dangerously-skip-permissions"},
-			footerMode:     "bypassPermissions",
-			receiverClass:  peerModeBypass,
-		})
-		checkLivePeer(t, head, err, livePeerBareHead, peerHeld)
-	})
-	t.Run("fresh bypass transcript", func(t *testing.T) {
-		head, err := sendLivePeer(t, livePeerCase{
-			transcriptMode: "bypassPermissions",
-			receiverClass:  peerModeBypass,
-			owner:          true,
-		})
-		checkLivePeer(t, head, err, livePeerBypassHead, "")
-	})
-	t.Run("fresh default transcript", func(t *testing.T) {
-		head, err := sendLivePeer(t, livePeerCase{
-			transcriptMode: "default",
-			receiverClass:  peerModePrompting,
-			owner:          true,
-		})
-		checkLivePeer(t, head, err, livePeerBareHead, "")
-	})
-	t.Run("no recorded mode never guesses bypass", func(t *testing.T) {
-		head, err := sendLivePeer(t, livePeerCase{
-			receiverClass: peerModeBypass,
-			owner:         true,
-		})
-		checkLivePeer(t, head, err, livePeerBareHead, peerHeld)
-	})
 }

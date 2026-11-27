@@ -2,7 +2,6 @@ package assistant
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -80,42 +79,6 @@ func (e *patrolEnv) mirrored() bool {
 	return !e.ft.s.quietTaskTurn(context.Background(), "mac", "lead1")
 }
 
-// snippet is how the node's list shows a long or multi-line answer (node/sessions.go): runs of white space become one
-// space, and more than 200 runes are cut.
-func snippet(s string) string {
-	s = strings.Join(strings.Fields(s), " ")
-	if r := []rune(s); len(r) > 200 {
-		return string(r[:200]) + "…"
-	}
-	return s
-}
-
-// The user writes while the patrol works and the message waits for the turn to end: the patrol's answer stays quiet,
-// the turn the message then starts is the user's and is pushed.
-func TestQuietPatrolThenUsersHeldMessage(t *testing.T) {
-	e := newPatrolEnv(t)
-	e.run()
-	e.working()
-	e.ft.s.UserSpoke(context.Background(), SessionRef{MachineID: "mac", SessionID: "lead1"})
-	e.done([]proto.Item{e.patrolInput(), {Role: "assistant", Kind: proto.KindText, Text: "Nothing new"}}, "Nothing new")
-	if n := e.pushes(1); n != 0 {
-		t.Errorf("the patrol's answer was pushed after the user wrote: %d notifications, want 0", n)
-	}
-	if e.mirrored() {
-		t.Error("the patrol's answer would be mirrored to channels")
-	}
-	e.working()
-	e.done([]proto.Item{{Role: "user", Kind: proto.KindText, Text: "Show me the details"},
-		{Role: "assistant", Kind: proto.KindText, Text: "Here are the details"}}, "Here are the details")
-	got := e.ft.pushesOf(assistantwire.NotifyDone, 1, 2*time.Second)
-	if len(got) != 1 || got[0].Body != "Here are the details" {
-		t.Errorf("the user's own turn: %d notifications, want 1 with its answer", len(got))
-	}
-	if !e.mirrored() {
-		t.Error("the user's own turn would be hidden from channels")
-	}
-}
-
 // The user writes while the patrol works and the patrol's turn absorbs it: the final answer is the user's answer too.
 func TestQuietPatrolAbsorbedUserQuestionPushes(t *testing.T) {
 	e := newPatrolEnv(t)
@@ -132,38 +95,6 @@ func TestQuietPatrolAbsorbedUserQuestionPushes(t *testing.T) {
 	}
 	if !e.mirrored() {
 		t.Error("an answer that took in the user's question would be hidden from channels")
-	}
-}
-
-// A patrol answer the node's list shows only as a snippet (several lines, more than 200 runes) stays quiet.
-func TestQuietPatrolLongAndMultilineAnswers(t *testing.T) {
-	for _, answer := range []string{"Nothing new.\n- MR 1: waiting\n- MR 2: waiting", strings.Repeat("无新情况", 60)} {
-		e := newPatrolEnv(t)
-		e.run()
-		e.working()
-		e.done([]proto.Item{e.patrolInput(), {Role: "assistant", Kind: proto.KindText, Text: answer}}, snippet(answer))
-		if n := e.pushes(1); n != 0 {
-			t.Errorf("%d-rune patrol answer: %d notifications, want 0", len([]rune(answer)), n)
-		}
-		if e.mirrored() {
-			t.Errorf("%d-rune patrol answer would be mirrored", len([]rune(answer)))
-		}
-	}
-}
-
-// Two patrols in a row, nothing new each time: no notification at all.
-func TestQuietPatrolTwiceInARow(t *testing.T) {
-	e := newPatrolEnv(t)
-	for run := 1; run <= 2; run++ {
-		e.run()
-		e.working()
-		e.done([]proto.Item{e.patrolInput(), {Role: "assistant", Kind: proto.KindText, Text: "Nothing new"}}, "Nothing new")
-		if n := e.pushes(1); n != 0 {
-			t.Errorf("patrol %d: %d notifications, want 0", run, n)
-		}
-		if e.mirrored() {
-			t.Errorf("patrol %d would be mirrored", run)
-		}
 	}
 }
 

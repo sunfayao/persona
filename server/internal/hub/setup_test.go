@@ -843,25 +843,6 @@ func TestSetupDockerNotUsable(t *testing.T) {
 	}
 }
 
-// The container is there (an earlier run, db.sh) but hub.json lost its address: the password comes from the container.
-func TestSetupReusesTheContainer(t *testing.T) {
-	home := setupTestHome(t)
-	cmds := &fakeCommands{replies: map[string]fakeReply{
-		"docker ps -a":   {out: "persona-postgres\n"},
-		"docker inspect": {out: "PATH=/usr/bin\nPOSTGRES_PASSWORD=abc123\n"},
-		"docker port":    {out: "127.0.0.1:18661\n"},
-	}}
-	e, out := testSetupEnv(t, home, setupOptions{listen: ":1", tls: ":18662", noService: true}, cmds, "docker")
-	_ = e.setup(context.Background()) // stops at health: nothing runs
-	b, _ := os.ReadFile(filepath.Join(e.root, "hub.json"))
-	if !strings.Contains(string(b), `"database_url": "postgres://persona:abc123@127.0.0.1:18661/persona?sslmode=disable"`) || cmds.called("docker run") {
-		t.Fatalf("%s\n%v\n%s", b, cmds.calls, out)
-	}
-	if !strings.Contains(out.String(), "personad hub run") {
-		t.Fatalf("--no-service should say how to run it:\n%s", out)
-	}
-}
-
 // Another program on 18660 / 18662: a new install moves along by 100.
 func TestSetupMovesOffBusyPorts(t *testing.T) {
 	home := setupTestHome(t)

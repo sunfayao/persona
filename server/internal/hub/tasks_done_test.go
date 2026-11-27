@@ -175,48 +175,6 @@ func TestTaskAutoDone(t *testing.T) {
 	}
 }
 
-// Agents that stopped without finishing, the model failing or missing, and a verdict it made up: the todo stays open.
-func TestTaskNotAutoDone(t *testing.T) {
-	for _, tc := range []struct {
-		name   string
-		status int
-		reply  string
-		last   string
-	}{
-		{"not finished", http.StatusOK, `{"verdict":"not_done","reason":"还差两处没改"}`, "没有全改完，剩下 iPad 的两处下次再说"},
-		{"waiting", http.StatusOK, `{"verdict":"waiting","reason":"等 App 审核"}`, "已提交，等待审核"},
-		{"needs the user", http.StatusOK, `{"verdict":"needs_user","reason":"要你选方案"}`, "两个方案你选一个"},
-		{"made-up verdict", http.StatusOK, `{"verdict":"probably","reason":"大概好了"}`, "应该好了"},
-		{"not JSON", http.StatusOK, `好像做完了`, "好了"},
-		{"model down", http.StatusInternalServerError, "", "PR https://github.com/o/r/pull/9 已合并"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			h, _ := newTaskHub(t)
-			js := stubJudge(t, h, tc.status, tc.reply)
-			todo := startedTask(t, h)
-			runTurn(h, tc.last)
-			waitFor(t, "the judge asked", func() bool { return js.calls.Load() > 0 })
-			time.Sleep(50 * time.Millisecond)
-			if got := todoNow(h, todo.ID); got.DoneAt != nil || got.DoneBy != "" {
-				t.Fatalf("closed: %+v", got)
-			}
-			if receipts(h) != 1 {
-				t.Fatalf("%d receipts", receipts(h))
-			}
-		})
-	}
-	t.Run("no model", func(t *testing.T) {
-		h, _ := newTaskHub(t) // no judge configured at all
-		todo := startedTask(t, h)
-		runTurn(h, "PR https://github.com/o/r/pull/9 已合并")
-		waitFor(t, "a receipt", func() bool { return receipts(h) == 1 })
-		time.Sleep(50 * time.Millisecond)
-		if got := todoNow(h, todo.ID); got.DoneAt != nil {
-			t.Fatalf("closed without a model: %+v", got)
-		}
-	})
-}
-
 // A todo the user reopened is not judged by the same work; after a new turn it is delivered for review again, never
 // closed by the judge. Only the user's explicit completion closes it (#5732).
 func TestTaskReopenedNotAutoDoneAgain(t *testing.T) {

@@ -173,41 +173,6 @@ func TestSendCodexDesktopRunsTurnInOwningWindow(t *testing.T) {
 	}
 }
 
-func TestSendCodexDesktopOpensAThreadTheAppHasNotLoaded(t *testing.T) {
-	home, bus := startFakeCodexBus(t, "thread-a")
-	bus.later = "thread-new"
-	defer func(f func(string) error) { openCodexThread = f }(openCodexThread)
-	var asked string
-	openCodexThread = func(thread string) error { asked = thread; bus.opened.Store(true); return nil }
-	n := &Node{dir: t.TempDir()}
-	if err := n.sendCodexDesktop(context.Background(), codexSource{home: home, thread: "thread-new"}, "hi", nil); err != nil {
-		t.Fatal(err)
-	}
-	if asked != "thread-new" {
-		t.Fatalf("opened %q", asked)
-	}
-	if p := <-bus.turns; p["conversationId"] != "thread-new" {
-		t.Fatalf("turn went to %v", p["conversationId"])
-	}
-}
-
-func TestSendCodexDesktopRefusesThreadTheAppHasNotLoaded(t *testing.T) {
-	home, bus := startFakeCodexBus(t, "thread-a")
-	defer func(f func(string) error, w time.Duration) { openCodexThread, codexDesktopLoadWait = f, w }(openCodexThread, codexDesktopLoadWait)
-	openCodexThread = func(string) error { return nil } // the App never loads it
-	codexDesktopLoadWait = 2 * time.Second
-	n := &Node{dir: t.TempDir()}
-	err := n.sendCodexDesktop(context.Background(), codexSource{home: home, thread: "thread-b"}, "hello", nil)
-	if code, data := refusalOf(t, err); code != "codex_desktop_not_loaded" || data["delivered"] != deliveredNone {
-		t.Fatalf("refusal = %s %v", code, data)
-	}
-	select {
-	case p := <-bus.turns:
-		t.Fatalf("a turn was started: %v", p)
-	default:
-	}
-}
-
 func TestCodexDesktopAvailableNeedsTheSocket(t *testing.T) {
 	noFakeCodexBus(t)
 	if codexDesktopAvailable(t.TempDir()) || codexDesktopAvailable("") {

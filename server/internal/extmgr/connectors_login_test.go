@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/connector"
 )
 
@@ -107,11 +106,4 @@ func (c *signInConnector) LoginStep(ctx context.Context, step string, v map[stri
 func (c *signInConnector) Logout(ctx context.Context) error {
 	c.out = true
 	return c.secrets.Delete(ctx)
-}
-
-// forgettingAssistant is a fake assistant reporting the inbox deletion count.
-func forgettingAssistant(h *Manager) *fakeAssistant {
-	a := withAssistant(h)
-	a.on(assistantwire.MethodInboxForget, func(json.RawMessage) (any, error) { return map[string]any{"deleted": 1}, nil })
-	return a
 }

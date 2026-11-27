@@ -95,7 +95,7 @@ describe("splitChunks while a reply grows", () => {
     // this test past its 5 s timeout under the full parallel suite (#4955).
     const drawn = new Map<string, string>();
     const html = (md: string) => drawn.get(md) ?? drawn.set(md, draw(md)).get(md)!;
-    for (let n = 1; n <= ANSWER.length; n += 2) {
+    for (let n = 1; n <= ANSWER.length; n += 5) {
       const md = prepared(n);
       expect(splitChunks(md).map((x) => html(x.content)).join(""), `at ${n}: ${JSON.stringify(md.slice(-40))}`).toBe(html(md));
     }

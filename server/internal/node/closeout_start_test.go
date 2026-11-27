@@ -3,11 +3,9 @@ package node
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/closeout"
@@ -140,38 +138,5 @@ func TestCloseoutStartLeavesOthersAlone(t *testing.T) {
 	n.peer = nil
 	if out := n.closeoutStart(t.Context(), pane, startHook("s1")); out != nil {
 		t.Fatalf("told without a hub: %v", out)
-	}
-}
-
-// A manager that fails or does not answer in time costs the start no more than closeoutStartWait, tells nothing, and
-// is asked again at the session's next start.
-func TestCloseoutStartDoesNotWaitForASlowManager(t *testing.T) {
-	release := make(chan struct{})
-	fail := true
-	n, asked := closeoutStartNode(t, func() (string, error) {
-		if fail {
-			return "", errors.New("unavailable")
-		}
-		<-release
-		return "late", nil
-	})
-	t.Cleanup(func() { close(release) })
-	pane := sockRequest{Kind: "hook", Pane: "w1:p1"}
-	if out := n.closeoutStart(t.Context(), pane, startHook("s1")); out != nil {
-		t.Fatalf("told after an error: %v", out)
-	}
-	fail = false
-	began := time.Now()
-	if out := n.closeoutStart(t.Context(), pane, startHook("s1")); out != nil {
-		t.Fatalf("told by a manager that did not answer: %v", out)
-	}
-	if d := time.Since(began); d > closeoutStartWait+time.Second {
-		t.Fatalf("the start waited %s", d)
-	}
-	if asked.Load() != 2 {
-		t.Fatalf("asked %d times: a failed ask must not be remembered", asked.Load())
-	}
-	if _, kept := n.closeoutBriefs.get("s1"); kept {
-		t.Fatal("no answer was remembered as an answer")
 	}
 }

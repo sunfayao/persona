@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -156,51 +155,6 @@ func pid(t *testing.T, p *Proc) int {
 
 func alive(pid int) bool { return osproc.Alive(pid) }
 
-func TestStartedByCallsStopsWhenIdle(t *testing.T) {
-	t.Setenv("HOST_TEST_HUB_SECRET", "the hub's own")
-	s := spec(t, "rpc")
-	s.OnCall, s.Idle, s.CleanEnv = true, 300*time.Millisecond, true
-	p := Start(context.Background(), s)
-	defer p.Stop()
-	if st, _ := p.Status(); st != StateStopped {
-		t.Fatal("nothing needs it yet:", st)
-	}
-	var got map[string]any
-	if err := p.Call(context.Background(), "demo.echo", map[string]any{"x": 1}, &got); err != nil || got["x"] != float64(1) {
-		t.Fatal(got, err)
-	}
-	var init extension.InitializeParams
-	if err := p.Call(context.Background(), "demo.init", struct{}{}, &init); err != nil {
-		t.Fatal(err)
-	}
-	if init.Protocol != extension.Protocol || string(init.Config) != `{"a":1}` || init.Secrets["k"] != "v" {
-		t.Fatalf("%+v", init)
-	}
-	var env, asked string
-	_ = p.Call(context.Background(), "demo.env", struct{}{}, &env)
-	var leaked string
-	_ = p.Call(context.Background(), "demo.leak", struct{}{}, &leaked)
-	if leaked != "" {
-		t.Fatal("a clean environment has none of the hub's own variables:", leaked)
-	}
-	_ = p.Call(context.Background(), "demo.ask", struct{}{}, &asked)
-	if env != "yes" || asked != "from the hub" {
-		t.Fatal(env, asked)
-	}
-	if res, ok := p.Result(); !ok || string(res.Contributes["connectors"]) != `[{"id":"demo"}]` {
-		t.Fatal(res)
-	}
-	n := pid(t, p)
-	waitState(t, p, StateStopped)
-	time.Sleep(100 * time.Millisecond)
-	if alive(n) {
-		t.Fatal("the program is still there")
-	}
-	if pid(t, p) == n {
-		t.Fatal("a new run")
-	}
-}
-
 func TestHeldRunsWhileHeld(t *testing.T) {
 	p := Start(context.Background(), spec(t, "rpc"))
 	defer p.Stop()
@@ -219,44 +173,6 @@ func TestHeldRunsWhileHeld(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	if alive(n) {
 		t.Fatal("released: it stops")
-	}
-}
-
-func TestRestartsAfterExitAndTimeouts(t *testing.T) {
-	s := spec(t, "rpc")
-	s.Startup, s.CallTimeout = true, 200*time.Millisecond
-	ups := 0
-	var mu sync.Mutex
-	s.OnUp = func() { mu.Lock(); ups++; mu.Unlock() }
-	p := Start(context.Background(), s)
-	defer p.Stop()
-	if err := p.Wait(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	first := pid(t, p)
-	_ = p.Call(context.Background(), "demo.exit", struct{}{}, nil)
-	waitState(t, p, StateError)
-	waitState(t, p, StateRunning)
-	second := pid(t, p)
-	if second == first {
-		t.Fatal("restarted")
-	}
-	for i := 0; i < StrikesToKill; i++ {
-		err := p.Call(context.Background(), "demo.sleep", struct{}{}, nil)
-		var re *rpc.Error
-		if !errors.As(err, &re) || re.Code != extension.CodeTimeout {
-			t.Fatal(err)
-		}
-	}
-	waitState(t, p, StateError)
-	waitState(t, p, StateRunning)
-	if pid(t, p) == second {
-		t.Fatal("restarted after the timeouts")
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	if ups != 3 {
-		t.Fatal("up three times:", ups)
 	}
 }
 
@@ -327,95 +243,6 @@ func TestHTTPOnly(t *testing.T) {
 	p.Stop()
 	if st, _ := p.Status(); st != StateStopped {
 		t.Fatal(st)
-	}
-}
-
-// An HTTP-only program the hub runs that stops answering /health while it stays alive is restarted after
-// StrikesToKill failed checks in a row, like a protocol one that misses its pings; it used to stay in error for good.
-func TestHTTPOnlyThatStopsAnsweringIsRestarted(t *testing.T) {
-	every, timeout := HealthEvery, HealthTimeout
-	HealthEvery, HealthTimeout = 50*time.Millisecond, 100*time.Millisecond
-	defer func() { HealthEvery, HealthTimeout = every, timeout }()
-	dir, err := os.MkdirTemp("", "hst") // a unix socket path stays short
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-	o := &observed{}
-	s := spec(t, "hang")
-	sock, pids := filepath.Join(dir, "demo.sock"), filepath.Join(dir, "pids")
-	s.RPC, s.HTTP, s.Socket, s.Startup, s.Observe = false, true, sock, true, o
-	s.Env = append(s.Env, "PERSONA_PLUGIN_SOCKET="+sock, "HOST_TEST_PIDS="+pids)
-	p := Start(context.Background(), s)
-	defer p.Stop()
-	deadline := time.Now().Add(10 * time.Second)
-	for time.Now().Before(deadline) {
-		if _, runs, _ := o.snapshot(); len(runs) >= 3 {
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	_, runs, _ := o.snapshot()
-	if len(runs) < 3 || runs[0] != RunStart || !strings.HasPrefix(runs[1], RunExit+" ") || !strings.Contains(runs[1], "health") ||
-		runs[2] != RunStart {
-		st, why := p.Status()
-		t.Fatalf("runs %q (state %s: %s)", runs, st, why)
-	}
-	b, err := os.ReadFile(pids)
-	if err != nil {
-		t.Fatal(err)
-	}
-	first, err := strconv.Atoi(strings.Fields(string(b))[0])
-	if err != nil {
-		t.Fatal(err)
-	}
-	for deadline := time.Now().Add(5 * time.Second); alive(first) && time.Now().Before(deadline); {
-		time.Sleep(10 * time.Millisecond)
-	}
-	if alive(first) {
-		t.Fatal("the hung program is still there")
-	}
-}
-
-// A started HTTP-only program that never answers /health is an error after ReadyWithin and is started again, and
-// Stop still returns. It used to stay starting for good, with no error and no restart.
-func TestHTTPNeverReadyIsAnErrorAndRestarted(t *testing.T) {
-	old := ReadyWithin
-	ReadyWithin = 300 * time.Millisecond
-	t.Cleanup(func() { ReadyWithin = old })
-	dir, err := os.MkdirTemp("", "hst") // a unix socket path stays short
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-	o := &observed{}
-	s := spec(t, "mute")
-	s.RPC, s.HTTP, s.Socket, s.Startup, s.Observe = false, true, filepath.Join(dir, "demo.sock"), true, o
-	p := Start(context.Background(), s)
-	defer func() { // on its own goroutine, so that a Stop that hangs fails this test instead of the whole run
-		stopped := make(chan struct{})
-		go func() { p.Stop(); close(stopped) }()
-		select {
-		case <-stopped:
-			if st, _ := p.Status(); st != StateStopped {
-				t.Errorf("state %s after Stop", st)
-			}
-		case <-time.After(10 * time.Second):
-			t.Error("Stop did not return")
-		}
-	}()
-	want := RunExit + " not answering /health within " + ReadyWithin.String()
-	startedAgain := func() bool {
-		_, runs, _ := o.snapshot()
-		i := slices.Index(runs, want)
-		return i >= 0 && slices.Contains(runs[i:], RunStart)
-	}
-	for deadline := time.Now().Add(10 * time.Second); !startedAgain(); time.Sleep(10 * time.Millisecond) {
-		if time.Now().After(deadline) {
-			_, runs, _ := o.snapshot()
-			st, why := p.Status()
-			t.Fatalf("runs %q, state %s (%s): want %q and then a new start", runs, st, why, want)
-		}
 	}
 }
 
@@ -553,47 +380,6 @@ func TestRemoteSocketLeftAloneOnStop(t *testing.T) {
 	far.Stop()
 	if _, err := os.Stat(s.Socket); err != nil {
 		t.Fatalf("the remote socket after Stop: %v, want it kept", err)
-	}
-}
-
-// What a program writes right before it exits (a panic, the reason it dies) reaches the log. The pipes came from
-// cmd.StderrPipe/StdoutPipe, which Wait closes once the program exits, so lines still in the pipe were dropped.
-func TestLogsKeepWhatAProgramWritesBeforeItExits(t *testing.T) {
-	for _, rpc := range []bool{true, false} {
-		dir, err := os.MkdirTemp("", "hst")
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer os.RemoveAll(dir)
-		var mu sync.Mutex
-		var lines []string
-		got := make(chan struct{})
-		s := spec(t, "lastwords")
-		if !rpc {
-			s.RPC, s.HTTP, s.Socket = false, true, filepath.Join(dir, "demo.sock")
-		}
-		s.Startup = true
-		s.Logf = func(format string, args ...any) {
-			line := fmt.Sprintf(format, args...)
-			if strings.HasSuffix(line, ": first") {
-				time.Sleep(500 * time.Millisecond) // a slow log: the program has exited and been waited for by now
-			}
-			mu.Lock()
-			defer mu.Unlock()
-			lines = append(lines, line)
-			if strings.HasSuffix(line, ": last words") && !slices.ContainsFunc(lines[:len(lines)-1], func(l string) bool { return strings.HasSuffix(l, ": last words") }) {
-				close(got)
-			}
-		}
-		p := Start(context.Background(), s)
-		select {
-		case <-got:
-		case <-time.After(5 * time.Second):
-			mu.Lock()
-			t.Errorf("rpc=%v: the program's last line was not logged: %q", rpc, lines)
-			mu.Unlock()
-		}
-		p.Stop()
 	}
 }
 

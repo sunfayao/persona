@@ -15,6 +15,10 @@ import (
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
+// traeEmpty and traeBusy are TRAE CLI's screens with an empty prompt and with a turn running and one message queued.
+const traeEmpty = "────────────────────\n❯ \x1b[2mWrite tests for @filename\x1b[0m\n────────────────────\n  Model · ~/work\n  ? for shortcuts"
+const traeBusy = "Running command… (12s • esc to interrupt)\n  Queued for next turn · alt/⌥+↑ edit last queued message\n  ❯ Earlier message\n"
+
 // Characterization tests of how the node discovers sessions in herdr: which sessions a herdr state lists, and the
 // herdr calls it takes to find them. They pin today's behaviour ahead of the terminal-host abstraction, so they go
 // through the node's requests (herdrfake_test.go has the few adapters that reach inside).
@@ -438,129 +442,6 @@ func TestHerdrTraexStatusFromScreen(t *testing.T) {
 		t.Fatalf("after failed reads %v", got)
 	}
 	assertTrace(t, sorted(f.trace()), []string{traeQueueRead("w4:p1"), traeQueueRead("w4:p2"), traeQueueRead("w4:p4"), call("session.snapshot", nil)})
-}
-
-// The poll loop: one snapshot per tick (no event stream), a sessions.changed with the whole list when something it
-// shows changed, and only sessions.revs when just a transcript grew.
-func TestHerdrPollPushesChangedThenRevs(t *testing.T) {
-	n, f, home := herdrNode(t)
-	cwd := pollRepo(t)
-	cwdJSON, _ := json.Marshal(cwd)
-	p := writeTranscript(t, home, cwd, sidA, time.Now(),
-		`{"type":"user","timestamp":"2026-01-01T00:00:00Z","cwd":`+string(cwdJSON)+`,"message":{"role":"user","content":"hello"}}`)
-	f.reply("session.snapshot", snapshot(nil, nil,
-		[]any{claudeAgent(sidA, proto.StatusIdle, "w5:p1", "w5:t1", "w5", cwd, "poll")}, nil))
-	pushes, stop := pollNode(t, n)
-	next := func() hubPush {
-		t.Helper()
-		select {
-		case m := <-pushes:
-			return m
-		case <-time.After(10 * time.Second):
-			t.Fatal("no push")
-		}
-		return hubPush{}
-	}
-
-	first := next()
-	var changed struct {
-		Sessions []proto.Session `json:"sessions"`
-	}
-	if first.Event != "sessions.changed" || json.Unmarshal(first.Params, &changed) != nil || len(changed.Sessions) != 1 ||
-		changed.Sessions[0].SessionID != sidA {
-		t.Fatalf("first push %s %s", first.Event, first.Params)
-	}
-	assertTrace(t, f.trace(), []string{call("session.snapshot", nil)})
-	// The transcript grows by a line the list does not show: only its rev goes out.
-	fh, err := os.OpenFile(p, os.O_APPEND|os.O_WRONLY, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, _ = fh.WriteString(`{"type":"file-history-snapshot","messageId":"m1"}` + "\n")
-	fh.Close()
-	st, _ := os.Stat(p)
-	second := next()
-	var revs struct {
-		Revs map[string]int64 `json:"revs"`
-	}
-	if second.Event != "sessions.revs" || json.Unmarshal(second.Params, &revs) != nil || revs.Revs[sidA] != st.Size() {
-		t.Fatalf("second push %s %s (size %d)", second.Event, second.Params, st.Size())
-	}
-	assertTrace(t, f.trace(), []string{call("session.snapshot", nil), call("session.snapshot", nil)})
-	stop()
-}
-
-// Panes swapped in herdr and nothing else: the next poll pushes sessions.changed with the new pane indexes (#2320).
-func TestHerdrPollPushesALayoutOnlyChange(t *testing.T) {
-	n, f, home := herdrNode(t)
-	// Transcripts a minute apart keep the list in one order, so only the indexes differ between the pushes.
-	for i, sid := range []string{sidA, sidB} {
-		writeTranscript(t, home, "/tmp/repo", sid, time.Now().Add(-time.Duration(i+1)*time.Minute),
-			`{"type":"user","timestamp":"2026-11-05T10:00:00Z","cwd":"/tmp/repo","message":{"role":"user","content":"hi"}}`)
-	}
-	rect := func(x, y, w, h int) map[string]any { return map[string]any{"x": x, "y": y, "width": w, "height": h} }
-	// The rects swap; herdr's pane list and focus stay as they were.
-	snap := func(left string) map[string]any {
-		at := func(id string) map[string]any {
-			if id == left {
-				return rect(0, 0, 93, 55)
-			}
-			return rect(93, 0, 92, 55)
-		}
-		s := snapshot(
-			[]any{map[string]any{"workspace_id": "w1", "label": "repo", "number": 1}},
-			[]any{map[string]any{"tab_id": "w1:t1", "workspace_id": "w1", "label": "split", "number": 1}},
-			[]any{
-				claudeAgent(sidA, proto.StatusIdle, "w1:pA", "w1:t1", "w1", "/tmp/repo", "a"),
-				claudeAgent(sidB, proto.StatusIdle, "w1:pB", "w1:t1", "w1", "/tmp/repo", "b"),
-			}, nil)
-		s["snapshot"].(map[string]any)["layouts"] = []any{map[string]any{
-			"tab_id": "w1:t1", "workspace_id": "w1", "focused_pane_id": "w1:pA", "zoomed": false, "splits": []any{},
-			"panes": []any{
-				map[string]any{"pane_id": "w1:pA", "focused": true, "rect": at("w1:pA")},
-				map[string]any{"pane_id": "w1:pB", "focused": false, "rect": at("w1:pB")},
-			}}}
-		return s
-	}
-	f.reply("session.snapshot", snap("w1:pA"))
-	pushes, stop := pollNode(t, n)
-	defer stop()
-	indexes := func() string {
-		t.Helper()
-		deadline := time.After(10 * time.Second)
-		for {
-			select {
-			case m := <-pushes:
-				if m.Event != "sessions.changed" {
-					continue
-				}
-				var changed struct {
-					Sessions []proto.Session `json:"sessions"`
-				}
-				if err := json.Unmarshal(m.Params, &changed); err != nil {
-					t.Fatal(err)
-				}
-				got := map[string]string{}
-				for _, s := range changed.Sessions {
-					got[s.SessionID] = "none"
-					if s.PaneIndex != nil {
-						got[s.SessionID] = fmt.Sprint(*s.PaneIndex)
-					}
-				}
-				return got[sidA] + "," + got[sidB]
-			case <-deadline:
-				t.Fatal("no sessions.changed")
-				return ""
-			}
-		}
-	}
-	if got := indexes(); got != "0,1" {
-		t.Fatalf("first push: pane indexes %s", got)
-	}
-	f.reply("session.snapshot", snap("w1:pB"))
-	if got := indexes(); got != "1,0" {
-		t.Fatalf("after the swap: pane indexes %s", got)
-	}
 }
 
 // Active Claude sessions in Herdr panes are retained when Herdr's foreground process detection

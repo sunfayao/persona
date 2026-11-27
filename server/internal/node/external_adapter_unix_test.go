@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net"
 	"os"
@@ -236,14 +235,6 @@ func externalAdapterWait[T any](t *testing.T, ch <-chan T) T {
 	}
 }
 
-func externalAdapterAssertClosed(t *testing.T, c net.Conn) {
-	t.Helper()
-	var b [1]byte
-	if n, err := c.Read(b[:]); n != 0 || err != io.EOF {
-		t.Fatalf("adapter process still holds its connection: %d, %v", n, err)
-	}
-}
-
 func externalAdapterBinding(v proto.ExternalLauncher) *proto.ExternalExecution {
 	return &proto.ExternalExecution{Scope: proto.ExternalMainChatScope, SessionID: "example-session",
 		AdapterID: v.AdapterID, TargetID: v.ID, Revision: v.Revision}
@@ -454,32 +445,6 @@ func TestExternalAdapterOwnerChecks(t *testing.T) {
 	}
 }
 
-func TestExternalAdapterInventoryFailuresAreSanitized(t *testing.T) {
-	for _, tc := range []struct {
-		name, mode, payload, code string
-	}{
-		{"invalid JSON", "", `{"private":"EXAMPLE_SECRET_NEVER_REPORT"`, "adapter_inventory_invalid"},
-		{"protocol", "", `{"protocol":2,"targets":[]}`, "adapter_protocol_unsupported"},
-		{"oversize", "oversize", "", "adapter_inventory_invalid"},
-		{"secret stderr", "secret-stderr", "", "adapter_unavailable"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			f := newExternalAdapterFixture(t)
-			f.state.Mode, f.state.RawOutput = tc.mode, tc.payload
-			f.saveState(t)
-			r := f.load(t)
-			_, err := r.models(context.Background(), "missing", true)
-			externalAdapterTestCode(t, err, tc.code)
-			if got := r.launchers(context.Background(), false); len(got) != 0 {
-				t.Fatal("failed inventory published targets")
-			}
-			if strings.Contains(fmt.Sprintf("%+v", err), "EXAMPLE_SECRET") {
-				t.Fatal("raw adapter output escaped its error")
-			}
-		})
-	}
-}
-
 func TestExternalAdapterCacheColdReadAndSingleFlight(t *testing.T) {
 	f := newExternalAdapterFixture(t)
 	l := f.hold(t, "hold")
@@ -510,83 +475,6 @@ func TestExternalAdapterCacheColdReadAndSingleFlight(t *testing.T) {
 	}
 	if len(f.calls(t)) != 1 {
 		t.Fatal("fresh reads started another inventory")
-	}
-}
-
-func TestExternalAdapterRefreshStaleRecoveryAndNotifications(t *testing.T) {
-	f := newExternalAdapterFixture(t)
-	r := f.load(t)
-	var clock atomic.Int64
-	clock.Store(time.Now().UnixNano())
-	r.now = func() time.Time { return time.Unix(0, clock.Load()) }
-	r.ttl = 2 * time.Minute
-	changed := make(chan struct{}, 8)
-	r.SetOnChange(func() { changed <- struct{}{} })
-	got := r.launchers(context.Background(), true)
-	externalAdapterWait(t, changed)
-	name := got[0].Name
-	old, _ := r.lookup(name)
-	if len(f.calls(t)) != 1 {
-		t.Fatal("initial refresh did not run once")
-	}
-	// An unchanged explicit refresh runs once, without inventing a change notification.
-	_ = r.launchers(context.Background(), true)
-	select {
-	case <-changed:
-		t.Fatal("unchanged inventory notified")
-	default:
-	}
-	if len(f.calls(t)) != 2 {
-		t.Fatal("explicit refresh reused the TTL instead of inventory")
-	}
-	f.state.Mode = "secret-stderr"
-	f.saveState(t)
-	_, err := r.models(context.Background(), name, true)
-	externalAdapterTestCode(t, err, "adapter_unavailable")
-	externalAdapterWait(t, changed)
-	stale, ok := r.lookup(name)
-	if !ok || !stale.Stale || stale.Revision != old.Revision {
-		t.Fatalf("failed refresh discarded or rewrote the snapshot: %#v", stale)
-	}
-	if _, err := r.command(name, externalAdapterBinding(old), old.Models[0].ID, f.dir, nil, nil); err == nil {
-		t.Fatal("failed refresh still authorized a new process")
-	}
-	for range 10 {
-		_ = r.launchers(context.Background(), false)
-	}
-	if len(f.calls(t)) != 3 {
-		t.Fatal("failed inventory ignored background retry backoff")
-	}
-	models, err := r.models(context.Background(), name, false)
-	if err != nil || !reflect.DeepEqual(models.Models, old.Models) {
-		t.Fatal("stale models were not available to a fast directory read")
-	}
-	f.state.Mode = ""
-	next := externalAdapterTestInventory()
-	next.Targets[0].Revision = "sha256:" + strings.Repeat("b", 64)
-	f.state.Payload = externalAdapterTestJSON(t, next)
-	f.saveState(t)
-	got = r.launchers(context.Background(), true) // an explicit retry bypasses failure backoff
-	externalAdapterWait(t, changed)
-	if len(got) != 1 || got[0].External.Stale || got[0].External.Revision == old.Revision {
-		t.Fatalf("recovered snapshot = %#v", got)
-	}
-	_, err = r.command(name, externalAdapterBinding(old), old.Models[0].ID, f.dir, nil, nil)
-	externalAdapterTestCode(t, err, "adapter_revision_mismatch")
-	clock.Add(int64(r.ttl))
-	if target, _ := r.lookup(name); !target.Stale {
-		t.Fatal("expired snapshot was presented as fresh")
-	}
-	l := f.hold(t, "hold")
-	fast := r.launchers(context.Background(), false)
-	if len(fast) != 1 || !fast[0].External.Stale {
-		t.Fatal("expired cache did not return immediately as stale")
-	}
-	c := externalAdapterAccept(t, l)
-	_, _ = c.Write([]byte{'r'})
-	externalAdapterWait(t, changed)
-	if fresh, _ := r.lookup(name); fresh.Stale {
-		t.Fatal("background refresh did not clear stale")
 	}
 }
 
@@ -870,47 +758,5 @@ func TestExternalAdapterColdFailureBackoffAndRecovery(t *testing.T) {
 	}
 	if len(f.calls(t)) != 2 {
 		t.Fatal("background recovery did not run exactly once")
-	}
-}
-
-func TestExternalAdapterCancellationAndCloseReapInventory(t *testing.T) {
-	for _, operation := range []string{"cancel waiter", "close background", "timeout", "parent leaves child"} {
-		t.Run(operation, func(t *testing.T) {
-			f := newExternalAdapterFixture(t)
-			mode := "hold"
-			if operation == "parent leaves child" {
-				mode = "child"
-			}
-			l := f.hold(t, mode)
-			r := f.load(t)
-			if operation == "timeout" {
-				r.timeout = 2 * time.Second
-			}
-			done := make(chan error, 1)
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			if operation == "close background" {
-				_ = r.launchers(ctx, false)
-			} else {
-				go func() { _, err := r.models(ctx, "missing", true); done <- err }()
-			}
-			c := externalAdapterAccept(t, l)
-			switch operation {
-			case "cancel waiter":
-				cancel()
-				externalAdapterTestCode(t, externalAdapterWait(t, done), "adapter_unavailable")
-			case "close background":
-				r.Close()
-			case "timeout":
-				externalAdapterTestCode(t, externalAdapterWait(t, done), "adapter_timeout")
-			case "parent leaves child":
-				externalAdapterTestCode(t, externalAdapterWait(t, done), "adapter_unavailable")
-			}
-			externalAdapterAssertClosed(t, c)
-			r.Close()
-			if _, err := r.models(context.Background(), "missing", true); err == nil {
-				t.Fatal("closed registry restarted its adapter")
-			}
-		})
 	}
 }

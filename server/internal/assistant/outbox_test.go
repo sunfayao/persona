@@ -305,43 +305,6 @@ func TestTheOutboxDropsStaleItemsAndRetries(t *testing.T) {
 	}
 }
 
-// slowReport is extensions whose report on a new connection takes until release: the outbox waits for it.
-type slowReport struct {
-	Extensions
-	release chan struct{}
-}
-
-func (s slowReport) Hello(json.RawMessage) {}
-func (s slowReport) BusUp()                { <-s.release }
-func (s slowReport) Event(string, json.RawMessage) bool {
-	return false
-}
-func (s slowReport) AppCall(context.Context, assistantwire.AppCall) (json.RawMessage, bool, error) {
-	return nil, false, nil
-}
-
-// The outbox goes after the manager reported its state on the new connection (its cards, its extensions): a card's
-// push the hub got before the card would be refused.
-func TestTheOutboxWaitsForTheReport(t *testing.T) {
-	h := newOutboxHub(t)
-	rep := slowReport{release: make(chan struct{})}
-	b := startOutboxManager(t, h, &memOutbox{}, rep)
-	if _, err := b.NotifyRequest(context.Background(), push("ntf_1")); err != nil {
-		t.Fatal(err)
-	}
-	h.up.Store(true)
-	deadline := time.Now().Add(5 * time.Second)
-	for !b.Connected() && time.Now().Before(deadline) {
-		time.Sleep(10 * time.Millisecond)
-	}
-	time.Sleep(300 * time.Millisecond)
-	if got := h.taken(); len(got) != 0 {
-		t.Fatalf("handed over before the report: %q", got)
-	}
-	close(rep.release)
-	h.waitFor(t, []string{"push ntf_1"})
-}
-
 // A push whose call did not get an answer (a hub that stopped answering) is kept, not lost.
 func TestAPushThatTimedOutIsKept(t *testing.T) {
 	h := newOutboxHub(t)

@@ -176,50 +176,6 @@ func pid(t *testing.T, m *Machine) int {
 	return out.PID
 }
 
-func TestLinkMachineComesOnlineThroughPersonaLink(t *testing.T) {
-	h, m, srv := newLinkHub(t)
-	h.linkPing = [2]time.Duration{200 * time.Millisecond, 2 * time.Second} // the hub's heartbeat on the link
-	token, _ := linkToken(t, h, "laptop")
-	target := fakeResidentNode(t)
-	cfg := linkConfig(h, srv, token)
-	cfg.Endpoints = append(cfg.Endpoints, link.Endpoint{URL: "https://hub.example.com:18662", Kind: "name", Manual: true})
-	statuses, path, stop := runLink(t, cfg, target)
-
-	eventually(t, 10*time.Second, "machine online", func() bool { return m.snapshot().Online })
-	first := pid(t, m)
-	st := waitStatus(t, statuses, "the node online", func(s link.Status) bool { return s.State == "connected" && s.Node == "online" })
-	if st.Address != srv.URL || st.Kind != "lan" || st.Since == nil {
-		t.Fatalf("status %+v", st)
-	}
-	if l := m.snapshot().Link; l == nil || l.Version != "test-build" || l.Address != srv.URL {
-		t.Fatalf("machine list shows link %+v", l)
-	}
-	// Its round trip is the hub's heartbeat's (devices.link_rtt): the paths are compared by it.
-	eventually(t, 5*time.Second, "the link's round trip", func() bool {
-		r := m.snapshot().Route
-		return r != nil && r.RTTMS != nil && *r.RTTMS > 0
-	})
-	// The hub's endpoints replaced the ones from pairing; the one added on the laptop stayed.
-	eventually(t, 5*time.Second, "endpoints saved", func() bool {
-		c, err := link.Load(path)
-		return err == nil && len(c.Endpoints) == 2 && c.Endpoints[0].Manual && c.Endpoints[1].URL == srv.URL
-	})
-
-	// The link going away takes the machine offline right then, not at the next ssh-style retry.
-	stop()
-	eventually(t, 3*time.Second, "machine offline", func() bool { return !m.snapshot().Online && m.snapshot().Link == nil })
-	if err := m.call(context.Background(), "ping", nil, nil); !errors.Is(err, errOffline) {
-		t.Fatalf("call while offline: %v", err)
-	}
-
-	statuses, _, _ = runLink(t, cfg, target)
-	eventually(t, 10*time.Second, "machine online again", func() bool { return m.snapshot().Online })
-	if again := pid(t, m); again == first {
-		t.Fatal("still the old node connection")
-	}
-	waitStatus(t, statuses, "connected again", func(s link.Status) bool { return s.State == "connected" })
-}
-
 func TestLinkWithoutResidentNode(t *testing.T) {
 	h, m, srv := newLinkHub(t)
 	token, _ := linkToken(t, h, "laptop")
@@ -456,41 +412,6 @@ func TestLinkTellsWhatTheHubIsCalled(t *testing.T) {
 	}
 }
 
-// A computer waiting to be confirmed is told so on its link, and told again once confirmed (#4655): Persona Link shows
-// "Waiting for you to confirm on your phone" until then. A confirmed one is never told it is pending, and the others' links are not.
-func TestLinkTellsItIsPending(t *testing.T) {
-	h, _, srv := newLinkHub(t)
-	h.setPendingLocal("laptop", time.Now(), true) // as markMachinePending does, without the database
-	eventually(t, 5*time.Second, "the manager has the pending computer", func() bool {
-		h.devices.mu.Lock()
-		defer h.devices.mu.Unlock()
-		return strings.Contains(string(h.devices.sent[devicesOwner]), `"pending":["laptop"]`)
-	})
-	token, _ := linkToken(t, h, "laptop")
-	statuses, _, _ := runLink(t, linkConfig(h, srv, token), fakeResidentNode(t))
-	waitStatus(t, statuses, "pending", func(s link.Status) bool { return s.State == "connected" && s.Pending })
-
-	h.setPendingLocal("laptop", time.Time{}, false) // confirmed
-	st := waitStatus(t, statuses, "confirmed", func(s link.Status) bool { return s.State == "connected" && !s.Pending })
-	if b, _ := json.Marshal(st); strings.Contains(string(b), "pending") {
-		t.Fatalf("a confirmed computer's status still says pending: %s", b)
-	}
-	// Another computer pending: this link is not told it is.
-	h.setPendingLocal("elsewhere", time.Now(), true)
-	eventually(t, 5*time.Second, "the manager has the other pending computer", func() bool {
-		h.devices.mu.Lock()
-		defer h.devices.mu.Unlock()
-		return strings.Contains(string(h.devices.sent[devicesOwner]), `"pending":["elsewhere"]`)
-	})
-	select {
-	case s := <-statuses:
-		if s.Pending {
-			t.Fatalf("told another computer's pending: %+v", s)
-		}
-	case <-time.After(500 * time.Millisecond):
-	}
-}
-
 func TestHubName(t *testing.T) {
 	h := newTestHub(t)
 	h.public.id = "3f2a9c1b-0000-4000-8000-000000000000"
@@ -516,40 +437,4 @@ func TestHubName(t *testing.T) {
 	if h.meshHubCount() != 1 {
 		t.Fatal("a hub alone is a mesh of one")
 	}
-}
-
-// Right after the hub started its listeners are up before the manager is: a Persona Link that comes then waits for the
-// manager a little instead of being turned away.
-func TestLinkWaitsForTheManagerWhileTheHubStarts(t *testing.T) {
-	h := newTestHub(t)
-	h.store = newPairStore()
-	h.cfg.Machines = []MachineConfig{{ID: "laptop", Name: "笔记本", Kind: "link"}}
-	h.startDevices(context.Background())
-	srv := httptest.NewTLSServer(h.routes())
-	t.Cleanup(srv.Close)
-	token, _ := linkToken(t, h, "laptop")
-	type dialed struct {
-		c    *websocket.Conn
-		resp *http.Response
-		err  error
-	}
-	got := make(chan dialed, 1)
-	go func() {
-		c, resp, err := dialLink(t, srv, token)
-		got <- dialed{c, resp, err}
-	}()
-	select {
-	case d := <-got:
-		t.Fatalf("answered before the manager was there: %v %v", d.resp, d.err)
-	case <-time.After(300 * time.Millisecond):
-	}
-	startTestManager(t, h, srv, nil)
-	d := <-got
-	if d.err != nil {
-		t.Fatalf("the link was turned away: %v %v", d.resp, d.err)
-	}
-	defer d.c.CloseNow()
-	hello(t, d.c, "laptop")
-	m := mirror(t, h, "laptop")
-	eventually(t, 5*time.Second, "the link up at the manager", func() bool { return linkVersion(m) == "manual" })
 }

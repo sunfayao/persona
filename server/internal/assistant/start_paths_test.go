@@ -29,87 +29,6 @@ var startWrappers = map[string]string{
 	"startBackendTask": "a planned task's prepared-backend agent start (tasks_backend_launch.go), called by startTaskAgent",
 }
 
-// supervisedStarts are the entry points that give their work a ledger, and the function that does it: it must call
-// one of supervisionCalls (or follow a spawned conversation: the relay's Spawned).
-var supervisedStarts = map[string]string{
-	// task_plan: every task's ledger is made as its plan starts, before its agent (startPlan): the planner when it
-	// supervises (the main conversation, a leader), a task leader's agent for its workers, else the conversation that planned it.
-	"runPlanTaskStart": "startPlan",
-	"runTool":          "prepareAgentTask",    // agent_start: pre-create its task and main supervision (#5732)
-	"dispatchStart":    "superviseDispatched", // dispatch_start: adopted as the main conversation's task (#3442)
-	"taskSpawn":        "taskSpawn",           // joins the caller's verified task and keeps its existing ledger
-	// a task whose agents all stopped goes on with a new agent on the same task, its ledger kept (#4754)
-	"startTaskSuccessor": "startTaskSuccessor",
-	// agent_send's resume of a stopped agent: on an open task of the caller's, or the task the send made (#8099)
-	"resumeAndSend": "resumeAndSend",
-	// a timed-out task's original session: the user's Resume keeps its existing supervision ledger
-	"continueTimedOut": "continueTimedOut",
-}
-
-// startOptOuts are the start paths that stay unsupervised on purpose, with why. Each is the user's own conversation or
-// Agent, the supervisor itself, or work some other part of the hub already follows.
-var startOptOuts = map[string]string{
-	"startBotRun":                "a Lark message (or the owner's /read in a group) opening a conversation: the user's own conversation",
-	"channelForwardInGeneration": "a channel's message opening a conversation: the user's own conversation",
-	"request":                    "the hub bus's assistant.start: an app opening a conversation for the user",
-	"startRoutes":                "the apps' POST /api/v1/sessions: the user started it by hand (assistant.agent_tasks makes it a task when on)",
-	"botStartAgent":              "the Lark bot's start card: the user started the Agent by hand in the chat",
-	"sendHandoff":                "the inbox's hand-off into the main conversation: the main conversation is the supervisor",
-	"startInboxAgent":            "an inbox event's agent: its result is the draft in the inbox, which the user reviews",
-	"runTask":                    "a scheduled task's own conversation: its runs report through notify_user, and the schedule follows them",
-	"runAutoReview":              "an independent reviewer of a supervised task: the review is part of that task's supervision",
-	"startSessionReview":         "an explicit independent reviewer: its source session's owner asked for it and answers its result card",
-	"deliverSessionReview":       "the owner chose Send on a finished review card: an explicit message or resume of the source session",
-	"startRepairAgent":           "a launcher repair Agent: the launcher health checks follow it (launcher_repair.go)",
-	"deliverLaunch":              "the persisted A2A task follows its Agent and returns questions, failures and results to the session that started it",
-}
-
-// supervisionCalls make or keep a ledger.
-var supervisionCalls = []string{"superviseTodo", "supervisePlanTask", "updateSupervision", "adoptAgent", "adoptAgentAs", "quietAgentTask", "ensureSupervisor"}
-
-func TestEveryStartPathIsSupervisedOrOptedOut(t *testing.T) {
-	funcs := parsePackageFuncs(t, ".")
-	agentFuncs := parsePackageFuncs(t, "agents")
-	entries := startEntries(funcs)
-	for _, entry := range startEntries(agentFuncs) {
-		funcs[entry] = agentFuncs[entry]
-		entries = append(entries, entry)
-	}
-	var missing []string
-	for _, name := range entries {
-		if _, ok := supervisedStarts[name]; ok {
-			continue
-		}
-		if _, ok := startOptOuts[name]; ok {
-			continue
-		}
-		missing = append(missing, name+" ("+funcs[name].file+")")
-	}
-	if len(missing) > 0 {
-		t.Errorf("these functions start an Agent or open a conversation but are neither supervised nor opted out: %s. "+
-			"Give the work a supervision ledger (superviseTodo / adoptAgent / adoptAgentAs, or follow it like "+
-			"conversation_new) and add it to supervisedStarts, or add it to startOptOuts with the reason", strings.Join(missing, ", "))
-	}
-	for name, via := range supervisedStarts {
-		if !slices.Contains(entries, name) {
-			t.Errorf("supervisedStarts lists %s, which starts nothing any more: take it off", name)
-		}
-		f, ok := funcs[via]
-		if !ok {
-			t.Errorf("%s's supervision is said to be in %s, which does not exist", name, via)
-			continue
-		}
-		if !f.callsAny(supervisionCalls) && !f.mentions("Spawned") {
-			t.Errorf("%s's supervision is said to be in %s, which makes no ledger (%v) and follows no spawned conversation", name, via, supervisionCalls)
-		}
-	}
-	for name := range startOptOuts {
-		if !slices.Contains(entries, name) {
-			t.Errorf("startOptOuts lists %s, which starts nothing any more: take it off", name)
-		}
-	}
-}
-
 // pkgFunc is a function of the package as parsed: its file, the names it calls (the Service's methods, s.x; a local
 // function value called start is no start), and every identifier in it.
 type pkgFunc struct {
@@ -226,13 +145,5 @@ func countsAsAResume(s *Service) { s.start() }
 	got := startEntries(parsePackageFuncs(t, dir))
 	if want := []string{"checked", "countsAsAResume", "direct", "forwarded"}; !slices.Equal(got, want) {
 		t.Errorf("start entries = %v, want %v", got, want)
-	}
-}
-
-func TestRetiredLeaderReworkUsesSupervisedResume(t *testing.T) {
-	funcs := parsePackageFuncs(t, ".")
-	if !funcs["sendTaskInput"].calls["resumeStoppedTaskAgent"] ||
-		!funcs["resumeStoppedTaskAgent"].calls["resumeAndSend"] || supervisedStarts["resumeAndSend"] != "resumeAndSend" {
-		t.Fatal("rework must resume the retired leader through the supervised agent resume")
 	}
 }

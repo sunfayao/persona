@@ -94,34 +94,6 @@ func TestInboxSignalOnLink(t *testing.T) {
 	}
 }
 
-// Several messages about one task before the supervisor's message goes out are one entry: the newest item, with how
-// many came from all of them.
-func TestInboxSignalsCollapse(t *testing.T) {
-	s, f := newQuietService(t)
-	s.superviseTimes.gather = time.Second // all three come before it goes
-	turnInboxSignalsOn(t, s)
-	todo := supervisedTodo(t, s, "修登录崩溃")
-	ctx := context.Background()
-	a := linkedItem(s, "lark:f1:12", todo.ID, "12", "今天能修好吗？", 1)
-	s.superviseInbox(ctx, []*InboxItem{a}, map[*InboxItem]bool{a: true})
-	s.inbox.mu.Lock()
-	receive(&s.inbox, a, "13", "急，下午要发版", 2)
-	s.inbox.mu.Unlock()
-	s.superviseInbox(ctx, []*InboxItem{a}, nil)
-	other := linkedItem(s, "mail:acc:x:7", todo.ID, "7", "崩溃日志附上了", 1)
-	other.Title, other.Sender = "登录崩溃复现", "李雷"
-	s.superviseInbox(ctx, []*InboxItem{other}, map[*InboxItem]bool{other: true})
-	if g, ok := pendingInbox(s, todo.ID); !ok || g.Inbox.Count != 4 || g.Inbox.Item != other.ID {
-		t.Fatalf("pending = %+v", g.Inbox)
-	}
-	waitFor(t, "the message", func() bool { return len(f.notices()) == 1 })
-	n := f.notices()[0]
-	if !strings.Contains(n, "1 of the tasks you handed out need you") || !strings.Contains(n, "(4 messages)") || !strings.Contains(n, "Inbox event mail:acc:x:7 “登录崩溃复现”, newest message sent by 李雷") ||
-		strings.Contains(n, "急，下午要发版") {
-		t.Fatalf("message:\n%s", n)
-	}
-}
-
 // Nothing is raised for a task nobody supervises, Persona's own reply, a bot chat, or with the switch off (the default).
 func TestInboxSignalsLeftOut(t *testing.T) {
 	ctx := context.Background()

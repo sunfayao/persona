@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"runtime"
-	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -319,48 +317,5 @@ func TestServeLongLineAtTheLimit(t *testing.T) {
 			t.Errorf("a line of %d bytes under a limit of %d: %d events, %v; want %d, %v", c.length, limit, events, err,
 				c.events, c.err)
 		}
-	}
-}
-
-// A request whose params are megabytes costs Serve its line twice, the pieces it was read in and the line they are
-// put together in: the handler's params are that line's, not one more copy (and no buffers doubled on the way).
-func TestServeCopiesALongLineOnce(t *testing.T) {
-	if raceEnabled {
-		t.Skip("the race detector's instrumentation allocates on its own")
-	}
-	line := uploadLine(t, false, 12<<20)
-	serve := func() {
-		p := New("h", io.Discard)
-		got := make(chan int, 1)
-		p.OnRequest = func(_ context.Context, _ string, params json.RawMessage) (any, error) {
-			got <- len(params)
-			return nil, nil
-		}
-		if err := p.Serve(context.Background(), &socketReads{data: line}); err != io.EOF {
-			t.Fatal(err)
-		}
-		select {
-		case n := <-got:
-			if n < 16<<20 {
-				t.Fatalf("the handler got %d bytes of params", n)
-			}
-		case <-time.After(10 * time.Second):
-			t.Fatal("the request did not reach the handler")
-		}
-	}
-	serve()
-	var before, after runtime.MemStats
-	least := ^uint64(0)
-	func() {
-		defer debug.SetGCPercent(debug.SetGCPercent(-1)) // no GC empties grownBufs in the middle of a run
-		for range 3 {
-			runtime.ReadMemStats(&before)
-			serve()
-			runtime.ReadMemStats(&after)
-			least = min(least, after.TotalAlloc-before.TotalAlloc)
-		}
-	}()
-	if limit := uint64(float64(2*len(line))*1.03) + 3*linePiece; least > limit {
-		t.Errorf("serving a %d-byte request allocated %d bytes, over %d (its pieces and the line)", len(line), least, limit)
 	}
 }

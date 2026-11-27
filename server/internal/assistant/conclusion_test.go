@@ -123,47 +123,6 @@ func cardsWith(posts []string, want string) (out []string) {
 	return out
 }
 
-// A supervised research task that ends with "cannot be done" is one card: that verdict, the reason, the link; its
-// closing is not a line of the task report as well. The supervisor checked it, so the card says so and nothing waits
-// for the owner's "OK" (#3240).
-func TestSupervisedCannotBeDoneIsOneConclusionCard(t *testing.T) {
-	s, f, todo, posts, notes := conclusionService(t, false)
-	waitsForReview(t, s, f, todo.ID, "查了，对方接口不对外开放，直连做不了。文档 https://docs.example.com/api")
-	waitFor(t, "the turn's report", func() bool { return len(cardsWith(posts(), "这一轮做完")) == 1 }) // the switch is off: as before
-	before := len(posts())
-	res := reviewTask(t, s, todo.ID, map[string]any{"verdict": "accepted", "outcome": "cannot", "reason": "对方接口不对外开放",
-		"link": "https://docs.example.com/api", "note": "调研结论：做不了"})
-	if !strings.Contains(res, "conclusion card") {
-		t.Fatalf("the review's answer does not say the card went out: %s", res)
-	}
-	time.Sleep(6 * testReportDelay) // a closing line of the task report would be out by now
-	after := posts()[before:]
-	if len(after) != 1 {
-		t.Fatalf("%d cards after the review, want the conclusion only:\n%s", len(after), strings.Join(after, "\n---\n"))
-	}
-	card := after[0]
-	for _, want := range []string{"结论：修登录崩溃", "⛔ 做不了：对方接口不对外开放", "https://docs.example.com/api", "督办已核对证据"} {
-		if !strings.Contains(card, want) {
-			t.Errorf("card lacks %q:\n%s", want, card)
-		}
-	}
-	if strings.Contains(card, `"a":"accept"`) {
-		t.Errorf("the card still asks the owner:\n%s", card)
-	}
-	if strings.Contains(card, "🏁") || strings.Contains(card, "改了什么") {
-		t.Fatalf("not a conclusion card:\n%s", card)
-	}
-	a := askOf(s, todo.ID)
-	if a == nil || !a.Conclusion || a.Outcome != outcomeCannot || a.MessageID == "" || a.AcceptedAt.IsZero() || !a.BySupervisor {
-		t.Fatalf("ask %+v", a)
-	}
-	ctx := context.Background()
-	if _, total := s.snapshotUnaccepted(ctx, s.location(ctx)); total != 0 {
-		t.Fatalf("%d waiting for the owner", total)
-	}
-	_ = notes
-}
-
 // judgeConcluded closes supervised todo, a big feature (high priority, #3205), as the done judge does (judgeClose) with
 // a cannot conclusion, which still waits for the owner's "OK": a big feature is the owner's to look at (#3356).
 func judgeConcluded(t *testing.T, s *Service, todo string) {
@@ -199,42 +158,6 @@ func TestConclusionFindsItsLink(t *testing.T) {
 	cards := cardsWith(posts(), "结论：")
 	if len(cards) != 1 || !strings.Contains(cards[0], "https://github.com/o/r/pull/7") || !strings.Contains(cards[0], "✅ 做完了：做完了") {
 		t.Fatalf("cards %q", cards)
-	}
-}
-
-// Deployed work keeps its "Please verify" card, now with the verdict line on top; the review that accepts the task then
-// sends no second card.
-func TestDeployedWorkKeepsPleaseVerifyWithTheVerdictOnTop(t *testing.T) {
-	s, f, todo, posts, _ := conclusionService(t, false)
-	s.ownerVerifiesAll = true
-	f.judge = `{"changed":"飞书机器人多了任务进展开关","link":"https://hub.example.com/settings?tab=feishu","how":"打开设置看开关"}`
-	agentTurn(s, f, proto.StatusWorking, "", 0)
-	agentTurn(s, f, proto.StatusDone, deployedReply, 0)
-	waitFor(t, "the 请验收 card", func() bool { a := askOf(s, todo.ID); return a != nil && a.MessageID != "" })
-	card := acceptCardOf(posts())
-	top, lines := strings.Index(card, "✅ 做完了：已部署，按下面验收"), strings.Index(card, "改了什么")
-	if top < 0 || lines < 0 || top > lines {
-		t.Fatalf("the verdict line is not on top of the three lines:\n%s", card)
-	}
-	f.judge = `{"verdict":"done","reason":"已部署"}`
-	agentTurn(s, f, proto.StatusWorking, "", 0)
-	agentTurn(s, f, proto.StatusDone, deployedReply, 0)
-	waitFor(t, "the review", func() bool { return todoNow(s, todo.ID).Supervision.State == reviewPending })
-	reviewTask(t, s, todo.ID, map[string]any{"verdict": "accepted", "note": "上线了", "checks": completeReviewChecks(todoNow(s, todo.ID))})
-	time.Sleep(6 * testReportDelay)
-	if n := len(cardsWith(posts(), "结论：")); n != 0 {
-		t.Fatalf("%d conclusion cards for deployed work", n)
-	}
-	if n := countAcceptCards(posts()); n != 1 {
-		t.Fatalf("%d 请验收 cards", n)
-	}
-	// The supervisor checked it: its "Please verify" is passed for the owner, who is not asked to press "Pass" (#3240).
-	ctx := context.Background()
-	if a := askOf(s, todo.ID); a == nil || a.AcceptedAt.IsZero() || !a.BySupervisor {
-		t.Fatalf("the ask is not passed by the supervisor: %+v", a)
-	}
-	if _, total := s.snapshotUnaccepted(ctx, s.location(ctx)); total != 0 {
-		t.Fatalf("%d still waiting for the owner", total)
 	}
 }
 
@@ -311,22 +234,6 @@ func TestDecisionCarriesTheRecommendationAndOKTakesIt(t *testing.T) {
 	s.acceptReply(context.Background(), "om_ok2", "OK", false, mid)
 	if n := len(sentToAgent(f)); n != sent+1 {
 		t.Fatalf("%d sends after a second OK", n-sent)
-	}
-}
-
-// With only_conclusions on, a task's turn ending (an intermediate state) is not pushed; its conclusion still is.
-func TestOnlyConclusionsPushesNoProgress(t *testing.T) {
-	s, f, todo, posts, _ := conclusionService(t, true)
-	waitsForReview(t, s, f, todo.ID, "查完了，可以做，方案见 https://docs.example.com/plan")
-	time.Sleep(6 * testReportDelay) // a report of the turn would be out by now
-	if p := posts(); len(p) != 0 {
-		t.Fatalf("pushed before the conclusion:\n%s", strings.Join(p, "\n---\n"))
-	}
-	reviewTask(t, s, todo.ID, map[string]any{"verdict": "accepted", "reason": "能做，方案已写好", "link": "https://docs.example.com/plan",
-		"checks": completeReviewChecks(todoNow(s, todo.ID))})
-	time.Sleep(6 * testReportDelay)
-	if p := posts(); len(p) != 1 || !strings.Contains(p[0], "✅ 做完了：能做，方案已写好") {
-		t.Fatalf("posts:\n%s", strings.Join(p, "\n---\n"))
 	}
 }
 

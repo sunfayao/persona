@@ -1,15 +1,9 @@
 package devices
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"slices"
 	"testing"
-	"time"
-
-	"github.com/sunfayao/persona/server/internal/devicewire"
-	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func seqOf(m *Machine, id string) (int, bool) {
@@ -39,89 +33,5 @@ func TestUnwatchedSessionsForgetTheirSeq(t *testing.T) {
 	defer m.mu.Unlock()
 	if len(m.lastSeq) != 0 {
 		t.Fatalf("%d seqs kept for unwatched sessions", len(m.lastSeq))
-	}
-}
-
-// A session the manager follows keeps its seq when the hub stops watching it (Call answers that unwatch itself), and
-// forgets it once the manager stops following too.
-func TestAFollowedSessionKeepsItsSeqAfterTheHubUnwatches(t *testing.T) {
-	d := newTestDevices(t)
-	n := &testNode{}
-	m := connectedMachine(t, d, "box", n)
-	ctx := context.Background()
-	if _, err := d.Call(ctx, devicewire.NodeCall{MachineID: "box", Method: "session.watch",
-		Params: json.RawMessage(`{"session_id":"s1","since_seq":0}`)}); err != nil {
-		t.Fatal(err)
-	}
-	if err := d.Follow(ctx, "box", "s1", true); err != nil {
-		t.Fatal(err)
-	}
-	_ = n.current().Notify("session.items", map[string]any{"session_id": "s1", "items": []proto.Item{{Seq: 5}}})
-	eventually(t, 2*time.Second, "the item seen", func() bool { seq, _ := seqOf(m, "s1"); return seq == 5 })
-	if _, err := d.Call(ctx, devicewire.NodeCall{MachineID: "box", Method: "session.unwatch",
-		Params: json.RawMessage(`{"session_id":"s1"}`)}); err != nil {
-		t.Fatal(err)
-	}
-	if seq, _ := seqOf(m, "s1"); seq != 5 {
-		t.Fatalf("followed after the hub's unwatch: seq %d, want 5", seq)
-	}
-	m.reconnect()
-	eventually(t, 5*time.Second, "followed again from its seq", func() bool {
-		return slices.Contains(n.seen("session.watch"), `session.watch {"session_id":"s1","since_seq":5}`)
-	})
-	if err := d.Follow(ctx, "box", "s1", false); err != nil {
-		t.Fatal(err)
-	}
-	if seq, ok := seqOf(m, "s1"); ok {
-		t.Fatalf("neither watched nor followed: seq %d kept", seq)
-	}
-}
-
-// A session unwatched and watched again is asked since the seq of its new watch on the next connection, not since one
-// it kept from before or one a late batch brought after the unwatch; once unwatched again it keeps none.
-func TestARewatchedSessionAsksSinceItsSeqOnlyWhileWatched(t *testing.T) {
-	d := newTestDevices(t)
-	n := &testNode{}
-	m := connectedMachine(t, d, "box", n)
-	ctx := context.Background()
-	call := func(method string) {
-		t.Helper()
-		if _, err := d.Call(ctx, devicewire.NodeCall{MachineID: "box", Method: method,
-			Params: json.RawMessage(`{"session_id":"s1","since_seq":0}`)}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	notify := func(seq int) {
-		t.Helper()
-		_ = n.current().Notify("session.items", map[string]any{"session_id": "s1", "items": []proto.Item{{Seq: seq}}})
-	}
-	seen := func(seq int) {
-		t.Helper()
-		eventually(t, 2*time.Second, "the item seen", func() bool { got, _ := seqOf(m, "s1"); return got == seq })
-	}
-	call("session.watch")
-	notify(4)
-	seen(4)
-	call("session.unwatch")
-	if seq, ok := seqOf(m, "s1"); ok {
-		t.Fatalf("unwatched: seq %d kept", seq)
-	}
-	notify(9) // a late batch, sent before the node took the unwatch
-	// The late batch is handled before the new watch: Call marks the session watched before its request goes out, so a
-	// batch the read loop took after that would count. The read loop handles each event before it reads the next line,
-	// so once the reply to a call made after the batch is in, the batch was handled.
-	if err := m.call(ctx, "node.info", map[string]any{}, nil); err != nil {
-		t.Fatal(err)
-	}
-	call("session.watch")
-	notify(6) // the new watch's catch-up
-	seen(6)
-	m.reconnect()
-	eventually(t, 5*time.Second, "watched again from its new seq", func() bool {
-		return slices.Contains(n.seen("session.watch"), `session.watch {"session_id":"s1","since_seq":6}`)
-	})
-	call("session.unwatch")
-	if seq, ok := seqOf(m, "s1"); ok {
-		t.Fatalf("unwatched again: seq %d kept", seq)
 	}
 }

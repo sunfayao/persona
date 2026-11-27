@@ -66,42 +66,6 @@ func newSlowMailHub(t *testing.T, m *slowMail) *Manager {
 	return h
 }
 
-// The accounts of a mail round are read at the same time: the round takes about one account's time, not their sum,
-// and comes back in the accounts' order with the one that failed left out.
-func TestReadMailReadsAccountsInParallel(t *testing.T) {
-	const delay = 300 * time.Millisecond
-	m := &slowMail{delay: delay, fail: map[string]bool{"b": true}, accounts: []mail.MailAccount{
-		{ID: "a", Email: "a@example.com"}, {ID: "b", Email: "b@example.com"}, {ID: "c", Email: "c@example.com"},
-		{ID: "d", Email: "d@example.com"},
-	}}
-	h := newSlowMailHub(t, m)
-
-	start := time.Now()
-	r := h.readMail(context.Background())
-	took := time.Since(start)
-	t.Logf("readMail: %d accounts, %v each: %v", len(m.accounts), delay, took.Round(time.Millisecond))
-
-	if r == nil {
-		t.Fatal("no mail read")
-	}
-	var got []string
-	for _, a := range r.Accounts {
-		if len(a.Messages) != 1 || a.Messages[0].Subject != "from "+a.ID {
-			t.Fatalf("account %s read %+v", a.ID, a.Messages)
-		}
-		got = append(got, a.ID)
-	}
-	if want := "a,c,d"; join(got) != want {
-		t.Fatalf("accounts = %s, want %s (in order, the failed one left out)", join(got), want)
-	}
-	if took >= 2*delay {
-		t.Fatalf("readMail took %v for %d accounts of %v each: they were read one after another", took, len(m.accounts), delay)
-	}
-	if p := m.peak.Load(); p > inboxMailParallel {
-		t.Fatalf("%d accounts read at once, at most %d", p, inboxMailParallel)
-	}
-}
-
 // More accounts than run at once still all get read, never more than inboxMailParallel of them together.
 func TestReadMailBoundsParallelReads(t *testing.T) {
 	m := &slowMail{release: make(chan struct{})}

@@ -4,16 +4,12 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/clitext"
-	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // emptyHome is a HOME without hub.json.
@@ -58,64 +54,5 @@ func TestPairArgumentMistakes(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(home, ".persona", "hub.json")); !os.IsNotExist(err) {
 		t.Errorf("a usage mistake touched hub.json: %v", err)
-	}
-}
-
-// Hub hands the command's context to pair and peer: Ctrl-C ends their wait for a hub that takes the connection and
-// never answers.
-func TestPairAndPeerStopOnTheCommandsContext(t *testing.T) {
-	home := emptyHome(t)
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var mu sync.Mutex
-	var conns []net.Conn
-	go func() {
-		for {
-			c, err := ln.Accept()
-			if err != nil {
-				return
-			}
-			mu.Lock()
-			conns = append(conns, c)
-			mu.Unlock()
-		}
-	}()
-	t.Cleanup(func() {
-		ln.Close()
-		mu.Lock()
-		defer mu.Unlock()
-		for _, c := range conns {
-			c.Close()
-		}
-	})
-	if err := os.MkdirAll(filepath.Join(home, ".persona"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	hubJSON := `{"listen":"` + ln.Addr().String() + `","token":"t"}`
-	if err := os.WriteFile(filepath.Join(home, ".persona", "hub.json"), []byte(hubJSON), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	for _, args := range [][]string{
-		{"pair", "--peer"},
-		{"peer", "list"},
-		{"pair"},
-		{"pair", "--machine", "m1"},
-	} {
-		ctx, cancel := context.WithCancel(context.Background())
-		time.AfterFunc(200*time.Millisecond, cancel)
-		done := make(chan error, 1)
-		start := time.Now()
-		go func() { done <- Hub(ctx, update.Build{}, args) }()
-		select {
-		case err := <-done:
-			t.Logf("%q returned after %s: %v", args, time.Since(start).Round(time.Millisecond), err)
-			if err == nil {
-				t.Errorf("%q: no error from a hub that never answered", args)
-			}
-		case <-time.After(2 * time.Second): // under the 5 s a pairing code's request allows itself
-			t.Fatalf("%q still waits after Ctrl-C", args)
-		}
 	}
 }

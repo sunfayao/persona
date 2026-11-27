@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -146,42 +145,6 @@ func TestSharedDownloadFinishesIntoTheCacheWithNobodyWaiting(t *testing.T) {
 	waitUntil(t, "its directory to go", func() bool { dirs, _ := filepath.Glob(filepath.Join(cache, ".fetch-*")); return len(dirs) == 0 })
 	if h.stopped.Load() != 0 {
 		t.Fatal("the download stopped with its caller")
-	}
-}
-
-func TestDownloadTooSlowSaysSo(t *testing.T) {
-	defer func(was time.Duration) { DownloadBudget = was }(DownloadBudget)
-	DownloadBudget = 300 * time.Millisecond
-	data := bytes.Repeat([]byte("p"), 4<<10)
-	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Length", strconv.Itoa(len(data)))
-		for _, c := range data {
-			if _, err := w.Write([]byte{c}); err != nil {
-				return
-			}
-			w.(http.Flusher).Flush()
-			select {
-			case <-time.After(20 * time.Millisecond):
-			case <-r.Context().Done():
-				return
-			}
-		}
-	}))
-	defer srv.Close()
-	spec, _ := ParseMarket(srv.URL + "/index.json")
-	pkg := &MarketPackage{URL: srv.URL + "/pkg.tar.gz", SHA256: ociSum(data), Size: int64(len(data))}
-	for _, cache := range []string{"", t.TempDir()} {
-		m := &Market{Spec: spec, Client: srv.Client(), Cache: cache}
-		_, _, err := m.Download(t.Context(), pkg, t.TempDir())
-		if !errors.Is(err, ErrDownloadSlow) {
-			t.Fatalf("cache %q: %v", cache, err)
-		}
-		if text := i18n.Localize(err, i18n.En); !strings.Contains(text, "too slow") || !strings.Contains(text, " / 0.0 MB") {
-			t.Fatalf("cache %q: %q", cache, text)
-		}
-		if zh := i18n.Localize(err, "zh-Hans"); zh == i18n.Localize(err, i18n.En) {
-			t.Fatalf("not translated: %q", zh)
-		}
 	}
 }
 

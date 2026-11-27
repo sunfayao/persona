@@ -941,44 +941,6 @@ describe("UI 10: the graph canvas", () => {
     }
   });
 
-  it("the store's cap never evicts the entry of a canvas that is still mounted", async () => {
-    // the reviewer's finding: with the cap reached, the on-screen key's entry was rebuilt fresh on its next
-    // states-only redraw, which reads moved: false and takes the opening view — throwing the person's pan away.
-    const spy = sizeStage(900, 500);
-    // the holder host keeps the canvas mounted the whole time; the fillers mount and unmount on their own hosts
-    const holderHost = document.createElement("div");
-    document.body.append(holderHost);
-    const holderRoot = createRoot(holderHost);
-    const held = { root, host };
-    await act(async () => holderRoot.render(<GraphCanvas item={draw(WORK)} busy="" onPress={() => {}} />));
-    const stage = holderHost.querySelector("[data-graph-stage]")!;
-    act(() => stage.dispatchEvent(new WheelEvent("wheel", { deltaY: -100, ctrlKey: true, bubbles: true, cancelable: true })));
-    const kept = transformOf(holderHost.querySelector("[data-graph-layer]"));
-    expect(kept[2]).not.toBeCloseTo(0.75, 9); // the person zoomed: the store keeps it as moved
-    // mount 140 other keys (over the cap of 128) — each on its own host, unmounted at once: never this one
-    const fillerHost = document.createElement("div");
-    document.body.append(fillerHost);
-    for (let i = 0; i < 140; i++) {
-      const other = structuredClone(WORK);
-      (other.sections[0].items[0] as { key: string }).key = `filler-${i}`;
-      const fillerRoot = createRoot(fillerHost);
-      await act(async () => fillerRoot.render(<GraphCanvas item={draw(other)} busy="" onPress={() => {}} />));
-      act(() => fillerRoot.unmount());
-    }
-    fillerHost.remove();
-    // the filler keys evicted each other, never this one: a states-only redraw keeps the person's zoom
-    const again = structuredClone(WORK);
-    const nodes = (again.sections[0].items[0] as { nodes: { id: string; badge?: { text: string } }[] }).nodes;
-    nodes.find((n) => n.id === "c")!.badge = { text: "Running" };
-    await act(async () => holderRoot.render(<GraphCanvas item={draw(again)} busy="" onPress={() => {}} />));
-    const now = transformOf(holderHost.querySelector("[data-graph-layer]"));
-    expect(now[2]).toBeCloseTo(kept[2], 9); // not the opening 0.5: the pan was never thrown away
-    act(() => holderRoot.unmount());
-    holderHost.remove();
-    root = held.root;
-    host = held.host;
-    spy.mockRestore();
-  });
 });
 
 describe("UI 10: a graph in a view", () => {

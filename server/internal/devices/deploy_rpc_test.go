@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -16,10 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/nodeproto"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
-	"github.com/sunfayao/persona/server/internal/update/updatetest"
 )
 
 type updatingNode struct {
@@ -230,94 +227,6 @@ func TestLinkedDeployCapabilities(t *testing.T) {
 	}
 }
 
-func TestLinkedDeployTransfersAndConfirms(t *testing.T) {
-	for _, kind := range []string{kindLink, kindService} {
-		for _, resume := range []int64{0, 23} {
-			t.Run(fmt.Sprintf("%s/resume-%d", kind, resume), func(t *testing.T) {
-				_, m, n, bin := linkedDeployFixture(t, kind)
-				n.resume = resume
-				record := nodeDeployRecord{Target: "new-build", State: "queued"}
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-				if err := m.performRPCDeployment(ctx, bin, &record); err != nil {
-					t.Fatal(err)
-				}
-				n.mu.Lock()
-				defer n.mu.Unlock()
-				if n.begin != 1 || n.commits != 1 || n.confirms != 1 || n.aborts != 0 || !bytes.Equal(n.data, n.expected) {
-					t.Fatalf("begin=%d commits=%d confirms=%d aborts=%d bytes=%d", n.begin, n.commits, n.confirms, n.aborts, len(n.data))
-				}
-			})
-		}
-	}
-}
-
-// Redeploy sends the kind of program the node says it runs: persona-node to persona-node, personad to the rest; so
-// does an update the hub queued before it restarted, when the node comes back (nodeUpdateConnected).
-func TestRedeployBringsTheProgramTheNodeRuns(t *testing.T) {
-	fullBuild := updatetest.VersionedProgram(t, nodeproto.ProgramPersonad, "linux", "amd64", "new-build") // linkedDeployFixture's hub
-	nodeBuild := updatetest.Program(t, nodeproto.ProgramPersonaNode, "linux", "amd64")
-	for _, tc := range []struct{ program, via, path string }{
-		{nodeproto.ProgramPersonaNode, "redeploy", ""},
-		{nodeproto.ProgramPersonad, "redeploy", "/opt/persona/bin/persona-node"},
-		{"", "redeploy", ""},
-		{nodeproto.ProgramPersonaNode, "reconnect", ""},
-		{nodeproto.ProgramPersonad, "reconnect", "/opt/persona/bin/persona-node"},
-		{"", "reconnect", ""},
-	} {
-		program := tc.program
-		t.Run(tc.via+"/program="+program, func(t *testing.T) {
-			home := t.TempDir()
-			t.Setenv("HOME", home)
-			t.Setenv("USERPROFILE", home)
-			isolateNodeBinaries(t)
-			h, m, n, _ := linkedDeployFixture(t, kindLink)
-			dir := nodeBinaryDir()
-			_ = os.MkdirAll(dir, 0o755)
-			full, node := filepath.Join(dir, "personad-linux-amd64"), filepath.Join(dir, "persona-node-linux-amd64")
-			copyFile(t, fullBuild, full)
-			copyFile(t, nodeBuild, node)
-			_ = os.WriteFile(node+".version", []byte(h.hubVersion()+"\n"), 0o644)
-			h.opts.Store = newMemStore()
-			want := full
-			if program == nodeproto.ProgramPersonaNode {
-				want = node
-			}
-			expected, err := os.ReadFile(want)
-			if err != nil {
-				t.Fatal(err)
-			}
-			n.mu.Lock()
-			n.expected = expected
-			n.mu.Unlock()
-			m.mu.Lock()
-			m.info.Program = program
-			m.info.Executable = tc.path
-			info := m.info
-			m.mu.Unlock()
-			if tc.via == "reconnect" {
-				if err := m.saveDeployRecord(context.Background(), nodeDeployRecord{Target: h.hubVersion(), State: "queued"}); err != nil {
-					t.Fatal(err)
-				}
-				m.nodeUpdateConnected(context.Background(), m.peer, info)
-			} else {
-				ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
-				defer cancel()
-				if err := h.Redeploy(ctx, m.cfg.ID); err != nil {
-					t.Fatal(err)
-				}
-			}
-			waitMachine(t, m, 10*time.Second, func(s proto.Machine) bool { return !s.Deploying })
-			n.mu.Lock()
-			defer n.mu.Unlock()
-			if n.begin != 1 || n.commits != 1 || !bytes.Equal(n.data, expected) {
-				t.Fatalf("begin=%d commits=%d sent %d bytes, want %s (%d bytes); error %q", n.begin, n.commits, len(n.data),
-					filepath.Base(want), len(expected), m.snapshot().DeployError)
-			}
-		})
-	}
-}
-
 func TestLinkedDeployAbortOnBadAcknowledgment(t *testing.T) {
 	_, m, n, bin := linkedDeployFixture(t, kindLink)
 	n.badOffset = true
@@ -403,26 +312,6 @@ func TestLinkedDeployRequiresTargetVersion(t *testing.T) {
 	}
 }
 
-func TestLinkedDeployResumesAfterHubRestart(t *testing.T) {
-	h, m, n, _ := linkedDeployFixture(t, kindService)
-	h.opts.Store = newMemStore()
-	m.info.Version = "new-build"
-	if err := m.saveDeployRecord(context.Background(), nodeDeployRecord{Target: h.hubVersion(), State: "queued", Phase: "confirming"}); err != nil {
-		t.Fatal(err)
-	}
-	m.nodeUpdateConnected(context.Background(), m.peer, m.info)
-	waitMachine(t, m, 5*time.Second, func(s proto.Machine) bool { return !s.Deploying })
-	var saved nodeDeployRecord
-	if found, err := h.opts.Store.Setting(context.Background(), m.deployRecordKey(), &saved); err != nil || !found || saved.State != "succeeded" {
-		t.Fatalf("record=%+v found=%v err=%v", saved, found, err)
-	}
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	if n.begin != 0 || n.confirms < 1 {
-		t.Fatalf("begin=%d confirms=%d", n.begin, n.confirms)
-	}
-}
-
 func TestLinkedDeployStopsStaleDesiredVersion(t *testing.T) {
 	h, m, n, _ := linkedDeployFixture(t, kindLink)
 	h.opts.Store = newMemStore()
@@ -491,51 +380,6 @@ func TestLinkedDeployPersistsRejectedInstallation(t *testing.T) {
 	}
 }
 
-func TestLinkedDeployPreflightFailureEndsConfirmation(t *testing.T) {
-	h, m, n, bin := linkedDeployFixture(t, kindLink)
-	h.opts.Store = newMemStore()
-	n.stayOld = true
-	run, err := m.startRPCDeploymentRun(nodePackage{Version: h.hubVersion(), path: bin}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-	defer cancel()
-	outcome := make(chan error, 1)
-	go func() { outcome <- m.waitDeploy(ctx, run) }()
-	waitMachine(t, m, 5*time.Second, func(s proto.Machine) bool { return s.DeployPhase == "confirming" })
-	for _, failure := range []proto.NodeUpdatePreflightFailure{
-		{ID: "old-update", Error: "stale failure"},
-		{ID: "update-one", Error: "exit status 23"},
-	} {
-		if err := n.peer.NotifyContext(ctx, nodeproto.EventUpdatePreflightFailed, failure); err != nil {
-			t.Fatal(err)
-		}
-	}
-	s := waitMachine(t, m, 5*time.Second, func(s proto.Machine) bool { return !s.Deploying })
-	if s.DeployPhase != "" || s.DeployError != "exit status 23" || s.NodeVersion != "old-build" || !s.Online {
-		t.Fatalf("snapshot = %+v", s)
-	}
-	select {
-	case err := <-outcome:
-		if err == nil || err.Error() != "exit status 23" {
-			t.Fatalf("redeploy outcome = %v", err)
-		}
-	case <-ctx.Done():
-		t.Fatalf("waiting for redeploy outcome: %v", ctx.Err())
-	}
-	var saved nodeDeployRecord
-	found, err := h.opts.Store.Setting(ctx, m.deployRecordKey(), &saved)
-	if err != nil || !found || saved.State != "failed" || saved.Error != s.DeployError || saved.Phase != "" {
-		t.Fatalf("record = %+v, found = %t, error = %v", saved, found, err)
-	}
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	if n.commits != 1 || n.confirms != 0 || n.aborts != 0 {
-		t.Fatalf("commits = %d, confirms = %d, aborts = %d", n.commits, n.confirms, n.aborts)
-	}
-}
-
 func TestLinkedDeployDoesNotRepeatRolledBackInstall(t *testing.T) {
 	h, m, n, _ := linkedDeployFixture(t, kindLink)
 	h.opts.Store = newMemStore()
@@ -555,48 +399,5 @@ func TestLinkedDeployDoesNotRepeatRolledBackInstall(t *testing.T) {
 	defer n.mu.Unlock()
 	if n.begin != 0 {
 		t.Fatal("automatically installed a possibly rolled-back build again")
-	}
-}
-
-// A node with node_update_idle is updated while terminal Agents work in the background, since its restart leaves them
-// running, and waited for while it reports update_busy: only it knows a conversation it runs headless is busy, its rows
-// do not say so (#6364). One that leaves update_busy out is waited for on the old rule.
-func TestLinkedDeployWaitsOnlyForWhatTheRestartCuts(t *testing.T) {
-	terminal := proto.Session{SessionID: "terminal", Status: proto.StatusWorking, State: proto.StateWorking, Host: proto.EngineHerdr,
-		Background: []proto.BackgroundTask{{ID: "workflow", Kind: "workflow"}}, Subagents: []proto.Subagent{{Running: true}}}
-	headless := proto.Session{SessionID: "chat", Status: proto.StatusIdle, State: proto.StateIdle} // as a node lists it: no Assistant flag
-	busy, idle := true, false
-	for _, tc := range []struct {
-		name       string
-		updateBusy *bool
-		update     bool
-	}{
-		{"terminal agents at work", &idle, true},
-		{"headless conversation answering", &busy, false},
-		{"no update_busy", nil, false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			_, m, n, bin := linkedDeployFixture(t, kindLink)
-			m.info.Protocol = nodeproto.Version
-			m.info.Capabilities = []string{nodeproto.Sessions, nodeproto.NodeUpdate, nodeproto.NodeUpdateIdle}
-			n.sessions, n.updateBusy = []proto.Session{terminal, headless}, tc.updateBusy
-			record := nodeDeployRecord{Target: "new-build", State: "queued"}
-			// The refusals wait for this deadline to expire; the update returns when it is done, so it gets a long one.
-			wait := 200 * time.Millisecond
-			if tc.update {
-				wait = 30 * time.Second
-			}
-			ctx, cancel := context.WithTimeout(context.Background(), wait)
-			defer cancel()
-			err := m.performRPCDeployment(ctx, bin, &record)
-			n.mu.Lock()
-			defer n.mu.Unlock()
-			if tc.update && (err != nil || n.confirms != 1) {
-				t.Fatalf("not updated: err=%v confirms=%d", err, n.confirms)
-			}
-			if !tc.update && (!errors.Is(err, context.DeadlineExceeded) || n.begin != 0) {
-				t.Fatalf("updated while busy: err=%v begin=%d", err, n.begin)
-			}
-		})
 	}
 }

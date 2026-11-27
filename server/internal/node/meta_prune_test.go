@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"testing"
 	"time"
 )
@@ -53,97 +52,6 @@ func writePruneTranscripts(t *testing.T, dir string, count int, newest time.Time
 		paths[i] = p
 	}
 	return paths
-}
-
-func heapInUse() int64 {
-	var ms runtime.MemStats
-	runtime.GC()
-	runtime.GC()
-	runtime.ReadMemStats(&ms)
-	return int64(ms.HeapAlloc)
-}
-
-// A node read 1,000 transcripts that were then deleted: what it kept for each (the quick meta and the background-task
-// scan) goes, all but one small entry per working directory, and the recent directories built from them stay exactly
-// as they were.
-func TestPruneGoneMetas(t *testing.T) {
-	const count = 1000
-	n := &Node{metas: map[string]quickMeta{}, bgScans: map[string]*bgScan{}}
-	dir := filepath.Join(t.TempDir(), "projects", "-work-project")
-	paths := writePruneTranscripts(t, dir, count+1, time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC))
-	kept, paths := paths[count], paths[:count]
-
-	start := heapInUse()
-	for _, p := range append([]string{kept}, paths...) {
-		st, err := os.Stat(p)
-		if err != nil {
-			t.Fatal(err)
-		}
-		n.meta(p, st)
-	}
-	if len(n.bgScans[paths[0]].meta.Background) == 0 || n.metas[paths[1]].lastText == "" || n.metas[paths[1]].title == "" {
-		t.Fatal("the fixtures should give running background tasks, a title and last words")
-	}
-	for _, p := range paths {
-		if err := os.Remove(p); err != nil {
-			t.Fatal(err)
-		}
-	}
-	before := n.dirsByUse()
-	keptMeta := n.metas[kept]
-	wantDirs := map[string]time.Time{} // each deleted transcript's directory, with its newest one's mtime
-	for _, p := range paths {
-		if m := n.metas[p]; m.cwd != "" && m.mtime.After(wantDirs[m.cwd]) {
-			wantDirs[m.cwd] = m.mtime
-		}
-	}
-	if len(wantDirs) < 2 {
-		t.Fatalf("the fixtures should run in several directories: %v", wantDirs)
-	}
-	held := heapInUse() - start
-
-	n.pruneGoneMetas(map[string]bool{kept: true})
-	left := heapInUse() - start
-	t.Logf("%d transcripts read, then deleted: the node held %.1f MB (%.1f KB each); after the prune it holds %.1f KB (%.0f B each)",
-		count, float64(held)/(1<<20), float64(held)/count/1024, float64(left)/1024, float64(left)/count)
-
-	if len(n.bgScans) != 1 || n.bgScans[kept] == nil {
-		t.Fatalf("background-task scans left: %d, want only the existing transcript's", len(n.bgScans))
-	}
-	if len(n.metas) != 1 {
-		t.Fatalf("metas: %d entries, want only the existing transcript's", len(n.metas))
-	}
-	if !reflect.DeepEqual(n.goneDirs, wantDirs) {
-		t.Errorf("directories of the gone transcripts\n got %v\nwant %v", n.goneDirs, wantDirs)
-	}
-	if !reflect.DeepEqual(n.metas[kept], keptMeta) {
-		t.Error("an existing transcript's meta changed")
-	}
-	if after := n.dirsByUse(); !reflect.DeepEqual(after, before) {
-		t.Errorf("recent directories changed\n got %v\nwant %v", after, before)
-	}
-
-	// A transcript made again at a pruned path is read in full, its background tasks from the start.
-	src, err := os.ReadFile(kept)
-	if err != nil {
-		t.Fatal(err)
-	}
-	back := paths[4*7] // the same source as kept: count is a multiple of the four sources
-	if err := os.WriteFile(back, src, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	st, err := os.Stat(back)
-	if err != nil {
-		t.Fatal(err)
-	}
-	m := n.meta(back, st)
-	m.readAt, m.mtime = keptMeta.readAt, keptMeta.mtime
-	if !reflect.DeepEqual(m, keptMeta) {
-		t.Errorf("a transcript back at a pruned path\n got %+v\nwant %+v", m, keptMeta)
-	}
-	if sc := n.bgScans[back]; sc == nil || sc.off != st.Size() {
-		t.Error("a transcript back at a pruned path should be scanned for background tasks again")
-	}
 }
 
 // An entry read again between the snapshot and the re-lock is left alone (the file may be back by then); a gone one

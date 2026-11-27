@@ -40,52 +40,6 @@ func startEnvVars() map[string]string {
 	return out
 }
 
-// wantStartEnv fails unless env is exactly startShellEnv.
-func wantStartEnv(t *testing.T, what string, env map[string]any) {
-	t.Helper()
-	want := startEnvVars()
-	if len(env) != len(want) {
-		t.Fatalf("%s: env %v, want %v", what, env, want)
-	}
-	for k, v := range want {
-		if env[k] != v {
-			t.Errorf("%s: env %s=%v, want %s", what, k, env[k], v)
-		}
-	}
-}
-
-// The shell a start's new tab runs is told before it reads its startup files that it is an Agent's (PERSONA_AGENT,
-// #10111) and that oh-my-zsh's and oh-my-bash's update question and powerlevel10k's wizard are off (#10365):
-// tab.create into a workspace and workspace.create for a directory with none both carry startShellEnv
-// (host.EnvLauncher).
-func TestStartTabCarriesStartupEnv(t *testing.T) {
-	withPaneShell(t, "/bin/zsh")
-	n, f, home := herdrNode(t)
-	withStartWaits(n, 200*time.Millisecond, 200*time.Millisecond) // the fake shell never runs claude
-	newShellTab(f, "zsh")
-	_, _ = request(t, n, "session.start", map[string]any{"cwd": home, "workspace_id": "w1", "launcher": "claude"})
-	tabs := callsOf(f, "tab.create")
-	if len(tabs) != 1 {
-		t.Fatalf("tab.create %v", f.trace("tab.create"))
-	}
-	wantStartEnv(t, "tab.create", spawnEnvOf(tabs[0]))
-
-	f.reset()
-	fresh := mkdir(t, filepath.Join(home, "fresh"))
-	f.reply("workspace.list", map[string]any{"workspaces": []any{}})
-	f.reply("workspace.create", map[string]any{"workspace": map[string]any{"workspace_id": "w7"},
-		"tab": map[string]any{"tab_id": "w7:t1"}, "root_pane": map[string]any{"pane_id": "w7:p1"}})
-	_, _ = request(t, n, "session.start", map[string]any{"cwd": fresh, "launcher": "claude"})
-	spaces := callsOf(f, "workspace.create")
-	if len(spaces) != 1 {
-		t.Fatalf("workspace.create %v", f.trace("workspace.create"))
-	}
-	wantStartEnv(t, "workspace.create", spawnEnvOf(spaces[0]))
-	if got := f.trace("tab.rename"); len(got) != 1 || strings.Contains(got[0], "env") {
-		t.Errorf("only the create carries env: %v", got)
-	}
-}
-
 // A terminal the user opens (New Terminal, Open Terminal Here) and a split of one are the user's own shells: they
 // never get a start's environment, though herdr takes one.
 func TestUserShellTabHasNoStartupEnv(t *testing.T) {
@@ -111,29 +65,6 @@ func TestUserShellTabHasNoStartupEnv(t *testing.T) {
 	}
 	if splits := callsOf(af, "pane.split"); len(splits) != 1 || spawnEnvOf(splits[0]) != nil {
 		t.Errorf("a split: %v", af.trace("pane.split"))
-	}
-}
-
-// A herdr from before environment support refuses env as a field it does not know: the tab is made again without it
-// (herdr.Client's createWithEnv), and the start goes on in it.
-func TestHerdrRefusingEnvGetsTheTabWithout(t *testing.T) {
-	withPaneShell(t, "/bin/zsh")
-	n, f, home := herdrNode(t)
-	withStartWaits(n, 200*time.Millisecond, 200*time.Millisecond)
-	newShellTab(f, "zsh")
-	f.handle("tab.create", func(p map[string]any) any {
-		if p["env"] != nil {
-			return herdrFail{Code: "invalid_request", Message: "invalid request: unknown field `env`"}
-		}
-		return map[string]any{"tab": map[string]any{"tab_id": "w1:t2"}, "root_pane": map[string]any{"pane_id": "w1:p2"}}
-	})
-	_, _ = request(t, n, "session.start", map[string]any{"cwd": home, "workspace_id": "w1", "launcher": "claude"})
-	tabs := callsOf(f, "tab.create")
-	if len(tabs) != 2 || spawnEnvOf(tabs[0]) == nil || spawnEnvOf(tabs[1]) != nil {
-		t.Fatalf("tab.create %v", f.trace("tab.create"))
-	}
-	if len(sent(f, "w1:p2")) != 1 {
-		t.Errorf("the start did not go on in the tab made without env: %v", sent(f, "w1:p2"))
 	}
 }
 

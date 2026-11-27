@@ -39,6 +39,3 @@ func imessageNode(t *testing.T, h *Manager, answer func(method string, params js
 	h.machines = append(h.machines, m)
 	return m, calls
 }
-
-const imessageChatsPage = `{"chats":[{"id":"imessage-0123456789ab","name":"张三","members":[{"handle":"+15550100","name":"张三"}],
-"services":["SMS","iMessage"],"last":"2026-10-30T08:00:00Z","preview":"示例消息","unread":1}],"more":true,"before":"1.imessage-0123456789ab"}`

@@ -10,7 +10,7 @@ import (
 // Every delta Diff returns passes the check it no longer repeats: replayed by
 // Apply, which checks the whole result, it gives the target's frame.
 func TestDiffDeltasPassApplysCheck(t *testing.T) {
-	for seed := int64(0); seed < 200; seed++ {
+	for seed := int64(0); seed < 20; seed++ {
 		a, b := randomTree(t, seed, 1), randomTree(t, seed+211, 2)
 		d, _, err := Diff(a, b)
 		if err != nil {

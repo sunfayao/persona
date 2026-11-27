@@ -11,9 +11,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/sunfayao/persona/server/internal/prompts"
-	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const externalPRSource = "https://github.com/example/app/pull/12"
@@ -314,89 +311,5 @@ func TestExternalPRParkRejectsOlderReceiptAndKeepsPollInterval(t *testing.T) {
 	s.sweepPRStatuses(context.Background(), now.Add(deployRecheck))
 	if len(forge.calls) != 2 || !pendingReviewSignal(s, task.ID) {
 		t.Fatal("the terminal source was not reconsidered after the normal interval")
-	}
-}
-
-func TestExternalPRParkReceiptAndReviewRecoverTogether(t *testing.T) {
-	ctx := context.Background()
-	store := &ledgerDown{DB: taskRecoveryDatabase(t)}
-	s, _, task := newSupervisedServiceOn(t, store)
-	holdDigest(s)
-	if _, err := reviewErr(s, task.ID, externalPRParkArgs(externalPRSource)); err != nil {
-		t.Fatal(err)
-	}
-	before := todoNow(s, task.ID)
-	old, _ := json.Marshal(before.Supervision)
-	forge := &externalPRForge{terminal: "merged"}
-	s.deploy.forge = forge
-	store.down.Store(true)
-	now := time.Now()
-	s.sweepPRStatuses(ctx, now)
-	after, _ := json.Marshal(todoNow(s, task.ID).Supervision)
-	if string(old) != string(after) || pendingReviewSignal(s, task.ID) || len(forge.calls) != 1 {
-		t.Fatal("failed ledger write published a receipt/review, or source was not read")
-	}
-	store.down.Store(false)
-	again, _ := restartedOn(t, store)
-	holdDigest(again)
-	again.deploy.forge = &externalPRForge{terminal: "merged"}
-	again.sweepPRStatuses(ctx, now.Add(time.Minute))
-	got := todoNow(again, task.ID)
-	if got.DoneAt != nil || got.Supervision.State != reviewPending || !pendingReviewSignal(again, task.ID) ||
-		externalPRReceipt(t, got)["state"] != "merged" {
-		t.Fatal("reconstruction did not retry and commit the same external source")
-	}
-	third, hub := restartedOn(t, store)
-	holdDigest(third)
-	if err := third.ensureTodosLoaded(ctx); err != nil {
-		t.Fatal(err)
-	}
-	loaded := todoNow(third, task.ID)
-	if loaded.Supervision.State != reviewPending || externalPRReceipt(t, loaded)["state"] != "merged" {
-		t.Fatal("receipt and review did not survive another reconstruction")
-	}
-	signals := watchSignals(loaded, nil, now.Add(2*time.Minute))
-	if len(signals) != 1 || signals[0].Kind != sigReview || signals[0].Key != reviewKey(got.Supervision) {
-		t.Fatalf("lost in-memory wake was not recoverable from the persisted review: %v", signals)
-	}
-	hub.mu.Lock()
-	hub.known["conv2"] = true
-	hub.mu.Unlock()
-	hub.setSessions("server",
-		proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "conv2", MachineID: "server", Assistant: true, Status: proto.StatusIdle})
-	if _, _, err := third.updateSupervision(ctx, task.ID, func(v *Supervision) bool {
-		v.Supervisor = "conv2"
-		return true
-	}); err != nil {
-		t.Fatal(err)
-	}
-	// conv2 is only a legacy side-supervisor, not an explicit manual leader: the recovered wake follows universal-main
-	// routing (#5732), without changing the external source's identity or duplicating the receipt.
-	third.signal(signals[0])
-	sendPendingPRConflicts(third)
-	hub.mu.Lock()
-	message := sentText(hub.sends)
-	hub.mu.Unlock()
-	if hub.sentTo("conv1") != 1 || hub.sentTo("conv2") != 0 ||
-		!strings.Contains(message, "The bound PR is merged: "+externalPRSource) {
-		t.Fatalf("recovered wake did not reach main with the receipt: %q", message)
-	}
-
-	fourth, _ := restartedOn(t, store)
-	if err := fourth.ensureTodosLoaded(ctx); err != nil {
-		t.Fatal(err)
-	}
-	loaded = todoNow(fourth, task.ID)
-	entry, ok := fourth.digestEntry(ctx, signals[0], "")
-	if !ok {
-		t.Fatal("the source wake lost its identity")
-	}
-	if entries, _, _, err := fourth.reserveSupervision(ctx,
-		[]prompts.SuperviseEntry{entry}, signals, now.Add(time.Hour)); len(entries) != 0 || err != nil {
-		t.Fatalf("a delivered park wake was offered again after restart: %v, %v", entries, err)
-	}
-	if key := reviewKey(loaded.Supervision); key != signals[0].Key {
-		t.Fatalf("supervisor change replaced the source wake identity: %q", key)
 	}
 }

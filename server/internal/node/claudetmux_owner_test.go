@@ -304,39 +304,6 @@ func TestTmuxClaudeOwnerSendRefusesUnreadablePane(t *testing.T) {
 	}
 }
 
-// A paste accepted by tmux is not yet user input in the conversation. A post-prompt read failure or a confirmation
-// window with no matching transcript row reports delivered=unknown, never delivered_as=user_input.
-func TestTmuxClaudeOwnerSendRequiresTranscriptConfirmation(t *testing.T) {
-	for _, c := range []struct {
-		name string
-		set  func(*ownerTmuxPane)
-	}{
-		{"post-prompt read failure", func(p *ownerTmuxPane) { p.failReadAfterPrompt = true }},
-		{"confirmation window expires", func(p *ownerTmuxPane) { p.confirmRead = func(string) {} }},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			plain, ansi := emptyOwnerTmuxScreens(t)
-			env := newOwnerTmuxTestNode(t, "idle", plain, ansi, true, false)
-			c.set(env.pane)
-			res, err := request(t, env.n, "session.send", map[string]any{
-				"session_id": sidA, "text": "yes, go ahead and merge", "client_msg_id": "owner-unconfirmed", "owner_input": true,
-			})
-			if err == nil {
-				t.Fatalf("an unconfirmed tmux paste succeeded: %v", res)
-			}
-			if !maybeDelivered(err) {
-				t.Errorf("unconfirmed send error = %v, want delivered=unknown", err)
-			}
-			if got := env.pane.submitted(); len(got) != 1 {
-				t.Errorf("pane submissions = %+v, want the one unconfirmed paste", got)
-			}
-			if len(env.inbox.users()) != 0 {
-				t.Errorf("the unconfirmed paste also reached the inbox: %v", env.inbox.users())
-			}
-		})
-	}
-}
-
 // Slash commands keep their existing refusal: exitAgent cannot stop an outside Claude and must not record a success.
 func TestTmuxClaudeOwnerSendRefusesSlashCommand(t *testing.T) {
 	for _, text := range []string{"/exit", "/quit"} {

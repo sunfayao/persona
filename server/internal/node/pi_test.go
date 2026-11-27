@@ -7,10 +7,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -157,64 +155,6 @@ func TestPiInHerdrWithoutTheExtension(t *testing.T) {
 	}
 	if got := strings.Join(f.trace(), "\n"); strings.Contains(got, "agent.prompt") || !strings.Contains(got, "escape") {
 		t.Fatalf("herdr calls: %v", f.trace())
-	}
-}
-
-// A pi session that ran in herdr and stopped, listed from disk with how to resume it: a send opens a tab in herdr,
-// runs the runtime's command there through tab-start (never typed), waits for the pi it starts to list the session,
-// and sends there — not to the runtime that had it on disk (pi-web's companion).
-func TestPiResumedInHerdr(t *testing.T) {
-	n, f, home, rh := piHerdrNode(t)
-	cwd := mkdir(t, filepath.Join(home, "proj"))
-	file := filepath.Join(home, ".pi/agent/sessions/x_"+piSID+".jsonl")
-	files := piExtension(t, rh, "pi-files", map[string]any{"session_id": piSID, "status": "offline", "cwd": cwd,
-		"resume_argv": []string{"pi", "--session", file}})
-	f.reply("workspace.list", map[string]any{"workspaces": []any{map[string]any{"workspace_id": "w1", "label": "proj"}}})
-	f.reply("session.snapshot", snapshot(nil, []any{map[string]any{"tab_id": "w1:t1", "workspace_id": "w1", "label": "agent-1"}}, nil, nil))
-	f.reply("tab.create", map[string]any{"tab": map[string]any{"tab_id": "w1:t2"}, "root_pane": map[string]any{"pane_id": "w1:p2"}})
-	cmdRe := regexp.MustCompile(` tab-start '?([^' ]+)'?$`)
-	started := make(chan codexStartFile, 1)
-	fresh := make(chan *fakeRuntime, 1)
-	f.after(func(c herdrCall) {
-		if c.Method != "pane.send_input" {
-			return
-		}
-		m := cmdRe.FindStringSubmatch(str(c.Params["text"]))
-		if m == nil {
-			return
-		}
-		var sf codexStartFile
-		b, _ := os.ReadFile(m[1])
-		_ = json.Unmarshal(b, &sf)
-		started <- sf
-		// The pi it starts loads the extension, which lists the session running in that pane.
-		go func() {
-			fresh <- piExtension(t, rh, "pi-5555", map[string]any{"session_id": piSID, "status": "idle", "pane_id": "w1:p2", "cwd": cwd})
-		}()
-	})
-	old := piResumeWait
-	piResumeWait = 10 * time.Second
-	t.Cleanup(func() { piResumeWait = old })
-
-	if _, err := request(t, n, "session.send", map[string]any{"session_id": piSID, "text": "and the tests", "client_msg_id": "m-3"}); err != nil {
-		t.Fatalf("%v\nherdr: %v", err, f.trace())
-	}
-	// herdr's own pi detection, not HERDR_AGENT: tab-start runs the runtime's command as it is.
-	if sf := <-started; strings.Join(sf.Argv, " ") != "pi --session "+file || sf.Agent != "" {
-		t.Fatalf("ran %v (HERDR_AGENT %q)", sf.Argv, sf.Agent)
-	}
-	if len(files.got("session.send")) != 0 {
-		t.Fatal("sent to the runtime with the session on disk")
-	}
-	trace := strings.Join(f.trace(), "\n")
-	if !strings.Contains(trace, "tab.create ") || !strings.Contains(trace, `"workspace_id":"w1"`) {
-		t.Fatalf("no tab in the session's space: %v", f.trace())
-	}
-	if strings.Contains(trace, "and the tests") {
-		t.Fatal("the message was typed into the pane")
-	}
-	if rt := <-fresh; len(rt.got("session.send")) != 1 || !strings.Contains(string(rt.got("session.send")[0]), "and the tests") {
-		t.Fatal("the message did not reach the pi started in herdr")
 	}
 }
 

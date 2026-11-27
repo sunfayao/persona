@@ -71,18 +71,6 @@ func TestEntriesAskUserAnswerIsQueryableAndModelQuotesStayInferred(t *testing.T)
 	}
 }
 
-type entriesAccessHub struct {
-	*fakeHub
-	allowed, personal bool
-}
-
-func (h *entriesAccessHub) EntriesReadAccess(id string) (bool, bool) {
-	if id != "example-reader" {
-		return false, false
-	}
-	return h.allowed, h.personal
-}
-
 func TestEntriesCollectOwnerCardAnswersAcrossSourceSpaces(t *testing.T) {
 	database := todoTestDB(t)
 	e := newTodoEnv(t, database)

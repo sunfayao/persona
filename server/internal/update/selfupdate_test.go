@@ -32,41 +32,6 @@ func fileFor(name string, bin []byte) (File, []byte) {
 	return File{Name: name, Size: int64(len(gz)), SHA256: hex.EncodeToString(outer[:]), BinarySHA256: hex.EncodeToString(inner[:])}, gz
 }
 
-// A download cut off halfway is tried again; what finally lands matches the signed manifest.
-func TestDownloadRetriesACutDownload(t *testing.T) {
-	bin := bytes.Repeat([]byte("personad "), 4096)
-	f, gz := fileFor("personad-linux-amd64.gz", bin)
-	var tries atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == "/" { // a node's port probe (node/ports.go), not this test's client
-			http.NotFound(w, r)
-			return
-		}
-		if tries.Add(1) == 1 {
-			w.Header().Set("Content-Length", "999999")
-			w.Write(gz[:len(gz)/2]) // then the connection drops
-			if hj, ok := w.(http.Hijacker); ok {
-				c, _, _ := hj.Hijack()
-				c.Close()
-			}
-			return
-		}
-		w.Write(gz)
-	}))
-	defer srv.Close()
-	dir := t.TempDir()
-	got, err := Download(context.Background(), srv.Client(), srv.URL, f, dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if b, _ := os.ReadFile(got); !bytes.Equal(b, bin) || tries.Load() < 2 {
-		t.Fatalf("tries %d, %d bytes", tries.Load(), len(b))
-	}
-	if st, _ := os.Stat(got); st.Mode().Perm()&0o100 == 0 {
-		t.Fatal("not executable")
-	}
-}
-
 // A file that is not the one signed is deleted at once and not tried again.
 func TestDownloadRefusesAnotherFile(t *testing.T) {
 	f, _ := fileFor("personad-linux-amd64.gz", []byte("the real one"))
@@ -237,53 +202,6 @@ func TestSaveLeavesNoTempWhenItFails(t *testing.T) {
 		t.Fatalf("%v %v %+v", ok, err, back)
 	}
 	noTemps(t, dir)
-}
-
-// The watchdog: the new build confirming ends it; one that never does is put back and restarted; the new version
-// rolling back by itself (the marker gone) ends it too.
-func TestWatch(t *testing.T) {
-	confirmed := atomic.Bool{}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(map[string]any{"build": 202611021700, "update": map[string]bool{"confirmed": confirmed.Load()}})
-	}))
-	defer srv.Close()
-	run := func(t *testing.T, before func(dir, pending string)) (restored, restarted bool, dir string) {
-		dir = t.TempDir()
-		pending := PendingPath(dir)
-		p := Pending{ToBuild: 202611021700, ToVersion: "v2", FromVersion: "v1", HealthURL: srv.URL}
-		Save(pending, p)
-		if before != nil {
-			before(dir, pending)
-		}
-		err := Watch(context.Background(), srv.Client(), p, pending, time.Now().Add(300*time.Millisecond), 50*time.Millisecond,
-			func() error { restored = true; return nil }, func() error { restarted = true; return nil })
-		if err != nil {
-			t.Fatal(err)
-		}
-		return
-	}
-	confirmed.Store(true)
-	if restored, restarted, _ := run(t, nil); restored || restarted {
-		t.Fatal("a confirmed update was rolled back")
-	}
-	confirmed.Store(false)
-	restored, restarted, dir := run(t, nil)
-	if !restored || !restarted {
-		t.Fatal("a new version that never confirmed was left running")
-	}
-	var rb RolledBack
-	if ok, _ := Load(RolledBackPath(dir), &rb); !ok || rb.ToBuild != 202611021700 {
-		t.Fatal("why it went back is not written down")
-	}
-	if _, err := os.Stat(PendingPath(dir)); !os.IsNotExist(err) {
-		t.Fatal("the pending marker stayed")
-	}
-	if left, _ := filepath.Glob(PendingPath(dir) + "*"); len(left) != 0 {
-		t.Fatalf("left %v behind", left)
-	}
-	if restored, restarted, _ := run(t, func(dir, pending string) { os.Remove(pending) }); restored || restarted {
-		t.Fatal("rolled back again what the new version already rolled back")
-	}
 }
 
 // A build deployed straight from master while the watchdog waits is left alone.

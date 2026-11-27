@@ -129,53 +129,6 @@ func TestInboxNoOutputSettlementReadsTheTriggeringRecipient(t *testing.T) {
 	}
 }
 
-func TestInboxNoOutputRecoveryVisitsEachRecordedRecipient(t *testing.T) {
-	for _, peerStatus := range []string{proto.StatusIdle, proto.StatusWorking} {
-		t.Run(peerStatus, func(t *testing.T) {
-			s, f, todo := inboxRetryService(t, todoTestDB(t))
-			s.inboxToAgent(context.Background(), inboxRetryEvent(todo.ID, "review-1"))
-			sent := sentToAgent(f)
-			prompt1 := sent[len(sent)-1]
-			todo = inboxRetryPeer(t, s, todo, "s2")
-			first := turnRow(proto.StatusIdle, 10, "")
-			second := turnRow(proto.StatusIdle, 20, "")
-			second.SessionID, second.UpdatedAt = "s2", first.UpdatedAt.Add(time.Minute)
-			f.setSessions("box", first, second)
-			s.inboxToAgent(context.Background(), inboxRetryEvent(todo.ID, "review-2"))
-			sent = sentToAgent(f)
-			prompt2, before := sent[len(sent)-1], len(sent)
-			if inboxRetryLastSession(f) != "s2" {
-				t.Fatal("second event fixture did not reach its distinct recipient")
-			}
-			todo = inboxRetryPeer(t, s, todo, "s3")
-			peer := turnRow(peerStatus, 30, "Unrelated work.")
-			peer.SessionID, peer.UpdatedAt = "s3", second.UpdatedAt.Add(time.Minute)
-			pages := map[string][]proto.Item{
-				"s1": turnPage("empty-1", "", true),
-				"s2": turnPage("empty-2", "", true),
-				"s3": turnPage("peer", "Unrelated work.", true),
-			}
-			pages["s1"][0].Text, pages["s2"][0].Text = prompt1, prompt2
-			inboxRetryPages(f, pages)
-			f.setSessions("box", first, second, peer)
-			s.tasks.turns.mu.Lock()
-			s.tasks.turns.loaded = false
-			s.tasks.turns.mu.Unlock()
-			for range 3 {
-				s.watchTurn(context.Background(), todo, []proto.Session{first, second, peer})
-				waitFor(t, "the recovery pass", func() bool {
-					s.tasks.turns.mu.Lock()
-					defer s.tasks.turns.mu.Unlock()
-					return !s.tasks.turns.recovering[todo.ID]
-				})
-			}
-			if got := len(sentToAgent(f)); got != before+2 {
-				t.Fatalf("recovery looked only at the newest peer: sends=%d, want %d", got, before+2)
-			}
-		})
-	}
-}
-
 func TestInboxNoOutputEarlierStopDoesNotHideTheRetryResult(t *testing.T) {
 	for _, answer := range []string{"I handled the review.", ""} {
 		name := "answered"

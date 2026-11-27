@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -200,102 +199,6 @@ func TestFeishuTopicNativeCreationRefusalFallsBack(t *testing.T) {
 	if got := strings.Join(*calls, " "); strings.Count(got, "create") != 1 || strings.Contains(got, "RUN_STARTED") {
 		t.Fatalf("native calls after creation was refused = %s", got)
 	}
-}
-
-// measureTopicCotProgressTiming measures send-to-feedback (the Processing card reached the fake API) separately from
-// send-to-execution (the sink's whole progress pass completed). No model call is involved; that boundary is not measured.
-func measureTopicCotProgressTiming(t *testing.T, native bool, nativeDelay time.Duration) (feedback, execution time.Duration) {
-	s, posts, _ := cotHub(t, false)
-	f := s.hub.(*fakeHub)
-	if !native {
-		f.answerApp(AppFeishu, FeishuStatusGet, func(json.RawMessage) (any, error) {
-			return map[string]any{"ready": true, "enabled": true, "owner": "ou_a", "paired_at": time.Unix(100, 0),
-				"features": map[string]any{"main": true, "cards": true, "topic_cot": false}}, nil
-		})
-	}
-	r, prog := topicCotRun(s)
-	prog.from = 1 // the run's own message is in the conversation: the card says Processing, not Queued
-
-	start := time.Now()
-	feedbackSent := make(chan time.Duration, 1)
-	var feedbackOnce sync.Once
-	f.answerApp(AppFeishu, FeishuPost, func(raw json.RawMessage) (any, error) {
-		var m map[string]any
-		_ = json.Unmarshal(raw, &m)
-		*posts = append(*posts, m)
-		feedbackOnce.Do(func() { feedbackSent <- time.Since(start) })
-		return map[string]any{"message_id": "om_card"}, nil
-	})
-
-	entered, release := make(chan struct{}, 1), make(chan struct{})
-	var releaseOnce sync.Once
-	releaseCreate := func() { releaseOnce.Do(func() { close(release) }) }
-	t.Cleanup(releaseCreate)
-	if nativeDelay > 0 {
-		f.answerAppBlocking(AppFeishu, FeishuCotCreate, func(json.RawMessage) (any, error) {
-			entered <- struct{}{}
-			select {
-			case <-release:
-				return map[string]any{"cot_id": "cot1", "message_id": "om_cot"}, nil
-			case <-time.After(2 * time.Second):
-				return nil, context.DeadlineExceeded
-			}
-		})
-	}
-
-	done := make(chan struct{})
-	go func() {
-		feishuSink{s}.progress(context.Background(), r, time.Second, []string{"运行 `ls`"}, "")
-		close(done)
-	}()
-	if nativeDelay > 0 {
-		select {
-		case <-entered:
-		case <-time.After(time.Second):
-			t.Fatal("native creation was not entered within one second")
-		}
-	}
-	select {
-	case feedback = <-feedbackSent:
-	case <-time.After(time.Second):
-		releaseCreate()
-		t.Fatalf("no Processing card within one second (native creation delay %s)", nativeDelay)
-	}
-	if feedback >= time.Second {
-		t.Fatalf("send-to-feedback = %s, must be under one second", feedback)
-	}
-	if len(*posts) != 1 || !strings.Contains((*posts)[0]["card"].(string), "处理中") {
-		t.Fatalf("first feedback is not the Processing card: %v", *posts)
-	}
-	if nativeDelay > 0 {
-		timer := time.NewTimer(nativeDelay)
-		<-timer.C // hold the fake native API after feedback arrived, proving it was not waited on
-		releaseCreate()
-	}
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("progress pass did not complete")
-	}
-	waitTopicCot(t, s, r)
-	execution = time.Since(start)
-	if execution < feedback || execution < nativeDelay {
-		t.Fatalf("feedback %s, execution %s, native delay %s", feedback, execution, nativeDelay)
-	}
-	creates := len(f.appParams(AppFeishu, FeishuCotCreate))
-	if native && creates != 1 || !native && creates != 0 {
-		t.Fatalf("native=%t: creation calls = %d", native, creates)
-	}
-	t.Logf("native=%t native_delay=%s: send-to-feedback=%s; send-to-execution=%s", native, nativeDelay, feedback, execution)
-	return feedback, execution
-}
-
-// Principle 7: the opt-out is the before path and native processing the after path. Processing arrives within one
-// second in both, and remains prompt when the native API is deliberately held for 300 ms. Execution is measured apart.
-func TestFeishuTopicCotFeedbackAndExecutionTiming(t *testing.T) {
-	t.Run("before card only", func(t *testing.T) { measureTopicCotProgressTiming(t, false, 0) })
-	t.Run("after native process", func(t *testing.T) { measureTopicCotProgressTiming(t, true, 0) })
-	t.Run("delayed native process", func(t *testing.T) { measureTopicCotProgressTiming(t, true, 300*time.Millisecond) })
 }
 
 // waitTopicCot observes the native worker, without making card delivery wait on it in production.

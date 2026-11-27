@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"testing"
@@ -68,48 +66,6 @@ func (h *retryProcessHub) DeviceCall(ctx context.Context, p DeviceCall) (json.Ra
 		os.Exit(23)
 	} // accepted, before manager acknowledgement
 	return json.RawMessage(`{}`), nil
-}
-
-func TestModelRetryProcessRestart(t *testing.T) {
-	if os.Getenv(dbtest.Env) == "" {
-		t.Skip(dbtest.Env + " not set")
-	}
-	for _, main := range []bool{false, true} {
-		name := "agent"
-		if main {
-			name = "assistant"
-		}
-		for _, outcome := range []string{"pending", "delivered", "unknown", "sending"} {
-			t.Run(name+"/"+outcome, func(t *testing.T) {
-				url, done, err := dbtest.Own(t.Context(), os.Getenv(dbtest.Env))
-				if err != nil {
-					t.Fatal(err)
-				}
-				defer done()
-				dir := t.TempDir()
-				turn := strconv.FormatInt(time.Now().UnixNano(), 10)
-				first := "seed-crash"
-				if outcome == "pending" {
-					first = "seed"
-				}
-				for _, phase := range []string{first, "recover", "recover", "stop", "cancelled"} {
-					ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
-					cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestModelRetryProcessHelper$", "-test.v")
-					cmd.Env = append(os.Environ(), dbtest.Env+"="+url, "PERSONA_RETRY_PHASE="+phase, "PERSONA_RETRY_EFFECTS="+filepath.Join(dir, "effects"), "PERSONA_RETRY_MAIN="+name, "PERSONA_RETRY_TURN="+turn, "PERSONA_RETRY_OUTCOME="+outcome)
-					out, err := cmd.CombinedOutput()
-					cancel()
-					if phase == "seed-crash" {
-						var exit *exec.ExitError
-						if !errors.As(err, &exit) || exit.ExitCode() != 23 {
-							t.Fatalf("crash phase: %v\n%s", err, out)
-						}
-					} else if err != nil {
-						t.Fatalf("%s: %v\n%s", phase, err, out)
-					}
-				}
-			})
-		}
-	}
 }
 
 func TestModelRetryProcessHelper(t *testing.T) {

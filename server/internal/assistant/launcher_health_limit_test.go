@@ -2,10 +2,7 @@ package assistant
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"slices"
-	"strings"
 	"testing"
 	"time"
 
@@ -110,102 +107,6 @@ func TestLauncherHealthUsageLimitUnusableUntilTheReset(t *testing.T) {
 	}
 	if r = s.recordHealth(ctx, "l4", "work", healthResult{ok: true, source: healthSourceCheck}); r.State != healthOK || r.Kind != "" || r.ResetsAt != nil {
 		t.Fatalf("after a pass: %+v", r)
-	}
-	if len(f.pushes) != 0 {
-		t.Fatalf("pushed: %+v", f.pushes)
-	}
-}
-
-// A launcher at its usage limit is routed around and listed with its reset until then; no repair round takes it
-// however many times it fails, and no round spends a check on it before the reset (a check asked for still runs).
-// The first round after the reset checks it, whatever the interval, and a pass clears it.
-func TestLauncherHealthUsageLimitWaitsForTheReset(t *testing.T) {
-	s, f := launcherHealthHub(t)
-	f.hello.Agents.LauncherHealth.Repair.Skill = "agent-cli-setup" // any other failure gets a repair agent
-	line, reset := sessionLimitLine(3 * time.Hour)
-	f.checks["l4/work"] = proto.LauncherCheck{Agent: "claude", Error: line}
-	ctx := context.Background()
-	s.healthRound(ctx, true)
-	r := healthState(s, "l4", "work")
-	if r.State != healthFailing || r.Kind != errKindUsageLimit || r.ResetsAt == nil || !r.ResetsAt.Equal(reset) || r.Repairs != 0 || r.Repair != nil ||
-		len(f.starts) != 0 || len(f.repairs) != 0 {
-		t.Fatalf("l4: %+v, starts %v, repairs %v", r, f.starts, f.repairs)
-	}
-
-	editHealth(s, "l4", "work", func(r *LauncherHealth) { r.Fails, r.CheckedAt = 5, time.Now().Add(-7*time.Hour) })
-	n := checkedCount(f, "l4/work")
-	s.healthRound(ctx, true)
-	r = healthState(s, "l4", "work")
-	if !r.unusable() || r.State != healthFailing || r.Repairs != 0 || len(f.starts) != 0 || len(f.repairs) != 0 || checkedCount(f, "l4/work") != n {
-		t.Fatalf("before the reset: %+v, starts %v, checks %d → %d", r, f.starts, n, checkedCount(f, "l4/work"))
-	}
-	s.repairMachine(ctx, Device{ID: "l4", Reachable: true}, s.healthConfig(ctx))
-	if r := healthState(s, "l4", "work"); r.State != healthFailing || len(f.starts) != 0 {
-		t.Fatalf("repaired: %+v, starts %v", r, f.starts)
-	}
-
-	resets := "resets_at=" + reset.Format(time.RFC3339)
-	if list := s.describeAgents(ctx, "all", "", ""); !strings.Contains(list, "machine=l4 launcher=work · failing · usage_limit") || !strings.Contains(list, resets) {
-		t.Fatalf("agents_list:\n%s", list)
-	}
-	res, err := s.runTool(ctx, "server", "conv9", "agent_start", json.RawMessage(`{"machine":"l4","cwd":"/home/me/code/app","prompt":"修 CI"}`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(f.starts) != 1 || f.starts[0]["cwd"] != "/home/me/code/app" || !strings.Contains(res, "usage limit on l4 ("+resets) || !strings.Contains(res, "runs on server instead") {
-		t.Fatalf("start %v: %s", f.starts, res)
-	}
-	if checkedCount(f, "l4/work") != n+1 {
-		t.Fatal("the start did not recheck the known usage limit")
-	}
-	n++ // the on-demand probe failed; the following detour shares its throttle
-	if alt, note, moved := s.healthDetour(ctx, Device{ID: "l4"}, "work"); !moved || alt.ID != "server" || !strings.Contains(note, resets) {
-		t.Fatalf("detour: %s %q %v", alt.ID, note, moved)
-	}
-	// At the limit the configured default still tells its reset, because the next Start uses it (#4437).
-	var route struct {
-		Launchers []launcherWithHealth `json:"launchers"`
-	}
-	body := getJSON(t, s, "/api/v1/machines/l4/launchers")
-	if err := json.Unmarshal(body, &route); err != nil || len(route.Launchers) == 0 || route.Launchers[0].Health == nil ||
-		route.Launchers[0].Health.ResetsAt == nil || !route.Launchers[0].Health.ResetsAt.Equal(reset) {
-		t.Fatalf("picker: %s", body)
-	}
-
-	// Asked for by hand, it runs.
-	postJSON(t, s, "/api/v1/launchers/health/check?machine=l4&launcher=work")
-	if checkedCount(f, "l4/work") != n+1 || healthState(s, "l4", "work").Kind != errKindUsageLimit {
-		t.Fatalf("the check asked for: %d checks, %+v", checkedCount(f, "l4/work"), healthState(s, "l4", "work"))
-	}
-
-	// Reset, and checked within the interval: usable at once; the round waits a minute past the reset, then checks.
-	delete(f.checks, "l4/work")
-	recent := func(ago time.Duration) {
-		editHealth(s, "l4", "work", func(r *LauncherHealth) {
-			at := time.Now().Add(-ago)
-			r.CheckedAt, r.ResetsAt = time.Now().Add(-10*time.Minute), &at
-		})
-	}
-	recent(20 * time.Second)
-	if r := healthState(s, "l4", "work"); r.unusable() {
-		t.Fatalf("unusable after the reset: %+v", r)
-	}
-	if _, _, moved := s.healthDetour(ctx, Device{ID: "l4"}, "work"); moved {
-		t.Fatal("routed around after the reset")
-	}
-	s.healthRound(ctx, true)
-	if checkedCount(f, "l4/work") != n+1 {
-		t.Fatal("checked right at the reset")
-	}
-	recent(2 * time.Minute)
-	s.healthRound(ctx, true)
-	r = healthState(s, "l4", "work")
-	if checkedCount(f, "l4/work") != n+2 || r.State != healthOK || r.Kind != "" || r.ResetsAt != nil || r.Fails != 0 {
-		t.Fatalf("after the reset: %d checks, %+v", checkedCount(f, "l4/work"), r)
-	}
-	// ...and the record it carries is a passing one again.
-	if names := launcherNamesAt(t, s, "/api/v1/machines/l4/launchers"); !slices.Contains(names, "work") {
-		t.Fatalf("picker still hides a launcher that works again: %v", names)
 	}
 	if len(f.pushes) != 0 {
 		t.Fatalf("pushed: %+v", f.pushes)

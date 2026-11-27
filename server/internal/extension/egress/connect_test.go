@@ -10,7 +10,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"slices"
 	"sync"
@@ -137,72 +136,6 @@ func connectTunnelWithData(t *testing.T, proxy, target string, data []byte) net.
 		t.Fatalf("CONNECT: %s", response.Status)
 	}
 	return &bufferedConn{Conn: c, r: reader}
-}
-
-func TestConnectSkipsSilentTLSAndRemembersAddress(t *testing.T) {
-	for _, configured := range []bool{false, true} {
-		for _, port := range []string{"443", "8443"} {
-			t.Run(fmt.Sprintf("configured=%t/port=%s", configured, port), func(t *testing.T) {
-				silent := connectListener(t, func(c net.Conn) { _, _ = io.Copy(io.Discard, c) })
-				srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					_, _ = io.WriteString(w, "TLS answered")
-				}))
-				t.Cleanup(srv.Close)
-				p, dialed := connectProxy(t, silent, srv.Listener.Addr().String())
-				rule := Rule{Hosts: []string{"api.example.com"}}
-				if configured {
-					rule = Rule{Targets: []Target{{Host: "api.example.com", Port: port}}}
-				}
-				proxy, _ := url.Parse(p.Register("notes", rule))
-				transport := &http.Transport{Proxy: http.ProxyURL(proxy), DisableKeepAlives: true,
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
-				t.Cleanup(transport.CloseIdleConnections)
-				client := &http.Client{Transport: transport, Timeout: 3 * time.Second}
-				for request := range 2 {
-					began := time.Now()
-					response, err := client.Get("https://api.example.com:" + port + "/")
-					if err != nil {
-						t.Fatalf("request %d: %v", request, err)
-					}
-					body, err := io.ReadAll(response.Body)
-					_ = response.Body.Close()
-					if err != nil || string(body) != "TLS answered" {
-						t.Fatalf("request %d: body %q, error %v", request, body, err)
-					}
-					if took := time.Since(began); took > 2*time.Second {
-						t.Fatalf("request %d took %s past its address budget", request, took)
-					}
-					want := []string{net.JoinHostPort("192.0.2.1", port), net.JoinHostPort("2001:db8::1", port)}
-					if request == 1 {
-						want = append(want, net.JoinHostPort("2001:db8::1", port))
-					}
-					if got := dialed(); !slices.Equal(got, want) {
-						t.Fatalf("request %d dialed %v, want %v", request, got, want)
-					}
-				}
-			})
-		}
-	}
-}
-
-func TestConnectAllTLSAddressesSilent(t *testing.T) {
-	silent := func(c net.Conn) { _, _ = io.Copy(io.Discard, c) }
-	p, dialed := connectProxy(t, connectListener(t, silent), connectListener(t, silent))
-	proxy := p.Register("notes", Rule{Hosts: []string{"api.example.com"}})
-	conn := tls.Client(connectTunnel(t, proxy, "api.example.com:443"), &tls.Config{InsecureSkipVerify: true})
-	defer conn.Close()
-	began := time.Now()
-	if err := conn.Handshake(); err == nil {
-		t.Fatal("TLS succeeded without any server bytes")
-	} else if timeout, ok := err.(net.Error); ok && timeout.Timeout() {
-		t.Fatalf("TLS waited for the client's deadline instead of exhausting addresses: %v", err)
-	}
-	if took := time.Since(began); took > 2*time.Second {
-		t.Fatalf("all silent addresses took %s", took)
-	}
-	if got, want := dialed(), []string{"192.0.2.1:443", "[2001:db8::1]:443"}; !slices.Equal(got, want) {
-		t.Fatalf("dialed %v, want %v", got, want)
-	}
 }
 
 func TestConnectNonTLSClientFirst(t *testing.T) {

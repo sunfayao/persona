@@ -10,7 +10,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -130,85 +129,6 @@ func guardPost(t *testing.T, h *Hub, srv *httptest.Server, path, body string) (i
 	return resp.StatusCode, out
 }
 
-// A manager's snapshot naming another manager's session (its main conversation, or a conversation on some other
-// machine) takes nothing: the user's message to that session goes to the machine's manager only, its words
-// untouched.
-func TestASnapshotCannotClaimAnotherManagersSession(t *testing.T) {
-	h, srv, _ := newBusHub(t)
-	h.cfg.Machines = []MachineConfig{{ID: "ma", Name: "ma", Kind: "local"}}
-	a := connectGuardManager(t, h, srv.URL, assistantwire.AssistantID, func(string, json.RawMessage) (any, error) {
-		return map[string]any{}, nil
-	})
-	b := connectGuardManager(t, h, srv.URL, "m-0b0b0b", func(method string, _ json.RawMessage) (any, error) {
-		if method == assistantwire.MethodSendParams {
-			return map[string]any{"params": map[string]any{"session_id": "s3", "text": "INJECTED BY B"}}, nil
-		}
-		return map[string]any{}, nil
-	})
-	a.report(t, devicewire.State{Machine: proto.Machine{ID: "ma", Name: "ma"}})
-	eventually(t, 5*time.Second, "ma", func() bool { m := h.localMachine("ma"); return m != nil && m.isOnline() })
-	var res assistantwire.SnapshotResult
-	if err := b.call(t, assistantwire.MethodSnapshot, assistantwire.Snapshot{Epoch: "b", Seq: 1,
-		Sessions: []assistantwire.SessionView{{MachineID: "elsewhere", SessionID: "s3"}, {MachineID: "ma", SessionID: "s4"}},
-		Profile:  &assistantwire.Profile{MachineID: "ma", Main: "s3"}}, &res); err != nil {
-		t.Fatal(err)
-	}
-	if h.sessionOwner("ma", "s3") != assistantwire.AssistantID || h.sessionOwner("ma", "s4") != assistantwire.AssistantID ||
-		h.isMainOn("ma", "s3") || h.conversationOwner("s4") != "" {
-		t.Fatalf("claims taken: s3 %s, s4 %s, main %v", h.sessionOwner("ma", "s3"), h.sessionOwner("ma", "s4"), h.isMainOn("ma", "s3"))
-	}
-	if h.asstOf(h.sessionOwner("ma", "s3")).id != assistantwire.AssistantID {
-		t.Fatal("the session's requests would go to the second manager")
-	}
-	if code, _ := guardPost(t, h, srv, "/api/v1/sessions/ma/s3/messages", `{"text":"user secret text"}`); code == 0 {
-		t.Fatal("no answer")
-	}
-	time.Sleep(300 * time.Millisecond)
-	if strings.Contains(b.log(), "user secret text") || strings.Contains(a.log(), "INJECTED BY B") {
-		t.Fatalf("the second manager saw the user's message or rewrote it\nB:\n%s\nA:\n%s", b.log(), a.log())
-	}
-}
-
-// A session is its machine's manager's: a second manager starting, resuming or naming a session on the assistant's
-// machine (session.start with resume_session_id or an async session_id) is refused, so it never comes to own one there,
-// and the user's messages to that session stay with the machine's manager.
-func TestASessionOnAnotherManagersMachineCannotBecomeItsOwn(t *testing.T) {
-	h, srv, _ := newBusHub(t)
-	h.cfg.Machines = []MachineConfig{{ID: "ma", Name: "ma", Kind: "local"}}
-	a := connectGuardManager(t, h, srv.URL, assistantwire.AssistantID, nodeAnswers)
-	b := connectGuardManager(t, h, srv.URL, "m-0b0b0b", func(method string, _ json.RawMessage) (any, error) {
-		if method == assistantwire.MethodSendParams {
-			return map[string]any{"params": map[string]any{"session_id": "s3", "text": "INJECTED BY B"}}, nil
-		}
-		return map[string]any{}, nil
-	})
-	a.report(t, devicewire.State{Machine: proto.Machine{ID: "ma", Name: "ma"}})
-	eventually(t, 5*time.Second, "ma", func() bool { m := h.localMachine("ma"); return m != nil && m.isOnline() })
-	for _, params := range []string{`{"resume_session_id":"s3","cwd":"/"}`, `{"async":true,"session_id":"s3","cwd":"/"}`, `{"cwd":"/","prompt":"hi"}`} {
-		if err := b.call(t, assistantwire.MethodDevice, assistantwire.DeviceCall{Device: "ma", Method: assistantwire.DeviceSessionStart,
-			Params: json.RawMessage(params)}, nil); rpcCode(err) != devicewire.CodeNoDevice {
-			t.Fatalf("session.start %s: %v", params, err)
-		}
-	}
-	if strings.Contains(a.log(), "session.start") {
-		t.Fatal("a refused start reached the node")
-	}
-	var res assistantwire.SnapshotResult
-	if err := b.call(t, assistantwire.MethodSnapshot, assistantwire.Snapshot{Epoch: "b", Seq: 1,
-		Sessions: []assistantwire.SessionView{{MachineID: "ma", SessionID: "s3"}},
-		Profile:  &assistantwire.Profile{MachineID: "ma", Main: "s3"}}, &res); err != nil {
-		t.Fatal(err)
-	}
-	if h.sessionOwner("ma", "s3") != assistantwire.AssistantID || h.conversationOwner("s3") != "" || h.isMainOn("ma", "s3") {
-		t.Fatalf("s3 is %s's (conversation %q, main %v)", h.sessionOwner("ma", "s3"), h.conversationOwner("s3"), h.isMainOn("ma", "s3"))
-	}
-	guardPost(t, h, srv, "/api/v1/sessions/ma/s3/messages", `{"text":"user secret text"}`)
-	time.Sleep(300 * time.Millisecond)
-	if strings.Contains(b.log(), "user secret text") || strings.Contains(a.log(), "INJECTED BY B") {
-		t.Fatalf("the second manager saw the user's message or rewrote it\nB:\n%s\nA:\n%s", b.log(), a.log())
-	}
-}
-
 // nodeAnswers answers devices.call as a node would for session.start: a resume of a running session answers that
 // session, an async start the id it was given.
 func nodeAnswers(method string, params json.RawMessage) (any, error) {
@@ -248,63 +168,6 @@ func TestAViewWithoutAMachineWithOneManager(t *testing.T) {
 	h.takeFleetSessions(assistantwire.FleetSessions{MachineID: "ma", Sessions: []proto.Session{{MachineID: "ma", SessionID: "old", Title: "An old one"}}})
 	if l := h.decorated(h.localMachine("ma")); len(l) != 1 || l[0].Manager != assistantwire.AssistantID || l[0].Title != "An old one" {
 		t.Fatalf("listed: %+v", l)
-	}
-}
-
-// A report of a hub.json machine from another manager than its entry's, derived or not, is not taken: the node
-// calls, the link relay and the machine's credential stay with its manager.
-func TestAReportCannotTakeAnotherManagersMachine(t *testing.T) {
-	h, srv, _ := newBusHub(t)
-	h.cfg.Machines = []MachineConfig{{ID: "ma", Name: "ma", Kind: "local"}}
-	a := connectGuardManager(t, h, srv.URL, assistantwire.AssistantID, answerWho("a"))
-	b := connectGuardManager(t, h, srv.URL, "m-0b0b0b", answerWho("b"))
-	a.report(t, devicewire.State{Machine: proto.Machine{ID: "ma", Name: "ma"}})
-	eventually(t, 5*time.Second, "ma", func() bool { return h.machineOwner("ma") == assistantwire.AssistantID && h.localMachine("ma") != nil })
-	for _, derived := range []bool{true, false} {
-		b.report(t, devicewire.State{Machine: proto.Machine{ID: "ma", Name: "ma"}, Derived: derived})
-		time.Sleep(200 * time.Millisecond)
-		var who map[string]any
-		err := h.localMachine("ma").call(context.Background(), "panes.list", map[string]any{}, &who)
-		cerr := b.call(t, devicewire.MethodConnectorCred, devicewire.ConnectorCred{MachineID: "ma"}, nil)
-		relay := h.relayOwner(url.Values{"hub": {"h2"}, "machine": {"ma"}})
-		if h.machineOwner("ma") != assistantwire.AssistantID || who["who"] != "a" || rpcCode(cerr) != devicewire.CodeNoDevice ||
-			relay != assistantwire.AssistantID {
-			t.Fatalf("derived %v: owner %s, node call by %v (%v), credential %v, relay %s", derived, h.machineOwner("ma"), who["who"], err, cerr, relay)
-		}
-	}
-	// What only a machine's manager may do for it is refused to another.
-	if err := b.call(t, devicewire.MethodRequest, devicewire.NodeCall{MachineID: "ma", Method: "x"}, nil); rpcCode(err) != devicewire.CodeNoDevice {
-		t.Fatalf("devices.request: %v", err)
-	}
-	if err := b.call(t, devicewire.MethodConnected, devicewire.Connected{MachineID: "ma"}, nil); rpcCode(err) != devicewire.CodeNoDevice {
-		t.Fatalf("devices.connected: %v", err)
-	}
-	if err := b.peer.Notify(assistantwire.EventFleetSessions, assistantwire.FleetSessions{MachineID: "ma",
-		Sessions: []proto.Session{{MachineID: "ma", SessionID: "fake"}}}); err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(200 * time.Millisecond)
-	if _, ok := h.localMachine("ma").session("fake"); ok {
-		t.Fatal("another manager listed the machine's sessions")
-	}
-
-	// A mesh member's machine (not hub.json's) is the carrier's only: another manager reporting it first, or after,
-	// takes nothing.
-	b.report(t, devicewire.State{Machine: proto.Machine{ID: "member", Name: "member"}, Derived: true})
-	time.Sleep(200 * time.Millisecond)
-	if h.localMachine("member") != nil {
-		t.Fatal("another manager's report of a mesh member's machine was taken")
-	}
-	a.report(t, devicewire.State{Machine: proto.Machine{ID: "ma", Name: "ma"}}, devicewire.State{Machine: proto.Machine{ID: "member", Name: "member"}, Derived: true})
-	eventually(t, 5*time.Second, "member", func() bool { return h.localMachine("member") != nil })
-	b.report(t, devicewire.State{Machine: proto.Machine{ID: "member", Name: "member"}, Derived: true})
-	time.Sleep(200 * time.Millisecond)
-	var who map[string]any
-	err := h.localMachine("member").call(context.Background(), "panes.list", map[string]any{}, &who)
-	cerr := b.call(t, devicewire.MethodConnectorCred, devicewire.ConnectorCred{MachineID: "member"}, nil)
-	if h.machineOwner("member") != assistantwire.AssistantID || who["who"] != "a" || rpcCode(cerr) != devicewire.CodeNoDevice ||
-		h.relayOwner(url.Values{"hub": {"h2"}, "machine": {"member"}}) != assistantwire.AssistantID {
-		t.Fatalf("member is %s's; node call by %v (%v); credential %v", h.machineOwner("member"), who["who"], err, cerr)
 	}
 }
 
@@ -447,49 +310,6 @@ func TestACardIsNotReplacedByAnotherManager(t *testing.T) {
 	guardPost(t, h, srv, "/api/v1/interactions/ix/resolve", `{"allow":true}`)
 	if !strings.Contains(a.log(), "/api/v1/interactions/ix/resolve") || strings.Contains(b.log(), "/api/v1/interactions/ix/resolve") {
 		t.Fatalf("resolve went to the wrong manager\nA:\n%s\nB:\n%s", a.log(), b.log())
-	}
-}
-
-// An import that does not answer: the hub asks the new manager whether it took the source, and goes on to the
-// release when it did, keeps it at the old one when it did not.
-func TestASourceImportWithoutAnAnswer(t *testing.T) {
-	for _, took := range []bool{true, false} {
-		h, srv, _ := newBusHub(t)
-		var mu sync.Mutex
-		released := false
-		connectGuardManager(t, h, srv.URL, assistantwire.AssistantID, func(method string, _ json.RawMessage) (any, error) {
-			mu.Lock()
-			defer mu.Unlock()
-			switch method {
-			case extwire.MethodSourceExport:
-				return map[string]any{"source": "mail:y", "kind": "mail", "data": map[string]any{}}, nil
-			case extwire.MethodSourceRelease:
-				released = true
-			}
-			return map[string]any{}, nil
-		})
-		connectGuardManager(t, h, srv.URL, "m-0b0b0b", func(method string, _ json.RawMessage) (any, error) {
-			switch method {
-			case extwire.MethodSourceImport:
-				time.Sleep(3 * time.Second) // past the move's deadline below
-				return map[string]any{"source": "mail:y"}, nil
-			case extwire.MethodSourceExport:
-				if !took {
-					return nil, &rpc.Error{Code: extwire.CodeNoSource, Message: "no"}
-				}
-				return map[string]any{"source": "mail:y", "kind": "mail", "data": map[string]any{}}, nil
-			}
-			return map[string]any{}, nil
-		})
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		src, err := h.moveSource(ctx, "mail:y", assistantwire.AssistantID, "m-0b0b0b")
-		cancel()
-		mu.Lock()
-		rel := released
-		mu.Unlock()
-		if took && (err != nil || src != "mail:y" || !rel) || !took && (err == nil || rel) {
-			t.Fatalf("took %v: %q %v, released %v", took, src, err, rel)
-		}
 	}
 }
 

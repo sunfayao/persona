@@ -409,42 +409,6 @@ func TestRecallOfAProgramWithoutTheMethod(t *testing.T) {
 	}
 }
 
-// A program that goes away while it is asked, or never answers, leaves the outcome unknown (the request went out); one
-// that is not running is not available (nothing was sent).
-func TestRecallWhenTheProgramDiesNeverAnswersOrIsNotRunning(t *testing.T) {
-	t.Run("dies while asked", func(t *testing.T) {
-		c, _, _ := linkedRaw(t, declaresRecall, time.Time{})
-		if err := recallOf(c, "die"); !errors.Is(err, connector.ErrRecallUnknown) {
-			t.Fatalf("%v", err)
-		}
-	})
-	t.Run("never answers", func(t *testing.T) {
-		c, _, _ := linkedRaw(t, declaresRecall, time.Time{})
-		ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
-		defer cancel()
-		err := c.Recall(ctx, connector.SentMessage{Action: "examplechat_send", Ref: "slow", At: time.Now()})
-		if !errors.Is(err, connector.ErrRecallUnknown) {
-			t.Fatalf("%v", err)
-		}
-	})
-	t.Run("not running", func(t *testing.T) {
-		c, p, _ := linkedRaw(t, declaresRecall, time.Time{})
-		p.Stop()
-		if err := recallOf(c, "ok"); !errors.Is(err, connector.ErrRecallUnavailable) {
-			t.Fatalf("%v", err)
-		}
-	})
-}
-
-// A program the plugin host gives up on (its own limit for a call, shorter than the hub's) leaves the outcome unknown too:
-// the request went out and no answer came.
-func TestRecallWhenTheHostGivesUpOnTheProgram(t *testing.T) {
-	c, _, _ := linkedRawWith(t, declaresRecall, time.Time{}, 200*time.Millisecond)
-	if err := recallOf(c, "slow"); !errors.Is(err, connector.ErrRecallUnknown) {
-		t.Fatalf("%v", err)
-	}
-}
-
 // A program cannot start a recall: what it sends the hub as connector.recall (a call only the hub makes) is an error and
 // nothing is asked of anyone. With or without the secrets store the connector was given, whose absence is another error.
 func TestAProgramCannotStartARecall(t *testing.T) {

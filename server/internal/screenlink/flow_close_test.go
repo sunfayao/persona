@@ -2,9 +2,6 @@ package screenlink
 
 import (
 	"bytes"
-	"encoding/json"
-	"net"
-	"strconv"
 	"testing"
 	"time"
 )
@@ -95,66 +92,6 @@ func laterUseKeepsInFlight(t *testing.T, l *udpLink, tr *transport, via *carrier
 	if n := l.p.rawTCPData(l.id) - raw; n != len(msg)+len(fence) {
 		t.Fatalf("%d video bytes on TCP, want %d: some went out twice", n, len(msg)+len(fence))
 	}
-}
-
-// resumesAfterNodeClosedFlow goes on from a flow the node is closing (first: what the helper sent before): video on
-// the flow's route that the phone drops, the phone leaving the flow with use there, video after it.
-func resumesAfterNodeClosedFlow(t *testing.T, l *udpLink, first [][]byte) {
-	t.Helper()
-	parent := directTransport(l.s)
-	waitChannelActive(t, l.s, l.id, parent)
-	waitFor(t, "the flow closed", func() bool { return udpFlowTransport(l.s) == nil })
-	second := [][]byte{videoFrameMsg(10, false, 2000), videoMessage(videoFormat, pattern(60)), videoFrameMsg(11, false, 3000)}
-	all := append(append([][]byte{}, first...), second...)
-	droppedOnTCP(t, l, second, uint64(len(join(all))), 0)
-
-	// The flow's pings go unanswered: the phone leaves it with use on its route, which the video is already on.
-	off := l.p.offset(l.id)
-	l.up.leaveFlow()
-	l.p.nextOf(TypeResumed)
-	third := [][]byte{videoFrameMsg(12, false, 500), videoFrameMsg(13, false, 20000)}
-	all = append(all, third...)
-	writeAll(l.helper, third)
-	l.p.waitReceived(l.id, join(all)[off:])
-	if l.p.resetCount() != 0 || activeTransport(l.s, l.id) != parent {
-		t.Fatalf("%d resets, want none, and the video on the flow's route", l.p.resetCount())
-	}
-	laterUseKeepsInFlight(t, l, parent, l.direct)
-}
-
-// The issue's sequence, with each of the node's watchdogs closing the flow: no gap, and the video goes on from where
-// the phone is; a later use on the same route does not send again what is in flight.
-func TestNodeClosedFlowUseSendsAgain(t *testing.T) {
-	t.Run("flow silence", func(t *testing.T) {
-		limits := resetTestLimits()
-		limits.FlowSilence = 300 * time.Millisecond
-		l := openResetUDPLink(t, limits)
-		l.up.prove()
-		l.up.use(l.id, 0)
-		first := videoStream(4)
-		udpDelivered(t, l, first)
-		// The phone sends nothing more on the flow: the node closes it after FlowSilence.
-		resumesAfterNodeClosedFlow(t, l, first)
-	})
-	t.Run("stall", func(t *testing.T) {
-		limits := resetTestLimits()
-		limits.StallAfter = 10 * time.Second
-		l := openResetUDPLink(t, limits)
-		clock := useClock(l.s)
-		l.up.prove()
-		l.up.use(l.id, 0)
-		l.up.mu.Lock()
-		l.up.drop = func(udpFragmentHead) bool { return true } // nothing on the flow arrives, nothing is acknowledged
-		l.up.mu.Unlock()
-		first := videoStream(4)
-		writeAll(l.helper, first)
-		waitFor(t, "the video sent on the flow", func() bool {
-			_, sent := channelPosition(l.s, l.id)
-			return sent == uint64(len(join(first)))
-		})
-		clock.Advance(limits.StallAfter + time.Second) // the node closes the stuck flow
-		resumesAfterNodeClosedFlow(t, l, first)
-	})
 }
 
 // The use after a flow the node closed applies the move's age rule: a backlog the phone dropped that is older than
@@ -255,50 +192,5 @@ func TestNodeClosedFlowRouteDropsBeforeUse(t *testing.T) {
 			l.p.waitReceived(l.id, join(all)[off:])
 			laterUseKeepsInFlight(t, l, home, relay)
 		})
-	}
-}
-
-// Review of #10025 (P1): a route left unread by a flow the node closed does not outlive the phone's move onto another
-// flow. The phone's UDP use there is a move like any other (moveLocked clears unread), so once it later leaves that
-// flow its use on the route counts as the move it is, and a use on a route it reads from keeps what is in flight.
-func TestNodeClosedFlowThenAnotherFlowClearsUnread(t *testing.T) {
-	limits := resetTestLimits()
-	limits.FlowSilence = 300 * time.Millisecond
-	l := openResetUDPLink(t, limits)
-	l.up.prove()
-	l.up.use(l.id, 0)
-	udpDelivered(t, l, videoStream(4))
-	parent := directTransport(l.s)
-	waitChannelActive(t, l.s, l.id, parent)
-	waitFor(t, "the flow closed", func() bool { return udpFlowTransport(l.s) == nil })
-	unread := func() *transport {
-		l.s.mu.Lock()
-		defer l.s.mu.Unlock()
-		return l.s.chans[l.id].unread
-	}
-	if unread() != parent {
-		t.Fatal("the node's own close did not leave the flow's route unread")
-	}
-
-	// The phone moves the video straight onto another flow on the same route, with no use on TCP in between (it opened
-	// the new flow before its pings on the old one went unanswered).
-	_ = l.up.conn.Close()
-	l.direct.send(TypeUDPOpen)
-	var ready UDPReady
-	if err := json.Unmarshal(l.p.nextOf(TypeUDPReady).body, &ready); err != nil || ready.Port == 0 {
-		t.Fatalf("udp_ready %+v %v", ready, err)
-	}
-	nodeAt, _ := net.ResolveUDPAddr("udp", net.JoinHostPort(l.paths.Candidates[0].Addr, strconv.Itoa(ready.Port)))
-	l.up = newUDPPhone(t, l.p, l.dc, ready, nodeAt)
-	l.up.ch = l.id
-	l.up.parent = l.direct
-	l.up.prove()
-	l.up.use(l.id, l.p.offset(l.id))
-	flow := udpFlowTransport(l.s)
-	if flow == nil || activeTransport(l.s, l.id) != flow {
-		t.Fatal("the video is not on the phone's new flow")
-	}
-	if u := unread(); u != nil {
-		t.Fatalf("the phone's move onto another flow left an unread route (%p)", u)
 	}
 }

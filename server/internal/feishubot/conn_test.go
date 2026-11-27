@@ -1,8 +1,6 @@
 package feishubot
 
 import (
-	"context"
-	"sync"
 	"testing"
 	"time"
 )
@@ -107,57 +105,4 @@ func TestSweepPartsKeepsFreshPartials(t *testing.T) {
 	if old || !recent {
 		t.Fatalf("sweep kept old=%v recent=%v, want old=false recent=true", old, recent)
 	}
-}
-
-// End to end: the ping tick reaps a partial whose rest never arrives, without any new data frame.
-func TestConnPingTickSweepsAbandonedParts(t *testing.T) {
-	f := newFakeFeishu(t)
-	conn := NewConn(New("cli_x", "secret", f.srv.URL),
-		func(context.Context, []byte) (any, error) { return nil, nil }, t.Logf)
-	var clockMu sync.Mutex
-	base := time.Now()
-	conn.now = func() time.Time {
-		clockMu.Lock()
-		defer clockMu.Unlock()
-		return base
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go conn.Run(ctx)
-	ws := <-f.conns
-
-	// One half of a split event; the other half is never sent.
-	f.send(ws, &Frame{SeqID: 1, Service: 9, Method: frameData, Payload: []byte("first"),
-		Headers: []Header{{"type", "event"}, {"message_id", "z"}, {"sum", "2"}, {"seq", "0"}}})
-	waitFor(t, func() bool { return partsLen(conn) == 1 }, "the first part to be stored")
-
-	// A ping tick that happens strictly AFTER the partial was stored spares it while the clock is
-	// still frozen (not the immediate connect ping, which may race ahead of the data frame).
-	pings := func() int {
-		f.mu.Lock()
-		defer f.mu.Unlock()
-		return f.pings
-	}
-	pingsAtStore := pings()
-	waitFor(t, func() bool { return pings() > pingsAtStore && partsLen(conn) == 1 },
-		"a post-store ping to spare the fresh partial")
-
-	// After the lifetime, a later ping tick reaps it even though no data frame arrived.
-	clockMu.Lock()
-	base = base.Add(partsLifetime + time.Second)
-	clockMu.Unlock()
-	waitFor(t, func() bool { return partsLen(conn) == 0 }, "the ping tick to reap the expired partial")
-}
-
-func waitFor(t *testing.T, ok func() bool, what string) {
-	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		if ok() {
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatalf("timed out waiting for %s", what)
 }

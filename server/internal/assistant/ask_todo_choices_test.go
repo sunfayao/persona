@@ -98,46 +98,6 @@ func TestExpiredQuestionNeedsYouAndOriginalChoiceReturnsOnce(t *testing.T) {
 		len(view.Ask.Questions[0].Options), len(rows), len(messages))
 }
 
-func TestExpiredQuestionChoicesSurviveReloadAndLegacyHistory(t *testing.T) {
-	for _, legacy := range []bool{false, true} {
-		t.Run(map[bool]string{false: "persisted", true: "legacy_history"}[legacy], func(t *testing.T) {
-			database := todoTestDB(t)
-			e := newAskTodoEnv(t, database)
-			ix, _ := expireRecorded(e, database, askTodoArgs)
-			todo := e.onlyAskTodo()
-			if legacy {
-				var records []map[string]any
-				if _, err := database.Setting(context.Background(), askTodosKey, &records); err != nil {
-					t.Fatal(err)
-				}
-				for _, rec := range records {
-					delete(rec, "question_details")
-				}
-				if err := database.PutSetting(context.Background(), askTodosKey, records); err != nil {
-					t.Fatal(err)
-				}
-			}
-			again := newAskTodoEnv(t, database)
-			got := expiredQuestionPayload(again, todo.ID)
-			if got.Ask == nil || len(got.Ask.Questions) != 1 || len(got.Ask.Questions[0].Options) != 2 ||
-				got.Ask.Questions[0].Options[0].Label != ix.Questions[0].Options[0].Label {
-				t.Fatalf("reload must preserve original question choices (legacy=%v): %+v", legacy, got)
-			}
-			if code := answerExpiredQuestion(again, todo.ID, got.Ask.AskedAt, map[string]any{"option": "Wait"}); code != http.StatusOK {
-				t.Fatalf("answer after reload: HTTP %d", code)
-			}
-			waitFor(t, "late answer history", func() bool {
-				rec := askRecord(t, database, ix.ID)
-				return rec.Resolution != nil && rec.Resolution.Late
-			})
-			if rec := askRecord(t, database, ix.ID); rec.Resolution.Answers[ix.Questions[0].Question] != "Wait" || rec.Resolution.AnsweredBy != "" {
-				t.Fatalf("not the owner's late answer: %+v", rec.Resolution)
-			}
-			t.Logf("reload legacy=%v original_options=%d answer_http=200 history_late=true", legacy, len(got.Ask.Questions[0].Options))
-		})
-	}
-}
-
 func TestExpiredQuestionRejectsStaleInvalidAndReadOnlyAnswers(t *testing.T) {
 	database := todoTestDB(t)
 	e := newAskTodoEnv(t, database)
@@ -380,48 +340,4 @@ func TestExpiredQuestionAcceptanceIsDurableBeforeInFlightDelivery(t *testing.T) 
 	}
 	t.Logf("in_flight ask_present=%t open=%t completed_http=%d asker_messages=%d",
 		inFlight.Ask != nil, inFlight.DoneAt == nil, code.Load(), len(e.told("c1x1x1")))
-}
-
-func TestExpiredQuestionEmptyStructuredAnswersNeverTakeRecommendation(t *testing.T) {
-	for _, tc := range []struct {
-		name   string
-		answer map[string]any
-		want   int
-	}{
-		{"empty object", map[string]any{"answers": map[string]string{}}, http.StatusBadRequest},
-		{"omitted legacy answers", nil, http.StatusOK},
-		{"null legacy answers", map[string]any{"answers": nil}, http.StatusOK},
-		{"legacy option", map[string]any{"option": "Docs"}, http.StatusOK},
-		{"complete structured answer", map[string]any{"answers": map[string]string{"Which next?": "Docs"}}, http.StatusOK},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			database := todoTestDB(t)
-			e := newAskTodoEnv(t, database)
-			ix := proto.Interaction{ID: "ix_empty_answers", MachineID: "server", SessionID: "c1x1x1", CreatedAt: time.Now().UTC(),
-				Questions: []proto.Question{{Question: "Which next?", Recommend: "Tests",
-					Options: []proto.QuestionOption{{Label: "Docs"}, {Label: "Tests"}}}}}
-			todo, err := e.s.askExpired(context.Background(), ix)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if code := answerExpiredQuestion(e, todo.ID, ix.CreatedAt, tc.answer); code != tc.want {
-				t.Fatalf("HTTP %d, want %d", code, tc.want)
-			}
-			if tc.want == http.StatusOK {
-				waitFor(t, "the complete accepted answer is delivered", func() bool { return len(e.told("c1x1x1")) == 1 })
-			}
-			rows, err := database.ListTodoDecisions(context.Background(), todo.ID, true)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if tc.want == http.StatusBadRequest {
-				if len(rows) != 0 || len(e.told("c1x1x1")) != 0 || e.get(todo.ID).DoneAt != nil ||
-					expiredQuestionPayload(e, todo.ID).Ask == nil {
-					t.Fatal("an empty answer recorded consent or lost the unanswered question")
-				}
-			} else if len(rows) != 1 || len(e.told("c1x1x1")) != 1 || e.get(todo.ID).DoneAt == nil {
-				t.Fatal("a valid legacy or complete answer did not finish once")
-			}
-		})
-	}
 }

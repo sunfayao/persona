@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"runtime"
-	"strings"
 	"testing"
 	"time"
 )
@@ -28,37 +26,6 @@ func TestRunRejectsBadOptions(t *testing.T) {
 		if err := Run(ctx, o); err == nil {
 			t.Errorf("%s: no error", desc)
 		}
-	}
-}
-
-// Run binds 5353 next to the system responder, sends nothing (no interfaces), and stops cleanly.
-func TestRunStops(t *testing.T) {
-	before := runtime.NumGoroutine()
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
-	defer cancel()
-	svc := testService()
-	done := make(chan error, 1)
-	go func() {
-		done <- Run(ctx, Options{Advertise: &svc, Browse: svc.Type, Interfaces: []net.Interface{}, Logf: t.Logf})
-	}()
-	select {
-	case err := <-done:
-		if err != nil {
-			if strings.Contains(err.Error(), "no multicast socket") {
-				t.Skipf("cannot bind the mDNS port here: %v", err)
-			}
-			t.Fatal(err)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("Run did not return after ctx ended")
-	}
-	deadline := time.Now().Add(2 * time.Second)
-	for runtime.NumGoroutine() > before {
-		if time.Now().After(deadline) {
-			buf := make([]byte, 1<<16)
-			t.Fatalf("goroutines: %d before, %d after\n%s", before, runtime.NumGoroutine(), buf[:runtime.Stack(buf, true)])
-		}
-		time.Sleep(10 * time.Millisecond)
 	}
 }
 

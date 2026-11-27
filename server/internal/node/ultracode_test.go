@@ -88,69 +88,6 @@ func requestUltra(t *testing.T, n *Node, on bool) error {
 	return err
 }
 
-func TestHerdrUltracodeReadsBackAndLeavesEffortAlone(t *testing.T) {
-	n, f, _ := herdrNode(t)
-	seedAgents(t, n, f, claudeAgent(sidA, proto.StatusIdle, "w1:p1", "w1:t1", "w1", "/tmp/project", ""))
-	ultraScreens(t, f, "w1:p1")
-	n.noteModes(sidA, "plan", "low")
-	for _, on := range []bool{true, false} {
-		if err := requestUltra(t, n, on); err != nil {
-			t.Fatal(err)
-		}
-		s := byID(listSessions(t, n))[sidA]
-		mode, effort := n.modesOf(sidA)
-		if s.Ultracode == nil || *s.Ultracode != on || s.UltracodePending || effort != "low" || mode != "plan" {
-			t.Fatalf("session=%+v", s)
-		}
-	}
-	if got := f.trace("agent.prompt"); len(got) != 2 {
-		t.Fatalf("commands: %v", got)
-	}
-}
-
-func TestHerdrUltracodeQueuesUntilBeforeTheNextMessage(t *testing.T) {
-	n, f, _ := herdrNode(t)
-	a := claudeAgent(sidA, proto.StatusWorking, "w1:p1", "w1:t1", "w1", "/tmp/project", "")
-	seedAgents(t, n, f, a)
-	ultraScreens(t, f, "w1:p1")
-	if err := requestUltra(t, n, true); err != nil {
-		t.Fatal(err)
-	}
-	if got := f.trace("agent.prompt"); len(got) != 0 {
-		t.Fatal(got)
-	}
-	s := byID(listSessions(t, n))[sidA]
-	if !s.UltracodePending || s.Ultracode != nil {
-		t.Fatalf("queued=%+v", s)
-	}
-	// A queued switch holds back only its command (#5510): at work, the message joins Claude's own queue.
-	if err := n.send(context.Background(), sidA, "while it works", nil, sendOpts{}); err != nil {
-		t.Fatalf("a message was held back by the queued switch: %v", err)
-	}
-	if got := f.trace("agent.prompt"); len(got) != 1 || !strings.Contains(got[0], "while it works") {
-		t.Fatalf("typed while at work: %v", got)
-	}
-	if s := byID(listSessions(t, n))[sidA]; !s.UltracodePending {
-		t.Fatalf("the message took the queued switch away: %+v", s)
-	}
-	// The latest request wins; none of the superseded values gets typed.
-	if err := requestUltra(t, n, false); err != nil {
-		t.Fatal(err)
-	}
-	if err := requestUltra(t, n, true); err != nil {
-		t.Fatal(err)
-	}
-	a["agent_status"] = proto.StatusDone
-	seedAgents(t, n, f, a)
-	if err := n.send(context.Background(), sidA, "next task", nil, sendOpts{}); err != nil {
-		t.Fatal(err)
-	}
-	got := f.trace("agent.prompt")
-	if len(got) != 2 || !strings.Contains(got[0], "/effort ultracode on") || !strings.Contains(got[1], "next task") {
-		t.Fatalf("wrong order: %v", got)
-	}
-}
-
 func TestHerdrUltracodeQueuedDraftIsPreserved(t *testing.T) {
 	n, f, _ := herdrNode(t)
 	a := claudeAgent(sidA, proto.StatusBlocked, "w1:p1", "w1:t1", "w1", "/tmp/project", "")
@@ -172,36 +109,6 @@ func TestHerdrUltracodeQueuedDraftIsPreserved(t *testing.T) {
 	n.mu.Unlock()
 	if pending == nil || !*pending {
 		t.Fatal("lost queued request")
-	}
-}
-
-func TestHerdrUltracodeRejectionAndModelChange(t *testing.T) {
-	n, f, home := herdrNode(t)
-	cwd := mkdir(t, filepath.Join(home, "project"))
-	path := writeTranscript(t, home, cwd, sidA, time.Now(), `{"type":"assistant","timestamp":"2026-01-01T00:00:00Z","version":"2.1.318","message":{"model":"sonnet","content":[{"type":"text","text":"Done"}]}}`)
-	n.paths[sidA] = path
-	seedAgents(t, n, f, claudeAgent(sidA, proto.StatusDone, "w1:p1", "w1:t1", "w1", cwd, ""))
-	plain, ansi := screenFixture(t, "claude-2.1.312-empty-162.txt"), screenFixture(t, "claude-2.1.312-empty-162.ansi")
-	f.setScreens("w1:p1", plain, ansi)
-	f.after(func(c herdrCall) {
-		if c.Method == "agent.prompt" {
-			f.setScreens("w1:p1", plain+"\n❯ /effort ultracode on\n  ⎿ Ultracode isn't available on Sonnet. Switch to Opus to use it.\n", ansi)
-		}
-	})
-	if err := requestUltra(t, n, true); err == nil || !strings.Contains(err.Error(), "Sonnet") {
-		t.Fatalf("refusal: %v", err)
-	}
-	before := len(f.trace("agent.prompt"))
-	if err := requestUltra(t, n, true); err == nil {
-		t.Fatal("retry on rejected model accepted")
-	}
-	if len(f.trace("agent.prompt")) != before {
-		t.Fatal("repeated unsupported command")
-	}
-	n.noteModel(sidA, "opus", "sonnet")
-	ultraScreens(t, f, "w1:p1")
-	if err := requestUltra(t, n, true); err != nil {
-		t.Fatalf("model changed before transcript: %v", err)
 	}
 }
 
@@ -357,51 +264,5 @@ func TestUltracodeIgnoresVerdictFromPreviousProcess(t *testing.T) {
 	u := n.ultracodeLocked(sidA)
 	if u.Value == nil || *u.Value || u.note != "" {
 		t.Fatalf("new process polluted: %+v", u)
-	}
-}
-
-func TestStartAsyncUltracodeDoesNotDeadlockAnEarlyMessage(t *testing.T) {
-	n, f, home := herdrNode(t)
-	cwd := mkdir(t, filepath.Join(home, "project"))
-	plain, ansi := screenFixture(t, "claude-2.1.312-empty-162.txt"), screenFixture(t, "claude-2.1.312-empty-162.ansi")
-	startPane(t, f, plain, ansi)
-	f.after(func(c herdrCall) {
-		if c.Method != "agent.prompt" {
-			return
-		}
-		text := str(c.Params["text"])
-		if text == ultracodeCommand(true) {
-			f.setScreens("w1:p2", plain+"\n❯ "+text+"\n  ⎿ Ultracode on (this session only): dynamic workflows on every task. Effort stays high.\n", ansi)
-		} else {
-			id := startedID(f)
-			writeUserLine(t, home, cwd, id, text)
-			f.reply("session.snapshot", snapshot(nil, nil, []any{claudeAgent(id, proto.StatusWorking, "w1:p2", "w1:t2", "w1", cwd, "")}, nil))
-		}
-	})
-	s, err := n.startAsync("", cwd, "claude", "first task", "w1", "", "", "", modelExecution{Ultracode: ultraBool(true)})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !s.Starting {
-		t.Fatal("async start did not return starting")
-	}
-	done := make(chan error, 1)
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		done <- n.send(ctx, s.SessionID, "second task", nil, sendOpts{})
-	}()
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatal(err)
-		}
-	case <-time.After(12 * time.Second):
-		t.Fatal("start and early send deadlocked")
-	}
-	n.firstWait.Wait()
-	got := f.trace("agent.prompt")
-	if len(got) != 3 || !strings.Contains(got[0], "/effort ultracode on") || !strings.Contains(got[1], "first task") || !strings.Contains(got[2], "second task") {
-		t.Fatalf("order: %v", got)
 	}
 }

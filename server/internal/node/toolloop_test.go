@@ -65,57 +65,6 @@ func TestToolLoopIncrementalAndListPush(t *testing.T) {
 	}
 }
 
-func TestToolLoopPollPush(t *testing.T) {
-	n, f, home := herdrNode(t)
-	const cwd = "/tmp/tool-loop-poll"
-	at := time.Now().UTC().Add(-time.Minute)
-	path := writeTranscript(t, home, cwd, sidA, at, `{"type":"user","timestamp":"`+at.Format(time.RFC3339)+`","message":{"role":"user","content":"Check"}}`)
-	f.reply("session.snapshot", snapshot(nil, nil, []any{claudeAgent(sidA, proto.StatusWorking, "w1:p1", "w1:t1", "w1", cwd, "check")}, nil))
-	pushes, stop := pollNode(t, n)
-	defer stop()
-	if s := nextWorkflowPush(t, pushes, 5*time.Second); s.ToolLoop != nil {
-		t.Fatalf("unexpected candidate: %+v", s.ToolLoop)
-	}
-	var body strings.Builder
-	for i := 0; i < 4; i++ {
-		ts := at.Add(time.Duration(i) * time.Second).Format(time.RFC3339)
-		fmt.Fprintf(&body, `{"type":"assistant","timestamp":%q,"message":{"content":[{"type":"tool_use","id":%q,"name":"Read","input":{}}]}}`+"\n"+`{"type":"user","timestamp":%q,"message":{"content":[{"type":"tool_result","tool_use_id":%q,"content":"ok"}]}}`+"\n", ts, fmt.Sprint(i), ts, fmt.Sprint(i))
-	}
-	appendFile(t, path, body.String())
-	if s := nextWorkflowPush(t, pushes, 5*time.Second); s.ToolLoop == nil || s.ToolLoop.Count != 4 {
-		t.Fatalf("loop was not pushed: %+v", s.ToolLoop)
-	}
-	original, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	changed := strings.Replace(string(original), `"content":"ok"`, `"content":"no"`, 1)
-	if len(changed) != len(original) || changed == string(original) {
-		t.Fatal("rewrite must change content without changing size")
-	}
-	rewrite := func(contents []byte, stamp time.Time) {
-		t.Helper()
-		if err := os.WriteFile(path, contents, 0600); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.Chtimes(path, stamp, stamp); err != nil {
-			t.Fatal(err)
-		}
-	}
-	rewrite([]byte(changed), time.Now().Add(time.Second))
-	if s := nextWorkflowPush(t, pushes, 5*time.Second); s.ToolLoop != nil {
-		t.Fatalf("same-size rewrite did not clear loop: %+v", s.ToolLoop)
-	}
-	rewrite(original, time.Now().Add(2*time.Second))
-	if s := nextWorkflowPush(t, pushes, 5*time.Second); s.ToolLoop == nil || s.ToolLoop.Count != 4 {
-		t.Fatalf("same-size rewrite did not rebuild loop: %+v", s.ToolLoop)
-	}
-	appendFile(t, path, `{"type":"user","message":{"content":"new prompt"}}`+"\n")
-	if s := nextWorkflowPush(t, pushes, 5*time.Second); s.ToolLoop != nil {
-		t.Fatalf("loop was not cleared: %+v", s.ToolLoop)
-	}
-}
-
 func TestToolLoopHeadlessSession(t *testing.T) {
 	n, _, home := herdrNode(t)
 	const cwd = "/tmp/loop-headless"

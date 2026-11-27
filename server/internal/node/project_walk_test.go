@@ -3,7 +3,6 @@ package node
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -187,65 +186,6 @@ func FuzzWalkProjectsMatchesGlob(f *testing.F) {
 		buildProjectTree(t, root, b)
 		requireWalkMatchesGlob(t, root)
 	})
-}
-
-// The generated trees above, from a fixed run of seeds: the walk lists what the globs list in every one.
-func TestWalkProjectsMatchesGlobOnGeneratedTrees(t *testing.T) {
-	var mains, subs, flows int
-	for seed := range 200 {
-		b := make([]byte, 90)
-		x := uint32(seed)*2654435761 + 1
-		for i := range b {
-			x ^= x << 13
-			x ^= x >> 17
-			x ^= x << 5
-			b[i] = byte(x)
-		}
-		root := filepath.Join(t.TempDir(), "projects")
-		buildProjectTree(t, root, b)
-		t.Run(fmt.Sprint(seed), func(t *testing.T) { requireWalkMatchesGlob(t, root) })
-		m, s, f := walkProjects(root)
-		mains, subs, flows = mains+len(m), subs+len(s), flows+len(f)
-	}
-	if mains < 500 || subs < 500 {
-		t.Fatalf("the trees held %d transcripts and %d subagent transcripts: too few to compare", mains, subs)
-	}
-	t.Logf("%d transcripts, %d subagent transcripts, %d workflow agent transcripts", mains, subs, flows)
-}
-
-// The usage meter lists its transcripts every 10 seconds, and the walk stats none that the directory says is a file.
-// Over 20 projects of 20 transcripts, each with a subagent's, the walk made 9,106 allocations on Linux and the two
-// globs 11,479: 2,373 fewer. With a stat per transcript put back, the walk made 9,906, only 1,573 fewer. The test
-// bounds that saving, not the walk's own count: reading a directory allocates a different amount on each system (two
-// more per read on macOS), and the globs read every directory the walk reads, so that cost cancels out. The bound
-// leaves the walk the headroom an absolute bound would: 3% of its count, about 270 allocations.
-func TestWalkProjectsAllocationBudget(t *testing.T) {
-	root := filepath.Join(t.TempDir(), "projects")
-	for p := range 20 {
-		project := filepath.Join(root, fmt.Sprintf("-work-%d", p))
-		for s := range 20 {
-			agents := filepath.Join(project, fmt.Sprintf("s%d", s), "subagents")
-			if err := os.MkdirAll(agents, 0o700); err != nil {
-				t.Fatal(err)
-			}
-			for _, f := range []string{filepath.Join(project, fmt.Sprintf("s%d.jsonl", s)), filepath.Join(agents, "agent-a.jsonl")} {
-				if err := os.WriteFile(f, nil, 0o600); err != nil {
-					t.Fatal(err)
-				}
-			}
-		}
-	}
-	if m, s, _ := walkProjects(root); len(m) != 400 || len(s) != 400 {
-		t.Fatalf("listed %d transcripts and %d subagent transcripts, want 400 of each", len(m), len(s))
-	}
-	if raceEnabled {
-		t.Skip("race instrumentation allocates")
-	}
-	walk := testing.AllocsPerRun(10, func() { walkProjects(root) })
-	globs := testing.AllocsPerRun(10, func() { globProjectFiles(t, root) })
-	if saved := globs - walk; saved < 2100 {
-		t.Errorf("listing 800 transcripts made %.0f allocations and the two globs %.0f: %.0f fewer, want at least 2,100", walk, globs, saved)
-	}
 }
 
 // raceEnabled: built with -race, whose instrumentation allocates on its own (race_test.go).

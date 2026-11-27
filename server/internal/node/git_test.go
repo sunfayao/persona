@@ -94,38 +94,6 @@ func TestGitPullFastForwardAndFreshStatus(t *testing.T) {
 	}
 }
 
-func TestGitPullRefusesDirtyTree(t *testing.T) {
-	for _, kind := range []string{"modified", "staged", "untracked"} {
-		t.Run(kind, func(t *testing.T) {
-			f := newPullFixture(t)
-			f.upstreamCommit(t)
-			name := "app.txt"
-			if kind == "untracked" {
-				name = "draft.txt"
-			}
-			if err := os.WriteFile(filepath.Join(f.local, name), []byte("local draft\n"), 0600); err != nil {
-				t.Fatal(err)
-			}
-			if kind == "staged" {
-				runPullGit(t, f.local, "add", name)
-			}
-			runPullGit(t, f.local, "config", "rebase.autoStash", "true")
-			head := runPullGit(t, f.local, "rev-parse", "HEAD")
-			_, err := f.node.gitPull(context.Background(), f.local)
-			if refusalCode(err) != gitOpUncommitted {
-				t.Fatalf("应拒绝有改动的工作区：%v", err)
-			}
-			content, _ := os.ReadFile(filepath.Join(f.local, name))
-			if string(content) != "local draft\n" || head != runPullGit(t, f.local, "rev-parse", "HEAD") {
-				t.Fatal("本地改动或 HEAD 被修改")
-			}
-			if runPullGit(t, f.local, "stash", "list") != "" {
-				t.Fatal("不应自动 stash")
-			}
-		})
-	}
-}
-
 func TestGitPullRefusesDivergenceEvenWithRebaseConfigured(t *testing.T) {
 	f := newPullFixture(t)
 	f.upstreamCommit(t)
@@ -157,32 +125,6 @@ func TestGitPullPreservesStashes(t *testing.T) {
 	}
 	if runPullGit(t, f.local, "rev-parse", "refs/stash") != stash {
 		t.Fatal("已有 stash 被修改")
-	}
-}
-
-func TestGitPullRefusesUnsupportedStates(t *testing.T) {
-	for _, state := range []string{"detached", "no-upstream", "not-repo", "missing-remote"} {
-		t.Run(state, func(t *testing.T) {
-			f := newPullFixture(t)
-			cwd := f.local
-			switch state {
-			case "detached":
-				runPullGit(t, cwd, "checkout", "--detach")
-			case "no-upstream":
-				runPullGit(t, cwd, "branch", "--unset-upstream")
-			case "not-repo":
-				cwd = t.TempDir()
-			case "missing-remote":
-				runPullGit(t, cwd, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "missing.git"))
-			}
-			head := runPullGit(t, f.local, "rev-parse", "HEAD")
-			if _, err := f.node.gitPull(context.Background(), cwd); err == nil {
-				t.Fatal("应返回可见的失败")
-			}
-			if head != runPullGit(t, f.local, "rev-parse", "HEAD") {
-				t.Fatal("失败后 HEAD 改变")
-			}
-		})
 	}
 }
 

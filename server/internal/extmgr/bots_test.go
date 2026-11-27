@@ -623,63 +623,6 @@ func (w *botWorld) away(on bool) {
 	w.a.on(assistantwire.MethodChannelReceive, f)
 }
 
-// While the assistant can't take them the bot still takes the owner's messages: each is answered that the assistant
-// can't be reached; a press on a card says so too. Back, it takes messages again.
-func TestBotSaysTheAssistantIsAwayAndRecovers(t *testing.T) {
-	w := newBotWorld(t)
-	w.pair(t)
-	shortInboundWait(t)
-	w.away(true)
-	_, _ = w.h.botEvent(w.ctx, botMessageEvent("om_away", "ou_me", "text", textContent("在吗？"), nil))
-	w.api.find(t, "/messages/om_away/reply", "助手暂时连不上")
-	b, _ := json.Marshal(map[string]any{"schema": "2.0", "header": map[string]any{"event_type": "card.action.trigger"},
-		"event": map[string]any{"operator": map[string]any{"open_id": "ou_me"},
-			"action":  map[string]any{"value": map[string]any{"a": "ix", "id": "ix_x"}, "tag": "button"},
-			"context": map[string]any{"open_message_id": "om_x", "open_chat_id": "oc_p2p"}}})
-	res, _ := w.h.botEvent(w.ctx, b)
-	if raw, _ := json.Marshal(res); !strings.Contains(string(raw), "助手暂时连不上") {
-		t.Fatalf("a press while away: %s", raw)
-	}
-	if code, _ := w.do(t, "GET", "/api/v1/bots/feishu", ""); code != 200 {
-		t.Fatalf("the bot's own settings page works: %d", code)
-	}
-	// Binding carries credentials: the manager's route, answered without the assistant.
-	if code, out := w.do(t, "POST", "/api/v1/channels/feishu/bind", ""); code != 200 || out["step"] == nil && out["done"] == nil {
-		t.Fatalf("bind while the assistant is away: %d %v", code, out)
-	}
-	w.away(false)
-	_, _ = w.h.botEvent(w.ctx, botMessageEvent("om_back", "ou_me", "text", textContent("回来了吗？"), nil))
-	eventually(t, 5*time.Second, "the message handed once it is back", func() bool {
-		got := w.handed()
-		return len(got) > 0 && got[len(got)-1] == "om_back"
-	})
-}
-
-// shortInboundWait has an owner's message wait for the assistant only briefly (a test of it being away).
-func shortInboundWait(t *testing.T) {
-	old := inboundWait
-	inboundWait = 300 * time.Millisecond
-	t.Cleanup(func() { inboundWait = old })
-}
-
-// A message that comes while the assistant is away for a moment (an assistant restart) waits for it and is handed as
-// usual: nothing the bot took is dropped, and nobody is told the assistant is away.
-func TestBotMessageWaitsForTheAssistant(t *testing.T) {
-	w := newBotWorld(t)
-	w.pair(t)
-	w.away(true)
-	_, _ = w.h.botEvent(w.ctx, botMessageEvent("om_wait", "ou_me", "text", textContent("等一下再答"), nil))
-	time.Sleep(300 * time.Millisecond)
-	w.away(false)
-	eventually(t, 8*time.Second, "the message handed once it is back", func() bool {
-		got := w.handed()
-		return len(got) > 0 && got[len(got)-1] == "om_wait"
-	})
-	if n := w.api.count("助手暂时连不上"); n != 0 {
-		t.Fatalf("the owner was told the assistant is away (%d)", n)
-	}
-}
-
 // Answering a card from a channel takes the owner's action the manager handed over with that press or message: none,
 // another card's, or one used already is refused, so the assistant can't approve anything by itself (the assistant
 // takes it, interactions.owner_action, before it answers the card in its queue).

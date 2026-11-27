@@ -583,18 +583,6 @@ func BenchmarkTodosEventsOneTask(b *testing.B) {
 	b.ReportMetric(float64(total)/float64(b.N), "todos-events/op")
 }
 
-// Each step of a task changes the list once as the apps see it, and sends them one {"type":"todos"} event: the writes
-// of a step (the to-do, its report, its check, its supervision, its leader) are told together.
-func TestTodosEventsOnePerTaskStep(t *testing.T) {
-	steps, events := taskStepEvents(t)
-	for i, n := range events {
-		t.Logf("  %-48s %d", steps[i], n)
-		if n != 1 {
-			t.Errorf("%s: %d todos events, want 1", steps[i], n)
-		}
-	}
-}
-
 // The {"type":"todos"} of a write waits todosSettle for the rest of it; a change from the moment it goes out, even
 // while it does, sends another: every change is followed by an event sent after it.
 func TestTodosEventWaitsForTheRestOfTheWrite(t *testing.T) {

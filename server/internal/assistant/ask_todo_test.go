@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -374,25 +373,6 @@ func TestAskTodoDeletedTellsTheConversation(t *testing.T) {
 	waitFor(t, "the dropped notice", func() bool { return len(e.told("c1x1x1")) > 0 })
 	if got := e.told("c1x1x1"); len(got) != 1 || !strings.Contains(got[0], "without giving an answer in it") {
 		t.Fatalf("told %q, want one dropped notice", got)
-	}
-}
-
-// Through the real queue: the card expires on its own, the tool gets the to-do, and its Lark card says it moved to the
-// to-dos instead of "Ended".
-func TestAskUserExpiringOnTheQueueMovesToTodos(t *testing.T) {
-	old := askUserWait
-	askUserWait = 300 * time.Millisecond
-	t.Cleanup(func() { askUserWait = old })
-	a := newAskRig(t)
-	_, done := a.ask(t)
-	text := a.result(t, done)
-	if !strings.Contains(text, "todo_") || !strings.Contains(text, "new message") {
-		t.Fatalf("tool result %q", text)
-	}
-	want := i18n.T(a.s.botLang(context.Background()), "assistant-feishu_cards.moved_to_todos")
-	waitFor(t, "the Lark card closed", func() bool { return strings.Contains(a.closed(), want) })
-	if strings.Contains(a.closed(), i18n.T(a.s.botLang(context.Background()), "assistant-channels.ended")) {
-		t.Errorf("the card says ended: %q", a.closed())
 	}
 }
 

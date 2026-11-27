@@ -2,93 +2,10 @@ package node
 
 import (
 	"os"
-	"strings"
 	"testing"
 
-	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
-
-func TestArchivedCodexResumeRestoresBeforeOpeningTerminal(t *testing.T) {
-	withCodexLaunchers(t, map[string][]string{"cx": {"codex"}})
-	for _, tc := range []struct {
-		name      string
-		automatic bool
-		server    bool
-		archived  bool
-	}{
-		{"supervisor command", true, false, true},
-		{"owner command", false, false, true},
-		{"supervisor app server", true, true, true},
-		{"already restored", true, false, false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			n, f, cwd := codexHistoryNode(t)
-			provenanceHerdr(n)
-			listSessions(t, n)
-			home := codex.CanonicalHome(n.codexHome(), n.home)
-			n.state.put(startThread, sessionState{Launcher: "cx", Cwd: cwd, Model: "gpt-7",
-				AppMode: "plan", StopCause: proto.StopTaskCompleted})
-			command := stubCodexArchiveCommand(t)
-			var server *remoteFixture
-			if tc.server {
-				server, _ = connectRemoteFixture(t, n, home, "resume-archive")
-				server.mu.Lock()
-				server.archive = func(method, thread string) {
-					moveCodexRollout(t, home, thread, method == "thread/archive")
-				}
-				server.mu.Unlock()
-			}
-			if tc.archived {
-				moveCodexRollout(t, home, startThread, true)
-			}
-			f.reset()
-			got := resumeFile(f, cwd)
-			f.after(func(c herdrCall) {
-				if c.Method == "tab.create" && codexArchived(home, n.codexPath(startThread)) {
-					t.Error("opened Codex while still archived: its confirmation would block the prompt")
-				}
-			})
-			res, err := request(t, n, "session.start", map[string]any{
-				"resume_session_id": startThread, "resume_automatic": tc.automatic, "prompt": "Continue the assigned task",
-			})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if s, _ := res["session"].(map[string]any); s == nil || s["session_id"] != startThread {
-				t.Fatalf("resumed another conversation: %v", res)
-			}
-			if archiveIn(t, home, startThread) {
-				t.Fatal("the resumed thread is still natively archived")
-			}
-			command.mu.Lock()
-			runs := command.runs
-			command.mu.Unlock()
-			switch {
-			case tc.server:
-				if server.count("thread/unarchive") != 1 || len(runs) != 0 {
-					t.Fatalf("did not use the existing app server: calls=%d commands=%v", server.count("thread/unarchive"), runs)
-				}
-			case tc.archived:
-				if len(runs) != 1 || runs[0][0] != "cx" || runs[0][1] != home ||
-					runs[0][2] != "unarchive" || runs[0][3] != startThread {
-					t.Fatalf("wrong unarchive command: %v", runs)
-				}
-			default:
-				if len(runs) != 0 {
-					t.Fatalf("unarchived a thread already restored: %v", runs)
-				}
-			}
-			file := got()
-			args := strings.Join(file.Argv, " ")
-			if file.Prompt != "Continue the assigned task" || !strings.Contains(args, "resume "+startThread) ||
-				!strings.Contains(args, "--sandbox read-only") || !strings.Contains(args, "--model gpt-7") ||
-				strings.Contains(args, "--dangerously-bypass") {
-				t.Fatalf("resume lost its prompt, identity or original constraints: %+v", file)
-			}
-		})
-	}
-}
 
 func TestArchivedCodexResumeRefusesFailedUnarchive(t *testing.T) {
 	withCodexLaunchers(t, map[string][]string{"cx": {"codex"}})

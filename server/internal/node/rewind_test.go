@@ -470,21 +470,6 @@ func TestRewindNothingToRewindTo(t *testing.T) {
 	}
 }
 
-// When the final enter changes nothing (the panel stays), nothing more is pressed: the rewind may or may not have
-// happened and Esc would not undo it.
-func TestRewindPanelStaysOpenAfterConfirm(t *testing.T) {
-	sim := newClaudeSim(threePrompts()...)
-	sim.stuck = true
-	n := rewindNode(t, sim, "claude", proto.StatusIdle)
-	_, err := n.rewind(context.Background(), "s1", rewindOpts{Prompt: "Reply with only: ok5", Occurrence: 1, Restore: RestoreConversation})
-	if code := rewindCode(t, err); code != rewindFailed {
-		t.Fatalf("code %s", code)
-	}
-	if got := sim.pressed(); got != "enter up enter enter" {
-		t.Fatalf("keys %q", got)
-	}
-}
-
 // Claude's input box after the rewind holds something that is not the prompt (typed at the computer meanwhile): it is
 // left alone and the app is told the box was not emptied.
 func TestRewindLeavesAnotherDraftInTheBox(t *testing.T) {

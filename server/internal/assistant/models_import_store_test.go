@@ -208,34 +208,6 @@ func TestImportSaysTheProvidersWereImportedWhenHidingFails(t *testing.T) {
 	}
 }
 
-// Hiding an rc-file launcher and restoring one change launchers.hidden under the configuration lock, as the import
-// does, so none of them loses another's change.
-func TestHideAndRestoreTakeTheConfigurationLock(t *testing.T) {
-	s, _ := hideTestHub(t, nil, hideListed)
-	ctx := context.Background()
-	for _, c := range []struct{ method, path, want string }{
-		{"DELETE", "/api/v1/launchers/acc", "acc"},
-		{"POST", "/api/v1/launchers/acc/restore", ""},
-	} {
-		s.models.mu.Lock()
-		done := make(chan int, 1)
-		go func() { done <- request(s, c.method, c.path, "").Code }()
-		select {
-		case code := <-done:
-			s.models.mu.Unlock()
-			t.Fatalf("%s %s answered %d without the lock", c.method, c.path, code)
-		case <-time.After(150 * time.Millisecond):
-		}
-		s.models.mu.Unlock()
-		if code := <-done; code != 200 {
-			t.Fatalf("%s %s: %d", c.method, c.path, code)
-		}
-		if hidden := s.hiddenLaunchers(ctx); strings.Join(hidden, ",") != c.want {
-			t.Fatalf("%s: %v", c.path, hidden)
-		}
-	}
-}
-
 // Asking another computer for its aliases never puts their keys in the preview or the answer.
 func TestImportAskingAnotherComputerReturnsNoKey(t *testing.T) {
 	theirs := hideAlias

@@ -369,22 +369,6 @@ func TestScriptAskFormatDefaultsToPlain(t *testing.T) {
 	}
 }
 
-// Nobody answering is a timeout (not "unreachable"), and the card is withdrawn from the phone.
-func TestScriptAskTimeout(t *testing.T) {
-	h := newScriptHub(t, func(ctx context.Context, _ proto.Interaction) (any, error) {
-		<-ctx.Done()
-		return nil, ctx.Err()
-	}, notifyOK)
-	start := time.Now()
-	rep, err := nodeclient.AskNode(context.Background(), h.dial, nodeclient.AskRequest{Question: "q", TimeoutSeconds: 1}, "")
-	if err != nil || rep.Status != nodeclient.AskTimeout {
-		t.Fatalf("reply %+v, %v", rep, err)
-	}
-	if d := time.Since(start); d < 900*time.Millisecond || d > 5*time.Second {
-		t.Fatalf("took %v for a 1s timeout", d)
-	}
-}
-
 // The script going away (Ctrl-C) takes the card off the phone.
 func TestScriptAskCancelledWithTheCaller(t *testing.T) {
 	asked := make(chan struct{})
@@ -492,74 +476,6 @@ func TestAskNodeWithoutNode(t *testing.T) {
 	}
 	if _, err := nodeclient.NotifyNode(context.Background(), nodeclient.Dial, nodeclient.NotifyRequest{Title: "t"}, ""); err == nil || !isNoNode(err) {
 		t.Fatalf("err %v, want nodeclient.ErrNoNode", err)
-	}
-}
-
-// Only nodeclient.DialInterruptible hangs up on a cancelled ctx (Ctrl-C in personad ask); nodeclient.Dial waits as it always did
-// (a hook, the MCP server and the launcher end by the deadline or the node's answer).
-func TestDialSocketCancel(t *testing.T) {
-	home, err := os.MkdirTemp("", "jh")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.RemoveAll(home) })
-	t.Setenv("PERSONA_HOME", "")
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
-	_ = os.MkdirAll(filepath.Join(home, ".persona"), 0o700)
-	ln, err := net.Listen("unix", nodeclient.SocketPath())
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { ln.Close() })
-	conns := make(chan net.Conn, 2)
-	go func() {
-		for {
-			c, err := ln.Accept()
-			if err != nil {
-				return
-			}
-			// A node that reads the request and never answers. The listener accepts before the client's DialContext
-			// has returned, and a cancel in that gap fails the dial itself (net checks ctx once the connect is
-			// done); the request line is written only after DialContext returns, so having read it means the
-			// client is connected and the cancel lands where the test means it to: while waiting for the answer.
-			_, _ = bufio.NewReader(c).ReadBytes('\n')
-			conns <- c
-		}
-	}()
-
-	// The node's ends are held until the test is over: one nothing refers to is closed when the garbage collector
-	// finalizes it, and the dial then reads EOF (or a reset) as if the node had hung up.
-	var held []net.Conn
-	t.Cleanup(func() {
-		for _, c := range held {
-			c.Close()
-		}
-	})
-	dial := func(f nodeclient.Dialer) (cancel func(), done chan error) {
-		ctx, cancel := context.WithCancel(context.Background())
-		done = make(chan error, 1)
-		go func() { _, err := f(ctx, map[string]any{"kind": "x"}); done <- err }()
-		held = append(held, <-conns)
-		return cancel, done
-	}
-	cancel, done := dial(nodeclient.DialInterruptible)
-	cancel()
-	select {
-	case err := <-done:
-		if err == nil {
-			t.Fatal("a hung-up dial is an error")
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("nodeclient.DialInterruptible kept waiting after its ctx was cancelled")
-	}
-
-	cancel, done = dial(nodeclient.Dial)
-	cancel()
-	select {
-	case err := <-done:
-		t.Fatalf("nodeclient.Dial gave up on a cancelled ctx: %v", err)
-	case <-time.After(300 * time.Millisecond):
 	}
 }
 

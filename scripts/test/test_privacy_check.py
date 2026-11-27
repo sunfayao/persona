@@ -15,6 +15,8 @@ from unittest.mock import patch
 
 
 SCRIPTS = Path(__file__).resolve().parent.parent
+if not (SCRIPTS.parent / ".git").exists():  # privacy_check.py asks git for the checkout it is in
+    raise unittest.SkipTest("the privacy check runs in a git checkout")
 spec = importlib.util.spec_from_file_location("privacy_check", SCRIPTS / "privacy_check.py")
 pc = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pc)

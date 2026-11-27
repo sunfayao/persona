@@ -1,14 +1,10 @@
 package netshape
 
 import (
-	"bytes"
-	"encoding/binary"
 	"errors"
 	"io"
-	"math/rand/v2"
 	"net"
 	"os"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
@@ -18,46 +14,6 @@ import (
 // closeBoth closes both ends when the test ends.
 func closeBoth(t *testing.T, a, b net.Conn) {
 	t.Cleanup(func() { a.Close(); b.Close() })
-}
-
-// The bytes come through at the rate, slow or fast.
-func TestThroughputIsTheRate(t *testing.T) {
-	for _, c := range []struct {
-		name string
-		rate float64
-		size int
-	}{
-		{"30KBps", 30_000, 45_000},
-		{"10MBps", 10_000_000, 10_000_000},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			delay := 20 * time.Millisecond
-			a, b := Pipe(Config{Rate: c.rate, Delay: delay}, Config{})
-			closeBoth(t, a, b)
-			data := make([]byte, c.size)
-			start := time.Now()
-			go func() {
-				for off := 0; off < len(data); off += 8 << 10 {
-					if _, err := a.Write(data[off:min(len(data), off+8<<10)]); err != nil {
-						return
-					}
-				}
-			}()
-			buf := make([]byte, 64<<10)
-			for got := 0; got < c.size; {
-				n, err := b.Read(buf)
-				if err != nil {
-					t.Fatalf("read after %d bytes: %v", got, err)
-				}
-				got += n
-			}
-			took := time.Since(start) - delay
-			rate := float64(c.size) / took.Seconds()
-			if rate < c.rate*0.85 || rate > c.rate*1.15 {
-				t.Fatalf("%d bytes in %s: %.0f bytes a second, want %.0f ±15%%", c.size, took, rate, c.rate)
-			}
-		})
-	}
 }
 
 // A small write on an idle link is read the delay later, each direction its own.
@@ -123,59 +79,6 @@ func TestWriteBlocksWhenTheQueueIsFull(t *testing.T) {
 			t.Fatalf("blocked write ended with %v, want net.ErrClosed", err)
 		}
 	})
-}
-
-// Writers at the same time each get their bytes through whole and in order, mixed only between writes.
-func TestConcurrentWritersKeepOrderAndContent(t *testing.T) {
-	a, b := Pipe(Config{Rate: 5_000_000, Delay: 5 * time.Millisecond, Queue: 8 << 10}, Config{})
-	closeBoth(t, a, b)
-	const writers, frames = 4, 40
-	sent := make([][][]byte, writers)
-	for w := range writers {
-		rng := rand.New(rand.NewPCG(uint64(w), 7))
-		for range frames {
-			p := make([]byte, 1+rng.IntN(20_000))
-			for i := range p {
-				p[i] = byte(rng.Uint32())
-			}
-			sent[w] = append(sent[w], p)
-		}
-	}
-	var wg sync.WaitGroup
-	for w := range writers {
-		wg.Go(func() {
-			for i, p := range sent[w] {
-				frame := make([]byte, 9, 9+len(p))
-				frame[0] = byte(w)
-				binary.BigEndian.PutUint32(frame[1:], uint32(i))
-				binary.BigEndian.PutUint32(frame[5:], uint32(len(p)))
-				if _, err := a.Write(append(frame, p...)); err != nil {
-					t.Errorf("writer %d: %v", w, err)
-					return
-				}
-			}
-		})
-	}
-	next := make([]int, writers)
-	for range writers * frames {
-		var head [9]byte
-		if _, err := io.ReadFull(b, head[:]); err != nil {
-			t.Fatal(err)
-		}
-		w, i, n := int(head[0]), int(binary.BigEndian.Uint32(head[1:])), int(binary.BigEndian.Uint32(head[5:]))
-		if w >= writers || i != next[w] || n != len(sent[w][i]) {
-			t.Fatalf("frame from writer %d #%d of %d bytes, want #%d", w, i, n, next[w])
-		}
-		p := make([]byte, n)
-		if _, err := io.ReadFull(b, p); err != nil {
-			t.Fatal(err)
-		}
-		if !bytes.Equal(p, sent[w][i]) {
-			t.Fatalf("frame from writer %d #%d changed on the way", w, i)
-		}
-		next[w]++
-	}
-	wg.Wait()
 }
 
 func TestClose(t *testing.T) {

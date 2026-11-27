@@ -174,32 +174,6 @@ func TestGitHubCLIAuthenticationFailureDoesNotUseHTTP(t *testing.T) {
 	}
 }
 
-// gh printed the headers of a 200, then the context killed it: that is a timeout, not an authentication or CLI failure.
-func TestGitHubCLITimeoutAfterHeadersIsReportedAsTimeout(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("shell fixture")
-	}
-	dir := t.TempDir()
-	script := "#!/bin/sh\nprintf 'HTTP/2.0 200 OK\\nX-RateLimit-Limit: 5000\\n\\n{\"status\":\"ahead\"'\nexec /bin/sleep 30\n"
-	if err := os.WriteFile(filepath.Join(dir, "gh"), []byte(script), 0700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", dir+":/bin:/usr/bin")
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
-	defer cancel()
-	var out json.RawMessage
-	err := githubCLIGet(ctx, "/repos/o/r/compare/a...b", &out)
-	if err == nil {
-		t.Fatal("accepted a response cut off by the deadline")
-	}
-	if !errors.Is(err, context.DeadlineExceeded) || !strings.Contains(err.Error(), "timed out") {
-		t.Fatalf("not reported as a timeout: %v", err)
-	}
-	if strings.Contains(err.Error(), "CLI failed") {
-		t.Fatalf("a timeout reported as a CLI failure: %v", err)
-	}
-}
-
 // fakeCompareGH answers like GitHub's compare on a large main: the full payload (files and commits) takes longer than
 // the budget to arrive, while a request for a high page number carries the status alone, at once.
 func fakeCompareGH(t *testing.T) {

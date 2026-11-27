@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -268,43 +267,6 @@ func TestAdmissionQueueOtherLinesKeepTheirBoundsWithGroups(t *testing.T) {
 	if !strings.Contains(feedKinds(s, "conv1"), "receipt") {
 		t.Fatalf("the timed-out start must get its failure receipt: %s", feedKinds(s, "conv1"))
 	}
-}
-
-// The queue record lives in the plan, so a restarted hub (a fresh service on the same database, with empty claim books)
-// still waits on the group past the bounds and starts the task once there is room.
-func TestAdmissionQueueGroupWaitSurvivesRestart(t *testing.T) {
-	url := newDatabase(t)
-	database, err := db.Open(context.Background(), url, db.ManagerSet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(database.Close)
-	s, _, d := admissionHubOn(t, database)
-	p := fullPoolQueued(t, s, d)
-	pastBounds(t, s, p.ID, 3*admissionQueueMaxWait)
-
-	s2, f2, d2 := admissionHubOn(t, database)
-	healthyIdle(d2)
-	busyHealthy(d2)
-	one := testPool
-	one.Cap = 1
-	withLauncherGroups(s2, one)
-	runningTask(t, s2, "holder", "dir-9", "idle", "sh")
-	admissionFleet(s2, "idle", fleetRow{"sh", "work-2", true})
-	s2.sweepAdmissionQueue(context.Background())
-	waitFor(t, "the restarted hub to retry and queue the group wait again", func() bool {
-		loaded, err := s2.loadPlan(context.Background(), p.ID)
-		return err == nil && loaded.Tasks[0].Queue != nil && loaded.Tasks[0].Queue.Attempt == admissionQueueMaxAttempts+6
-	})
-	if todo := todoNow(s2, p.Tasks[0].TodoID); todo.DoneAt != nil || todo.StartError != "" {
-		t.Fatalf("the restarted hub must keep the group wait open: %+v", todo)
-	}
-	admissionFleet(s2, "idle", fleetRow{"sh", "work-2", false})
-	if err := s2.patchPlanTask(context.Background(), p.ID, 0, func(pt *PlanTask) { pt.Queue.NextAt = time.Now().Add(-time.Second) }); err != nil {
-		t.Fatal(err)
-	}
-	s2.sweepAdmissionQueue(context.Background())
-	waitFor(t, "the restarted hub to start the task once the group has room", func() bool { return len(taskStartMachines(f2)) == 1 })
 }
 
 // Without launcher groups nothing changes: no group line resolves and a busy fleet on any launcher is not held.

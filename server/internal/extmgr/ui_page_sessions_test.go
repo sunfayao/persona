@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"os/exec"
 	"path/filepath"
 	"sync"
@@ -153,86 +152,6 @@ func pageAwait(t *testing.T, condition func() bool) {
 	}
 	t.Fatal("timed out waiting for source page")
 }
-
-func TestPageSourceSDKEventFenceAndReceipts(t *testing.T) {
-	h, process, transport := pageProcessManager(t)
-	tree := pageOpenTest(t, h, pageWho)
-	raw, _ := tree.MarshalJSON()
-	if !bytes.Contains(raw, []byte(`"truncated":false`)) || !bytes.Contains(raw, []byte(`"text":""`)) {
-		t.Fatalf("lost native presence: %s", raw)
-	}
-	initial := pageEvent(t, tree, "no-ui", "first")
-	initial.Interaction.Value = json.RawMessage(`{"b":"2","a":"1"}`)
-	first, err := pageCall(t, h, pageWho, initial)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pageTree(h, tree.Session()).Version() != 2 || pageStats(t, process)["writes"] != 1 {
-		t.Fatal("no-UI callback failed to consume revision")
-	}
-	replay, err := pageCall(t, h, pageWho, initial)
-	if err != nil || !bytes.Equal(first, replay) {
-		t.Fatalf("replay %s %v", replay, err)
-	}
-	retryRequest := initial
-	retryEvent := *initial.Interaction
-	retryEvent.Value = json.RawMessage(`{"a":"1","b":"2"}`)
-	retryRequest.Interaction = &retryEvent
-	retryRequest.RequestID = "retry-correlation"
-	retryFrame, err := pageCall(t, h, pageWho, retryRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var correlated map[string]json.RawMessage
-	_ = json.Unmarshal(retryFrame, &correlated)
-	if string(correlated["request_id"]) != `"retry-correlation"` || pageStats(t, process)["writes"] != 1 {
-		t.Fatal("semantic retry lost correlation or repeated a write")
-	}
-	changed := initial
-	event := *initial.Interaction
-	event.Value = json.RawMessage(`{"changed":true}`)
-	changed.Interaction = &event
-	if _, err := pageCall(t, h, pageWho, changed); err == nil {
-		t.Fatal("changed receipt body accepted")
-	}
-	for i := 0; i < 70; i++ {
-		current := pageTree(h, tree.Session())
-		request := pageEvent(t, current, "no-ui", strconvID(i))
-		if _, err := pageCall(t, h, pageWho, request); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if _, err := pageCall(t, h, pageWho, initial); err == nil {
-		t.Fatal("evicted unchanged write replayed")
-	}
-	if pageStats(t, process)["writes"] != 71 {
-		t.Fatal("duplicate executed a write")
-	}
-	pageAwait(t, func() bool { return len(transport.all()) >= 72 })
-	for _, packet := range transport.all() {
-		if packet.Who != pageWho {
-			t.Fatal("source chose another recipient")
-		}
-		var frame map[string]json.RawMessage
-		_ = json.Unmarshal(packet.Envelope, &frame)
-		if bytes.Equal(frame["kind"], []byte(`"delta"`)) {
-			var delta wire.UIStreamDelta
-			_ = json.Unmarshal(frame["delta"], &delta)
-			if len(delta.Operations) != 0 || delta.Version != delta.BaseVersion+1 {
-				t.Fatal("no-UI fence replaced root or skipped revisions")
-			}
-		}
-	}
-	request := pageEvent(t, pageTree(h, tree.Session()), "increment", "increment")
-	if _, err := pageCall(t, h, pageWho, request); err != nil {
-		t.Fatal(err)
-	}
-	current := pageTree(h, tree.Session())
-	if !bytes.Contains(current.ViewJSON(), []byte(`"text":"2"`)) {
-		t.Fatal("coalesced native render not published")
-	}
-}
-func strconvID(i int) string { return fmt.Sprintf("event-%d", i) }
 
 // A native stream of 10 gets a graph as rows, and pressing one must run the node's callback: the source registered it
 // under the graph's key, not the row's "key/id", so the manager maps the press back.

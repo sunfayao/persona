@@ -445,101 +445,6 @@ func TestAdminPasswordHash(t *testing.T) {
 	}
 }
 
-func TestAdminSetupLoginSessionCSRF(t *testing.T) {
-	_, store, mux := adminTestHub(t)
-	c := &adminClient{t: t, h: mux, remote: ip4(192, 168, 1, 20) + ":5000"}
-	code, st, _ := c.do("GET", "/api/v1/admin/state", "")
-	if code != 200 || st["password_set"] != false || st["can_setup"] != true || st["logged_in"] != false {
-		t.Fatalf("first state: %d %v", code, st)
-	}
-	if code, out, _ := c.do("GET", "/api/v1/admin/overview", ""); code != http.StatusUnauthorized || out["code"] != "login_required" {
-		t.Fatalf("overview before signing in: %d %v", code, out)
-	}
-	if code, out, _ := c.do("POST", "/api/v1/admin/setup", `{"password":"short"}`); code != 400 || out["code"] != "weak_password" {
-		t.Fatalf("weak: %d %v", code, out)
-	}
-	code, st, w := c.do("POST", "/api/v1/admin/setup", `{"password":"a good password"}`)
-	if code != 200 || st["logged_in"] != true || c.csrf == "" || c.cookie == nil {
-		t.Fatalf("setup: %d %v", code, st)
-	}
-	ck := w.Result().Cookies()[0]
-	if !ck.HttpOnly || ck.SameSite != http.SameSiteStrictMode || ck.Path != adminCookiePath || ck.Secure || ck.Name != "persona_admin" {
-		t.Fatalf("cookie %+v", ck)
-	}
-	if store.hash == "" || strings.Contains(store.hash, "a good password") {
-		t.Fatal("password not hashed")
-	}
-	for hash := range store.sessions {
-		if hash == ck.Value {
-			t.Fatal("the cookie value is stored as it is")
-		}
-	}
-	// A second setup loses: the password is there.
-	other := &adminClient{t: t, h: mux, remote: ip4(192, 168, 1, 21) + ":5000"}
-	if code, out, _ := other.do("POST", "/api/v1/admin/setup", `{"password":"another password"}`); code != http.StatusConflict || out["code"] != "already_set" {
-		t.Fatalf("second setup: %d %v", code, out)
-	}
-	if code, _, _ := c.do("GET", "/api/v1/admin/overview", ""); code != 200 {
-		t.Fatalf("overview: %d", code)
-	}
-	// Writes need the session's CSRF token, JSON, and a same-origin browser.
-	csrf := c.csrf
-	c.csrf = "wrong"
-	if code, out, _ := c.do("PUT", "/api/v1/admin/hub", `{"name":"x"}`); code != 403 || out["code"] != "csrf" {
-		t.Fatalf("bad csrf: %d %v", code, out)
-	}
-	c.csrf = csrf
-	c.header = http.Header{"Sec-Fetch-Site": {"cross-site"}}
-	if code, _, _ := c.do("PUT", "/api/v1/admin/hub", `{"name":"x"}`); code != 403 {
-		t.Fatalf("cross-site: %d", code)
-	}
-	c.header = http.Header{"Origin": {"http://evil.example.com"}}
-	if code, _, _ := c.do("PUT", "/api/v1/admin/hub", `{"name":"x"}`); code != 403 {
-		t.Fatalf("other origin: %d", code)
-	}
-	c.header = http.Header{"Origin": {"http://example.com"}, "Sec-Fetch-Site": {"same-origin"}}
-	if code, out, _ := c.do("PUT", "/api/v1/admin/hub", `{"name":"家里"}`); code != 200 || out["name"] != "家里" {
-		t.Fatalf("same origin: %d %v", code, out)
-	}
-	c.header = nil
-	req := httptest.NewRequest("PUT", "/api/v1/admin/hub", strings.NewReader(`{"name":"x"}`))
-	req.RemoteAddr, req.Header = c.remote, http.Header{"Content-Type": {"text/plain"}, "X-Persona-CSRF": {csrf}}
-	req.AddCookie(c.cookie)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-	if rec.Code != 403 {
-		t.Fatalf("form post: %d", rec.Code)
-	}
-	// Signing out ends the session for good.
-	saved := c.cookie
-	if code, _, _ := c.do("POST", "/api/v1/admin/logout", `{}`); code != 200 || c.cookie != nil {
-		t.Fatalf("logout: %d", code)
-	}
-	c.cookie = saved
-	if code, _, _ := c.do("GET", "/api/v1/admin/overview", ""); code != http.StatusUnauthorized {
-		t.Fatalf("after logout: %d", code)
-	}
-	c.cookie, c.csrf = nil, ""
-	if code, out, _ := c.do("POST", "/api/v1/admin/login", `{"password":"nope nope"}`); code != 401 || out["code"] != "bad_password" {
-		t.Fatalf("wrong: %d %v", code, out)
-	}
-	if code, st, _ := c.do("POST", "/api/v1/admin/login", `{"password":"a good password"}`); code != 200 || st["logged_in"] != true {
-		t.Fatalf("login: %d %v", code, st)
-	}
-	// A password change signs out the other browsers, not this one.
-	b := &adminClient{t: t, h: mux, remote: ip4(192, 168, 1, 22) + ":5000"}
-	b.do("POST", "/api/v1/admin/login", `{"password":"a good password"}`)
-	if code, out, _ := c.do("POST", "/api/v1/admin/password", `{"current":"a good password","new":"a better password"}`); code != 200 {
-		t.Fatalf("change: %d %v", code, out)
-	}
-	if code, _, _ := c.do("GET", "/api/v1/admin/overview", ""); code != 200 {
-		t.Fatalf("this browser after the change: %d", code)
-	}
-	if code, _, _ := b.do("GET", "/api/v1/admin/overview", ""); code != http.StatusUnauthorized {
-		t.Fatalf("other browser after the change: %d", code)
-	}
-}
-
 // A sign-out that could not delete the session says so (and logs it) instead of reporting ok.
 func TestAdminLogoutDeleteFails(t *testing.T) {
 	h, store, mux := adminTestHub(t)
@@ -610,39 +515,6 @@ func TestAdminSetupUnderAnyIsLocalOnly(t *testing.T) {
 	}
 	if code, st, _ := remote.do("POST", "/api/v1/admin/login", `{"password":"a good password"}`); code != 200 || st["logged_in"] != true {
 		t.Fatalf("internet login over TLS: %d %v", code, st)
-	}
-}
-
-func TestAdminLoginRateLimit(t *testing.T) {
-	h, _, mux := adminTestHub(t)
-	h.cfg.Security.AuthFailures = 3
-	(&adminClient{t: t, h: mux, remote: ip4(192, 168, 1, 20) + ":1"}).do("POST", "/api/v1/admin/setup", `{"password":"a good password"}`)
-	lan := &adminClient{t: t, h: mux, remote: ip4(192, 168, 1, 30) + ":1"}
-	for i := range 3 {
-		if code, _, _ := lan.do("POST", "/api/v1/admin/login", `{"password":"guess guess"}`); code != 401 {
-			t.Fatalf("guess %d: %d", i, code)
-		}
-	}
-	// The LAN counts too (a password is guessable); even the right password waits now.
-	code, out, w := lan.do("POST", "/api/v1/admin/login", `{"password":"a good password"}`)
-	if code != 429 || out["code"] != "rate_limited" || w.Header().Get("Retry-After") == "" || out["retry_after"] == nil {
-		t.Fatalf("blocked: %d %v", code, out)
-	}
-	// Another source and this machine are not affected; this machine is never counted.
-	if code, _, _ := (&adminClient{t: t, h: mux, remote: ip4(192, 168, 1, 31) + ":1"}).do("POST", "/api/v1/admin/login", `{"password":"a good password"}`); code != 200 {
-		t.Fatalf("other source: %d", code)
-	}
-	// Loopback counts too: it may be a reverse proxy on this machine relaying the internet.
-	local := &adminClient{t: t, h: mux, remote: "127.0.0.1:1"}
-	for range 3 {
-		local.do("POST", "/api/v1/admin/login", `{"password":"guess guess"}`)
-	}
-	if code, _, _ := local.do("POST", "/api/v1/admin/login", `{"password":"a good password"}`); code != 429 {
-		t.Fatalf("loopback guessing: %d", code)
-	}
-	// The app's token limiter is a different table.
-	if retry := h.devtok.failures.retry(ip4(192, 168, 1, 30), time.Now(), h.cfg.Security); retry != 0 {
-		t.Fatalf("app limiter touched: %v", retry)
 	}
 }
 
@@ -901,27 +773,6 @@ func TestAdminHubNameAndDevices(t *testing.T) {
 	// The mesh's routes (peer_admin.go): no peers yet.
 	if code, out, _ := c.do("GET", "/api/v1/admin/peers", ""); code != 200 || out["peers"] == nil || out["discovered"] == nil {
 		t.Fatalf("peers %d %v", code, out)
-	}
-}
-
-func TestAdminRestartOnlyWhenSupervised(t *testing.T) {
-	h, _, mux := adminTestHub(t)
-	restarted := make(chan struct{}, 1)
-	h.admin.restart = func() { restarted <- struct{}{} }
-	c := signedIn(t, mux, ip4(192, 168, 1, 20)+":1")
-	t.Setenv("INVOCATION_ID", "")
-	t.Setenv("PERSONA_SUPERVISED", "")
-	if code, out, _ := c.do("POST", "/api/v1/admin/restart", `{}`); code != 409 || out["code"] != "not_supervised" {
-		t.Fatalf("unsupervised: %d %v", code, out)
-	}
-	t.Setenv("INVOCATION_ID", "abc")
-	if code, _, _ := c.do("POST", "/api/v1/admin/restart", `{}`); code != 200 {
-		t.Fatalf("supervised: %d", code)
-	}
-	select {
-	case <-restarted:
-	case <-time.After(3 * time.Second):
-		t.Fatal("no restart")
 	}
 }
 

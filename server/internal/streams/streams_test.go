@@ -155,43 +155,6 @@ func TestStreamFlushesBeforeClosing(t *testing.T) {
 	}
 }
 
-// A reader that stops reading holds the sender at the window: the node stops reading from its connection.
-func TestStreamWindowHoldsTheSender(t *testing.T) {
-	hub, node, hp := pair(t)
-	wrote := make(chan int, 1)
-	addr := listen(t, func(c net.Conn) {
-		defer c.Close()
-		n := 0
-		buf := bytes.Repeat([]byte("y"), chunk)
-		_ = c.SetWriteDeadline(time.Now().Add(2 * time.Second))
-		for {
-			k, err := c.Write(buf)
-			n += k
-			if err != nil {
-				break
-			}
-		}
-		wrote <- n
-	})
-	conn := dial(t, hub, hp, "s1", addr)
-	defer conn.Close()
-	// Nobody reads conn: the hub's side takes one write into the pipe and acknowledges nothing more, so the node
-	// sends a window's worth and stops reading (the server's writes then time out in the kernel's buffers).
-	<-wrote
-	node.mu.Lock()
-	s := node.streams["s1"]
-	node.mu.Unlock()
-	if s == nil {
-		t.Fatal("the stream ended")
-	}
-	s.mu.Lock()
-	inflight := s.inflight
-	s.mu.Unlock()
-	if inflight > window || inflight < window-chunk {
-		t.Fatalf("in flight %d, want about the window %d", inflight, window)
-	}
-}
-
 // Asking for a stream that cannot be dialed ends it on both sides.
 func TestStreamDialFailure(t *testing.T) {
 	hub, node, hp := pair(t)

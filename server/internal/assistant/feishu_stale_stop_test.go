@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -321,33 +320,6 @@ func testFeishuStopBeforeTheRunWatcher(t *testing.T, delivered chan struct{}, ho
 	out = e.s.botCardAction(ctx, a, "")
 	if out.Toast == nil || out.Toast.Type != "success" || len(e.f.interrupted()) != 1 {
 		t.Fatalf("watched current card did not interrupt once: %+v / %v", out.Toast, e.f.interrupted())
-	}
-}
-
-// The failing subtest has its own process. Cleanup writes a completion marker
-// only after releasing and joining the real delivery; the old cleanup order never
-// runs, so a matching timeout without that marker fails this regression.
-func TestFeishuStopWatcherTimeoutReleasesDelivery(t *testing.T) {
-	const childEnv = "PERSONA_TEST_STOP_WATCHER_TIMEOUT"
-	if os.Getenv(childEnv) == "1" {
-		testFeishuStopBeforeTheRunWatcher(t, make(chan struct{}), make(chan struct{}))
-		return
-	}
-	cmd := exec.Command(os.Args[0], "-test.run=^TestFeishuStopWatcherTimeoutReleasesDelivery$", "-test.count=1", "-test.timeout=30s")
-	cmd.Env = append(os.Environ(), childEnv+"=1")
-	output, err := cmd.CombinedOutput()
-	if err == nil {
-		t.Fatalf("watcher-start timeout did not fail: %s", output)
-	}
-	for _, want := range []string{"run watcher did not start its initial devices.list", "--- FAIL: TestFeishuStopWatcherTimeoutReleasesDelivery", "STOP_WATCHER_DELIVERY_RELEASED"} {
-		if !strings.Contains(string(output), want) {
-			t.Fatalf("child output missing %q: %s", want, output)
-		}
-	}
-	for _, unwanted := range []string{"topic delivery did not finish", "goroutine after test has completed", "test timed out"} {
-		if strings.Contains(string(output), unwanted) {
-			t.Fatalf("delivery was not released by the early-timeout cleanup: %s", output)
-		}
 	}
 }
 

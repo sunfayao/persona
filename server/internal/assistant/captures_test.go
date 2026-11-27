@@ -2,140 +2,14 @@ package assistant
 
 import (
 	"context"
-	"encoding/json"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/db"
-	"github.com/sunfayao/persona/server/internal/nodeproto"
 	"github.com/sunfayao/persona/server/internal/prompts"
 )
-
-// captureMemStore keeps captures as assistant_captures does: one per client id, the loop's results only on a capture
-// still new or sorted.
-type captureMemStore struct {
-	*infoCategoryMemStore
-	capMu sync.Mutex
-	caps  []db.Capture
-}
-
-func (st *captureMemStore) InsertCapture(_ context.Context, c db.Capture) (db.Capture, bool, error) {
-	st.capMu.Lock()
-	defer st.capMu.Unlock()
-	for _, was := range st.caps {
-		if was.ClientID == c.ClientID {
-			return was, false, nil
-		}
-	}
-	c.Status, c.Sort, c.FiledTo, c.CreatedAt, c.UpdatedAt = assistantwire.CaptureNew, []byte("{}"), []byte("{}"), time.Now().UTC(), time.Now().UTC()
-	st.caps = append(st.caps, c)
-	return c, true, nil
-}
-
-func (st *captureMemStore) Captures(_ context.Context, f db.CaptureFilter) ([]db.Capture, error) {
-	st.capMu.Lock()
-	defer st.capMu.Unlock()
-	var out []db.Capture
-	for i := len(st.caps) - 1; i >= 0; i-- {
-		c := st.caps[i]
-		if (len(f.Statuses) == 0 || slices.Contains(f.Statuses, c.Status)) && !c.UpdatedAt.Before(f.UpdatedSince) {
-			out = append(out, c)
-		}
-	}
-	return out, nil
-}
-
-func (st *captureMemStore) CapturesToSort(_ context.Context, maxAttempts, limit int) ([]db.Capture, error) {
-	st.capMu.Lock()
-	defer st.capMu.Unlock()
-	// New ones first, then the oldest, as the query orders them.
-	var out []db.Capture
-	for _, wantNew := range []bool{true, false} {
-		for _, c := range st.caps {
-			var sorted assistantwire.CaptureSort
-			_ = json.Unmarshal(c.Sort, &sorted)
-			isNew := c.Status == assistantwire.CaptureNew
-			if isNew == wantNew && c.Attempts < maxAttempts && (isNew || c.Status == assistantwire.CaptureSorted && sorted.AutoFile) && len(out) < limit {
-				out = append(out, c)
-			}
-		}
-	}
-	return out, nil
-}
-
-func (st *captureMemStore) SetCaptureResult(_ context.Context, id, status string, sort, filedTo []byte, errText string, tried bool) (bool, error) {
-	st.capMu.Lock()
-	defer st.capMu.Unlock()
-	for i, c := range st.caps {
-		if c.ID != id || (c.Status != assistantwire.CaptureNew && c.Status != assistantwire.CaptureSorted) {
-			continue
-		}
-		c.Status, c.Error, c.UpdatedAt = status, errText, time.Now().UTC()
-		if sort != nil {
-			c.Sort = sort
-		}
-		if filedTo != nil {
-			c.FiledTo = filedTo
-		}
-		if tried {
-			c.Attempts++
-		}
-		st.caps[i] = c
-		return true, nil
-	}
-	return false, nil
-}
-
-func (st *captureMemStore) capture(t *testing.T, id string) db.Capture {
-	t.Helper()
-	st.capMu.Lock()
-	defer st.capMu.Unlock()
-	for _, c := range st.caps {
-		if c.ID == id {
-			return c
-		}
-	}
-	t.Fatalf("no capture %s", id)
-	return db.Capture{}
-}
-
-// inboxDevs are the manager's computers, whose nodes keep track directories and write into their inbox/ unless old.
-type inboxDevs struct {
-	*fleetDevs
-	old bool
-}
-
-func (d inboxDevs) NodeAnnounced(_, capability string) bool {
-	return capability == nodeproto.TrackSpaces || !d.old && capability == nodeproto.TrackInbox
-}
-
-// captureService is the health hub's assistant on a registry with two space tracks that take captures (qa-plain,
-// qa-finance with finance by default) and one that does not, the node answering inbox writes into files.
-func captureService(t *testing.T) (*Service, *fakeHub, *captureMemStore, *[]map[string]any) {
-	t.Helper()
-	f := spaceHub()
-	f.devices[0].Online = true
-	st := &captureMemStore{infoCategoryMemStore: &infoCategoryMemStore{trackRegistryStore: &trackRegistryStore{memStore: &memStore{}, rows: []db.Track{
-		{Slug: "qa-plain", Kind: trackKindSpace, Title: "QA plain", Template: trackTemplateSpace, Revision: 1},
-		{Slug: "qa-finance", Kind: trackKindSpace, Title: "QA finance", Template: trackTemplateSpace, DefaultCategories: []string{categoryFinance}, Revision: 1},
-		{Slug: "qa-closed", Kind: trackKindSpace, Title: "QA closed", Template: trackTemplateSpace, ConfigOverride: []byte(`{"capture_target":false}`), Revision: 1},
-	}}}}
-	s := newServiceOn(t, f, st)
-	setSettings(t, s, func(v *Settings) { v.MachineID = "server" })
-	s.devs = inboxDevs{fleetDevs: newFleetDevs()}
-	var written []map[string]any
-	f.nodes = map[string]nodeAnswer{assistantwire.DeviceTrackInboxWrite: func(_ string, raw json.RawMessage) (any, error) {
-		var p map[string]any
-		_ = json.Unmarshal(raw, &p)
-		written = append(written, p)
-		return map[string]any{"path": "inbox/" + p["name"].(string)}, nil
-	}}
-	return s, f, st, &written
-}
 
 // The sorting prompt (#13502), byte for byte; the note goes as data in the user message, cut at 2,000 characters; an
 // answer keeps only known categories, a known track and action, a confidence between 0 and 1.

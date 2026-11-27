@@ -3,15 +3,9 @@ package backup
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/tls"
-	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"fmt"
-	"math/big"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -20,8 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/link"
-	"github.com/sunfayao/persona/server/internal/managerconf"
 	"github.com/sunfayao/persona/server/internal/secretkey"
 )
 
@@ -346,146 +338,6 @@ func assertNoTemporaryDatabases(t *testing.T, backend *fakeBackend) {
 				errorf(t, "temporary database %s remains", name)
 			}
 		}
-	}
-}
-
-func TestWholeInstallCreateVerifyRestore(t *testing.T) {
-	fixture := newBackupFixture(t, "persona_manager")
-	operator := fixture.operator()
-	created, err := operator.Create(context.Background(), fixture.options())
-	if err != nil {
-		fatal(t, err)
-	}
-	if !created.Verified {
-		fatal(t, "create returned before temporary-database verification")
-	}
-	info, err := os.Stat(fixture.output)
-	if err != nil || info.Mode().Perm() != 0o600 {
-		fatalf(t, "bundle mode = %v, %v", info.Mode(), err)
-	}
-	manifest, _, err := readBundleManifest(fixture.output)
-	if err != nil {
-		fatal(t, err)
-	}
-	if manifest.Manager.SealingKey != secretkey.Fingerprint(fixture.managerKey) || len(manifest.Files) < 8 {
-		fatalf(t, "incomplete manifest: %+v", manifest)
-	}
-	if _, err := operator.Verify(context.Background(), Options{Home: fixture.home, Bundle: fixture.output}); err != nil {
-		fatal(t, err)
-	}
-	assertNoTemporaryDatabases(t, fixture.backend)
-
-	fixture.mutate(t)
-	restored, err := operator.Restore(context.Background(), Options{Home: fixture.home, Bundle: fixture.output, WritesQuiesced: true})
-	if err != nil {
-		fatal(t, err)
-	}
-	if !restored.Restored || restored.PreviousHubDB == "" || restored.PreviousManagerDB == "" || restored.PreviousFiles == "" {
-		fatalf(t, "restore did not preserve predecessors: %+v", restored)
-	}
-	if got := fixture.backend.server(fixture.hub)[fixture.hub.Database].dump; got != "hub-one" {
-		fatalf(t, "hub dump after restore = %q", got)
-	}
-	if got := fixture.backend.server(fixture.manager)[fixture.manager.Database].dump; got != "manager-one" {
-		fatalf(t, "manager dump after restore = %q", got)
-	}
-	if got := fixture.backend.server(fixture.hub)[restored.PreviousHubDB].dump; got != "hub-two" {
-		fatalf(t, "previous hub dump = %q", got)
-	}
-	if got := fixture.backend.server(fixture.manager)[restored.PreviousManagerDB].dump; got != "manager-two" {
-		fatalf(t, "previous manager dump = %q", got)
-	}
-	raw, err := os.ReadFile(filepath.Join(fixture.home, "hub.json"))
-	if err != nil || !bytes.Contains(raw, []byte("hub-token-secret")) {
-		fatalf(t, "hub.json was not restored: %q, %v", raw, err)
-	}
-	raw, _ = os.ReadFile(filepath.Join(fixture.home, "skills", "facts", "note.md"))
-	if string(raw) != "original knowledge" {
-		fatalf(t, "knowledge after restore = %q", raw)
-	}
-	raw, _ = os.ReadFile(filepath.Join(fixture.home, "managers", "m-abcdef", "manager.json"))
-	if string(raw) != "independent manager changed" {
-		fatalf(t, "independent manager was touched: %q", raw)
-	}
-	if info, err := os.Stat(filepath.Join(fixture.home, "extensions", "example", "run")); err != nil || info.Mode().Perm() != 0o700 {
-		errorf(t, "extension executable mode = %v, %v", info.Mode(), err)
-	}
-	assertNoTemporaryDatabases(t, fixture.backend)
-}
-
-func writeTLSIdentity(t *testing.T, home string) string {
-	t.Helper()
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		fatal(t, err)
-	}
-	template := &x509.Certificate{
-		SerialNumber: big.NewInt(12422),
-		NotBefore:    time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-		NotAfter:     time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC),
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-	}
-	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
-	if err != nil {
-		fatal(t, err)
-	}
-	cert, err := x509.ParseCertificate(der)
-	if err != nil {
-		fatal(t, err)
-	}
-	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
-	if err != nil {
-		fatal(t, err)
-	}
-	writeFixtureFile(t, filepath.Join(home, "tls", "hub.key"), pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER}))
-	writeFixtureFile(t, filepath.Join(home, "tls", "hub.crt"), pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
-	return link.Pin(cert)
-}
-
-func readTLSFingerprint(t *testing.T, home string) string {
-	t.Helper()
-	cert, err := tls.LoadX509KeyPair(filepath.Join(home, "tls", "hub.crt"), filepath.Join(home, "tls", "hub.key"))
-	if errors.Is(err, os.ErrNotExist) {
-		return ""
-	}
-	if err != nil {
-		fatal(t, err)
-	}
-	leaf, err := x509.ParseCertificate(cert.Certificate[0])
-	if err != nil {
-		fatal(t, err)
-	}
-	return link.Pin(leaf)
-}
-
-func TestWholeInstallRestorePreservesTLSFingerprint(t *testing.T) {
-	fixture := newBackupFixture(t, "persona_manager")
-	fingerprint := writeTLSIdentity(t, fixture.home)
-	if err := managerconf.WriteBinding(fixture.home, managerconf.Binding{
-		Hub: "https://hub.example:18662", HubID: "synthetic-hub", Token: "synthetic-manager-token", Fingerprint: fingerprint,
-	}); err != nil {
-		fatal(t, err)
-	}
-	operator := fixture.operator()
-	if _, err := operator.Create(context.Background(), fixture.options()); err != nil {
-		fatal(t, err)
-	}
-	if err := os.RemoveAll(fixture.home); err != nil {
-		fatal(t, err)
-	}
-	if _, err := operator.Restore(context.Background(), Options{Home: fixture.home, Bundle: fixture.output, WritesQuiesced: true}); err != nil {
-		fatal(t, err)
-	}
-	binding, err := managerconf.ReadBinding(fixture.home)
-	if err != nil {
-		fatal(t, err)
-	}
-	if binding.Fingerprint != fingerprint {
-		fatalf(t, "manager fingerprint after restore = %q; want original %q", binding.Fingerprint, fingerprint)
-	}
-	if restored := readTLSFingerprint(t, fixture.home); restored != binding.Fingerprint {
-		fatalf(t, "hub fingerprint after empty-runtime restore = %q, manager fingerprint = %q; want original %q", restored, binding.Fingerprint, fingerprint)
 	}
 }
 

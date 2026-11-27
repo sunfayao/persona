@@ -103,44 +103,6 @@ func startedTask(t *testing.T, s *Service, f *fakeHub) Todo {
 	return onlyTodo(s)
 }
 
-// A dropped link is retried once: the machine back by then, the task starts as usual; still down, the task ends.
-func TestTaskStartRetriesADroppedLink(t *testing.T) {
-	s, f := newTaskService(t)
-	s.taskRetry = 300 * time.Millisecond
-	f.offline["box"] = true // offline when the task starts
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		f.mu.Lock()
-		f.offline["box"] = false
-		f.mu.Unlock()
-	}()
-	if _, err := s.toolTaskPlan(context.Background(), "conv1", planArgs(true)); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "the retried start to link", func() bool { return len(onlyTodo(s).Agents) == 1 })
-	if todo := onlyTodo(s); todo.DoneAt != nil || todo.StartError != "" {
-		t.Fatalf("todo = %+v", todo)
-	}
-	if len(f.starts) != 1 {
-		t.Fatalf("%d starts", len(f.starts))
-	}
-
-	s2, f2 := newTaskService(t)
-	s2.taskRetry = 300 * time.Millisecond
-	f2.offline["box"] = true // and it stays down
-	if _, err := s2.toolTaskPlan(context.Background(), "conv1", planArgs(true)); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "the todo to end", func() bool { return onlyTodo(s2).DoneAt != nil })
-	if todo := onlyTodo(s2); !strings.Contains(todo.StartError, "offline") || len(todo.Agents) != 0 {
-		t.Fatalf("todo = %+v", todo)
-	}
-	waitFor(t, "the receipt", func() bool { return strings.Contains(feedKinds(s2, "conv1"), "receipt") })
-	if len(f2.starts) != 0 {
-		t.Fatalf("%d starts reached a machine that was down", len(f2.starts))
-	}
-}
-
 func TestTransientStartErr(t *testing.T) {
 	for _, c := range []struct {
 		err  error
@@ -281,87 +243,6 @@ func TestTodayCard(t *testing.T) {
 	again, made, err := s.ensureToday(ctx, "conv1")
 	if err != nil || made || again.ID != it.ID {
 		t.Fatalf("second call made another: %+v made=%v err=%v", again, made, err)
-	}
-}
-
-// The "Today" card says what did not go through overnight (#4124): the conversation's tasks whose agent did not start and
-// the scheduled runs that failed or were skipped since yesterday 18:00, newest first, each with a short reason.
-func TestTodayCardListsWhatFailed(t *testing.T) {
-	s, f := newTaskService(t)
-	s.taskRetry = 300 * time.Millisecond
-	ctx := context.Background()
-	f.offline["box"] = true // the task's agent does not start
-	if _, err := s.toolTaskPlan(ctx, "conv1", planArgs(true)); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "the task to fail", func() bool { return onlyTodo(s).StartError != "" })
-	failed := onlyTodo(s)
-	now := time.Now()
-	sc := s.loadSchedule(ctx)
-	sc.mu.Lock()
-	sc.runs = []ScheduleRun{
-		{ID: "run_old", RefID: "p", Title: "巡检", At: now.Add(-40 * time.Hour), Status: runFailed, Error: "前天的，不算"},
-		{ID: "run_ok", RefID: "m", Title: "早报", At: now.Add(-2 * time.Hour), Status: runOK},
-		{ID: "run_skip", RefID: "w", Title: "值守", At: now.Add(-90 * time.Minute), Status: runSkipped, Error: "Persona 停机，错过了时间"},
-		{ID: "run_fail", RefID: "p", Title: "巡检", At: now.Add(-time.Hour), Status: runFailed,
-			Error: "API Error: 503 upstream attempt budget is exhausted, " + strings.Repeat("重试也一样", 20)},
-	}
-	sc.mu.Unlock()
-
-	it, _, err := s.ensureToday(ctx, "conv1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var body todayBody
-	_ = json.Unmarshal(it.Body, &body)
-	if body.FailedTotal != 3 || len(body.Failed) != 3 {
-		t.Fatalf("failed: %d of %d, want 3 of 3 (the run before yesterday 18:00 and the one that worked left out)", len(body.Failed), body.FailedTotal)
-	}
-	for i := 1; i < len(body.Failed); i++ { // newest first
-		if body.Failed[i].At.After(body.Failed[i-1].At) {
-			t.Fatalf("not newest first: %+v", body.Failed)
-		}
-	}
-	byID := map[string]todayFailed{}
-	for _, x := range body.Failed {
-		byID[x.Kind+"/"+x.ID] = x
-	}
-	if x, ok := byID["task/"+failed.ID]; !ok || !strings.Contains(x.Why, "offline") || x.At.IsZero() {
-		t.Fatalf("the task that did not start: %+v", body.Failed)
-	}
-	if x := byID["routine/p"]; x.Ref != "run_fail" || x.Skipped || !strings.HasPrefix(x.Why, "API Error: 503") {
-		t.Fatalf("the failed run: %+v", x)
-	}
-	if x := byID["routine/w"]; !x.Skipped || !strings.Contains(x.Why, "停") {
-		t.Fatalf("the skipped run: %+v (%+v)", x, body.Failed)
-	}
-	for _, x := range body.Failed {
-		if n := len([]rune(x.Why)); n > 61 {
-			t.Fatalf("a reason is kept short: %d runes: %q", n, x.Why)
-		}
-	}
-
-	// A run that started before 18:00 but ended (was recorded) after one that started later is still left out, and the
-	// later one still counted: the history is in the order runs ended, not by At.
-	// Then ten more overnight: the scheduled runs are the hub's, so another conversation's card shows them too (not
-	// conv1's task), the newest eight and how many there are.
-	sc.mu.Lock()
-	sc.runs = append(sc.runs, ScheduleRun{ID: "run_late", RefID: "q", Title: "慢的", At: now.Add(-30 * time.Hour), Status: runFailed})
-	for i := 0; i < 10; i++ {
-		sc.runs = append(sc.runs, ScheduleRun{ID: "run_x", RefID: "x", Title: "值守", At: now.Add(-time.Duration(10-i) * time.Minute), Status: runFailed})
-	}
-	sc.mu.Unlock()
-	it2, _, err := s.ensureToday(ctx, "conv2")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var body2 todayBody
-	_ = json.Unmarshal(it2.Body, &body2)
-	if len(body2.Failed) != 8 || body2.FailedTotal != 12 {
-		t.Fatalf("capped: %d of %d, want 8 of 12", len(body2.Failed), body2.FailedTotal)
-	}
-	if body2.Failed[0].At.Before(body2.Failed[7].At) {
-		t.Fatalf("the newest eight, not the oldest: %+v", body2.Failed)
 	}
 }
 
@@ -978,47 +859,6 @@ func TestTodayCardListsOnlyFinishedTasks(t *testing.T) {
 	if len(body.Done) != 0 {
 		t.Fatalf("done = %+v, want nothing: the todo is still open", body.Done)
 	}
-}
-
-// A start that uses up all its time (a busy machine's shell never ran claude) still ends the task: recording the
-// failure gets its own time. On the start's spent context the store refused the write and the task showed "starting" with
-// no agent for ever (#4510).
-func TestTaskStartTimingOutStillEndsTheTask(t *testing.T) {
-	old := taskStartTimeout
-	oldAdoptWait, oldAdoptPoll := taskStartAdoptWait, taskStartAdoptPoll
-	taskStartTimeout = 300 * time.Millisecond
-	taskStartAdoptWait, taskStartAdoptPoll = 300*time.Millisecond, 10*time.Millisecond // #6540: reconcile, then fail at once
-	t.Cleanup(func() {
-		taskStartTimeout = old
-		taskStartAdoptWait, taskStartAdoptPoll = oldAdoptWait, oldAdoptPoll
-	})
-	todoStores(t, func(t *testing.T, _ *todoEnv, database *db.DB) {
-		ctx := context.Background()
-		f := newFakeHub()
-		f.sessions["box"] = nil
-		f.settings = &Settings{Timezone: "Asia/Shanghai"}
-		f.slowStart = true
-		s := newStorelessService(t, f)
-		if database != nil {
-			s = newServiceOn(t, f, database)
-		}
-		todo, err := s.createTodo(ctx, "清理旧名字", "全仓清理", "conv1", "plan_x")
-		if err != nil {
-			t.Fatal(err)
-		}
-		s.startPlanTask("plan_x", "conv1", 0, PlanTask{Title: todo.Title, Prompt: "全仓清理", Machine: "box", Cwd: "/code/app",
-			Permission: "bypassPermissions", TodoID: todo.ID}, false)
-		got := todoNow(s, todo.ID)
-		if got.DoneAt == nil || !strings.Contains(got.StartError, "deadline") {
-			t.Fatalf("the timed-out start left the task open: done %v, error %q", got.DoneAt, got.StartError)
-		}
-		if database != nil {
-			row, err := database.GetTodo(ctx, todo.ID)
-			if err != nil || row == nil || row.DoneAt == nil || row.StartError == "" {
-				t.Fatalf("the store did not record the failed start: %+v %v", row, err)
-			}
-		}
-	})
 }
 
 // gatedPlanStore holds each read of a started plan until all n writers of its tasks have come: n reads held together

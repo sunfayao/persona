@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"runtime"
 	"slices"
 	"strconv"
@@ -68,15 +67,4 @@ func portOf(t *testing.T, u string) int {
 		t.Fatal(err)
 	}
 	return p
-}
-
-// startProc runs name args until the test ends (or it is stopped); its pid.
-func startProc(t *testing.T, name string, args ...string) *exec.Cmd {
-	t.Helper()
-	cmd := exec.Command(name, args...)
-	if err := cmd.Start(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait() })
-	return cmd
 }

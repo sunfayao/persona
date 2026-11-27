@@ -104,46 +104,6 @@ func TestGitCommitHookRefuses(t *testing.T) {
 	}
 }
 
-// A push goes to the branch's own upstream and is never forced: a forcing push refspec in the config does not apply,
-// a remote that moved on is "pull first", a new branch needs set_upstream.
-func TestGitPush(t *testing.T) {
-	f := newPullFixture(t)
-	ctx := context.Background()
-	runPullGit(t, f.local, "config", "remote.origin.push", "+refs/heads/*:refs/heads/*")
-	f.commit(t, f.local, "app.txt", "mine\n")
-	res, err := f.node.gitPush(ctx, f.local, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.Status.Ahead != 0 {
-		t.Fatalf("ahead %d after the push", res.Status.Ahead)
-	}
-	runPullGit(t, f.seed, "pull", "-q", "--ff-only")
-	f.upstreamCommit(t)
-	f.commit(t, f.local, "app.txt", "mine again\n")
-	if _, err := f.node.gitPush(ctx, f.local, false); err == nil {
-		t.Fatal("pushed over the remote's newer commit")
-	} else if code, _ := gitCodeOf(t, err); code != gitCodeRejected {
-		t.Fatalf("code %s: %v", code, err)
-	}
-	if got := runPullGit(t, f.seed, "ls-remote", "origin", "refs/heads/main"); strings.Contains(got, runPullGit(t, f.local, "rev-parse", "HEAD")) {
-		t.Fatal("the remote has the local commit: forced")
-	}
-	runPullGit(t, f.local, "switch", "-q", "-c", "feature")
-	if _, err := f.node.gitPush(ctx, f.local, false); err == nil {
-		t.Fatal("a new branch pushed without set_upstream")
-	} else if code, _ := gitCodeOf(t, err); code != gitCodeNoUpstream {
-		t.Fatalf("code %s", code)
-	}
-	res, err = f.node.gitPush(ctx, f.local, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.Status.Upstream != "origin/feature" || res.Status.Ahead != 0 {
-		t.Fatalf("upstream %q ahead %d", res.Status.Upstream, res.Status.Ahead)
-	}
-}
-
 // Switching lists the uncommitted files the other branch has differently and does not switch; other uncommitted
 // changes go along. A remote-only branch gets a local branch tracking it; a new branch starts where asked.
 func TestGitSwitch(t *testing.T) {

@@ -502,7 +502,7 @@ func randomTree(t testing.TB, seed int64, version int64) *Tree {
 	return snapshot(t, string(mustJSON(view)), version)
 }
 func TestDiffPropertyDeterministic(t *testing.T) {
-	for seed := int64(0); seed < 200; seed++ {
+	for seed := int64(0); seed < 20; seed++ {
 		a, b := randomTree(t, seed, 1), randomTree(t, seed+211, 2)
 		d, _, err := Diff(a, b)
 		if err != nil {

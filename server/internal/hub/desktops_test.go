@@ -6,23 +6,6 @@ import (
 	"testing"
 )
 
-// nextOfType reads c's queued events until one of type typ (or fails when none is queued).
-func nextOfType(t *testing.T, c *client, typ string) map[string]any {
-	t.Helper()
-	for {
-		select {
-		case b := <-c.out:
-			var m map[string]any
-			if json.Unmarshal(b, &m) == nil && m["type"] == typ {
-				return m
-			}
-		default:
-			t.Fatalf("no %q event queued", typ)
-			return nil
-		}
-	}
-}
-
 // Desktop alert suppression ends when the desktop disconnects.
 func TestRegisterDesktopPresenceEndsOnDisconnect(t *testing.T) {
 	h := newTestHub(t)

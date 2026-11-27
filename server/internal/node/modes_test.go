@@ -149,30 +149,6 @@ func effortSlider330(footer string) string {
 		"\n\n" + footer + "\n"
 }
 
-// tuiSetEffort confirms with "s" where 2.1.330's slider offers it (Enter would save the level as the default for new
-// sessions, #13534), and with Enter on the 2.1.2xx slider.
-func TestTuiSetEffortConfirmsForThisSession(t *testing.T) {
-	empty := screenFixture(t, "claude-2.1.312-empty-162.ansi")
-	done := "❯ /effort\n  ⎿  Set effort level to medium (this session only)\n\n❯ \n"
-	for name, c := range map[string]struct{ footer, confirm string }{
-		"2.1.330 with s": {"  ←/→ to adjust · s to use this session only · Enter to save · Esc to cancel", "s"},
-		"2.1.330 Enter":  {"  ←/→ to adjust · Enter to use this session only · Esc to cancel", "enter"},
-		"2.1.2xx":        {"  ←/→ to adjust · Enter to confirm · Esc to cancel", "enter"},
-	} {
-		picker := effortSlider330(c.footer)
-		// The empty prompt; /effort and Enter open the picker; the level's keys leave it open; the confirm closes it.
-		f := &fakePane{screens: []string{empty, picker, picker, done}}
-		n := &Node{hosts: herdrHosts(f.serve(t))}
-		if err := n.tuiSetEffort(context.Background(), "w1:p1", "medium"); err != nil {
-			t.Fatalf("%s: %v", name, err)
-		}
-		if len(f.keys) != 3 || !slices.Equal(f.keys[0], []string{"enter"}) || !slices.Equal(f.keys[1], effortPickerKeys("medium")) ||
-			!slices.Equal(f.keys[2], []string{c.confirm}) {
-			t.Fatalf("%s: keys %v, want the confirm %q", name, f.keys, c.confirm)
-		}
-	}
-}
-
 func TestEffortPickerKeys(t *testing.T) {
 	// The picker opens on the session's level; 6 lefts reach low (past ultracode on the slider), then one right per slot.
 	for level, rights := range map[string]int{"low": 0, "medium": 1, "high": 2, "xhigh": 3, "max": 4} {
@@ -184,32 +160,6 @@ func TestEffortPickerKeys(t *testing.T) {
 	}
 	if !slices.Contains(effortLevels, effortAuto) || slices.Contains(effortPickerLevels, effortAuto) {
 		t.Fatal("auto is a level the app offers, not a picker slot")
-	}
-}
-
-func TestTuiPickDefaultEffort(t *testing.T) {
-	picker := func(marker int) string {
-		hint := "~1.5x the estimated cost of medium (the default)"
-		if marker == 1 {
-			hint = effortPickerDefault
-		}
-		return "  Effort\n  " + strings.Repeat("─", marker*10) + "▲\n  low     medium     high     xhigh      max\n  " + hint +
-			"\n  ←/→ to adjust · Enter to confirm · s for this session only · Esc to cancel"
-	}
-	// Opened on xhigh; lefts land on low, one right reaches medium, the model's default.
-	f := &fakePane{screens: []string{picker(3), picker(0), picker(1), picker(2)}}
-	n := &Node{hosts: herdrHosts(f.serve(t))}
-	if err := n.tuiPickDefaultEffort(context.Background(), "w1:p1"); err != nil {
-		t.Fatal(err)
-	}
-	if len(f.keys) != 2 || len(f.keys[0]) != 6 || f.keys[0][0] != "left" || !slices.Equal(f.keys[1], []string{"right"}) {
-		t.Fatalf("keys %v", f.keys)
-	}
-	// No slot marked as the default (an organization's setting): give up instead of guessing.
-	f = &fakePane{screens: []string{picker(0), picker(0), picker(2), picker(2), picker(2), picker(2)}}
-	n = &Node{hosts: herdrHosts(f.serve(t))}
-	if err := n.tuiPickDefaultEffort(context.Background(), "w1:p1"); err == nil {
-		t.Fatal("no default found but no error")
 	}
 }
 

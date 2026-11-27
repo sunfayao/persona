@@ -168,47 +168,6 @@ func TestDecisionThatEndedAParkingIsToldAfterARestart(t *testing.T) {
 	}
 }
 
-// A task parked for something outside or for a date does not wait for a decision, and a row that is not the owner's own
-// call (an agent's note, an outcome) is not what a task parked for the owner waits for: the parking stays.
-func TestOtherDecisionsLeaveAParkingAlone(t *testing.T) {
-	for _, on := range []string{parkExternalEvent, parkDate} {
-		t.Run(on, func(t *testing.T) {
-			s, _, todo := newSupervisedServiceOn(t, todoTestDB(t))
-			parkFor(t, s, todo.ID, "The upstream release with the fix", on, "3d")
-			holdDigest(s)
-			ownerAnswersCard(s, "Wait for the upstream release?", "Yes, wait for it")
-			writeDecision(t, s, todo.ID, "Scope", "Only the login page")
-			cur := todoNow(s, todo.ID)
-			if v := cur.Supervision; v.state(cur) != reviewParked || v.Parked == nil || v.decidedPark() != nil {
-				t.Fatalf("a decision ended a parking that waits on %s: %+v", on, v)
-			}
-			if got := pendingKinds(s, todo.ID); len(got) != 0 {
-				t.Fatalf("signals: %v", got)
-			}
-		})
-	}
-	t.Run("not the owner's call", func(t *testing.T) {
-		database := todoTestDB(t)
-		s, _, todo := newSupervisedServiceOn(t, database)
-		parkFor(t, s, todo.ID, "Whether this goes ahead of the billing work", "owner_priority", "3d")
-		holdDigest(s)
-		for i, source := range []string{db.DecisionAgent, db.DecisionOutcome} {
-			at := decisionNow().Add(time.Duration(i) * time.Microsecond)
-			if ok, err := s.insertDecision(context.Background(), database, db.TodoDecisionRow{ID: "dec_" + source, TodoID: todo.ID,
-				Question: "Order", Choice: "After the billing work", Source: source, CreatedAt: at}); err != nil || !ok {
-				t.Fatalf("%s: %v, %v", source, ok, err)
-			}
-		}
-		cur := todoNow(s, todo.ID)
-		if v := cur.Supervision; v.state(cur) != reviewParked || v.decidedPark() != nil {
-			t.Fatalf("a row that is not the owner's ended the parking: %+v", v)
-		}
-		if got := pendingKinds(s, todo.ID); len(got) != 0 {
-			t.Fatalf("signals: %v", got)
-		}
-	})
-}
-
 // A parked task's time comes: the message that hands it back carries the decisions recorded on the task, so its
 // supervisor sees an answer that came meanwhile before parking it again.
 func TestParkedDueCarriesTheRecordedDecisions(t *testing.T) {

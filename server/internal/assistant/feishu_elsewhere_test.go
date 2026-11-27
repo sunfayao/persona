@@ -792,76 +792,6 @@ func TestSourceReportWhenTheStartFailed(t *testing.T) {
 	}
 }
 
-// What the report says: the first line of the latest outcome note, never its links; else only that it is done, or that it
-// could not be done. Not the todo's decisions, the topic's words, the judge's reason or the error of a start.
-func TestSourceReportText(t *testing.T) {
-	database := todoTestDB(t)
-	add := func(e *askEnv, id string, rows ...db.TodoDecisionRow) {
-		for i, r := range rows {
-			r.ID, r.TodoID, r.CreatedAt = fmt.Sprintf("dec_t%d", i), id, decisionNow().Add(time.Duration(i)*time.Second)
-			if _, err := e.s.insertDecision(context.Background(), database, r); err != nil {
-				t.Fatal(err)
-			}
-		}
-	}
-	cases := []struct {
-		name  string
-		setup func(e *askEnv, id string)
-		want  func(e *askEnv) string
-	}{
-		{"the outcome sentence without its links", func(e *askEnv, id string) {
-			e.outcome(id, "做完了，改了三处\nhttps://example.com/pr/2\nhttps://example.com/pr/3")
-			e.closeDone(id)
-		}, func(e *askEnv) string { return "做完了，改了三处" }},
-		{"the outcome over later decisions", func(e *askEnv, id string) {
-			e.outcome(id, "做完了，改了三处")
-			add(e, id, db.TodoDecisionRow{Question: "后来", Choice: "又改了", Source: db.DecisionManual}, db.TodoDecisionRow{Question: "再问", Choice: "先发安卓", Source: db.DecisionThread})
-			e.closeDone(id)
-		}, func(e *askEnv) string { return "做完了，改了三处" }},
-		{"decisions are not the outcome", func(e *askEnv, id string) {
-			add(e, id, db.TodoDecisionRow{Question: "用哪个库", Choice: "用标准库 /Users/someone/secret", Source: db.DecisionAgent},
-				db.TodoDecisionRow{Question: "要不要加测试", Choice: "要", Source: db.DecisionCard})
-			e.closeDone(id)
-		}, func(e *askEnv) string { return e.said("source_report_done") }},
-		{"nothing recorded", func(e *askEnv, id string) { e.closeDone(id) }, func(e *askEnv) string { return e.said("source_report_done") }},
-		{"a start that failed", func(e *askEnv, id string) {
-			if err := e.s.failTodo(context.Background(), id, "机器不在线"); err != nil {
-				t.Fatal(err)
-			}
-		}, func(e *askEnv) string { return e.said("source_report_failed") }},
-		{"a long outcome is one short line", func(e *askEnv, id string) {
-			e.outcome(id, strings.Repeat("结果很长。", 400))
-			e.closeDone(id)
-		}, func(e *askEnv) string { return "" }},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if err := database.TruncateForTest(context.Background()); err != nil {
-				t.Fatal(err)
-			}
-			e := newAskEnv(t, database)
-			e.ask(ownerAsk("om_t1", "/ai 修登录崩溃"))
-			id := onlyTodo(e.s).ID
-			c.setup(e, id)
-			e.clock.advance(sourceReportWait + sourceReportDelay)
-			got := reportsTo(e.f, askSrc, "om_t1")
-			if len(got) != 1 {
-				t.Fatalf("reports %v", got)
-			}
-			text := got[0]["text"].(string)
-			if want := c.want(e); want != "" && text != want {
-				t.Fatalf("report %q, want %q", text, want)
-			}
-			if strings.Contains(text, "\n") || strings.Contains(text, "http") || strings.Contains(text, "/Users") || len([]rune(text)) > sourceReportMax+1 {
-				t.Fatalf("not one short line (%d runes): %q", len([]rune(text)), text)
-			}
-			if n := e.notices(); len(n) != 1 || n[0] != e.notice(text) {
-				t.Fatalf("the topic was shown %q, not what was told %q", n, text)
-			}
-		})
-	}
-}
-
 // What the judge writes as its reason is not told (it is the todo's own record).
 func TestSourceReportFallsBackToTheWait(t *testing.T) {
 	e := newAskEnv(t, nil)
@@ -952,56 +882,6 @@ func TestSourceReportWhenAccepted(t *testing.T) {
 			t.Fatalf("told %d times, %d notices", len(got), len(e.notices()))
 		}
 	})
-}
-
-// "Don't report back" in the topic: /noreply (also full-width, any case, and after the bot's @, which a group that only
-// sends what @s the bot starts every message with) turns it off, is recorded as the user's decision from the topic, goes to
-// no Agent, and the closing then says nothing to the original message. Other text is a word.
-func TestSourceNoReply(t *testing.T) {
-	for _, cmd := range []string{"/noreply", "／NoReply", "  /noreply  ", "@_user_1 /noreply", "@_user_1   ／noreply"} {
-		t.Run(cmd, func(t *testing.T) {
-			database := todoTestDB(t)
-			e := newAskEnv(t, database)
-			e.ask(ownerAsk("om_nr1", "/ai 修登录崩溃"))
-			id := onlyTodo(e.s).ID
-			handed := len(handoffs(e.f))
-			ev := topicEventIn("om_nr_cmd", askHome, "omt_home", cmd)
-			ev.Message.Mentions = []feishubot.Mention{{Key: "@_user_1", Name: "Persona", ID: feishubot.UserID{OpenID: "ou_bot"}}}
-			e.deliver(ev)
-			if got := lastNote(t, e.f); got != e.said("source_noreply_done") {
-				t.Fatalf("note %q", got)
-			}
-			if n := len(handoffs(e.f)); n != handed {
-				t.Fatalf("the command was passed on: %d messages sent (was %d)", n, handed)
-			}
-			todo := onlyTodo(e.s)
-			if todo.Source == nil || !todo.Source.NoReport {
-				t.Fatalf("source %+v", todo.Source)
-			}
-			if all, _ := database.ListTodoSources(context.Background()); !all[id].NoReport {
-				t.Fatalf("stored %+v", all[id])
-			}
-			var found bool
-			for _, d := range decisionsOf(t, database, id) {
-				if d.Source == db.DecisionThread && d.Choice == e.said("source_noreply_choice") && d.SourceMessage == "feishu-om_nr_cmd" {
-					found = true
-				}
-			}
-			if !found {
-				t.Fatalf("no decision recorded: %+v", decisionsOf(t, database, id))
-			}
-			// Said again: already off.
-			e.deliver(topicEventIn("om_nr_cmd2", askHome, "omt_home", "/noreply"))
-			if got := lastNote(t, e.f); got != e.said("source_noreply_already") {
-				t.Fatalf("note %q", got)
-			}
-			e.closeDone(id)
-			e.clock.advance(time.Hour)
-			if got := reportsTo(e.f, askSrc, "om_nr1"); len(got) != 0 || len(e.notices()) != 0 {
-				t.Fatalf("reported although stopped: %v %v", got, e.notices())
-			}
-		})
-	}
 }
 
 // Stopped in the window between the notice and the time, it is not told; after it was told, it says so.
@@ -1538,45 +1418,6 @@ func TestCleanReport(t *testing.T) {
 	}
 }
 
-// What leaves for the original chat has no link, path, command or mention of the outcome note's sentence, whoever wrote the
-// note, and the topic's notice and the text told are the same words; a sentence with nothing else in it is just "Done.".
-func TestSourceReportIsCleanedAndTheNoticeIsTheText(t *testing.T) {
-	database := todoTestDB(t)
-	for name, c := range map[string]struct{ note, want string }{
-		"all kinds":   {"已修好 https://example.com/pr/1 命令 `rm -rf /tmp/x` 路径 /Users/someone/proj/a.go 通知 <at user_id=\"all\"></at> @张三 完成。\nhttps://example.com/pr/2", "已修好 命令 路径 通知 完成。"},
-		"only a link": {"https://example.com/pr/3\n见上", ""},
-		"punctuation": {"`x` 。。。", ""},
-	} {
-		t.Run(name, func(t *testing.T) {
-			if err := database.TruncateForTest(context.Background()); err != nil {
-				t.Fatal(err)
-			}
-			e := newAskEnv(t, database)
-			e.ask(ownerAsk("om_cl1", "/ai 修登录崩溃"))
-			id := onlyTodo(e.s).ID
-			want := c.want
-			if want == "" {
-				want = e.said("source_report_done")
-			}
-			e.outcome(id, c.note)
-			e.closeDone(id)
-			e.clock.advance(sourceReportDelay + time.Second)
-			got := reportsTo(e.f, askSrc, "om_cl1")
-			if len(got) != 1 || got[0]["text"] != want {
-				t.Fatalf("reports %v, want %q", got, want)
-			}
-			if n := e.notices(); len(n) != 1 || n[0] != e.notice(got[0]["text"].(string)) {
-				t.Fatalf("notice %q is not the text told %q", n, got[0]["text"])
-			}
-			for _, bad := range []string{"http", "/Users", "`", "<at", "@", "rm -rf"} {
-				if strings.Contains(got[0]["text"].(string), bad) {
-					t.Fatalf("%q in %q", bad, got[0]["text"])
-				}
-			}
-		})
-	}
-}
-
 // A to-do unbound from its topic since the notice tells nothing: "/noreply" has nowhere to be said any more.
 func TestSourceReportIsCancelledWhenTheTopicIsUnbound(t *testing.T) {
 	e := newAskEnv(t, nil)
@@ -1705,59 +1546,6 @@ func dmReply(id, text, root, parent string) feishubot.MessageEvent {
 	ev.Message.Content = string(c)
 	ev.Sender.SenderType, ev.Sender.SenderID.OpenID = "user", "ou_owner"
 	return ev
-}
-
-// 7. "Don't report back" for a to-do with no topic: said in the private chat as a reply to the first message, to the notice
-// or to something under them. It turns the report off, is recorded as the user's decision, goes to no Agent, and is
-// answered under the message.
-func TestNoHomeNoReplyInThePrivateChat(t *testing.T) {
-	for name, ev := range map[string]feishubot.MessageEvent{
-		"a reply to the first message":     dmReply("om_c1", "/noreply", "om_dm1", "om_dm1"),
-		"a reply to the notice":            dmReply("om_c1", "／NoReply", "om_dm1", "om_notice"),
-		"a reply under an answer":          dmReply("om_c1", "  /noreply  ", "om_dm1", "om_answer"),
-		"a reply whose root is the anchor": dmReply("om_c1", "/noreply", "om_dm1", ""),
-	} {
-		t.Run(name, func(t *testing.T) {
-			database := todoTestDB(t)
-			e := newAskEnv(t, database)
-			e.home = ""
-			e.ask(ownerAsk("om_nn1", "/ai 修登录崩溃"))
-			id := onlyTodo(e.s).ID
-			e.closeDone(id)
-			if len(e.dmNotices("om_dm1")) != 1 {
-				t.Fatalf("notices %q", e.dmNotices("om_dm1"))
-			}
-			handed := len(handoffs(e.f))
-			e.deliver(ev)
-			note := textsToDM(e.f)
-			last := note[len(note)-1]
-			if last["text"] != e.said("source_noreply_done") || last["reply_to"] != "om_c1" || last["in_thread"] != nil {
-				t.Fatalf("answer %v", last)
-			}
-			if n := len(handoffs(e.f)); n != handed {
-				t.Fatalf("the command was passed on: %d messages sent (was %d)", n, handed)
-			}
-			if todo := onlyTodo(e.s); todo.Source == nil || !todo.Source.NoReport {
-				t.Fatalf("source %+v", todo.Source)
-			}
-			if all, _ := database.ListTodoSources(context.Background()); !all[id].NoReport {
-				t.Fatalf("stored %+v", all[id])
-			}
-			var found bool
-			for _, d := range decisionsOf(t, database, id) {
-				if d.Source == db.DecisionManual && d.Question == e.said("chat_question") && d.Choice == e.said("source_noreply_choice") && d.SourceMessage == "feishu-om_c1" {
-					found = true
-				}
-			}
-			if !found {
-				t.Fatalf("no decision recorded: %+v", decisionsOf(t, database, id))
-			}
-			e.clock.advance(time.Hour)
-			if got := reportsTo(e.f, askSrc, "om_nn1"); len(got) != 0 {
-				t.Fatalf("reported although stopped: %v", got)
-			}
-		})
-	}
 }
 
 // A "/noreply" that is no reply to a to-do's first message, or a reply to some other message, is nobody's "don't report

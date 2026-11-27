@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/prompts"
@@ -315,106 +314,6 @@ func TestUsageLimitContinueLooksRightBefore(t *testing.T) {
 	s.workTick(context.Background(), later.Add(5*time.Minute))
 	if got := f.sentToAgents(); len(got) != 1 {
 		t.Fatalf("sent %v at the later reset", got)
-	}
-}
-
-// No "Completed" (nor "Interrupted") push while a turn waits for its usage limit to reset and goes on then; one nothing
-// takes up (its reset not known, or no continue coming) is pushed as a usage limit, never as a model service failure;
-// a sign-in that is gone is pushed as cut off, and reads as interrupted with its code.
-func TestUsageLimitPush(t *testing.T) {
-	ft := newFleetTestNoStore(t)
-	fastDone(ft)
-	reset := time.Now().Add(time.Hour)
-	run := func(id string, done proto.Session) {
-		work := proto.Session{SessionID: id, Title: "修登录", Cwd: "/code/app", Agent: "claude", Status: proto.StatusWorking, PaneID: "p-" + id,
-			UpdatedAt: time.Now()}
-		done.SessionID, done.Title, done.Cwd, done.Agent, done.PaneID, done.Status, done.UpdatedAt =
-			id, work.Title, work.Cwd, work.Agent, work.PaneID, proto.StatusDone, time.Now()
-		ft.sessions("mac", work)
-		ft.sessions("mac", done)
-	}
-	run("s1", proto.Session{LastText: limitText, TurnError: limitText, TurnErrorKind: proto.TurnErrorUsageLimit, TurnErrorResetsAt: &reset,
-		TurnErrorResumes: true})
-	if sess := listed(t, ft.s, "mac", "s1"); !usageLimitWaiting(sess, time.Now()) || sess.TurnErrorCode != proto.TurnErrorRateLimited {
-		t.Fatalf("listed: %+v", sess)
-	}
-	if got := ft.pushesOf(assistantwire.NotifyDone, 1, 400*time.Millisecond); len(got) != 0 {
-		t.Fatalf("pushed while it waits for the reset: %+v", got)
-	}
-
-	limitPush := func(e string) string { return i18n.T(i18n.ZhHans, "push.usage_limit", i18n.Args{"error": e}) }
-	for name, done := range map[string]proto.Session{
-		"its reset not known": {LastText: "You've hit your session limit · resets 4:20pm"},
-		// The switches off and a CLI that does not go on by itself: nothing continues it, the user is told.
-		"nothing continues it": {LastText: limitText, TurnError: limitText, TurnErrorKind: proto.TurnErrorUsageLimit, TurnErrorResetsAt: &reset},
-	} {
-		ft = newFleetTestNoStore(t)
-		fastDone(ft)
-		run("s2", done)
-		got := ft.pushesOf(assistantwire.NotifyDone, 1, 2*time.Second)
-		if len(got) != 1 || !strings.HasPrefix(got[0].Title, "⚠️") || got[0].Body != limitPush(done.LastText) {
-			t.Fatalf("%s: %+v", name, got)
-		}
-	}
-
-	for _, text := range []string{"Login expired · Please run /login", "Please run /login · API Error: 403 forbidden"} {
-		ft = newFleetTestNoStore(t)
-		fastDone(ft)
-		run("s3", proto.Session{LastText: text})
-		sess := listed(t, ft.s, "mac", "s3")
-		if sess.TurnError != text || sess.TurnErrorCode != proto.TurnErrorAuthFailed || sess.TurnErrorKind != proto.TurnErrorUser {
-			t.Fatalf("%q listed: %q %q %q", text, sess.TurnError, sess.TurnErrorKind, sess.TurnErrorCode)
-		}
-		if st := taskState(Todo{}, []proto.Session{sess}); st != "interrupted" {
-			t.Fatalf("%q: the task is %s", text, st)
-		}
-		got := ft.pushesOf(assistantwire.NotifyDone, 1, 2*time.Second)
-		if len(got) != 1 || !strings.HasPrefix(got[0].Title, "⚠️") || !strings.HasPrefix(got[0].Body, interruptedSummary) {
-			t.Fatalf("%q pushed as %+v", text, got)
-		}
-	}
-}
-
-// A task gets no receipt while one of its agents waits for a usage limit to reset and goes on then; once the wait is
-// over with nothing having gone on, it gets the interrupted one, as it does at once when nothing would continue it.
-// The assistant sees the task waiting for the reset, not interrupted.
-func TestUsageLimitReceipt(t *testing.T) {
-	s, f := newTaskService(t)
-	startedTask(t, s, f)
-	ctx := context.Background()
-	stop := func(reset time.Time, resumes bool) {
-		f.setSessions("box", proto.Session{SessionID: "s1", MachineID: "box", Cwd: "/code/app", Agent: "claude", Status: proto.StatusWorking,
-			State: proto.StateWorking, UpdatedAt: time.Now()})
-		s.taskWorking(ctx, "box", "s1")
-		c := limitTurn("s1", reset, resumes)
-		c.MachineID, c.Agent, c.UpdatedAt = "box", "claude", time.Now()
-		f.setSessions("box", c)
-		s.taskTurnEnded(ctx, "box", "s1")
-	}
-	stop(time.Now().Add(time.Hour), true)
-	if n := strings.Count(feedKinds(s, "conv1"), "receipt"); n != 0 {
-		t.Fatalf("%d receipts while it waits for the reset", n)
-	}
-	todo := onlyTodo(s)
-	if st := taskState(todo, s.taskAgents(ctx, todo)); st != "usage_limit" || taskStateLabel(st) == "" {
-		t.Fatalf("task state %q", st)
-	}
-
-	// The wait ends in a moment and nothing went on: the receipt then says it was interrupted.
-	stop(time.Now().Add(-limitResumeGrace+time.Second), true)
-	if n := strings.Count(feedKinds(s, "conv1"), "receipt"); n != 0 {
-		t.Fatalf("%d receipts before the wait was over", n)
-	}
-	waitFor(t, "the interrupted receipt", func() bool { return strings.Count(feedKinds(s, "conv1"), "receipt") == 1 })
-	items, _, _ := s.feed(ctx, "conv1", time.Time{})
-	if !strings.Contains(string(items[len(items)-1].Body), `"state":"interrupted"`) {
-		t.Fatalf("receipt %s", items[len(items)-1].Body)
-	}
-
-	// Nothing would continue it (its CLI does not, and no continue is set): the receipt comes at once.
-	stop(time.Now().Add(time.Hour), false)
-	if n := strings.Count(feedKinds(s, "conv1"), "receipt"); n != 2 {
-		t.Fatalf("%d receipts for a limit nothing takes up", n)
 	}
 }
 

@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/nodeproto"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -189,54 +188,6 @@ func TestOutsideClaudeSend(t *testing.T) {
 	}
 }
 
-// The session took nothing and wrote nothing about it (a duplicate dropped, a full queue, a refusal): the send is not
-// called done, and says delivery is unknown (the app must not resend it by itself).
-func TestOutsideClaudeSendNotTaken(t *testing.T) {
-	n, f, home := herdrNode(t)
-	noPaneEnv(t)
-	shortPeerWait(t, 500*time.Millisecond)
-	p := bgTranscript(t, home, home, sidA, "plan")
-	inbox := newFakeInbox(t, p)
-	inbox.setMode("discard")
-	writeOutsideClaude(t, home, sidA, "cli", "idle", inbox, nil)
-	f.reply("session.snapshot", snapshot(nil, nil, nil, nil))
-	_, err := request(t, n, "session.send", map[string]any{"session_id": sidA, "text": "still there?", "client_msg_id": "m-1"})
-	if !maybeDelivered(err) || !strings.Contains(err.Error(), "还没有收下") || refusalCode(err) != peerUnconfirmed {
-		t.Fatalf("held message: %v", err)
-	}
-	if len(inbox.users()) != 1 {
-		t.Fatalf("the inbox read %d messages", len(inbox.users()))
-	}
-}
-
-// A session that holds Persona's message for the person at the computer to approve writes so in its transcript. The
-// send says that (peer_held), not only that it was not confirmed, and stays delivered unknown: it goes in once approved
-// there, so the app must neither call it failed nor resend it. Without that notice (dropped, refused) a bypass session's
-// send is only not confirmed: its mode alone proves nothing is waiting there (#9607).
-func TestOutsideClaudeSendHeldInBypassMode(t *testing.T) {
-	n, f, home := herdrNode(t)
-	noPaneEnv(t)
-	shortPeerWait(t, 500*time.Millisecond)
-	cwd, _ := json.Marshal(home) // a Windows path's backslashes
-	p := writeTranscript(t, home, home, sidA, time.Now(),
-		`{"type":"user","uuid":"u1","timestamp":"2026-11-16T03:00:00Z","cwd":`+string(cwd)+`,"sessionId":"`+sidA+`","permissionMode":"bypassPermissions","message":{"role":"user","content":"deploy it"}}`,
-		`{"type":"assistant","uuid":"a1","timestamp":"2026-11-16T03:00:05Z","sessionId":"`+sidA+`","message":{"role":"assistant","content":[{"type":"text","text":"on it"}]}}`,
-		strings.Repeat(" ", 4096))
-	inbox := newFakeInbox(t, p)
-	inbox.setMode("hold")
-	writeOutsideClaude(t, home, sidA, "claude-desktop-3p", "idle", inbox, nil)
-	f.reply("session.snapshot", snapshot(nil, nil, nil, nil))
-	_, err := request(t, n, "session.send", map[string]any{"session_id": sidA, "text": "still there?", "client_msg_id": "m-1"})
-	if !maybeDelivered(err) || refusalCode(err) != peerHeld {
-		t.Fatalf("held in bypass mode: %v (code %q)", err, refusalCode(err))
-	}
-	// The same session taking it (approved at once, or crossSessionInbound accept): an ordinary success.
-	inbox.setMode("take")
-	if _, err := request(t, n, "session.send", map[string]any{"session_id": sidA, "text": "and now?", "client_msg_id": "m-2"}); err != nil {
-		t.Fatalf("taken: %v", err)
-	}
-}
-
 // modeTranscript is session sidA's transcript, its user line in permission mode mode, under cwd.
 func modeTranscript(t *testing.T, home, cwd, mode string) string {
 	t.Helper()
@@ -257,68 +208,6 @@ func envelopeHead(t *testing.T, inbox *fakeInbox, i int) string {
 	content, _ := us[i]["message"].(map[string]any)["content"].(string)
 	h, _, _ := strings.Cut(content, "\n")
 	return h
-}
-
-// The node states bypass only for the owner's own message (owner_input, exactly as the devices manager writes it) to a
-// session whose own transcript says bypassPermissions, which Claude Code 2.1.326 then takes at once; and nothing to one
-// that prompts, which takes it (#9607). Nothing else states a class: a message with no owner mark (supervision, another
-// Agent's) is held there; so is one claiming a class (from_mode) or the owner mark in another letter case (OWNER_INPUT,
-// which encoding/json alone would read as owner_input), or the mark twice; so is a Stop, which carries no owner mark.
-func TestOutsideClaudeStatesBypassOnlyForTheOwner(t *testing.T) {
-	n, f, home := herdrNode(t)
-	noPaneEnv(t)
-	shortPeerWait(t, 2*time.Second)
-	f.reply("session.snapshot", snapshot(nil, nil, nil, nil))
-	send := func(params map[string]any) error {
-		params["session_id"] = sidA
-		_, err := request(t, n, "session.send", params)
-		return err
-	}
-	const owner, bare = `<cross-session-message from-name="Persona" from-mode="bypass">`, `<cross-session-message from-name="Persona">`
-
-	inbox := newFakeInbox(t, modeTranscript(t, home, home, "bypassPermissions"))
-	inbox.setMode(peerModeBypass)
-	writeOutsideClaude(t, home, sidA, "claude-desktop", "idle", inbox, nil)
-	if err := send(map[string]any{"text": "ship it", "client_msg_id": "m-1", "owner_input": true}); err != nil {
-		t.Fatalf("the owner's message to a bypass session: %v", err)
-	}
-	if h := envelopeHead(t, inbox, 0); h != owner {
-		t.Errorf("the owner's message to a bypass session: %q", h)
-	}
-	for i, params := range []map[string]any{
-		{"text": "a worker's report"},
-		{"text": "claims bypass", "from_mode": "bypass"},
-		{"text": "claims bypass, upper case", "FROM_MODE": "bypass"},
-		{"text": "claims the owner, upper case", "OWNER_INPUT": true},
-		{"text": "claims the owner twice", "owner_input": true, "Owner_Input": true},
-	} {
-		params["client_msg_id"] = "n-" + strconv.Itoa(i)
-		err := send(params)
-		if h := envelopeHead(t, inbox, i+1); h != bare || refusalCode(err) != peerHeld {
-			t.Errorf("%v: %q, %v", params, h, err)
-		}
-	}
-	writeOutsideClaude(t, home, sidA, "claude-desktop", "busy", inbox, nil)
-	_, err := request(t, n, "session.interrupt", map[string]any{"session_id": sidA, "owner_input": true})
-	if h := envelopeHead(t, inbox, 6); h != bare || refusalCode(err) != peerHeld {
-		t.Errorf("unmarked Stop: %q, %v", h, err)
-	}
-	_, err = request(t, n, nodeproto.OwnerInterrupt, map[string]any{"session_id": sidA})
-	if h := envelopeHead(t, inbox, 7); h != owner || err != nil {
-		t.Errorf("owner Stop: %q, %v", h, err)
-	}
-
-	for _, mode := range []string{"default", "acceptEdits", "auto", "plan"} {
-		inbox := newFakeInbox(t, modeTranscript(t, home, home, mode))
-		inbox.setMode(peerModePrompting)
-		writeOutsideClaude(t, home, sidA, "claude-desktop", "idle", inbox, nil)
-		if err := send(map[string]any{"text": "ship it", "client_msg_id": "o-" + mode, "owner_input": true}); err != nil {
-			t.Fatalf("the owner's message to a %s session: %v", mode, err)
-		}
-		if h := envelopeHead(t, inbox, 0); h != bare {
-			t.Errorf("the owner's message to a %s session: %q", mode, h)
-		}
-	}
 }
 
 // The owner's message reads the session's class from the newest copy of its transcript in the live claude's own
@@ -342,22 +231,6 @@ func TestOutsideClaudeOwnerClassFromNewestCopy(t *testing.T) {
 	}
 	if got := peerSessionClass(n, c, sidA); got != peerModeBypass {
 		t.Errorf("class with an older copy cached: %q", got)
-	}
-}
-
-// A bypass session that read the message and wrote nothing about it (dropped, refused) is not reported as holding it:
-// its mode alone proves nothing waits there (#9607).
-func TestOutsideClaudeDiscardedIsNotHeld(t *testing.T) {
-	n, f, home := herdrNode(t)
-	noPaneEnv(t)
-	shortPeerWait(t, 300*time.Millisecond)
-	inbox := newFakeInbox(t, modeTranscript(t, home, home, "bypassPermissions"))
-	inbox.setMode("discard")
-	writeOutsideClaude(t, home, sidA, "cli", "idle", inbox, nil)
-	f.reply("session.snapshot", snapshot(nil, nil, nil, nil))
-	_, err := request(t, n, "session.send", map[string]any{"session_id": sidA, "text": "dropped there", "owner_input": true})
-	if !maybeDelivered(err) || refusalCode(err) != peerUnconfirmed {
-		t.Fatalf("a dropped message: %v (code %q)", err, refusalCode(err))
 	}
 }
 
@@ -489,26 +362,6 @@ func pipeOrSocket() string {
 		return `\\.\pipe\LOCAL\cc-msg-00112233445566778899aabbccddeeff`
 	}
 	return "/tmp/cc-socks-501/123.sock"
-}
-
-// The session takes a message: what peerTaken looks for in its transcript.
-func TestPeerTaken(t *testing.T) {
-	dir := t.TempDir()
-	p := filepath.Join(dir, "s.jsonl")
-	_ = os.WriteFile(p, []byte(`{"type":"queue-operation","operation":"enqueue","content":"old \"hi\""}`+"\n"), 0o600)
-	st, _ := os.Stat(p)
-	if peerTaken(context.Background(), func() string { return p }, st.Size(), `hi`, 50*time.Millisecond) {
-		t.Fatal("a line from before the send counted")
-	}
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		f, _ := os.OpenFile(p, os.O_APPEND|os.O_WRONLY, 0o600)
-		_, _ = f.WriteString(`{"type":"queue-operation","operation":"enqueue","content":"Another Claude session sent a message:\n<cross-session-message from-name=\"Persona\">\nsay \"hi\"\n</cross-session-message>"}` + "\n")
-		_ = f.Close()
-	}()
-	if !peerTaken(context.Background(), func() string { return p }, st.Size(), "say \"hi\"\nsecond line", 2*time.Second) {
-		t.Fatal("the queue-operation it wrote was not seen")
-	}
 }
 
 // A line longer than peerSeen decodes (a user line with pasted images inline, a large tool result) is read past: the

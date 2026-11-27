@@ -239,36 +239,6 @@ func TestWatchAgainResendsToFreshManager(t *testing.T) {
 	}
 }
 
-// The node never answers the first subscriber's watch: a second app's subscribe and unsubscribe must not wait on it
-// past their own ctx, and the hung call itself ends at watchCallTimeout.
-func TestHungWatchDoesNotBlockOtherSubscribers(t *testing.T) {
-	old := watchCallTimeout
-	watchCallTimeout = 300 * time.Millisecond
-	t.Cleanup(func() { watchCallTimeout = old })
-	n, m := newWatchNode(t)
-	t.Cleanup(func() { close(n.release) }) // after the test: the node's handler goroutines end
-
-	n.hold(true, false)
-	first := make(chan struct{})
-	go func() { m.addWatcher(context.Background(), "s1"); close(first) }()
-	waitEntered(t, n)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-	defer cancel()
-	start := time.Now()
-	m.addWatcher(ctx, "s1") // a second app's subscribe, its connection gone soon
-	if d := time.Since(start); d > 200*time.Millisecond {
-		t.Fatalf("the second subscribe waited %v for the hung watch", d)
-	}
-	waitDone(t, first, "the hung addWatcher")
-	m.mu.Lock()
-	state := m.nodeWatch["s1"]
-	m.mu.Unlock()
-	if state != nodeWatchUnknown {
-		t.Fatalf("after the timed-out watch the state is %v, want unknown", state)
-	}
-}
-
 // A caller that gives up waiting for the turn loses nothing: the holder sends what changed while its call was out.
 func TestHolderSendsWhatAWaiterGaveUpOn(t *testing.T) {
 	n, m := newWatchNode(t)

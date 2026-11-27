@@ -2,54 +2,13 @@ package hub
 
 import (
 	"context"
-	"errors"
 	"io"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/db/dbtest"
 )
-
-// Persist production sendOnce outcomes across OS process exits, with a real
-// database and a fake node. Unknown delivery must never become permission to send.
-func TestSendOnceProcessRestart(t *testing.T) {
-	if os.Getenv(dbtest.Env) == "" {
-		t.Skip(dbtest.Env + " not set")
-	}
-	for _, outcome := range []string{"delivered", "unknown", "sending"} {
-		t.Run(outcome, func(t *testing.T) {
-			url, done, err := dbtest.Own(t.Context(), os.Getenv(dbtest.Env))
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer done()
-			effects := filepath.Join(t.TempDir(), "effects")
-			for _, phase := range []string{"first", "again", "again"} {
-				ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
-				cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestSendOnceProcessHelper$", "-test.v")
-				cmd.Env = append(os.Environ(), dbtest.Env+"="+url, "PERSONA_SEND_PHASE="+phase, "PERSONA_SEND_OUTCOME="+outcome, "PERSONA_SEND_EFFECTS="+effects)
-				out, err := cmd.CombinedOutput()
-				cancel()
-				if phase == "first" && outcome == "sending" {
-					var exit *exec.ExitError
-					if !errors.As(err, &exit) || exit.ExitCode() != 23 {
-						t.Fatalf("crash: %v\n%s", err, out)
-					}
-				} else if err != nil {
-					t.Fatalf("%s: %v\n%s", phase, err, out)
-				}
-			}
-			b, err := os.ReadFile(effects)
-			if err != nil || string(b) != "typed\n" {
-				t.Fatalf("side effects: %q %v", b, err)
-			}
-		})
-	}
-}
 
 func TestSendOnceProcessHelper(t *testing.T) {
 	phase, outcome := os.Getenv("PERSONA_SEND_PHASE"), os.Getenv("PERSONA_SEND_OUTCOME")

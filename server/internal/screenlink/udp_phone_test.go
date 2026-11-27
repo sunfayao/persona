@@ -506,53 +506,6 @@ func (u *udpPhone) tick() {
 	}
 }
 
-// lossyRelay forwards UDP between a phone and addr, dropping the node's packets that drop picks (by their order).
-func lossyRelay(t *testing.T, addr *net.UDPAddr, drop func(n int) bool) *net.UDPAddr {
-	t.Helper()
-	front, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
-	if err != nil {
-		t.Fatal(err)
-	}
-	back, err := net.DialUDP("udp", nil, addr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_ = front.SetReadBuffer(4 << 20)
-	_ = back.SetReadBuffer(4 << 20)
-	t.Cleanup(func() { front.Close(); back.Close() })
-	var mu sync.Mutex
-	var phone *net.UDPAddr
-	go func() {
-		buf := make([]byte, 2048)
-		for {
-			n, from, err := front.ReadFromUDP(buf)
-			if err != nil {
-				return
-			}
-			mu.Lock()
-			phone = from
-			mu.Unlock()
-			_, _ = back.Write(buf[:n])
-		}
-	}()
-	go func() {
-		buf := make([]byte, 2048)
-		for i := 0; ; i++ {
-			n, err := back.Read(buf)
-			if err != nil {
-				return
-			}
-			mu.Lock()
-			to := phone
-			mu.Unlock()
-			if to != nil && !drop(i) {
-				_, _ = front.WriteToUDP(buf[:n], to)
-			}
-		}
-	}()
-	return front.LocalAddr().(*net.UDPAddr)
-}
-
 // videoStream is n video messages: a keyframe, then frames of varied sizes, a format message every 10.
 func videoStream(n int) [][]byte {
 	var out [][]byte

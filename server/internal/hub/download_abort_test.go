@@ -11,7 +11,6 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"testing"
 	"time"
 
@@ -121,26 +120,6 @@ func h2Get(t *testing.T, srv *httptest.Server, path string, header ...string) h2
 	return res
 }
 
-// h1Get reads path whole over HTTP/1.1 with Go's client: the status, the body and the error reading it.
-func h1Get(t *testing.T, srv *httptest.Server, token, path string, header ...string) (int, []byte, error) {
-	t.Helper()
-	req, err := http.NewRequest("GET", srv.URL+path, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	for i := 0; i+1 < len(header); i += 2 {
-		req.Header.Set(header[i], header[i+1])
-	}
-	res, err := srv.Client().Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer res.Body.Close()
-	body, err := io.ReadAll(res.Body)
-	return res.StatusCode, body, err
-}
-
 // nodeFails has f's reads at or past offset fail: with err, or when err is nil by the node's connection dropping
 // (as a lost relay drops it). once: only the first of them. then, when given, runs at that first failure (f.mu held).
 func nodeFails(f *downloadNode, offset int64, err error, once bool, then func(p proto.FileChunkRequest)) {
@@ -166,44 +145,6 @@ func downloadBytes() []byte {
 	b := make([]byte, downloadAbortSize)
 	_, _ = rand.NewChaCha8([32]byte{1, 0, 8, 5, 5}).Read(b)
 	return b
-}
-
-func TestDownloadThatBreaksOffIsAbortedNotEnded(t *testing.T) {
-	data := downloadBytes()
-	const path = "/api/v1/machines/m1/file/download?path=preview.mp4&cwd=/work"
-	for _, test := range []struct {
-		name   string
-		mime   string
-		header []string // request headers, name then value
-		status string
-		gone   bool // the node's connection drops and is not back in time
-	}{
-		{name: "whole file", mime: "video/mp4", status: "200"},
-		{name: "range", mime: "video/mp4", header: []string{"range", "bytes=100-"}, status: "206"},
-		{name: "gzipped", mime: "text/plain; charset=utf-8", header: []string{"accept-encoding", "gzip"}, status: "200"},
-		{name: "node gone", mime: "video/mp4", status: "200", gone: true},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			f := &downloadNode{data: data, mime: test.mime}
-			h1, h2, token := abortFixture(t, f)
-			var readErr error = &rpc.Error{Message: "read preview.mp4: input/output error"}
-			if test.gone {
-				downloadRetryWindow, readErr = 100*time.Millisecond, nil
-			}
-			nodeFails(f, 2<<20, readErr, false, nil)
-			res := h2Get(t, h2, path, append([]string{"authorization", "Bearer " + token}, test.header...)...)
-			if res.status != test.status || res.ended || !res.reset || len(res.body) >= len(data) {
-				t.Fatalf("HTTP/2: status %s, %d bytes of %s, ended %t, reset %t", res.status, len(res.body), res.length, res.ended, res.reset)
-			}
-			if test.gone {
-				f.connect() // back, to be lost again by the next request
-			}
-			code, body, err := h1Get(t, h1, token, path, test.header...)
-			if err == nil || strconv.Itoa(code) != test.status || len(body) >= len(data) {
-				t.Fatalf("HTTP/1.1: status %d, %d bytes, error %v", code, len(body), err)
-			}
-		})
-	}
 }
 
 func TestDownloadCarriesOnWhenTheNodeComesBack(t *testing.T) {

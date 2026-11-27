@@ -24,18 +24,24 @@ gofmt -l internal cmd                                # must print nothing
 python3 -I ../scripts/test/server_test_env.py --database-file "$PERSONA_TEST_PROFILE" -- \
   go test -count=1 ./internal/assistant -run '^(TestA|TestB)$'
 
-# Everything, about three minutes:
-GOMAXPROCS=8 python3 -I ../scripts/test/server_test_env.py --database-file "$PERSONA_TEST_PROFILE" -- \
-  python3 -I ../scripts/test/go_test_partitioned.py go test -count=1 -p 12 -timeout 30m ./...
+# Everything, about a minute once the test binaries are built (two and a half minutes when every one is rebuilt):
+GOMAXPROCS=24 python3 -I ../scripts/test/server_test_env.py --database-file "$PERSONA_TEST_PROFILE" -- \
+  python3 -I ../scripts/test/go_test_partitioned.py go test -count=1 -p 16 -timeout 30m ./...
 
 cd .. && scripts/test/check-fast.sh                  # gofmt, migration freeze, English-only prompts, privacy
+
+# The web app's tests, about a hundred seconds:
+(cd web && npx vitest run --maxWorkers=24)
+
+# Every script test, under twenty seconds:
+for d in ci deploy diag mock test; do (cd scripts/$d && python3 -m unittest discover -p 'test_*.py') || break; done
 ```
 
 | Rule | Why |
 | --- | --- |
 | Always through `server_test_env.py` | It isolates the run from the live profile and selects the test database |
-| A whole big package (`assistant`, `node`, `hub`, `devices`, `extmgr`, `voice`) only through `go_test_partitioned.py` | Their tests run one after another inside a process and mostly wait; the runner splits each into several processes. A plain `go test ./internal/assistant` takes over ten minutes |
-| `-p 12` for a whole-module run | With `-p 1` the 180 small packages run one at a time: fourteen minutes instead of three |
+| A whole big package (`assistant`, `node`, `hub`, `devices`, `extmgr`, `voice`) only through `go_test_partitioned.py` | Their thousands of tests run one after another inside a process; the runner splits each into several processes. A plain `go test ./...` waits almost two minutes for `assistant` alone |
+| `-p 16` for a whole-module run | With `-p 1` the 180 small packages run one at a time |
 | `-count=1` | The test cache does not see inputs outside `server/` (fixtures, schemas, templates) |
 | Narrow with `-run` while you work; run everything once before you hand over | Fast loop, honest end |
 | Several runs at once are fine | Every test process creates and drops its own database |
@@ -43,15 +49,39 @@ cd .. && scripts/test/check-fast.sh                  # gofmt, migration freeze, 
 | `GOFLAGS=-trimpath` | All checkouts share one build cache. A test therefore finds repository files from its working directory (the package directory), never through `runtime.Caller` |
 
 Web tests are in `07`. Script tests are Python `unittest` files beside the scripts
-(`cd scripts/test && python3 -m unittest test_<name>`).
+(`cd scripts/test && python3 -m unittest test_<name>`). A test that needs a git checkout (the privacy check, the SDK
+bundle, the generated-copy guard) skips in a copy without one.
+
+## What a test may do
+
+Every test in the three suites is a fixed unit test: it calls the code in its own process with fakes for what that
+code talks to, and it finishes in milliseconds. Scenarios that need real processes, a real browser or real waiting
+are the scripted browser checks in `web/e2e/` and `scripts/test/web_*_e2e.py`, run only when asked for.
+
+| A test may | A test may not |
+| --- | --- |
+| Call the code in process, with the package's fakes or small fakes of its own | Start a child process: git, tmux, herdr, node, bun, a shell, the test binary again |
+| Use its own database through `dbtest`, a template copied rather than migrated again | Listen on a socket or reach the network, but for `httptest` |
+| Use the injected fake clock, or a short package timeout restored in `t.Cleanup` | Wait on real time: a sleep, a poll with a real interval, a product timeout left at its length |
+| Read fixtures, goldens and the source tree | Drive a browser, soak, hunt races, or loop hundreds of random seeds |
+
+| Kind | Budget on the build machine, in a whole run | Over it |
+| --- | --- | --- |
+| Go test | well under 0.3 s | Make it instant with a knob the test already has (a shorter timeout the code takes, the fake clock, a smaller fixture, fewer seeds), or delete it with what only it used |
+| Web test | under 0.25 s, and a file under 3 s | The same |
+| Script test | under 0.5 s | The same |
+
+Guards that read the whole source tree, migration tests, the contract fixtures shared with the web app and goldens may
+take a second or two; nothing else may. A test that fails one run in ten, or only beside certain neighbours, is
+deleted or fixed, never kept as a known failure.
 
 ## Reading a red run
 
 1. Search the output for `--- FAIL` and `panic:`; a panic in one partition hides the results of its other tests.
-2. Before you blame your change, run the failing test alone and on the untouched trunk. Tests that fail on the build
-   machine for its own reasons (a Postgres built without lz4, an old `git`, no `bun`, no browser) fail there too.
+2. Before you blame your change, run the failing test alone and on the untouched trunk. The suites are kept green on
+   the build machine, so a failure there is one to explain.
 3. A test that fails one run in ten under load and passes alone is a timing fault in the test. Say so in your
-   report; do not "fix" it with a longer sleep.
+   report; do not "fix" it with a longer sleep: make it a fixed unit test or delete it.
 4. A golden, a baseline or a fixture that changed means behaviour changed. Regenerate it only when that change is
    what you intended, and say which files moved.
 
@@ -96,7 +126,7 @@ with the switch the failure names and its diff reviewed.
 
 ## What must stay green before you hand over
 
-`go build`, `go vet`, `gofmt`, the whole partitioned run with no failure that passes on the trunk, `check-fast.sh`,
-and for web changes `tsc -b`, the touched tests and `npm run build`. For a change in `server/internal/node` or
+`go build`, `go vet`, `gofmt`, the whole partitioned run with no failure, `check-fast.sh`, the script tests, and for web
+changes `tsc -b`, the web tests and `npm run build`. For a change in `server/internal/node` or
 `internal/link` also `GOOS=windows GOARCH=amd64 go vet ./internal/node/... ./internal/link/...` and
 `GOOS=darwin GOARCH=arm64 go build ./...`.

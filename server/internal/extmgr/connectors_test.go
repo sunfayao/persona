@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -14,9 +13,6 @@ import (
 	"github.com/sunfayao/persona/server/internal/connector"
 	"github.com/sunfayao/persona/server/internal/connector/github"
 	"github.com/sunfayao/persona/server/internal/connector/imessage"
-	"github.com/sunfayao/persona/server/internal/connector/proc"
-	"github.com/sunfayao/persona/server/internal/extension"
-	"github.com/sunfayao/persona/server/internal/extension/host"
 	"github.com/sunfayao/persona/server/internal/mail"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -224,32 +220,6 @@ func TestConnectorsListTheSameCapabilities(t *testing.T) {
 			t.Errorf("%s for agents: %v", name, !want)
 		}
 	}
-}
-
-// programConnector is a built-in plugin's connector whose program is at path, as the hub registers one (Telegram's
-// was, until #1704): known from what it declares before the program ever runs.
-func programConnector(t *testing.T, h *Manager, item extension.ConnectorItem, path string) *proc.Conn {
-	t.Helper()
-	items, _ := json.Marshal([]extension.ConnectorItem{item})
-	m := &extension.Manifest{ManifestVersion: extension.ManifestVersion, ID: item.ID, Name: item.Name, Version: h.version,
-		Engines: extension.Engines{ExtensionProtocol: extension.Protocol}, Runtime: &extension.Runtime{Command: extension.Command{Path: filepath.Base(path)}},
-		Contributes: map[string]json.RawMessage{"connectors": items}}
-	ps := newExtensions(h.dataDirOrTemp(), nil, h.logf)
-	ps.h, ps.ctx = h, context.Background()
-	if err := ps.reg.AddBuiltin(m, filepath.Dir(path), true); err != nil {
-		t.Fatal(err)
-	}
-	hp := &hubExtension{id: item.ID}
-	s, err := ps.spec(context.Background(), ps.reg.Get(item.ID), hp)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pr := host.Start(context.Background(), s)
-	t.Cleanup(pr.Stop)
-	for _, l := range hp.links {
-		l.Proc = pr
-	}
-	return hp.conns[0]
 }
 
 func TestGhTokenFromAMachine(t *testing.T) {

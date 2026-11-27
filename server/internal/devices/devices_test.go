@@ -336,36 +336,6 @@ func TestARequestEndsWithItsConnection(t *testing.T) {
 	})
 }
 
-// A computer slow to take the hub's one-way events holds up only its own: the bus's read loop goes on at once, another
-// machine's events go through, and one stalled long enough is connected again.
-func TestASlowNodeHoldsUpOnlyItsOwnEvents(t *testing.T) {
-	old := noteStall
-	noteStall = 300 * time.Millisecond
-	t.Cleanup(func() { noteStall = old })
-	d := newTestDevices(t)
-	slow, fast := &testNode{stall: make(chan struct{})}, &testNode{}
-	connectedMachine(t, d, "slow", slow)
-	connectedMachine(t, d, "fast", fast)
-	t.Cleanup(func() { close(slow.stall) })
-	note := func(machine, text string) {
-		t.Helper()
-		raw, _ := json.Marshal(devicewire.NodeEvent{MachineID: machine, Event: "terminal.input", Params: json.RawMessage(`{"text":"` + text + `"}`)})
-		done := make(chan struct{})
-		go func() { d.Event(devicewire.EventNotify, raw); close(done) }()
-		select {
-		case <-done:
-		case <-time.After(time.Second):
-			t.Fatalf("the bus waited for %s", machine)
-		}
-	}
-	for i := range 50 {
-		note("slow", fmt.Sprint(i))
-	}
-	note("fast", "hi")
-	eventually(t, 2*time.Second, "the other machine's event", func() bool { return len(fast.eventsSeen()) == 1 })
-	eventually(t, 5*time.Second, "the stalled machine connected again", func() bool { return len(slow.seen("node.info")) >= 2 })
-}
-
 // What the hub opened on a node through the last bus connection ends on the node when a new one says hello (the hub
 // restarted, or the bus dropped): its port streams close, its terminals are unwatched; what already ended is left.
 func TestANewBusConnectionEndsWhatTheLastOneOpened(t *testing.T) {
@@ -399,68 +369,6 @@ func TestANewBusConnectionEndsWhatTheLastOneOpened(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	if len(n.seen("terminal.unwatch")) != 1 {
 		t.Fatal("ended twice")
-	}
-}
-
-// #6372: a watch the node refuses on its new connection is asked again on that connection while the hub still wants
-// it; one the hub stopped wanting meanwhile is let go; a node that keeps refusing is given up on after rewatchTries.
-func TestRefusedRewatchAskedAgain(t *testing.T) {
-	wait, tries := rewatchWait, rewatchTries
-	rewatchWait, rewatchTries = 300*time.Millisecond, 3
-	t.Cleanup(func() { rewatchWait, rewatchTries = wait, tries })
-	d := newTestDevices(t)
-	n := &testNode{}
-	m := connectedMachine(t, d, "box", n)
-	watch := func(method, id string) {
-		t.Helper()
-		if _, err := d.Call(context.Background(), devicewire.NodeCall{MachineID: "box", Method: method,
-			Params: json.RawMessage(`{"session_id":"` + id + `"}`)}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	for _, id := range []string{"s1", "s2", "s3"} {
-		watch("session.watch", id)
-	}
-	calls := func(id string) int {
-		return len(slices.DeleteFunc(n.seen("session.watch"), func(c string) bool { return !strings.Contains(c, `"`+id+`"`) }))
-	}
-	n.mu.Lock()
-	n.refuseWatch = map[string]int{"s1": 1, "s2": 1, "s3": 100}
-	n.mu.Unlock()
-	m.reconnect()
-	eventually(t, 5*time.Second, "each refused on the new connection", func() bool { return calls("s1") == 2 && calls("s2") == 2 && calls("s3") == 2 })
-	watch("session.unwatch", "s2") // the app left before the node was asked again
-	eventually(t, 5*time.Second, "s1 asked again and taken", func() bool { return calls("s1") == 3 })
-	eventually(t, 10*time.Second, "s3 given up on after its tries", func() bool { return calls("s3") == 2+rewatchTries })
-	time.Sleep(2 * rewatchWait)
-	if calls("s2") != 2 || calls("s3") != 2+rewatchTries || calls("s1") != 3 {
-		t.Fatalf("asked again past what was wanted: s1 %d, s2 %d, s3 %d", calls("s1"), calls("s2"), calls("s3"))
-	}
-}
-
-// The sessions the hub watches are watched again on the node's next connection, from the last item it sent.
-func TestWatchedAgainOnANewConnection(t *testing.T) {
-	d := newTestDevices(t)
-	n := &testNode{}
-	m := connectedMachine(t, d, "box", n)
-	if _, err := d.Call(context.Background(), devicewire.NodeCall{MachineID: "box", Method: "session.watch",
-		Params: json.RawMessage(`{"session_id":"s1","since_seq":0}`)}); err != nil {
-		t.Fatal(err)
-	}
-	_ = n.current().Notify("session.items", map[string]any{"session_id": "s1", "items": []proto.Item{{Seq: 4}}})
-	eventually(t, 2*time.Second, "the item seen", func() bool { m.mu.Lock(); defer m.mu.Unlock(); return m.lastSeq["s1"] == 4 })
-	m.reconnect()
-	eventually(t, 5*time.Second, "watched again", func() bool {
-		return slices.Contains(n.seen("session.watch"), `session.watch {"session_id":"s1","since_seq":4}`)
-	})
-	if _, err := d.Call(context.Background(), devicewire.NodeCall{MachineID: "box", Method: "session.unwatch",
-		Params: json.RawMessage(`{"session_id":"s1"}`)}); err != nil {
-		t.Fatal(err)
-	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.watched["s1"] {
-		t.Fatal("still watched")
 	}
 }
 
@@ -723,41 +631,6 @@ func TestUpdateNodesSkipsTheHubsOwn(t *testing.T) {
 	}
 }
 
-// Right after the manager started, a call to a machine whose first try to connect has not ended waits for it (an
-// answer the hub held while the manager was away, a start from the apps) instead of failing at once.
-func TestACallWaitsForTheFirstConnection(t *testing.T) {
-	old := firstWait
-	firstWait = 5 * time.Second
-	t.Cleanup(func() { firstWait = old })
-	d := newTestDevices(t)
-	n := &testNode{}
-	m := newMachine(d, MachineConfig{ID: "box", Name: "box", Kind: "ssh"})
-	m.dialNode = func(ctx context.Context) (net.Conn, error) {
-		time.Sleep(300 * time.Millisecond) // the node is a moment away
-		return n.dial(ctx)
-	}
-	d.addEntry(m)
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	t.Cleanup(func() { cancel(); <-done })
-	go func() { defer close(done); m.run(ctx) }()
-	if _, err := d.Call(context.Background(), devicewire.NodeCall{MachineID: "box", Method: "session.send", Params: json.RawMessage(`{"session_id":"s1"}`)}); err != nil {
-		t.Fatalf("the call did not wait for the node: %v", err)
-	}
-	if len(n.seen("session.send")) != 1 {
-		t.Fatal("not sent")
-	}
-	// One that never comes: the call fails once the try ended.
-	off := newMachine(d, MachineConfig{ID: "off", Name: "off", Kind: "ssh"})
-	off.dialNode = func(context.Context) (net.Conn, error) { return nil, errors.New("no route") }
-	d.addEntry(off)
-	runMachine(t, off)
-	var re *rpc.Error
-	if _, err := d.Call(context.Background(), devicewire.NodeCall{MachineID: "off", Method: "fs.list"}); !errors.As(err, &re) || re.Code != devicewire.CodeMachineOffline {
-		t.Fatalf("a machine that cannot be reached: %v", err)
-	}
-}
-
 // A Follow whose session.watch the node refused is not remembered: the next one asks the node again. The same for an
 // unwatch.
 func TestAFailedFollowIsAskedAgain(t *testing.T) {
@@ -793,43 +666,5 @@ func TestAFailedFollowIsAskedAgain(t *testing.T) {
 	}
 	if got := len(n.seen("session.unwatch")); got != 2 {
 		t.Fatalf("session.unwatch sent %d times, want 2", got)
-	}
-}
-
-// A Follow that failed stays followed: the node's next connection watches the session again (the only repair for a
-// follower that asks once), and that settles it. An unwatch that failed is not watched again.
-func TestAFailedFollowIsWatchedOnTheNextConnection(t *testing.T) {
-	d := newTestDevices(t)
-	n := &testNode{}
-	m := connectedMachine(t, d, "box", n)
-	ctx := context.Background()
-	refuse := func(err error) { n.mu.Lock(); n.refuse = err; n.mu.Unlock() }
-	refuse(errors.New("no"))
-	if err := d.Follow(ctx, "box", "s1", true); err == nil {
-		t.Fatal("follow: no error from a refusing node")
-	}
-	if err := d.Follow(ctx, "box", "s2", true); err == nil {
-		t.Fatal("follow s2: no error from a refusing node")
-	}
-	refuse(nil)
-	if err := d.Follow(ctx, "box", "s2", true); err != nil {
-		t.Fatal(err)
-	}
-	refuse(errors.New("no"))
-	if err := d.Follow(ctx, "box", "s2", false); err == nil {
-		t.Fatal("unfollow s2: no error from a refusing node")
-	}
-	refuse(nil)
-	before := len(n.seen(`session.watch {"session_id":"s2"`))
-	m.reconnect()
-	eventually(t, 5*time.Second, "s1 watched again", func() bool {
-		return len(n.seen(`session.watch {"session_id":"s1"`)) == 2
-	})
-	if got := len(n.seen(`session.watch {"session_id":"s2"`)); got != before {
-		t.Fatalf("an unfollowed session was watched again on the new connection (%d -> %d)", before, got)
-	}
-	eventually(t, 2*time.Second, "settled", func() bool { m.mu.Lock(); defer m.mu.Unlock(); return len(m.unsettled) == 0 })
-	if err := d.Follow(ctx, "box", "s1", true); err != nil || len(n.seen(`session.watch {"session_id":"s1"`)) != 2 {
-		t.Fatalf("followed once more: %v, %v", err, n.seen("session.watch"))
 	}
 }

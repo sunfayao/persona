@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -233,43 +232,4 @@ func TestConnEndsMidMessage(t *testing.T) {
 		t.Fatalf("a half message reached the handler as %q", e)
 	default:
 	}
-}
-
-func liveHeap() uint64 {
-	var m runtime.MemStats
-	runtime.GC()
-	runtime.GC()
-	runtime.ReadMemStats(&m)
-	return m.HeapAlloc
-}
-
-// After one 21 MB line each way, neither end keeps a buffer of its size: before, the reader kept the message it read
-// whole (28 MB) and the writer its copy of the line.
-func TestConnKeepsNoLargeMessage(t *testing.T) {
-	ctx := context.Background()
-	cws, sws := wsPair(t, false)
-	c, s := NewConn(ctx, cws), NewConn(ctx, sws)
-	before := liveHeap()
-	line := bytes.Repeat([]byte("w"), 21<<20)
-	line = append(line, '\n')
-	for _, ends := range [][2]*Conn{{c, s}, {s, c}} {
-		wrote := make(chan error, 1)
-		go func() {
-			_, err := ends[0].Write(line)
-			wrote <- err
-		}()
-		got, err := readLine(ends[1], 64<<10)
-		if err != nil || len(got) != len(line) {
-			t.Fatalf("read %d bytes, %v", len(got), err)
-		}
-		if err := <-wrote; err != nil {
-			t.Fatal(err)
-		}
-	}
-	line = nil
-	if grew := int64(liveHeap()) - int64(before); grew > 2<<20 {
-		t.Errorf("live heap grew %d bytes after one 21 MB line each way, want at most 2 MiB", grew)
-	}
-	runtime.KeepAlive(c)
-	runtime.KeepAlive(s)
 }

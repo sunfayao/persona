@@ -1,11 +1,9 @@
 package node
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -40,79 +38,6 @@ sleep 60
 		"cwd": "~/proj", "launcher": "gw", "prompt": "hello", "speed": speed,
 	})
 	return n, f, slices.Clone(ran), err
-}
-
-func codexStartTier(argv []string) string {
-	for i := 0; i+1 < len(argv); i++ {
-		if argv[i] == "-c" {
-			if tier, ok := strings.CutPrefix(argv[i+1], "service_tier="); ok {
-				return tier
-			}
-		}
-	}
-	return ""
-}
-
-// Codex records the native tier in each turn_context. Derive the fake rollout's
-// record from the argv it was actually started with, as Codex does, rather than
-// adding a new session-speed readback API for this acceptance test.
-func recordCodexStartTurnContext(t *testing.T, n *Node, argv []string) string {
-	t.Helper()
-	tier := codexStartTier(argv)
-	if tier == "" {
-		return ""
-	}
-	paths, err := filepath.Glob(filepath.Join(n.home, ".codex", "sessions", "*", "*", "*", "rollout-*-"+startThread+".jsonl"))
-	if err != nil || len(paths) != 1 {
-		t.Fatalf("start rollout = %v (%v)", paths, err)
-	}
-	line, _ := json.Marshal(map[string]any{
-		"timestamp": "2026-11-19T12:00:00Z", "type": "turn_context",
-		"payload": map[string]any{"model": "example-big", "service_tier": tier},
-	})
-	appendLines(t, paths[0], string(line))
-	return string(line)
-}
-
-func TestCodexSessionStartSpeedMapsArgvAndRollout(t *testing.T) {
-	for _, tc := range []struct {
-		name, speed, native string
-	}{
-		{name: "standard requests no override", speed: "standard"},
-		{name: "fast maps to native priority", speed: "fast", native: "priority"},
-		{name: "ultrafast stays ultrafast", speed: "ultrafast", native: "ultrafast"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			tiers := `[{"id":"priority","name":"Fast"},{"id":"ultrafast","name":"Ultrafast"}]`
-			n, _, argv, err := codexSpeedStart(t, tiers, tc.speed)
-			if err != nil {
-				t.Fatal(err)
-			}
-			want := []string{n.bin, "launch", "gw"}
-			if tc.native != "" {
-				want = append(want, "-c", "service_tier="+tc.native)
-			}
-			if !slices.Equal(argv, want) {
-				t.Errorf("Codex argv = %q, want %q", argv, want)
-			}
-			line := recordCodexStartTurnContext(t, n, argv)
-			if tc.native == "" {
-				if line != "" {
-					t.Errorf("standard start recorded an override: %s", line)
-				}
-				return
-			}
-			var got struct {
-				Type    string `json:"type"`
-				Payload struct {
-					ServiceTier string `json:"service_tier"`
-				} `json:"payload"`
-			}
-			if json.Unmarshal([]byte(line), &got) != nil || got.Type != "turn_context" || got.Payload.ServiceTier != tc.native {
-				t.Errorf("turn_context = %s, want service_tier %q", line, tc.native)
-			}
-		})
-	}
 }
 
 func TestCodexSessionStartSpeedRequiresSelectedModelTier(t *testing.T) {

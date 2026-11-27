@@ -145,28 +145,6 @@ func TestReplyInAnUnboundTopicOpensNothing(t *testing.T) {
 	}
 }
 
-// "/ai" at the start of a message (also full-width, in any case, with the line after a line break) in a topic bound to
-// nothing opens a to-do from the line after it.
-func TestAICommandOpensATodoInAnExistingTopic(t *testing.T) {
-	for _, text := range []string{"/ai 修登录崩溃", "／ai 修登录崩溃", "/AI 修登录崩溃", "  /ai\n修登录崩溃", "/ai　修登录崩溃"} {
-		t.Run(text, func(t *testing.T) {
-			database := todoTestDB(t)
-			e := newThreadEnv(t, database)
-			e.deliver(topicEvent("om_c1", text))
-			todo := onlyTodo(e.s)
-			if todo.ID == "" || todo.Notes != "修登录崩溃" || todo.Title != "修登录崩溃" || todo.Thread == nil || todo.Thread.ThreadID != testThread {
-				t.Fatalf("todos %d: %+v", todoCount(e.s), todo)
-			}
-			if h := onlyHandoff(t, e.f); h.session != "m1" || !strings.Contains(h.text, "修登录崩溃") || strings.Contains(h.text, "/ai") {
-				t.Fatalf("handed over %+v", h)
-			}
-			if got := decisionsOf(t, database, todo.ID); len(got) != 0 {
-				t.Fatalf("decisions %+v", got)
-			}
-		})
-	}
-}
-
 // What only looks like the command is a word: no to-do, the hint.
 func TestNotAnAICommandIsAWord(t *testing.T) {
 	for _, text := range []string{"/aim 修登录崩溃", "ai 修登录崩溃", "请 /ai 修登录崩溃", "/a i 修登录崩溃", "/ail"} {

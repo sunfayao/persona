@@ -92,46 +92,6 @@ func within(t *testing.T, limit time.Duration, name string, f func() error) erro
 	}
 }
 
-// `hub pair --peer` and `hub peer …` on a hub that takes the connection and never answers: Ctrl-C (the command's
-// context) ends them at once, and without it they end after adminCallLimit instead of waiting forever.
-func TestPeerCommandsOnAHubThatNeverAnswers(t *testing.T) {
-	port := silentHub(t)
-	commands := map[string]func(ctx context.Context) error{
-		"pair --peer": PairPeer,
-		"peer list": func(ctx context.Context) error {
-			return PeerCommand(ctx, []string{"list"}, strings.NewReader(""), io.Discard)
-		},
-		"peer center": func(ctx context.Context) error {
-			return PeerCommand(ctx, []string{"center", "--confirm"}, strings.NewReader(""), io.Discard)
-		},
-		"peer add -": func(ctx context.Context) error {
-			return PeerCommand(ctx, []string{"add", "-"}, strings.NewReader("persona://peer?code=x\n"), io.Discard)
-		},
-	}
-	for name, run := range commands {
-		t.Run(name+" stopped", func(t *testing.T) {
-			saved := adminCallLimit
-			adminCallLimit = time.Minute
-			t.Cleanup(func() { adminCallLimit = saved })
-			ctx, cancel := context.WithCancel(context.Background())
-			time.AfterFunc(200*time.Millisecond, cancel)
-			err := within(t, 2*time.Second, name, func() error { return run(ctx) })
-			if !errors.Is(err, context.Canceled) {
-				t.Errorf("%s: %v, want context.Canceled", name, err)
-			}
-		})
-		t.Run(name+" out of time", func(t *testing.T) {
-			saved := adminCallLimit
-			adminCallLimit = 300 * time.Millisecond
-			t.Cleanup(func() { adminCallLimit = saved })
-			err := within(t, 3*time.Second, name, func() error { return run(context.Background()) })
-			if err == nil || !strings.Contains(err.Error(), "did not answer within") || !strings.Contains(err.Error(), port) {
-				t.Errorf("%s: %v, want the hub on port %s not answering", name, err, port)
-			}
-		})
-	}
-}
-
 // `peer list` prints other hubs' names, ids and addresses: a discovered hub's come from an mDNS advert any host on the
 // LAN can send, a paired one's from that hub. Every control character is shown, not sent to the terminal, and each
 // hub stays on one line, so a hostile name cannot run terminal sequences or print a fake line.

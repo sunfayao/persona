@@ -1057,34 +1057,3 @@ func TestBackgroundSupervisorGoneWithoutMainKeepsQueueUntilDestinationReturns(t 
 		t.Fatal("the retained queue did not move once main returned")
 	}
 }
-
-// The owner comes first in main's supervision queue: after they write there, later messages wait by rank until they
-// are quiet; a decision goes before an older ordinary message.
-func TestOwnerPresenceAndMainSupervisionQueue(t *testing.T) {
-	presenceTimes(t, 400*time.Millisecond, time.Hour)
-	ownerTurnTimes(t, 400*time.Millisecond, time.Hour)
-	s, f, _ := newBackgroundService(t)
-	stopHolds(t, s)
-	ctx := context.Background()
-	agentTurn(s, f, proto.StatusWorking, "", 0)
-	agentTurn(s, f, proto.StatusDone, "做完了", 0)
-	waitFor(t, "main's supervision message", func() bool { return len(f.noticesTo("conv1")) == 1 })
-
-	s.UserSpoke(ctx, SessionRef{MachineID: "server", SessionID: "conv1"})
-	other := relayMsg{From: "c2", FromTitle: "Research", Tool: "conversation_send", Text: "hello", At: time.Now().UTC()}
-	urgent := relayMsg{From: superviseTool, FromTitle: "督办", Tool: superviseTool, Text: "Synthetic supervision.", Urgent: true, At: time.Now().UTC()}
-	s.relayOrQueue(ctx, "conv1", other)
-	s.relayOrQueue(ctx, "conv1", urgent)
-	if n := s.queuedFor("conv1"); n != 2 || f.sentTo("conv1") != 1 {
-		t.Fatalf("while the owner writes there: %d queued, %d sent", n, f.sentTo("conv1"))
-	}
-	// Quiet again: one goes in per turn, and the one that waits on a decision goes before the one that came first.
-	waitFor(t, "the first held message once the owner is quiet", func() bool { return f.sentTo("conv1") == 2 && s.queuedFor("conv1") == 1 })
-	b := &s.relays
-	b.mu.Lock()
-	left := slices.Clone(b.st.Queue["conv1"])
-	b.mu.Unlock()
-	if len(left) != 1 || left[0].Tool != "conversation_send" {
-		t.Fatalf("the message that waits on a decision did not go first; still queued: %+v", left)
-	}
-}

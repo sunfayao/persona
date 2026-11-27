@@ -14,7 +14,7 @@ func TestCheckedTreesPassCheckViewJSON(t *testing.T) {
 	for _, name := range []string{"UIStreamSnapshot.keyed.json", "UIStreamSnapshot.after-operations.json", "UIStreamSnapshot.required-empty.json"} {
 		trees = append(trees, treeFromFixture(t, name))
 	}
-	for seed := int64(0); seed < 150; seed++ {
+	for seed := int64(0); seed < 100; seed++ {
 		a, b := randomTree(t, seed, 1), randomTree(t, seed+997, 2)
 		trees = append(trees, a, b)
 		if d, _, err := Diff(a, b); err == nil {

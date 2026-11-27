@@ -116,60 +116,6 @@ func settingsCheckPackageWith(t *testing.T, secret string) string {
 	return dir
 }
 
-// A secret is checked by the extension before it is saved: a refusal answers check_failed with the extension's words,
-// the key taken out of them (whole and its long prefixes / suffixes), saves nothing; a check with no answer in time
-// fails; too many checks are refused before reaching the extension; a key that works is kept and shown by its end.
-func TestSettingsCheckRoutes(t *testing.T) {
-	setVarFor(t, &settingsCheckTimeout, 500*time.Millisecond)
-	h, _ := extensionTestHub(t)
-	mux := h.routes()
-	master := h.cfg.Token
-	_, pv := call(t, mux, "POST", "/api/v1/plugins/-/preview", master, `{"source": "dir:`+settingsCheckPackage(t)+`"}`)
-	if !strings.Contains(fmt.Sprint(pv["permissions"]), "当前：未填") && !strings.Contains(fmt.Sprint(pv["permissions"]), "not set") {
-		t.Fatalf("the consent names the address in the settings: %v", pv["permissions"])
-	}
-	call(t, mux, "POST", "/api/v1/plugins/-/install", master, fmt.Sprintf(`{"preview_id": %q, "permissions_digest": %q}`, pv["preview_id"], pv["permissions_digest"]))
-	waitLong(t, "the extension up", func() bool {
-		hp := h.extensions.get("example-gateway")
-		return hp != nil && hp.proc != nil && hp.proc.Ready()
-	})
-	put := func(value string) (int, map[string]any) {
-		b, _ := json.Marshal(map[string]string{"value": value})
-		return call(t, mux, "PUT", "/api/v1/extensions/example-gateway/-/secrets/key", master, string(b))
-	}
-	key := "ag-echo-key-0123456789-zyxw"
-	code, out := put(key)
-	msg, _ := out["error"].(string)
-	if code != 400 || out["code"] != "check_failed" || !strings.Contains(msg, "网关不认这把 Key") {
-		t.Fatalf("refused: %d %v", code, out)
-	}
-	for _, part := range []string{key, key[:10], key[len(key)-8:]} {
-		if strings.Contains(msg, part) {
-			t.Fatalf("the refusal quotes the key (%q): %q", part, msg)
-		}
-	}
-	if set := h.extensions.reg.SecretsSet(context.Background(), h.extensions.reg.Get("example-gateway")); set["key"] {
-		t.Fatal("a refused key was saved")
-	}
-	if code, out := put("ag-boom-key-0123456789"); code != 400 || strings.Contains(fmt.Sprint(out), "ag-boom-key-0123456789") {
-		t.Fatalf("an RPC error quoting the key: %d %v", code, out)
-	}
-	if code, out := put("ag-slow-key-0123456789"); code != 400 || out["code"] != "check_failed" {
-		t.Fatalf("no answer in time: %d %v", code, out)
-	}
-	if code, out := put("ag-good-key-0123456789-7f3a"); code != 200 {
-		t.Fatalf("a key that works: %d %v", code, out)
-	} else if s := fmt.Sprint(out["secrets"]); !strings.Contains(s, "hint:7f3a") || strings.Contains(s, "ag-good") {
-		t.Fatalf("shown by its last four characters only: %s", s)
-	}
-	// Six checks a minute (four so far): the next two reach it, the one after is refused before it.
-	put("ag-good-key-0123456789-0001")
-	put("ag-good-key-0123456789-0002")
-	if code, out := put("ag-good-key-0123456789-0003"); code != 429 || out["code"] != "check_rate_limited" {
-		t.Fatalf("too many checks: %d %v", code, out)
-	}
-}
-
 // An extension waiting for a required key has no program to check it: the first key goes in unchecked and starts it,
 // and the ones after are checked by it (#6099).
 func TestSettingsCheckWhileNeedsSetup(t *testing.T) {

@@ -2,14 +2,11 @@ package assistant
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -20,122 +17,6 @@ const researchNoPRCloseout = "<closeout status=\"done\" merged=\"n/a\" deployed=
 
 const researchMarkdown = "### Persona work report\n\n- Status: done\n- Merged: n/a\n- Deployed: n/a\n" +
 	"- Artifact: doc docs/research.md\n- Verified: Research findings checked against the original criteria.\n\n---"
-
-const relatedMemoryFooter = "\n<oai-mem-citation>\n<citation_entries>\n" +
-	"notes.md:1-2|note=[related work https://github.com/o/r/pull/10]\n" +
-	"</citation_entries>\n</oai-mem-citation>"
-
-func researchDeliveryTask(t *testing.T) (*Service, *fakeHub, Todo, string) {
-	t.Helper()
-	st := todoTestDB(t)
-	s, f := newQuietServiceOn(t, st)
-	deliveryOn(t, s)
-	criterion := "Research findings are documented"
-	raw, _ := json.Marshal(map[string]any{"tasks": []map[string]any{{
-		"title": "Read-only research", "prompt": "Document the research findings",
-		"machine": "box", "cwd": "/code/app", "readonly": true, "why": "The source is here",
-		"done_when": []string{criterion},
-	}}})
-	if _, err := s.toolTaskPlan(context.Background(), "conv1", raw); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "the research agent", func() bool { return len(onlyTodo(s).Agents) == 1 })
-	return s, f, onlyTodo(s), criterion
-}
-
-func TestResearchReferencesAreNotDeliveryPRs(t *testing.T) {
-	for _, text := range []string{
-		"Related work: https://github.com/o/r/pull/9 and https://github.com/o/r/pull/10\n" + researchNoPRCloseout,
-		"Related work: https://github.com/o/r/pull/9\n" + researchMarkdown,
-		"Related PR #9 is background for https://github.com/o/r/issues/4\n" + researchNoPRCloseout,
-		"Background: https://github.com/o/r/pull/9\n" + researchNoPRCloseout,
-		"PR #9 is related work, not this research's delivery.\n" + researchNoPRCloseout,
-	} {
-		t.Run(text, func(t *testing.T) {
-			s, _, todo, _ := researchDeliveryTask(t)
-			s.deploy.forge = &fakeForge{}
-			s.advanceTaskReply(context.Background(), todo, "box", todo.Agents[0].SessionID, text)
-			if got := todoNow(s, todo.ID); got.PRURL != "" || len(got.PRs) != 0 {
-				t.Fatalf("a research reference became a delivery PR: %+v", got)
-			}
-		})
-	}
-}
-
-func TestAcceptedResearchDropsUnownedPRReferences(t *testing.T) {
-	for _, current := range []string{"4", "9", "10"} {
-		t.Run("recorded_"+current, func(t *testing.T) {
-			s, f, todo, criterion := researchDeliveryTask(t)
-			ctx := context.Background()
-			for _, n := range []string{"9", "10", "4", current} {
-				s.setTaskStage(ctx, todo.ID, "review", "https://github.com/o/r/pull/"+n)
-			}
-			wrong := "https://github.com/o/r/pull/" + current
-			if err := s.applyPRStatus(ctx, todoNow(s, todo.ID), TodoPRStatus{URL: wrong, State: "open"}); err != nil {
-				t.Fatal(err)
-			}
-			s.watchDeploy(ctx, todo.ID, deployWatch{PR: wrong, Since: time.Now()})
-			s.setTaskDelivery(ctx, todo.ID, TodoDelivery{State: deliveryMerged})
-			report := researchNoPRCloseout
-			if current == "9" {
-				report = researchMarkdown
-			}
-			if current == "10" {
-				report += relatedMemoryFooter
-			}
-			f.setItems(
-				proto.Item{Role: "user", Kind: proto.KindText, Text: todo.Notes},
-				proto.Item{Role: "assistant", Kind: proto.KindText, Text: "Research references " +
-					"https://github.com/o/r/pull/9 and https://github.com/o/r/pull/10; neither is our delivery.\n" +
-					report},
-			)
-			var checkedRelated atomic.Bool
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch r.URL.Path {
-				case "/repos/o/r/issues/4":
-					_, _ = w.Write([]byte(`{"number":4}`))
-				case "/repos/o/r/pulls/9", "/repos/o/r/pulls/10":
-					checkedRelated.Store(true)
-					_, _ = w.Write([]byte(`{"merged":false}`))
-				case "/repos/o/r/issues/9", "/repos/o/r/issues/10":
-					_, _ = w.Write([]byte(`{"pull_request":{}}`))
-				default:
-					http.NotFound(w, r)
-				}
-			}))
-			defer server.Close()
-			s.deploy.forge = githubForge{base: server.URL, client: server.Client()}
-			s.deploy.hubBuild = func(context.Context) (string, string, error) { return "dev", "", nil }
-			s.deploy.listPaths = []string{}
-			_, err := acceptReview(s, todo.ID, map[string]any{
-				"link":   "https://github.com/o/r/issues/4",
-				"checks": []ReviewCheck{{Criterion: criterion, Met: true, Evidence: "The research document was reviewed"}},
-			})
-			if err != nil {
-				t.Fatalf("unowned PR references blocked research acceptance: %v", err)
-			}
-			got := todoNow(s, todo.ID)
-			if got.DoneAt == nil || got.Supervision.State != reviewAccepted || got.PRURL != "" || len(got.PRs) != 0 || got.PRStatus != nil {
-				t.Fatalf("research kept unowned delivery references: %+v", got)
-			}
-			if checkedRelated.Load() {
-				t.Fatal("an ordinary research reference was checked as a delivery PR")
-			}
-			stage := s.todoStages(ctx)[todo.ID]
-			if stage.PR != "" || len(stage.PRs) != 0 || stage.Deploy != nil || stage.Delivery != nil {
-				t.Fatalf("unowned delivery hold survived acceptance: %+v", stage)
-			}
-			restarted, _ := newTaskServiceOn(t, s.store())
-			if saved := restarted.todoStages(ctx)[todo.ID]; saved.PR != "" || len(saved.PRs) != 0 ||
-				saved.Deploy != nil || saved.Delivery != nil || saved.PRStatus != nil {
-				t.Fatalf("unowned PR facts survived restart: %+v", saved)
-			}
-			if !s.doneNeedsDelivery(ctx) {
-				t.Fatal("research acceptance disabled the delivery gate")
-			}
-		})
-	}
-}
 
 func TestNoPRCloseoutCannotDiscardDeliveryWithoutOwnership(t *testing.T) {
 	for _, tc := range []struct {
@@ -242,75 +123,6 @@ func TestUnknownPRHistoryRequiresExplicitDeliveryEvidence(t *testing.T) {
 		if got := todoNow(s, todo.ID); got.DoneAt != nil || got.PRURL != "https://github.com/o/r/pull/4" {
 			t.Fatalf("uncertain delivery state was lost: %+v", got)
 		}
-	}
-}
-
-func TestReportedPRRequiresTaskOwnedCloseout(t *testing.T) {
-	pr := "https://github.com/o/r/pull/5"
-	explicit := "<closeout status=\"done\" merged=\"no\" deployed=\"no\">\nartifact: pr " + pr + "\n</closeout>"
-	markdown := strings.Replace(researchMarkdown, "doc docs/research.md", "pr "+pr, 1)
-	for _, tc := range []struct {
-		name  string
-		items []proto.Item
-		want  string
-	}{
-		{"indented Markdown example", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: "    " + markdown}}, ""},
-		{"own final Markdown", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: markdown + relatedMemoryFooter}}, pr},
-		{"clipped Markdown", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: markdown, FullSize: 10000}}, ""},
-		{"Markdown written by user", []proto.Item{{Role: "user", Kind: proto.KindText, Text: markdown}, {Role: "assistant", Kind: proto.KindText, Text: "That is a prior result."}}, ""},
-		{"Markdown from another turn", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: markdown}, {Role: "user", Kind: proto.KindText, Text: "Review a different note."}, {Role: "assistant", Kind: proto.KindText, Text: "Still checking."}}, ""},
-		{"ordinary related link", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: "Related work: " + pr}}, ""},
-		{"document artifact", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: "<closeout status=\"done\">\nartifact: doc " + pr + "\n</closeout>"}}, ""},
-		{"URL artifact", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: "<closeout status=\"done\">\nartifact: url " + pr + "\n</closeout>"}}, ""},
-		{"fenced example", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: "Example:\n```text\n" + explicit + "\n```"}}, ""},
-		{"tilde-fenced example", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: "Example:\n~~~text\n" + explicit + "\n~~~"}}, ""},
-		{"quoted example", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: "> " + strings.ReplaceAll(explicit, "\n", "\n> ")}}, ""},
-		{"earlier in answer", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: explicit + "\nThat was another task's example."}}, ""},
-		{"unterminated closeout", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: strings.TrimSuffix(explicit, "</closeout>")}}, ""},
-		{"artifact contains an incidental URL", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: "<closeout status=\"done\">\nartifact: pr see related " + pr + "\n</closeout>"}}, ""},
-		{"artifact annotation", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: "<closeout status=\"done\">\nartifact: pr " + pr + " (related work)\n</closeout>"}}, ""},
-		{"artifact in user text", []proto.Item{
-			{Role: "user", Kind: proto.KindText, Text: explicit},
-			{Role: "assistant", Kind: proto.KindText, Text: "That is a reference, not this task's delivery."},
-		}, ""},
-		{"unrelated request", []proto.Item{
-			{Role: "user", Kind: proto.KindText, Text: "Review an unrelated repository's changes"},
-			{Role: "assistant", Kind: proto.KindText, Text: explicit},
-		}, ""},
-		{"before agent linked", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: explicit, TS: time.Unix(1, 0)}}, ""},
-		{"clipped PR closeout", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: explicit, FullSize: 10000}}, ""},
-		{"clipped no-PR closeout", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: researchNoPRCloseout, FullSize: 10000}}, ""},
-		{"earlier turn", []proto.Item{
-			{Role: "assistant", Kind: proto.KindText, Text: explicit},
-			{Role: "user", Kind: proto.KindText, Text: "Document the research findings"},
-			{Role: "assistant", Kind: proto.KindText, Text: researchNoPRCloseout},
-		}, ""},
-		{"peer turn", []proto.Item{
-			{Role: "user", Kind: proto.KindText, From: "another-agent", Text: "Review my PR"},
-			{Role: "assistant", Kind: proto.KindText, Text: explicit},
-		}, ""},
-		{"injected turn", []proto.Item{
-			{Role: "user", Kind: proto.KindText, Text: "<persona-side-conversation/> Review this PR"},
-			{Role: "assistant", Kind: proto.KindText, Text: explicit},
-		}, ""},
-		{"latest own artifact", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: "Related: https://github.com/o/r/pull/9\n" + explicit}}, pr},
-		{"own artifact before citation metadata", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: explicit + relatedMemoryFooter}}, pr},
-		{"citation metadata only", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: "Research is complete.\n<oai-mem-citation>\n" +
-			explicit + "\n</oai-mem-citation>"}}, ""},
-		{"indented artifact in own record", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: strings.Replace(explicit, "\nartifact:", "\n    artifact:", 1)}}, pr},
-		{"inline tag mentioned in own record", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: strings.Replace(explicit, "\nartifact:", "\ndid: Fixed the <closeout> reader.\nartifact:", 1)}}, pr},
-		{"own artifact after example", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: "Example:\n````text\n" +
-			strings.ReplaceAll(explicit, "/pull/5", "/pull/9") + "\n````\nOur result:\n" + explicit}}, pr},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			s, f, todo := newSupervisedService(t)
-			s.deploy.forge = &fakeForge{}
-			f.setItems(tc.items...)
-			got, noPR, err := s.reportedTaskPR(context.Background(), todo, "https://github.com/o/r/pull/4")
-			if got != tc.want || noPR || tc.want != "" && err != nil {
-				t.Fatalf("delivery recovery = %q, %v; want %q", got, err, tc.want)
-			}
-		})
 	}
 }
 

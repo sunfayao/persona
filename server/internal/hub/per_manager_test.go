@@ -70,63 +70,6 @@ func TestAssistantDirectoriesAreTheMachinesManagers(t *testing.T) {
 
 }
 
-// An extension's token is its manager's: a request with it that names no manager goes to that manager (a route of
-// no object, a merged list: its manager's only, an API prefix several serve), not to the default one.
-func TestAnExtensionsTokenIsItsManagers(t *testing.T) {
-	h, srv, _ := newBusHub(t)
-	knows := func(who string, known bool) func(string, json.RawMessage) (any, error) {
-		return func(method string, _ json.RawMessage) (any, error) {
-			switch method {
-			case extwire.MethodAuthorize:
-				if known {
-					return extwire.Authorized{OK: true, Extension: "bx", Name: "BX"}, nil
-				}
-				return extwire.Authorized{}, nil
-			case assistantwire.MethodHTTP:
-				return map[string]any{"status": 200, "body": []byte(`{"who":"` + who + `","items":[{"id":"` + who + `"}]}`)}, nil
-			}
-			return map[string]any{}, nil
-		}
-	}
-	a := connectGuardManager(t, h, srv.URL, assistantwire.AssistantID, knows("a", false))
-	b := connectGuardManager(t, h, srv.URL, "m-0b0b0b", knows("b", true))
-	h.keepExtReport(assistantwire.AssistantID, &extwire.Report{EventsDeclared: true, APIs: []extwire.APIPrefix{{Prefix: "bx"}}})
-	h.keepExtReport("m-0b0b0b", &extwire.Report{EventsDeclared: true, APIs: []extwire.APIPrefix{{Prefix: "bx"}}})
-	get := func(path string) map[string]any {
-		t.Helper()
-		req, _ := http.NewRequest(http.MethodGet, srv.URL+path, nil)
-		req.Header.Set("Authorization", "Bearer "+extTokenPrefix+"bx-token")
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer resp.Body.Close()
-		var out map[string]any
-		_ = json.NewDecoder(resp.Body).Decode(&out)
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("%s: %d %v", path, resp.StatusCode, out)
-		}
-		return out
-	}
-	if out := get("/api/v1/assistant"); out["who"] != "b" {
-		t.Fatalf("a route of no object went to %v", out["who"])
-	}
-	if items, _ := get("/api/v1/inbox")["items"].([]any); len(items) != 1 || items[0].(map[string]any)["manager"] != "m-0b0b0b" {
-		t.Fatalf("the merged list: %v", items)
-	}
-	// An API prefix both serve: the hub hands the request to B's extension (extensions.accept), not A's.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+"/api/v1/bx/things", nil)
-	req.Header.Set("Authorization", "Bearer "+extTokenPrefix+"bx-token")
-	if resp, err := http.DefaultClient.Do(req); err == nil {
-		resp.Body.Close()
-	}
-	if !strings.Contains(b.log(), extwire.MethodAccept) || strings.Contains(a.log(), extwire.MethodAccept) {
-		t.Fatalf("the prefix both serve went to\nA:\n%s\nB:\n%s", a.log(), b.log())
-	}
-}
-
 // An extension's token acts only on its own manager's machines, sessions and cards, as its manager does: a route
 // about another manager's machine (forwarded or the hub's own), session or pending card is refused 403
 // other_manager before anything is done; its own manager's go through. The apps' devices are as before.

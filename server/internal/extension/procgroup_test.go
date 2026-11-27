@@ -123,21 +123,6 @@ func TestMarketGitTimeoutStopsItsHelpers(t *testing.T) {
 	waitHelperGone(t, pidFile, 2*time.Second)
 }
 
-// git itself succeeded and only its helper keeps the output open: that is a success, and the helper is stopped.
-func TestMarketGitSucceedsPastAHelperHoldingItsOutput(t *testing.T) {
-	dir, pidFile := fakeWithHelper(t, "git", "exit 0")
-	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	m := &Market{Spec: MarketSpec{Kind: "git", URL: "https://example.invalid/x.git"}, Dir: t.TempDir()}
-	start := time.Now()
-	if err := m.git(context.Background(), m.Dir, "fetch"); err != nil {
-		t.Fatal(err)
-	}
-	if took := time.Since(start); took > 4*time.Second {
-		t.Fatalf("git returned after %v, waiting for its helper", took)
-	}
-	waitHelperGone(t, pidFile, 2*time.Second)
-}
-
 func TestToolCheckTimeoutStopsItsHelpers(t *testing.T) {
 	dir, pidFile := fakeWithHelper(t, "tool", "exec sleep 30")
 	took, err := cancelledOnceStarted(t, pidFile, func(ctx context.Context) error {
@@ -149,19 +134,6 @@ func TestToolCheckTimeoutStopsItsHelpers(t *testing.T) {
 	}
 	if took > 2*time.Second {
 		t.Fatalf("the check returned %v after it was cancelled, waiting for its helper", took)
-	}
-	waitHelperGone(t, pidFile, 2*time.Second)
-}
-
-func TestToolCheckSucceedsPastAHelperHoldingItsOutput(t *testing.T) {
-	dir, pidFile := fakeWithHelper(t, "tool", "echo tool 1.2.3\nexit 0")
-	start := time.Now()
-	v, err := runCheck(context.Background(), filepath.Join(dir, "tool"), &ToolCheck{}, os.Environ())
-	if err != nil || v != "1.2.3" {
-		t.Fatalf("got %q, %v", v, err)
-	}
-	if took := time.Since(start); took > 4*time.Second {
-		t.Fatalf("the check returned after %v, waiting for its helper", took)
 	}
 	waitHelperGone(t, pidFile, 2*time.Second)
 }

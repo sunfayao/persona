@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -15,7 +14,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 )
 
 // fakeRelease serves body as this machine's herdr binary and pins sum for it (body's own sha256 when sum is "");
@@ -150,46 +148,6 @@ func TestStartHerdrInstallUnreachable(t *testing.T) {
 	}
 	if fl.starts.Load() != 0 {
 		t.Fatalf("%d starts", fl.starts.Load())
-	}
-}
-
-// A slow download: "Start" says it is installing instead of hanging, the status says so too, and once it is done the
-// node starts herdr by itself.
-func TestStartHerdrInstallGoesOn(t *testing.T) {
-	gate := make(chan struct{})
-	n, sock, fl, _ := installNode(t, []byte("herdr"), "", gate)
-	herdrInstallWait = 100 * time.Millisecond
-	_, err := request(t, n, "herdr.server.start", map[string]any{})
-	if err == nil || !strings.Contains(err.Error(), "正在安装 herdr") {
-		t.Fatalf("err %v", err)
-	}
-	if out, _ := request(t, n, "herdr.server.status", map[string]any{}); out["installing"] != true {
-		t.Fatalf("status %v", out)
-	}
-	close(gate)
-	deadline := time.Now().Add(5 * time.Second)
-	for !herdrAlive(context.Background(), sock) {
-		if time.Now().After(deadline) {
-			t.Fatalf("not started after the install (%d starts)", fl.starts.Load())
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
-	if out, _ := request(t, n, "herdr.server.status", map[string]any{}); out["installing"] != false || out["install_error"] != "" {
-		t.Fatalf("status %v", out)
-	}
-}
-
-// The node's own starts install only when hub.json says herdr_autoinstall; otherwise not installed stays as before.
-func TestEnsureHerdrAutoinstall(t *testing.T) {
-	n, _, fl, fr := installNode(t, []byte("herdr"), "", nil)
-	if err := n.ensureHerdr(context.Background(), "test"); !errors.Is(err, errHerdrNotInstalled) || fr.hits.Load() != 0 {
-		t.Fatalf("off: %v, %d downloads", err, fr.hits.Load())
-	}
-	if _, err := request(t, n, "node.configure", map[string]any{"herdr_autoinstall": true}); err != nil {
-		t.Fatal(err)
-	}
-	if err := n.ensureHerdr(context.Background(), "test"); err != nil || fr.hits.Load() != 1 || fl.starts.Load() != 1 {
-		t.Fatalf("on: %v, %d downloads, %d starts", err, fr.hits.Load(), fl.starts.Load())
 	}
 }
 

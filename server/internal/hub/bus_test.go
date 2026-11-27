@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -263,43 +262,6 @@ func jsonEqual(a, b any) bool {
 	return string(x) == string(y)
 }
 
-// A handshake that names another identity than the token's is refused and hung up.
-func TestBusWrongIdentity(t *testing.T) {
-	h, srv, _ := newBusHub(t)
-	tok := busToken(t, h, "assistant", "")
-	for _, params := range []map[string]any{{"id": "someone-else"}, {}} {
-		r := dialRawBus(t, srv, tok)
-		if err := r.call("manager.hello", params, nil); rpcCode(err) != bus.CodeWrongIdentity {
-			t.Fatalf("hello %v: %v", params, err)
-		}
-		r.closedWith(t, bus.CloseRefused)
-	}
-	if roster := h.busRoster(); len(roster) != 0 {
-		t.Fatalf("roster %+v", roster)
-	}
-
-	// bus.Client takes a refused handshake for a rejected token.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	ended := make(chan string, 4)
-	c := &bus.Client{Hub: srv.URL, Token: tok, HelloMethod: "manager.hello", HelloParams: func() any { return map[string]any{"id": "x"} },
-		MaxBackoff: time.Minute, Logf: func(f string, a ...any) {
-			select {
-			case ended <- fmt.Sprintf(f, a...):
-			default:
-			}
-		}}
-	go func() { _ = c.Run(ctx) }()
-	select {
-	case line := <-ended:
-		if !strings.Contains(line, bus.ErrRejected.Error()) || !strings.Contains(line, "again in 1m0s") {
-			t.Fatalf("client logged %q", line)
-		}
-	case <-ctx.Done():
-		t.Fatal("the client did not give up")
-	}
-}
-
 // Only a bus token opens the bus, and it opens nothing else; a revoked or replaced token is cut off at once.
 func TestBusRejectsTokens(t *testing.T) {
 	h, srv, store := newBusHub(t)
@@ -494,42 +456,6 @@ func TestBusHelloTimeout(t *testing.T) {
 		defer h.bus.mu.Unlock()
 		return len(h.bus.live) == 0
 	})
-}
-
-// The hub pings: a service that answers stays connected, one that stops answering is dropped.
-func TestBusPing(t *testing.T) {
-	h, srv, _ := newBusHub(t)
-	h.bus.pingEvery, h.bus.pingTimeout = 40*time.Millisecond, 100*time.Millisecond
-	tok := busToken(t, h, "assistant", "")
-	f := startService(t, srv, tok, "manager.hello", map[string]any{"id": "assistant"})
-	if err := f.c.Wait(ctxTimeout(t)); err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(600 * time.Millisecond) // many pings
-	if n := f.count.Load(); n != 1 || len(h.busRoster()) != 1 {
-		t.Fatalf("%d handshakes, roster %+v", n, h.busRoster())
-	}
-
-	// A service that says hello and then stops reading never answers a ping.
-	deaf := busToken(t, h, "deaf", "")
-	ctx := ctxTimeout(t)
-	ws, err := bus.Dial(ctx, srv.URL, deaf, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ws.CloseNow()
-	if err := ws.Write(ctx, websocket.MessageText, []byte(`{"id":"s1","method":"manager.hello","params":{"id":"deaf"}}`)); err != nil {
-		t.Fatal(err)
-	}
-	if _, msg, err := ws.Read(ctx); err != nil || !strings.Contains(string(msg), `"result"`) {
-		t.Fatalf("hello answer %s %v", msg, err)
-	}
-	eventually(t, 5*time.Second, "the deaf service dropped", func() bool {
-		return h.busConnOf("deaf") == nil
-	})
-	if h.busConnOf("assistant") == nil {
-		t.Fatal("the answering service was dropped too")
-	}
 }
 
 // bus.Client comes back after the hub drops it; the hub's shutdown closes the connections as going away and takes

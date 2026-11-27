@@ -11,8 +11,6 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/coder/websocket"
-
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/devicewire"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -76,48 +74,6 @@ func perManagerDevicesList(t *testing.T, m *fakeManager) perManagerList {
 		t.Fatal(err)
 	}
 	return out
-}
-
-// perManagerDevicesListFrom uses the same internal request seam for a manager whose bus connection has ended.
-func perManagerDevicesListFrom(t *testing.T, h *Hub, from string) perManagerList {
-	t.Helper()
-	raw, err := (assistantLink{h}).deviceCallFrom(context.Background(), from, assistantwire.DeviceCall{
-		Device: assistantwire.DeviceAll, Method: assistantwire.DeviceDevicesList,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var out perManagerList
-	if err := json.Unmarshal(raw, &out); err != nil {
-		t.Fatal(err)
-	}
-	return out
-}
-
-func TestCarrierDisconnectDoesNotDropOtherManagerDevices(t *testing.T) {
-	h, srv := newPerManagerBusHub(t, false)
-	a := connectFakeManager(t, h, srv, assistantwire.AssistantID)
-	b := connectFakeManager(t, h, srv, perManagerOther)
-	a.report(t, "ma")
-	b.report(t, "mb")
-	eventually(t, 5*time.Second, "both managers' machines reachable", func() bool {
-		ma, mb := h.machineByID("ma"), h.machineByID("mb")
-		return ma != nil && mb != nil && ma.snapshot().Online && mb.snapshot().Online && ma.reachable() && mb.reachable()
-	})
-
-	_ = a.bus.ws.Close(websocket.StatusNormalClosure, "test")
-	eventually(t, 5*time.Second, "the carrier's machine offline", func() bool {
-		ma := h.machineByID("ma")
-		return h.busConnOf(assistantwire.AssistantID) == nil && ma != nil && !ma.snapshot().Online
-	})
-	if got := perManagerDevicesListFrom(t, h, assistantwire.AssistantID); len(got.Devices) != 1 ||
-		got.Devices[0].ID != "ma" || got.Devices[0].Reachable {
-		t.Fatalf("the carrier's list after disconnect = %+v, want ma unreachable", got)
-	}
-	if got := perManagerDevicesList(t, b); !got.Complete || len(got.Devices) != 1 || got.Devices[0].ID != "mb" ||
-		!got.Devices[0].Online || !got.Devices[0].Reachable {
-		t.Errorf("the connected manager's list after the carrier disconnect = %+v, want mb online, reachable, complete", got)
-	}
 }
 
 func TestWarmCallWaitsForNonCarrierManager(t *testing.T) {

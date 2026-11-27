@@ -72,17 +72,6 @@ func (st *ownerActionTestStore) CompareSetting(_ context.Context, key string, re
 	return true, nil
 }
 
-func validOwnerProof(batch, item string) ownerReplyProof {
-	return ownerReplyProof{
-		AuthenticatedOwner: true,
-		DirectParent:       true,
-		ExactPhrase:        true,
-		EventID:            "event-1",
-		BatchID:            batch,
-		ItemID:             item,
-	}
-}
-
 func TestOwnerActionCanonicalPayload(t *testing.T) {
 	a, err := canonicalOwnerAction(json.RawMessage(` {"subject":"hello","to":[{"email":"a@example.test"}],"n":1} `))
 	if err != nil {

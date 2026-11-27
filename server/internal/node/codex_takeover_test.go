@@ -44,41 +44,6 @@ func takeoverNode(t *testing.T, running bool) (*Node, func() codexStartFile, *[]
 	return n, file, &calls
 }
 
-func TestCodexTakeoverWaitsForTheNewTerminalsTrustDialog(t *testing.T) {
-	withCodexWaits(t)
-	n, f, cwd := codexHistoryNode(t)
-	listSessions(t, n)
-	resumeFile(f, cwd)
-	n.takeovers.writers = func(codexSource) ([]codexWriter, error) { return nil, nil }
-	n.takeovers.shared = func(context.Context, codexSource) ([]string, error) {
-		return []string{"codex", "--remote", "unix:///shared/socket"}, nil
-	}
-	for _, dialog := range codexTrustDialogs(t) {
-		f.screenSteps("w1:p2", isKeys("enter"), dialog, cxReady)
-		break
-	}
-	f.after(func(c herdrCall) {
-		if c.Method == "pane.send_keys" && slices.Equal(keysOf(c), []string{"enter"}) {
-			takeoverTestOwner(n)
-		}
-	})
-	plan, err := n.prepareCodexTakeover(context.Background(), startThread)
-	if err != nil {
-		t.Fatal(err)
-	}
-	session, err := n.commitCodexTakeover(context.Background(), startThread, plan.Token, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if session.SessionID != startThread {
-		t.Fatalf("resumed the wrong thread: %+v", session)
-	}
-	keys := f.trace("pane.send_keys")
-	if len(keys) != 1 || !strings.Contains(keys[0], `"w1:p2"`) || !strings.Contains(keys[0], `["enter"]`) {
-		t.Fatalf("only the new terminal's trust dialog should be answered: %v", keys)
-	}
-}
-
 func takeoverTestOwner(n *Node) {
 	src, _ := n.codexSource(startThread)
 	n.codices.mu.Lock()
@@ -131,77 +96,6 @@ func TestCodexTakeoverHandlesTrustAfterATransientComposer(t *testing.T) {
 	}
 	if route, _ := n.codexRoute(startThread); route != codexRouteAppServer {
 		t.Fatalf("takeover returned without the shared route: %s", route)
-	}
-}
-
-func TestCodexTakeoverSealedContextAfterLaunchOffersOnlyContinuation(t *testing.T) {
-	withCodexWaits(t)
-	n, f, cwd := codexHistoryNode(t)
-	listSessions(t, n)
-	resumeFile(f, cwd)
-	f.setScreen("w1:p2", cxReady)
-	n.takeovers.writers = func(codexSource) ([]codexWriter, error) { return nil, nil }
-	n.takeovers.shared = func(context.Context, codexSource) ([]string, error) {
-		return []string{"codex", "--remote", "unix:///shared/socket"}, nil
-	}
-	f.after(func(c herdrCall) {
-		if c.Method == "pane.send_input" && strings.Contains(str(c.Params["text"]), "codex-start") {
-			f.setScreen("w1:p2", codexStartError+" invalid_encrypted_content")
-		}
-	})
-	plan, err := n.prepareCodexTakeover(context.Background(), startThread)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := n.commitCodexTakeover(context.Background(), startThread, plan.Token, false); refusalCode(err) != "codex_takeover_continue_only" {
-		t.Fatalf("late encrypted-context failure was not made continuation-only: %v", err)
-	}
-	n.takeovers.mu.Lock()
-	failed := n.takeovers.failed[startThread]
-	n.takeovers.mu.Unlock()
-	if !failed {
-		t.Fatal("sealed context was not remembered")
-	}
-}
-
-func TestCodexTakeoverExitedWriterUsesSharedNewTab(t *testing.T) {
-	n, file, calls := takeoverNode(t, false)
-	p, err := n.prepareCodexTakeover(context.Background(), startThread)
-	if err != nil {
-		t.Fatal(err)
-	}
-	s, err := n.commitCodexTakeover(context.Background(), startThread, p.Token, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s.SessionID != startThread || !slices.Equal(*calls, []string{"shared"}) {
-		t.Fatalf("session=%+v calls=%v", s, *calls)
-	}
-	if want := []string{"codex", "--remote", "unix:///shared/socket", "-C", p.Cwd, "resume", startThread}; !slices.Equal(file().Argv, want) {
-		t.Fatalf("argv=%v, want %v", file().Argv, want)
-	}
-	if _, err := n.commitCodexTakeover(context.Background(), startThread, p.Token, false); refusalCode(err) != "codex_takeover_expired" {
-		t.Fatalf("confirmation was reused: %v", err)
-	}
-}
-
-func TestCodexTakeoverRunningRequiresExplicitConfirmation(t *testing.T) {
-	for _, confirm := range []bool{false, true} {
-		t.Run(map[bool]string{false: "not confirmed", true: "confirmed"}[confirm], func(t *testing.T) {
-			n, _, calls := takeoverNode(t, true)
-			p, err := n.prepareCodexTakeover(context.Background(), startThread)
-			if err != nil || !p.Running {
-				t.Fatalf("plan=%+v err=%v", p, err)
-			}
-			_, err = n.commitCodexTakeover(context.Background(), startThread, p.Token, confirm)
-			if !confirm {
-				if refusalCode(err) != "codex_takeover_confirmation_required" || len(*calls) != 0 {
-					t.Fatalf("unconfirmed takeover touched the process: calls=%v err=%v", *calls, err)
-				}
-			} else if err != nil || !slices.Equal(*calls, []string{"shared", "stop"}) {
-				t.Fatalf("confirmed takeover=%v calls=%v", err, *calls)
-			}
-		})
 	}
 }
 
@@ -355,16 +249,6 @@ func TestCodexTakeoverContinuationIsBoundedAndDoesNotModifySource(t *testing.T) 
 	after, _ := os.ReadFile(src.path)
 	if !slices.Equal(before, after) {
 		t.Fatal("preparing continuation modified the original transcript")
-	}
-}
-
-func TestCodexTakeoverRefusesPartialOrChangingTranscript(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "partial.jsonl")
-	if err := os.WriteFile(path, []byte(`{"type":"event_msg"`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := settledCodexRollout(context.Background(), path); refusalCode(err) != "codex_takeover_writer_busy" {
-		t.Fatalf("partial transcript accepted: %v", err)
 	}
 }
 

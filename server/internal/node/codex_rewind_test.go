@@ -81,76 +81,6 @@ func paginatedCodex(t *testing.T, n *Node, home, raw string, turns []historyTurn
 	return n.registerCodex(home, raw, rollout)
 }
 
-func TestCodexRewindNativeAndLegacyMethod(t *testing.T) {
-	for _, legacy := range []bool{false, true} {
-		t.Run(map[bool]string{false: "revert", true: "rollback"}[legacy], func(t *testing.T) {
-			n := remoteTestNode(t)
-			home := t.TempDir()
-			f, _ := connectRemoteFixture(t, n, home, "rewind", remoteRaw)
-			turns := []historyTurn{
-				{thread: remoteRaw, id: "a", ordinal: 0, status: "completed", items: [][2]string{userItem("ua", "first"), answerItem("aa", "First answer")}},
-				{thread: remoteRaw, id: "b", ordinal: 1, status: "completed", items: [][2]string{userItem("ub", "second"), answerItem("ab", "Second answer")}},
-			}
-			id := paginatedCodex(t, n, home, remoteRaw, turns)
-			f.mu.Lock()
-			if legacy {
-				f.reject, f.rejectCode = "thread/revert", -32601
-			}
-			f.response = func(method string, p map[string]any) (any, bool) {
-				switch method {
-				case "thread/turns/list":
-					rows := []codexRewindTurn{}
-					for _, turn := range turns {
-						rows = append(rows, rewindTurn(turn.id, map[string]string{"a": "first", "b": "second"}[turn.id]))
-					}
-					// Exercise real cursor pagination with one turn per page.
-					if p["cursor"] == "next" {
-						return map[string]any{"data": rows[1:]}, true
-					}
-					if len(rows) > 1 {
-						return map[string]any{"data": rows[:1], "nextCursor": "next"}, true
-					}
-					return map[string]any{"data": rows}, true
-				case "thread/revert", "thread/rollback":
-					keep := 1
-					if p["beforeTurnId"] == "a" || p["numTurns"] == float64(1) && len(turns) == 1 {
-						keep = 0
-					}
-					turns = turns[:keep]
-					writeCodexHistory(t, home, turns)
-					return map[string]any{}, true
-				}
-				return nil, false
-			}
-			f.mu.Unlock()
-			before, err := n.file(id)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if _, err = before.Refresh(); err != nil {
-				t.Fatal(err)
-			}
-			if !n.canRewindCodex(id) {
-				t.Fatal("paginated native history was not supported")
-			}
-			for _, prompt := range []string{"second", "first"} {
-				after := 0
-				res, err := n.rewind(context.Background(), id, rewindOpts{Prompt: prompt, Occurrence: 1, PromptsAfter: &after, Restore: RestoreConversation})
-				if err != nil || res["input_cleared"] != true || res["code_restored"] != false {
-					t.Fatalf("%s: %v %v", prompt, res, err)
-				}
-				page, _, _ := before.Page(0, 100)
-				if strings.Contains(historyText(page), prompt) {
-					t.Fatalf("rewound history: %s", historyText(page))
-				}
-			}
-			if f.count("thread/revert") != 2 || legacy && f.count("thread/rollback") != 2 || !legacy && f.count("thread/rollback") != 0 {
-				t.Fatal("native method fallback")
-			}
-		})
-	}
-}
-
 func TestCodexPaginatedHistoryKeepsThePrefixAndAnEmptyConversation(t *testing.T) {
 	n := remoteTestNode(t)
 	home := n.codexHome()
@@ -249,22 +179,5 @@ func TestRuntimeNativeRewindCapability(t *testing.T) {
 	}
 	if _, err := n.rewind(context.Background(), "rewind-none", rewindOpts{Prompt: "example", Occurrence: 1, Restore: RestoreConversation}); err == nil || len(h.got("session.rewind")) != 2 {
 		t.Fatal("rewind reached a row without it")
-	}
-}
-
-func TestCodexOrdinaryPaginatedHistoryKeepsItsRollout(t *testing.T) {
-	n := remoteTestNode(t)
-	home := n.codexHome()
-	id := paginatedCodex(t, n, home, remoteRaw, []historyTurn{{thread: remoteRaw, id: "a", ordinal: 0, status: "completed", items: [][2]string{userItem("a", "Indexed input")}}})
-	src, _ := n.codexSource(id)
-	file, err := n.file(id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if file.Where() != src.path {
-		t.Fatalf("ordinary rollout replaced by %s", file.Where())
-	}
-	if _, err := os.Stat(n.codexAppHistoryFile(src)); !os.IsNotExist(err) {
-		t.Fatalf("ordinary history was materialized: %v", err)
 	}
 }

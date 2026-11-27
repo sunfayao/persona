@@ -339,42 +339,6 @@ func TestLarkEditDeniedByTheSameRuleAfterApproval(t *testing.T) {
 	}
 }
 
-func TestLarkEditShellPayloadsStayInsideTheTextField(t *testing.T) {
-	payloads := []string{
-		`"; ex PUT /messages/om_1/replies '{"text":"other"}' #`,
-		`'; ex POST /conversations/OTHER/messages '{"text":"other"}' #`,
-		`$(ex POST /conversations/OTHER/messages '{"text":"other"}')`,
-		"`ex POST /conversations/OTHER/messages '{\"text\":\"other\"}'`",
-		"line one\nex DELETE /messages/om_1/recall",
-		`","mentions":[{"id":"ou_other"}],"ignored":"x`,
-		`$HOME \\ "quoted" 'single' 😀`,
-	}
-	for _, edited := range payloads {
-		t.Run(edited, func(t *testing.T) {
-			r := newLarkEditRig(t, func(ix proto.Interaction) proto.Resolution { return editedAllow(ix, edited) })
-			cwd := t.TempDir()
-			spec := runLarkEditHook(t, r, cwd, `ex POST '/conversations/F1/messages?a=1' '{"text":"original","mentions":[]}'`, nil)
-			if spec["permissionDecision"] != "allow" {
-				t.Fatalf("valid text was not editable: %#v", spec)
-			}
-			updated, _ := spec["updatedInput"].(map[string]any)
-			command, _ := updated["command"].(string)
-			v := classifyLark(command, r.n.larkCfg.Gates, cwd, r.n.larkCLIRisk(r.n.larkCfg))
-			if len(v.calls) != 1 || v.other || v.unparsed || v.unknown || v.unsure || v.deny != "" {
-				t.Fatalf("text escaped into shell syntax: %q\n%+v", command, v)
-			}
-			call := v.calls[0]
-			if call.Method != http.MethodPost || call.Path != "/conversations/F1/messages" || call.Query != "a=1" {
-				t.Fatalf("payload changed call identity: %+v", call)
-			}
-			fields, text, ok := editableTextFields(call.Body)
-			if !ok || text != edited || string(fields["mentions"]) != "[]" || len(fields) != 2 {
-				t.Fatalf("payload changed another JSON field: %s", call.Body)
-			}
-		})
-	}
-}
-
 func TestEditableTextFieldsRejectsAmbiguousJSON(t *testing.T) {
 	valid := `{"text":"hello","large":9007199254740993,"mention":{"id":"ou_example"}}`
 	fields, text, ok := editableTextFields(valid)

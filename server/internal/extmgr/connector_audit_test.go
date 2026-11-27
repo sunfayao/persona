@@ -97,26 +97,3 @@ func TestConnectorAuditActorAndFailure(t *testing.T) {
 		t.Fatalf("without an audit: %v", err)
 	}
 }
-
-// optionsConnector is feedConnector (an inbox) with settings of its own (connector.Options).
-type optionsConnector struct {
-	feedConnector
-	opts json.RawMessage
-}
-
-func (*optionsConnector) Manifest() connector.Manifest {
-	return connector.Manifest{Capabilities: []connector.Capability{connector.CapInbox, connector.CapOptions},
-		Kinds: []string{"dm"}}
-}
-
-func (c *optionsConnector) Options() json.RawMessage {
-	if c.opts == nil {
-		return json.RawMessage(`{}`)
-	}
-	return c.opts
-}
-
-func (c *optionsConnector) SetOptions(raw json.RawMessage) error {
-	c.opts = append(json.RawMessage(nil), raw...)
-	return nil
-}

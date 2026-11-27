@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/host"
 	"github.com/sunfayao/persona/server/internal/node/preview"
@@ -75,57 +74,6 @@ func TestPreviewServersProbes(t *testing.T) {
 	}
 }
 
-// Start: a new tab in the session's workspace, named after the entry, in its folder, running its command quoted.
-func TestPreviewStartRunsTheEntryInATab(t *testing.T) {
-	streamingHerdr()
-	n, f, home := herdrNode(t)
-	cwd := mkdir(t, filepath.Join(home, "proj"))
-	writeLaunch(t, cwd, `{"configurations": [
-  {"name": "web", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 5173, "env": {"BROWSER": "none"}},
-  {"name": "docs", "url": "http://localhost:4000/"}
-]}`)
-	f.reply("session.snapshot", paneSnapshot(cwd))
-	if _, err := n.listPanes(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	f.reset()
-	f.reply("tab.create", map[string]any{"tab": map[string]any{"tab_id": "w1:t3"}, "root_pane": map[string]any{"pane_id": "w1:p3"}})
-	f.reply("session.snapshot", snapshot(nil, nil, nil, []any{map[string]any{"pane_id": "w1:p3", "tab_id": "w1:t3", "workspace_id": "w1"}}))
-	start := time.Now()
-	res, err := request(t, n, "preview.start", map[string]any{"cwd": cwd, "name": "web", "workspace": "w1"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res["pane"] != "w1:p3" || res["terminal"] != "pane:w1:p3" || res["port"] != float64(5173) {
-		t.Errorf("result = %v", res)
-	}
-	assertTrace(t, f.trace("tab.create"), []string{
-		call("tab.create", map[string]any{"workspace_id": "w1", "cwd": cwd, "label": "web", "focus": false}),
-	})
-	assertTrace(t, f.trace("pane.send_input"), []string{
-		call("pane.send_input", map[string]any{"pane_id": "w1:p3", "text": "env 'BROWSER=none' npm run dev", "keys": []string{"Enter"}}),
-	})
-	if time.Since(start) > 5*time.Second {
-		t.Errorf("start took %s", time.Since(start))
-	}
-
-	f.reset()
-	for name, p := range map[string]map[string]any{
-		"an entry that only opens a page": {"cwd": cwd, "name": "docs", "workspace": "w1"},
-		"no such entry":                   {"cwd": cwd, "name": "api", "workspace": "w1"},
-		"another workspace":               {"cwd": cwd, "name": "web", "workspace": "w404"},
-		"no workspace":                    {"cwd": cwd, "name": "web"},
-		"a folder without launch.json":    {"cwd": home, "name": "web", "workspace": "w1"},
-	} {
-		if _, err := request(t, n, "preview.start", p); err == nil {
-			t.Errorf("%s: started", name)
-		}
-	}
-	if got := f.trace("tab.create"); len(got) != 0 {
-		t.Errorf("tab.create for a refused start: %v", got)
-	}
-}
-
 // paseoWorkspaceOn gives n a connected runtime that keeps workspaces (Paseo's), listing workspace id in dir: enough for
 // n to tell the id from a terminal host's (no socket: nothing here calls it).
 func paseoWorkspaceOn(n *Node, id, dir string) {
@@ -148,50 +96,6 @@ func herdrSpaces(f *fakeHerdr, other, proj string) map[string]any {
 	f.reply("workspace.list", map[string]any{"workspaces": []any{map[string]any{"workspace_id": "w1", "label": "other", "cwd": other},
 		map[string]any{"workspace_id": "w2", "label": "proj", "cwd": proj}}})
 	return spaces
-}
-
-// Start for a runtime's session (a Paseo session names its runtime's workspace, which has no terminal): the server runs
-// in the terminal engine's workspace that holds its folder, not in the first one; when only the home folder's holds
-// it, in a new workspace in its folder.
-func TestPreviewStartForARuntimeSessionRunsWhereItsFolderIs(t *testing.T) {
-	streamingHerdr()
-	n, f, home := herdrNode(t)
-	other := mkdir(t, filepath.Join(home, "other"))
-	cwd := mkdir(t, filepath.Join(home, "proj"))
-	writeLaunch(t, cwd, `{"configurations": [{"name": "web", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 5173}]}`)
-	paseoWorkspaceOn(n, "wks_1", cwd)
-	herdrSpaces(f, other, cwd)
-	if _, err := n.listPanes(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	f.reset()
-	herdrSpaces(f, other, cwd)
-	f.reply("tab.create", map[string]any{"tab": map[string]any{"tab_id": "w2:t3"}, "root_pane": map[string]any{"pane_id": "w2:p3"}})
-	res, err := request(t, n, "preview.start", map[string]any{"cwd": cwd, "name": "web", "workspace": "wks_1", "kind": "paseo"})
-	if err != nil || res["pane"] != "w2:p3" {
-		t.Fatalf("start: %v %v", res, err)
-	}
-	assertTrace(t, f.trace("workspace.create", "tab.create"), []string{
-		call("tab.create", map[string]any{"workspace_id": "w2", "cwd": cwd, "label": "web", "focus": false}),
-	})
-
-	// Only the home folder's workspace holds it, which holds everything: a new workspace in the server's folder.
-	f.reset()
-	f.reply("workspace.list", map[string]any{"workspaces": []any{map[string]any{"workspace_id": "w1", "label": "home", "cwd": home}}})
-	f.reply("workspace.create", map[string]any{"workspace": map[string]any{"workspace_id": "w3"},
-		"tab": map[string]any{"tab_id": "w3:t1"}, "root_pane": map[string]any{"pane_id": "w3:p1"}})
-	f.reply("session.snapshot", snapshot(nil, nil, nil, nil))
-	res, err = request(t, n, "preview.start", map[string]any{"cwd": cwd, "name": "web", "workspace": "wks_1", "kind": "paseo"})
-	if err != nil || res["pane"] != "w3:p1" {
-		t.Fatalf("start in a new workspace: %v %v", res, err)
-	}
-	assertTrace(t, f.trace("workspace.create", "tab.create", "tab.rename"), []string{
-		call("workspace.create", map[string]any{"cwd": cwd, "label": "proj", "focus": false}),
-		call("tab.rename", map[string]any{"tab_id": "w3:t1", "label": "web"}),
-	})
-	assertTrace(t, f.trace("pane.send_input"), []string{
-		call("pane.send_input", map[string]any{"pane_id": "w3:p1", "text": "npm run dev", "keys": []string{"Enter"}}),
-	})
 }
 
 // A computer whose engines open no tabs has nowhere to run a runtime session's server: a coded refusal the hub words

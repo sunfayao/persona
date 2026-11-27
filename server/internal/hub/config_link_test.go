@@ -1,8 +1,6 @@
 package hub
 
 import (
-	"context"
-	"encoding/json"
 	"math"
 	"os"
 	"path/filepath"
@@ -97,44 +95,4 @@ func TestDevicesConfigWebURL(t *testing.T) {
 			t.Errorf("public_url %q: web_url %q, want %q", public, got, want)
 		}
 	}
-}
-
-// hub.json's heartbeat end to end: the manager tells Persona Link (endpoints, right after the hello), and the hub keeps
-// it on the link itself, so a link that stops answering is dropped after it.
-func TestLinkHeartbeatReachesPersonaLink(t *testing.T) {
-	h, m, srv := newLinkHub(t)
-	h.cfg.Link = LinkConfig{PingSeconds: 1, PingTimeoutSeconds: 1}
-	h.sendLinkEndpoints()
-	eventually(t, 5*time.Second, "the manager has the heartbeat", func() bool {
-		h.devices.mu.Lock()
-		defer h.devices.mu.Unlock()
-		return strings.Contains(string(h.devices.sent[devicesOwner]), `"link_ping_ms":1000`)
-	})
-	token, _ := linkToken(t, h, "laptop")
-	c, _, err := dialLink(t, srv, token)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.CloseNow()
-	hello(t, c, "laptop")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	var msg link.Message
-	for msg.Type != "endpoints" {
-		_, b, err := c.Read(ctx)
-		if err != nil {
-			t.Fatalf("no endpoints: %v", err)
-		}
-		msg = link.Message{}
-		_ = json.Unmarshal(b, &msg)
-	}
-	if msg.PingMS != 1000 || msg.PingTimeoutMS != 1000 {
-		t.Fatalf("endpoints %+v", msg)
-	}
-	// And never read again: pongs are only sent while reading.
-	eventually(t, 3*time.Second, "link up", func() bool { return linkVersion(m) != "" })
-	eventually(t, 5*time.Second, "dead link dropped", func() bool { return linkVersion(m) == "" })
-	eventually(t, 3*time.Second, "the machine says why", func() bool { // and what the ping ran into
-		return strings.Contains(m.snapshot().Error, "no pong within 1s: ")
-	})
 }

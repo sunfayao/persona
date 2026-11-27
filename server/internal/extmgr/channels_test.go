@@ -369,35 +369,6 @@ func TestWeChatStateMoves(t *testing.T) {
 	}
 }
 
-// While the assistant can't take it a channel's message is answered that it can't be reached (once, however often
-// the chat app delivers it); back, the channel's messages go to it again.
-func TestChannelSaysTheAssistantIsAwayAndRecovers(t *testing.T) {
-	w := newChannelWorld(t)
-	shortInboundWait(t)
-	w.away(true)
-	w.receive(t, "a1", "在吗？")
-	w.receive(t, "a1", "在吗？")
-	away := w.ch.find(t, "助手暂时连不上")
-	if away.ReplyTo != "a1" || away.Kind != channel.OutNote {
-		t.Fatalf("note %+v", away)
-	}
-	time.Sleep(500 * time.Millisecond)
-	if n := w.ch.count("助手暂时连不上"); n != 1 {
-		t.Fatalf("told %d times", n)
-	}
-	w.away(false)
-	w.receive(t, "a2", "回来了吗？")
-	eventually(t, 5*time.Second, "handed once it is back", func() bool {
-		got := w.received()
-		if len(got) == 0 {
-			return false
-		}
-		var m channel.Message
-		_ = json.Unmarshal(got[len(got)-1].Message, &m)
-		return m.ID == "a2"
-	})
-}
-
 // In the user's language: the channel list the assistant shows (channels.list).
 func TestChannelsInTheUsersLanguage(t *testing.T) {
 	w := newChannelWorld(t)

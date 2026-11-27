@@ -83,38 +83,6 @@ func TestInboxLinkTaskModelFailure(t *testing.T) {
 	}
 }
 
-// An agent runtime that is already running answers before startInboxAgent has recorded the conversation: the draft
-// waits for it instead of failing.
-func TestInboxDraftBeforeTheStartReturned(t *testing.T) {
-	h := agentHub(t)
-	it := actionItem("x", time.Now())
-	it.Agent = &InboxAgent{State: AgentRunning, Task: "t"} // starting: no conversation yet
-	h.inbox.items[it.ID] = it
-	go func() {
-		time.Sleep(300 * time.Millisecond)
-		h.inbox.mu.Lock()
-		it.Agent.SessionID = "session-r1"
-		h.inbox.mu.Unlock()
-	}()
-	if id, refused, _ := h.inboxDraft(context.Background(), "session-r1", "好的", "", nil, it.Agent.ProcessingTurn); id != it.ID || refused != nil {
-		t.Fatalf("drafted on %q, refused %+v", id, refused)
-	}
-	if it.Agent.State != AgentDrafted || it.Agent.Draft != "好的" {
-		t.Fatalf("agent = %+v", it.Agent)
-	}
-	old := inboxDraftWait
-	inboxDraftWait = 200 * time.Millisecond
-	t.Cleanup(func() { inboxDraftWait = old })
-	other := actionItem("y", time.Now())
-	other.Agent = &InboxAgent{State: AgentRunning}
-	h.inbox.mu.Lock()
-	h.inbox.items[other.ID] = other
-	h.inbox.mu.Unlock()
-	if id, _, _ := h.inboxDraft(context.Background(), "session-nobody", "hi", "", nil, ""); id != "" {
-		t.Fatal("a conversation no item gets drafted")
-	}
-}
-
 // The draft (inbox_draft) goes on the item whose agent runs in the conversation, with the moves of a document's rows
 // the item offers; the hub is told which conversations are the AI twin's (no finished push for them).
 func TestInboxDraft(t *testing.T) {

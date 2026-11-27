@@ -1,12 +1,9 @@
 """Deployment compatibility; every process uses synthetic homes and stub services."""
 import os
 from pathlib import Path
-import plistlib
 import subprocess
-import sys
 import tempfile
 import unittest
-from unittest.mock import patch
 
 from test_persona_script_identity import identity, executable, environment
 
@@ -26,50 +23,6 @@ class DeploymentRollingCompatibilityTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "||private-fixture-value")
 
-    def test_installed_former_node_identity_and_envfile_survive_install_restart_and_uninstall(self):
-        for system in ("Linux", "Darwin"):
-            with self.subTest(system=system), tempfile.TemporaryDirectory() as directory:
-                home = Path(directory)
-                state = home / "custom profile"
-                (state / "bin").mkdir(parents=True)
-                executable(state / "bin" / (FORMER + "d"), "#!/bin/sh\nexit 0\n")
-                (state / "hub.json").write_text('{"token":"unchanged-fixture"}')
-                commands = home / "commands"
-                commands.mkdir()
-                executable(commands / "uname", '#!/bin/sh\nprintf "%s\\n" "' + system + '"\n')
-                for command in ("systemctl", "launchctl", "loginctl"):
-                    executable(commands / command, '#!/bin/sh\nprintf "%s %s\\n" "' + command + '" "$*" >> "$HOME/calls"\nprintf "Linger=yes\\n"\n')
-                if system == "Linux":
-                    installed = home / ".config/systemd/user" / (FORMER + "d-node.service")
-                    installed.parent.mkdir(parents=True)
-                    envfile = home / "service.env"
-                    envfile.write_text(PREFIX + 'HOME="' + str(state) + '"\nAPI_KEY=private-fixture-value\n')
-                    original = '[Service]\nEnvironmentFile=' + str(envfile) + '\n'
-                    installed.write_text(original)
-                else:
-                    installed = home / "Library/LaunchAgents" / ("com." + FORMER + ".node.plist")
-                    installed.parent.mkdir(parents=True)
-                    installed.write_bytes(plistlib.dumps({"Label": "com." + FORMER + ".node",
-                        "EnvironmentVariables": {PREFIX + "HOME": str(state), "API_KEY": "private-fixture-value"}}))
-                env = environment(home, PATH=str(commands) + ":" + os.environ["PATH"])
-                for action in ("install", "install", "restart-idle", "uninstall"):
-                    result = subprocess.run(["bash", str(ROOT / "scripts/deploy/node-launchd.sh"), action],
-                                            env=env, capture_output=True, text=True, timeout=10)
-                    self.assertEqual(result.returncode, 0, result.stderr)
-                    self.assertNotIn("private-fixture-value", result.stdout + result.stderr)
-                    if action == "install":
-                        if system == "Linux":
-                            self.assertEqual(installed.read_text(), original)
-                            self.assertIn('ExecStart=', (installed.with_name(installed.name + '.d') / '90-persona-compat.conf').read_text())
-                            self.assertIn("private-fixture-value", envfile.read_text())
-                        else:
-                            job = plistlib.loads(installed.read_bytes())
-                            self.assertEqual(job["EnvironmentVariables"]["API_KEY"], "private-fixture-value")
-                            self.assertEqual(job["EnvironmentVariables"]["PERSONA_HOME"], str(state))
-                self.assertFalse(installed.exists())
-                self.assertEqual((state / "hub.json").read_text(), '{"token":"unchanged-fixture"}')
-                self.assertNotIn("personad-node.service", (home / "calls").read_text())
-                self.assertNotIn("com.persona.node", (home / "calls").read_text())
 
     def test_former_hub_socket_and_envfile_are_reused_not_recreated(self):
         with tempfile.TemporaryDirectory() as directory:

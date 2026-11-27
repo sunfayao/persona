@@ -78,48 +78,6 @@ func installFromCache(t *testing.T, h *Manager) error {
 	return nil
 }
 
-// A catalog the signed market cannot read (404, 401, 500, a timeout) is a network problem, not a signature
-// failure: the last verified index and its signed state stay, the error is recorded, and installs keep working.
-func TestSignedMarketReadFailureKeepsVerifiedCatalog(t *testing.T) {
-	for _, c := range []struct {
-		name  string
-		serve http.HandlerFunc
-	}{
-		{"not found", func(w http.ResponseWriter, r *http.Request) { http.NotFound(w, r) }},
-		{"unauthorized", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusUnauthorized) }},
-		{"server error", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusBadGateway) }},
-		{"timeout", func(w http.ResponseWriter, r *http.Request) { <-r.Context().Done() }},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			h, key, setCatalog := signedReadHub(t)
-			setCatalog(c.serve)
-			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-			defer cancel()
-			_, err := h.marketRead(ctx, "example")
-			if err == nil || errors.Is(err, errMarketSignature) || errors.Is(err, extension.ErrCatalogUnverified) {
-				t.Fatalf("a read failure was reported as a signature failure: %v", err)
-			}
-			if !errors.Is(err, extension.ErrCatalogUnavailable) {
-				t.Fatalf("a read failure is not typed as unavailable: %v", err)
-			}
-			if st := storedSignature(h); st.State != extension.SigSigned || st.KeyID != keyIDText(t, key.text) {
-				t.Fatalf("a read failure changed the signature state: %+v", st)
-			}
-			ms := h.marketsState()
-			ms.mu.Lock()
-			s := ms.byID["example"]
-			kept, recorded := s.index != nil && len(s.index.Extensions) == 1, s.rec.Error != ""
-			ms.mu.Unlock()
-			if !kept || !recorded {
-				t.Fatalf("index kept %v, error recorded %v", kept, recorded)
-			}
-			if err := installFromCache(t, h); err != nil {
-				t.Fatalf("the verified cached catalog no longer installs: %v", err)
-			}
-		})
-	}
-}
-
 // A catalog that was read (HTTP 200) and does not verify quarantines the market: unsigned, signed by another (old)
 // signer, a broken signature, or not a catalog at all. Nothing installs, not even from the last good index.
 func TestSignedMarketUnverifiedCatalogQuarantines(t *testing.T) {

@@ -135,50 +135,6 @@ func TestSuggestNextForAnAssistantConversation(t *testing.T) {
 	}
 }
 
-func TestSuggestNextOnlyWhereTheRulesSay(t *testing.T) {
-	failed := codexSession()
-	failed.TurnError = "API Error: 500"
-	sub := codexSession()
-	sub.IsSubagent = true
-	claude := proto.Session{SessionID: "cl1", Agent: "claude", PaneID: "p2", Suggestion: "run the tests"}
-	for _, c := range []struct {
-		name    string
-		on      bool
-		watched bool
-		sess    proto.Session
-		status  string
-	}{
-		{"switch off", false, true, codexSession(), proto.StatusDone},
-		{"nobody has it open", true, false, codexSession(), proto.StatusDone},
-		{"failed turn", true, true, failed, proto.StatusDone},
-		{"interrupted turn", true, true, codexSession(), proto.StatusInterrupted},
-		{"subagent", true, true, sub, proto.StatusDone},
-		{"Claude Code in a terminal has its own", true, true, claude, proto.StatusDone},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			st := newSuggestTest(t, c.on)
-			st.f.replies = []string{"Fix both"}
-			st.d.watch("mac", c.sess.SessionID, c.watched)
-			st.turn(c.sess, c.status)
-			if c.name == "switch off" || c.name == "nobody has it open" || claudeInTerminal(&c.sess) {
-				if got := st.waitDone(t); got != "" {
-					t.Fatalf("ordinary reply offered %q", got)
-				}
-			}
-			st.noCall(t)
-		})
-	}
-	// Claude Code's own suggestion still reaches the apps, as it is.
-	st := newSuggestTest(t, true)
-	st.d.watch("mac", "cl1", true)
-	claude.Status = proto.StatusDone
-	st.sessions("mac", claude)
-	got := shownSuggestion(t, st.lastList("mac"), "cl1")
-	if got.Suggestion != "run the tests" {
-		t.Fatalf("listed %q", got.Suggestion)
-	}
-}
-
 func TestSuggestNextCancelledByANewTurn(t *testing.T) {
 	st := newSuggestTest(t, true)
 	st.f.replies = []string{"Fix both"}

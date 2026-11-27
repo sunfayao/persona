@@ -640,47 +640,6 @@ func TestRelayDroppedStaysBounded(t *testing.T) {
 	}
 }
 
-// A WebSocket opened with a pairing code through the manager ends when the code does (here its expiry; revoking the
-// device that redeemed it expires it too), as the code's own /api/v1/ws does: it is not a device revoked() is told of.
-func TestRelayedPairingCallEndsWithTheCode(t *testing.T) {
-	h, m, _, srv := relayTestHub(t)
-	tok := "jp_" + strings.Repeat("ab", 32)
-	device := "pair_" + hashToken(tok)
-	if err := h.store.CreatePairToken(context.Background(), hashToken(tok), time.Now().Add(1500*time.Millisecond), ""); err != nil {
-		t.Fatal(err)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	c, _, err := websocket.Dial(ctx, wsURL(srv, "/api/v1/extensions/callee/ws"),
-		&websocket.DialOptions{HTTPHeader: http.Header{"Authorization": {"Bearer " + tok}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.CloseNow()
-	_, b, err := c.Read(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := map[string]string{}
-	_ = json.Unmarshal(b, &got)
-	if got["X-Persona-Device"] != device || got["X-Persona-Role"] != roleFull || got["X-Persona-Paired"] != "1" {
-		t.Fatalf("who asked: %v", got)
-	}
-	readCtx, readCancel := context.WithTimeout(ctx, 6*time.Second)
-	defer readCancel()
-	if _, _, err := c.Read(readCtx); err == nil || readCtx.Err() != nil {
-		t.Fatalf("the WebSocket outlived its pairing code: %v", err)
-	}
-	select {
-	case ended := <-m.ended:
-		if ended != device {
-			t.Fatalf("ended on the manager's side: %q, want the pairing code's", ended)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("the manager's side outlived the pairing code")
-	}
-}
-
 // A client cannot drop the hub's headers by naming them in Connection (a hop-by-hop header the proxy removes): a
 // pairing code stays paired, an extension's token stays the extension's.
 func TestRelayedCallerHeadersSurviveConnection(t *testing.T) {

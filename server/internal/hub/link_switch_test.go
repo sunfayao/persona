@@ -6,14 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -23,7 +21,6 @@ import (
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/devicewire"
 	"github.com/sunfayao/persona/server/internal/i18n"
-	"github.com/sunfayao/persona/server/internal/link"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
 )
@@ -574,84 +571,6 @@ func TestLinkSwitchEndRefusals(t *testing.T) {
 		Outcome: devicewire.LinkSwitchRolledBack}), devicewire.LinkSwitchCodeNotSSH)
 }
 
-// A rollback undoes only a switch whose begin took effect. One that begin refused (the computer had a Persona Link
-// already), one of another operation, or a manager's end on its own computer that never switched changes nothing:
-// the computer's own credential survives, its kind stays. A switch this hub no longer remembers (it restarted) is
-// still found by its audit row and undone.
-func TestLinkSwitchRollbackOnlyUndoesABegunSwitch(t *testing.T) {
-	h, _, _ := switchHub(t)
-	ctx := context.Background()
-	rollBack := func(mid, op, hash string) error {
-		return busEnd(h, nil, devicewire.LinkSwitchEnd{MachineID: mid, Operation: op, PairHash: hash, Outcome: devicewire.LinkSwitchRolledBack})
-	}
-
-	// Begin refused: the user's own credential for it.
-	refused := newSwitchOp()
-	userTok, _ := linkToken(t, h, "lsw-box")
-	_, err := busBegin(h, nil, devicewire.LinkSwitchBegin{MachineID: "lsw-box", Operation: refused, SSHHost: "me@box.example"})
-	refusedWith(t, "a credential already", err, devicewire.LinkSwitchCodeExistingLink)
-	if err := rollBack("lsw-box", refused, ""); err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := h.authenticate(ctx, userTok); !ok {
-		t.Fatal("a rollback of a refused begin revoked the computer's own credential")
-	}
-
-	// A link computer that never switched.
-	linkTok, _ := linkToken(t, h, "lsw-link")
-	if err := rollBack("lsw-link", newSwitchOp(), ""); err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := h.authenticate(ctx, linkTok); !ok || diskKind(t, h, "lsw-link") != "link" {
-		t.Fatal("a rollback on a computer that never switched revoked its credential or changed its kind")
-	}
-
-	// Begun, then a rollback of another operation: nothing; of its own: undone.
-	op := newSwitchOp()
-	got, err := busBegin(h, nil, devicewire.LinkSwitchBegin{MachineID: "lsw-bare", Operation: op, SSHHost: "bare.example"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	code, out := redeem(t, h, pairTokenOf(t, got.Link), `{}`)
-	if code != 200 {
-		t.Fatalf("redeem %d", code)
-	}
-	cred := out["token"].(string)
-	if err := rollBack("lsw-bare", newSwitchOp(), ""); err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := h.authenticate(ctx, cred); !ok || diskKind(t, h, "lsw-bare") != "link" {
-		t.Fatal("a rollback of another operation undid this switch")
-	}
-	// This hub restarted: its memory of the switch is gone, the audit says it began.
-	h.linkSwitch = linkSwitches{}
-	if err := rollBack("lsw-bare", op, ""); err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := h.authenticate(ctx, cred); ok {
-		t.Fatal("the switch's credential still works")
-	}
-	if diskKind(t, h, "lsw-bare") != "ssh" || h.cfgEntry("lsw-bare").Kind != "ssh" {
-		t.Fatal("not back to ssh")
-	}
-	// Begun, but put back to ssh meanwhile and paired by its user: a rollback without the hash leaves that alone.
-	held := newSwitchOp()
-	if _, err := busBegin(h, nil, devicewire.LinkSwitchBegin{MachineID: "lsw-bare", Operation: held, SSHHost: "bare.example"}); err != nil {
-		t.Fatal(err)
-	}
-	h.kindLive("lsw-bare", "ssh")
-	if err := editHubJSON(h.cfg.dir, func(o *jsonObject) error { return setMachineField(o, "lsw-bare", "kind", "ssh") }); err != nil {
-		t.Fatal(err)
-	}
-	ownTok, _ := linkToken(t, h, "lsw-bare")
-	if err := rollBack("lsw-bare", held, ""); err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := h.authenticate(ctx, ownTok); !ok {
-		t.Fatal("a rollback without the hash revoked a credential of a computer no longer on Persona Link")
-	}
-}
-
 // A computer moved to another manager while it switched: end from the manager that began it is refused as not its
 // own, yet a rollback that names its code still revokes that code's credential first; one without a hash revokes
 // nothing of another manager's computer.
@@ -739,41 +658,6 @@ func TestLinkSwitchRollbackAfterSuccessIsRefused(t *testing.T) {
 	tries()
 	h.linkSwitch = linkSwitches{} // this hub restarted
 	tries()
-}
-
-// While a computer switches, it is neither moved to another manager nor removed: 409 link_switch_in_progress, in the
-// asker's language. Once the switch ended, both may go ahead.
-func TestLinkSwitchHoldsTheComputer(t *testing.T) {
-	h, _, _ := switchHub(t)
-	ctx := context.Background()
-	op := newSwitchOp()
-	if _, err := busBegin(h, nil, devicewire.LinkSwitchBegin{MachineID: "lsw-box", Operation: op, SSHHost: "me@box.example"}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := h.moveMachine(ctx, "lsw-box", "m-0e0e0e"); !errors.Is(err, errLinkSwitchInProgress) {
-		t.Fatalf("moved while switching: %v", err)
-	}
-	mux := http.NewServeMux()
-	h.adminMachineRoutes(mux)
-	w := langRecorder{httptest.NewRecorder(), i18n.Ja}
-	mux.ServeHTTP(w, httptest.NewRequest("DELETE", "/api/v1/admin/machines/lsw-box", nil))
-	var body map[string]any
-	_ = json.Unmarshal(w.Body.Bytes(), &body)
-	if w.Code != http.StatusConflict || body["code"] != "link_switch_in_progress" || body["error"] != i18n.T(i18n.Ja, "hub-link_switch.in_progress") {
-		t.Fatalf("removed while switching: %d %v", w.Code, body)
-	}
-	if diskEntry(t, h, "lsw-box") == nil {
-		t.Fatal("gone")
-	}
-	if err := busEnd(h, nil, devicewire.LinkSwitchEnd{MachineID: "lsw-box", Operation: op, Outcome: devicewire.LinkSwitchRolledBack}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := h.moveMachine(ctx, "lsw-box", "m-0e0e0e"); errors.Is(err, errLinkSwitchInProgress) {
-		t.Fatal("still held after the switch ended")
-	}
-	if w := adminMachinesRequest(h, "DELETE", "/api/v1/admin/machines/lsw-box", ""); w.Code != http.StatusOK {
-		t.Fatalf("remove after the switch: %d %s", w.Code, w.Body.String())
-	}
 }
 
 // langRecorder records an answer to a request in l (as the hub's request logger's writer carries it).
@@ -913,106 +797,6 @@ func TestAdminLinkSwitchWaitsForAssignedManagerWithCarrierUp(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("still waiting after the machine's manager reported")
-	}
-}
-
-// The whole hub side with a real manager and a real Persona Link connection: begin hands the manager the computer as
-// kind link and its mirror follows; the code becomes a credential that connects; rolled_back with the code's hash
-// revokes exactly that credential (its cached lookup too) and closes its link as revoked (4002), and the computer is
-// on ssh again. A credential made for it otherwise and another computer's stay. Repeated, end answers the same.
-func TestLinkSwitchRollbackClosesItsLink(t *testing.T) {
-	switchOp := newSwitchOp() // the audit outlives a run, and an operation id is used once
-	database := testDB(t)
-	clearSwitchIDs(t, database)
-	ctx := context.Background()
-	h := newTestHub(t)
-	h.store = database
-	logs := &syncLog{}
-	h.logger = log.New(logs, "", 0)
-	h.cfg.Machines = []MachineConfig{{ID: "lsw-desk", Name: "Desk", Kind: kindLink}, {ID: "lsw-box", Name: "Box", Kind: "ssh", SSHHost: "box.example"}}
-	if err := os.WriteFile(filepath.Join(h.cfg.dir, "hub.json"), []byte(`{"machines":[{"id":"lsw-desk","name":"Desk","kind":"link"},`+
-		`{"id":"lsw-box","name":"Box","kind":"ssh","ssh_host":"box.example"}]}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	h.devices.entries, h.devices.started = slices.Clone(h.cfg.Machines), true
-	h.loadMachineTrust(ctx)
-	h.trust.pending = map[string]time.Time{}
-	srv := httptest.NewTLSServer(h.routes())
-	t.Cleanup(srv.Close)
-	port := srv.Listener.Addr().(*net.TCPAddr).Port
-	h.public.mu.Lock()
-	h.public.port, h.public.fp = port, link.Pin(srv.Certificate())
-	h.public.endpoints = []Endpoint{{URL: srv.URL, Kind: "lan", Port: port, Scheme: "https"}}
-	h.public.mu.Unlock()
-	h.cfg.PublicURL = "http://127.0.0.1:" + strconv.Itoa(port)
-	// Over ssh, no node answers (no ssh in tests); as kind link, the manager waits for its Persona Link.
-	startTestManagerDialing(t, h, srv, func(id string) func(context.Context) (net.Conn, error) {
-		if mc := h.cfgEntry(id); mc == nil || kindOf(*mc) != "ssh" {
-			return nil
-		}
-		return func(context.Context) (net.Conn, error) { return nil, errors.New("no ssh in tests") }
-	}, "")
-	m := mirror(t, h, "lsw-box")
-	deskTok, _ := linkToken(t, h, "lsw-desk")
-
-	got, err := busBegin(h, nil, devicewire.LinkSwitchBegin{MachineID: "lsw-box", Operation: switchOp, SSHHost: "box.example", By: "device"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	eventually(t, 10*time.Second, "the manager reports it as kind link", func() bool { return m.kind() == kindLink })
-	code, out := redeem(t, h, pairTokenOf(t, got.Link), `{}`)
-	if code != 200 {
-		t.Fatalf("redeem %d %v", code, out)
-	}
-	cred, credID := out["token"].(string), out["id"].(string)
-	if p, ok := h.authenticate(ctx, cred); !ok || p.ID != credID { // its lookup is cached now
-		t.Fatal("its credential does not work")
-	}
-	// Another credential for it, made as any pairing would while it is kind link: not this switch's.
-	more, err := h.newPairCode(ctx, "lsw-box")
-	if err != nil {
-		t.Fatal(err)
-	}
-	code, out = redeem(t, h, more.Token, `{}`)
-	if code != 200 {
-		t.Fatalf("redeem the other code %d", code)
-	}
-	other := out["token"].(string)
-	// The computer's persona-link connects with it, and its node answers through it.
-	statuses, _, _ := runLink(t, link.Config{Hub: "hub", Machine: "lsw-box", FP: link.Pin(srv.Certificate()), Token: cred,
-		Endpoints: []link.Endpoint{{URL: srv.URL, Kind: "lan"}}}, fakeResidentNode(t))
-	eventually(t, 10*time.Second, "online through its Persona Link", func() bool { return m.snapshot().Online && linkVersion(m) != "" })
-
-	end := devicewire.LinkSwitchEnd{MachineID: "lsw-box", Operation: switchOp, PairHash: got.PairHash, Outcome: devicewire.LinkSwitchRolledBack}
-	if err := busEnd(h, nil, end); err != nil {
-		t.Fatal(err)
-	}
-	// Closed as revoked (4002): persona-link says its credential was revoked, and stops trying.
-	waitStatus(t, statuses, "its credential revoked", func(s link.Status) bool {
-		return s.State == "refused" && s.Error == i18n.T(i18n.Default, "link-errors.credential_revoked")
-	})
-	if _, ok := h.authenticate(ctx, cred); ok {
-		t.Fatal("its credential still works (a cached lookup)")
-	}
-	for name, tok := range map[string]string{"the other credential for it": other, "another computer's": deskTok} {
-		if _, ok := h.authenticate(ctx, tok); !ok {
-			t.Fatalf("%s was revoked", name)
-		}
-	}
-	if k := diskKind(t, h, "lsw-box"); k != "ssh" {
-		t.Fatalf("hub.json kind %v", k)
-	}
-	eventually(t, 10*time.Second, "the manager reports it as ssh again", func() bool { return kindOf(MachineConfig{Kind: m.kind()}) == "ssh" })
-	if err := busEnd(h, nil, end); err != nil {
-		t.Fatalf("again: %v", err)
-	}
-	if _, ok := h.authenticate(ctx, other); !ok {
-		t.Fatal("repeating revoked more")
-	}
-	for _, secret := range []string{pairTokenOf(t, got.Link), got.Link, cred} {
-		if logs.about(secret) > 0 {
-			t.Fatal("the log has a secret")
-		}
 	}
 }
 

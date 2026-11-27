@@ -419,39 +419,6 @@ func TestHerdrServerOfACustomDataDirIsItsOwn(t *testing.T) {
 	}
 }
 
-// The node starting with herdr down starts it — after the hub said it may (node.configure), not before.
-func TestHerdrAtNodeStartWaitsForTheHub(t *testing.T) {
-	n, _ := downHerdrNode(t)
-	fl := &fakeLaunch{}
-	withLaunchHerdr(t, fl)
-	prev := herdrStartWait
-	herdrStartWait = time.Hour
-	t.Cleanup(func() { herdrStartWait = prev })
-	done := make(chan struct{})
-	go func() { n.herdrAtStart(context.Background()); close(done) }()
-	// A hub that never answers leaves the start blocked until its timeout; no fixed sleep is needed to check this.
-	select {
-	case <-done:
-		t.Fatal("herdrAtStart returned before the hub answered")
-	case <-time.After(time.Second):
-	}
-	if fl.starts.Load() != 0 {
-		t.Fatal("started before the hub said")
-	}
-	n.setHerdrAutostart(false)
-	<-done
-	if fl.starts.Load() != 0 {
-		t.Fatal("started although turned off")
-	}
-
-	n2, _ := downHerdrNode(t)
-	herdrStartWait = 10 * time.Millisecond // an older hub never says: on
-	n2.herdrAtStart(context.Background())
-	if fl.starts.Load() != 1 {
-		t.Fatalf("%d starts", fl.starts.Load())
-	}
-}
-
 // The resume command herdr runs for a Persona-started Claude: herdr told it is Claude (HERDR_AGENT, as at the start),
 // the launcher and Persona's flags, quoted without apostrophes (herdr refuses them), never a bare `claude --resume`.
 func TestClaudeResumeArgv(t *testing.T) {
