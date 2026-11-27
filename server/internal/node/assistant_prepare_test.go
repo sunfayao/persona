@@ -245,16 +245,16 @@ func TestWorkGuidePrepareAndRollback(t *testing.T) {
 		} else if _, err := os.Lstat(codex); !os.IsNotExist(err) {
 			t.Fatalf("guide link after rollback: %v", err)
 		}
+		// Every Assistant directory keeps the guide's references where the core tool descriptions point
+		// (.claude/skills/persona-work/references); the guide itself, and Codex's link to it, only where it is on.
 		for _, root := range []string{".claude", ".agents"} {
 			for _, dir := range []string{cwd, other} {
-				path := filepath.Join(dir, root, "skills", "persona-work", "references", "delegate.md")
-				_, err := os.Stat(path)
-				if guide != "" && dir == cwd {
-					if err != nil {
-						t.Fatal(err)
-					}
-				} else if !os.IsNotExist(err) {
-					t.Fatalf("unexpected guide at %s: %v", path, err)
+				guided := guide != "" && dir == cwd
+				at := filepath.Join(dir, root, "skills", "persona-work")
+				_, refErr := os.Stat(filepath.Join(at, "references", "delegate.md"))
+				_, guideErr := os.Stat(filepath.Join(at, "SKILL.md"))
+				if (refErr == nil) != (guided || root == ".claude") || (guideErr == nil) != guided {
+					t.Fatalf("guide on=%v at %s: references %v, guide %v", guided, at, refErr, guideErr)
 				}
 			}
 		}
@@ -283,7 +283,7 @@ func TestWorkGuideSurvivesNodeRestart(t *testing.T) {
 		release()
 		for _, runtime := range []string{".claude", ".agents"} {
 			dir := filepath.Join(cwd, runtime, "skills")
-			_, err := os.Stat(filepath.Join(dir, "persona-work", "references", "record.md"))
+			_, err := os.Stat(filepath.Join(dir, "persona-work", "SKILL.md"))
 			if guide != "" && err != nil || guide == "" && !os.IsNotExist(err) {
 				t.Fatalf("guide=%q resumed %s: %v", guide, runtime, err)
 			}

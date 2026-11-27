@@ -318,6 +318,15 @@ func workGuideFilePresent(dir string) bool {
 	return err == nil && st.Mode().IsRegular()
 }
 
+// guideFormPresent says whether dir holds the guide in the form wanted: whole, or (refsOnly) its references alone.
+func guideFormPresent(dir string, refsOnly bool) bool {
+	if !refsOnly {
+		return workGuideFilePresent(dir)
+	}
+	st, err := os.Stat(filepath.Join(dir, workGuideName, "references"))
+	return err == nil && st.IsDir() && !workGuideFilePresent(dir)
+}
+
 // installBuiltins copies the built-in skills into dir, except those the user has their own of and those whose
 // connector is not signed in; the stamp (version and what was copied) skips an identical install and lets a copy no
 // longer carried, or no longer wanted, be removed.
@@ -339,6 +348,10 @@ func installBuiltins(dir string, mine []string, selection Selection) error {
 			}
 		}
 	}
+	// The core tools' descriptions point every Assistant conversation, in any runtime, at the guide's references by
+	// their path under .claude/skills. Without the guide the canonical copy is only those references: with no SKILL.md
+	// no runtime lists it as a skill and WorkGuideInstalled stays false, so the instructions keep their full form.
+	refsOnly := guideLink == "" && !selection.WorkGuide && !slices.Contains(pluginNames(PluginDir()), workGuideName)
 	var names []string
 	for _, n := range builtinNames() {
 		if n == workGuideName && !ownsGuide {
@@ -357,7 +370,7 @@ func installBuiltins(dir string, mine []string, selection Selection) error {
 				return err
 			}
 		}
-		if !slices.Contains(mine, n) && selection.wanted(n) {
+		if !slices.Contains(mine, n) && (selection.wanted(n) || n == workGuideName && refsOnly) {
 			names = append(names, n)
 		}
 	}
@@ -365,8 +378,9 @@ func installBuiltins(dir string, mine []string, selection Selection) error {
 	if strings.TrimSpace(string(old)) == want {
 		workOK := !slices.Contains(names, workGuideName)
 		if !workOK {
+			// Both forms share the stamp: switching the guide on or off finds the other form here and copies again.
 			target, _ := os.Readlink(filepath.Join(dir, workGuideName))
-			workOK = target == guideLink && workGuideFilePresent(dir) && (guideLink != "" || filePresent(filepath.Join(dir, guideDigestFile)))
+			workOK = target == guideLink && guideFormPresent(dir, refsOnly) && (guideLink != "" || filePresent(filepath.Join(dir, guideDigestFile)))
 		}
 		opsOK := !slices.Contains(names, MachineOpsSkillName) || (ownsManagedMachineOps(dir) && filePresent(filepath.Join(dir, MachineOpsSkillName, "SKILL.md")))
 		if workOK && opsOK {
@@ -394,12 +408,19 @@ func installBuiltins(dir string, mine []string, selection Selection) error {
 	for _, name := range names {
 		tmp := filepath.Join(dir, "."+name+".new")
 		_ = os.RemoveAll(tmp)
-		if name == workGuideName && guideLink != "" {
+		switch {
+		case name == workGuideName && guideLink != "":
 			if err := os.Symlink(guideLink, tmp); err != nil {
 				return err
 			}
-		} else if err := copyBuiltin(name, tmp); err != nil {
-			return err
+		case name == workGuideName && refsOnly:
+			if err := copyBuiltinPart(name, name+"/references", tmp); err != nil {
+				return err
+			}
+		default:
+			if err := copyBuiltin(name, tmp); err != nil {
+				return err
+			}
 		}
 		final := filepath.Join(dir, name)
 		_ = os.RemoveAll(final)
@@ -435,8 +456,12 @@ func installBuiltins(dir string, mine []string, selection Selection) error {
 }
 
 // copyBuiltin writes the built-in skill name into dir, its scripts (*.sh) runnable.
-func copyBuiltin(name, dir string) error {
-	return fs.WalkDir(builtin, name, func(p string, d fs.DirEntry, err error) error {
+func copyBuiltin(name, dir string) error { return copyBuiltinPart(name, name, dir) }
+
+// copyBuiltinPart writes part (name itself, or a directory in it) of the built-in skill name into dir, each file at
+// its place in the skill.
+func copyBuiltinPart(name, part, dir string) error {
+	return fs.WalkDir(builtin, part, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
