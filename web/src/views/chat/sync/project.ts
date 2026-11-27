@@ -26,8 +26,8 @@ export function project(root: HTMLElement, sent: string[]): Required<Pick<View, 
   const cards: Record<string, "open" | "answering" | "answered"> = {};
   for (const el of root.querySelectorAll<HTMLElement>("[data-answered]")) cards[el.dataset.answered!] = "answered";
   for (const el of root.querySelectorAll<HTMLElement>("[data-card]")) {
-    // only what answers it: its actions and hand back, not a toggle in its body
-    const enabled = [...el.querySelectorAll<HTMLButtonElement>("[data-card-actions] button, button[data-card-answer]")].some((b) => !b.disabled && !b.closest("fieldset[disabled]"));
+    // only what answers it: its actions, hand back and its options, not another control in its body
+    const enabled = [...el.querySelectorAll<HTMLButtonElement>("[data-card-actions] button, button[data-card-answer], button[data-tap-answer]")].some((b) => !b.disabled && !b.closest("fieldset[disabled]"));
     cards[el.dataset.card!] = enabled ? "open" : "answering";
   }
   return { messages, cards, live };
