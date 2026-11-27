@@ -28,7 +28,7 @@ import type { SessionLive } from "../../lib/types";
 import { TICKING_DURATION, workDuration } from "../../lib/work-groups";
 import { workflowCounts, type BackgroundLine, type WaitLine } from "../../lib/workflows";
 import { stateName } from "../../lib/state-labels";
-import { useNow } from "../../ui/atoms";
+import { Spinner, useNow } from "../../ui/atoms";
 import { Icon, type IconName } from "../../ui/icons";
 import { FADE_OUT_MS, LINGER_MS, useBreath, useCountUp } from "../../ui/motion";
 import { Rolling } from "../../ui/Rolling";
@@ -240,7 +240,6 @@ export function RunningStatusView({ live, working, done: finished, startedAt, cl
   const state = statusWords(shown, kept.step, plain);
   const commandWords = task ? [t("chat-runningstatusbar.background_task"), task.what, task.more > 0 ? t("chat-runningstatusbar.more_waits", { count: task.more }) : ""].filter(Boolean).join(" · ") : "";
   const words = retry ? t("chat-runningstatusbar.retrying", { attempt: formatNumber(retry.attempt), max: formatNumber(retry.max), reason: retry.info?.reason ?? t("lib-api-errors.failed") }) : behind ? "" : usage ? t("chat-runningstatusbar.background_subtasks") : task ? commandWords : done ? t("chat-runningstatusbar.done") : state.text;
-  const compacting = !retry && !behind && !usage && !task && !done && state.compacting;
   const breath = useBreath(useMoves(`${words}\n${shown?.tokens_down ?? ""}`), phase === "on");
   const onPinned = useCallback((p: boolean) => setPinned(p), []);
   const SpeedView = useSpeed(working && own);
@@ -250,7 +249,7 @@ export function RunningStatusView({ live, working, done: finished, startedAt, cl
   const hidden = phase === "off";
   // each side fades on its own: a pinned card's button stays as it is (cindy)
   const fade: CSSProperties | undefined = hidden ? undefined : { opacity: phase === "fading" ? 0 : 1, transition: `opacity ${FADE_OUT_MS}ms ease-out` };
-  const icon: IconName = behind ? "workflow" : usage ? "activity" : task ? "terminal" : done ? "check" : compacting ? "layers" : "sparkles";
+  const icon: IconName | null = behind ? "workflow" : task ? "terminal" : done ? "check" : null;
   const count = own && shown?.tokens_down ? (
     <>
       <Icon name="arrowDown" size={13} className="shrink-0" />
@@ -271,7 +270,11 @@ export function RunningStatusView({ live, working, done: finished, startedAt, cl
         data-running-done={done || undefined}
         style={breath.cycle && !done && !hidden && !(breath.cycle % 2) ? { ...fade, animationName: "status-breath-again" } : fade}
       >
-        <Icon name={icon} size={14} stroke={done ? 2.5 : undefined} className={`shrink-0 ${done ? "" : "-translate-y-px"}`} />
+        {icon ? (
+          <Icon name={icon} size={14} stroke={done ? 2.5 : undefined} className={done ? "shrink-0" : "shrink-0 -translate-y-px"} />
+        ) : (
+          <Spinner size={14} className="shrink-0" />
+        )}
         {offline && <Disconnected />}
         {behind ? <BackgroundWords line={bg} /> : task ? <BackgroundCommandWords line={task} /> : retry ? (
           <span className="flex min-w-0 flex-col" data-running-verb>

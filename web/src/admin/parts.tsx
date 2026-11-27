@@ -3,7 +3,7 @@ import { t } from "../i18n";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { visiblePoll } from "../lib/visible-poll";
 import { BUSY_MOTION } from "../lib/busy-motion";
-import { Button, copyText, cx, EASE, IconButton, PixelGrid, Shimmer } from "../ui/atoms";
+import { Button, copyText, cx, EASE, IconButton, Shimmer, Spinner } from "../ui/atoms";
 import { errorText } from "./api";
 import { AdminIcon, type AdminIconName } from "./icons";
 import { qrPath } from "./logic";
@@ -264,7 +264,7 @@ export function Qr({ rows, size = 196, label }: { rows: string[]; size?: number;
 export function Loader({ label = t("admin-parts.loading") }: { label?: string }) {
   return (
     <div className="flex items-center gap-2.5 px-1 py-6">
-      <PixelGrid />
+      <Spinner size={14} className="text-accent" />
       <Shimmer className="text-[13px] font-medium">{label}</Shimmer>
     </div>
   );

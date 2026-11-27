@@ -2,7 +2,7 @@
 // subagent's (SubagentCard) and a workflow run's (WorkflowCallCard) share it. Two lines: the avatar, a small kind label,
 // the title and the status word; then what ran it, what it ran on, what it used and how long it took ("Running for …",
 // each second, while it runs). The head is one button: it opens the card in place, or opens where the task lives.
-import { type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { t } from "../../i18n";
 import { cx, Spinner, useNow } from "../../ui/atoms";
 import { Icon, type IconName } from "../../ui/icons";
@@ -13,10 +13,14 @@ export function taskStatusWord(status: AgentStatus): string {
   return t(`chat-subagentcard.status_${status}`);
 }
 
-/** The status mark: a spinner while it runs, otherwise the outcome's icon; only a failure is red. */
-function StatusMark({ status }: { status: AgentStatus }) {
-  if (status === "running") return <Spinner size={11} />;
-  return <Icon name={status === "failed" ? "warning" : status === "stopped" ? "stop" : "check"} size={12} />;
+/** The status mark: a unified circular spinner while it runs, otherwise the outcome's icon (spring-popping when settling); only a failure is red. */
+function StatusMark({ status, pop }: { status: AgentStatus; pop?: boolean }) {
+  if (status === "running") return <Spinner size={13} className="text-accent" />;
+  return (
+    <span className={cx("inline-flex shrink-0 items-center justify-center", pop && "cmd-status-pop")}>
+      <Icon name={status === "failed" ? "warning" : status === "stopped" ? "stop" : "check"} size={12} />
+    </span>
+  );
 }
 
 /** "Running for 1m 5s", counted each second in its own leaf: the ticking redraws nothing else of the card. */
@@ -61,25 +65,47 @@ export interface TaskCardProps {
 }
 
 export function TaskCard({ icon, label, title, status, meta, extra, onClick, ariaLabel, expanded, trailing, children, data }: TaskCardProps) {
+  const running = status === "running";
+  const prevStatus = useRef(status);
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    const wasRunning = prevStatus.current === "running";
+    prevStatus.current = status;
+    if (!wasRunning || status === "running") {
+      setSettled(false);
+      return;
+    }
+    setSettled(true);
+    const timer = setTimeout(() => setSettled(false), 480);
+    return () => clearTimeout(timer);
+  }, [status]);
   return (
     <div className="flex w-full min-w-0" {...data}>
-      <div className="w-full min-w-0 rounded-xl border border-line bg-surface px-3 py-2">
+      <div
+        className={cx(
+          "relative w-full min-w-0 overflow-hidden rounded-xl border border-line bg-surface px-3 py-2 transition-[border-color] duration-200 ease-(--ease-out-strong) motion-reduce:transition-none",
+          running && "cmd-laser-row border-accent/25",
+          settled && "cmd-settled",
+        )}
+        data-running={running || undefined}
+        data-settled={settled || undefined}
+      >
         <button
           type="button"
           onClick={onClick}
           aria-expanded={expanded}
           aria-label={ariaLabel}
-          className="flex w-full min-w-0 items-start gap-2 rounded-lg text-left [@media(pointer:coarse)]:min-h-10"
+          className="group/task flex w-full min-w-0 cursor-pointer items-start gap-2 rounded-lg text-left select-none transition-colors duration-150 ease-(--ease-out-strong) motion-reduce:transition-none [@media(pointer:coarse)]:min-h-10"
         >
-          <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-field text-ink-2">
+          <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-field text-ink-2 transition-colors duration-150 ease-(--ease-out-strong) group-hover/task:text-ink motion-reduce:transition-none">
             <Icon name={icon} size={14} />
           </span>
           <span className="min-w-0 flex-1">
             <span className="flex min-w-0 items-center gap-2">
-              {label && <span className="shrink-0 text-[11px] text-ink-2">{label}</span>}
+              {label && <span className="shrink-0 text-[11px] text-ink-3 transition-colors duration-150 group-hover/task:text-ink-2 motion-reduce:transition-none">{label}</span>}
               <span className="min-w-0 flex-1 truncate text-[length:var(--chat-secondary)] leading-[1.428571] font-medium text-ink">{title}</span>
-              <span className={cx("inline-flex shrink-0 items-center gap-1.5 text-[12px] leading-[1.333333] whitespace-nowrap", status === "failed" ? "text-red" : "text-ink-2")} data-task-status={status}>
-                <StatusMark status={status} />
+              <span className={cx("inline-flex shrink-0 items-center gap-1.5 text-[12px] leading-[1.333333] whitespace-nowrap transition-colors duration-150 motion-reduce:transition-none", status === "failed" ? "text-red" : running ? "text-ink" : "text-ink-2 group-hover/task:text-ink")} data-task-status={status}>
+                <StatusMark status={status} pop={settled} />
                 {taskStatusWord(status)}
               </span>
             </span>
@@ -91,7 +117,7 @@ export function TaskCard({ icon, label, title, status, meta, extra, onClick, ari
             {extra}
           </span>
           {trailing ?? (
-            <Icon name="chevronRight" size={14} stroke={2.2} className="mt-1 shrink-0 text-ink-3 transition-transform duration-150 motion-reduce:transition-none" style={{ transform: expanded ? "rotate(90deg)" : "none" }} />
+            <Icon name="chevronRight" size={14} stroke={2.2} className="mt-1 shrink-0 text-ink-3 transition-[transform,color] duration-200 ease-(--ease-out-strong) group-hover/task:text-ink motion-reduce:transition-none" style={{ transform: expanded ? "rotate(90deg)" : "none" }} />
           )}
         </button>
         {children}

@@ -1,7 +1,7 @@
 // One tool call in a work group (cindy's AgentActionRow): [status][verb][what it worked on][+N -N][›]. A command and
 // the like open in place (what went in, what came out, in full); an edit opens the changes side panel; a read opens
 // the file in the side panel.
-import { lazy, memo, Suspense, useMemo } from "react";
+import { lazy, memo, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useExpanded } from "./expanded";
 import { diffLines, type Op } from "../../lib/diff-lines";
 import { fileName, toolFile } from "../../lib/files";
@@ -11,7 +11,8 @@ import { taskBadge } from "../../lib/tasks";
 import { ownEntry, personaToolVerb, SUBJECT_KEYS, toolChip, toolDisplayName, toolLabel } from "../../lib/turns";
 import type { Item } from "../../lib/types";
 import { toolDurationLabel, toolDurationMs, type ToolStep } from "../../lib/work-groups";
-import { cx, EASE, Spinner } from "../../ui/atoms";
+import { cx, Spinner } from "../../ui/atoms";
+import { Disclosure, DisclosurePanel } from "../../ui/Disclosure";
 import { Icon } from "../../ui/icons";
 import { NARROW, useMedia } from "../../ui/media-query";
 import { patchDiffs } from "../../lib/tool-detail";
@@ -27,11 +28,12 @@ import { t } from "../../i18n";
 const StepTelemetry = lazy(() => import("./StepTelemetry").then((m) => ({ default: m.StepTelemetry })));
 
 /** The row's chrome, shared with the thought rows (ThinkingRow.tsx) so a mixed list reads as one (cindy's
- *  activityRowChrome): radius, padding, the hover lift. On a touch screen a row is a finger tall (40). */
-export const ROW_CHROME = "flex w-full min-w-0 gap-1.5 rounded-[10px] px-2 py-[3px] [@media(pointer:coarse)]:min-h-10 text-left";
-export const ROW_HOVER = "group select-none transition-colors duration-150 hover:bg-tool-hover motion-reduce:transition-none";
+ *  activityRowChrome): airy proportions, zero hover background box, tactile text/chevron brightening. On a touch
+ *  screen a row is a finger tall (40). */
+export const ROW_CHROME = "flex w-full min-w-0 gap-2 rounded-[10px] min-h-[38px] px-3.5 py-[3px] [@media(pointer:coarse)]:min-h-10 text-left";
+export const ROW_HOVER = "group select-none transition-colors duration-150 ease-(--ease-out-strong) motion-reduce:transition-none";
 const ROW = `${ROW_CHROME} items-center ${ROW_HOVER}`;
-export const CHEVRON_SLOT = "ml-auto flex size-[18px] shrink-0 items-center justify-center rounded-[7px] text-tool-ink transition-colors duration-150 group-hover:bg-hover-2 group-hover:text-ink motion-reduce:transition-none";
+export const CHEVRON_SLOT = "inline-flex size-[18px] shrink-0 items-center justify-center text-tool-ink/75 transition-[color,transform] duration-150 ease-(--ease-out-strong) group-hover:translate-x-[1.5px] group-hover:text-ink motion-reduce:transition-none motion-reduce:group-hover:translate-x-0";
 export const STATUS_SLOT = "inline-flex h-[18px] w-4 shrink-0 items-center justify-center text-tool-ink";
 
 const COMMAND_TOOLS = new Set(["Bash", "exec_command", "shell", "PowerShell"]);
@@ -211,7 +213,23 @@ export function argumentLines(inp: Record<string, unknown>): string {
   return keys.flatMap((k) => (shown(inp[k]) ? [`${k}: ${shown(inp[k])}`] : [])).join("\n");
 }
 
-export const ActionRow = memo(function ActionRow({ step, running, mid, sid, trace, inlineDiff }: { step: ToolStep; running?: boolean; mid: string; sid: string; trace?: boolean; inlineDiff?: boolean }) {
+export const ActionRow = memo(function ActionRow({
+  step,
+  running,
+  mid,
+  sid,
+  trace,
+  inlineDiff,
+  enterIndex,
+}: {
+  step: ToolStep;
+  running?: boolean;
+  mid: string;
+  sid: string;
+  trace?: boolean;
+  inlineDiff?: boolean;
+  enterIndex?: number;
+}) {
   const { use, result, images } = step;
   const name = use.tool_name ?? "";
   const { tasks, scope } = useChatContext();
@@ -224,6 +242,19 @@ export const ActionRow = memo(function ActionRow({ step, running, mid, sid, trac
   const call = use.tool_use_id;
   const bg = call && (tasks.started.has(call) || tasks.notes.has(call)) ? taskBadge(tasks.notes.get(call) ?? []) : null;
   const error = Boolean(result?.is_error);
+  // state-change completion choreography (running: true -> false): warm sheen + spring status morph
+  const prevRunning = useRef(Boolean(running));
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    const wasRunning = prevRunning.current;
+    prevRunning.current = Boolean(running);
+    if (wasRunning && !running) {
+      setSettled(true);
+      const timer = setTimeout(() => setSettled(false), 480);
+      return () => clearTimeout(timer);
+    }
+    if (running) setSettled(false);
+  }, [running]);
   // the call's own elapsed time (#8163): a quiet suffix on wide rows, the row's hover title on compact layouts
   const narrow = useMedia(NARROW);
   const duration = toolDurationLabel(step);
@@ -259,72 +290,129 @@ export const ActionRow = memo(function ActionRow({ step, running, mid, sid, trac
   const input = open && !detail ? trace ? JSON.stringify(use.tool_input ?? {}, null, 2) : inlineInput(use) : "";
   const full = useFullText(result, mid, sid);
   const output = result && (trace || showsResult(name, result)) ? full.text : "";
+  const hasStats = Boolean(stats && (stats.add > 0 || stats.del > 0));
+  const hasTrailingMeta = Boolean(hasStats || duration || bg);
   return (
-    <div className="flex min-w-0 flex-col" data-action-row={name} data-tool-use={call} data-items={ids.join(" ")}>
-      <button type="button" onClick={activate} aria-expanded={inPlace ? open : undefined} aria-label={label || name} title={rowTitle} className={ROW}>
-        <span role="img" aria-label={running ? t("chat-actionrow.status_running") : error ? t("chat-actionrow.status_error") : t("chat-actionrow.status_done")} className={cx(STATUS_SLOT, error && "text-red")}>
-          {running ? <Spinner size={13} /> : <Icon name={error ? "x" : "check"} size={13} />}
+    <div
+      className={cx(
+        "flex min-w-0 flex-col",
+        running && "cmd-laser-row",
+        settled && "cmd-settled",
+        enterIndex !== undefined && "work-step-enter",
+      )}
+      style={enterIndex !== undefined && !settled ? { animationDelay: `${Math.min(enterIndex, 6) * 24}ms` } : undefined}
+      data-action-row={name}
+      data-running={running ? "true" : undefined}
+      data-settled={settled ? "true" : undefined}
+      data-tool-use={call}
+      data-items={ids.join(" ")}
+    >
+      <button
+        type="button"
+        onClick={activate}
+        aria-expanded={inPlace ? open : undefined}
+        aria-label={label || name}
+        title={rowTitle}
+        className={cx(ROW, "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent")}
+      >
+        <span
+          role="img"
+          aria-label={running ? t("chat-actionrow.status_running") : error ? t("chat-actionrow.status_error") : t("chat-actionrow.status_done")}
+          className={cx(
+            STATUS_SLOT,
+            running ? "text-accent" : error ? "text-red" : "transition-colors duration-150 group-hover:text-ink motion-reduce:transition-none",
+            settled && "cmd-status-pop",
+          )}
+        >
+          {running ? <Spinner size={13} className="text-accent" /> : <Icon name={error ? "x" : "check"} size={13} />}
         </span>
-        {p.verb && <span className="shrink-0 text-[length:var(--chat-secondary)] whitespace-nowrap text-tool-ink">{p.verb}</span>}
-        {p.param &&
-          (p.file ? (
-            <span className="inline-flex max-w-full min-w-0 items-center gap-[3px] rounded-[6px] bg-inset/75 px-1.5 py-[0.5px] font-mono text-meta leading-[1.385] whitespace-nowrap text-ink-2 transition-colors duration-150 group-hover:bg-hover-2 motion-reduce:transition-none" data-file-chip>
-              <Icon name="read" size={12} className="shrink-0 text-ink-3" />
-              <span className="truncate">{p.param.text}</span>
+        <span className="flex min-w-0 items-center gap-1.5">
+          {p.verb && (
+            <span className={cx("shrink-0 text-[length:var(--chat-secondary)] whitespace-nowrap transition-colors duration-150 motion-reduce:transition-none", running ? "text-ink" : "text-tool-ink group-hover:text-ink")}>
+              {p.verb}
             </span>
-          ) : (
-            <span className="min-w-0 truncate text-[length:var(--chat-secondary)] font-medium text-tool-ink">{p.param.text}</span>
-          ))}
-        <span className="flex-1" />
-        {stats && (stats.add > 0 || stats.del > 0) && (
-          <span className="flex shrink-0 gap-1 font-mono text-meta font-medium tabular-nums">
-            <span className="text-diff-add-fg">+{stats.add}</span>
-            <span className="text-diff-del-fg">-{stats.del}</span>
+          )}
+          {p.param &&
+            (p.file ? (
+              <span
+                className={cx(
+                  "inline-flex max-w-full min-w-0 items-center gap-[3px] rounded-[6px] bg-inset/75 px-1.5 py-[0.5px] font-mono text-meta leading-[1.385] whitespace-nowrap transition-colors duration-150 motion-reduce:transition-none",
+                  running ? "text-ink" : "text-ink-2 group-hover:text-ink",
+                )}
+                data-file-chip
+              >
+                <Icon name="read" size={12} className="shrink-0 text-ink-3" />
+                <span className="truncate">{p.param.text}</span>
+              </span>
+            ) : (
+              <span className={cx("min-w-0 truncate text-[length:var(--chat-secondary)] font-medium transition-colors duration-150 motion-reduce:transition-none", running ? "text-ink" : "text-tool-ink group-hover:text-ink")}>
+                {p.param.text}
+              </span>
+            ))}
+          <span aria-hidden className={cx(CHEVRON_SLOT, inPlace && open && "group-hover:translate-x-0")}>
+            <Icon
+              name="chevronRight"
+              size={13}
+              stroke={2.1}
+              className="transition-transform duration-200 ease-(--ease-out-strong) motion-reduce:transition-none"
+              style={inPlace ? { transform: open ? "rotate(90deg)" : "none" } : undefined}
+            />
           </span>
-        )}
-        {duration && (
-          <span data-tool-duration className="max-lg:hidden shrink-0 font-mono text-label text-tool-ink tabular-nums">
-            {duration}
-          </span>
-        )}
-        {bg && <span className={cx("shrink-0 rounded-[4px] px-1 text-submeta font-medium whitespace-nowrap", bg.failed ? "bg-red-tint text-red" : "bg-field text-ink-2")}>{bg.text}</span>}
-        <span aria-hidden className={CHEVRON_SLOT}>
-          <Icon name="chevronRight" size={13} stroke={2.2} className="transition-transform duration-200 ease-(--ease-out-strong) motion-reduce:transition-none" style={inPlace ? { transform: open ? "rotate(90deg)" : "none" } : undefined} />
         </span>
+        {hasTrailingMeta && (
+          <span className="ml-auto flex shrink-0 items-center gap-2 pl-2">
+            {hasStats && stats && (
+              <span className="flex shrink-0 gap-1 font-mono text-meta font-medium tabular-nums">
+                <span className="text-diff-add-fg">+{stats.add}</span>
+                <span className="text-diff-del-fg">-{stats.del}</span>
+              </span>
+            )}
+            {duration && (
+              <span data-tool-duration className="max-lg:hidden shrink-0 font-mono text-label text-tool-ink tabular-nums">
+                {duration}
+              </span>
+            )}
+            {bg && <span className={cx("shrink-0 rounded-[4px] px-1 text-submeta font-medium whitespace-nowrap", bg.failed ? "bg-red-tint text-red" : "bg-field text-ink-2")}>{bg.text}</span>}
+          </span>
+        )}
       </button>
       {inlineDiff && !trace && diffs && !error && (
-        <div className="mx-2 overflow-x-auto" data-live-edit-diff><DiffBlocks diffs={foldDiffs(diffs).shown} /></div>
+        <div className="mx-3 mb-2.5 overflow-x-auto" data-live-edit-diff><DiffBlocks diffs={foldDiffs(diffs).shown} /></div>
       )}
       {images.length > 0 && (
-        <div className="flex min-w-0 flex-wrap gap-1.5 py-2 pl-8">
+        <div className="flex min-w-0 flex-wrap gap-1.5 py-2 pl-9">
           {images.map((im) => (
             <Thumb key={im.id} item={im} mid={mid} sid={sid} />
           ))}
         </div>
       )}
-      {open && (
-        <div className="mx-2 mt-1 mb-1 cursor-text rounded-[10px] bg-inset/70 px-3 py-2.5 font-mono text-label leading-[17px] text-ink select-text" style={{ animation: `fade-up 180ms ${EASE} both` }} data-inline-detail>
-          {hasTelemetry && (
-            <Suspense fallback={null}>
-              <StepTelemetry items={stepItems} durationMs={rawDurationMs} className="mb-2 border-b border-line/60 pb-1.5" />
-            </Suspense>
-          )}
-          {detail && (
-            <div className="font-sans">
-              <StepDetail use={use} result={result} />
+      {inPlace && (
+        <Disclosure open={open}>
+          <DisclosurePanel>
+            <div className="cmd-detail-reveal mx-3 mb-2.5 mt-0.5 cursor-text rounded-[10px] bg-inset/65 px-3.5 py-2.5 font-mono text-label leading-[17px] text-ink select-text" data-inline-detail>
+              {hasTelemetry && (
+                <Suspense fallback={null}>
+                  <StepTelemetry items={stepItems} durationMs={rawDurationMs} className="mb-2 border-b border-line/60 pb-1.5" />
+                </Suspense>
+              )}
+              {detail && (
+                <div className="font-sans">
+                  <StepDetail use={use} result={result} />
+                </div>
+              )}
+              {COMMAND_TOOLS.has(name) && str((use.tool_input as Record<string, unknown> | undefined)?.description) && <div className="mb-2 font-sans">{str((use.tool_input as Record<string, unknown>).description)}</div>}
+              {input && <pre className="m-0 whitespace-pre-wrap [overflow-wrap:anywhere]">{input}</pre>}
+              {output && (
+                <>
+                  {(input || detail) && <div className="my-2 h-px bg-line/60" />}
+                  <pre className={cx("m-0 whitespace-pre-wrap [overflow-wrap:anywhere]", error ? "text-red" : "text-tool-ink")}>{output}</pre>
+                  {full.more}
+                </>
+              )}
+              {!input && !detail && !output && <span className="text-tool-ink">{t("chat-actionrow.no_content")}</span>}
             </div>
-          )}
-          {COMMAND_TOOLS.has(name) && str((use.tool_input as Record<string, unknown> | undefined)?.description) && <div className="mb-2 font-sans">{str((use.tool_input as Record<string, unknown>).description)}</div>}
-          {input && <pre className="m-0 whitespace-pre-wrap [overflow-wrap:anywhere]">{input}</pre>}
-          {output && (
-            <>
-              {(input || detail) && <div className="my-2 h-px bg-line/60" />}
-              <pre className={cx("m-0 whitespace-pre-wrap [overflow-wrap:anywhere]", error ? "text-red" : "text-tool-ink")}>{output}</pre>
-              {full.more}
-            </>
-          )}
-          {!input && !detail && !output && <span className="text-tool-ink">{t("chat-actionrow.no_content")}</span>}
-        </div>
+          </DisclosurePanel>
+        </Disclosure>
       )}
     </div>
   );

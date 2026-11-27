@@ -112,7 +112,7 @@ export function UserBubble({ msg, mid, sid, pending, sendState, starting, onDele
   const forwards = msg.contexts.filter((c) => c.kind === "forward");
   const contexts = msg.contexts.filter((c) => c.kind !== "forward" && !inlineMentionAt(c, msg.text));
   return (
-    <div className="ml-auto flex max-w-[min(100%,488px)] min-w-0 flex-col items-end gap-1.5 pl-4 sm:pl-8" style={pending ? { animation: `msg-launch 260ms ${EASE} both` } : undefined} data-user-bubble data-send-state={sendState} data-items={pending || starting ? undefined : [msg.id, ...msg.images.map((i) => i.id)].join(" ")}>
+    <div className="ml-auto flex max-w-[min(100%,488px)] min-w-0 flex-col items-end gap-1.5 pl-4 sm:pl-8" style={pending ? { animation: `msg-launch 240ms ${EASE} both` } : undefined} data-user-bubble data-send-state={sendState} data-items={pending || starting ? undefined : [msg.id, ...msg.images.map((i) => i.id)].join(" ")}>
       {msg.images.length > 0 && (
         <div className="flex flex-wrap justify-end gap-1.5">
           {msg.images.map((im) => (
@@ -202,18 +202,18 @@ function BubbleText({ text: full, blocks, ts, mid, sid, own, pending }: { text: 
         </span>
       )}
       {split || forwards?.length ? (
-        <div className={`flex max-w-full flex-col gap-1.5 rounded-[16px] ${fill} px-4 py-2.5 font-sans text-ink ${pending ? "opacity-60" : ""}`} title={clock(ts)} data-hit-target>
+        <div className={`flex max-w-full flex-col gap-1.5 rounded-[16px] ${fill} px-4 py-2.5 font-sans text-ink transition-opacity duration-200 ease-(--ease-out-strong) motion-reduce:transition-none ${pending ? "opacity-60" : ""}`} title={clock(ts)} data-hit-target>
           {forwards.length > 1 ? <ForwardCards blocks={blocks} count={forwards.length} /> : forwards.map((c, i) => <ForwardBlock key={i} c={c} />)}
           {split && <QuoteStack blocks={split.quotes} mid={mid} sid={sid} />}
           {words}
         </div>
       ) : (
-        <div className={`max-w-full rounded-[16px] ${fill} px-4 py-2.5 font-sans text-ink ${pending ? "opacity-60" : ""}`} title={clock(ts)} data-hit-target>
+        <div className={`max-w-full rounded-[16px] ${fill} px-4 py-2.5 font-sans text-ink transition-opacity duration-200 ease-(--ease-out-strong) motion-reduce:transition-none ${pending ? "opacity-60" : ""}`} title={clock(ts)} data-hit-target>
           {words}
         </div>
       )}
       {long && (
-        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="rounded-[6px] px-1.5 py-0.5 text-[12px] font-medium whitespace-nowrap text-ink-3 transition-[background-color,color,scale,transform] duration-150 ease-(--ease-out-strong) hover:bg-hover-2 hover:text-ink-2 active:scale-[0.97] motion-reduce:transition-none">
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="rounded-[6px] px-1 py-0.5 text-[12px] font-medium whitespace-nowrap text-ink-3 transition-[color,transform] duration-150 ease-(--ease-out-strong) hover:text-ink active:scale-[0.97] motion-reduce:transition-none">
           {open ? t("chat-segmentview.collapse") : t("chat-segmentview.expand")}
         </button>
       )}
@@ -288,7 +288,7 @@ export const Answer = memo(function Answer({ item, streaming, mid, sid, fade, st
         },
       } : undefined}>
       {cut && <p className="mb-1 text-[13px] leading-[1.384615] text-ink-2" data-cut-short>{t("chat-messageactions.cut_short")}</p>}
-      <div className={ANSWER} style={fade && !live ? { animation: `answer-settle 280ms ${EASE} both` } : undefined} data-answer={live ? "streaming" : true} data-items={item?.id}>
+      <div className={ANSWER} style={fade && !live ? { animation: `answer-settle 260ms ${EASE} both` } : undefined} data-answer={live ? "streaming" : true} data-items={item?.id}>
         {/* the cards in it are this item's blocks (ui/AssistantCard.tsx): `<item id>/<n>` */}
         <CardItem.Provider value={item?.id ? { id: item.id, text } : null}>
           <Markdown text={text} mid={mid} cwd={cwd} streaming={live || undefined} fade={fade || undefined} lineBreaks />

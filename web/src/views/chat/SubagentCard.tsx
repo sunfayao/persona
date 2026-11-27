@@ -98,7 +98,7 @@ export const SubagentCard = memo(function SubagentCard({ step, status, mid, sid,
       ariaLabel={open ? t("chat-subagentcard.collapse_details") : t("chat-subagentcard.expand_details")}
       data={{ "data-subagent-card": status, "data-tool-use": use.tool_use_id }}
     >
-      <Collapse open={open} lazy>
+      <Collapse open={open} lazy className="motion-safe:duration-[220ms]">
         <div className="mt-2 border-l-2 border-tool-rail pl-3 text-[13px] leading-5 text-ink-2" data-subagent-details>
           <StepTelemetry items={stepItems} durationMs={tookMs} className="mb-1.5" />
           {(prompt || description) && <p className="mb-1" data-subagent-prompt>{compactText(prompt || description, 260)}</p>}
@@ -128,7 +128,7 @@ export function SubagentResult({ item, fallback, mid, sid }: { item: Item | unde
     <div className="mb-1" data-subagent-summary data-items={item?.id}>
       <p ref={clamp.ref} className={cx("whitespace-pre-wrap [overflow-wrap:anywhere]", !whole && "line-clamp-4")}>{text}</p>
       {(clamp.cut || whole) && (
-        <button type="button" aria-expanded={whole} onClick={() => setWhole((w) => !w)} className="rounded-full text-[12px] text-accent-ink hover:underline">
+        <button type="button" aria-expanded={whole} onClick={() => setWhole((w) => !w)} className="rounded-full text-[12px] text-accent-ink transition-colors duration-150 ease-(--ease-out-strong) hover:text-accent hover:underline motion-reduce:transition-none">
           {whole ? t("chat-subagentcard.hide_full_result") : t("chat-subagentcard.show_full_result")}
         </button>
       )}

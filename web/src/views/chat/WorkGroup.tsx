@@ -6,7 +6,7 @@ import { childSessionOf, isChildSessionStep } from "../../lib/child-cards";
 import { useSessionLive } from "../../lib/live";
 import { useStore } from "../../lib/store";
 import type { Item } from "../../lib/types";
-import { actionSummary, groupOpens, groupTitle, workLineOpen, isAgentStep, isPlanStep, isRowStep, isWorkflowStep, planTodos, workDuration, type AgentStatus, type ToolStep, type WorkGroupNode, type WorkNode } from "../../lib/work-groups";
+import { groupOpens, groupTitle, workLineOpen, isAgentStep, isPlanStep, isRowStep, isWorkflowStep, planTodos, workDuration, type AgentStatus, type ToolStep, type WorkGroupNode, type WorkNode } from "../../lib/work-groups";
 import type { WorkflowCalls } from "../../lib/workflows";
 import type { Step } from "../../lib/turns";
 import { Collapse, cx, Spinner, useNow } from "../../ui/atoms";
@@ -91,7 +91,6 @@ export const WorkGroup = memo(function WorkGroup({ g, p, limit }: { g: WorkGroup
   // a choice made while it runs lasts while it runs; once done it is closed again unless the reader opens it
   const [liveOverride, setLiveOverride] = useLiveOverride(key, turnLive);
   const setOpen = turnLive ? setLiveOverride : setRemembered;
-  const actions = useMemo(() => actionSummary(g), [g]);
   const heading = useMemo(() => groupTitle(g), [g]);
   const [loading, setLoading] = useState(false);
   const opens = groupOpens(g);
@@ -150,23 +149,39 @@ export const WorkGroup = memo(function WorkGroup({ g, p, limit }: { g: WorkGroup
         aria-expanded={opens ? open : undefined}
         title={heading}
         // on a touch screen 40 tall, the margin taking back what it adds, so nothing around it moves
-        className={cx("group flex w-full min-w-0 items-center gap-1.5 rounded-[10px] px-2 py-[3px] text-left select-none [@media(pointer:coarse)]:-my-[7.5px] [@media(pointer:coarse)]:min-h-10", opens ? "cursor-pointer transition-[background-color,color] duration-150 ease-(--ease-out-strong) hover:bg-tool-hover/90 motion-reduce:transition-none" : "cursor-default")}
+        className={cx(
+          "group inline-flex max-w-full self-start items-center gap-1.5 rounded-[6px] text-left select-none [@media(pointer:coarse)]:-my-[7.5px] [@media(pointer:coarse)]:min-h-10",
+          p.nested ? "px-3.5 py-2" : g.live ? "pt-1 pb-1.5" : "py-1",
+          g.live && "work-live-head",
+          opens
+            ? "cursor-pointer text-tool-ink transition-colors duration-150 ease-(--ease-out-strong) hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:transition-none"
+            : "cursor-default text-tool-ink",
+        )}
       >
-        <span className={cx("inline-flex h-[1lh] shrink-0 items-center", g.live ? "text-status-accent" : "text-tool-ink", opens && "transition-colors duration-150 group-hover:text-ink motion-reduce:transition-none")}>{g.live ? <Spinner size={14} /> : <Icon name={actions.icon} size={14} />}</span>
-        <span className={cx("min-w-0 translate-y-[1px] truncate text-[length:var(--chat-secondary)] text-tool-ink", opens && "transition-[color,translate,transform] duration-150 ease-(--ease-out-strong) group-hover:translate-x-[1px] group-hover:text-ink motion-reduce:transition-none motion-reduce:group-hover:translate-x-0")}>{heading}</span>
-        <span className="flex-1" />
-        {loading && <Spinner size={11} />}
+        {g.live && (
+          <span className="inline-flex h-[1lh] shrink-0 items-center text-accent">
+            <Spinner size={13} className="text-accent" />
+          </span>
+        )}
+        <span className={cx("min-w-0 truncate text-[length:var(--chat-secondary)]", g.live ? "text-ink/90" : "text-tool-ink", opens && "transition-colors duration-150 ease-(--ease-out-strong) group-hover:text-ink motion-reduce:transition-none")}>{heading}</span>
+        {loading && <Spinner size={11} className="text-tool-ink" />}
         {g.live && g.startedAt !== undefined && <Elapsed since={g.startedAt} />}
-        {opens && <Icon name="chevronRight" size={14} stroke={2.2} className="shrink-0 text-tool-ink transition-[transform,color] duration-200 ease-(--ease-out-strong) group-hover:text-ink motion-reduce:transition-none" style={{ transform: open ? "rotate(90deg)" : "none" }} />}
+        {opens && <Icon name="chevronRight" size={13} stroke={2.1} className="shrink-0 text-tool-ink/80 transition-[transform,color] duration-200 ease-(--ease-out-strong) group-hover:text-ink motion-reduce:transition-none" style={{ transform: open ? "rotate(90deg)" : "none" }} />}
       </button>
       {open && failed && !loading && (
-        <div className="mt-1 flex items-center gap-2 pl-[22px] text-[12px] text-ink-3" role="status">
+        <div className="mt-1 flex items-center gap-2 pl-0.5 text-[12px] text-ink-3" role="status">
           {t("chat-workgroup.load_failed")}
-          <button type="button" onClick={() => setAttempt((n) => n + 1)} className="touch-hit rounded-control px-1.5 py-0.5 font-medium whitespace-nowrap text-accent-ink transition-colors duration-150 hover:bg-hover">{t("chat-workgroup.retry")}</button>
+          <button type="button" onClick={() => setAttempt((n) => n + 1)} className="touch-hit rounded-control px-1.5 py-0.5 font-medium whitespace-nowrap text-accent-ink transition-colors duration-150 hover:text-ink">{t("chat-workgroup.retry")}</button>
         </div>
       )}
-      <Collapse open={open} lazy className="motion-safe:duration-[220ms]">
-        <div className={cx("mt-1 flex min-w-0 flex-col gap-2 py-[2px]", !p.nested && "ml-[14px] border-l border-tool-rail pl-3")} data-work-detail>
+      <Collapse open={open} lazy className="motion-safe:duration-[240ms]">
+        <div
+          className={cx(
+            "flex min-w-0 flex-col divide-y divide-line/55",
+            p.nested ? "pl-3" : "mt-1.5 overflow-hidden rounded-[12px] border border-tool-rail bg-surface/40",
+          )}
+          data-work-detail
+        >
           {/* a call without its result spins while the exchange runs, in a finished stretch too (it may still be going) */}
           <WorkNodes nodes={g.children} p={inside} live={p.turnLive ?? g.live} limit={drawn} />
           {g.live && <LiveThinking mid={p.mid} sid={p.sid} />}
@@ -189,21 +204,40 @@ function WorkNodes({ nodes, p, live, limit }: { nodes: WorkNode[]; p: WorkProps;
       else runs.push([n.step]);
     } else runs.push(n);
   }
+  let stepIndex = 0;
   return (
     <>
-      {runs.map((run) =>
-        Array.isArray(run) ? (
-          <div key={run[0].id} className="flex min-w-0 flex-col">
-            {run.map((s) => (
-              <ActionRow key={s.id} step={s} running={live && !s.result} mid={p.mid} sid={p.sid} trace={p.trace} inlineDiff={Boolean(p.nested && p.rowsLive)} />
-            ))}
+      {runs.map((run) => {
+        const startIdx = stepIndex;
+        if (Array.isArray(run)) {
+          stepIndex += run.length;
+          return (
+            <div key={run[0].id} className="flex min-w-0 flex-col divide-y divide-line/55">
+              {run.map((s, i) => (
+                <ActionRow
+                  key={s.id}
+                  step={s}
+                  running={live && !s.result}
+                  mid={p.mid}
+                  sid={p.sid}
+                  trace={p.trace}
+                  inlineDiff={Boolean(p.nested && p.rowsLive)}
+                  enterIndex={startIdx + i}
+                />
+              ))}
+            </div>
+          );
+        }
+        stepIndex += 1;
+        if (run.kind === "group") {
+          return <WorkGroup key={run.id} g={run} p={p} limit={limits?.get(run)} />;
+        }
+        return (
+          <div key={run.step.id} className="min-w-0 work-step-enter" style={{ animationDelay: `${Math.min(startIdx, 6) * 24}ms` }}>
+            <StepView step={run.step} p={p} live={live} />
           </div>
-        ) : run.kind === "group" ? (
-          <WorkGroup key={run.id} g={run} p={p} limit={limits?.get(run)} />
-        ) : (
-          <StepView key={run.step.id} step={run.step} p={p} live={live} />
-        ),
-      )}
+        );
+      })}
     </>
   );
 }

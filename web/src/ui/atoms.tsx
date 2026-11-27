@@ -52,21 +52,9 @@ export function Shimmer({ children, className = "" }: { children: React.ReactNod
   );
 }
 
-const CHEVRON = Array.from({ length: 9 }, (_, i) => {
-  const r = Math.floor(i / 3),
-    c = i % 3;
-  return (c + Math.abs(r - 1)) * 90;
-});
-
-// Beautiful UI's pixel-grid loader (the "Drive" variant).
+// Unified circular ring loader (delegates to Spinner so legacy callers stay consistent).
 export function PixelGrid({ className = "" }: { className?: string }) {
-  return (
-    <span aria-hidden className={`grid shrink-0 grid-cols-[repeat(3,4px)] gap-[1.5px] ${className}`}>
-      {CHEVRON.map((d, i) => (
-        <span key={i} className={`size-[4px] rounded-[1px] bg-ink ${BUSY_MOTION}`} style={{ opacity: 0.15, animation: `pixel-on 650ms ease-in-out ${d}ms infinite` }} />
-      ))}
-    </span>
-  );
+  return <Spinner size={14} className={cx("text-accent", className)} />;
 }
 
 export function useNow(every = 1000, on = true) {
@@ -83,7 +71,7 @@ export function useNow(every = 1000, on = true) {
 export function Loading({ label = t("common.loading") }: { label?: string }) {
   return (
     <div role="status" className="flex items-center gap-2.5">
-      <PixelGrid />
+      <Spinner size={15} className="text-accent" />
       <Shimmer className="text-[13px] font-medium">{label}</Shimmer>
     </div>
   );
@@ -251,13 +239,19 @@ export function Button({
   );
 }
 
-export function Spinner({ size = 12 }: { size?: number }) {
+export function Spinner({ size = 12, className = "" }: { size?: number; className?: string }) {
   return (
     <span
       aria-hidden
-      className={`inline-block shrink-0 rounded-full border-[1.5px] border-line-strong border-t-ink-2 ${BUSY_MOTION}`}
-      style={{ width: size, height: size, ...spinStyle(700) }}
-    />
+      data-spinner=""
+      className={cx("inline-flex shrink-0 items-center justify-center border-t-ink-2", BUSY_MOTION, className)}
+      style={{ width: size, height: size, ...spinStyle(850) }}
+    >
+      <svg width={size} height={size} viewBox="0 0 18 18" fill="none" shapeRendering="geometricPrecision" className="block size-full">
+        <circle cx="9" cy="9" r="7" stroke="currentColor" strokeOpacity="0.2" strokeWidth="2.1" />
+        <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" pathLength={100} strokeDasharray="30 70" />
+      </svg>
+    </span>
   );
 }
 

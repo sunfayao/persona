@@ -1,15 +1,21 @@
+// @vitest-environment jsdom
+import { act } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Item } from "../../lib/types";
 import type { Step } from "../../lib/turns";
 import type { ToolStep, WorkGroupNode } from "../../lib/work-groups";
 import { ActionRow, argumentLines, DIFF_FOLD_LINES, diffStats, editDiffs, foldDiffs, inlineInput, lineDiff, presentAction, truncateParam } from "./ActionRow";
+import { forgetExpanded } from "./expanded";
 import { PlanCard } from "./PlanCard";
 import { Answer, bubbleLines, SegmentView, UserBubble } from "./SegmentView";
 import { SubagentCard } from "./SubagentCard";
 import { LiveThinking } from "./ThinkingCard";
 import { ThinkingRow } from "./ThinkingRow";
 import { WorkGroup, type WorkProps } from "./WorkGroup";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const T0 = Date.parse("2026-11-04T10:00:00Z");
 const at = (s: number) => new Date(T0 + s * 1000).toISOString();
@@ -57,6 +63,18 @@ describe("WorkGroup", () => {
     expect(html).not.toMatch(/^<div[^>]*><button[^>]*disabled/);
     expect(html).not.toContain("echo 1");
     expect(html).not.toContain("echo 6");
+  });
+
+  it("uses a compact borderless trigger with zero hover background fill and a live laser hairline", () => {
+    const doneHtml = renderToStaticMarkup(<WorkGroup g={group([tool("t1", "Bash", { command: "ls" })], false)} p={props} />);
+    expect(doneHtml).toContain("inline-flex");
+    expect(doneHtml).not.toContain("hover:bg-tool-hover");
+    expect(doneHtml).not.toContain("work-live-head");
+
+    const liveHtml = renderToStaticMarkup(<WorkGroup g={group([tool("t1", "Bash", { command: "ls" }, false)], true)} p={props} />);
+    expect(liveHtml).toContain("work-live-head");
+    expect(liveHtml).toContain('data-spinner=""');
+    expect(liveHtml).not.toContain("hover:bg-tool-hover");
   });
 });
 
@@ -168,6 +186,76 @@ describe("ActionRow", () => {
     expect(renderToStaticMarkup(<ActionRow step={span("t2", 0, 0.4)} mid="m" sid="s" />)).not.toContain("data-tool-duration");
     expect(renderToStaticMarkup(<ActionRow step={span("t3", 0)} running mid="m" sid="s" />)).not.toContain("data-tool-duration");
   });
+
+  it("has zero hover background highlight, applies rhythmic laser when running, and morphs on settle", () => {
+    vi.useFakeTimers();
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    const runStep = tool("laser1", "Bash", { command: "npm test" }, false);
+    const doneStep = tool("laser1", "Bash", { command: "npm test" }, true);
+    try {
+      act(() => root.render(<ActionRow step={runStep} running mid="m" sid="s" />));
+      const row = host.querySelector<HTMLElement>("[data-action-row]")!;
+      const btn = host.querySelector<HTMLButtonElement>("[data-action-row] > button")!;
+      expect(row.dataset.running).toBe("true");
+      expect(row.className).toContain("cmd-laser-row");
+      expect(btn.className).not.toContain("hover:bg-tool-hover");
+      expect(host.innerHTML).not.toContain("group-hover:bg-hover-2");
+      expect(row.dataset.settled).toBeUndefined();
+
+      // transition running: true -> false triggers 480ms settle sheen + status icon pop
+      act(() => root.render(<ActionRow step={doneStep} running={false} mid="m" sid="s" />));
+      expect(row.dataset.running).toBeUndefined();
+      expect(row.className).not.toContain("cmd-laser-row");
+      expect(row.dataset.settled).toBe("true");
+      expect(row.className).toContain("cmd-settled");
+      expect(row.querySelector('[role="img"]')?.className).toContain("cmd-status-pop");
+
+      act(() => vi.advanceTimersByTime(480));
+      expect(row.dataset.settled).toBeUndefined();
+      expect(row.className).not.toContain("cmd-settled");
+      expect(row.querySelector('[role="img"]')?.className).not.toContain("cmd-status-pop");
+    } finally {
+      act(() => root.unmount());
+      host.remove();
+      vi.useRealTimers();
+    }
+  });
+
+  it("expands command detail smoothly via Disclosure while keeping button as direct child", () => {
+    forgetExpanded();
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    const cmd = tool("disc1", "Bash", { command: "echo hi" }, true);
+    try {
+      act(() => root.render(<ActionRow step={cmd} mid="m" sid="s" />));
+      const btn = host.querySelector<HTMLButtonElement>("[data-action-row] > button")!;
+      expect(btn).not.toBeNull();
+      expect(btn.getAttribute("aria-expanded")).toBe("false");
+      expect(host.querySelector("[data-inline-detail]")).toBeNull();
+      expect(host.querySelector('[data-slot="collapsible-panel"]')).toBeNull();
+
+      act(() => btn.click());
+      expect(btn.getAttribute("aria-expanded")).toBe("true");
+      const panel = host.querySelector('[data-slot="collapsible-panel"]');
+      const detail = host.querySelector<HTMLElement>("[data-inline-detail]");
+      expect(panel).not.toBeNull();
+      expect(detail).not.toBeNull();
+      expect(panel?.contains(detail)).toBe(true);
+      expect(detail?.className).toContain("cmd-detail-reveal");
+      expect(detail?.textContent).toContain("echo hi");
+
+      act(() => btn.click());
+      expect(btn.getAttribute("aria-expanded")).toBe("false");
+      expect(host.querySelector("[data-inline-detail]")).toBeNull();
+    } finally {
+      act(() => root.unmount());
+      host.remove();
+      forgetExpanded();
+    }
+  });
 });
 
 describe("thought rows (cindy's ThinkingActivityRow, #5155)", () => {
@@ -186,9 +274,12 @@ describe("thought rows (cindy's ThinkingActivityRow, #5155)", () => {
     expect(html).toContain('title="先看测试， 再看实现"');
     expect(html).toContain("text-thinking-ink italic");
     expect(html).toContain("text-[length:var(--chat-secondary)]");
-    // the tool rows' chrome: the same radius, padding and chevron slot
-    expect(html).toContain("rounded-[10px] px-2 py-[3px]");
+    // the tool rows' chrome: borderless radius, airy padding, zero hover box, and chevron slot
+    expect(html).toContain("rounded-[10px]");
+    expect(html).toContain("px-3.5");
     expect(html).toContain("size-[18px]");
+    expect(html).not.toContain("hover:bg-tool-hover");
+    expect(html).not.toContain("group-hover:bg-hover-2");
     // it fits: nothing to open (measured once drawn), so no chevron and no toggle
     expect(html).not.toContain('role="button"');
     expect(html).not.toContain("aria-expanded");
@@ -215,10 +306,12 @@ describe("thought rows (cindy's ThinkingActivityRow, #5155)", () => {
     expect(html).toContain('title="Inspecting files with git status and [docs](https://example.com)"');
   });
 
-  it("live: Thinking with three dots and a clock", () => {
+  it("live: Thinking with unified circular spinner, laser sweep and a clock", () => {
     const html = renderToStaticMarkup(<LiveThinking />);
     expect(html).toContain(">正在思考<");
-    expect(html.match(/size-1 rounded-full/g)).toHaveLength(3);
+    expect(html).toContain('data-spinner=""');
+    expect(html).toContain("cmd-laser-row");
+    expect(html).not.toContain("size-1 rounded-full");
     expect(html).toMatch(/tabular-nums">1s</);
   });
 });

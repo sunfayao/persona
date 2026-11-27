@@ -31,16 +31,20 @@ function Svg({ className, children }: { className?: string; children: React.Reac
 /** One turn of the arc, while the turn runs (cindy's spinner cycle). */
 const ARC_TURN_MS = 1000;
 
-/** The step in progress: an arc on the same circle as a pending step's, with a gap. It turns only while the turn runs
- *  (an interrupted plan must not look busy), and never with reduced motion: unlike the spinners it does not carry
- *  BUSY_MOTION (lib/busy-motion.ts), as cindy's arc stands still there; its shape alone says "in progress". The turning
- *  is on the box around the SVG, the SVG itself stays still (cindy's Spinner). */
+/** The step in progress: unified precision circular ring (faint 0.2 track + 30/100 rounded-cap arc). It turns only
+ *  while the turn runs (an interrupted plan must not look busy), and never with reduced motion: unlike the spinners
+ *  it does not carry BUSY_MOTION (lib/busy-motion.ts), as cindy's arc stands still there; its shape alone says "in progress". */
 function ActiveMark({ live }: { live?: boolean }) {
   return (
-    <span className="inline-flex shrink-0 items-center justify-center text-ink" data-plan-arc={live ? "turning" : "still"} style={live ? spinStyle(ARC_TURN_MS) : undefined}>
-      <Svg>
-        <path d="M22 12a10 10 0 1 1-6.91-9.51" />
-      </Svg>
+    <span
+      className={cx("inline-flex shrink-0 items-center justify-center", live ? "text-accent" : "text-ink")}
+      data-plan-arc={live ? "turning" : "still"}
+      style={live ? spinStyle(ARC_TURN_MS) : undefined}
+    >
+      <svg width={MARK} height={MARK} viewBox="0 0 18 18" fill="none" shapeRendering="geometricPrecision" aria-hidden="true" focusable="false" className="block shrink-0">
+        <circle cx="9" cy="9" r="7" stroke="currentColor" strokeOpacity="0.2" strokeWidth="1.9" />
+        <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" pathLength={100} strokeDasharray="30 70" />
+      </svg>
     </span>
   );
 }
@@ -107,19 +111,19 @@ export function PlanCard({ id, todos, live }: { id?: string; todos: Todo[]; live
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((o) => !o)}
-          className="flex w-full min-w-0 cursor-pointer items-center gap-2 px-3.5 py-2.5 transition-opacity select-none hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset [@media(pointer:coarse)]:min-h-10"
+          className="group/plan flex w-full min-w-0 cursor-pointer items-center gap-2 px-3.5 py-2.5 text-left transition-colors duration-150 ease-(--ease-out-strong) select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset motion-reduce:transition-none [@media(pointer:coarse)]:min-h-10"
         >
-          <Icon name="chevronRight" size={14} stroke={2} className="shrink-0 text-tool-ink transition-transform duration-150 motion-reduce:transition-none" style={{ transform: open ? "rotate(90deg)" : "none" }} />
-          <Icon name="todo" size={16} stroke={2} className="shrink-0 text-ink" />
+          <Icon name="chevronRight" size={14} stroke={2} className="shrink-0 text-tool-ink transition-[transform,color] duration-200 ease-(--ease-out-strong) group-hover/plan:text-ink motion-reduce:transition-none" style={{ transform: open ? "rotate(90deg)" : "none" }} />
+          <Icon name="todo" size={16} stroke={2} className="shrink-0 text-ink-2 transition-colors duration-150 ease-(--ease-out-strong) group-hover/plan:text-ink motion-reduce:transition-none" />
           <span className="shrink-0 font-mono text-[13px] leading-none font-medium text-ink tabular-nums" data-plan-count>
             {done}/{total}
           </span>
           <span className="shrink-0 text-[length:var(--chat-secondary)] leading-none text-tool-ink">·</span>
-          <span className="mt-px min-w-0 truncate text-[length:var(--chat-secondary)] leading-none text-ink" data-plan-head>
+          <span className="mt-px min-w-0 truncate text-[length:var(--chat-secondary)] leading-none text-ink-2 transition-colors duration-150 ease-(--ease-out-strong) group-hover/plan:text-ink motion-reduce:transition-none" data-plan-head>
             {head}
           </span>
         </button>
-        <Collapse open={open} lazy>
+        <Collapse open={open} lazy className="motion-safe:duration-[220ms]">
           <div className="flex flex-col gap-0.5 border-t border-line px-3.5 pt-2.5 pb-3" data-plan-list>
             {todos.map((todo, i) => (
               <div key={`${todo.content}:${i}`} className="flex min-h-7.5 items-center gap-2.5" data-todo={todo.status}>
@@ -129,7 +133,7 @@ export function PlanCard({ id, todos, live }: { id?: string; todos: Todo[]; live
             ))}
           </div>
         </Collapse>
-        <Collapse open={!open} lazy>
+        <Collapse open={!open} lazy className="motion-safe:duration-[220ms]">
           <div className="h-0.5 w-full bg-line" data-plan-progress>
             <div className="h-full bg-ink" style={{ width: `${(done / total) * 100}%`, transition: `width ${MOVE_MS}ms ${EASE}` }} />
           </div>
@@ -263,7 +267,7 @@ export function PlanPill({ todos, live, onClose }: { todos: Todo[]; live?: boole
           onKeyDown={tabIn}
           aria-controls={flyoutId}
           aria-expanded={revealed}
-          className="touch-hit flex cursor-pointer items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-1.5 whitespace-nowrap transition-opacity select-none hover:opacity-80"
+          className="touch-hit flex cursor-pointer items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-1.5 whitespace-nowrap transition-[border-color,color,transform] duration-150 ease-(--ease-out-strong) select-none hover:border-line-strong active:scale-[0.985] motion-reduce:transition-none"
           data-plan-pill
         >
           <ProgressRing progress={p.total ? p.step / p.total : 0} />
@@ -298,7 +302,7 @@ export function PlanPill({ todos, live, onClose }: { todos: Todo[]; live?: boole
                       onKeyDown={tabOut}
                       aria-label={t("chat-plancard.close")}
                       title={t("chat-plancard.close")}
-                      className="absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-full text-tool-ink transition-colors hover:bg-tool-hover hover:text-ink active:scale-[0.98]"
+                      className="absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-full text-tool-ink transition-[color,transform] duration-150 ease-(--ease-out-strong) hover:text-ink active:scale-[0.95] motion-reduce:transition-none"
                       data-plan-close
                     >
                       <Icon name="x" size={14} stroke={2} />

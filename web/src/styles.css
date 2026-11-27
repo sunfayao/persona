@@ -812,7 +812,7 @@ select:not([multiple], [size], .appearance-none) {
 [data-slot="collapsible-panel"] {
   height: var(--collapsible-panel-height);
   overflow: hidden;
-  transition: height 220ms var(--ease-out-strong), opacity 180ms ease;
+  transition: height 260ms var(--ease-out-strong), opacity 200ms var(--ease-out-strong);
   &:is([data-starting-style], [data-ending-style]) {
     height: 0;
     opacity: 0;
@@ -865,5 +865,186 @@ select:not([multiple], [size], .appearance-none) {
   [data-slot="tooltip-content"].ui-tooltip-surface,
   [data-presence-pill] {
     transition: none !important;
+  }
+}
+
+/* ── Chat work execution motion (Claude-style laser sweep & settle choreography) ── */
+@keyframes cmd-laser-sweep {
+  0% { transform: translate3d(-110%, 0, 0); opacity: 0; }
+  14% { opacity: 0.92; }
+  50% { opacity: 1; }
+  84% { opacity: 0.88; }
+  100% { transform: translate3d(205%, 0, 0); opacity: 0; }
+}
+@keyframes cmd-laser-beam {
+  0% { transform: translate3d(-115%, 0, 0); opacity: 0; }
+  12% { opacity: 0.88; }
+  50% { opacity: 1; }
+  84% { opacity: 0.85; }
+  100% { transform: translate3d(240%, 0, 0); opacity: 0; }
+}
+@keyframes cmd-settle-sheen {
+  0% { transform: translate3d(-110%, 0, 0); opacity: 0; }
+  20% { opacity: 1; }
+  75% { opacity: 0.72; }
+  100% { transform: translate3d(210%, 0, 0); opacity: 0; }
+}
+@keyframes cmd-status-pop {
+  0% { opacity: 0; transform: scale(0.55); }
+  62% { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes work-step-enter {
+  0% { opacity: 0; transform: translateY(5px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes cmd-detail-reveal {
+  0% { opacity: 0; transform: translateY(-4px); filter: blur(1.5px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+.cmd-laser-row {
+  position: relative;
+  overflow: hidden;
+  --laser-veil-edge: 4%;
+  --laser-veil-peak: 11%;
+  --laser-beam-edge: 30%;
+  --laser-beam-peak: 90%;
+  --laser-beam-glow: 38%;
+}
+:where(.dark) .cmd-laser-row {
+  --laser-veil-edge: 5%;
+  --laser-veil-peak: 15%;
+  --laser-beam-edge: 35%;
+  --laser-beam-peak: 100%;
+  --laser-beam-glow: 60%;
+}
+.cmd-laser-row::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 55%;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--accent) var(--laser-veil-edge), transparent) 24%,
+    color-mix(in srgb, var(--accent) var(--laser-veil-peak), transparent) 50%,
+    color-mix(in srgb, var(--accent) var(--laser-veil-edge), transparent) 76%,
+    transparent 100%
+  );
+  will-change: transform, opacity;
+  animation: cmd-laser-sweep 2.1s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+.cmd-laser-row::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 46%;
+  height: 1.5px;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--accent) var(--laser-beam-edge), transparent) 20%,
+    color-mix(in srgb, var(--accent) var(--laser-beam-peak), transparent) 50%,
+    color-mix(in srgb, var(--accent) var(--laser-beam-edge), transparent) 80%,
+    transparent 100%
+  );
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) var(--laser-beam-glow), transparent);
+  will-change: transform, opacity;
+  animation: cmd-laser-beam 2.1s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+.work-live-head {
+  position: relative;
+  overflow: hidden;
+  --head-beam-edge: 28%;
+  --head-beam-peak: 82%;
+  --head-beam-glow: 32%;
+}
+:where(.dark) .work-live-head {
+  --head-beam-edge: 35%;
+  --head-beam-peak: 95%;
+  --head-beam-glow: 52%;
+}
+.work-live-head::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 46%;
+  height: 1.5px;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--accent) var(--head-beam-edge), transparent) 20%,
+    color-mix(in srgb, var(--accent) var(--head-beam-peak), transparent) 50%,
+    color-mix(in srgb, var(--accent) var(--head-beam-edge), transparent) 80%,
+    transparent 100%
+  );
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) var(--head-beam-glow), transparent);
+  will-change: transform, opacity;
+  animation: cmd-laser-beam 2.1s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+.cmd-settled {
+  position: relative;
+  overflow: hidden;
+}
+.cmd-settled::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 55%;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--green) 11%, transparent) 46%,
+    color-mix(in srgb, var(--accent) 8%, transparent) 66%,
+    transparent 100%
+  );
+  will-change: transform, opacity;
+  animation: cmd-settle-sheen 480ms var(--ease-out-strong) both;
+}
+
+.cmd-status-pop {
+  animation: cmd-status-pop 320ms var(--ease-out-strong) both;
+}
+
+.work-step-enter {
+  animation: work-step-enter 220ms var(--ease-out-strong) both;
+}
+
+.cmd-detail-reveal {
+  animation: cmd-detail-reveal 220ms var(--ease-out-strong) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cmd-laser-row::before,
+  .cmd-settled::before {
+    display: none;
+    animation: none !important;
+  }
+  .cmd-laser-row::after,
+  .work-live-head::after {
+    animation: none !important;
+    width: 100%;
+    transform: none;
+    opacity: 1;
+    background: color-mix(in srgb, var(--accent) 40%, transparent);
+    box-shadow: none;
+  }
+  .cmd-status-pop,
+  .work-step-enter,
+  .cmd-detail-reveal {
+    animation: none !important;
   }
 }

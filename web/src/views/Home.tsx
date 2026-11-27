@@ -34,9 +34,8 @@ import { effortTitle } from "../lib/session-actions";
 import { modelList, pillView, useModelLists } from "../lib/session-models";
 import { heldDelivery, makeSessionLookup, orphanedLine, TODO_TONE_CLASS } from "../lib/todos";
 import { todoLook } from "../lib/todo-wait-reason";
-import { BUSY_MOTION, spinStyle } from "../lib/busy-motion";
 import type { AgentState, Interaction, Machine, Session } from "../lib/types";
-import { Button, Collapse, cx, EASE, IconButton, Loading, toast, useNow } from "../ui/atoms";
+import { Button, Collapse, cx, EASE, IconButton, Loading, Spinner, toast, useNow } from "../ui/atoms";
 import { RecommendedTag } from "../ui/RecommendedTag";
 import { Tag } from "./assistant/parts";
 import { StatusMark } from "../ui/StatusMark";
@@ -749,16 +748,9 @@ function TaskRow({ i, state, waiting, done, to, title, tags, detail, pill, entry
 
 function Badge({ state, waiting = false }: { state: AgentState; waiting?: boolean }) {
   if (state === "working" && !waiting) {
-    const size = 20,
-      stroke = 2,
-      r = (size - stroke) / 2,
-      c = 2 * Math.PI * r;
     return (
-      <span className="relative inline-flex size-5 shrink-0 items-center justify-center" aria-label={STATE_LABEL[state]}>
-        <svg width={size} height={size} className={`absolute inset-0 ${BUSY_MOTION}`} style={spinStyle(1100)}>
-          <circle cx={10} cy={10} r={r} fill="none" stroke="var(--line)" strokeWidth={stroke} />
-          <circle cx={10} cy={10} r={r} fill="none" stroke="var(--orange)" strokeWidth={stroke} strokeLinecap="round" strokeDasharray={`${c * 0.28} ${c * 0.72}`} />
-        </svg>
+      <span className="relative inline-flex size-5 shrink-0 items-center justify-center text-accent" aria-label={STATE_LABEL[state]}>
+        <Spinner size={18} />
       </span>
     );
   }

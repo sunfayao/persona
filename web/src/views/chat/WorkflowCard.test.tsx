@@ -167,7 +167,7 @@ describe("the card in the chat", () => {
     expect(card.textContent).not.toContain("子 Agent"); // no kind label before a workflow's title
     expect(q("[data-task-status]")!.dataset.taskStatus).toBe("running");
     expect(text("[data-task-status]")).toBe("运行中");
-    expect(q("[data-task-status] svg")).toBeNull(); // a spinner, not an outcome's icon
+    expect(q("[data-task-status] [data-spinner]")).not.toBeNull(); // a unified circular spinner, not an outcome's icon
     expect([...host.querySelectorAll("[data-task-meta] > *")].map((e) => e.textContent)).toEqual(["Workflow", "12.3k tokens", "37 次工具调用", "已运行 1m 55s"]);
     act(() => vi.advanceTimersByTime(2000));
     expect(text("[data-task-elapsed]")).toBe("已运行 1m 57s"); // ticks each second
