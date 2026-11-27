@@ -226,8 +226,10 @@ type Session struct {
 	// Model remains the transcript-reported name, which a gateway may rewrite.
 	RequestedModel *string `json:"requested_model,omitempty"`
 	// PermissionMode and Effort are what Claude Code runs with now: default / acceptEdits / plan / auto /
-	// bypassPermissions, and low … max. Empty while unknown (before the first turn, Codex). A Codex thread the phone
-	// drives through its app-server has an Effort too (Codex's levels, see Efforts) but never a PermissionMode.
+	// bypassPermissions, and low … max. Empty while unknown (before the first turn). A Codex thread the phone drives
+	// through its app-server has an Effort too (Codex's levels, see Efforts). A Codex thread's PermissionMode is read
+	// from its rollout's latest turn (harness/codex PermissionMode): bypassPermissions for Codex's full access, default
+	// for its own approval; an older node reports none for Codex.
 	PermissionMode string `json:"permission_mode,omitempty"`
 	Effort         string `json:"effort,omitempty"`
 	// PendingEffort is a terminal change waiting for this Claude Code turn to end. If the attempt fails, the

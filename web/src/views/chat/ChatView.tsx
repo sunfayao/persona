@@ -16,7 +16,7 @@ import { getPanel, openPanel, togglePanel, usePanel } from "../../lib/panel";
 import { backgroundPanelOf, isWorkflowsCommand, latestWorkflowRun, openBackgroundPanel, provideBackgroundChat, WORKFLOWS_COMMAND } from "../../lib/background-panel";
 import { machineWithHub } from "../../lib/mesh";
 import { sidebarRail, sidebarShown, useLayout } from "../../lib/layout";
-import { hasModes, isMuted, listedModesOf, toggleMute } from "../../lib/session-actions";
+import { hasModes, isMuted, listedModesOf, shownModeOf, toggleMute } from "../../lib/session-actions";
 import { flipPin } from "../../lib/agent-actions";
 import { isPinned } from "../../lib/pins";
 import { acknowledgeLaunch } from "../../lib/new-agent";
@@ -107,7 +107,7 @@ import { dayRowKey, withDayDividers } from "./day-dividers";
 import type { ChatRowWithModes, ModeChanges } from "./mode-changes";
 import { useFoldSearch } from "./useFoldSearch";
 import { DeleteSessionDialog, preloadSessionDialogs, RenameDialog, RenameSpaceDialog, renameTitle, SessionInfoDialog } from "./SessionDialogs";
-import { PermissionPicker, usePlanMode } from "./PermissionPicker";
+import { PermissionLabel, PermissionPicker, usePlanMode } from "./PermissionPicker";
 import { permissionsCommand } from "../../lib/permissions-command";
 import { archiveItems } from "../AgentMenus";
 import { ChatSidebarButton } from "../ShellSwitch";
@@ -2147,7 +2147,14 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   // lists its own modes (#8261) gets the picker with those two, and no Plan mode.
   const modesOn = Boolean(session) && (Boolean(assistant) || (hasModes(session) && stateOf(session!) !== "offline"));
   const listedOn = Boolean(session) && !assistant && Boolean(listedModesOf(session)) && stateOf(session!) !== "offline";
-  const leading = useMemo(() => (session && (modesOn || listedOn) ? <PermissionPicker session={session} assistant={assistant} /> : null), [session, modesOn, listedOn, assistant]);
+  // Elsewhere the mode it runs in, when known, stands in the same place as a label (a Codex App thread, Claude's desktop
+  // app, an agent whose mode is its start's, one that is stopped): one place for the mode in every composer.
+  const leading = useMemo(() => {
+    if (!session) return null;
+    if (modesOn || listedOn) return <PermissionPicker session={session} assistant={assistant} />;
+    if (assistant || !shownModeOf(session)) return null;
+    return <PermissionLabel session={session} stopped={hasModes(session) || Boolean(listedModesOf(session))} />;
+  }, [session, modesOn, listedOn, assistant]);
   const planMode = usePlanMode(modesOn ? session : undefined, assistant);
   // the model pill: an Agent's (#5032), a Persona conversation's (#5033, its pick kept for the conversation)
   const trailing = useMemo(() => (session ? assistant ? <AssistantModelPill session={session} /> : <AgentModelPill session={session} /> : null), [session, assistant]);

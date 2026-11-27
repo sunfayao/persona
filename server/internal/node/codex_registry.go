@@ -622,6 +622,7 @@ func (n *Node) codexSessionsIn(seen map[string]bool, pass *codexListPass) []prot
 				}
 				s.AgentSurface = m.surface
 				s.Effort = m.effort
+				s.PermissionMode = codex.PermissionMode(m.mode, m.sandbox) // the App's Full access too
 				m.turnErr.set(&s)
 				setContext(&s, m)
 				s.Title = threadTitle(src.home, src.thread)

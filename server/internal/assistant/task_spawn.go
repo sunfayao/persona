@@ -42,8 +42,8 @@ func (s *Service) taskSpawn(ctx context.Context, machine, session string, args j
 	if !ok || parent.Assistant || parent.Cwd == "" || parent.Launcher == "" {
 		return "", errors.New("Persona cannot verify this Agent's directory and launcher; ask your supervisor, nothing was started")
 	}
-	// Unknown permission is read-only, never the owner's writable default. Codex does not expose PermissionMode, so
-	// the persisted assignment supplies it when this is that assignment's original Agent.
+	// Unknown permission is read-only, never the owner's writable default. A Codex parent on an older node exposes no
+	// PermissionMode, so the persisted assignment supplies it when this is that assignment's original Agent.
 	mode := parent.PermissionMode
 	assigned := false
 	for _, agent := range t.Agents {

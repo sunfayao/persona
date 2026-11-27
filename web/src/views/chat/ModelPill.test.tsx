@@ -17,6 +17,7 @@ import { resetManagerChoice, setRosterDefault } from "../../lib/manager-choice";
 import { getSession, getState, upsertSession } from "../../lib/store";
 import type { Session } from "../../lib/types";
 import type { ModelPanelProps } from "../../ui/model-panel/ModelPanel";
+import { Icon } from "../../ui/icons";
 
 vi.hoisted(() => {
   const g = globalThis as Record<string, unknown>;
@@ -151,14 +152,21 @@ describe("the pill's states", () => {
     expect(markup(<ModelPill current={{ engine: "claude", provider: "gateway" }} onOpen={() => {}} />)).toContain(t("chat-modelpill.default_model"));
   });
 
-  it("the list failed: a warning in the error colour, said in the tooltip", () => {
+  it("the list failed: a quiet retry mark, said in the tooltip, never the red warning of Full access beside it", () => {
+    const retry = renderToStaticMarkup(<Icon name="retry" />).match(/<path[^>]*>/)![0];
+    const warning = renderToStaticMarkup(<Icon name="warning" />).match(/<path[^>]*>/)![0];
     const none = markup(<ModelPill current={{ engine: "claude", provider: "gateway" }} failed onOpen={() => {}} />);
     expect(none).toContain('data-model-pill="failed"');
     expect(none).toContain(t("chat-modelpill.failed"));
-    expect(none).toContain("text-red");
     const known = markup(<ModelPill current={opus} failed onOpen={() => {}} />);
     expect(known).toContain(`title="Claude Code · Opus 5.5 · gateway · 高 · ${t("chat-modelpill.failed")}"`);
-    expect(known.match(/text-red/g)!.length).toBe(2); // the mark and the warning after the effort
+    for (const html of [none, known]) {
+      expect(html).not.toContain("text-red");
+      expect(html).not.toContain(warning);
+      expect(html).toContain(retry);
+      expect(html).toMatch(/class="[^"]*text-ink-3[^"]*"[^>]*>(?:(?!<\/svg>).)*M21 12a9 9/); // the mark in the muted colour
+    }
+    expect(markup(<ModelPill current={opus} onOpen={() => {}} />)).not.toContain(retry);
   });
 
   it("pending (#5035): a clock first, the next engine named, both setups in the tooltip", () => {
