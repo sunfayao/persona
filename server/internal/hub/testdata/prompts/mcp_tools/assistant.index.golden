@@ -30,7 +30,6 @@ agent_autoname_receipt
 interaction_answer
 ask_escalate
 inbox_suggest
-inbox_draft
 inbox_folders
 inbox_move
 inbox_post
