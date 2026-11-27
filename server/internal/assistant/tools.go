@@ -28,8 +28,8 @@ import (
 
 // Tools only the assistant (the "Chat" tab's headless Claude) gets: asking on the phone (headless claude has no
 // AskUserQuestion), pushing, waking itself up later, its conversations, the tasks it hands out, the coding agents the
-// hub already tracks, the knowledge base, the inbox's drafts, Feishu's /agent replies and Persona's own settings.
-// The hub lists them with its own and sends their calls here (Handler.Tool). Those on the hub's knowledge base,
+// hub already tracks, the to-dos, the schedule, the inbox's drafts, Feishu's /agent replies and Persona's own settings.
+// The hub lists them with its own and sends their calls here (Handler.Tool). Those on the hub's
 // interaction queue and inbox call those apps' data methods (tools_apps.go); one that is still an app's to run goes to
 // that app (AppTool).
 

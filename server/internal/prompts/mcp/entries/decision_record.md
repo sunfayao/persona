@@ -1,4 +1,4 @@
-Record {text,scope?,decision:{options[],selected[],rejected[],reason,reversible:bool|null}}. user_quotes[]:{quote,source:{machine,session,msg_uuid|card_id|file,line}} stay inferred.
+Keep a decision the user made, so later conversations follow it instead of asking again. Record {text,scope?,decision:{options[],selected[],rejected[],reason,reversible:bool|null}}. user_quotes[]:{quote,source:{machine,session,msg_uuid|card_id|file,line}} stay inferred.
 
 ```json
 {"type":"object","required":["entry"],"properties":{"entry":{"type":"object","required":["text","decision"],"properties":{"text":{"type":"string"},"decision":{"type":"object"}}},"user_quotes":{"type":"array","maxItems":20,"items":{"type":"object"}}},"additionalProperties":false}
