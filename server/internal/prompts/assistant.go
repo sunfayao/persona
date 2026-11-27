@@ -51,7 +51,7 @@ type AssistantClaudeMD struct {
 	WorkGuide bool
 	Owner     string // "" is "user"
 	Machines  []AssistantMachine
-	Notes     string // Settings › Assistant › About me, trimmed
+	Notes     string // About me (persona_settings assistant.notes), trimmed
 	StateDir  string
 	OnHub     bool
 	// LarkCLI: hub.json configures lark-cli, on the assistant's PATH.

@@ -7,7 +7,7 @@ type AssistantSpaceClaudeMD struct {
 	Title    string // the track's title, one line
 	StateDir string // "" is ~/.persona
 	DirName  string // the track's directory, relative to StateDir (tracks/<slug>)
-	Notes    string // Settings › Assistant › About me
+	Notes    string // About me (persona_settings assistant.notes)
 	Language string // the answer language's own name; "" is Chinese
 }
 
