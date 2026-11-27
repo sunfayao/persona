@@ -62,6 +62,7 @@ const START: RunStep = { kind: "start" };
  *  Persona conversation's everyday words, which never name a tool. */
 export function statusWords(live: SessionLive | null, step: RunStep = START, plain = false): { text: string; compacting: boolean } {
   if (live?.verb && /^compact/i.test(live.verb)) return { text: plain ? t("chat-runningstatusbar.organizing") : t("chat-runningstatusbar.compacting"), compacting: true };
+  if (step.kind === "start") return { text: t("chat-runningstatusbar.working"), compacting: false };
   return { text: live?.thinking ? t("chat-runningstatusbar.thinking") : (plain ? plainWord : agentWord)(step), compacting: false };
 }
 
@@ -70,6 +71,7 @@ function agentWord(step: RunStep): string {
     case "streaming":
     case "text":
       return t("chat-runningstatusbar.generating");
+    case "start":
     case "after":
       return t("chat-runningstatusbar.working");
     case "tool": {
@@ -89,6 +91,8 @@ function plainWord(step: RunStep): string {
   switch (step.kind) {
     case "streaming":
       return t("chat-runningstatusbar.replying");
+    case "start":
+      return t("chat-runningstatusbar.working");
     case "text":
     case "after":
       return t("chat-runningstatusbar.processing");

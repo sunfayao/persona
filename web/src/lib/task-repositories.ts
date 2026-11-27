@@ -1,17 +1,7 @@
-import type { Todo, TodoCreateOptions } from "./todos";
-import { confirmTodoCreate } from "./todos";
-import { api, credentialOwner, getToken, pastHub } from "./api";
+import { api, credentialOwner, getToken } from "./api";
 import { MANAGER_HEADER } from "./manager-choice";
 import { parseRepository, type RepositoryIdentity } from "./repository-identity";
 
-type RepositoryTaskWorkflow = "isolated" | "shared_branch";
-type RepositoryBinding = RepositoryIdentity & {
-  id: string; name?: string; aliases?: string[]; purpose?: string; verified_at: string; clone_url?: string;
-  /** An extension source's name when the reference was saved, so it still reads once the source is gone. */
-  provider_name?: string;
-  /** Optional per-repository default task-collaboration cadence ("isolated" / unset or "shared_branch"). */
-  task_workflow?: RepositoryTaskWorkflow;
-};
 export type RepositoryLinkKind = "issue" | "pull_request";
 /** A source's own word for a link kind (MR for a pull request); the kinds stay these two. */
 export type RepositoryLinkLabel = { kind: RepositoryLinkKind; label: string };
@@ -40,12 +30,6 @@ export type TaskRepository = Omit<TaskRepositoryInput, "links" | "requested_ref"
   provider_state?: RepositoryProviderState; link_kinds?: RepositoryLinkLabel[];
 };
 export type TaskRepositorySet = { schema_version: 1; manager: string; todo_id: string; revision: number; repositories: TaskRepository[] };
-export type RepositoryCatalog = { manager: string; catalog_revision: number; repositories: RepositoryBinding[] };
-export type CreateRepositoryBindings = { catalog_revision: number; repositories: TaskRepositoryInput[] };
-export type TaskRepositoryPreparationSnapshot = {
-  schema_version: 1; manager: string; todo_id: string; revision: number; digest: string;
-  repositories: Array<Pick<TaskRepository, "repo_id" | "directory_alias" | "requested_ref" | "source_snapshot">>;
-};
 
 /** The same conservative directory-name rule as repository.ValidateAlias in Go. Empty is no override. */
 export function validRepositoryAlias(alias: string): boolean {
@@ -67,13 +51,6 @@ export function repositoryLinkTitle(value: unknown): string | undefined {
   const title = value.trim();
   if (!title || /\p{Cc}/u.test(title) || new TextEncoder().encode(title).length > MAX_LINK_TITLE_BYTES) return undefined;
   return title;
-}
-export function repositoryDraft(rows: TaskRepository[]): TaskRepositoryInput[] {
-  return rows.map((row) => ({ repo_id: row.repo_id, directory_alias: row.directory_alias, requested_ref: { ...row.requested_ref },
-    links: row.links.map(({ kind, number, title }) => {
-      const kept = repositoryLinkTitle(title);
-      return { kind, number, ...(kept ? { title: kept } : {}) };
-    }) }));
 }
 
 const EXTENSION_PROVIDER = /^ext:[a-z0-9][a-z0-9_-]{0,31}\/[a-z0-9][a-z0-9_-]{0,31}$/;
@@ -211,84 +188,8 @@ export function validRequestedRef(ref?: RequestedRef | null): boolean {
   return value.split("/").every((part) => part !== "" && !part.startsWith(".") && !part.endsWith(".lock"));
 }
 
-/** A normalized link identity inside its repository: public aliases/case and structured kind+number meet here. */
-function repositoryLinkKey(identity: RepositoryIdentity, link: RepositoryLinkInput | TaskRepositoryLink, saved: readonly TaskRepositoryLink[] = []): string | undefined {
-  const prefix = `${identity.provider}|${identity.instance_url}|${identity.path}|`;
-  const view = repositoryLinkView(identity, link, saved);
-  // A provider decides a new address's kind/number on save. Distinct pending addresses must not collapse into an
-  // undefined kind/number; an address already saved can still meet its structured identity above.
-  if (view) return prefix + (view.pending ? `url|${view.url}` : `${view.kind}|${view.number}`);
-  if (isExtensionProvider(identity.provider) && !("canonical_url" in link) && link.url === undefined
-    && (link.kind === "issue" || link.kind === "pull_request") && LINK_NUMBER.test(link.number)) return prefix + `${link.kind}|${link.number}`;
-  return undefined;
-}
-
-/** True when two links would normalize to the same repository, kind and number (the server's duplicate_link). */
-export function repositoryDuplicateLink(rows: TaskRepositoryInput[], identities?: ReadonlyMap<string, RepositoryIdentity>, snapshots: readonly TaskRepository[] = []): boolean {
-  const seen = new Set<string>();
-  for (const row of rows) {
-    const identity = identities?.get(row.repo_id);
-    const saved = snapshots.find((value) => value.repo_id === row.repo_id)?.links;
-    for (const link of row.links ?? []) {
-      const key = identity ? repositoryLinkKey(identity, link, saved)
-        : "kind" in link ? `${row.repo_id}|${link.kind}|${link.number}` : undefined;
-      if (key && seen.has(key)) return true;
-      if (key) seen.add(key);
-    }
-  }
-  return false;
-}
-
-/** The whole creation/edit draft: unique ids/aliases, valid refs, bounded links and no normalized duplicate link. */
-export function validRepositoryDraft(rows: TaskRepositoryInput[], identities?: ReadonlyMap<string, RepositoryIdentity>, snapshots: readonly TaskRepository[] = []): boolean {
-  if (!Array.isArray(rows) || rows.length > 20) return false;
-  const ids = new Set<string>();
-  const aliases = new Set<string>();
-  const repositories = new Set<string>();
-  const links = new Set<string>();
-  return rows.every((row) => {
-    if (!row || typeof row.repo_id !== "string" || !row.repo_id || row.repo_id.length > 80 || ids.has(row.repo_id)) return false;
-    ids.add(row.repo_id);
-    if (row.directory_alias !== undefined && typeof row.directory_alias !== "string") return false;
-    if (!validRepositoryAlias(row.directory_alias ?? "")) return false;
-    if (row.directory_alias) {
-      const key = row.directory_alias.toLowerCase();
-      if (aliases.has(key)) return false;
-      aliases.add(key);
-    }
-    if (!validRequestedRef(row.requested_ref)) return false;
-    const identity = identities?.get(row.repo_id);
-    const saved = snapshots.find((value) => value.repo_id === row.repo_id)?.links;
-    // An identity-aware draft must resolve every repository. Without identities a URL link cannot be proven to belong
-    // to its repository or deduplicated, so that draft fails closed; structured/no-link metadata stays checkable.
-    if (identities && !identity) return false;
-    if (identity && !validRepositoryIdentity(identity)) return false;
-    if (!identities && (row.links ?? []).some((link) => link && "url" in link)) return false;
-    if (identity) {
-      const key = `${identity.provider}|${identity.instance_url}|${identity.path}`;
-      if (repositories.has(key)) return false;
-      repositories.add(key);
-    }
-    const rowLinks = row.links ?? [];
-    if (!Array.isArray(rowLinks) || rowLinks.length > 50) return false;
-    return rowLinks.every((link) => {
-      if (!link || !(("url" in link && typeof link.url === "string" && !!link.url.trim() && link.url.trim().length <= 2048)
-        || (link.kind === "issue" || link.kind === "pull_request") && typeof link.number === "string" && /^[1-9][0-9]{0,19}$/.test(link.number))) return false;
-      const key = identity ? repositoryLinkKey(identity, link, saved) : "kind" in link ? `${row.repo_id}|${link.kind}|${link.number}` : undefined;
-      if (identity && !key) return false;
-      if (key) {
-        if (links.has(key)) return false;
-        links.add(key);
-      }
-      return true;
-    });
-  });
-}
-
 /** A source's name as saved beside an identity: absent, or at most 80 characters (the manifest's `name`). */
 const validProviderName = (name: unknown): boolean => name === undefined || (typeof name === "string" && [...name].length <= 80);
-/** Optional per-repository task workflow preference: absent/empty (default isolated), "isolated", or "shared_branch". */
-const validTaskWorkflow = (value: unknown): boolean => value === undefined || value === "" || value === "isolated" || value === "shared_branch";
 const LINK_KINDS = ["issue", "pull_request"];
 const validLinkKinds = (value: unknown): boolean => value === undefined || (Array.isArray(value) && value.length <= LINK_KINDS.length
   && value.every((entry: RepositoryLinkLabel) => !!entry && LINK_KINDS.includes(entry.kind) && typeof entry.label === "string"
@@ -337,50 +238,8 @@ export function repositoryRequestOptions(context: RepositoryRequestContext) {
   if (!context.isCurrent()) throw new Error("The editor connection changed");
   return { token: context.token, tokenOwner: context.owner, isAuthContextCurrent: context.isCurrent, headers: { [MANAGER_HEADER]: context.manager } };
 }
-export async function loadRepositoryCatalog(context: RepositoryRequestContext): Promise<RepositoryCatalog> {
-  const result = await api<RepositoryCatalog>("/assistant/repositories", repositoryRequestOptions(context));
-  if (!context.isCurrent() || result.manager !== context.manager || !revision(result.catalog_revision)
-    || !Array.isArray(result.repositories) || !result.repositories.every((r) => typeof r.id === "string" && validRepositoryIdentity(r) && validProviderName(r.provider_name) && validTaskWorkflow(r.task_workflow))) throw new Error("Invalid repository catalog response");
-  return result;
-}
 export async function loadTaskRepositories(context: RepositoryRequestContext, todoId: string): Promise<TaskRepositorySet> {
   const result = await api<TaskRepositorySet>(`/todos/${encodeURIComponent(todoId)}/repositories`, repositoryRequestOptions(context));
   if (!context.isCurrent() || !validRepositorySet(result, context.manager, todoId)) throw new Error("Invalid repository association response");
   return result;
-}
-export async function saveTaskRepositories(context: RepositoryRequestContext, todoId: string, revision: number, catalogRevision: number, rows: TaskRepositoryInput[]): Promise<TaskRepositorySet> {
-  const result = await api<TaskRepositorySet>(`/todos/${encodeURIComponent(todoId)}/repositories`, {
-    ...repositoryRequestOptions(context), method: "PUT", timeout: pastHub(8_000),
-    json: { expected_revision: revision, expected_catalog_revision: catalogRevision, repositories: rows },
-  });
-  if (!context.isCurrent() || !validRepositorySet(result, context.manager, todoId) || result.revision !== revision + 1) throw new Error("Invalid repository association response");
-  return result;
-}
-
-export function cleanRepositoryDraft(rows: TaskRepositoryInput[]): TaskRepositoryInput[] {
-  return rows.map((row) => ({ ...row, links: (row.links ?? [])
-    .filter((link) => !("url" in link) || !!link.url?.trim())
-    .map((link): RepositoryLinkInput => {
-      const title = repositoryLinkTitle(link.title);
-      return "url" in link
-        ? { url: link.url!.trim(), ...(title ? { title } : {}) }
-        : { kind: link.kind, number: link.number, ...(title ? { title } : {}) };
-    }) }));
-}
-
-/** Explicit association creation stays outside the ordinary Todo client's startup path. */
-export async function createTodoWithRepositories(context: RepositoryRequestContext, title: string, notes: string, due: { due_at?: string; due_date?: string } | undefined, bindings: CreateRepositoryBindings, identities: ReadonlyMap<string, RepositoryIdentity>, creation?: TodoCreateOptions): Promise<Todo> {
-  const repositories = bindings ? cleanRepositoryDraft(bindings.repositories) : [];
-  // The form checks this too; the submit guard keeps an invalid optional draft from ever becoming a POST. A missing
-  // runtime identity map must fail closed even when a JavaScript caller omits the TypeScript parameter.
-  const hasIdentities = !!identities && typeof (identities as { get?: unknown }).get === "function";
-  if (!bindings || !revision(bindings.catalog_revision) || !hasIdentities || !validRepositoryDraft(repositories, identities)) throw new Error("Invalid repository association draft");
-  const withImages = Boolean(creation?.images?.length);
-  const request = repositoryRequestOptions(context);
-  const result = await api<{ todo?: Todo; state?: string }>("/todos", {
-    ...request, method: "POST",
-    headers: withImages ? { ...request.headers, "X-Persona-Op-Id": creation!.operationId! } : request.headers,
-    json: { title: title.trim(), notes: notes.trim() || undefined, ...due, repository_bindings: { ...bindings, repositories }, ...(withImages ? { images: creation!.images } : {}) },
-  });
-  return confirmTodoCreate(result, creation?.images, request);
 }

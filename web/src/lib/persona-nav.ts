@@ -62,11 +62,8 @@ export function routeAfterSwitch(route: Route): Route | null {
       return { name: "machines" };
     case "inbox":
       return route.id ? { name: "inbox" } : null;
-    case "todos": {
-      if (!route.id) return null;
-      const { id: _id, ...list } = route;
-      return list;
-    }
+    case "todos":
+      return route.id ? { name: "todos" } : null;
     case "agents":
       return route.id ? { name: "agents" } : null;
     default:

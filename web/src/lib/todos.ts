@@ -1,4 +1,4 @@
-import { formatDate, t } from "../i18n";
+import { t } from "../i18n";
 import { currentHeaders, noteItemManager } from "./manager-choice";
 import { acceptanceStands, decisionDismissed, linkedParkInteraction, linkedParkOwnerAsk, parkInteractionID, reviewState, type Supervision } from "./supervision";
 import type { LineageStep, TaskBrief } from "./brief";
@@ -73,12 +73,6 @@ export interface TodoImage {
   url: string;
   name?: string;
   size?: number;
-}
-
-/** The additive image upload accepted by both to-do creation paths. */
-export interface TodoCreateOptions {
-  images?: { id: string; mime: string; data: string; name?: string }[];
-  operationId?: string;
 }
 
 /** What the hub last read of a PR on GitHub (pr_status.go). */
@@ -635,29 +629,6 @@ export function todoDueBy(todo: Todo): number | undefined {
   return end.getTime() - 1000;
 }
 
-/** An open todo whose due moment has passed. */
-export function isOverdue(todo: Todo, now = Date.now()): boolean {
-  const by = todoDueBy(todo);
-  return !todo.done_at && by !== undefined && by < now;
-}
-
-/** A todo's due date as the list and the detail show it ("Thu, Nov 12, 18:00", or the day alone; the year only when it
- * is not this one); undefined without one. */
-export function todoDueText(todo: Todo, now = Date.now()): string | undefined {
-  const at = todo.due_at ? Date.parse(todo.due_at) : NaN;
-  const day = todoDueDay(todo);
-  const when = !Number.isNaN(at) ? at : day;
-  if (when === undefined) return undefined;
-  const sameYear = new Date(when).getFullYear() === new Date(now).getFullYear();
-  return formatDate(when, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: sameYear ? undefined : "numeric",
-    ...(!Number.isNaN(at) ? { hour: "2-digit", minute: "2-digit" } : {}),
-  });
-}
-
 /**
  * Finds the most pressing agent of a todo and its summary
  */
@@ -736,75 +707,23 @@ export function shownDecisions<T>(list: readonly T[], view: DecisionsView): T[] 
   return view === "first" ? list.slice(0, DECISIONS_FIRST) : [...list];
 }
 
-/** The decisions d may be marked as replacing: earlier ones (list order) that are in effect, not d itself. */
-export function supersedeCandidates(d: TodoDecision, all: TodoDecision[]): TodoDecision[] {
-  const at = all.findIndex((x) => x.id === d.id);
-  return all.slice(0, Math.max(at, 0)).filter((x) => !x.superseded_by && x.id !== d.supersedes_id);
-}
-
 /** Every decision of a todo, oldest first, superseded ones included (`superseded_by` set). */
 export async function fetchTodoDecisions(todoId: string): Promise<TodoDecision[]> {
   const r = await api<{ decisions: TodoDecision[] }>(`/todos/${enc(todoId)}/decisions?all=1`);
   return r.decisions ?? [];
 }
 
-export async function addTodoDecision(
-  todoId: string,
-  d: { question: string; choice: string; reason?: string; supersedes_id?: string },
-): Promise<TodoDecision> {
-  const r = await api<{ decision: TodoDecision }>(`/todos/${enc(todoId)}/decisions`, {
-    method: "POST",
-    json: { question: d.question.trim(), choice: d.choice.trim(), reason: d.reason?.trim() || undefined, supersedes_id: d.supersedes_id || undefined },
-  });
-  return r.decision;
-}
-
-/** Marks decision `id` as replacing the earlier `supersedesId` ("" undoes it). */
-export async function setDecisionSupersedes(todoId: string, id: string, supersedesId: string): Promise<TodoDecision> {
-  const r = await api<{ decision: TodoDecision }>(`/todos/${enc(todoId)}/decisions/${enc(id)}`, {
-    method: "PATCH",
-    json: { supersedes_id: supersedesId },
-  });
-  return r.decision;
-}
-
 // ── API helpers ──────────────────────────────────────────────
 
-/** A new to-do; `due` makes it due at a moment or on a day (one made on the calendar, #2029). */
 type TodoCreateResponse = { todo?: Todo; state?: string };
 
-/** A 202 receipt is not a created to-do. An older manager may also accept the request while ignoring its new image
- * field; never call that a success or leave its image-less to-do behind (#11084). */
-export async function confirmTodoCreate(result: TodoCreateResponse, images: TodoCreateOptions["images"], request: Parameters<typeof api>[1]): Promise<Todo> {
-  if (request?.isAuthContextCurrent && !request.isAuthContextCurrent()) throw new Error("The editor connection changed");
-  if (result.state === "pending" || result.state === "unknown") throw new Error(t("lib-todos.create_unconfirmed"));
-  const todo = result.todo;
-  if (!todo || typeof todo.id !== "string" || !todo.id) throw new Error(t("lib-todos.create_unconfirmed"));
-  if (images?.length) {
-    const stored = todo.images ?? [];
-    const matches = stored.length === images.length && images.every((wanted) => stored.some((image) => image.id === wanted.id && image.mime === wanted.mime));
-    if (!matches) {
-      try {
-        await api(`/todos/${enc(todo.id)}`, { ...request, method: "DELETE" });
-      } catch {
-        throw new Error(t("lib-todos.images_cleanup_failed"));
-      }
-      throw new Error(t("lib-todos.images_not_saved"));
-    }
-  }
+/** A new to-do with this title, the current assistant's (the list shows only its own). A 202 receipt is not a created
+ *  to-do: it is said so, never called a success. */
+export async function createTodo(title: string): Promise<Todo> {
+  const r = await api<TodoCreateResponse>("/todos", { method: "POST", headers: currentHeaders(), json: { title: title.trim() } });
+  const todo = r.todo;
+  if (r.state === "pending" || r.state === "unknown" || !todo || typeof todo.id !== "string" || !todo.id) throw new Error(t("lib-todos.create_unconfirmed"));
   return todo;
-}
-
-export async function createTodo(title: string, notes?: string, due?: { due_at?: string; due_date?: string }, options?: TodoCreateOptions): Promise<Todo> {
-  const withImages = Boolean(options?.images?.length);
-  const headers = withImages ? { ...currentHeaders(), "X-Persona-Op-Id": options!.operationId! } : currentHeaders();
-  // a to-do made here is the current assistant's (the list shows only its own)
-  const r = await api<TodoCreateResponse>("/todos", {
-    method: "POST",
-    headers,
-    json: { title: title.trim(), notes: notes?.trim() || undefined, ...due, ...(withImages ? { images: options!.images } : {}) },
-  });
-  return confirmTodoCreate(r, options?.images, { headers });
 }
 
 /** A todo change as PATCH takes it; due_at / due_date / remind_at null clears them (#1683). */
@@ -837,11 +756,6 @@ export async function deleteTodo(id: string): Promise<void> {
 
 export async function linkAgentToTodo(todoId: string, mid: string, sid: string): Promise<void> {
   await api(`/todos/${enc(todoId)}/agents/${enc(mid)}/${enc(sid)}`, { method: "PUT" });
-}
-
-/** Attach an available session and fail closed if another to-do has it by the time the write arrives. */
-export async function attachUnassignedTodoAgent(todoId: string, mid: string, sid: string): Promise<void> {
-  await api(`/todos/${enc(todoId)}/agents/${enc(mid)}/${enc(sid)}/attach`, { method: "PUT" });
 }
 
 export async function unlinkAgentFromTodo(todoId: string, mid: string, sid: string): Promise<void> {

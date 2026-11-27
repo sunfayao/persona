@@ -51,6 +51,7 @@ const fold = () => section().querySelector<HTMLButtonElement>("[data-testid=todo
 const glyph = (name: IconName) => renderToStaticMarkup(<Icon name={name} />).match(/ d="([^"]+)"/)?.[1];
 const shows = (b: Element | null | undefined) => b?.querySelector("path")?.getAttribute("d");
 const more = () => section().querySelector<HTMLButtonElement>("[data-testid=todo-decisions-more]");
+const count = () => section().querySelector("[data-testid=todo-decisions-count]")?.textContent;
 const tip = () => section().querySelector("[data-testid=todo-decisions-fold-tip]")?.textContent;
 const decisionReads = () => api.mock.calls.filter(([path]) => path.includes("/decisions")).length;
 
@@ -78,16 +79,9 @@ beforeEach(() => {
   lists.t1[11] = { ...lists.t1[11], supersedes_id: "t1-d1" };
   lists.t2 = Array.from({ length: 3 }, (_, i) => decision("t2", i + 1));
   lists.t3 = [];
-  api.mockImplementation(async (path: string, init?: unknown) => {
+  api.mockImplementation(async (path: string) => {
     const m = /^\/todos\/([^/]+)\/decisions/.exec(path);
-    if (m && (init as { method?: string } | undefined)?.method === "POST") {
-      const body = (init as { json: { question: string; choice: string } }).json;
-      const d = decision(m[1], lists[m[1]].length + 1, { question: body.question, choice: body.choice });
-      lists[m[1]].push(d);
-      return { decision: d };
-    }
-    if (m) return { decisions: lists[m[1]] ?? [] };
-    return path.endsWith("/launchers") ? { launchers: [] } : {};
+    return m ? { decisions: lists[m[1]] ?? [] } : {};
   });
   seed({ todos: [todo("t1", "Weather app release"), todo("t2", "Blog move"), todo("t3", "Backups")], todosLoaded: true, machines: [], sessions: {} });
   host = document.createElement("div");
@@ -105,7 +99,7 @@ afterEach(async () => {
 describe("a to-do's decisions", () => {
   it("show the first five, with Show all under them, and count every one in effect", async () => {
     await open("t1");
-    expect(section().textContent).toContain(t("todos.decisions_section", { count: 11 }));
+    expect(count()).toBe("11");
     expect(rows()).toBe(5);
     expect(section().textContent).toContain("Question 2?");
     expect(section().textContent).not.toContain("Question 7?");
@@ -133,7 +127,7 @@ describe("a to-do's decisions", () => {
     expect(rows()).toBe(0);
     expect(more()).toBeNull();
     expect(section().textContent).not.toContain(t("todos.decisions_empty"));
-    expect(section().textContent).toContain(t("todos.decisions_section", { count: 11 }));
+    expect(count()).toBe("11");
     expect(fold()?.getAttribute("aria-label")).toBe(t("todos.decisions_expand"));
     expect(tip()).toBe(t("todos.decisions_expand"));
     expect(shows(fold())).toBe(glyph("unfoldToggle"));
@@ -173,24 +167,12 @@ describe("a to-do's decisions", () => {
     expect(rows()).toBe(5);
   });
 
-  it("show the whole list once one is recorded, so the new one is in view", async () => {
+  it("are read only: nothing records, revises or links a decision", async () => {
     await open("t1");
-    const add = [...section().querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent?.trim() === t("todos.add_decision"));
-    await click(add);
-    const dialog = document.querySelector<HTMLElement>("[role=dialog]")!;
-    const type = async (id: string, value: string) => {
-      const input = dialog.querySelector<HTMLInputElement>(`#${id}`)!;
-      const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
-      await act(async () => {
-        set.call(input, value);
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-      });
-    };
-    await type("decision-question", "A new question?");
-    await type("decision-choice", "The new choice");
-    await act(async () => dialog.querySelector("form")!.requestSubmit());
-    await flush();
-    expect(rows()).toBe(12);
-    expect(section().textContent).toContain("A new question?");
+    const labels = [...section().querySelectorAll("button")].map((b) => b.textContent?.trim());
+    // the old page's Record one and Revise, and the replaced ones' history stays a view
+    for (const gone of ["记一条", "改判"]) expect(labels).not.toContain(gone);
+    expect(section().querySelector("[aria-label='更多']")).toBeNull();
+    expect(api.mock.calls.filter(([, init]) => (init as { method?: string } | undefined)?.method)).toEqual([]);
   });
 });

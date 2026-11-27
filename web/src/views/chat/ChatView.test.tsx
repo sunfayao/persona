@@ -222,7 +222,7 @@ describe("the reply bar while a message is sent", () => {
 });
 
 describe("Agent context usage", () => {
-  it("leaves the header and appears in the row below the composer, at the right of the folder; no empty row when there is neither", async () => {
+  it("renders nothing below the composer (no folder, context usage meter, or CLI/runtime label)", async () => {
     async function render() {
       const stream = await renderToReadableStream(<ChatView mid="hub" sid="c1" />);
       await stream.allReady;
@@ -231,25 +231,18 @@ describe("Agent context usage", () => {
     const was = captured.session;
     try {
       captured.session = { ...was, agent: "claude", context_tokens: 78000, context_window: 200000 };
-      const html = (await render());
+      const html = await render();
       const header = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
       expect(header).not.toContain("上下文 39%");
-      expect(html).toContain('data-composer-usage');
-      expect(html).toContain('aria-valuenow="39"');
-      expect(html.indexOf('data-testid="composer"')).toBeLessThan(html.indexOf("data-composer-usage"));
-      expect(html.indexOf("data-composer-source")).toBeLessThan(html.indexOf('aria-valuenow="39"'));
-      captured.session = { ...was, agent: "claude", context_tokens: undefined, context_window: undefined };
-      const unknown = (await render());
-      expect(unknown).toContain("data-composer-source");
-      expect(unknown).not.toContain("aria-valuenow");
-      captured.session = { ...was, agent: "claude", cwd: "", context_tokens: undefined, context_window: undefined };
-      expect((await render())).not.toContain('data-composer-usage');
+      expect(html).not.toContain("data-composer-usage");
+      expect(html).not.toContain("data-composer-source");
+      expect(html).not.toContain('aria-valuenow="39"');
     } finally {
       captured.session = was;
     }
   });
 
-  it("shows ContextMeter in Assistant chats whenever context or token usage is available (#12541)", async () => {
+  it("omits the status line below the composer in Assistant chats as well", async () => {
     async function renderAssistant() {
       const stream = await renderToReadableStream(<ChatView mid="hub" sid="c1" assistant />);
       await stream.allReady;
@@ -259,20 +252,10 @@ describe("Agent context usage", () => {
     const wasItems = captured.items;
     try {
       captured.session = { ...wasSession, assistant: true, context_tokens: 50_000, context_window: 200_000 };
-      captured.items = [];
-      const withContext = await renderAssistant();
-      expect(withContext).toContain("data-composer-usage");
-      expect(withContext).toContain('aria-valuenow="25"');
-      expect(withContext).not.toContain("data-composer-source");
-
-      captured.session = { ...wasSession, assistant: true, context_tokens: undefined, context_window: undefined };
       captured.items = [{ id: "a1", seq: 1, role: "assistant", kind: "text", usage: [{ in: 2000, out: 1000 }] }];
-      const withUsage = await renderAssistant();
-      expect(withUsage).toContain("data-composer-usage");
-      expect(withUsage).toContain("3.0k tok");
-
-      captured.items = [];
-      expect(await renderAssistant()).not.toContain("data-composer-usage");
+      const html = await renderAssistant();
+      expect(html).not.toContain("data-composer-usage");
+      expect(html).not.toContain("data-composer-source");
     } finally {
       captured.session = wasSession;
       captured.items = wasItems;

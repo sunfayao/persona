@@ -16,8 +16,8 @@ import {
   type SearchPlan,
   type SearchScope,
 } from "../../lib/agent-chatlist-filter";
-import { awaitsReply, finishedUnopened, justFinished, sessionSource, sourceName, type AgentMutes } from "../../lib/agent-groups";
-import { ago, backgroundWaiting, sessionPreview, sessionTitle, stateOf, tabLabel } from "../../lib/format";
+import { awaitsReply, finishedUnopened, justFinished, type AgentMutes } from "../../lib/agent-groups";
+import { ago, backgroundWaiting, sessionPreview, sessionTitle, stateOf } from "../../lib/format";
 import { sessionCard } from "../../lib/folded-rows";
 import { machineWithHub } from "../../lib/mesh";
 import { plainMarkdown } from "../../lib/plain-markdown";
@@ -25,7 +25,6 @@ import { openPaletteWith } from "../../lib/palette";
 import { href, type Route } from "../../lib/router";
 import { draftLine, rowLine } from "../../lib/row-line";
 import { useLeftDraft } from "../../lib/drafts";
-import { stateName } from "../../lib/state-labels";
 import { rememberSessionRow, useStore } from "../../lib/store";
 import type { Session } from "../../lib/types";
 import { ultracodeMarkShown } from "../../lib/ultracode";
@@ -364,11 +363,6 @@ export const AgentChatListRow = memo(function AgentChatListRow({
   const timeLabel = s.updated_at ? ago(s.updated_at, now) : "";
   const ultra = ultracodeMarkShown(s);
   const hasErr = sessionHasError(s, ctx.interactions);
-  const statePill = st === "working"
-    ? bgWait
-      ? { label: stateName("bg_waiting"), cls: "text-ink-3" }
-      : { label: stateName("working"), cls: "text-accent-ink" }
-    : undefined;
 
   const evidence = useMemo(
     () => (filters.query.trim() || filters.scope === "errors" ? buildEvidenceSnippet(s, filters.query, filters.scope, ctx) : null),
@@ -377,12 +371,8 @@ export const AgentChatListRow = memo(function AgentChatListRow({
 
   const machineLabel = machineWithHub(s.machine_id, ctx.machines) || s.machine_id;
   const projectLabel = sessionProjectName(s);
-  const hasTabAssociation = !!(s.slot_id?.trim() || s.tab_id?.trim());
-  const associatedTab = hasTabAssociation ? tabLabel(s) : "";
-  const tabIdentity = associatedTab ? t("sidebar.tab_named", { label: associatedTab }) : "";
   const harnessLabel = sessionHarnessLabel(s);
   const modelLabel = sessionModelId(s);
-  const source = sessionSource(s);
   const regRow = useMemo(() => reg(k), [reg, k]);
   const cardTone = active ? SESSION_ACTIVE_ROW : "hover:bg-hover";
   const metaParts: { key: string; node: ReactNode }[] = [];
@@ -408,12 +398,6 @@ export const AgentChatListRow = memo(function AgentChatListRow({
       ),
     });
   }
-  if (tabIdentity) {
-    metaParts.push({
-      key: "tab",
-      node: <span className="max-w-[100px] truncate" title={tabIdentity}>{tabIdentity}</span>,
-    });
-  }
   if (harnessLabel) {
     metaParts.push({
       key: "harness",
@@ -424,12 +408,6 @@ export const AgentChatListRow = memo(function AgentChatListRow({
     metaParts.push({
       key: "model",
       node: <span className="max-w-[116px] truncate font-mono text-[10px]">{modelLabel}</span>,
-    });
-  }
-  if (source) {
-    metaParts.push({
-      key: "source",
-      node: <span title={sourceName(source)}>{sourceName(source)}</span>,
     });
   }
 
@@ -495,11 +473,6 @@ export const AgentChatListRow = memo(function AgentChatListRow({
               {sessionTitle(s)}
             </span>
             {ultra && <UltraMark size={10} />}
-            {statePill && (
-              <span aria-hidden className={cx("shrink-0 text-[11px] font-medium whitespace-nowrap", statePill.cls)}>
-                {statePill.label}
-              </span>
-            )}
             {timeLabel && (
               <span className="shrink-0 text-[11px] text-ink-3 tabular-nums">
                 {timeLabel}

@@ -14,7 +14,6 @@ Prints one line per check and a verdict; exits 1 on the first failure. --shots s
 390 and 360 wide, and the wide dialog at 1280.
 """
 import argparse
-import json
 import os
 import re
 import sys
@@ -209,8 +208,7 @@ def todos(page, tag, shots):
     on_request = lambda r: detail_reads.append(r.url) if "/api/v1/todos/" in r.url and ("/repositories" in r.url or "/decisions" in r.url) else None
     page.on("request", on_request)
     goto(page, "/todos")
-    circle = page.get_by_role("button", name="完成待办", exact=True).first
-    circle.wait_for()
+    page.locator("[data-todo]").first.wait_for()
     check(page.locator("[data-todo][aria-current]").count() == 0, f"{tag}: no to-do row is current before one is opened")
     search = page.get_by_placeholder("搜索待办")
     search.press_sequentially("PR", delay=60)
@@ -219,18 +217,10 @@ def todos(page, tag, shots):
     page.wait_for_timeout(500)
     page.remove_listener("request", on_request)
     check(not detail_reads, f"{tag}: no unopened to-do's page loads, also while searching", detail_reads)
-    calls = []
-    page.route("**/api/v1/todos/*", lambda r: (calls.append((r.request.method, r.request.post_data)), r.fulfill(status=500, body="{}")) if r.request.method == "PATCH" else r.continue_())
-    b = circle.bounding_box()
-    path = page.evaluate("location.pathname + location.search")
-    # 10px left of the 16px circle: the row's padding, but the circle's 44pt target
-    page.touchscreen.tap(b["x"] - 10, b["y"] + b["height"] / 2)
-    page.wait_for_timeout(500)
-    check(len(calls) == 1 and json.loads(calls[0][1]).get("done") is True, f"{tag}: a tap 10px beside the todo's circle completes it", calls)
-    check(page.evaluate("location.pathname + location.search") == path, f"{tag}: and does not open the row", path)
-    page.unroute("**/api/v1/todos/*")
+    # the row's done mark is a mark, not a control: the page changes no to-do
+    check(page.locator("[data-todo] button[aria-label=完成待办]").count() == 0, f"{tag}: a row has no button that completes it")
     # the row opens from the keyboard
-    row = page.locator('[role=button][tabindex="0"]').filter(has=page.get_by_role("button", name="完成待办", exact=True)).first
+    row = page.locator("[data-todo]").first
     row.focus()
     page.keyboard.press("Enter")
     page.wait_for_function("location.search.startsWith('?id=')")

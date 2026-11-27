@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Todos and the assistant's tasks against the iPhone (#2975): the todos page's loading and empty states, a todo's
-// detail on a narrow screen, the list's time, unlinking an agent; the task board and the plan card's "Edit".
+// detail on a narrow screen, the list's time, its agents; the task board and the plan card's "Edit".
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getState } from "../lib/store";
@@ -40,13 +40,12 @@ describe("the todos page", () => {
     expect(html).not.toContain("没有待办");
   });
 
-  it("shows the iPhone's empty state with 新建待办 once loaded", () => {
+  it("shows the empty state once loaded, saying who adds to-dos, with nothing to create one", () => {
     seed({ todos: [], todosLoaded: true });
     const html = renderToStaticMarkup(<TodosView />);
     expect(html).toContain("没有待办");
-    expect(html).toContain("记下一件要做的事，交给 Agent 执行并跟踪进度。");
-    // the header's (wider screens' button; a phone's plus, its label and its tooltip, #2029) and the empty state's
-    expect(html.match(/新建待办/g)?.length).toBe(4);
+    expect(html).toContain("主对话和 Agent 接到工作时会在这里记下待办，并随时更新。");
+    expect(html).not.toContain("新建待办");
   });
 
   it("dates a row by its last update", () => {
@@ -68,7 +67,7 @@ describe("the todos page", () => {
     expect(opened).toMatch(/data-testid="todos-back"><button[^>]*>.*待办<\/button>/);
   });
 
-  it("lets every current agent be unlinked: 解除关联 on a running one, 移除 on one that did not start", () => {
+  it("lists every current agent, one that did not start with why, and unlinks or removes none", () => {
     const linked_at = iso(hour);
     seed({
       todos: [todo({ agents: [{ machine_id: "m1", session_id: "s1", linked_at }, { machine_id: "m1", session_id: "s2", linked_at, start_error: "机器离线" }] })],
@@ -76,9 +75,11 @@ describe("the todos page", () => {
       sessions: { m1: [session()] },
     });
     const html = renderToStaticMarkup(<TodosView selectedId="t1" />);
-    expect(html).toContain('aria-label="解除「写清单」的关联"');
-    expect(html.match(/aria-label="解除「/g)).toHaveLength(1);
-    expect(html).toContain(">移除</button>");
+    expect(html.match(/data-testid="todo-agent-title"/g)).toHaveLength(2);
+    expect(html).toContain("机器离线");
+    expect(html).not.toContain('aria-label="解除「');
+    expect(html).not.toContain(">移除</button>");
+    expect(html).not.toContain("关联已有 Agent");
   });
 
   it("on a narrow screen an agent row's source tag leads the title and cannot push the title or the time out (#3577)", () => {

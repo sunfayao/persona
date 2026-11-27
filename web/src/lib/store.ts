@@ -1677,14 +1677,6 @@ export function putTodo(todo: Todo) {
   set({ todos: state.todos.map((t) => (t.id === todo.id ? { ...t, ...todo } : t)) });
 }
 
-/** Takes a todo the hub just deleted out of the list at once; a /todos answer asked for before the delete is older
- *  and must not put it back. */
-export function dropTodo(id: string) {
-  noteItemManager(`/todos/${encodeURIComponent(id)}`, undefined);
-  todosAsked.forget();
-  set({ todos: state.todos.filter((t) => t.id !== id) });
-}
-
 // A push that says the to-dos changed ({"type":"todos"}, a task's feed item) comes in bursts: the hub sends one per write,
 // and a supervised task's report, stage and links land within the same second. Every GET /todos is the whole list (tens
 // of KB on a busy hub), so pushes read it one at a time: one that lands while such a read is out asks for one more read

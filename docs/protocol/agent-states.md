@@ -342,6 +342,11 @@ desktop apps' projects (`codex-project:<root>`) and the space a runtime that kee
 - **Else the folder's own space**: `codex-project:<physical folder>`, named as the Codex App names its project there and
   numbered by its place in the App's sidebar, else by the folder's name.
 
+A session in no space (a claude in a terminal Persona does not run, such as an IDE's, Claude's background daemon, a
+transcript at rest) joins the terminal workspace rooted in its folder by the same rule, and stays in no project when no
+workspace is: its folder alone makes no project. The assistant's conversations, a session listed under the one that
+started it and the health space's stay where they are.
+
 Folders compare by their physical paths (symbolic links resolved: a home directory is often a link to another volume),
 and a folder this computer does not have (a daemon's on another machine, one removed since) keeps the space its app
 named. A session keeps its `space_kind` (`claude_desktop`, `codex_app`, `agy`…), so one space can hold several kinds,

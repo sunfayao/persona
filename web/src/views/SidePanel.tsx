@@ -162,7 +162,7 @@ function body(p: Panel) {
     case "link":
       return <LinkPanel key={`${p.manager ?? ""} ${p.url}`} url={p.url} title={p.title} manager={p.manager} onClose={closePanel} />;
     case "conversation-tasks":
-      return <ConversationTasksPanel key={JSON.stringify([p.manager, p.mid, p.sid])} sid={p.sid} manager={p.manager} onClose={closePanel} />;
+      return <ConversationTasksPanel key={JSON.stringify([p.manager, p.mid, p.sid])} mid={p.mid} sid={p.sid} manager={p.manager} onClose={closePanel} />;
     case "task":
       return <TaskPanel key={p.todo} todoId={p.todo} onClose={closePanel} />;
     case "agent":

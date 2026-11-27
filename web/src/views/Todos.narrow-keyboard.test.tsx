@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Audit item 74: at a phone's width the list and a to-do's page take turns. A to-do opened from its row with Enter takes
-// the focus to the page's Back, as a page pushed on iOS does; Esc goes back to the list as Back does, unless a field is
-// being edited or a dialog or menu is over the page; back on the list the focus is on that to-do's row again, for a
+// the focus to the page's Back, as a page pushed on iOS does; Esc goes back to the list as Back does, unless a dialog or
+// menu is over the page; back on the list the focus is on that to-do's row again, for a
 // to-do opened by a link too. Side by side nothing moves. jsdom lays nothing out, so the list column reads as hidden
 // (the phone's width) unless a case gives it a box. The hub is faked; the data made up.
 import { act } from "react";
@@ -111,16 +111,6 @@ describe("a to-do's page at a phone's width", () => {
     await settle();
     expect(location.search).toBe("");
     expect(document.activeElement).toBe(row("c"));
-  });
-
-  it("stays on Esc in its title field, where Esc belongs to the edit", async () => {
-    await mount("/todos");
-    await openWithEnter("b");
-    const title = host.querySelector<HTMLInputElement>("[data-testid=todos-detail-column] input[type=text]")!;
-    title.focus();
-    await key(title, "Escape");
-    expect(location.search).toBe("?id=b");
-    expect(back()).toBeTruthy();
   });
 
   it("stays on Esc while a dialog is over the page", async () => {

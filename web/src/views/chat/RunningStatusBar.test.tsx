@@ -35,8 +35,9 @@ it("keeps the status content mounted across breath cycles and a real completion"
 });
 
 describe("the Agent session's state words (cindy's, #5312)", () => {
-  it("says what the turn does: thinking, writing, editing, searching, a subagent, a tool", () => {
-    expect(agent()).toBe("正在思考…");
+  it("says what the turn does: working right on send, thinking, writing, editing, searching, a subagent, a tool", () => {
+    expect(agent()).toBe("正在工作…");
+    expect(agent(undefined, { thinking: true })).toBe("正在工作…");
     expect(agent({ kind: "thinking" })).toBe("正在思考…");
     expect(agent({ kind: "streaming" })).toBe("正在生成…");
     expect(agent({ kind: "text" })).toBe("正在生成…");
@@ -62,7 +63,8 @@ describe("the Agent session's state words (cindy's, #5312)", () => {
 
 describe("the Persona conversation's plain words (cindy's plain phases, super rules 0 and 4)", () => {
   it("says the kind of work in everyday words and never names a tool", () => {
-    expect(plain()).toBe("正在思考…");
+    expect(plain()).toBe("正在工作…");
+    expect(plain({ kind: "thinking" })).toBe("正在思考…");
     expect(plain({ kind: "streaming" })).toBe("正在回复…");
     expect(plain({ kind: "text" })).toBe("正在处理…");
     expect(plain(tool("Read"))).toBe("正在读取文件…");
@@ -191,11 +193,11 @@ describe("RunningStatusView", () => {
     expect(html).not.toContain("后台子任务运行中");
   });
 
-  it("without a line: thinking, counting from when the turn started, no tokens", () => {
+  it("without a line: working, counting from when the turn started, no tokens", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-11-05T10:01:05Z"));
     const html = render({ live: null, working: true, startedAt: "2026-11-05T10:00:00Z" });
-    expect(html).toContain("正在思考…");
+    expect(html).toContain("正在工作…");
     expect(html).toContain("1m 5s");
     expect(html).not.toContain("tok");
   });

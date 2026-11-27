@@ -162,7 +162,6 @@ const TerminalPanel = lazy(() => loadTerminal().then((m) => ({ default: m.Termin
 const GoalBar = lazy(() => import("./GoalBar").then((m) => ({ default: m.GoalBar })));
 const SessionOverview = lazy(() => import("./SessionOverview").then((m) => ({ default: m.SessionOverview })));
 // Full pages opened from a conversation's hand-off card or belonging to an Inbox item load their way-back strip on demand.
-const AgentStatusLine = lazy(() => import("./AgentStatusLine").then((m) => ({ default: m.AgentStatusLine })));
 const HandoffBack = lazy(() => import("./HandoffBack").then((m) => ({ default: m.HandoffBack })));
 const InboxBack = lazy(() => import("./InboxBack").then((m) => ({ default: m.InboxBack })));
 // the plan's pill and its flyout load once a plan wants it shown, off the first screen
@@ -1398,16 +1397,8 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   const sendNow = useRef(onSend);
   sendNow.current = onSend;
   const send = useCallback((out: Outgoing) => sendNow.current(out), []);
-  // Keep one-click /compact aligned with the composer's send preconditions (no active task route, no setup gate block).
+  // Track active task routes so compact-and-resend respects composer send preconditions.
   const hasTaskRoute = useFeed((s) => Boolean(s.routes[sid]));
-  const compactSession = useCallback(async (): Promise<boolean> => {
-    if (blockedRef.current) {
-      blockedRef.current.onClick?.();
-      return false;
-    }
-    if (getFeedState().routes[sid]) return false;
-    return send({ text: "/compact", images: [] });
-  }, [send, sid]);
   // The assistant's tasks: the conversation's feed, and the main one's "Today" card.
   const feed = useFeed((s) => (assistant ? (s.feeds[sid] ?? NO_FEED) : NO_FEED));
   useEffect(() => {
@@ -2223,9 +2214,6 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   const isAssistant = Boolean(assistant || session?.assistant);
   const composerDisabled = Boolean(offlineLine) || (!noRow && !hydrating && !sessionCan(session, "send"));
   const composerBlocked = gate.blocked ?? noRowBlock;
-  const agentCompactBlocked = Boolean(composerDisabled || composerBlocked || hasTaskRoute);
-  // Assistant compaction calls the hub HTTP endpoint directly, so composer send disables (e.g. offlineLine) do not gate it.
-  const compactBlocked = isAssistant ? Boolean(gate.blocked) : agentCompactBlocked;
   const hubSupportsAssistantCompact = useStore((s) => hubHas(s.features, COMPACT_FEATURE));
   const compactResend = compactResendSupport(session, {
     assistant,
@@ -2659,19 +2647,6 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
           top={short ? undefined : queue}
         />
           </div>
-        )}
-        {!stoppedLine && session && (
-          <Suspense fallback={null}>
-            <AgentStatusLine
-              key={draftKey}
-              session={session}
-              assistant={isAssistant}
-              items={earlier.liveItems}
-              compactBlocked={compactBlocked}
-              onCompact={isAssistant || agentCompactBlocked ? undefined : compactSession}
-              source={!transcriptHost && sourceSubtitle(session) ? <ComposerSource session={session} assistant /> : undefined}
-            />
-          </Suspense>
         )}
         </div>
       </div>

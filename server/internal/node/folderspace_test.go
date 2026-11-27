@@ -163,6 +163,17 @@ func TestPlaceInFolders(t *testing.T) {
 		runtimeRow(agyAgent, "/gone"),
 		runtimeRow(agyAgent, "relative"),
 		space(codexAppKind, "codex-chats:/home/me/.codex", "Codex chats"),
+		// 17: in no space (a claude in an IDE's terminal) in a workspace's folder: it joins the workspace
+		{SourceKind: proto.SourceClaudeTerminal, Cwd: "/code/app"},
+		// 18 to 23, in no project still: at rest in a folder no workspace is rooted in (through a link), in a folder
+		// whose workspace is not known, the assistant's, one under the session that started it, one in the health space,
+		// one with no absolute folder
+		{Cwd: "/home/me/notes"},
+		{Cwd: "/code/tasks"},
+		{Assistant: true, Cwd: "/code/app"},
+		{ParentSessionID: "parent", Cwd: "/code/app"},
+		{Space: "health", Cwd: "/code/app"},
+		{Cwd: "relative"},
 	}
 	want := []struct {
 		id, name string
@@ -186,6 +197,8 @@ func TestPlaceInFolders(t *testing.T) {
 		{"/gone", "gone", 0, ""},
 		{"relative", "relative", 0, ""},
 		{"codex-chats:/home/me/.codex", "Codex chats", 0, ""},
+		{"w1", "app", 1, ""},
+		{}, {}, {}, {}, {}, {},
 	}
 	kinds := make([]string, len(list))
 	for i := range list {

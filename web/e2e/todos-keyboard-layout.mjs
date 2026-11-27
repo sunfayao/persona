@@ -1,18 +1,14 @@
-// The To-dos page with a keyboard and on wide and narrow screens (web audit items 2, 74, 75 and 88), in Chrome against the
+// The To-dos page with a keyboard and on wide and narrow screens (web audit items 74, 75 and 88), in Chrome against the
 // fake hub's to-dos:
 //
-//   - item 2: typing a due date or a reminder segment by segment keeps the focus in the field and saves nothing until
-//     the field is left (Tab) or Enter is pressed, then saves what was typed, once, also when the field is left right
-//     after Enter;
 //   - item 74: at a phone's width, Enter on a row opens the to-do with the focus on its Back; Esc, Back and the
-//     browser's Back return to the list with the focus on that row and the list scrolled where it was; Esc in the
-//     title field stays in the field; Esc on a to-do opened by a link puts the focus on its row;
+//     browser's Back return to the list with the focus on that row and the list scrolled where it was; Esc on a to-do
+//     opened by a link puts the focus on its row;
 //   - item 75: at 1920 wide the detail keeps a page's reading width (760 px), centered in its column;
 //   - item 88: back on the page from another one (the browser's Back), the list is scrolled where it was and the open
 //     to-do's row is in view.
 //
-// Needs the web page against the fake hub with its tasks (made-up data; a disposable hub: the date checks save to it),
-// and Chrome:
+// Needs the web page against the fake hub with its tasks (made-up data), and Chrome:
 //
 //   MOCK_TASKS=1 MOCK_TODO_ASKS=1 PORT=18931 python3 scripts/mock/mock_hub.py &
 //   (cd web && PERSONA_HUB_URL=http://127.0.0.1:18931 npx vite --port 5931 --strictPort &)
@@ -64,7 +60,6 @@ async function open(browser, theme, viewport, path) {
   await ctx.addInitScript((t) => {
     localStorage.setItem("persona.theme", t);
     localStorage.setItem("persona.language", "zh-Hans");
-    localStorage.setItem("persona.todos.view", "list");
     localStorage.setItem("persona.todos.grouping", "status");
   }, theme);
   const page = await ctx.newPage();
@@ -99,56 +94,6 @@ const inView = async (page, title) => {
 const browser = await chromium.launch({ ...(executable ? { executablePath: executable } : { channel: "chrome" }), headless: true });
 try {
   for (const theme of ["light", "dark"]) {
-    // ── item 2: the detail's date fields with a keyboard ──
-    await step(`${theme}: the date fields`, async () => {
-      const { ctx, page } = await open(browser, theme, { width: 1280, height: 820 }, "/todos?id=todo_task_tests");
-      const patches = [];
-      page.on("request", (r) => {
-        if (r.method() === "PATCH" && r.url().includes("/api/v1/todos/todo_task_tests")) patches.push(JSON.parse(r.postData() ?? "{}"));
-      });
-      const due = page.locator('[data-testid="todo-plan-due"]');
-      await due.fill("2026-12-05");
-      await page.waitForTimeout(800);
-      patches.length = 0;
-      await due.click({ position: { x: 14, y: 10 } });
-      await page.keyboard.press("ArrowRight");
-      await page.keyboard.press("ArrowRight");
-      await page.keyboard.type("1");
-      await page.waitForTimeout(500);
-      check((await focus(page)) === "todo-plan-due" && patches.length === 0, `${theme}: after typing the day's first digit the due field keeps the focus and nothing is saved (${await focus(page)}, ${JSON.stringify(patches)})`);
-      await page.keyboard.type("5");
-      await page.waitForTimeout(300);
-      check((await due.inputValue()) === "2026-12-15", `${theme}: the day's second digit lands in the field (${await due.inputValue()})`);
-      if (shots) await page.locator('[data-testid="todo-plan"]').screenshot({ path: join(shots, `todos-due-typing-${theme}.png`) });
-      // Tab leaves the field (Chrome stops on its picker button first)
-      for (let i = 0; i < 3 && (await focus(page)) === "todo-plan-due"; i++) {
-        check(patches.length === 0, `${theme}: Tab inside the field saves nothing yet (${JSON.stringify(patches)})`);
-        await page.keyboard.press("Tab");
-        await page.waitForTimeout(300);
-      }
-      await page.waitForTimeout(500);
-      check(JSON.stringify(patches) === JSON.stringify([{ due_date: "2026-12-15" }]), `${theme}: leaving the field saves the typed day once (${JSON.stringify(patches)})`);
-
-      const remind = page.locator('[data-testid="todo-plan-remind"]');
-      await remind.fill("2026-12-05T09:30");
-      await page.waitForTimeout(800);
-      patches.length = 0;
-      await remind.click({ position: { x: 14, y: 10 } });
-      for (let i = 0; i < 3; i++) await page.keyboard.press("ArrowRight");
-      await page.keyboard.type("2");
-      await page.waitForTimeout(500);
-      check((await focus(page)) === "todo-plan-remind" && patches.length === 0, `${theme}: after the hour's first digit the reminder keeps the focus and nothing is saved (${await focus(page)}, ${JSON.stringify(patches)})`);
-      await page.keyboard.type("1");
-      // Enter, then the field left at once, before that save is through: one save
-      await page.keyboard.press("Enter");
-      await page.keyboard.press("Tab");
-      await page.keyboard.press("Tab");
-      await page.waitForTimeout(800);
-      const want = await page.evaluate(() => new Date("2026-12-05T21:30").toISOString());
-      check(JSON.stringify(patches) === JSON.stringify([{ remind_at: want }]), `${theme}: Enter saves the typed reminder once, the field left right after too (${JSON.stringify(patches)})`);
-      await ctx.close();
-    });
-
     // ── item 74: a phone's width, the list and the detail taking turns ──
     await step(`${theme}: a phone's width`, async () => {
       const { ctx, page } = await open(browser, theme, { width: 390, height: 844 }, "/todos");
@@ -158,11 +103,6 @@ try {
       await page.waitForTimeout(500);
       check(page.url().includes("id=todo_weather") && (await focus(page)) === "back", `${theme}: Enter on a row opens the to-do with the focus on Back (${await focus(page)})`);
       await shot(page, `todos-narrow-opened-${theme}`);
-      // Esc while editing the title stays in the field
-      await page.locator('[data-testid="todos-detail-column"] input[type="text"]').first().focus();
-      await page.keyboard.press("Escape");
-      await page.waitForTimeout(300);
-      check(page.url().includes("id=todo_weather"), `${theme}: Esc in the title field keeps the to-do open`);
       await page.locator('[data-testid="todos-back"] button').focus();
       await page.keyboard.press("Escape");
       await page.waitForTimeout(500);

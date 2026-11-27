@@ -19,7 +19,7 @@ import { TaskDecision } from "./TaskDecision";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const at = "2026-11-10T08:00:00Z";
-const HINT = "This decision can wait, so nothing was pushed for it. It comes with your next briefing, and you can answer it here any time.";
+const HINT = "This decision can wait, so nothing was pushed for it. It comes with your next briefing, and you can answer it before then.";
 const decision: TodoAsk = {
   outcome: "decide", verdict: "Needs your decision: keep the example cache or replace it", recommend: "Keep it", asked_at: at,
   question: "Keep the example cache or replace it?", why_owner: "priority",

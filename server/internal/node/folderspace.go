@@ -20,6 +20,10 @@ import (
 // it runs in; only its place changes. Folders are compared by their physical paths (sessionWorkspaceCwd: symbolic links
 // resolved, as a home on another volume is reached), and a folder this computer does not have (a daemon's on another
 // machine, a folder removed since) keeps the space its session named.
+//
+// A session in no space (restFolder: a claude in a terminal Persona does not run, such as an IDE's, Claude's background
+// daemon, a transcript at rest) joins the terminal workspace rooted in its folder the same way, and stays in no project
+// when no workspace is: its folder alone makes no project, or every folder an agent ever ran in would be one.
 
 // codexAppKind is the space_kind of the Codex App's chats (decorateCodexSession): its projects have names and an order of
 // their own, which the folder's own space keeps.
@@ -45,6 +49,15 @@ func spaceFolder(s *proto.Session) string {
 	return dir
 }
 
+// restFolder is the folder a session in no space ran in, "" for a session in a space, the assistant's, one in the health
+// space, one listed under the session that started it, and one with no absolute folder.
+func restFolder(s *proto.Session) string {
+	if s.Assistant || s.SpaceID != "" || s.Space != "" || s.ParentSessionID != "" || !filepath.IsAbs(s.Cwd) {
+		return ""
+	}
+	return s.Cwd
+}
+
 // folderWorkspace is a workspace of the terminal host of kind.
 type folderWorkspace struct {
 	kind  string
@@ -66,11 +79,11 @@ func (n *Node) terminalWorkspaces() []folderWorkspace {
 	return out
 }
 
-// joinFolderSpaces puts each session of list whose space stands for a folder in that folder's space (placeInFolders).
-// A list with no such session is left as it is, with nothing looked up.
+// joinFolderSpaces puts each session of list whose space stands for a folder, or that is in no space, in that folder's
+// space (placeInFolders). A list with no such session is left as it is, with nothing looked up.
 func (n *Node) joinFolderSpaces(list []proto.Session) {
 	for i := range list { // by index: a range value copies every (large) session it passes
-		if spaceFolder(&list[i]) != "" {
+		if spaceFolder(&list[i]) != "" || restFolder(&list[i]) != "" {
 			placeInFolders(list[i:], n.terminalWorkspaces(), n.defaultKind(), n.sessionWorkspaceCwd)
 			return
 		}
@@ -81,7 +94,8 @@ func (n *Node) joinFolderSpaces(list []proto.Session) {
 // physical path, "" for one this computer does not have) in the folder's space: the workspace of workspaces rooted in it
 // (folderWorkspaces), with its id, name, number and parent, as the host's own sessions there have them; else the
 // folder's own, projectSpace and the physical path, named as the Codex App names its project there (and numbered by
-// its place in the App's sidebar), else by the folder. def is the default engine's kind.
+// its place in the App's sidebar), else by the folder. A session in no space (restFolder) only joins a workspace. def is
+// the default engine's kind.
 func placeInFolders(list []proto.Session, workspaces []folderWorkspace, def string, physical func(string) string) {
 	type own struct {
 		name  string
@@ -98,6 +112,13 @@ func placeInFolders(list []proto.Session, workspaces []folderWorkspace, def stri
 		s := &list[i]
 		folder := spaceFolder(s)
 		if folder == "" {
+			if folder = restFolder(s); folder != "" && len(joined) > 0 {
+				if dir := physical(folder); dir != "" {
+					if _, ok := joined[folderKey(dir)]; ok {
+						rows = append(rows, row{i, dir})
+					}
+				}
+			}
 			continue
 		}
 		dir := physical(folder)

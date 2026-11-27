@@ -102,7 +102,8 @@ describe("the To-dos header's counts", () => {
     const failed = host.querySelector<HTMLElement>("[data-todo=failed]")!;
     expect(failed.closest("[data-testid=todo-group]")).toBeTruthy();
     expect(failed.querySelector(".line-through")).toBeNull();
-    expect(failed.querySelector("button")?.getAttribute("aria-label")).toBe(t("todos.complete_todo"));
+    // its mark reads open, as its status section does
+    expect(failed.querySelector("[data-testid=todo-done-mark]")?.hasAttribute("data-done")).toBe(false);
     // closed work is immediately in the Done fold rather than held in a project folder
     expect(host.querySelector("[data-todo=fresh]")?.closest("[data-testid=todo-group]")).toBeFalsy();
     expect(host.querySelector("[data-todo=old1]")).toBeNull();

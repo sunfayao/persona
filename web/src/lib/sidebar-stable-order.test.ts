@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMachineTree, machineSessionOrder, machineSessionPresentation } from "./herdr-tree";
+import { buildMachineTree, machineSessionOrder, machineSessionPresentation, sidebarSessionOrder, sidebarSessionPresentation } from "./herdr-tree";
 import { catalogGroups, countGroups, type SessionCatalog } from "./session-groups";
 import { mergeStableRows } from "./side-sessions";
 import type { ListCounts } from "./session-list";
@@ -143,5 +143,41 @@ describe("stable sidebar order (#11801)", () => {
       expect(catalogGroups(catalog(true), dimension).map((g) => g.key)).toEqual(before);
       expect(before).toEqual(["a", "z"].map((id) => dimension === "project" ? id : JSON.stringify(["mac", id])));
     }
+  });
+
+  it("orders sidebar sessions with completed ahead of working, then seen idle newest-first", () => {
+    const mk = (id: string, patch: Partial<Session>): Session => ({
+      machine_id: "mac", session_id: id, title: id, cwd: "/alpha", status: "idle", state: "idle",
+      space_id: "alpha", space_name: "alpha", space_index: 0,
+      updated_at: "2026-01-01T10:00:00Z", ...patch,
+    });
+    const rows: Session[] = [
+      mk("offline-new", { state: "offline", status: "offline", updated_at: "2026-01-01T19:00:00Z" }),
+      mk("idle-old", { updated_at: "2026-01-01T08:00:00Z" }),
+      mk("idle-new", { updated_at: "2026-01-01T18:00:00Z" }),
+      mk("bg-wait", { state: "working", status: "working", background_waiting: true, updated_at: "2026-01-01T17:00:00Z" }),
+      mk("working-old", { state: "working", status: "working", updated_at: "2026-01-01T11:00:00Z" }),
+      mk("working-new", { state: "working", status: "working", updated_at: "2026-01-01T16:00:00Z" }),
+      mk("just-finished", { status: "done", state: "idle", work: { phase: "done", just_finished: true }, updated_at: "2026-01-01T12:00:00Z" }),
+      mk("unread-done", { status: "done", state: "unread", updated_at: "2026-01-01T15:00:00Z" }),
+      mk("unopened-done", { status: "done", state: "idle", work: { phase: "done" }, seen_at: "", updated_at: "2026-01-01T13:00:00Z" }),
+      mk("needs-you", { state: "needs_you", status: "blocked", updated_at: "2026-01-01T09:00:00Z" }),
+    ];
+    expect([...rows].sort(sidebarSessionOrder(machines)).map((s) => s.session_id)).toEqual([
+      "needs-you",
+      "unread-done",
+      "unopened-done",
+      "just-finished",
+      "working-new",
+      "working-old",
+      "bg-wait",
+      "idle-new",
+      "idle-old",
+      "offline-new",
+    ]);
+
+    const key = (row: Session) => row.session_id;
+    const merged = mergeStableRows([], rows, new Map(rows.map((r) => [key(r), r])), key, sidebarSessionPresentation(machines));
+    expect(merged.slice(0, 4).map(key)).toEqual(["needs-you", "unread-done", "unopened-done", "just-finished"]);
   });
 });

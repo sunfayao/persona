@@ -1,7 +1,7 @@
 // A task's brief where the owner meets the task (#3822): on the plan card
 // before "Start" (their own words with the date and one line that counts the rest; the goal, the criteria, the
 // expected time and what is out of bounds open on demand, so the card's buttons stay in reach), on
-// the task's page above its criteria (a brief made later says so and shows the hand-over prompt as that), under them
+// the task's page above its criteria (a brief made later says so and shows the hand-over prompt as that), under it
 // the scope changes and who worked on it, and under a finished task's criteria what their list cannot say (the
 // criteria a scope change dropped, what was done beyond the brief). None of it is on
 // the first screen: every user is a lazy import, and the strings are the namespace `assistant-taskbrief`, which loads
@@ -180,9 +180,9 @@ export function PlanBrief({ brief, title }: { brief: TaskBrief; title: string })
   );
 }
 
-/** The brief on the task's page, above its criteria: who asked and in what words, the goal, what is out of bounds,
- *  and a mark once it ran past its clock. The criteria and the expected time are in the review box under it when the
- *  task has one; a task without one lists them here. */
+/** The brief on the task's page: who asked and in what words, the goal, what is out of bounds, and a mark once it ran
+ *  past its clock. Its criteria are the page's Acceptance criteria section; the expected time is in the review box when
+ *  the task has one with a time, else here. */
 export function TaskBriefPanel({ todo }: { todo: Todo }) {
   const brief = todo.brief;
   if (!brief) return null;
@@ -200,7 +200,7 @@ export function TaskBriefPanel({ todo }: { todo: Todo }) {
         )}
       </div>
       <Asked brief={brief} lines={4} />
-      <Fields brief={brief} title={todo.title} criteria={!reviewed} expect={!reviewed || !todo.supervision?.expect_minutes} />
+      <Fields brief={brief} title={todo.title} criteria={false} expect={!reviewed || !todo.supervision?.expect_minutes} />
       {overdue && <p className="text-[12px] text-ink-2">{t("assistant-taskbrief.overdue_since", { date: overdue })}</p>}
     </section>
   );

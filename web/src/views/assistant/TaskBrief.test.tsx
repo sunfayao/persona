@@ -96,12 +96,12 @@ describe("the brief on the task's page (#3822)", () => {
     expect(html).toContain(`${formatDate("2026-11-05T12:00:00Z")} 起已超过预计用时`);
     expect(renderToStaticMarkup(<TaskBriefPanel todo={{ ...late, done_at: at }} />)).not.toContain("brief-overdue");
   });
-  it("leaves the criteria and the time to the review box when the task has one", () => {
+  it("leaves the criteria to the page's acceptance section, and the time to the review box when the task has one", () => {
     const supervised: Todo = { ...todo, supervision: { supervisor: "main", done_when: brief.done_when, expect_minutes: 30 } };
     const html = renderToStaticMarkup(<TaskBriefPanel todo={supervised} />);
     expect(html).not.toContain("The fix is merged");
     expect(html).not.toContain("约 30 分钟");
-    expect(renderToStaticMarkup(<TaskBriefPanel todo={todo} />)).toContain("The fix is merged");
+    expect(renderToStaticMarkup(<TaskBriefPanel todo={todo} />)).not.toContain("The fix is merged");
   });
   it("draws nothing for a to-do without a brief", () => {
     expect(renderToStaticMarkup(<TaskBriefPanel todo={{ ...todo, brief: undefined }} />)).toBe("");

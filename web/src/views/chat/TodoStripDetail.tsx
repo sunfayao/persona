@@ -1,5 +1,5 @@
 // The to-do strip's details (TodoStrip.tsx), loaded on its first open: the stage bar, the "done when" criteria with
-// their marks, the deadline, the other Agents on the to-do, its latest decisions, and the steering actions. Each
+// their marks, the other Agents on the to-do, its latest decisions, and the steering actions. Each
 // action only prepares a message (lib/todo-steer.ts) in a composer, for the owner to edit and send there: this Agent's
 // own, or the main conversation's to hand supervision of the to-do over to the assistant.
 import { useEffect, useId, useState } from "react";
@@ -10,10 +10,9 @@ import { sessionTitle } from "../../lib/format";
 import { navigate } from "../../lib/router";
 import { continueMessage, nextCriterionMessage, reportMessage, supervisionMessage, type SteerTodo } from "../../lib/todo-steer";
 import { unmet, type StripCriterion, type TodoStripModel } from "../../lib/todo-strip";
-import { fetchTodoDecisions, isLegacySpacesRouteError, isOverdue, todoDueText, type TodoDecision } from "../../lib/todos";
+import { fetchTodoDecisions, isLegacySpacesRouteError, type TodoDecision } from "../../lib/todos";
 import type { Session } from "../../lib/types";
 import { Button, cx, toast } from "../../ui/atoms";
-import { Icon } from "../../ui/icons";
 import { personaTarget } from "../link/handoff";
 import { CriterionMark } from "../TodoCriterionMark";
 import { TodoStageBar } from "../TodoStageBar";
@@ -39,7 +38,6 @@ export function TodoStripDetail({ model, session, canSteer, onSteered }: { model
     target.go();
     toast(t("chat-todostripdetail.main_prepared"), "ok");
   };
-  const due = todoDueText(todo);
   const criteriaId = useId();
   return (
     <div data-todo-strip-detail className="flex flex-col gap-3 pt-1 text-meta">
@@ -53,12 +51,6 @@ export function TodoStripDetail({ model, session, canSteer, onSteered }: { model
             ))}
           </ul>
         </section>
-      )}
-      {due && (
-        <p data-todo-strip-due className={cx("flex items-center gap-1.5 text-label", isOverdue(todo) ? "text-red" : "text-ink-2")}>
-          <Icon name="calendar" size={12} className="shrink-0" />
-          {isOverdue(todo) ? t("todos.was_due", { when: due }) : t("todos.due", { when: due })}
-        </p>
       )}
       {model.others.length > 0 && (
         <section className="flex flex-col gap-1">

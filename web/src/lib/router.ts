@@ -45,8 +45,7 @@ export type Route =
   | { name: "agent-archives" }
   // the runs of one New agent start side by side (#8916, lib/compare-runs.ts)
   | { name: "compare"; id: string }
-  // view=calendar: the to-dos' calendar (#2029), its mode and the day it shows ("YYYY-MM-DD"), with the open to-do beside it
-  | { name: "todos"; id?: string; view?: "calendar"; mode?: "day" | "week" | "month"; date?: string }
+  | { name: "todos"; id?: string }
   | { name: "extension"; extension: string; ui: string }
   // the source subscription pages (#2041), their first state in ?state=
   | { name: "subscriptions" }
@@ -106,18 +105,7 @@ export function parse(path: string, search = ""): Route {
   if (p[0] === "todos") {
     // the link's own query (#9930): reading the page's made routeAt() on a /todos?id= link open the to-do on screen
     const q = new URLSearchParams(search);
-    const r: Route = { name: "todos", id: p[1] || q.get("id") || undefined };
-    if (q.get("view") === "calendar") {
-      const mode = q.get("mode");
-      const date = q.get("date");
-      return {
-        ...r,
-        view: "calendar",
-        ...(mode === "day" || mode === "week" || mode === "month" ? { mode } : {}),
-        ...(date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? { date } : {}),
-      };
-    }
-    return r;
+    return { name: "todos", id: p[1] || q.get("id") || undefined };
   }
   return { name: "not-found", path: search ? `${path}${search.startsWith("?") ? "" : "?"}${search}` : path };
 }
@@ -181,11 +169,6 @@ export function routePath(r: Route): string {
       return `/compare/${encodeURIComponent(r.id)}`;
     case "todos": {
       const q = new URLSearchParams();
-      if (r.view === "calendar") {
-        q.set("view", "calendar");
-        if (r.mode) q.set("mode", r.mode);
-        if (r.date) q.set("date", r.date);
-      }
       if (r.id) q.set("id", r.id);
       const s = q.toString();
       return s ? `/todos?${s}` : "/todos";

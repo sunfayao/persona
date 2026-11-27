@@ -616,14 +616,14 @@ describe("the running bar while a workflow keeps the agent working", () => {
     const run = running();
     const bg = { run, more: 0, since: run.started_at, guessed: true };
     act(() => root.render(<RunningStatusView live={{ verb: "Frosting" }} working background={bg} />));
-    expect(text("[data-running-verb]")).toBe("正在思考…");
+    expect(text("[data-running-verb]")).toBe("正在工作…");
     // a subagent it launched in the foreground and still waits on: the bar is the turn's
     act(() => root.render(<RunningStatusView live={null} working startedAt={at(0)} background={bg} step={{ kind: "tool", tool: "Agent" }} />));
     expect(text("[data-running-verb]")).toBe("Agent 运行中…");
     expect(q("[data-running-background]")).toBeNull();
     // the chat's "Working…" ticks: the bar is the turn's, with its own time beside it (cindy, #5312)
     act(() => root.render(<RunningStatusView live={null} working startedAt={at(0)} background={bg} clock={false} />));
-    expect(text("[data-running-verb]")).toBe("正在思考…");
+    expect(text("[data-running-verb]")).toBe("正在工作…");
     expect(text("[data-running-elapsed]")).toBe("2m 0s");
     // nothing of its own shows: the workflow, with its clock
     act(() => root.render(<RunningStatusView live={null} working startedAt={at(0)} background={bg} />));
