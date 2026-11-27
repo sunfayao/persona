@@ -249,6 +249,7 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 				s.Model = thread.model
 			}
 			n.codexRewindRow(id, &s)
+			s.Capabilities.NativeSlashCommands = host.ParsePane(a.PaneID).Kind == host.Herdr && s.Capabilities.Send
 			if c, thread, driven := n.codexEffortThread(id); driven {
 				s.Model = n.codexModelNow(id, c, thread, s.Model)
 				s.Capabilities.Model = proto.Bool(true)

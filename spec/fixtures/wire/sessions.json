@@ -200,6 +200,51 @@
     }
   },
   {
+    "name": "session_native_slash_commands",
+    "description": "A terminal-backed Codex session advertises native slash-command routing.",
+    "source": [
+      "server/internal/proto/codex.go: SessionCapabilities"
+    ],
+    "derived": true,
+    "decoder": "sessions",
+    "input": {
+      "sessions": [
+        {
+          "machine_id": "m1",
+          "session_id": "cli",
+          "capabilities": {
+            "read": true,
+            "send": true,
+            "interrupt": false,
+            "approve": false,
+            "terminal": true,
+            "attach": false,
+            "native_slash_commands": true
+          },
+          "started_by_persona": false,
+          "assistant": false,
+          "title": "",
+          "cwd": "",
+          "status": "",
+          "pane_id": "w1:p2",
+          "agent": "codex",
+          "state": "",
+          "seen_at": "0001-01-01T00:00:00Z",
+          "state_since": "0001-01-01T00:00:00Z",
+          "updated_at": "0001-01-01T00:00:00Z",
+          "pending_interactions": 0,
+          "started_by_jarvis": false
+        }
+      ]
+    },
+    "expected": {
+      "accepted": true,
+      "fields": {
+        "/sessions/0/capabilities/native_slash_commands": true
+      }
+    }
+  },
+  {
     "name": "sessions_assistant_queue",
     "description": "Persona 对话的队列先列用户自己的消息，最后 queued_relayed 条来自其他对话或系统。",
     "source": [

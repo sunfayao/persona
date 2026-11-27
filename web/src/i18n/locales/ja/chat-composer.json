@@ -10,6 +10,7 @@
   "cmd_report_desc": "進捗と残りの作業を報告",
   "cmd_report_text": "ここまでの進捗と残りの作業を簡潔に報告してください",
   "cmd_compact_desc": "コンテキストを圧縮",
+  "cmd_native_terminal_desc": "CLI のターミナルで実行",
   "cmd_context_desc": "コンテキストを表示",
   "cmd_model_desc": "モデルを切り替え",
   "cmd_loop_desc": "定期的に同じ作業を繰り返す",

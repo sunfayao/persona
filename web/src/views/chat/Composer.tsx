@@ -25,7 +25,8 @@ import { base64File, releaseAttachments } from "../../lib/attachments";
 import { imageLimitsFor, MAX_PICTURE_SOURCE, pictureRoom, type ImageLimits } from "../../lib/image-limits";
 import { addFiles as addComposerFiles, filesBusy, MAX_FILES, readyFiles, restoreFiles, splitFileTags, takeLocalFiles, takeReadyFiles, useComposerFiles, withFiles } from "../../lib/composer-files";
 import { activateComposer, addContext, getContexts, newContext, registerComposer, removeContext, replaceContexts, useContexts, withContexts, type ContextRef, type ComposerHandle } from "../../lib/links";
-import { editInlineMentions, inlineMention, isInlineMention, messageMentionRefs, shiftInlineMentions } from "../../lib/inline-mentions";
+import { editInlineMentions, inlineMention, isInlineMention, messageMentionRefs, sessionMentionRanges, shiftInlineMentions } from "../../lib/inline-mentions";
+import { DraftSessionMentions } from "./DraftSessionMentions";
 import { addQuote, applyDraft, getQuotes, onDraftEvent, parseQuotes, removeQuote, replaceNeedsConfirm, sendDraft, setQuotes, splitQuotes, storeDraft, storeDraftImages, storedDraft, storedDraftImages, useQuotes, withQuoteBlock, type DraftImage, type StoredDraftImage } from "../../lib/drafts";
 import type { EditedImage } from "../../lib/image-edit";
 import { mentionAt, replaceToken, sessionQuote, workspaceContext, type MentionToken } from "../../lib/mentions";
@@ -363,6 +364,7 @@ export const Composer = memo(function Composer({
   const chatContexts = useContexts(draftKey);
   const contexts = editor?.refs ?? chatContexts;
   const detachedContexts = contexts.filter((r) => !isInlineMention(r));
+  const sessionMentions = useMemo(() => sessionMentionRanges(contexts, draft), [contexts, draft]);
   const changeText = (text: string, afterCaret?: number, inserted?: ContextRef) => {
     const edited = editInlineMentions(editor?.refs ?? getContexts(draftKey), draft, text, afterCaret);
     const next = inserted ? [...edited.filter((ref) => ref.id !== inserted.id), inserted] : edited;
@@ -1209,6 +1211,7 @@ export const Composer = memo(function Composer({
         <DisabledBlur disabled={Boolean(disabled)} focused={focused} onBlur={() => { setFocused(false); onFocusChange?.(false); }} />
         <div data-composer-fields className="relative flex min-w-0 flex-col gap-1">
         <div className="relative min-w-0">
+        <DraftSessionMentions input={input} text={draft} ranges={sessionMentions} />
         <textarea
           ref={input}
           data-composer-input
@@ -1346,7 +1349,7 @@ export const Composer = memo(function Composer({
           aria-label={editor?.label ?? t("chat-composer.message")}
           title={!editor && hasFinePointer() ? (onEditLastMessage ? t("composer.history_hint_edit") : t("composer.history_hint")) : undefined}
           style={{ maxHeight: grow.cap ? `min(${grow.cap}px, ${INPUT_MAX})` : INPUT_MAX }}
-          className={cx("min-h-[calc(1lh+var(--spacing)*0.5)] w-full resize-none overflow-y-auto bg-transparent px-1 pt-0.5 text-[15px] leading-[22px] text-ink outline-none [@media(pointer:coarse)]:text-[16px] [@media(pointer:coarse)]:leading-[24px] [overflow-wrap:anywhere] placeholder:text-ink-3 disabled:opacity-50", showExpand && "pr-8")}
+          className={cx("relative min-h-[calc(1lh+var(--spacing)*0.5)] w-full resize-none overflow-y-auto bg-transparent px-1 pt-0.5 text-[15px] leading-[22px] text-ink outline-none [@media(pointer:coarse)]:text-[16px] [@media(pointer:coarse)]:leading-[24px] [overflow-wrap:anywhere] placeholder:text-ink-3 disabled:opacity-50", showExpand && "pr-8")}
         />
         {showExpand && (
           <button
@@ -1465,6 +1468,7 @@ export const Composer = memo(function Composer({
           <ComposerOverlay
             editLabel={editor?.label}
             value={draft}
+            sessionMentions={sessionMentions}
             placeholder={placeholder}
             selection={[input.current?.selectionStart ?? draft.length, input.current?.selectionEnd ?? draft.length]}
             onChange={(v, at) => {
