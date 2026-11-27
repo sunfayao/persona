@@ -111,6 +111,48 @@ func TestTraeQuestionAdvancesThenSubmitsAndLeavesFollowUpExplicit(t *testing.T) 
 	assertTrace(t, f.trace("pane.send_keys"), []string{sendKeys(pane, "enter"), sendKeys(pane, "enter"), sendKeys(pane, "enter")})
 }
 
+// traeSingleQuestion is a live TRAE CLI page of one question (redacted): its rows are "1." "2." and "3. Other", the
+// cursor on 1; with cursor, the page with the cursor on that row.
+func traeSingleQuestion(t *testing.T, cursor string) string {
+	t.Helper()
+	b, err := os.ReadFile("../screen/testdata/traecli-question-single-127.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := strings.Replace(string(b), "  ❯ 1.", "    1.", 1)
+	return strings.Replace(page, "    "+cursor+".", "  ❯ "+cursor+".", 1)
+}
+
+func TestTraeQuestionAnswersTheOnlyQuestionWithAnOption(t *testing.T) {
+	n, f := traeQuestionFixture(t)
+	pane := traexOwnerPane
+	keys := func(c herdrCall) bool { return c.Method == "pane.send_keys" }
+	f.screenSteps(pane, keys, traeSingleQuestion(t, "1"), traeSingleQuestion(t, "2"), traeEmpty)
+	d := publishedTraeQuestion(t, n)
+	if len(d.Options) != 3 || d.Options[2].Kind != screen.KindTypeSomething {
+		t.Fatalf("the only question lacks its choices: %+v", d)
+	}
+	if _, err := request(t, n, "session.keys", map[string]any{"session_id": threadMain, "rev": d.Rev, "option": "2"}); err != nil {
+		t.Fatal(err)
+	}
+	assertTrace(t, f.trace("pane.send_keys", "pane.send_text"), []string{sendKeys(pane, "down"), sendKeys(pane, "enter")})
+}
+
+func TestTraeQuestionAnswersTheOnlyQuestionWithWrittenText(t *testing.T) {
+	n, f := traeQuestionFixture(t)
+	pane := traexOwnerPane
+	const answer = "A synthetic answer"
+	typed := strings.Replace(traeSingleQuestion(t, "3"), "Type your answer.", answer, 1)
+	f.screenSteps(pane, func(c herdrCall) bool { return c.Method == "pane.send_keys" || c.Method == "pane.send_text" },
+		traeSingleQuestion(t, "1"), traeSingleQuestion(t, "2"), traeSingleQuestion(t, "3"), typed, traeEmpty)
+	d := publishedTraeQuestion(t, n)
+	if _, err := request(t, n, "session.keys", map[string]any{"session_id": threadMain, "rev": d.Rev, "option": "3", "text": answer}); err != nil {
+		t.Fatal(err)
+	}
+	assertTrace(t, f.trace("pane.send_keys", "pane.send_text"), []string{sendKeys(pane, "down"), sendKeys(pane, "down"),
+		call("pane.send_text", map[string]any{"pane_id": pane, "text": pasteStart + answer + pasteEnd}), sendKeys(pane, "enter")})
+}
+
 func TestTraeQuestionLeavesAmbiguousOrOwnedDraftInTerminal(t *testing.T) {
 	for _, visible := range []string{
 		strings.Replace(traeScreenQuestion, "(1 unanswered)", "(2 unanswered)", 1),
