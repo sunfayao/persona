@@ -185,7 +185,7 @@ function BubbleText({ text: full, blocks, ts, mid, sid, own, pending }: { text: 
         <Fragment key={start}>
           <PathText text={text.slice(mentions[i - 1]?.end ?? 0, start)} mid={mid} cwd={cwd} />
           <a href={linkHref(url)} onClick={(event) => clickLink(event, url)} data-session-mention
-            className="rounded-chip bg-accent-tint px-1 font-medium text-accent-ink [box-decoration-break:clone] hover:underline">
+            className="rounded-chip bg-accent/14 px-1 font-medium text-accent-ink [box-decoration-break:clone] hover:underline dark:bg-accent/22">
             {text.slice(start, end)}
           </a>
         </Fragment>

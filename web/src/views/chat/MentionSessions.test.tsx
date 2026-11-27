@@ -121,8 +121,16 @@ describe("@ other sessions on a paging hub (#12983)", () => {
     expect(options()).toHaveLength(0); // the panel closed
     expect(box().value).toBe("@Weather app redesign ");
     expect(host.querySelector("[data-draft-session-mention]")?.textContent).toBe("@Weather app redesign");
+    expect(host.querySelector("[data-draft-session-mention]")?.className).toContain("bg-accent/18");
+    expect(host.querySelector("[data-draft-session-mention]")?.className).toContain("text-accent-ink");
+    expect(host.querySelector("[data-draft-session-mention]")?.className).not.toContain("bg-accent-tint");
+    expect(box().className).toContain("text-transparent");
+    expect(box().className).toContain("caret-ink");
     await type("@Weather app redesign What changed?");
     expect(host.querySelector("[data-draft-session-mention]")?.textContent).toBe("@Weather app redesign");
+    expect(host.querySelector("[data-draft-session-mention]")?.className).toContain("bg-accent/18");
+    expect(host.querySelector("[data-draft-session-mention]")?.className).toContain("text-accent-ink");
+    expect(host.querySelector("[data-draft-session-mention]")?.className).not.toContain("bg-accent-tint");
     await act(async () => host.querySelector<HTMLButtonElement>(`button[aria-label="${t("chat-composer.send")}"]`)!.click());
     expect(onSend).toHaveBeenCalledOnce();
     const text = onSend.mock.calls[0][0].text;
@@ -140,6 +148,38 @@ describe("@ other sessions on a paging hub (#12983)", () => {
     key("Enter");
     expect(host.querySelector("[data-draft-session-mention]")).not.toBeNull();
     await type("@Weather app changed ");
+    expect(host.querySelector("[data-draft-session-mention]")).toBeNull();
+  });
+
+  it("deletes an entire picked @mention atomically on Backspace or Delete", async () => {
+    const onSend = vi.fn(async (_m: Outgoing) => true);
+    render(onSend);
+    await type("@weath");
+    key("Enter");
+    expect(box().value).toBe("@Weather app redesign ");
+    box().setSelectionRange(box().value.length, box().value.length);
+    key("Backspace");
+    expect(box().value).toBe("");
+    expect(host.querySelector("[data-draft-session-mention]")).toBeNull();
+    expect(box().className).toContain("text-ink");
+    expect(box().className).not.toContain("text-transparent");
+
+    // Backspace inside a mention followed by text removes the whole mention and keeps the following text cleanly.
+    await type("@weath");
+    key("Enter");
+    await type("@Weather app redesign check this");
+    box().setSelectionRange("@Weather app redesign".length, "@Weather app redesign".length);
+    key("Backspace");
+    expect(box().value).toBe("check this");
+    expect(host.querySelector("[data-draft-session-mention]")).toBeNull();
+
+    // Forward Delete at the start of a mention also removes the entire mention cleanly.
+    await type("@weath");
+    key("Enter");
+    await type("@Weather app redesign look");
+    box().setSelectionRange(0, 0);
+    key("Delete");
+    expect(box().value).toBe("look");
     expect(host.querySelector("[data-draft-session-mention]")).toBeNull();
   });
 });

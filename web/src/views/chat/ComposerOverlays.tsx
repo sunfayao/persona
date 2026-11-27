@@ -7,12 +7,14 @@ import { EASE } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
 import { useModalFocus } from "../../ui/overlay";
 import { DraftSessionMentions } from "./DraftSessionMentions";
-import type { sessionMentionRanges } from "../../lib/inline-mentions";
+import { deleteInlineMentionOnKey, type sessionMentionRanges } from "../../lib/inline-mentions";
+import type { ContextRef } from "../../lib/links";
 
 type ExpandedProps = {
   editLabel?: string;
   value: string;
   sessionMentions: ReturnType<typeof sessionMentionRanges>;
+  contexts?: readonly ContextRef[];
   placeholder: string;
   selection: [number, number];
   onChange: (v: string, caret: number) => void;
@@ -31,7 +33,7 @@ export function ComposerOverlay(props: ExpandedProps | SuggestionProps) {
 
 /** The draft full screen on a phone (#5688): collapse at the top right, the text filling the visible height, send at the
  *  bottom right. It edits the box's own draft; closing hands back the caret so the box picks up where this left off. */
-function ExpandedComposer({ editLabel, value, sessionMentions, placeholder, selection, onChange, onCollapse, canSend, blocked, onSend }: ExpandedProps) {
+function ExpandedComposer({ editLabel, value, sessionMentions, contexts = [], placeholder, selection, onChange, onCollapse, canSend, blocked, onSend }: ExpandedProps) {
   const panel = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLTextAreaElement>(null);
   const start = useRef(selection);
@@ -77,7 +79,7 @@ function ExpandedComposer({ editLabel, value, sessionMentions, placeholder, sele
         </button>
       </div>
       <div className="relative min-h-0 flex-1">
-      <DraftSessionMentions input={field} text={value} ranges={sessionMentions} />
+      <DraftSessionMentions input={field} text={value} ranges={sessionMentions} imeComposing={ime.composing} />
       <textarea
         ref={field}
         value={value}
@@ -86,6 +88,15 @@ function ExpandedComposer({ editLabel, value, sessionMentions, placeholder, sele
         onBlur={ime.onBlur}
         onKeyDown={(e) => {
           if (ime.busy(e.nativeEvent)) return;
+          if ((e.key === "Backspace" || e.key === "Delete") && !e.metaKey && !e.ctrlKey && !e.altKey) {
+            const deleted = deleteInlineMentionOnKey(contexts, value, e.currentTarget.selectionStart, e.currentTarget.selectionEnd, e.key);
+            if (deleted) {
+              e.preventDefault();
+              onChange(deleted.text, deleted.caret);
+              requestAnimationFrame(() => field.current?.setSelectionRange(deleted.caret, deleted.caret));
+              return;
+            }
+          }
           // The full editor always keeps plain Enter as a newline; an explicit Mod+Enter sends on any pointer.
           if (editLabel || !enterSends(e, false)) return;
           e.preventDefault();
@@ -93,7 +104,10 @@ function ExpandedComposer({ editLabel, value, sessionMentions, placeholder, sele
         }}
         placeholder={placeholder}
         aria-label={editLabel ?? t("chat-composer.message")}
-        className="relative block h-full min-h-0 w-full resize-none bg-transparent px-5 py-1 text-[16px] leading-[24px] text-ink outline-none [overflow-wrap:anywhere] placeholder:text-ink-3"
+        className={
+          "relative block h-full min-h-0 w-full resize-none bg-transparent px-5 py-1 text-[16px] leading-[24px] outline-none [overflow-wrap:anywhere] placeholder:text-ink-3 " +
+          (sessionMentions.length > 0 && !ime.composing ? "text-transparent caret-ink" : "text-ink")
+        }
       />
       </div>
       {!editLabel && <div className="flex justify-end px-3 pt-2 pb-[max(env(safe-area-inset-bottom),12px)]">

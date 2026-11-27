@@ -19,6 +19,46 @@ export function inlineMentionAt(ref: MentionAttrs, text: string): boolean {
   return Boolean(a && text.slice(a.start, a.end) === a.label);
 }
 
+/** All intact inline mentions with valid UTF-16 ranges in `text`. */
+export function inlineMentionRanges(refs: readonly MentionAttrs[], text: string, offset = 0) {
+  const ranges = refs.flatMap((ref) => {
+    const a = anchor(ref);
+    if (!a) return [];
+    const start = a.start - offset;
+    const end = a.end - offset;
+    return start >= 0 && text.slice(start, end) === a.label ? [{ start, end }] : [];
+  }).sort((a, b) => a.start - b.start);
+  let end = 0;
+  return ranges.filter((range) => {
+    if (range.start < end) return false;
+    end = range.end;
+    return true;
+  });
+}
+
+/** When Backspace or Delete hits an intact inline mention on a collapsed caret, remove the whole mention at once. */
+export function deleteInlineMentionOnKey(
+  refs: readonly MentionAttrs[],
+  text: string,
+  selStart: number,
+  selEnd: number,
+  key: "Backspace" | "Delete",
+): { text: string; caret: number } | null {
+  if (selStart !== selEnd) return null;
+  const ranges = inlineMentionRanges(refs, text);
+  if (!ranges.length) return null;
+  const pos = selStart;
+  const hit = key === "Backspace"
+    ? ranges.find((r) => (pos > r.start && pos <= r.end) || (pos === r.end + 1 && text[r.end] === " "))
+    : ranges.find((r) => pos >= r.start && pos < r.end);
+  if (!hit) return null;
+  const consumeTrailingSpace =
+    (key === "Backspace" && pos === hit.end + 1 && text[hit.end] === " ") ||
+    (text[hit.end] === " " && (hit.start === 0 || text[hit.start - 1] === " "));
+  const delEnd = consumeTrailingSpace ? hit.end + 1 : hit.end;
+  return { text: text.slice(0, hit.start) + text.slice(delEnd), caret: hit.start };
+}
+
 /** Only picked session references with intact UTF-16 ranges get a highlight. */
 export function sessionMentionRanges(refs: readonly (MentionAttrs & { url?: string })[], text: string, offset = 0) {
   const ranges = refs.flatMap((ref) => {
