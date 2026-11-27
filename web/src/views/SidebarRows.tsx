@@ -4,8 +4,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExterna
 import { t } from "../i18n";
 import { awaitsReply, finishedUnopened, justFinished, sessionSource, sourceName } from "../lib/agent-groups";
 import { addSection, arrangeSessions, assignSection, GROUP_LABEL, isDefaultView, providerLabel, refreshAgentSessions, removeSection, resetView, setView, SHOW_LABEL, SORT_LABEL, toggleProvider, togglePin, totalUnread, updateAgentPrefs, useAgentList, useAgentPrefs, viewOf, type AgentPrefs, type AgentSession, type GroupBy, type ShowMode, type SortBy } from "../lib/agents";
-import { ago, backgroundWaiting, sessionCan, sessionDisplayTab, sessionPreview, sourceSubtitle, sessionTitle, sessionTitleDetail, stateOf, tabLabel } from "../lib/format";
-import { sessionAgentName } from "../lib/agent-kind";
+import { ago, backgroundWaiting, sessionDisplayTab, sessionPreview, sourceSubtitle, sessionTitle, sessionTitleDetail, stateOf, tabLabel } from "../lib/format";
 import { useHerdrTabName } from "../lib/agents-display";
 import { firstAndCurrent } from "../lib/persona-nav";
 import { pickMainChat } from "../lib/handoff";
@@ -45,7 +44,6 @@ import { useHeldSides } from "../lib/use-child-sessions";
 import { backgroundWork } from "../lib/background-work";
 import { SESSIONS_LIST_FEATURE } from "../lib/session-list";
 import { personalHideDeps, personalOrder, personalSessions, removeAgentSession, useGoingIds } from "../lib/agents";
-import { stateName } from "../lib/state-labels";
 import { BADGE_CLASS, CURRENT_ROW, type GoFn, GroupCount, type RegFn, ROW_TITLE_MIN, type RowMenuFn, Section } from "./SidebarParts";
 
 /** Elevated floating surface for the selected Agent conversation row in the sidebar (zero hard outline ring). */
@@ -235,7 +233,7 @@ function sameProps<P extends { to: Route }>(a: P, b: P): boolean {
   return keys.every((key) => (key === "to" ? routePath(a.to) === routePath(b.to) : Object.is(a[key], b[key])));
 }
 
-export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, active, to, go, tab, label, prefix, prefixClass, hint, host, showTodoTag, onMenu, menuLabel = t("sidebar.agent_actions"), endRoom }: SessionRowProps) {
+export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, active, to, go, label, prefix, prefixClass, hint, host, showTodoTag, onMenu, menuLabel = t("sidebar.agent_actions"), endRoom }: SessionRowProps) {
   // a parent of child sessions in its folded state (#5120): one of them waiting makes it need you, one working makes it
   // work; the rows of the paged list come as the hub sends them, the other lists' folded already (lib/folded-rows.ts)
   // its side sessions' part from their rows when an open chat holds them (#7944): a side seen here shows at once
@@ -277,17 +275,14 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
   const origin = source ? undefined : autoOrigin(s);
   // the extension whose own icon that mark draws, which the row's tooltip names too (#10358)
   const [openerName, setOpenerName] = useState<string>();
-  // a desktop app's runtime that can be written to: its mark says where it is and the agent's mark which agent, so the
-  // runtime's name at the end only repeats them (it stays in the tooltip); a read-only one still says why
+  // Keep source subtitle and terminal tab identity in the row's hover tooltip / accessibility description,
+  // leaving the visible sidebar row clean and single-line (no "Claude 桌面版" or "agent-8" clutter).
   const subtitle = sourceSubtitle(s);
-  const sameAsMarks = s.source_kind === "runtime" && sessionCan(s, "send") && (source === "desktop" || subtitle === sessionAgentName(s));
   const hasTabAssociation = !!(s.slot_id?.trim() || s.tab_id?.trim());
   const primaryTab = sessionDisplayTab(s, preferTab);
   const associatedTab = hasTabAssociation && !primaryTab ? tabLabel(s) : "";
   const tabIdentity = associatedTab ? t("sidebar.tab_named", { label: associatedTab }) : "";
-  // A structural tab row keeps its old plain-text fallback, but only a real association earns the localized identity.
-  const structuralTabHint = tab && !tabIdentity && !primaryTab ? tabLabel(s) : "";
-  const tail = [sameAsMarks ? "" : subtitle, hint ?? structuralTabHint, source === "terminal" ? associatedTab : tabIdentity].filter(Boolean).join(" · ");
+  const tail = hint?.trim() ?? "";
   const preview = sessionPreview(s);
   // Settings › Appearance › show details on agent rows (#2430): a second line under an agent's title — folder · model · context · age
   const details = useAgentDetails();
@@ -297,8 +292,8 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
   // stateless rows without a hint, as before
   const ageAtEnd = !withDetail && !!s.updated_at && (!endRoom || (!tail && st === "offline"));
   // beside the age, a row that already carries its marks (where it was opened, its to-do) drops an ordinary hint from
-  // its end, where it would only squeeze the title; an associated tab name stays visible as the Agent's terminal identity.
-  const tailShown = !!tail && (!(ageAtEnd && (source || (showTodoTag && s.todo))) || !!tabIdentity);
+  // its end, where it would only squeeze the title.
+  const tailShown = !!tail && !(ageAtEnd && (source || (showTodoTag && s.todo)));
   // the age at the row's end, in the details line, or a background workflow's progress
   // (#2935) moves on with the clock: the memo keeps an unchanged row from re-rendering on a push, so a minute tick
   // does it, and only in a row that shows one of them. The ages read the clock when the row renders: `now` is the
@@ -333,11 +328,6 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
   const prominent = active || st === "needs_you" || (st === "working" && !bgWait) || (st === "unread" && !usageLimited);
   const titleTone = prominent ? "font-medium text-ink" : st === "offline" ? "font-normal text-ink-3" : "font-normal text-ink-2";
   const rowTone = active ? SESSION_ACTIVE_ROW : undefined;
-  const statePill = !s.assistant && st === "working"
-    ? bgWait
-      ? { label: stateName("bg_waiting"), cls: "text-ink-3" }
-      : { label: stateName("working"), cls: "text-accent-ink" }
-    : undefined;
   const link = (
     <a
       ref={regRow}
@@ -425,12 +415,7 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
           {label ?? title}
         </span>
       )}
-      {(statePill || host || (showTodoTag && s.todo) || source || origin || tailShown || ageAtEnd || pendingCount > 0) && <span className="sidebar-session-meta">
-        {statePill && (
-          <span aria-hidden className={cx("shrink-0 text-[11px] font-medium whitespace-nowrap", statePill.cls)}>
-            {statePill.label}
-          </span>
-        )}
+      {(host || (showTodoTag && s.todo) || source || origin || tailShown || ageAtEnd || pendingCount > 0) && <span className="sidebar-session-meta">
         {host && <span className="shrink-0 text-[10.5px] text-ink-3">{host}</span>}
         {showTodoTag && s.todo && (
           <span

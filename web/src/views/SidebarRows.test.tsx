@@ -52,7 +52,8 @@ describe("an agent's row", () => {
     expect(link(oneLine)).not.toContain("data-sidebar-context");
     expect(link(twoLines)).toContain("data-sidebar-context");
     for (const html of [oneLine, twoLines]) {
-      expect(html).toContain(`>${stateName("working")}<`);
+      expect(html).toContain('data-state="working"');
+      expect(html).not.toContain(`>${stateName("working")}<`);
       expect(html).toContain("data-row-age");
       expect(html).not.toContain("invisible"); // nothing on the row hides on hover or focus
       // the wide layout keeps the ⋯'s slot at the row's end on every row, hovered or not: the ⋯ covers no words
@@ -61,17 +62,16 @@ describe("an agent's row", () => {
       expect(more(html)).toMatch(/\bsize-6\b/);
     }
   });
-  it("distinguishes working, background-waiting, needs-you, and quiet idle states cleanly without inactive row borders", () => {
+  it("distinguishes working, background-waiting, needs-you, and quiet idle states cleanly via StatusMark without redundant text pills or row borders", () => {
     const workingHtml = renderToStaticMarkup(<SessionRow {...rowProps} s={{ ...session, status: "working", state: "working" }} active={false} />);
-    expect(workingHtml).toContain(`>${stateName("working")}<`);
+    expect(workingHtml).not.toContain(`>${stateName("working")}<`);
     expect(workingHtml).toContain('data-state="working"');
-    expect(workingHtml).toContain("text-accent-ink");
     expect(workingHtml).not.toContain("bg-orange-tint");
     expect(workingHtml).not.toContain("rounded-full");
     expect(workingHtml).not.toContain("ring-1");
 
     const waitingHtml = renderToStaticMarkup(<SessionRow {...rowProps} s={{ ...session, status: "working", state: "working", background_waiting: true }} active={false} />);
-    expect(waitingHtml).toContain(`>${stateName("bg_waiting")}<`);
+    expect(waitingHtml).not.toContain(`>${stateName("bg_waiting")}<`);
     expect(waitingHtml).toContain('data-state="bg_waiting"');
     expect(waitingHtml).not.toContain("text-accent-ink");
     expect(waitingHtml).not.toContain("bg-orange-tint");
@@ -161,18 +161,19 @@ describe("where an agent was opened, as a mark at its row's end (#2526)", () => 
     expect(desktop).toContain("<rect");
     expect(terminal).not.toBe(desktop);
   });
-  it("drops a writable desktop runtime's name from the row's end, where its marks already say it", () => {
+  it("keeps desktop and source subtitles in the hover tooltip instead of the visible row", () => {
     const paseo = { host: "paseo", source_kind: "runtime", source_instance_id: "paseo", agent_label: "Paseo" };
     const writable = render({ ...paseo, capabilities: { read: true, send: true } });
     expect(writable).not.toMatch(/>Paseo</);
     expect(link(writable)).toContain("Paseo"); // still in the row's tooltip
-    // read-only: the end still says why
-    expect(render({ ...paseo, capabilities: { read: true, send: false } })).toMatch(/>[^<]*Paseo[^<]*</);
+    const claudeDesktop = render({ source_kind: "claude_desktop", agent_name: "Claude Desktop", capabilities: { read: true, send: true } });
+    expect(claudeDesktop).not.toContain("Claude Desktop</span>");
+    expect(link(claudeDesktop)).toContain("Claude Desktop"); // still in the row's tooltip
   });
-  it("keeps the title's width first when words sit at the row's end", () => {
-    const html = render({ space_kind: "codex_app", source_kind: "codex_history", agent_name: "Codex App" });
+  it("keeps the title's width first when a hint sits at the row's end", () => {
+    const html = render({}, { hint: "Project" });
     expect(html).toMatch(/<span class="[^"]*flex-1 truncate[^"]*basis-auto[^"]*">整理文档<\/span>/);
-    expect(html).toMatch(/<span class="[^"]*min-w-6 shrink-\[20\][^"]*">[^<]*Codex/);
+    expect(html).toMatch(/<span class="[^"]*min-w-6 shrink-\[20\][^"]*">Project/);
     expect(render({ pane_id: "w1:p1" })).not.toContain("basis-auto"); // nothing at the end: as before
   });
 });
@@ -250,42 +251,36 @@ describe("a session's associated tab name (#7595)", () => {
   const render = (patch: Partial<Session>, extra = {}) => renderToStaticMarkup(<SessionRow {...rowProps} s={{ ...session, ...patch }} hint="Project" active={false} {...extra} />);
   const tabName = (label: string) => t("sidebar.tab_named", { label });
 
-  it("stays visible beside an aged terminal row and follows a rename", () => {
+  it("keeps terminal tab numbers/names in the tooltip and aria-description instead of cluttering the visible row", () => {
     const first = render(named);
-    expect(first).toContain(tabName("Release Review"));
-    expect(first).toContain("Project");
+    expect(first).not.toContain(`>${tabName("Release Review")}<`);
+    expect(link(first)).toContain(tabName("Release Review"));
+    expect(link(first)).toContain(`aria-description="${tabName("Release Review")}"`);
 
     const renamed = render({ ...named, slot_name: "Triage" });
-    expect(renamed).toContain(tabName("Triage"));
-    expect(renamed).not.toContain(tabName("Release Review"));
+    expect(link(renamed)).toContain(tabName("Triage"));
+    expect(link(renamed)).not.toContain(tabName("Release Review"));
+
+    const numbered = render({ ...named, slot_name: "agent-8" });
+    expect(numbered).not.toContain(">agent-8<");
+    expect(link(numbered)).toContain(tabName("agent-8"));
   });
 
-  it("keeps the session title and the existing fallbacks", () => {
+  it("keeps the session title clean without terminal tab suffixes", () => {
     const numeric = render({ ...named, slot_name: "2" });
     expect(numeric).toContain("整理文档");
-    expect(numeric).toContain(tabName("#2"));
+    expect(link(numeric)).toContain(tabName("#2"));
 
     const missing = render({ ...named, slot_id: undefined, slot_name: undefined, pane_id: undefined });
-    expect(missing).not.toContain(tabName("Release Review"));
+    expect(link(missing)).not.toContain(tabName("Release Review"));
     expect(missing).toContain("整理文档");
 
     const unassociated = render({ ...named, slot_id: undefined, tab_id: undefined, slot_name: "Workspace name" });
-    expect(unassociated).not.toContain(tabName("Workspace name"));
+    expect(link(unassociated)).not.toContain(tabName("Workspace name"));
     expect(unassociated).toContain("整理文档");
 
-    expect(render(named, { endRoom: true })).toContain(tabName("Release Review"));
-    expect(render({ ...named, status: "offline", state: "offline" })).toContain(tabName("Release Review"));
-  });
-
-  it("keeps the index-only fallback with a real association", () => {
     const indexOnly = render({ ...named, slot_name: undefined, slot_index: 2 });
-    expect(indexOnly).toContain(tabName("#2"));
+    expect(link(indexOnly)).toContain(tabName("#2"));
     expect(indexOnly).toContain("整理文档");
-  });
-
-  it("does not mint a localized identity from an unassociated structural fallback", () => {
-    const html = render({ ...named, slot_id: undefined, tab_id: undefined, slot_name: "Workspace name", updated_at: undefined }, { tab: true, hint: undefined });
-    expect(html).toContain("Workspace name");
-    expect(html).not.toContain(tabName("Workspace name"));
   });
 });
