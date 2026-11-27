@@ -238,41 +238,11 @@ func (s *Service) inboxTodoRoutes() {
 	})
 }
 
-// checkSuggestedDue holds a to-do suggestion's due time to its two forms: a day (2006-01-02) or a moment (RFC 3339).
-func checkSuggestedDue(due string) error {
-	if due == "" {
-		return nil
-	}
-	if _, err := time.Parse(dayLayout, due); err == nil {
-		return nil
-	}
-	if _, err := time.Parse(time.RFC3339, due); err == nil {
-		return nil
-	}
-	return errSuggestion{"due is a day (2006-01-02, all day) or a moment (RFC 3339 with its offset), or leave it out"}
-}
-
-// planOfDue is the due part of a to-do from a suggestion's due time.
-func planOfDue(due string) db.TodoEdit {
-	var e db.TodoEdit
-	if due == "" {
-		return e
-	}
-	e.SetDue = true
-	if d, err := time.Parse(dayLayout, due); err == nil {
-		e.DueDate = &d
-	} else if at, err := time.Parse(time.RFC3339, due); err == nil {
-		u := at.UTC()
-		e.DueAt = &u
-	}
-	return e
-}
-
-// confirmTodo adds the confirmed to-do suggestion (title text, due as the user left it) and files the row as turned into
-// it, as the manual way does: one tap, nothing more to ask.
-func (s *Service) confirmTodo(ctx context.Context, it *InboxItem, text, due string) (InboxItem, error) {
+// confirmTodo adds the confirmed to-do suggestion (title text, with no due date: one an older suggestion or client still
+// carries is not applied) and files the row as turned into it, as the manual way does: one tap, nothing more to ask.
+func (s *Service) confirmTodo(ctx context.Context, it *InboxItem, text string) (InboxItem, error) {
 	title := clipRunesTo(strings.TrimSpace(text), inboxTodoTitleMax)
-	if err := checkSuggestedDue(due); err != nil || title == "" {
+	if title == "" {
 		return InboxItem{}, errTodoSuggestion
 	}
 	if err := s.ensureTodosLoaded(ctx); err != nil {
@@ -282,7 +252,7 @@ func (s *Service) confirmTodo(ctx context.Context, it *InboxItem, text, due stri
 	b.mu.Lock()
 	_, notes := todoFromItem(it, "")
 	b.mu.Unlock()
-	td, err := s.createTodoFrom(ctx, title, notes, it.ID, planOfDue(due))
+	td, err := s.createTodoFrom(ctx, title, notes, it.ID, db.TodoEdit{})
 	if err != nil {
 		return InboxItem{}, err
 	}

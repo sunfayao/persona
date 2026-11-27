@@ -41,26 +41,26 @@ func idIn(t *testing.T, res string) string {
 	return strings.Fields(res[i:])[0]
 }
 
-// The assistant's todo tools on the user's own to-dos: created with a due day, reminder and priority, not twice;
-// listed by due date and filtered; changed (a due moment replaces the day, "" clears); completed and reopened without
-// a card; read in full.
+// The assistant's todo tools on the user's own to-dos: created with a reminder, not twice; listed open first, newest
+// first, and filtered; changed ("" clears); completed and reopened without a card; read in full. A due date or priority
+// an older caller still sends is ignored like any other unknown argument: it neither fails nor sets anything.
 func TestTodoTools(t *testing.T) {
 	todoStores(t, func(t *testing.T, e *todoEnv, _ *db.DB) {
 		loc := e.s.location(context.Background())
-		day := time.Now().In(loc).AddDate(0, 0, 3).Format(dayLayout)
 		remind := time.Now().In(loc).Add(2 * time.Hour).Format("2006-01-02 15:04")
-		res, err := e.tool("todo_create", map[string]any{"title": "Submit the homework", "notes": "course page link", "due": day,
-			"remind": remind, "priority": "high"})
-		if err != nil || !strings.HasPrefix(res, "Created: ") || !strings.Contains(res, "high priority") || !strings.Contains(res, "the whole day") {
+		res, err := e.tool("todo_create", map[string]any{"title": "Submit the homework", "notes": "course page link",
+			"due": time.Now().In(loc).AddDate(0, 0, 3).Format(dayLayout), "remind": remind, "priority": "high"})
+		if err != nil || !strings.HasPrefix(res, "Created: ") || !strings.Contains(res, " · remind ") || strings.Contains(res, "priority") ||
+			strings.Contains(res, "due") {
 			t.Fatalf("create: %s %v", res, err)
 		}
 		id := idIn(t, res)
 		got, ok := e.todo(id)
-		if !ok || got.DueDate != day || got.DueAt != nil || got.RemindAt == nil || got.Priority != db.PriorityHigh ||
+		if !ok || got.DueDate != "" || got.DueAt != nil || got.RemindAt == nil || got.Priority != "" ||
 			got.Notes != "course page link" || len(got.Agents) != 0 || got.Origin != "" {
 			t.Fatalf("stored: %+v", got)
 		}
-		if res, err := e.tool("todo_create", map[string]any{"title": "Submit the homework", "due": day}); err != nil ||
+		if res, err := e.tool("todo_create", map[string]any{"title": "Submit the homework"}); err != nil ||
 			!strings.Contains(res, "Already there") || idIn(t, res) != id {
 			t.Fatalf("created twice: %s %v", res, err)
 		}
@@ -68,35 +68,26 @@ func TestTodoTools(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		soon, err := e.tool("todo_create", map[string]any{"title": "Review the paper", "due": "1d"})
-		if err != nil {
-			t.Fatal(err)
-		}
 
-		list, err := e.tool("todo_list", nil)
+		list, err := e.tool("todo_list", map[string]any{"due_before": "2020-01-01"}) // a filter that is gone filters nothing
 		if err != nil {
 			t.Fatal(err)
 		}
-		a, b, c := strings.Index(list, idIn(t, soon)), strings.Index(list, id), strings.Index(list, idIn(t, other))
-		if a < 0 || b < 0 || c < 0 || !(a < b && b < c) || !strings.Contains(list, "notes: course page link") {
-			t.Fatalf("list, by due date: %s", list)
-		}
-		if list, _ := e.tool("todo_list", map[string]any{"due_before": time.Now().In(loc).AddDate(0, 0, 2).Format(dayLayout)}); strings.Contains(list, id) ||
-			!strings.Contains(list, idIn(t, soon)) || strings.Contains(list, idIn(t, other)) {
-			t.Fatalf("due_before: %s", list)
+		a, b := strings.Index(list, idIn(t, other)), strings.Index(list, id)
+		if a < 0 || b < 0 || !(a < b) || !strings.Contains(list, "notes: course page link") {
+			t.Fatalf("list, newest first: %s", list)
 		}
 		if list, _ := e.tool("todo_list", map[string]any{"query": "domain"}); !strings.Contains(list, idIn(t, other)) || strings.Contains(list, id) {
 			t.Fatalf("query: %s", list)
 		}
 
-		moment := time.Now().In(loc).AddDate(0, 0, 5).Format("2006-01-02") + " 18:00"
-		if res, err := e.tool("todo_update", map[string]any{"id": id, "due": moment, "remind": "", "priority": "normal"}); err != nil ||
+		if res, err := e.tool("todo_update", map[string]any{"id": id, "remind": "", "due": "2026-12-01", "priority": "low"}); err != nil ||
 			!strings.HasPrefix(res, "Updated: ") {
 			t.Fatalf("update: %s %v", res, err)
 		}
 		got, _ = e.todo(id)
-		if got.DueAt == nil || got.DueDate != "" || got.DueAt.In(loc).Format("2006-01-02 15:04") != moment || got.RemindAt != nil ||
-			got.Priority != "" || got.Notes != "course page link" || got.Title != "Submit the homework" {
+		if got.DueAt != nil || got.DueDate != "" || got.RemindAt != nil || got.Priority != "" || got.Notes != "course page link" ||
+			got.Title != "Submit the homework" {
 			t.Fatalf("updated: %+v", got)
 		}
 		if _, err := e.tool("todo_update", map[string]any{"id": id}); err == nil {
@@ -124,9 +115,15 @@ func TestTodoTools(t *testing.T) {
 		if got, _ = e.todo(id); got.DoneAt != nil {
 			t.Fatal("still done")
 		}
+		// A due date and priority the owner's apps still set are not the model's to read.
+		e.must("PATCH", "/api/v1/todos/"+id, `{"due_date":"2026-12-01","priority":"high"}`)
 		res, err = e.tool("todo_get", map[string]any{"id": id})
-		if err != nil || !strings.Contains(res, "Submit the homework") || !strings.Contains(res, "notes:\ncourse page link") {
+		if err != nil || !strings.Contains(res, "Submit the homework") || !strings.Contains(res, "notes:\ncourse page link") ||
+			strings.Contains(res, "priority") || strings.Contains(res, "due") {
 			t.Fatalf("get: %s %v", res, err)
+		}
+		if list, _ := e.tool("todo_list", nil); !strings.Contains(list, id) || strings.Contains(list, "priority") || strings.Contains(list, "due") {
+			t.Fatalf("list shows the plan: %s", list)
 		}
 		if _, err := e.tool("todo_get", map[string]any{"id": "todo_none"}); err == nil {
 			t.Error("an unknown id was read")
@@ -293,26 +290,22 @@ func TestTodoReminders(t *testing.T) {
 	})
 }
 
-// The tools list open to-dos first, then by due moment (a due day counts to its end), those without one last,
-// higher priority first among equals.
-func TestSortTodosByDue(t *testing.T) {
-	loc := time.UTC
-	at := func(h int) *time.Time { v := time.Date(2026, 11, 10, h, 0, 0, 0, loc); return &v }
-	done := at(1)
+// The tools list open to-dos first, then newest first; a due date or priority the owner set earlier does not move one.
+func TestSortToolTodos(t *testing.T) {
+	at := func(h int) time.Time { return time.Date(2026, 11, 10, h, 0, 0, 0, time.UTC) }
+	due := at(1)
 	list := []Todo{
-		{ID: "none_low", Priority: db.PriorityLow},
-		{ID: "none_high", Priority: db.PriorityHigh},
-		{ID: "day10", DueDate: "2026-11-10"},
-		{ID: "at9", DueAt: at(9)},
-		{ID: "done_at8", DueAt: at(8), DoneAt: done},
-		{ID: "at23", DueAt: at(23)},
+		{ID: "old_high", CreatedAt: at(8), Priority: db.PriorityHigh, DueAt: &due},
+		{ID: "done_new", CreatedAt: at(12), DoneAt: &due},
+		{ID: "new", CreatedAt: at(11)},
+		{ID: "mid_day", CreatedAt: at(9), DueDate: "2026-11-10"},
 	}
-	sortTodosByDue(list, loc)
+	sortToolTodos(list)
 	var got []string
 	for _, t := range list {
 		got = append(got, t.ID)
 	}
-	if want := "at9 at23 day10 none_high none_low done_at8"; strings.Join(got, " ") != want {
+	if want := "new mid_day old_high done_new"; strings.Join(got, " ") != want {
 		t.Fatalf("order %v, want %s", got, want)
 	}
 }

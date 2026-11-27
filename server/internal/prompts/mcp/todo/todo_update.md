@@ -1,4 +1,4 @@
-Update supplied title, notes, due/reminder, priority, project, part_of or after immediately, including task to-dos; no confirmation. Omitted fields stay; "" clears notes/due/remind/project/part_of, [] clears after. New reminder times notify again. Completion/reopening uses todo_complete/todo_reopen.
+Update supplied title, notes, reminder, project, part_of or after immediately, including task to-dos; no confirmation. Omitted fields stay; "" clears notes/remind/project/part_of, [] clears after. New reminder times notify again. Completion/reopening uses todo_complete/todo_reopen.
 
 ```json
 {
@@ -19,21 +19,9 @@ Update supplied title, notes, due/reminder, priority, project, part_of or after 
       "type": "string",
       "description": "Replacement notes; retain anything still needed. \"\" clears."
     },
-    "due": {
-      "type": "string",
-      "description": "New due date YYYY-MM-DD or datetime (user's time zone/RFC3339); \"\" clears."
-    },
     "remind": {
       "type": "string",
       "description": "New reminder datetime (user's time zone/RFC3339) or relative 30m/2h/1d; never past. \"\" clears."
-    },
-    "priority": {
-      "type": "string",
-      "enum": [
-        "high",
-        "normal",
-        "low"
-      ]
     },
     "project": {
       "type": "string",

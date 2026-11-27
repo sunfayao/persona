@@ -133,9 +133,9 @@ func (s *Service) toolConcernReport(ctx context.Context, machine, self string, a
 		}
 		return "", fmt.Errorf("the report could not be saved, the concern stays open: %w", err)
 	}
-	now, loc := time.Now(), s.location(ctx)
+	loc := s.location(ctx)
 	if !closed {
-		return "Report noted; it was already closed: " + todoLine(out, now, loc), nil
+		return "Report noted; it was already closed: " + todoLine(out, loc), nil
 	}
-	return "Reported and closed: " + todoLine(out, now, loc), nil
+	return "Reported and closed: " + todoLine(out, loc), nil
 }

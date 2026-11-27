@@ -1,6 +1,6 @@
 {
   "name": "todo_create",
-  "description": "Record what the user asks to remember, track or be reminded of (`remind`), and agreed work, immediately and without confirmation; carry the work out via task_plan, linking its task to this to-do (`todo_id` or `part_of`). Open title/due duplicates return existing to-dos but refuse bindings: use todo_repositories_get/set. Short title in the user's language; details in notes. Bindings save atomically; IDs/catalog_revision from repositories_list. No files or task progress changes.",
+  "description": "Record what the user asks to remember, track or be reminded of (`remind`), and agreed work, immediately and without confirmation; carry the work out via task_plan, linking its task to this to-do (`todo_id` or `part_of`). Open title duplicates return existing to-dos but refuse bindings: use todo_repositories_get/set. Short title in the user's language; details in notes. Bindings save atomically; IDs/catalog_revision from repositories_list. No files or task progress changes.",
   "input_schema": {
     "type": "object",
     "required": [
@@ -15,22 +15,9 @@
         "type": "string",
         "description": "Details."
       },
-      "due": {
-        "type": "string",
-        "description": "Day only: YYYY-MM-DD; otherwise YYYY-MM-DD HH:MM (user time zone) or RFC3339. Relative 2h/3d accepted."
-      },
       "remind": {
         "type": "string",
         "description": "Future reminder (user time zone/RFC3339 or relative 30m/2h/1d). Only if requested or deadline close and important."
-      },
-      "priority": {
-        "type": "string",
-        "enum": [
-          "high",
-          "normal",
-          "low"
-        ],
-        "description": "normal when left out"
       },
       "kind": {
         "type": "string",

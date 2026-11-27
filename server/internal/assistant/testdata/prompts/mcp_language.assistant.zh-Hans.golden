@@ -229,7 +229,7 @@
   },
   {
     "name": "schedule_routine",
-    "description": "This is how recurring work at a time of day or week is created: \"every morning at 8\", \"weekdays at 18:00\", \"the 1st of each month\". Example: {\"title\": \"Morning briefing\", \"time\": \"08:00\", \"weekdays\": [1, 2, 3, 4, 5], \"prompt\": \"Tell the user what needs them today: to-dos due, Agents waiting, today's calendar\"}. Each run opens its own conversation with `prompt`, so write it self-contained. Pass `id` from list_followups to edit only the fields supplied; `enabled: false` pauses it, `true` resumes it. Use `time` with optional `weekdays`, or `cron` instead. Times use the user's zone; cron has 5 fields, runs at least 5m apart, supports the listed aliases, treats 0/7 as Sunday and restricted day fields as either. Seconds, @every and TZ= are refused; inspect the reply's next runs. `until` cannot be a bare clock time.\n\nRuns inherit Main chat's launcher/model/effort. Omit overrides to keep them; an empty launcher returns to Main chat. Permission mode stays the user's choice. `inbox` is only for requested Inbox results. `fresh_each_run: true` starts a new chat per run with its state note. See field descriptions for push and end-time edit rules.\n\nFor approved work advancing a supervised to-do, pass its explicit `todo_id`; this conversation must supervise it. Omission keeps its association; \"\" clears it. From the second run Persona checks Agent answers, tool calls (not waits or repeats), criterion changes and progress reports; a long stall asks Change approach / Keep waiting, even with `push: asked`. Get owner consent before creating or changing recurring work.",
+    "description": "This is how recurring work at a time of day or week is created: \"every morning at 8\", \"weekdays at 18:00\", \"the 1st of each month\". Example: {\"title\": \"Morning briefing\", \"time\": \"08:00\", \"weekdays\": [1, 2, 3, 4, 5], \"prompt\": \"Tell the user what needs them today: open to-dos, Agents waiting, today's calendar\"}. Each run opens its own conversation with `prompt`, so write it self-contained. Pass `id` from list_followups to edit only the fields supplied; `enabled: false` pauses it, `true` resumes it. Use `time` with optional `weekdays`, or `cron` instead. Times use the user's zone; cron has 5 fields, runs at least 5m apart, supports the listed aliases, treats 0/7 as Sunday and restricted day fields as either. Seconds, @every and TZ= are refused; inspect the reply's next runs. `until` cannot be a bare clock time.\n\nRuns inherit Main chat's launcher/model/effort. Omit overrides to keep them; an empty launcher returns to Main chat. Permission mode stays the user's choice. `inbox` is only for requested Inbox results. `fresh_each_run: true` starts a new chat per run with its state note. See field descriptions for push and end-time edit rules.\n\nFor approved work advancing a supervised to-do, pass its explicit `todo_id`; this conversation must supervise it. Omission keeps its association; \"\" clears it. From the second run Persona checks Agent answers, tool calls (not waits or repeats), criterion changes and progress reports; a long stall asks Change approach / Keep waiting, even with `push: asked`. Get owner consent before creating or changing recurring work.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -1047,7 +1047,7 @@
   },
   {
     "name": "inbox_suggest",
-    "description": "Submit the event’s recap and one suggestion, replacing any earlier suggestion. It waits in the user's inbox; nothing goes out until they confirm, and then the program does exactly what it says (you never send it yourself). `kind`: `reply` — one message to send, `text` in the user's voice, ready to go out as it is (no blanks to fill in like 【…】: leave out what you could not find and say so in `note`; for a Feishu sheet / Base item `changes` proposes moving rows' status: ref, field and one of the values the item lists); `agent` — an Agent to start, `text` its instruction (`machine` and `cwd` optional); `todo` — a to-do for the user to add: `text` its title (clear, starting with the action, no chat or people names), `due` only when the message states a deadline: a day `2006-01-02` for all day, or a moment as RFC 3339 with its offset; leave it out when unsure and say so in `note`; the user can edit both and adds it with one tap (a row that came to a to-do counts as handled); `conclusion` — you dealt with it, `text` the conclusion, `outcome` `fyi` (worth knowing) or `done` (nothing to do). `handback: true` for one the user has to judge: their confirmation comes back here as an instruction instead of being carried out. `note`: one or two sentences on what you found and where. `recap`: the event's background, progress and where it is stuck (up to 600 characters), every time. `title`: what the matter is, without chat or person names; `summary`: one sentence on where things stand and who is waited on for what. Write both every time; items whose title comes from the source (mail, documents, PRs / issues, and the like) ignore `title`, and the tool says so. `related`: ids of inbox items in other chats or sources this one is about. `recap` without `kind` creates no suggestion, and may include `title`, `summary`, and `follow`. `follow` records waiting on the other side: `who` (empty means waiting for a reply), `next`, and `check_at` (RFC 3339 with a time zone) or `check_in` (such as `30m`, `4h`, or `2d`). `check_at` takes precedence; with neither, look again in `24h`; the resulting time is clamped to 30 minutes–14 days from now. `follow` is valid only without `kind`. `reported`: `{text, by}` records one externally visible action you or an Agent actually completed but the program did not observe, without verifying it; never use it for plans or actions not taken. `by` is `agent` or `assistant` (default `assistant`), and `text` is one sentence, kept on one line and clipped to 120 characters. It may be given alone or accompany `kind`, `recap`, `title`, `summary`, or `follow`; a filed item refuses it, and text identical to the item's latest `reported` entry is not recorded twice. Call it at the end of each turn. In a conversation the user handed an inbox item to (its context block names the item's id), pass that id as `item` and call it when you have something to write back to the item, and again whenever it changes (it also shows in that conversation as a card); it refuses an item not handed to this conversation or one the user already filed: answer in the chat then.",
+    "description": "Submit the event’s recap and one suggestion, replacing any earlier suggestion. It waits in the user's inbox; nothing goes out until they confirm, and then the program does exactly what it says (you never send it yourself). `kind`: `reply` — one message to send, `text` in the user's voice, ready to go out as it is (no blanks to fill in like 【…】: leave out what you could not find and say so in `note`; for a Feishu sheet / Base item `changes` proposes moving rows' status: ref, field and one of the values the item lists); `agent` — an Agent to start, `text` its instruction (`machine` and `cwd` optional); `todo` — a to-do for the user to add: `text` its title (clear, starting with the action, no chat or people names); the user can edit it and adds it with one tap (a row that came to a to-do counts as handled); `conclusion` — you dealt with it, `text` the conclusion, `outcome` `fyi` (worth knowing) or `done` (nothing to do). `handback: true` for one the user has to judge: their confirmation comes back here as an instruction instead of being carried out. `note`: one or two sentences on what you found and where. `recap`: the event's background, progress and where it is stuck (up to 600 characters), every time. `title`: what the matter is, without chat or person names; `summary`: one sentence on where things stand and who is waited on for what. Write both every time; items whose title comes from the source (mail, documents, PRs / issues, and the like) ignore `title`, and the tool says so. `related`: ids of inbox items in other chats or sources this one is about. `recap` without `kind` creates no suggestion, and may include `title`, `summary`, and `follow`. `follow` records waiting on the other side: `who` (empty means waiting for a reply), `next`, and `check_at` (RFC 3339 with a time zone) or `check_in` (such as `30m`, `4h`, or `2d`). `check_at` takes precedence; with neither, look again in `24h`; the resulting time is clamped to 30 minutes–14 days from now. `follow` is valid only without `kind`. `reported`: `{text, by}` records one externally visible action you or an Agent actually completed but the program did not observe, without verifying it; never use it for plans or actions not taken. `by` is `agent` or `assistant` (default `assistant`), and `text` is one sentence, kept on one line and clipped to 120 characters. It may be given alone or accompany `kind`, `recap`, `title`, `summary`, or `follow`; a filed item refuses it, and text identical to the item's latest `reported` entry is not recorded twice. Call it at the end of each turn. In a conversation the user handed an inbox item to (its context block names the item's id), pass that id as `item` and call it when you have something to write back to the item, and again whenever it changes (it also shows in that conversation as a card); it refuses an item not handed to this conversation or one the user already filed: answer in the chat then.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -1132,9 +1132,6 @@
           "type": "string"
         },
         "cwd": {
-          "type": "string"
-        },
-        "due": {
           "type": "string"
         },
         "related": {
@@ -2893,7 +2890,7 @@
   },
   {
     "name": "todo_list",
-    "description": "List Persona to-dos (not Feishu tasks): open/failed starts by default, due first and undated last. Returns id, title/state, priority/project, due/reminder, agents and first note line; times use the user's time zone. Filter by the schema fields. Find an id here before edits; use todo_get for details.",
+    "description": "List Persona to-dos (not Feishu tasks): open/failed starts by default, open first, then newest first. Returns id, title/state, project, reminder, agents and first note line; times use the user's time zone. Filter by the schema fields. Find an id here before edits; use todo_get for details.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -2905,18 +2902,6 @@
             "all"
           ],
           "description": "Default: open."
-        },
-        "due_before": {
-          "type": "string",
-          "description": "Due no later than this date (inclusive through day's end) or datetime (user's time zone/RFC3339); excludes undated to-dos."
-        },
-        "due_after": {
-          "type": "string",
-          "description": "Due from this date/datetime onward; excludes undated to-dos."
-        },
-        "overdue": {
-          "type": "boolean",
-          "description": "Open and past due."
         },
         "with_agents": {
           "type": "boolean",
@@ -2947,7 +2932,7 @@
   },
   {
     "name": "todo_get",
-    "description": "Read a to-do's title/state, priority, due/reminder and push status, timestamps, origin/plan, notes, agents, decisions and canonical repository/issue/PR associations. Maintain links with todo_repository_links_add or the revision-checked set tools; associations do not prove completion.",
+    "description": "Read a to-do's title/state, reminder and push status, timestamps, origin/plan, notes, agents, decisions and canonical repository/issue/PR associations. Maintain links with todo_repository_links_add or the revision-checked set tools; associations do not prove completion.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -2963,7 +2948,7 @@
   },
   {
     "name": "todo_create",
-    "description": "Record what the user asks to remember, track or be reminded of (`remind`), and agreed work, immediately and without confirmation; carry the work out via task_plan, linking its task to this to-do (`todo_id` or `part_of`). Open title/due duplicates return existing to-dos but refuse bindings: use todo_repositories_get/set. Short title in the user's language; details in notes. Bindings save atomically; IDs/catalog_revision from repositories_list. No files or task progress changes.",
+    "description": "Record what the user asks to remember, track or be reminded of (`remind`), and agreed work, immediately and without confirmation; carry the work out via task_plan, linking its task to this to-do (`todo_id` or `part_of`). Open title duplicates return existing to-dos but refuse bindings: use todo_repositories_get/set. Short title in the user's language; details in notes. Bindings save atomically; IDs/catalog_revision from repositories_list. No files or task progress changes.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -2978,22 +2963,9 @@
           "type": "string",
           "description": "Details."
         },
-        "due": {
-          "type": "string",
-          "description": "Day only: YYYY-MM-DD; otherwise YYYY-MM-DD HH:MM (user time zone) or RFC3339. Relative 2h/3d accepted."
-        },
         "remind": {
           "type": "string",
           "description": "Future reminder (user time zone/RFC3339 or relative 30m/2h/1d). Only if requested or deadline close and important."
-        },
-        "priority": {
-          "type": "string",
-          "enum": [
-            "high",
-            "normal",
-            "low"
-          ],
-          "description": "normal when left out"
         },
         "kind": {
           "type": "string",
@@ -3158,7 +3130,7 @@
   },
   {
     "name": "todo_update",
-    "description": "Update supplied title, notes, due/reminder, priority, project, part_of or after immediately, including task to-dos; no confirmation. Omitted fields stay; \"\" clears notes/due/remind/project/part_of, [] clears after. New reminder times notify again. Completion/reopening uses todo_complete/todo_reopen.",
+    "description": "Update supplied title, notes, reminder, project, part_of or after immediately, including task to-dos; no confirmation. Omitted fields stay; \"\" clears notes/remind/project/part_of, [] clears after. New reminder times notify again. Completion/reopening uses todo_complete/todo_reopen.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -3177,21 +3149,9 @@
           "type": "string",
           "description": "Replacement notes; retain anything still needed. \"\" clears."
         },
-        "due": {
-          "type": "string",
-          "description": "New due date YYYY-MM-DD or datetime (user's time zone/RFC3339); \"\" clears."
-        },
         "remind": {
           "type": "string",
           "description": "New reminder datetime (user's time zone/RFC3339) or relative 30m/2h/1d; never past. \"\" clears."
-        },
-        "priority": {
-          "type": "string",
-          "enum": [
-            "high",
-            "normal",
-            "low"
-          ]
         },
         "project": {
           "type": "string",

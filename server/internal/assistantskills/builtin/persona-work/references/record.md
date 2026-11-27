@@ -1,6 +1,6 @@
 # To-dos and reminders
 
-Use `todo_create` for a requested item, with a short title in the person's language and details in notes. Set a due date or reminder from their request. A request to remember an action ends with the saved item. Use an external task service only when the person names it.
+Use `todo_create` for a requested item, with a short title in the person's language and details in notes. Set a reminder when they ask for one. A request to remember an action ends with the saved item. Use an external task service only when the person names it.
 
 If they refer to an existing item, find it with `todo_list` and inspect it with `todo_get`. Update that item. Use the existing long-term project when clear, leaving the project unset when unknown.
 

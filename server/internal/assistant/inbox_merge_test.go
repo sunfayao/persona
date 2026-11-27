@@ -178,18 +178,14 @@ func TestInboxTodoReplyItemIsAnObject(t *testing.T) {
 	}
 }
 
-// A to-do suggestion: it needs a readable due, only the processing conversation may make one, and confirming adds the
-// to-do (the user's edited due wins) and files the row.
+// A to-do suggestion: only the processing conversation may make one, and confirming adds the to-do, with no due date,
+// and files the row.
 func TestSuggestTodoValidation(t *testing.T) {
 	for _, c := range []struct {
 		in suggestIn
 		ok bool
 	}{
-		{suggestIn{Kind: "todo", Text: "Send the numbers", Due: "2026-11-15"}, true},
-		{suggestIn{Kind: "todo", Text: "Send the numbers", Due: "2026-11-15T18:00:00+08:00"}, true},
 		{suggestIn{Kind: "todo", Text: "Send the numbers"}, true},
-		{suggestIn{Kind: "todo", Text: "Send the numbers", Due: "Friday"}, false},
-		{suggestIn{Kind: "reply", Text: "ok", Due: "2026-11-15"}, false},
 		{suggestIn{Kind: "todo", Text: "x", Item: "a"}, false},
 	} {
 		if err := c.in.check(); (err == nil) != c.ok {
@@ -198,20 +194,24 @@ func TestSuggestTodoValidation(t *testing.T) {
 	}
 }
 
+// A due time a suggestion stored before inbox_suggest stopped taking one, or a client still sends, is not applied.
 func TestConfirmTodoSuggestion(t *testing.T) {
 	h := muteHub(t)
 	mergeItems(h)
 	it := h.inbox.items["b"]
 	it.Agent = &InboxAgent{State: AgentDrafted}
 	it.Suggestion = &InboxSuggestion{Version: 1, Kind: SuggestTodo, Text: "Send Ana the numbers", Due: "2026-11-15T18:00:00+08:00", At: time.Now()}
-	edited := "2026-11-16"
-	out, err := h.actOnSuggestion(t.Context(), "b", suggestionReq{Version: 1, Action: suggestConfirm, Due: &edited}, true)
+	var in suggestionReq
+	if err := json.Unmarshal([]byte(`{"version":1,"action":"confirm","due":"2026-11-16"}`), &in); err != nil {
+		t.Fatal(err)
+	}
+	out, err := h.actOnSuggestion(t.Context(), "b", in, true)
 	if err != nil || out.DoneBy != doneByTodo || out.Suggestion != nil {
 		t.Fatalf("%v %+v", err, out)
 	}
 	last := out.Chain[len(out.Chain)-1]
 	td, ok := h.todoNow(last.Link.ID)
-	if !ok || td.Title != "Send Ana the numbers" || td.DueDate != "2026-11-16" || td.InboxItem != "b" {
+	if !ok || td.Title != "Send Ana the numbers" || td.DueDate != "" || td.DueAt != nil || td.InboxItem != "b" {
 		t.Fatalf("to-do %+v %v", td, ok)
 	}
 	if _, err := h.actOnSuggestion(t.Context(), "a", suggestionReq{Version: 0, Action: suggestConfirm}, false); err == nil {

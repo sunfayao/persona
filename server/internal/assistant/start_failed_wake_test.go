@@ -44,7 +44,7 @@ func TestFailedStartWakesTheMainConversationAtOnce(t *testing.T) {
 	if tr := triageTodo(listedTodo{Todo: got}, noSessions, time.Now(), time.Time{}, time.UTC, false); tr.Section != triageWaiting || tr.Rule != ruleFailedStart {
 		t.Fatalf("triage = %+v, want waiting / failed_start", tr)
 	}
-	if line := todoLine(got, time.Now(), time.UTC); !strings.Contains(line, "[failed to start") || strings.Contains(line, "[done") {
+	if line := todoLine(got, time.UTC); !strings.Contains(line, "[failed to start") || strings.Contains(line, "[done") {
 		t.Fatalf("todo line = %q", line)
 	}
 	tasks := s.snapshotTasks(context.Background(), "")

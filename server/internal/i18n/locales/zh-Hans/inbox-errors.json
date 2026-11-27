@@ -22,7 +22,7 @@
   "merge_none": "没有可合并的内容：这些行已不存在或已合并",
   "merge_failed": "合并没能保存，未做任何改动",
   "todo_targets": "请选择要加到待办的行",
-  "todo_suggestion": "待办需要标题，截止日期或时间也要能识别",
+  "todo_suggestion": "待办需要标题",
   "bulk_targets": "请提供内容 ID 列表或筛选条件。",
   "bulk_filter": "按筛选条件归档时需要列表时间；重新打开时请提供内容 ID。",
   "document_only": "只有文档内容能修改状态。",

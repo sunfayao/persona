@@ -31,7 +31,6 @@ type suggestIn struct {
 	Summary  string           `json:"summary"`
 	Machine  string           `json:"machine"`
 	Cwd      string           `json:"cwd"`
-	Due      string           `json:"due"`
 	Related  []string         `json:"related"`
 	Changes  []DocChange      `json:"changes"`
 	Follow   *suggestFollow   `json:"follow"`
@@ -92,16 +91,8 @@ func (in *suggestIn) check() error {
 			return errSuggestion{fmt.Sprintf("the reply leaves %s to fill in, and it goes out as it is: leave out what you could not find (say so in note) and submit again", p)}
 		}
 	}
-	in.Due = strings.TrimSpace(in.Due)
-	if in.Kind == SuggestTodo {
-		if in.Item != "" {
-			return errSuggestion{"a to-do is suggested by the conversation that processes the item, not one it was handed to"}
-		}
-		if err := checkSuggestedDue(in.Due); err != nil {
-			return err
-		}
-	} else if in.Due != "" {
-		return errSuggestion{"due goes with a to-do only"}
+	if in.Kind == SuggestTodo && in.Item != "" {
+		return errSuggestion{"a to-do is suggested by the conversation that processes the item, not one it was handed to"}
 	}
 	if in.Kind != SuggestReply && len(in.Changes) > 0 {
 		return errSuggestion{"changes go with a reply only"}
@@ -254,7 +245,7 @@ func (s *Service) suggestFrom(ctx context.Context, sessionID string, in suggestI
 			it.SuggestSeq = max(it.SuggestSeq, 1)
 		}
 		g := &InboxSuggestion{Version: it.SuggestSeq + 1, Kind: in.Kind, Text: in.Text, Note: clip(strings.TrimSpace(in.Note), 600),
-			Handback: in.Handback, Due: in.Due, Changes: in.Changes, At: now, Cwd: strings.TrimSpace(in.Cwd), Conversation: from}
+			Handback: in.Handback, Changes: in.Changes, At: now, Cwd: strings.TrimSpace(in.Cwd), Conversation: from}
 		if from != nil {
 			owner := *from
 			g.Owner = &owner
