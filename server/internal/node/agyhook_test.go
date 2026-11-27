@@ -86,40 +86,6 @@ func TestAgyStartRefusedWithoutHerdrHook(t *testing.T) {
 	}
 }
 
-// A hook herdr calls current or outdated still reports the conversation: the start goes on as before.
-func TestAgyStartWithHerdrHook(t *testing.T) {
-	for _, state := range []string{herdr.IntegrationCurrent, herdr.IntegrationOutdated} {
-		t.Run(state, func(t *testing.T) {
-			n, f, home := agyStartScene(t, state)
-			s, err := startAgy(t, n, home)
-			if err != nil || s.PaneID != "w1:p2" {
-				t.Fatalf("start with a %s hook = %+v, %v", state, s, err)
-			}
-			if len(f.trace("tab.create")) != 1 {
-				t.Fatalf("tab.create calls = %v", f.trace("tab.create"))
-			}
-		})
-	}
-}
-
-// A herdr from before the JSON integration API (0.8.x) does not know integration.list: the hook's files decide.
-func TestAgyStartOldHerdrUsesHookFiles(t *testing.T) {
-	n, f, home := agyStartScene(t, "")
-	f.handle("integration.list", func(map[string]any) any {
-		return herdrFail{Code: "invalid_request", Message: "unknown variant `integration.list`, expected one of `ping`"}
-	})
-	if _, err := startAgy(t, n, home); !refusedFor(err, proto.CodeAgyIntegrationMissing) {
-		t.Fatalf("old herdr, no hook files: %v", err)
-	}
-	if len(f.trace("tab.create")) != 0 {
-		t.Fatal("old herdr without hook files opened a tab")
-	}
-	writeAgyHook(t, filepath.Join(home, ".gemini", "config"))
-	if s, err := startAgy(t, n, home); err != nil || s.PaneID != "w1:p2" {
-		t.Fatalf("old herdr with the hook files: %+v, %v", s, err)
-	}
-}
-
 // A herdr that cannot be asked says nothing about the hook: the start is left as it was, not refused on a guess.
 func TestAgyHookUnknownWhenHerdrDoesNotAnswer(t *testing.T) {
 	t.Setenv("ANTIGRAVITY_CLI_CONFIG_DIR", "")

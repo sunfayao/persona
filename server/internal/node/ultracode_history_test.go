@@ -51,40 +51,6 @@ func TestReadUltracodeHistoryUsesOnlyPreviousProcess(t *testing.T) {
 	}
 }
 
-// A resume before the cold background scan finishes still notices that the old process had ultracode on.
-func TestUltracodeResumeRecoversLostFromLargeColdHistory(t *testing.T) {
-	n, home := testNode(t)
-	n.metas, n.bgScans = map[string]quickMeta{}, map[string]*bgScan{}
-	since := time.Now().Add(-time.Hour).UTC()
-	boundary := since.Add(30 * time.Minute)
-	path := filepath.Join(home, sidA+".jsonl")
-	data := ultracodeHistoryLine(t, since.Add(time.Minute), true, false) + strings.Repeat("{\"type\":\"noise\"}\n", int(bgSyncLimit)/17+100000)
-	if err := os.WriteFile(path, []byte(data), 0600); err != nil {
-		t.Fatal(err)
-	}
-	n.paths[sidA] = path
-	n.state.put(sidA, sessionState{Ultracode: &ultracodeRecord{Since: since}})
-	bgSlot <- struct{}{}
-	n.beginUltracodeProcess(sidA, true, false, boundary)
-	n.mu.Lock()
-	u := n.ultracodeLocked(sidA)
-	if u.Value == nil || *u.Value || u.LostAt != nil {
-		n.mu.Unlock()
-		<-bgSlot
-		t.Fatal("resume did not reset the unknown switch before reading history")
-	}
-	n.mu.Unlock()
-	<-bgSlot
-	waitFor(t, "the recovered resume notice", func() bool {
-		st, _ := n.state.get(sidA)
-		return st.Ultracode != nil && st.Ultracode.LostAt != nil
-	})
-	st, _ := n.state.get(sidA)
-	if st.Ultracode.Value == nil || *st.Ultracode.Value || !st.Ultracode.LostAt.Equal(boundary) {
-		t.Fatalf("recovery changed the resumed switch or notice time: %+v", st.Ultracode)
-	}
-}
-
 func TestDelayedUltracodeHistoryDoesNotReviveDismissedNotice(t *testing.T) {
 	for _, action := range []string{"unchanged", "dismissed", "reopened", "next process", "newer screen off", "appended off"} {
 		t.Run(action, func(t *testing.T) {

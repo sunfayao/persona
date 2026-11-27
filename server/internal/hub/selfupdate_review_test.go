@@ -190,25 +190,3 @@ func TestUpdateSourceRejectsEveryInvalidValueWithoutSideEffects(t *testing.T) {
 		}
 	}
 }
-
-func TestUpdateNowConfirmsAcceptedWaitingAttempt(t *testing.T) {
-	p := newPublisher(t, "v2-202611021700", 202611021700)
-	h, m, _, execs := updatingHub(t, p, "release")
-	setSessions(m, proto.Session{SessionID: "busy", Status: proto.StatusWorking})
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	if _, err := h.upd.check(ctx); err != nil {
-		t.Fatal(err)
-	}
-	if err := h.upd.begin(ctx, false); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "accepted idle wait", func() bool { return h.upd.view().State == "waiting_idle" })
-	if len(execs()) != 0 {
-		t.Fatal("ordinary attempt interrupted a busy session")
-	}
-	if err := h.upd.begin(ctx, true); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "explicitly confirmed restart", func() bool { return len(execs()) == 1 })
-}

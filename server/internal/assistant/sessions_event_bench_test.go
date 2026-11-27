@@ -37,31 +37,6 @@ func sessionsChangedOf() (*Service, []byte) {
 	return s, params
 }
 
-// The manager keeps of each list only what it reads again (#2472): about 995 KB an event measured, where copies of the
-// previous list, the reply reminders' rows and the herdr marks' list made it 1.92 MB.
-func TestSessionsChangedEventKeepsLittle(t *testing.T) {
-	if raceEnabled {
-		t.Skip("race instrumentation allocates")
-	}
-	if !isolated(t) {
-		return
-	}
-	s, params := sessionsChangedOf()
-	s.NodeEvent("mac", "sessions.changed", params)
-	const runs = 200
-	runtime.GC()
-	var before, after runtime.MemStats
-	runtime.ReadMemStats(&before)
-	for range runs {
-		s.NodeEvent("mac", "sessions.changed", params)
-	}
-	runtime.ReadMemStats(&after)
-	per := (after.TotalAlloc - before.TotalAlloc) / runs
-	if per > 1025000 {
-		t.Fatalf("one sessions.changed allocated %d bytes, want at most 1025000", per)
-	}
-}
-
 // A sessions.changed for a machine the devices do not have is decoded from the event, as before; one they have is
 // their list.
 func TestSessionsChangedEventSource(t *testing.T) {

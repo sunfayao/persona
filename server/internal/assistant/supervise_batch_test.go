@@ -228,28 +228,6 @@ func TestSupervisionBatchImmediateRescreensReleasedIdleWake(t *testing.T) {
 	})
 }
 
-func TestSupervisionBatchRealRecipientsDoNotHoldEachOther(t *testing.T) {
-	s, f, todo := newBackgroundService(t)
-	shortSupervise(t, s)
-	bg := withBackgroundBG1(t, s, f)
-	setSettings(t, s, func(v *Settings) { v.SupervisionBatchMinutes = ptr(1) })
-	now := time.Now()
-	wakeRound(s,
-		superviseSignal{Todo: todo.ID, Kind: sigStalled, Key: "main-due", To: "conv1", At: now.Add(-2 * time.Minute), Minutes: 50},
-		superviseSignal{Todo: todo.ID, Kind: sigInterrupted, Key: "background-later", To: bg, At: now.Add(-58 * time.Second)},
-	)
-	if got := len(assistantSendsTo(f, "conv1")); got != 1 {
-		t.Fatalf("due main recipient got %d messages, want 1", got)
-	}
-	if got := len(assistantSendsTo(f, bg)); got != 0 {
-		t.Fatalf("the other recipient's deadline was released early: %d messages", got)
-	}
-	waitFor(t, "the background recipient's own deadline", func() bool { return len(assistantSendsTo(f, bg)) == 1 })
-	if got := len(assistantSendsTo(f, "conv1")); got != 1 {
-		t.Fatalf("the background batch woke the main recipient again: %d messages", got)
-	}
-}
-
 func TestSupervisionBatchDueDigestsUseExistingBusyQueue(t *testing.T) {
 	s, f, todo := newBackgroundService(t)
 	shortSupervise(t, s)

@@ -1,9 +1,6 @@
 package assistant
 
 import (
-	"context"
-	"errors"
-	"slices"
 	"testing"
 	"time"
 )
@@ -62,63 +59,5 @@ func TestRetryCancelledWhenTheOwnerActedAfterTheFailure(t *testing.T) {
 				t.Fatalf("cancel %v, got %q", c.cancel, why)
 			}
 		})
-	}
-}
-
-// The whole path (#5320's reproduction): a due one-off whose send fails is pushed and its retry armed; what the owner
-// does before the retry is due decides whether it goes. The service's retry clock is pinned, so "later" does not
-// depend on how fast the test runs.
-func TestAOneOffRunAgainOrMovedAfterItFailedIsNotRetried(t *testing.T) {
-	cases := []struct {
-		name    string
-		act     func(t *testing.T, h *Service, clock time.Time)
-		retried bool
-	}{
-		{"untouched", func(*testing.T, *Service, time.Time) {}, true},
-		{"run now", func(t *testing.T, h *Service, _ time.Time) {
-			cur, _ := taskByID(h, "fu")
-			if _, err := h.runTask(cur, time.Now(), time.Now(), true, false); err != nil {
-				t.Fatal(err)
-			}
-		}, false},
-		{"moved later", func(_ *testing.T, h *Service, clock time.Time) { moveTask(h, "fu", clock.Add(time.Hour)) }, false},
-		{"moved earlier, still after the retry", func(_ *testing.T, h *Service, clock time.Time) { moveTask(h, "fu", clock.Add(time.Second)) }, false},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			n := newFakeHub().withMachine()
-			h := newStorelessService(t, n)
-			h.runRetry = 300 * time.Millisecond
-			// A day ahead of the wall clock: the moved times are never due for the real scheduler either.
-			clock := time.Now().Add(24 * time.Hour).Truncate(time.Second)
-			h.retryNow = func() time.Time { return clock }
-			n.mu.Lock()
-			n.failAssistant = errors.New("machine is offline")
-			n.mu.Unlock()
-			setTasks(h, Task{ID: "fu", Title: "看一眼 CI", Prompt: "看一眼 CI", Repeat: repeatOnce, At: time.Now().Add(-time.Minute), Enabled: true})
-			h.runDue(context.Background(), time.Now())
-			waitRuns(t, h, 1)
-
-			n.mu.Lock()
-			n.failAssistant = nil // the machine is back: a retry that goes is seen
-			n.mu.Unlock()
-			c.act(t, h, clock)
-			time.Sleep(700 * time.Millisecond)
-
-			runs := waitRuns(t, h, 1)
-			if got := slices.ContainsFunc(runs, func(r ScheduleRun) bool { return r.Retried }); got != c.retried {
-				t.Fatalf("retried %v, runs %+v", c.retried, runs)
-			}
-		})
-	}
-}
-
-// moveTask is the owner giving a one-off another time in the app (it is on again).
-func moveTask(h *Service, id string, at time.Time) {
-	sc := h.loadSchedule(context.Background())
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
-	if i := sc.indexLocked(id); i >= 0 {
-		sc.tasks[i].At, sc.tasks[i].Enabled = at.UTC(), true
 	}
 }

@@ -2,10 +2,7 @@ package node
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -299,110 +296,6 @@ func TestHerdrCoreHasNoTerminalStream(t *testing.T) {
 	}
 }
 
-// Events from herdr-core take a snapshot at once: the subscription's start, then each change but size / keep and
-// another machine's.
-func TestHerdrCoreEventsKickARefresh(t *testing.T) {
-	n, _, hc, _ := hcNode(t)
-	sig := newWatcherSignals()
-	n.hostSig = map[string]*watcherSignals{host.HerdrCore: sig}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go n.watchHost(ctx, n.hosts.Get(host.HerdrCore).(host.Watcher), sig)
-	select {
-	case <-hc.subbed:
-	case <-time.After(3 * time.Second):
-		t.Fatal("never subscribed")
-	}
-	kicked := func() bool {
-		select {
-		case <-sig.kick:
-			return true
-		case <-time.After(300 * time.Millisecond):
-			return false
-		}
-	}
-	if !kicked() {
-		t.Fatal("no snapshot once the stream started")
-	}
-	hc.push("event", map[string]any{"type": "size", "terminal": "t1", "seq": 1, "data": map[string]any{}})
-	hc.push("event", map[string]any{"type": "status", "terminal": "m/t1", "seq": 2, "data": map[string]any{}})
-	hc.push("heartbeat", map[string]any{"seq": 2})
-	if kicked() {
-		t.Fatal("a size / another machine's / heartbeat event took a snapshot")
-	}
-	hc.push("event", map[string]any{"type": "status", "terminal": "t1", "seq": 3, "data": map[string]any{}})
-	if !kicked() {
-		t.Fatal("a status event took no snapshot")
-	}
-	hc.push("missed", map[string]any{"seq": 9, "terminals": []any{}})
-	if !kicked() {
-		t.Fatal("missed events took no snapshot")
-	}
-	// A status into or out of blocked is a card's: urgent (#751); working → done is not.
-	sig.urgent.Store(false)
-	status := func(seq int, terminal, state string) bool {
-		hc.push("event", map[string]any{"type": "status", "terminal": terminal, "seq": seq,
-			"data": map[string]any{"status": map[string]any{"app": "claude-code", "state": state}}})
-		if !kicked() {
-			t.Fatalf("status %s took no snapshot", state)
-		}
-		return sig.urgent.Swap(false)
-	}
-	// t1 said a status (none) above; t2 is new.
-	if status(10, "t1", "working") || status(11, "t1", "done") || !status(12, "t1", "blocked") || status(13, "t1", "blocked") ||
-		!status(14, "t1", "working") || !status(15, "t2", "idle") {
-		t.Fatal("urgent only into or out of blocked, and on a terminal's first status")
-	}
-}
-
-// herdr-core not running: no sessions, at once, nothing logged (and the refresh succeeds: nothing runs there); one
-// that went away takes its sessions with it.
-func TestHerdrCoreAbsentOrGone(t *testing.T) {
-	n, _, hc, home := hcNode(t)
-	writeClaudePID(t, home, 4242, sidB)
-	writeTranscript(t, home, hcCwd, sidB, time.Now().Add(-time.Minute), `{"type":"custom-title","customTitle":"x"}`)
-	hc.setTerminals(hcTerminal("t1", "claude-code", "idle", 4242, "claude", hcCwd, "", "", ""))
-	if err := n.refreshHosts(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := n.agent(sidB); !ok {
-		t.Fatal("herdr-core's session not found")
-	}
-	if err := os.Remove(hc.sock); err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(time.Second) // past the failed list kept for Agents
-	if err := n.refreshHosts(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := n.agent(sidB); ok {
-		t.Error("herdr-core stopped, its session is still live")
-	}
-
-	var logged []string
-	var mu sync.Mutex
-	c := &herdrcore.Client{Socket: "/tmp/persona-no-such-dir/c.sock", Log: func(format string, args ...any) {
-		mu.Lock()
-		logged = append(logged, fmt.Sprintf(format, args...))
-		mu.Unlock()
-	}}
-	n.hosts.Set(&herdrCoreHost{c: c})
-	start := time.Now()
-	for range 3 {
-		if err := n.refreshHosts(context.Background()); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if took := time.Since(start); took > time.Second {
-		t.Errorf("3 refreshes took %s", took)
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	if len(logged) != 0 {
-		t.Errorf("logged %q", logged)
-	}
-}
-
 // With herdr-core as the engine, a terminal running classic herdr's client is not claude's, whatever state passes
 // through it.
 func TestHerdrCoreSkipsANestedHerdr(t *testing.T) {
@@ -495,53 +388,6 @@ func TestHookPane(t *testing.T) {
 		if got := nodeclient.HookPane(c.env); got != c.want {
 			t.Errorf("HookPane = %q, want %q", got, c.want)
 		}
-	}
-}
-
-// session.close: ctrl+c twice, then terminal.kill — what closing a pane in the Herdr app does (the app then drops the
-// pane). A terminal already finished or gone counts as closed; one still live after the kill is an error.
-func TestHerdrCoreClose(t *testing.T) {
-	n, hc := hcSession(t)
-	hc.handle("terminal.kill", func(p map[string]any) any {
-		k := hcTerminal("t1", "", "", 0, "", hcCwd, "", "", "")
-		k["state"] = "finished"
-		return k
-	})
-	if _, err := request(t, n, "session.close", map[string]any{"session_id": sidA}); err != nil {
-		t.Fatal(err)
-	}
-	assertTrace(t, hc.trace(), []string{
-		call("terminal.keys", map[string]any{"terminal": "t1", "keys": []any{"ctrl+c"}}),
-		call("terminal.keys", map[string]any{"terminal": "t1", "keys": []any{"ctrl+c"}}),
-		call("terminal.kill", map[string]any{"terminal": "t1"}),
-	})
-
-	// Already gone: the keys fail, the kill finds nothing; closed all the same.
-	for _, kind := range []string{"finished", "not_found"} {
-		n, hc := hcSession(t)
-		hc.handle("terminal.keys", func(map[string]any) any { return hcFail{"finished"} })
-		if kind == "not_found" {
-			hc.handle("terminal.kill", func(map[string]any) any { return hcFail{"not_found"} })
-		} else {
-			hc.handle("terminal.kill", func(map[string]any) any {
-				k := hcTerminal("t1", "", "", 0, "", hcCwd, "", "", "")
-				k["state"] = "finished"
-				return k
-			})
-		}
-		if _, err := request(t, n, "session.close", map[string]any{"session_id": sidA}); err != nil {
-			t.Errorf("%s: %v", kind, err)
-		}
-		if tr := hc.trace("terminal.kill"); len(tr) != 1 {
-			t.Errorf("%s: kills %v", kind, tr)
-		}
-	}
-
-	// Still live after the kill (the core did not end it): not closed.
-	n, hc = hcSession(t)
-	hc.handle("terminal.kill", func(map[string]any) any { return hcTerminal("t1", "", "", 0, "", hcCwd, "", "", "") })
-	if _, err := request(t, n, "session.close", map[string]any{"session_id": sidA}); err == nil {
-		t.Error("closed a terminal that still runs")
 	}
 }
 

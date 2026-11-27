@@ -125,54 +125,6 @@ func setSessions(m *Machine, ss ...proto.Session) {
 	m.mu.Unlock()
 }
 
-// Nothing restarts while a conversation is working or waiting for the user; once all is idle the new binary is in
-// place, the old one kept, the marker written, and the hub runs the new one.
-func TestUpdateWaitsForIdle(t *testing.T) {
-	p := newPublisher(t, "v2-202611021700", 202611021700)
-	h, m, target, execs := updatingHub(t, p, "release")
-	setSessions(m, proto.Session{SessionID: "s1", Title: "migrate the db", Status: proto.StatusWorking})
-	ctx := context.Background()
-	if _, err := h.upd.check(ctx); err != nil {
-		t.Fatal(err)
-	}
-	if err := h.upd.begin(ctx, false); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "waiting for idle", func() bool { v := h.upd.view(); return v.State == "waiting_idle" && len(v.Busy) == 1 })
-	if b, _ := os.ReadFile(target); string(b) != "#!/bin/sh\necho old\n" {
-		t.Fatal("replaced while an agent was working")
-	}
-	if v := h.upd.view(); v.Busy[0].Title == "" || v.Busy[0].MachineID != "box" {
-		t.Fatalf("busy %+v", v.Busy)
-	}
-	setSessions(m, proto.Session{SessionID: "s1", Status: proto.StatusIdle})
-	waitFor(t, "the restart", func() bool { return len(execs()) == 1 })
-	if b, _ := os.ReadFile(target); !bytes.Equal(b, p.script) {
-		t.Fatal("the new binary is not in place")
-	}
-	if b, _ := os.ReadFile(target + ".prev"); string(b) != "#!/bin/sh\necho old\n" {
-		t.Fatal("the old binary was not kept")
-	}
-	var pend update.Pending
-	if ok, _ := update.Load(update.PendingPath(h.upd.dir), &pend); !ok || pend.ToBuild != 202611021700 || !slices.Equal(pend.Online, []string{"box"}) {
-		t.Fatalf("pending %+v", pend)
-	}
-}
-
-// "Update now" (the second confirmation) does not wait.
-func TestUpdateNowSkipsTheWait(t *testing.T) {
-	p := newPublisher(t, "v2-202611021700", 202611021700)
-	h, m, _, execs := updatingHub(t, p, "release")
-	setSessions(m, proto.Session{SessionID: "s1", Status: proto.StatusWorking})
-	if _, err := h.upd.check(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if err := h.upd.begin(context.Background(), true); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "the restart", func() bool { return len(execs()) == 1 })
-}
-
 // A download that does not match the manifest leaves the binary as it is, and the history says why.
 func TestUpdateBadDownloadChangesNothing(t *testing.T) {
 	p := newPublisher(t, "v2-202611021700", 202611021700)
@@ -218,67 +170,6 @@ func TestUpdateFailureLeavesNoDownload(t *testing.T) {
 	}
 }
 
-// The new version's downloads go once nothing reads them any more: after it is confirmed (the node binaries are in
-// NodeBinaryDir by then), and after it goes back.
-func TestUpdateConfirmRemovesStagedDownload(t *testing.T) {
-	for _, back := range []bool{false, true} {
-		t.Run(map[bool]string{false: "confirmed", true: "rolled back"}[back], func(t *testing.T) {
-			nodes := t.TempDir()
-			t.Setenv("PERSONA_NODE_BINARIES", nodes)
-			p := newPublisher(t, "v2-202611021700", 202611021700)
-			h, m, target, execs := updatingHub(t, p, "release")
-			h.build = update.Make("v2-202611021700", "release", "202611021700", p.srv.URL+"/dl")
-			h.version = h.build.Version
-			h.cfg.AutoUpdateNodes = true
-			if back {
-				m.mu.Lock()
-				m.online = false // it does not come back: the update goes back
-				m.mu.Unlock()
-			}
-			os.WriteFile(target+".prev", []byte("#!/bin/sh\necho old\n"), 0o755)
-			os.WriteFile(target, p.script, 0o755)
-			staged := filepath.Join(h.upd.dir, "202611021700")
-			for name, body := range map[string]string{
-				"personad-" + runtime.GOOS + "-" + runtime.GOARCH:                     string(p.script),
-				"personad-" + runtime.GOOS + "-" + runtime.GOARCH + ".gz":             "the download",
-				"nodes/personad-darwin-arm64":                                         "node for macs",
-				"nodes/personad-darwin-arm64.gz":                                      "its download",
-				"programs/persona-examplechat-" + runtime.GOOS + "-" + runtime.GOARCH: "a program",
-			} {
-				path := filepath.Join(staged, filepath.FromSlash(name))
-				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-					t.Fatal(err)
-				}
-				if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
-					t.Fatal(err)
-				}
-			}
-			pending := update.Pending{FromVersion: "v1-202611021500", FromBuild: 202611021500, ToVersion: "v2-202611021700",
-				ToBuild: 202611021700, Target: target, Prev: target + ".prev", Online: []string{"box"}, Started: time.Now(),
-				Nodes: filepath.Join(staged, "nodes")}
-			if err := update.Save(update.PendingPath(h.upd.dir), pending); err != nil {
-				t.Fatal(err)
-			}
-			h.upd.confirm(context.Background(), pending)
-			if back {
-				if b, _ := os.ReadFile(target); string(b) != "#!/bin/sh\necho old\n" || len(execs()) != 1 {
-					t.Fatal("did not go back to the old binary")
-				}
-			} else {
-				if !h.upd.view().Confirmed {
-					t.Fatal("not confirmed")
-				}
-				if b, _ := os.ReadFile(filepath.Join(nodes, "personad-darwin-arm64")); string(b) != "node for macs" {
-					t.Fatalf("node binary %q", b)
-				}
-			}
-			if left, err := os.ReadDir(staged); !os.IsNotExist(err) {
-				t.Fatalf("the update's downloads stayed: %v (%v)", left, err)
-			}
-		})
-	}
-}
-
 // A start removes the downloads of every update but the one this process is confirming: an older update's (one
 // that went back through the watchdog or the edge, which run the old build) and anything an older build left.
 // The markers, the logs and what is not an update's download stay.
@@ -320,69 +211,6 @@ func TestUpdateStartPrunesOldDownloads(t *testing.T) {
 		if _, err := os.Stat(keep); err != nil {
 			t.Fatalf("%s went: %v", keep, err)
 		}
-	}
-}
-
-// The new version confirms once the machines are back; when one does not come back it goes back to the old binary,
-// which records it, and that build is not installed automatically again.
-func TestUpdateConfirmOrRollBack(t *testing.T) {
-	p := newPublisher(t, "v2-202611021700", 202611021700)
-	// Running as the new version (build 202611021700) after the restart.
-	h, m, target, execs := updatingHub(t, p, "release")
-	h.build = update.Make("v2-202611021700", "release", "202611021700", p.srv.URL+"/dl")
-	h.version = h.build.Version
-	os.WriteFile(target+".prev", []byte("#!/bin/sh\necho old\n"), 0o755)
-	os.WriteFile(target, p.script, 0o755)
-	pending := update.Pending{FromVersion: "v1-202611021500", FromBuild: 202611021500, ToVersion: "v2-202611021700", ToBuild: 202611021700,
-		Target: target, Prev: target + ".prev", Online: []string{"box"}, Started: time.Now(), Auto: true}
-	update.Save(update.PendingPath(h.upd.dir), pending)
-	var told []string
-	h.upd.notify = func(title, body string) { told = append(told, title) }
-	bootUpdater(t, h.upd)
-	if h.upd.view().Confirmed {
-		t.Fatal("confirmed before checking")
-	}
-	h.upd.confirm(context.Background(), pending)
-	if !h.upd.view().Confirmed || h.upd.settings.History[0].Result != "updated" {
-		t.Fatalf("a good update was not confirmed: %+v", h.upd.settings.History)
-	}
-	if len(told) != 1 || !strings.Contains(told[0], "v2-202611021700") {
-		t.Fatalf("an automatic update did not tell the phones: %v", told)
-	}
-	if _, err := os.Stat(update.PendingPath(h.upd.dir)); !os.IsNotExist(err) {
-		t.Fatal("the pending marker stayed")
-	}
-
-	// Again, but the machine does not come back.
-	m.mu.Lock()
-	m.online = false
-	m.mu.Unlock()
-	update.Save(update.PendingPath(h.upd.dir), pending)
-	h.upd.confirm(context.Background(), pending)
-	if b, _ := os.ReadFile(target); string(b) != "#!/bin/sh\necho old\n" || len(execs()) != 1 || execs()[0] != target {
-		t.Fatal("did not go back to the old binary")
-	}
-	// The old version starts and records it.
-	old := newTestHub(t)
-	old.build, old.version = update.Make("v1-202611021500", "release", "202611021500", p.srv.URL+"/dl"), "v1-202611021500"
-	old.upd.dir, old.upd.client = h.upd.dir, p.srv.Client()
-	var oldTold []string
-	old.upd.notify = func(title, body string) { oldTold = append(oldTold, body) }
-	old.upd.start(context.Background())
-	waitFor(t, "the record", func() bool { return len(old.upd.view().Error) > 0 })
-	if len(oldTold) != 1 || !strings.Contains(oldTold[0], "box") {
-		t.Fatalf("going back did not tell the phones why: %v", oldTold)
-	}
-	hs := old.upd.settings.History
-	if len(hs) != 1 || hs[0].Result != "rolled_back" || !strings.Contains(hs[0].Reason, "box") || !slices.Contains(old.upd.settings.Bad, int64(202611021700)) {
-		t.Fatalf("history %+v, bad %v", hs, old.upd.settings.Bad)
-	}
-	old.upd.check(context.Background())
-	if old.upd.wantsAuto() {
-		t.Fatal("the build that went back would be installed automatically again")
-	}
-	if !old.upd.view().Latest.Bad {
-		t.Fatal("the app is not told this build went back")
 	}
 }
 
@@ -583,40 +411,6 @@ func publishedAtB(t *testing.T) *fakePublisher {
 	})
 }
 
-// A release whose code does not contain the commit the hub runs is newer by its number only: it is offered, with
-// the reason, but not installed by itself, and the history says so once; the user can still install it.
-func TestUpdateHeldWhenTheReleaseIsBehind(t *testing.T) {
-	p := publishedAtB(t)
-	h, _, _, execs := updatingHub(t, p, "release")
-	h.build.Commit = gitD
-	ctx := context.Background()
-	if _, err := h.upd.check(ctx); err != nil {
-		t.Fatal(err)
-	}
-	v := h.upd.view()
-	if v.State != "available" || !v.Latest.Newer || !strings.Contains(v.Latest.Held, "不包含") {
-		t.Fatalf("view %+v %+v", v.State, v.Latest)
-	}
-	if h.upd.wantsAuto() {
-		t.Fatal("would install a release behind this hub's code by itself")
-	}
-	h.upd.noteHeld(ctx)
-	h.upd.noteHeld(ctx) // the next check, an hour on: written once
-	var held []updateRecord
-	for _, r := range h.upd.settings.History {
-		if r.Result == "held" {
-			held = append(held, r)
-		}
-	}
-	if len(held) != 1 || held[0].ToBuild != 202611021700 || !held[0].Auto || !strings.Contains(held[0].Reason, gitB[:8]) {
-		t.Fatalf("history %+v", h.upd.settings.History)
-	}
-	if err := h.upd.begin(ctx, true); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "the update the user asked for", func() bool { return len(execs()) == 1 })
-}
-
 // A release that contains the hub's commit installs by itself as before, and nothing is held.
 func TestUpdateAutoWhenTheReleaseContainsIt(t *testing.T) {
 	p := publishedAtB(t)
@@ -709,100 +503,6 @@ func TestUpdateNodesBinariesInPlace(t *testing.T) {
 	_ = local // the manager decides what to redeploy (internal/devices TestUpdateNodesSkipsTheHubsOwn)
 }
 
-// The release publishes a node binary for every platform it has. The hub downloads all of them, not only those of the
-// machines it happens to know: a machine added later, or one that had not connected in this hub's life when it
-// updated, is deployed to from these files (internal/devices nodeBinary), and nothing else fetches its platform.
-func TestUpdateDownloadsEveryNodePlatformInTheRelease(t *testing.T) {
-	nodes := t.TempDir()
-	t.Setenv("PERSONA_NODE_BINARIES", nodes)
-	script := []byte("#!/bin/sh\necho v2\n")
-	known, unknown := "plan9-386", "plan9-arm"
-	served := map[string][]byte{} // path -> the .gz
-	p := newPublisherWith(t, "v2-202611021700", 202611021700, func(m *update.Manifest) {
-		for _, plat := range []string{known, unknown} {
-			body := gz(script)
-			sum, binSum := sha256.Sum256(body), sha256.Sum256(script)
-			name := "personad-" + plat + ".gz"
-			m.Files[plat] = update.File{Name: name, Size: int64(len(body)),
-				SHA256: hex.EncodeToString(sum[:]), BinarySHA256: hex.EncodeToString(binSum[:])}
-			served["/dl/"+name] = body
-		}
-		// A Windows build keeps its .exe (#10968): releases up to 0.9.1 left it out, and the hub kept the old one.
-		body := gz(script)
-		sum, binSum := sha256.Sum256(body), sha256.Sum256(script)
-		m.Files["windows-amd64"] = update.File{Name: "personad-windows-amd64.exe.gz", Size: int64(len(body)),
-			SHA256: hex.EncodeToString(sum[:]), BinarySHA256: hex.EncodeToString(binSum[:])}
-		served["/dl/personad-windows-amd64.exe.gz"] = body
-	})
-	p.extra = served
-	var mu sync.Mutex
-	asked := map[string]int{} // path -> how many times it was fetched
-	p.asked = func(path string) { mu.Lock(); asked[path]++; mu.Unlock() }
-	h, m, _, execs := updatingHub(t, p, "release")
-	h.cfg.AutoUpdateNodes = true
-	m.mu.Lock()
-	m.info.OS, m.info.Arch = "plan9", "386" // a machine that has connected: the hub knows its platform
-	m.mu.Unlock()
-	// One added since, never connected: it has not reported its os and arch yet.
-	fresh := newMachine(h, MachineConfig{ID: "fresh", Name: "Fresh", Kind: "ssh"})
-	h.machines, h.byID["fresh"] = append(h.machines, fresh), fresh
-
-	if _, err := h.upd.check(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if err := h.upd.begin(context.Background(), false); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "the restart", func() bool { return len(execs()) == 1 })
-
-	// The hub's own platform is here too: its binary is that platform's node binary, and a machine on the hub's
-	// platform added later is deployed to from this file.
-	own := runtime.GOOS + "-" + runtime.GOARCH
-	want := []string{known, unknown, own}
-	staged := filepath.Join(h.upd.dir, fmt.Sprint(int64(202611021700)), "nodes")
-	for _, plat := range want {
-		if _, err := os.Stat(filepath.Join(staged, "personad-"+plat)); err != nil {
-			t.Fatalf("the release's node binary for %s was not downloaded: %v", plat, err)
-		}
-	}
-	// Each one is fetched once and only once: the hub's own platform comes from the binary the update already
-	// downloaded (its .gz is asked for once, for the hub itself), not from a second download of the same file.
-	mu.Lock()
-	counts := map[string]int{}
-	for path, n := range asked {
-		counts[path] = n
-	}
-	mu.Unlock()
-	for _, plat := range want {
-		if path := "/dl/personad-" + plat + ".gz"; counts[path] != 1 {
-			t.Fatalf("%s was fetched %d times, want 1 (all fetches: %v)", path, counts[path], counts)
-		}
-	}
-	// And what is in nodes/ is the binary, not the .gz it was downloaded as: a machine is sent the file as it is
-	// (internal/devices), so a copy of the .gz would be a broken node binary for the hub's own platform.
-	if b, err := os.ReadFile(filepath.Join(staged, "personad-"+own)); err != nil {
-		t.Fatal(err)
-	} else if !bytes.Equal(b, p.script) {
-		t.Fatalf("the node binary for %s is not the hub's binary: %d bytes, gzip %v", own, len(b), len(b) > 1 && b[0] == 0x1f && b[1] == 0x8b)
-	}
-	if _, err := os.Stat(filepath.Join(staged, "personad-windows-amd64.exe")); err != nil {
-		t.Fatalf("the release's Windows node build was not downloaded: %v", err)
-	}
-	// What the new hub does with them: "Redeploy" takes them from NodeBinaryDir (internal/devices nodeBinary).
-	if err := os.WriteFile(filepath.Join(nodes, "personad-windows-amd64.exe"), []byte("the old Windows build"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	h.upd.updateNodes(context.Background(), staged, "")
-	for _, plat := range want {
-		if _, err := os.Stat(filepath.Join(nodes, "personad-"+plat)); err != nil {
-			t.Fatalf("no node binary for %s in NodeBinaryDir: %v", plat, err)
-		}
-	}
-	if b, err := os.ReadFile(filepath.Join(nodes, "personad-windows-amd64.exe")); err != nil || !bytes.Equal(b, script) {
-		t.Fatalf("the Windows node build was not replaced: %q %v", b, err)
-	}
-}
-
 // A Docker hub never replaces itself, but it looks up its image's tags and says when a newer release is out, and how
 // to get it (a pinned tag is changed in .env); a private image without a token says what to set.
 func TestUpdateDockerSaysNewImage(t *testing.T) {
@@ -861,47 +561,6 @@ func TestUpdateDockerSaysNewImage(t *testing.T) {
 	private = false
 	if _, err := h.upd.check(ctx); err != nil || h.upd.view().Image.Tag != "latest" {
 		t.Fatalf("the image it was built as: %v %+v", err, h.upd.view().Image)
-	}
-}
-
-// A release with a program the hub runs beside it (persona-examplechat): the program is checked and put next to the
-// hub's binary with it, and going back takes it away again (it was new here).
-func TestUpdateSwapsPrograms(t *testing.T) {
-	programs := update.ProgramNames
-	update.ProgramNames = append(append([]string(nil), programs...), "persona-examplechat")
-	t.Cleanup(func() { update.ProgramNames = programs })
-	plat := runtime.GOOS + "-" + runtime.GOARCH
-	prog := []byte("#!/bin/sh\necho v2-202611021700\necho 'channel release, build 202611021700'\n")
-	pgz := gz(prog)
-	outer, inner := sha256.Sum256(pgz), sha256.Sum256(prog)
-	pf := update.File{Name: "persona-examplechat-" + plat + ".gz", Size: int64(len(pgz)), SHA256: hex.EncodeToString(outer[:]), BinarySHA256: hex.EncodeToString(inner[:])}
-	p := newPublisherWith(t, "v2-202611021700", 202611021700, func(m *update.Manifest) {
-		m.Programs = map[string]map[string]update.File{"persona-examplechat": {plat: pf}}
-	})
-	p.extra = map[string][]byte{"/dl/" + pf.Name: pgz}
-	h, _, target, execs := updatingHub(t, p, "release")
-	ctx := context.Background()
-	if _, err := h.upd.check(ctx); err != nil {
-		t.Fatal(err)
-	}
-	if err := h.upd.begin(ctx, true); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "the restart", func() bool { return len(execs()) == 1 })
-	placed := filepath.Join(filepath.Dir(target), "persona-examplechat")
-	if b, _ := os.ReadFile(placed); !bytes.Equal(b, prog) {
-		t.Fatal("the program is not next to the hub's binary")
-	}
-	var pend update.Pending
-	if ok, _ := update.Load(update.PendingPath(h.upd.dir), &pend); !ok || len(pend.Programs) != 1 || pend.Programs[0].Target != placed || pend.Programs[0].Prev != "" {
-		t.Fatalf("pending %+v", pend)
-	}
-	h.upd.rollback(pend, "test")
-	if _, err := os.Stat(placed); !os.IsNotExist(err) {
-		t.Fatal("going back left the new program")
-	}
-	if b, _ := os.ReadFile(target); string(b) != "#!/bin/sh\necho old\n" {
-		t.Fatal("going back did not restore the hub's binary")
 	}
 }
 

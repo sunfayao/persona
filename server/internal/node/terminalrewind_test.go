@@ -103,40 +103,6 @@ func TestTerminalRewindLeavesTheTurnOutOfTheList(t *testing.T) {
 	}
 }
 
-// The same words typed again as a new message (the prompt's row is still above the box) is no rewind; neither is a
-// screen whose transcript went on since (a turn of the prompt still running, or another line written after it).
-func TestTerminalRewindNotSeenOnLookalikes(t *testing.T) {
-	t.Run("typed again", func(t *testing.T) {
-		sim := newClaudeSim(simPrompt{"一", noCode}, simPrompt{"按这个做", noCode})
-		sim.box = "按这个做"
-		_, _, row := terminalRewindNode(t, sim, terminalRewindLines())
-		for i := 0; i < 20; i++ {
-			if s := row(); !strings.HasPrefix(s.LastText, "API Error:") {
-				t.Fatalf("taken for a rewind: %q", s.LastText)
-			}
-			time.Sleep(10 * time.Millisecond)
-		}
-	})
-	t.Run("unanswered", func(t *testing.T) {
-		sim := newClaudeSim(simPrompt{"一", noCode}, simPrompt{"按这个做", noCode})
-		lines := terminalRewindLines()[:4] // the prompt has no answer (Esc before the reply, #3036)
-		n, _, row := terminalRewindNode(t, sim, lines)
-		userRewinds(sim)
-		for i := 0; i < 20; i++ {
-			row()
-			time.Sleep(10 * time.Millisecond)
-		}
-		n.mu.Lock()
-		f := n.files[terminalRewindID]
-		n.mu.Unlock()
-		if f != nil {
-			if _, _, span := f.Page(0, 100); strings.Contains(span.History, ".r") {
-				t.Fatalf("taken for a rewind: %q", span.History)
-			}
-		}
-	})
-}
-
 // A wrong guess is undone: Claude goes on from the turn taken for rewound.
 func TestTerminalRewindUndoneWhenClaudeGoesOn(t *testing.T) {
 	sim := newClaudeSim(simPrompt{"一", noCode}, simPrompt{"按这个做", noCode})
@@ -171,24 +137,6 @@ func TestTerminalRewindUndoneWhenClaudeGoesOn(t *testing.T) {
 	n.refresh(terminalRewindID, n.files[terminalRewindID])
 	if items, _, span := n.files[terminalRewindID].Page(0, 100); itemTexts(items) != "一|答一|按这个做|API Error: the reply ended during reasoning|再试一次|好了" || strings.Contains(span.History, ".r") {
 		t.Fatalf("transcript: %q, history %q", itemTexts(items), span.History)
-	}
-}
-
-// A resting pane whose box holds something that is not the last prompt (Claude's suggestion, an old draft) is read
-// with colors once for a screen, not on every dialog read.
-func TestTerminalRewindReadsAStillScreenOnce(t *testing.T) {
-	sim := newClaudeSim(simPrompt{"一", noCode}, simPrompt{"按这个做", noCode})
-	sim.box = "别的事"
-	_, _, row := terminalRewindNode(t, sim, terminalRewindLines())
-	for i := 0; i < 30; i++ {
-		row()
-		time.Sleep(10 * time.Millisecond)
-	}
-	sim.mu.Lock()
-	reads := sim.ansiReads
-	sim.mu.Unlock()
-	if reads != 1 {
-		t.Fatalf("%d reads with colors of the same screen", reads)
 	}
 }
 

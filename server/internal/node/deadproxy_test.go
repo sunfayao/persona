@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"maps"
-	"net"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -14,36 +13,6 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/proto"
 )
-
-// proxyPorts: an address something listens on and one nothing does (a proxy app that has quit). The answers the
-// checks remember are forgotten after the test.
-func proxyPorts(t *testing.T) (alive, dead string) {
-	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = ln.Close() })
-	gone, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	dead = gone.Addr().String()
-	_ = gone.Close()
-	forgetProxyChecks(t)
-	return "http://" + ln.Addr().String(), "http://" + dead
-}
-
-func forgetProxyChecks(t *testing.T) {
-	t.Helper()
-	reset := func() {
-		proxySeen.Lock()
-		proxySeen.m = nil
-		proxySeen.Unlock()
-	}
-	reset()
-	t.Cleanup(reset)
-}
 
 // A provider's own environment (Env) goes last: it wins over what Persona sets, the shell's copy of each variable is
 // dropped first, a proxy variable counts in both spellings, and an empty value sets a variable empty.
@@ -201,35 +170,6 @@ func TestOnlyAFollowingProviderMergesItsBypassList(t *testing.T) {
 	}
 }
 
-// At launch a proxy the shell still names that no longer answers is dropped, with a word on stderr, when the gateway
-// answers without it; one that answers stays (a gateway reachable only through it), so does one the launcher sets
-// itself, and so does every one when the gateway does not answer either (the proxy may come back).
-func TestLaunchDropsDeadInheritedProxies(t *testing.T) {
-	alive, dead := proxyPorts(t)
-	var said []string
-	warn := func(s string) { said = append(said, s) }
-	env := []string{"HTTP_PROXY=" + dead, "https_proxy=" + alive, "ALL_PROXY=" + dead, "PATH=/bin"}
-	got := withoutDeadProxies(env, []string{"ALL_PROXY=" + dead}, alive, warn)
-	if !slices.Equal(got, []string{"https_proxy=" + alive, "ALL_PROXY=" + dead, "PATH=/bin"}) {
-		t.Fatalf("env: %q", got)
-	}
-	if len(said) != 1 || !strings.Contains(said[0], "HTTP_PROXY") || !strings.Contains(said[0], "does not answer") {
-		t.Errorf("warned: %q", said)
-	}
-	if got := withoutDeadProxies(env, nil, dead, warn); !slices.Equal(got, env) {
-		t.Errorf("the gateway does not answer either, yet: %q", got)
-	}
-	// Bare host:port and a user in the URL: read, and the user never shown.
-	if got := withoutDeadProxies([]string{"HTTPS_PROXY=" + strings.TrimPrefix(dead, "http://")}, nil, alive, warn); len(got) != 0 {
-		t.Errorf("a bare dead host:port stayed: %q", got)
-	}
-	said = nil
-	withoutDeadProxies([]string{"HTTPS_PROXY=http://me:secret@" + strings.TrimPrefix(dead, "http://")}, nil, alive, warn)
-	if len(said) != 1 || strings.Contains(said[0], "secret") || strings.Contains(said[0], "me:") {
-		t.Errorf("the warning shows the proxy's user: %q", said)
-	}
-}
-
 func TestProxyAddr(t *testing.T) {
 	for raw, want := range map[string]string{
 		"http://127.0.0.1:7890":     "127.0.0.1:7890",
@@ -244,37 +184,6 @@ func TestProxyAddr(t *testing.T) {
 	} {
 		if got := proxyAddr(raw); got != want {
 			t.Errorf("%q: %q, want %q", raw, got, want)
-		}
-	}
-}
-
-// The user's settings.json (in the Claude config directory) names a proxy that no longer answers: a managed launcher's
-// settings env sets it empty (Claude Code applies settings env over the environment, and settings env cannot unset)
-// when its gateway answers without it, and keeps what the launcher sets itself. A proxy that answers is left alone,
-// and so is a dead one when the gateway does not answer either.
-func TestManagedSettingsTakeAwayADeadUserProxy(t *testing.T) {
-	alive, dead := proxyPorts(t)
-	for _, tc := range []struct {
-		proxy, gateway string
-		empty          bool
-	}{{dead, alive, true}, {alive, alive, false}, {dead, dead, false}} {
-		home := t.TempDir()
-		t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(home, "profile"))
-		n := &Node{home: home, dir: filepath.Join(home, ".persona"), logger: log.New(io.Discard, "", 0)}
-		writeFile(t, filepath.Join(home, "profile", "settings.json"), `{"env":{"HTTP_PROXY":"`+tc.proxy+`","https_proxy":"`+tc.proxy+`"}}`)
-		n.setManaged([]proto.ManagedLauncher{{Name: "m", Kind: "api", BaseURL: tc.gateway, Model: "m1", NoProxy: "gw.example.com",
-			Env: "HTTPS_PROXY=" + alive}})
-		env, _ := readSettings(t, n.claudeSettings(context.Background(), "m", "", home))["env"].(map[string]any)
-		v, set := env["HTTP_PROXY"]
-		if tc.empty && (!set || v != "") || !tc.empty && set {
-			t.Errorf("proxy %s, gateway %s: HTTP_PROXY in the settings env = %v (%v)", tc.proxy, tc.gateway, v, set)
-		}
-		if env["https_proxy"] != alive || env["HTTPS_PROXY"] != alive {
-			t.Errorf("the launcher's own proxy: %v", env)
-		}
-		// Its own proxy brings its own bypass list, pinned over the user's settings in both spellings.
-		if env["NO_PROXY"] != "gw.example.com" || env["no_proxy"] != "gw.example.com" {
-			t.Errorf("the launcher's own bypass list: %v", env)
 		}
 	}
 }

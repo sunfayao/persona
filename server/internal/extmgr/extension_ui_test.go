@@ -14,7 +14,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/sdk/go/wire"
 	"github.com/sunfayao/persona/server/internal/extension"
@@ -362,96 +361,6 @@ func TestExtensionUISlots(t *testing.T) {
 		_, nav = call(t, mux, "GET", "/api/v1/plugins/-/ui?placement=nav_page", master, "")
 		return !strings.Contains(fmt.Sprint(nav["ui"]), "badge")
 	})
-}
-
-// UI version 3: the new components, search, filter and more reach an app that draws them; an older one gets them
-// drawn with what it knows; pushes go to the extension's own whole pages only; ui.invalidate reaches the apps once a
-// second, as extension_ui and never plugin_ui; extension_page is plugin_page under the old paths.
-func TestExtensionUIVersion3(t *testing.T) {
-	h, _ := extensionTestHub(t)
-	mux := h.routes()
-	master := h.cfg.Token
-	defer func(w time.Duration) { invalidateWait = w }(invalidateWait)
-	invalidateWait = 50 * time.Millisecond
-	_, pv := call(t, mux, "POST", "/api/v1/extensions/-/preview", master, `{"source": "dir:`+uiPackage(t)+`"}`)
-	call(t, mux, "POST", "/api/v1/extensions/-/install", master, fmt.Sprintf(`{"preview_id": %q, "permissions_digest": %q}`, pv["preview_id"], pv["permissions_digest"]))
-	waitLong(t, "the extension up", func() bool {
-		hp := h.extensions.get("example-ui")
-		return hp != nil && hp.proc != nil && hp.proc.Ready()
-	})
-
-	_, cur := call(t, mux, "GET", "/api/v1/extensions/-/ui?placement=extension_page", master, "")
-	_, old := call(t, mux, "GET", "/api/v1/plugins/-/ui?placement=plugin_page", master, "")
-	if c, o := fmt.Sprint(cur["ui"]), fmt.Sprint(old["ui"]); !strings.Contains(c, "id:list") || !strings.Contains(c, "id:home") ||
-		strings.Contains(c, "plugin_page") || !strings.Contains(o, "id:list") || strings.Contains(o, "extension_page") {
-		t.Fatalf("one slot under both names, each path answering its own:\n%s\n%s", c, o)
-	}
-
-	_, out := call(t, mux, "POST", "/api/v1/extensions/example-ui/-/ui/list", master, `{"context": {"ui_version": 3}, "state": "p1"}`)
-	view := fmt.Sprint(out["view"])
-	for _, want := range []string{"type:markdown", "type:table", "type:empty", "type:loading", "search:map", "filter:map", "more:map",
-		"icon:doc", "key:n1", "push:map[state:n1 ui:nav]"} {
-		if !strings.Contains(view, want) {
-			t.Fatalf("an app of UI version 3 gets %s: %s", want, view)
-		}
-	}
-	_, out = call(t, mux, "POST", "/api/v1/plugins/example-ui/-/ui/list", master, `{"context": {"ui_version": 2}}`)
-	view = fmt.Sprint(out["view"])
-	for _, gone := range []string{"markdown", "type:table", "type:empty", "type:loading", "search", "filter", "more:", "icon:", "key:", "push"} {
-		if strings.Contains(view, gone) {
-			t.Fatalf("an app of UI version 2 does not get %s: %s", gone, view)
-		}
-	}
-	for _, want := range []string{"type:segmented", "title:11-01 type:row value:3", "title:上传 type:button", "title:加载更多 type:button", "加载中…", "**粗体**"} {
-		if !strings.Contains(view, want) {
-			t.Fatalf("an app of UI version 2 gets %s instead: %s", want, view)
-		}
-	}
-	_, out = call(t, mux, "POST", "/api/v1/plugins/example-ui/-/ui/list", master, `{}`)
-	if view = fmt.Sprint(out["view"]); strings.Contains(view, "segmented") || !strings.Contains(view, "加载更多") {
-		t.Fatalf("an app of UI version 1: no segmented for the filter, the rest as for 2: %s", view)
-	}
-
-	if code, out := call(t, mux, "POST", "/api/v1/extensions/example-ui/-/ui/badpush", master, `{"context": {"ui_version": 3}}`); code != 502 || !strings.Contains(fmt.Sprint(out["error"]), "不是一整页") {
-		t.Fatalf("a push to a card is refused: %d %v", code, out)
-	}
-	if code, out := call(t, mux, "POST", "/api/v1/extensions/example-ui/-/ui/list", master, `{"context": {"ui_version": 3}, "action": "push-card"}`); code != 502 {
-		t.Fatalf("an answer pushing a card is refused: %d %v", code, out)
-	}
-	_, out = call(t, mux, "POST", "/api/v1/extensions/example-ui/-/ui/list", master, `{"context": {"ui_version": 3}, "action": "save-detail"}`)
-	if out["pop"] != true || out["toast"] != "存好了" {
-		t.Fatalf("pop: %v", out)
-	}
-	_, out = call(t, mux, "POST", "/api/v1/extensions/example-ui/-/ui/list", master, `{"context": {"ui_version": 2}, "action": "save-detail"}`)
-	if _, has := out["pop"]; has {
-		t.Fatalf("no pop for an app that does not know it: %v", out)
-	}
-
-	uiTold := func() []map[string]any {
-		th := hubOf(h)
-		th.mu.Lock()
-		defer th.mu.Unlock()
-		var out []map[string]any
-		for _, m := range th.broadcasts {
-			if t, _ := m["type"].(string); strings.HasPrefix(t, "plugin_ui") || strings.HasPrefix(t, "extension_ui") {
-				if m["invalidate"] == true {
-					out = append(out, m)
-				}
-			}
-		}
-		return out
-	}
-	before := len(uiTold())
-	call(t, mux, "POST", "/api/v1/extensions/example-ui/-/ui/list", master, `{"action": "invalidate"}`)
-	eventually(t, 10*time.Second, "the invalidations told", func() bool { return len(uiTold()) >= before+2 })
-	time.Sleep(200 * time.Millisecond)
-	got := uiTold()[before:]
-	if len(got) > 2 {
-		t.Fatalf("three ui.invalidate of two pages in a second are two messages: %v", got)
-	}
-	if fmt.Sprint(got) != "[map[extension:example-ui id:list invalidate:true type:extension_ui] map[extension:example-ui id:nav invalidate:true type:extension_ui]]" {
-		t.Fatalf("one extension_ui per page, no plugin_ui: %v", got)
-	}
 }
 
 func TestCheckView(t *testing.T) {

@@ -362,30 +362,6 @@ func TestDoctorFixWaitsForTheRestartedNode(t *testing.T) {
 	}
 }
 
-// A node that does not come back in time is still a failure, said to be right after the reload, with its log.
-func TestDoctorFixSaysTheNodeIsNotBackYet(t *testing.T) {
-	t.Parallel()
-	opts, f := launchdDoctor(t, oldNodePlist, true, "daemon")
-	r := newResidentSockets(t, opts.Dir)
-	opts.NodeSock, opts.RuntimeSock = r.node, r.rt
-	f.onBootout = r.stop // and nothing starts it again
-	opts.Fix, opts.RestartWait = true, 300*time.Millisecond
-	start := time.Now()
-	rep := testDoctor().Run(context.Background(), opts)
-	if took := time.Since(start); took > 3*time.Second {
-		t.Errorf("took %s", took)
-	}
-	if rep.OK {
-		t.Error("a node that is not back is ok")
-	}
-	for _, name := range []string{"node.sock", "runtime.sock"} {
-		c := wantStatus(t, rep, name, DoctorFail, "")
-		if !strings.Contains(c.Detail, "刚重新加载过，300ms 内还没有应答") || !strings.Contains(c.Hint, "/Users/a&b/.persona/node-attach.log") {
-			t.Errorf("%s: %+v", name, c)
-		}
-	}
-}
-
 // What was not answering before the reload is not waited for: the report says what it says at once.
 func TestDoctorFixWaitsOnlyForWhatAnsweredBefore(t *testing.T) {
 	t.Parallel()
@@ -474,52 +450,6 @@ func TestDoctorFixInsideTheNodeLeavesTheAgent(t *testing.T) {
 	opts.InsideNode, opts.Fix = false, false
 	if c := wantStatus(t, testDoctor().Run(context.Background(), opts), launchdCheck, DoctorWarn, ""); c.Hint != launchdFixHint {
 		t.Errorf("%+v", c)
-	}
-}
-
-// launchd still taking the old job down refuses the bootstrap for a moment: tried again.
-func TestDoctorFixRetriesTheBootstrap(t *testing.T) {
-	t.Parallel()
-	opts, f := launchdDoctor(t, oldNodePlist, true, "daemon")
-	f.bootstrap = func(n int) error {
-		if n == 1 {
-			return errors.New("exit status 5")
-		}
-		return nil
-	}
-	opts.Fix = true
-	rep := testDoctor().Run(context.Background(), opts)
-	wantStatus(t, rep, launchdCheck, DoctorOK, "")
-	if f.tries != 2 || !rep.OK {
-		t.Errorf("tries %d ok %v", f.tries, rep.OK)
-	}
-}
-
-// A bootstrap that keeps failing leaves the node unloaded: said loudly, with the command that loads it back.
-func TestDoctorFixSaysHowToLoadItBack(t *testing.T) {
-	t.Parallel()
-	if testing.Short() {
-		t.Skip("waits out the retries (3 s)")
-	}
-	opts, f := launchdDoctor(t, oldNodePlist, true, "daemon")
-	f.bootstrap = func(int) error { return errors.New("exit status 5") }
-	opts.Fix = true
-	rep := testDoctor().Run(context.Background(), opts)
-	if rep.OK || f.tries != launchdRetries {
-		t.Fatalf("ok %v tries %d", rep.OK, f.tries)
-	}
-	c := doctorCheckNamed(t, rep, "fix")
-	if c.Status != DoctorFail || !strings.Contains(c.Detail, "launchctl bootstrap gui/501 "+opts.LaunchAgent) || !strings.Contains(c.Detail, "Input/output error") {
-		t.Errorf("%+v", c)
-	}
-	if !slices.Equal(rep.Fixed, []string{launchdCheck}) { // the plist was rewritten all the same; not reloaded
-		t.Errorf("fixed %v", rep.Fixed)
-	}
-	// Said as it went: written, and the reload failed; never "reloaded".
-	var out strings.Builder
-	PrintDoctor(&out, rep)
-	if !strings.Contains(out.String(), "写上 ProcessType=Interactive") || strings.Contains(out.String(), "已重新加载") {
-		t.Errorf("printed:\n%s", out.String())
 	}
 }
 

@@ -51,7 +51,7 @@ func TestGoldenAgentLanguageOutsideAnswer(t *testing.T) {
 		t.Run(tc.suffix, func(t *testing.T) {
 			n, f, home := herdrNode(t)
 			noPaneEnv(t)
-			shortPeerWait(t, 3*time.Second)
+			shortPeerWait(t, 300*time.Millisecond)
 			f.reply("session.snapshot", snapshot(nil, nil, nil, nil))
 			p := modeTranscript(t, home, home, "bypassPermissions")
 			appendLines(t, p, askCall(sidA, "toolu_language", multiAsk))

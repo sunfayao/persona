@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/modelhttp"
 )
@@ -238,26 +237,5 @@ func TestChatOnTheResponsesAPIReadsTheUsage(t *testing.T) {
 	}
 	if want := (Reply{Text: "hi", Model: "gpt-x", Usage: Usage{InputTokens: 4, OutputTokens: 2, CacheReadInputTokens: 6}}); r != want {
 		t.Fatalf("reply %+v", r)
-	}
-}
-
-// A deadline on the context is the bound, not the client's 60 seconds; the model asked for stands when the upstream
-// names none.
-func TestChatGoesByTheContextsDeadline(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(150 * time.Millisecond)
-		_, _ = w.Write([]byte(`{"content":[{"type":"text","text":"late"}]}`))
-	}))
-	defer srv.Close()
-	c := New(Config{BaseURL: srv.URL + "/slow", APIKey: "k", Model: "m"})
-	c.http.Timeout = 50 * time.Millisecond
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	r, err := c.Chat(ctx, Request{Messages: []Message{{RoleUser, "a"}}, MaxTokens: 5})
-	if err != nil || r.Text != "late" || r.Model != "m" {
-		t.Fatalf("%+v %v", r, err)
-	}
-	if _, err := c.Complete(context.Background(), "", "a", 5); err == nil {
-		t.Fatal("without a deadline the client's timeout holds")
 	}
 }

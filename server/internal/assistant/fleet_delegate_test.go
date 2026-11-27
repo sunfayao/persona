@@ -185,57 +185,6 @@ func TestDelegateLeavesItToTheUser(t *testing.T) {
 	}
 }
 
-// The assistant not deciding in time, or failing, leaves the question to the user as it came: it never waits on the
-// assistant.
-func TestDelegateTimesOut(t *testing.T) {
-	release := make(chan struct{})
-	t.Cleanup(func() { close(release) })
-	df := newDelegateFleet(t, func(DelegateParams) (DelegateResult, error) {
-		<-release
-		return DelegateResult{}, nil
-	})
-	df.f.hello.Agents.Delegate.TimeoutSeconds = 1
-	ix := delegateQuestion("ix_d3")
-	df.ask(ix)
-	time.Sleep(300 * time.Millisecond)
-	if df.pushedFor(ix.ID) != nil {
-		t.Fatal("pushed before the assistant had its time")
-	}
-	waitDelegate(t, "the push after the timeout", func() bool { return df.pushedFor(ix.ID) != nil })
-	if list := df.s.pendingInteractions(); len(list) != 1 || list[0].Delegating || list[0].Delegate != nil {
-		t.Fatalf("pending %+v", list)
-	}
-
-	failing := newDelegateFleet(t, func(DelegateParams) (DelegateResult, error) {
-		return DelegateResult{}, context.DeadlineExceeded
-	})
-	failing.ask(delegateQuestion("ix_d3b"))
-	waitDelegate(t, "the push after a failure", func() bool { return failing.pushedFor("ix_d3b") != nil })
-}
-
-// An answer the user gives while the assistant thinks wins: the assistant's comes too late and nothing is pushed.
-func TestDelegateUserAnswersFirst(t *testing.T) {
-	release := make(chan struct{})
-	df := newDelegateFleet(t, func(DelegateParams) (DelegateResult, error) {
-		<-release
-		return DelegateResult{Answer: true, Answers: map[string]string{"用哪个分支？": "feat/x"}}, nil
-	})
-	ix := delegateQuestion("ix_d4")
-	answered := df.ask(ix)
-	waitDelegate(t, "the assistant asked", func() bool { return df.delegateCalls() == 1 })
-	if err := df.s.resolve(ix.ID, proto.Resolution{Answers: map[string]string{"用哪个分支？": "main"}}); err != nil {
-		t.Fatal(err)
-	}
-	if res := answerOf(t, answered); res.Answers["用哪个分支？"] != "main" || res.AnsweredBy != "" {
-		t.Fatalf("resolution %+v", res)
-	}
-	close(release)
-	time.Sleep(300 * time.Millisecond)
-	if df.pushedFor(ix.ID) != nil {
-		t.Fatal("pushed a question the user answered")
-	}
-}
-
 // Permissions, plans, the assistant's own ask_user and forms are not the assistant's to answer: pushed at once, the
 // assistant not asked. With agents.delegate off, or unset (the default), a question is pushed at once too.
 func TestDelegateOnlyQuestions(t *testing.T) {

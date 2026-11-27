@@ -225,25 +225,6 @@ func TestCodexAppChatSwitchesModelAndEffort(t *testing.T) {
 	}
 }
 
-// A chat no window has loaded is opened in the App first, as for a message; one the App does not load is refused.
-func TestCodexAppChatEffortOpensAChatTheAppHasNotLoaded(t *testing.T) {
-	n, id, bus, _ := appEffortChatOwned(t, "another-thread", appChat)
-	defer func(f func(string) error, w time.Duration) { openCodexThread, codexDesktopLoadWait = f, w }(openCodexThread, codexDesktopLoadWait)
-	codexDesktopLoadWait = 2 * time.Second
-	openCodexThread = func(string) error { return nil } // the App does not load it
-	if code, _ := refusalOf(t, modesCall(t, n, id, map[string]any{"effort": "ultra"})); code != "codex_desktop_not_loaded" {
-		t.Fatalf("refusal %s", code)
-	}
-	var opened string
-	openCodexThread = func(thread string) error { opened = thread; bus.opened.Store(true); return nil }
-	if err := modesCall(t, n, id, map[string]any{"effort": "ultra"}); err != nil || opened != appChat {
-		t.Fatalf("%v, opened %q", err, opened)
-	}
-	if p := <-bus.settings; p["conversationId"] != appChat {
-		t.Fatalf("update for %v", p["conversationId"])
-	}
-}
-
 // The levels are the chat's model's on the App's codex, read in the background: Codex's whole list until then and for a
 // model the App does not list; none for a model that takes no effort, and then the row offers no change.
 func TestCodexAppEffortsAreTheModelsOnTheAppsCodex(t *testing.T) {

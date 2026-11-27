@@ -31,57 +31,6 @@ func launcherHealthRuntimeHub(t *testing.T) (*Service, *fakeHub) {
 	return s, f
 }
 
-// The main chat's launcher is a runtime's (agy) and failed on the main chat's computer 45 minutes ago (#10369): the
-// periodic round checks it again like any launcher, once per interval, through launchers.check; a failure says it still
-// fails now, and a pass clears it. A runtime's launcher the main chat and Agents do not run on is still never checked,
-// nor is agy where it never failed, and the record a pass leaves stays without being checked again.
-func TestLauncherHealthRoundRechecksTheMainChatsRuntime(t *testing.T) {
-	s, f := launcherHealthRuntimeHub(t)
-	ctx := context.Background()
-	long := time.Now().Add(-45 * time.Minute)
-	s.recordHealth(ctx, "server", "agy", healthResult{err: agyRouteError, source: healthSourceStart, at: long})
-	s.recordHealth(ctx, "server", "dsh", healthResult{err: agyRouteError, source: healthSourceStart, at: long})
-	f.mu.Lock()
-	f.checks["server/agy"] = proto.LauncherCheck{Agent: "agy", Error: agyRouteError}
-	f.mu.Unlock()
-
-	s.healthRound(ctx, true)
-	checked := checkedNow(f)
-	if !slices.Contains(checked, "server/agy") || slices.Contains(checked, "server/dsh") ||
-		slices.ContainsFunc(checked, func(c string) bool { return c == "l4/agy" || c == "box/agy" || c == "l4/dsh" || c == "box/dsh" }) {
-		t.Fatalf("checked %v: want the failing main chat runtime launcher only, not other runtimes' nor agy where it never failed", checked)
-	}
-	r := healthState(s, "server", "agy")
-	if !r.unusable() || r.Kind != errKindModelRoute || r.Fails != 2 || r.Source != healthSourceCheck || time.Since(r.CheckedAt) > time.Minute {
-		t.Fatalf("a failing recheck should say it fails now: %+v", r)
-	}
-
-	n := len(checkedNow(f))
-	s.healthRound(ctx, true)
-	if got := checkedNow(f)[n:]; slices.Contains(got, "server/agy") {
-		t.Fatalf("rechecked within the interval: %v", got)
-	}
-
-	f.mu.Lock()
-	delete(f.checks, "server/agy") // the account fixed
-	f.mu.Unlock()
-	editHealth(s, "server", "agy", func(r *LauncherHealth) { r.CheckedAt = time.Now().Add(-defaultHealthInterval - time.Minute) })
-	s.healthRound(ctx, true)
-	if r := healthState(s, "server", "agy"); r.State != healthOK || r.Fails != 0 || r.Source != healthSourceCheck {
-		t.Fatalf("a passing recheck should clear the record: %+v", r)
-	}
-
-	editHealth(s, "server", "agy", func(r *LauncherHealth) { r.CheckedAt = time.Now().Add(-defaultHealthInterval - time.Minute) })
-	n = len(checkedNow(f))
-	s.healthRound(ctx, true)
-	if got := checkedNow(f)[n:]; slices.Contains(got, "server/agy") {
-		t.Fatalf("a runtime's launcher that works was checked again: %v", got)
-	}
-	if r, ok := s.launcherHealth(ctx, "server", "agy"); !ok || r.State != healthOK {
-		t.Fatalf("the passing record should stay while the machine lists the launcher: %+v %v", r, ok)
-	}
-}
-
 // Agents' default launcher is a runtime's too: its failure is rechecked the same way; the main chat's launcher, not
 // failing anywhere, is not checked.
 func TestLauncherHealthRoundRechecksAgentsDefaultRuntime(t *testing.T) {

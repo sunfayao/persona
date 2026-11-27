@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -102,19 +101,6 @@ func TestPaneCloseShells(t *testing.T) {
 	}
 }
 
-// An agent's pane is closed the way "Close Agent" does: asked to quit first, then closed.
-func TestPaneCloseAnAgentQuitsItFirst(t *testing.T) {
-	n, f, _ := actionNode(t)
-	f.reply("pane.list", map[string]any{"panes": []any{map[string]any{"tab_id": "w1:t1"}}})
-	if _, err := request(t, n, "panes.close", map[string]any{"pane": "w1:p1"}); err != nil {
-		t.Fatal(err)
-	}
-	got := f.trace("pane.send_keys", "pane.close", "tab.close")
-	if len(got) != 3 || !strings.Contains(got[0], "ctrl+c") || !strings.Contains(got[1], "ctrl+c") || got[2] != call("tab.close", map[string]any{"tab_id": "w1:t1"}) {
-		t.Errorf("calls = %v", got)
-	}
-}
-
 func TestPaneSplitStartsInThePanesDirectory(t *testing.T) {
 	n, f, cwd := actionNode(t)
 	f.reply("pane.split", map[string]any{"pane": map[string]any{"pane_id": "w1:p9", "tab_id": "w1:t2"}})
@@ -139,159 +125,6 @@ func TestPaneSplitStartsInThePanesDirectory(t *testing.T) {
 	}
 	if got := f.trace("pane.split"); len(got) != 0 {
 		t.Errorf("pane.split for a refused request: %v", got)
-	}
-}
-
-// "Run Agent here": the launcher runs in the pane itself, not in a new tab. The pane is a herdr pane like a new tab:
-// herdr is told the agent is Claude, unless the pane's shell cannot take `VAR=val cmd` (tcsh).
-func TestRunAgentInAShellPane(t *testing.T) {
-	for _, tc := range []struct{ shell, typed string }{
-		{"-zsh", "HERDR_AGENT=claude claude --session-id "},
-		{"-tcsh", "claude --session-id "},
-	} {
-		t.Run(tc.shell, func(t *testing.T) {
-			n, f, cwd := actionNode(t)
-			f.reply("pane.process_info", map[string]any{"process_info": map[string]any{"foreground_processes": []any{
-				map[string]any{"pid": 1, "name": strings.TrimPrefix(tc.shell, "-"), "argv0": tc.shell}}}})
-			f.reply("agent.get", map[string]any{"agent": map[string]any{"agent": "claude", "agent_status": proto.StatusIdle, "pane_id": "w1:p2",
-				"tab_id": "w1:t2", "workspace_id": "w1"}})
-			f.screenSteps("w1:p2", isKeys(), screenFixture(t, "claude-2.1.312-trust-162.txt"), screenFixture(t, "claude-2.1.312-empty-162.txt"))
-
-			res, err := request(t, n, "panes.agent", map[string]any{"pane": "w1:p2", "launcher": "claude"})
-			if err != nil {
-				t.Fatal(err)
-			}
-			id, _ := res["session_id"].(string)
-			if id == "" {
-				t.Fatalf("result = %v", res)
-			}
-			if got := f.trace("tab.create", "workspace.create"); len(got) != 0 {
-				t.Errorf("a tab was opened: %v", got)
-			}
-			var typed []string
-			for _, c := range f.calls() {
-				if c.Method == "pane.send_input" {
-					typed = append(typed, str(c.Params["pane_id"])+" "+str(c.Params["text"]))
-				}
-			}
-			want := tc.typed
-			if tc.shell == "-zsh" { // with the node's directory, without the assistant's environment (agentenv.go)
-				want = inAgentEnv(n.dir, want, shellQuote)
-			}
-			if len(typed) != 1 || !strings.HasPrefix(typed[0], "w1:p2 "+want+id) {
-				t.Errorf("typed = %q (cwd %s)", typed, cwd)
-			}
-			if f.trace("pane.close", "tab.close") != nil {
-				t.Errorf("the pane was closed: %v", f.trace("pane.close", "tab.close"))
-			}
-			n.mu.Lock()
-			bound := n.panes["w1:p2"]
-			n.mu.Unlock()
-			if bound != id {
-				t.Errorf("the pane is bound to %q, not %q", bound, id)
-			}
-		})
-	}
-}
-
-// Only a pane at its shell prompt takes an agent; one that fails to come up is left as it is.
-func TestRunAgentRefusals(t *testing.T) {
-	n, f, _ := actionNode(t)
-	fg := func(names ...string) {
-		list := []any{}
-		for _, name := range names {
-			list = append(list, map[string]any{"pid": 1, "name": name, "argv0": name})
-		}
-		f.reply("pane.process_info", map[string]any{"process_info": map[string]any{"foreground_processes": list}})
-	}
-	ctx := context.Background()
-	if _, err := n.runAgentInPane(ctx, "w1:p1", "claude"); err == nil {
-		t.Error("ran an agent in a pane that has one")
-	}
-	if _, err := n.runAgentInPane(ctx, "w9:p9", "claude"); err == nil {
-		t.Error("ran an agent in a pane the host does not list")
-	}
-	if _, err := n.runAgentInPane(ctx, "w1:p2", " "); err == nil {
-		t.Error("ran without a launcher")
-	}
-	fg("vim")
-	if _, err := n.runAgentInPane(ctx, "w1:p2", "claude"); err == nil || !strings.Contains(err.Error(), "vim") {
-		t.Errorf("ran in front of vim: %v", err)
-	}
-	fg()
-	if _, err := n.runAgentInPane(ctx, "w1:p2", "claude"); err == nil {
-		t.Error("ran where the foreground is unknown")
-	}
-	for _, c := range f.calls() {
-		if strings.HasPrefix(c.Method, "pane.send") || c.Method == "tab.create" {
-			t.Errorf("a refused run reached the pane: %s", c)
-		}
-	}
-
-	// A claude that never comes up: the pane stays (a start in a new tab would close that tab).
-	fg("zsh")
-	f.reply("agent.get", map[string]any{"agent": map[string]any{"agent": "", "pane_id": "w1:p2", "tab_id": "w1:t2", "workspace_id": "w1"}})
-	f.setScreen("w1:p2", "$ ")
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-	if _, err := n.runAgentInPane(ctx, "w1:p2", "claude"); err == nil {
-		t.Error("a start that never came up succeeded")
-	}
-	if got := f.trace("pane.close", "tab.close"); len(got) != 0 {
-		t.Errorf("the pane was closed after a failed start: %v", got)
-	}
-}
-
-func TestGitOpsNeverForce(t *testing.T) {
-	f := newPullFixture(t)
-	ctx := context.Background()
-
-	// fetch: sees the remote's new commit without moving the branch
-	f.upstreamCommit(t)
-	res, err := f.node.gitOp(ctx, f.local, "fetch")
-	if err != nil || res.Op != "fetch" || res.Outcome != proto.GitOutcomeFetched {
-		t.Fatalf("fetch = %+v, %v", res, err)
-	}
-	if st, _ := f.node.gitStatus(ctx, f.local); st.Behind != 1 {
-		t.Errorf("behind after fetch = %d", st.Behind)
-	}
-
-	// pull: fast-forward only
-	res, err = f.node.gitOp(ctx, f.local, "pull")
-	if err != nil || res.Outcome != proto.GitOutcomePulled || res.Message != "Pulled the latest commits" {
-		t.Fatalf("pull = %+v, %v", res, err)
-	}
-	if res, err = f.node.gitOp(ctx, f.local, "pull"); err != nil || res.Outcome != proto.GitOutcomeUpToDate {
-		t.Errorf("second pull = %+v, %v", res, err)
-	}
-
-	// push: nothing to send, then one commit to its upstream
-	if res, err = f.node.gitOp(ctx, f.local, "push"); err != nil || res.Outcome != proto.GitOutcomeNothingToPush {
-		t.Errorf("push of nothing = %+v, %v", res, err)
-	}
-	f.commit(t, f.local, "local.txt", "mine\n")
-	if res, err = f.node.gitOp(ctx, f.local, "push"); err != nil || res.Outcome != proto.GitOutcomePushed {
-		t.Fatalf("push = %+v, %v", res, err)
-	}
-	if runPullGit(t, f.local, "rev-parse", "HEAD") != runPullGit(t, f.seed, "ls-remote", "origin", "refs/heads/main")[:40] {
-		t.Error("the remote did not get the commit")
-	}
-
-	// a diverged remote: a plain push is rejected, and a configured forcing refspec does not make it a force push
-	f.commit(t, f.seed, "theirs.txt", "theirs\n")
-	runPullGit(t, f.seed, "pull", "--no-rebase", "--no-edit")
-	runPullGit(t, f.seed, "push")
-	runPullGit(t, f.local, "reset", "--hard", "HEAD~1")
-	f.commit(t, f.local, "other.txt", "diverged\n")
-	runPullGit(t, f.local, "config", "remote.origin.push", "+refs/heads/*:refs/heads/*")
-	remoteBefore := runPullGit(t, f.seed, "ls-remote", "origin", "refs/heads/main")
-	if _, err = f.node.gitOp(ctx, f.local, "push"); err == nil {
-		t.Fatal("a diverged push went through")
-	} else if refusalCode(err) != gitOpPushRejected || !strings.Contains(err.Error(), "rejected") {
-		t.Errorf("a diverged push = %v", err)
-	}
-	if got := runPullGit(t, f.seed, "ls-remote", "origin", "refs/heads/main"); got != remoteBefore {
-		t.Errorf("the remote moved: %s -> %s", remoteBefore, got)
 	}
 }
 

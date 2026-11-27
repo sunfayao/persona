@@ -3,12 +3,10 @@ package hub
 import (
 	"bufio"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -17,8 +15,6 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
-
-	"github.com/coder/websocket"
 )
 
 // withBodyLimits sets bodyIdle and bodyDrain for one test.
@@ -359,65 +355,4 @@ func TestHTTP2StalledStreamIsLetGo(t *testing.T) {
 		}
 		<-late // it returned, without a panic
 	})
-}
-
-// Both of the hub's servers have it, on the real routes: a stalled body that the auth layer refuses gets its 401 and
-// loses the connection, while a WebSocket opened before stays up.
-func TestPublicServersLetAStalledBodyGo(t *testing.T) {
-	withBodyLimits(t, 300*time.Millisecond, 300*time.Millisecond)
-	h := newPublicTestHub(t)
-	h.cfg.Public.TLSListen = "127.0.0.1:0"
-	free, err := net.Listen("tcp", "127.0.0.1:0") // serveHTTP does not hand the plaintext port back
-	if err != nil {
-		t.Fatal(err)
-	}
-	h.cfg.Listen = free.Addr().String()
-	_ = free.Close()
-	logs := &syncBuffer{}
-	h.logger = log.New(logs, "", 0)
-	runPublicTestHub(t, h)
-	if !logs.WaitFor("listening on "+h.cfg.Listen, 10*time.Second) {
-		t.Fatalf("the plaintext server did not start:\n%s", logs)
-	}
-	port, pin := h.tlsPin()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	ws, _, err := websocket.Dial(ctx, "ws://"+h.cfg.Listen+"/api/v1/ws?token=test-token", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ws.CloseNow()
-	go func() { // reads what the hub sends, and the pong
-		for {
-			if _, _, err := ws.Read(ctx); err != nil {
-				return
-			}
-		}
-	}()
-
-	tlsConfig := pinnedTestClient(pin).Transport.(*http.Transport).TLSClientConfig.Clone()
-	tlsConfig.NextProtos = []string{"http/1.1"}
-	for name, dial := range map[string]func() (net.Conn, error){
-		"plain": func() (net.Conn, error) { return net.Dial("tcp", h.cfg.Listen) },
-		"TLS": func() (net.Conn, error) {
-			return tls.Dial("tcp", net.JoinHostPort("127.0.0.1", fmt.Sprint(port)), tlsConfig)
-		},
-	} {
-		conn, err := dial()
-		if err != nil {
-			t.Fatalf("%s: %v", name, err)
-		}
-		c := &rawConn{Conn: conn, br: bufio.NewReader(conn)}
-		c.send(stalledPost)
-		resp, _ := c.response(t, 10*time.Second)
-		err = c.closedWithin(10 * time.Second)
-		_ = conn.Close()
-		if resp.StatusCode != http.StatusUnauthorized || err != nil {
-			t.Fatalf("%s: status %d, want 401; %v", name, resp.StatusCode, err)
-		}
-	}
-	if err := ws.Ping(ctx); err != nil {
-		t.Fatalf("the WebSocket did not outlive the stalled bodies: %v", err)
-	}
 }

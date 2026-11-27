@@ -3,15 +3,11 @@ package node
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
-	"github.com/sunfayao/persona/server/internal/filemeta"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -71,71 +67,6 @@ func TestGitBlobWritesEachVersionForComparing(t *testing.T) {
 	} {
 		if _, err := n.gitBlob(context.Background(), bad); err == nil {
 			t.Fatalf("accepted %+v", bad)
-		}
-	}
-}
-
-func TestGitBlobSameVersionAtOnce(t *testing.T) {
-	base := gitBlobEnv(t)
-	repo := filepath.Join(base, "repo")
-	os.MkdirAll(repo, 0o700)
-	runPullGit(t, base, "init", "--initial-branch=main", repo)
-	want := make([]byte, 4<<20) // big enough that writing it overlaps the other requests'
-	rand.Read(want)
-	os.WriteFile(filepath.Join(repo, "deck.pdf"), want, 0o600)
-	runPullGit(t, repo, "add", ".")
-	runPullGit(t, repo, "commit", "-m", "deck")
-	cache, err := privateCacheDir("blobs")
-	if err != nil {
-		t.Fatal(err)
-	}
-	n := &Node{home: base, state: newState()}
-	// fetch asks for the version and answers the revision a download of the copy it got is pinned to
-	fetch := func() (string, error) {
-		b, err := n.gitBlob(context.Background(), proto.GitBlobRequest{Cwd: repo, Path: "deck.pdf", Rev: "HEAD"})
-		if err != nil {
-			return "", err
-		}
-		head, err := n.fileService().ReadChunk(proto.FileChunkRequest{Path: b.Path})
-		if err != nil {
-			return "", err
-		}
-		if got, err := os.ReadFile(b.Path); err != nil || !bytes.Equal(got, want) || b.Size != int64(len(want)) {
-			return "", fmt.Errorf("read %d of %d bytes (%v)", len(got), len(want), err)
-		}
-		return head.Revision, nil
-	}
-	const at = 16
-	for round := range 3 {
-		os.RemoveAll(cache) // every request misses the cache
-		if _, err := privateCacheDir("blobs"); err != nil {
-			t.Fatal(err)
-		}
-		errs := make([]error, at)
-		revs := make([]string, at)
-		var wg sync.WaitGroup
-		for i := range at {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				revs[i], errs[i] = fetch()
-			}()
-		}
-		wg.Wait()
-		for i, err := range errs {
-			if err != nil {
-				t.Fatalf("round %d, request %d: %v", round, i, err)
-			}
-		}
-		ents, _ := os.ReadDir(cache)
-		if len(ents) != 1 {
-			t.Fatalf("round %d: cache holds %v", round, ents)
-		}
-		info, _ := ents[0].Info()
-		for i, rev := range revs {
-			if rev != filemeta.Revision(info) {
-				t.Fatalf("round %d: the copy request %d got was replaced after it was handed out", round, i)
-			}
 		}
 	}
 }

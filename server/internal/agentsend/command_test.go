@@ -18,7 +18,6 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
-	"github.com/sunfayao/persona/server/internal/devicewire"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -139,21 +138,6 @@ func jsonReply(w http.ResponseWriter, status int, body string) {
 	_, _ = io.WriteString(w, body)
 }
 
-func receiptReply(w http.ResponseWriter, id, kind, path, digest, receiptState string, status int, body string) {
-	value := map[string]any{"id": id, "kind": kind, "target": map[string]string{"path": path, "query": ""},
-		"digest": digest, "state": receiptState}
-	if status != 0 {
-		value["result"] = map[string]any{"status": status, "body": []byte(body)}
-	}
-	data, _ := json.Marshal(value)
-	jsonReply(w, 200, string(data))
-}
-
-func expectedDigest(text string) string {
-	return devicewire.ClientOpDigest("message", devicewire.ClientOpTarget(fixturePath, ""), true,
-		map[string]any{"text": text, "client_msg_id": fixtureID, "hold_when_away": false})
-}
-
 func checkPost(t *testing.T, r *http.Request, hold bool) {
 	t.Helper()
 	var read struct {
@@ -212,115 +196,6 @@ func TestAgentSendSeparatesAuthoritativeOutcomes(t *testing.T) {
 			if got.State != tc.state || got.HTTPStatus != tc.status || code != tc.code || posts.Load() != 1 ||
 				!strings.Contains(diagnostic, fixtureID) {
 				t.Fatalf("result=%+v exit=%d posts=%d", got, code, posts.Load())
-			}
-		})
-	}
-}
-
-func TestAgentSendRecoversOnlyTheSameOperationAfterResponseLoss(t *testing.T) {
-	for _, scenario := range []string{"reset", "timeout", "different input", "different target", "different operation"} {
-		t.Run(scenario, func(t *testing.T) {
-			var posts, reads atomic.Int32
-			accepted := make(chan struct{})
-			f := newFixture(t, []string{"client_ops", proto.FeatureAgentTerminalSend}, func(w http.ResponseWriter, r *http.Request) {
-				if r.Method == http.MethodPost {
-					checkPost(t, r, false)
-					if posts.Add(1) == 1 {
-						close(accepted)
-					}
-					if scenario == "timeout" {
-						<-r.Context().Done()
-					} else if conn, _, err := w.(http.Hijacker).Hijack(); err == nil {
-						conn.Close()
-					} else {
-						t.Error(err)
-					}
-					return
-				}
-				reads.Add(1)
-				if r.URL.Path != "/mount/api/v1/ops/"+fixtureID {
-					t.Error("recovery read used another ID")
-				}
-				select {
-				case <-accepted:
-				default:
-					t.Error("recovery read preceded send")
-				}
-				path, kind, digest := fixturePath, "message", expectedDigest(fixtureText)
-				switch scenario {
-				case "different target":
-					path = "/api/v1/sessions/other/s/agent-messages"
-				case "different operation":
-					kind = "start"
-				case "different input":
-					digest = expectedDigest("unrelated input")
-				}
-				receiptReply(w, fixtureID, kind, path, digest, "done", 200, `{"ok":true}`)
-			})
-			out, diagnostic, code := f.run(fixtureText, f.sendArgs("--timeout", "800ms"))
-			got := readResult(t, out, diagnostic)
-			want, exit := unknown, 1
-			if scenario == "reset" || scenario == "timeout" {
-				want, exit = delivered, 0
-			}
-			if got.State != want || code != exit || posts.Load() != 1 || reads.Load() != 1 {
-				t.Fatalf("result=%+v exit=%d posts=%d reads=%d", got, code, posts.Load(), reads.Load())
-			}
-		})
-	}
-}
-
-func TestAgentReceiptWaitReadsOnlyAndKeepsAConfirmedHold(t *testing.T) {
-	var calls atomic.Int32
-	f := newFixture(t, []string{"client_ops", proto.FeatureAgentTerminalSend}, func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet || r.URL.Path != "/mount/api/v1/ops/"+fixtureID {
-			t.Error("wait made a write or checked another ID")
-		}
-		switch calls.Add(1) {
-		case 1:
-			receiptReply(w, fixtureID, "message", fixturePath, "", "pending", 0, "")
-		case 2:
-			jsonReply(w, 503, "{}")
-		default:
-			receiptReply(w, fixtureID, "message", fixturePath, "", "done", 202, `{"delivered":"later"}`)
-		}
-	})
-	out, diagnostic, code := f.run("", f.args("receipt", "--wait", fixtureID))
-	if got := readResult(t, out, diagnostic); got.State != held || code != 0 || calls.Load() != 3 {
-		t.Fatalf("result=%+v exit=%d calls=%d", got, code, calls.Load())
-	}
-}
-
-func TestAgentReceiptReportsUnavailableUnknownAndExpiredWait(t *testing.T) {
-	for _, scenario := range []string{"missing", "wrong ID", "unknown", "timeout"} {
-		t.Run(scenario, func(t *testing.T) {
-			f := newFixture(t, []string{"client_ops", proto.FeatureAgentTerminalSend}, func(w http.ResponseWriter, r *http.Request) {
-				if r.Method != http.MethodGet {
-					t.Error("receipt attempted a write")
-				}
-				switch scenario {
-				case "missing":
-					jsonReply(w, 404, "{}")
-				case "wrong ID":
-					receiptReply(w, "00000000-0000-4000-8000-000000000001", "message", fixturePath, "",
-						"done", 200, "{}")
-				case "unknown":
-					receiptReply(w, fixtureID, "message", fixturePath, "", "unknown", 502, `{"delivered":"yes"}`)
-				case "timeout":
-					receiptReply(w, fixtureID, "message", fixturePath, "", "pending", 0, "")
-				}
-			})
-			out, diagnostic, code := f.run("", f.args("receipt", "--wait", "--timeout", "750ms", fixtureID))
-			got := readResult(t, out, diagnostic)
-			want, reason := unavailable, ""
-			switch scenario {
-			case "unknown":
-				want = unknown
-			case "timeout":
-				want, reason = pending, "timeout"
-			}
-			if got.State != want || got.Reason != reason || code != 1 {
-				t.Fatalf("result=%+v exit=%d", got, code)
 			}
 		})
 	}

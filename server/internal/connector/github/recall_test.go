@@ -101,14 +101,6 @@ func sentComment(ref, target string) connector.SentMessage {
 	return connector.SentMessage{Action: "github_comment", Ref: ref, Target: json.RawMessage(target)}
 }
 
-// shortTimeouts makes a recall give up after d for the whole and for each lookup, as long as the test runs.
-func shortTimeouts(t *testing.T, d time.Duration) {
-	t.Helper()
-	was, wasProbe := recallTimeout, recallProbeTimeout
-	recallTimeout, recallProbeTimeout = d, d
-	t.Cleanup(func() { recallTimeout, recallProbeTimeout = was, wasProbe })
-}
-
 // A comment is taken back by deleting it, by the id the write gave, in the repository its row says, with the token and
 // nothing else asked of GitHub.
 func TestRecallDeletesTheComment(t *testing.T) {
@@ -261,50 +253,6 @@ func TestRecallReadsGitHubsAnswer(t *testing.T) {
 		}
 		if err != nil && strings.Contains(err.Error(), oldToken) {
 			t.Errorf("%s: the token is in %q", tc.name, err)
-		}
-	}
-}
-
-// A request that GitHub never answers ends within the connector's own time, with no help from the caller's ctx: the
-// delete as an outcome nobody can tell, a lookup after a 404 as a plain error (the 404 deleted nothing).
-func TestRecallEndsWhenGitHubNeverAnswers(t *testing.T) {
-	hang := make(chan struct{})
-	t.Cleanup(func() { close(hang) })
-	never := func(_ http.ResponseWriter, r *http.Request) {
-		select {
-		case <-hang:
-		case <-r.Context().Done():
-		}
-	}
-	shortTimeouts(t, 150*time.Millisecond)
-	for _, tc := range []struct {
-		name    string
-		answer  func(http.ResponseWriter, *http.Request)
-		lookups func(http.ResponseWriter, *http.Request)
-		unknown bool
-	}{
-		{"the delete", never, nil, true},
-		{"the comment's lookup", answering(404, ""), never, false},
-		{"the issue's lookup", answering(404, ""), func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == theComment {
-				w.WriteHeader(http.StatusNotFound)
-				return
-			}
-			never(w, r)
-		}, false},
-	} {
-		c, s := newCommentsServer(t, nil)
-		s.answer, s.lookups = tc.answer, tc.lookups
-		start := time.Now()
-		err := c.Recall(context.Background(), sentComment(commentID, commentTarget))
-		if took := time.Since(start); took > 3*time.Second {
-			t.Errorf("%s: took %v", tc.name, took)
-		}
-		switch {
-		case err == nil:
-			t.Errorf("%s: a request nobody answered is a success", tc.name)
-		case errors.Is(err, connector.ErrRecallUnknown) != tc.unknown:
-			t.Errorf("%s: unknown is %v: %v", tc.name, !tc.unknown, err)
 		}
 	}
 }

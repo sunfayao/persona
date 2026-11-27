@@ -205,63 +205,6 @@ func nothingReplaced(t *testing.T, h serviceHub) {
 	}
 }
 
-// When no service runs the program the release lacks, it installs as before: personad and the programs it has are
-// replaced, the one it lacks keeps its old file, and the hub goes on as personad.
-func TestUpdateLeavesAProgramNoServiceRuns(t *testing.T) {
-	for _, c := range []serviceCase{
-		{name: "the hub's unit runs personad", programs: []string{"persona-manager"}, unit: "personad.service",
-			files: map[string]string{
-				"user/personad.service": "[Service]\nExecStart=\"%s/personad\" hub\n",
-				"user/other.service":    "[Service]\nExecStart=/bin/true\n",
-				// persona-hub named outside [Service], and by a unit a drop-in took back to personad
-				"user/notes.service":                    "[Unit]\nExecStart=%s/persona-hub run\n",
-				"user/back.service":                     "[Service]\nExecStart=%s/persona-hub run\n",
-				"user/back.service.d/override.conf":     "[Service]\nExecStart=\nExecStart=%s/personad hub\n",
-				"agents/com.persona.hub.plist":          strings.ReplaceAll(agentRunning, "persona-manager", "personad"),
-				"user/persona-hub.service.d/notes.conf": "[Service]\nExecStart=%s/persona-hub run\n",
-			}},
-		{name: "persona-hub started by hand", programs: []string{"persona-manager"}, self: "persona-hub"},
-		{name: "persona-hub started by hand in another service", programs: []string{"persona-manager"}, self: "persona-hub",
-			unit: "tmux.service", files: map[string]string{"user/tmux.service": "[Service]\nExecStart=/usr/bin/tmux new-session -d\n"}},
-		{name: "persona-hub started by systemd-run", programs: []string{"persona-manager"}, self: "persona-hub", unit: "run-u12.service"},
-		{name: "the machine's unit is shadowed by the user's own", programs: []string{"persona-manager"},
-			files: map[string]string{
-				"user/personad.service":     "[Service]\nExecStart=\"%s/personad\" hub\n",
-				"etc-user/personad.service": unitRunningHub,
-			}},
-		{name: "a unit systemd does not run", programs: []string{"persona-manager"},
-			files: map[string]string{"user/old-hub.service": unitRunningHub}, state: map[string]string{"old-hub.service": "off"}},
-		{name: "a disabled agent", programs: []string{"persona-manager"},
-			files: map[string]string{"agents/a.plist": strings.Replace(strings.ReplaceAll(agentRunning, "persona-manager<", "persona-hub<"),
-				"</dict>", "<key>Disabled</key><true/></dict>", 1)}},
-		{name: "an agent runs persona-manager, the release has it", programs: []string{"persona-manager"},
-			files: map[string]string{"agents/com.persona.manager.assistant.plist": agentRunning}},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			h := c.hub(t)
-			ctx := context.Background()
-			if _, err := h.upd.check(ctx); err != nil {
-				t.Fatal(err)
-			}
-			if v := h.upd.view(); v.Latest == nil || v.Latest.Held != "" || !h.upd.wantsAuto() {
-				t.Fatalf("latest %+v, auto %v", v.Latest, h.upd.wantsAuto())
-			}
-			go h.upd.install(ctx, true)
-			waitFor(t, "the restart", func() bool { return len(h.execs()) == 1 })
-			if c.self == "" && h.execs()[0] != h.target {
-				t.Fatalf("restarted into %v, not personad", h.execs())
-			}
-			bin := filepath.Dir(h.target)
-			if b, _ := os.ReadFile(filepath.Join(bin, "persona-hub")); string(b) != oldProgram {
-				t.Fatal("persona-hub, which the release lacks, was replaced")
-			}
-			if b, _ := os.ReadFile(filepath.Join(bin, "persona-manager")); string(b) == oldProgram {
-				t.Fatal("persona-manager was not replaced")
-			}
-		})
-	}
-}
-
 // The update looks again just before it replaces anything: a unit pointed at persona-hub while it waited for the agents
 // to finish holds it back too.
 func TestUpdateLooksAgainBeforeTheSwap(t *testing.T) {

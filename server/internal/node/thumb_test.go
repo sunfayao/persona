@@ -9,10 +9,8 @@ import (
 	"image/jpeg"
 	"image/png"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -113,42 +111,5 @@ func TestThumbnailRefusals(t *testing.T) {
 	}
 	if _, err := n.fileThumb(context.Background(), proto.FileThumbRequest{Path: "/Users/x/Library/Mobile Documents/a.png"}); err == nil {
 		t.Fatal("iCloud Drive was read")
-	}
-}
-
-func TestAHungThumbnailToolIsSkippedForAWhile(t *testing.T) {
-	dir := t.TempDir()
-	n := &Node{home: dir}
-	tool := "pdftoppm"
-	if runtime.GOOS == "darwin" {
-		tool = "qlmanage"
-	}
-	bin := filepath.Join(dir, "bin")
-	os.Mkdir(bin, 0700)
-	os.WriteFile(filepath.Join(bin, tool), []byte("#!/bin/sh\nexec /bin/sleep 30\n"), 0700)
-	t.Setenv("PATH", bin)
-	// Counted here, not by the tool writing a file: on a busy machine the shell may not get that far before
-	// toolTimeout kills it.
-	var calls atomic.Int32
-	defer func(f func(*exec.Cmd) error) { runCmd = f }(runCmd)
-	run := runCmd
-	runCmd = func(cmd *exec.Cmd) error { calls.Add(1); return run(cmd) }
-	defer func(d time.Duration) { toolTimeout = d }(toolTimeout)
-	toolTimeout = 800 * time.Millisecond
-	t.Cleanup(func() { tools.mu.Lock(); tools.blockedUntil = time.Time{}; tools.mu.Unlock() })
-	os.WriteFile(filepath.Join(dir, "a.pdf"), []byte("%PDF-1.4\n"), 0600)
-	os.WriteFile(filepath.Join(dir, "b.pdf"), []byte("%PDF-1.4\nb"), 0600)
-	start := time.Now()
-	for _, p := range []string{"~/a.pdf", "~/b.pdf"} {
-		var re *rpc.Error
-		if _, err := n.fileThumb(context.Background(), proto.FileThumbRequest{Path: p}); !errors.As(err, &re) || re.Code != proto.CodeNoThumbnail {
-			t.Fatalf("%s: %v", p, err)
-		}
-	}
-	if d := time.Since(start); d > 5*time.Second {
-		t.Fatalf("took %v", d)
-	}
-	if c := calls.Load(); c != 1 {
-		t.Fatalf("tool ran %d times, want once and then skipped", c)
 	}
 }

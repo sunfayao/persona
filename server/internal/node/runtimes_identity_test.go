@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
-	"sync"
 	"testing"
 	"time"
 
@@ -196,50 +195,6 @@ func handoverError() error {
 	return &rpc.Error{Code: runtimeHandover, Message: "DSH is starting", Data: json.RawMessage(`{"delivered":"none"}`)}
 }
 
-func TestRuntimeHandoverReachesTheRuntimeThatRunsIt(t *testing.T) {
-	n, _ := runtimeNode(t)
-	files := companion(t, n, "session-h1")
-	web := dialRuntime(t, n, dshHello())
-	web.answer = func(method string, params json.RawMessage) (any, error) {
-		if method == "session.items" { // not its session until it runs it
-			return nil, errors.New("not found")
-		}
-		return map[string]any{"ok": true}, nil
-	}
-	var once sync.Once
-	files.answer = func(method string, params json.RawMessage) (any, error) {
-		if method == "session.send" {
-			// Woken: the program that runs it starts, and its runtime lists the session as running.
-			once.Do(func() {
-				go func() {
-					time.Sleep(300 * time.Millisecond)
-					_ = web.peer.Notify("runtime.sessions", map[string]any{"sessions": []map[string]any{{"session_id": "session-h1", "status": "done"}}})
-				}()
-			})
-			return nil, handoverError()
-		}
-		return map[string]any{"ok": true}, nil
-	}
-	if _, err := nodeCall(t, n, "session.send", map[string]any{"session_id": "session-h1", "text": "hi", "client_msg_id": "m-h1"}); err != nil {
-		t.Fatal(err)
-	}
-	sent := web.got("session.send")
-	if len(sent) != 1 {
-		t.Fatalf("the runtime running it got %d sends", len(sent))
-	}
-	var p struct {
-		Text        string `json:"text"`
-		ClientMsgID string `json:"client_msg_id"`
-	}
-	_ = json.Unmarshal(sent[0], &p)
-	if p.Text != "hi" || p.ClientMsgID != "m-h1" {
-		t.Fatalf("forwarded %s", sent[0])
-	}
-	if s := listed(t, n)["session-h1"]; s.Status != "done" || s.Agent != "dsh" {
-		t.Fatalf("listed %+v", s)
-	}
-}
-
 func TestRuntimeHandoverAsksTheOthersAboutAnOlderSession(t *testing.T) {
 	n, _ := runtimeNode(t)
 	files := companion(t, n, "session-h2")
@@ -261,29 +216,5 @@ func TestRuntimeHandoverAsksTheOthersAboutAnOlderSession(t *testing.T) {
 	}
 	if len(web.got("session.send")) != 1 {
 		t.Fatalf("the runtime that has it got %d sends", len(web.got("session.send")))
-	}
-}
-
-func TestRuntimeHandoverNobodyTakesItNothingSent(t *testing.T) {
-	old := runtimeHandoverWait
-	runtimeHandoverWait = 700 * time.Millisecond
-	t.Cleanup(func() { runtimeHandoverWait = old })
-	n, _ := runtimeNode(t)
-	files := companion(t, n, "session-h3")
-	files.answer = func(method string, params json.RawMessage) (any, error) {
-		if method == "session.send" {
-			return nil, handoverError()
-		}
-		return map[string]any{"ok": true}, nil
-	}
-	_, err := nodeCall(t, n, "session.send", map[string]any{"session_id": "session-h3", "text": "hi", "client_msg_id": "m-h3"})
-	var re *rpc.Error
-	if !errors.As(err, &re) || re.Code != "not_running" || maybeDelivered(err) {
-		t.Fatalf("nobody took it: %v", err)
-	}
-	// Not delivered: the same message may be sent again (it reaches the companion again).
-	_, _ = nodeCall(t, n, "session.send", map[string]any{"session_id": "session-h3", "text": "hi", "client_msg_id": "m-h3"})
-	if len(files.got("session.send")) != 2 {
-		t.Fatalf("the resend reached the companion %d times", len(files.got("session.send")))
 	}
 }

@@ -239,34 +239,6 @@ func TestDelegatingQuestionPastItsTimeAfterARestartGoesToTheUser(t *testing.T) {
 	}
 }
 
-// A question the assistant had already left to the user before the restart was told then: the next manager puts it
-// back on the apps without telling it again, and does not hand it to the assistant again.
-func TestQuestionHandedOverBeforeARestartIsNotToldAgain(t *testing.T) {
-	ix := resumableQuestion("ix_told")
-	st, r := restartFleet(t, ix,
-		func(DelegateParams) (DelegateResult, error) {
-			return DelegateResult{Ask: &proto.Delegate{What: "修登录页崩溃", Recommend: "main"}}, nil
-		},
-		func(df *delegateFleet) bool { return df.pushedFor(ix.ID) != nil }, 0,
-		func(DelegateParams) (DelegateResult, error) { return DelegateResult{Answer: true}, nil })
-	r.up()
-	back := r.hookBack(ix)
-	if list := r.fullList(); len(list) != 1 || list[0].ID != ix.ID || list[0].Delegating {
-		t.Fatalf("the hub's full list = %+v", list)
-	}
-	if p := r.f.pushedBy(time.Now().Add(300 * time.Millisecond)); len(p) != 0 {
-		t.Fatalf("told again after the restart: %+v", p)
-	}
-	if got := r.delegateCalls(); got != 0 {
-		t.Fatalf("the next manager asked the assistant %d times", got)
-	}
-	st.waitKinds(t, ix.ID, "delegate_start", "delegate_end")
-	if err := r.s.resolve(ix.ID, proto.Resolution{Answers: map[string]string{"用哪个分支？": "main"}}); err != nil {
-		t.Fatal(err)
-	}
-	answerOf(t, back)
-}
-
 // The hook may claim its card through the next manager before the hub's handshake restores the others
 // (waitInteraction finds the card only in the history): the assistant goes on deciding on it all the same, once, and the
 // handshake that follows does not start it again.

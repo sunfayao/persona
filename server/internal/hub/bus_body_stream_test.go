@@ -2,106 +2,16 @@ package hub
 
 import (
 	"bytes"
-	"context"
-	"encoding/json"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistantwire"
-	"github.com/sunfayao/persona/server/internal/bus"
-	"github.com/sunfayao/persona/server/internal/devicewire"
-	"github.com/sunfayao/persona/server/internal/rpc"
 )
-
-// bodyManager is the assistant on a real bus connection, answering the forwarded requests: http.request as it
-// comes, http.request_streamed with the body read from the relay (bus.ReadBody, as the assistant's BusHub does)
-// unless turn says to turn it down with a code.
-type bodyManager struct {
-	mu        sync.Mutex
-	got       []assistantwire.HTTPRequest // as the route would see them: Body filled, BodyStream as it came
-	how       []string                    // the method each came with
-	turn      string                      // "": take the stream; else answer http.request_streamed with this code
-	onRequest func()
-}
-
-func (m *bodyManager) requests() ([]string, []assistantwire.HTTPRequest) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return append([]string{}, m.how...), append([]assistantwire.HTTPRequest{}, m.got...)
-}
-
-// connectBodyManager connects m as the assistant to the hub at srv over client (nil: plain), naming the body
-// stream's capability in its hello when streams is set.
-func connectBodyManager(t *testing.T, h *Hub, srv *httptest.Server, client *http.Client, streams bool, m *bodyManager) {
-	t.Helper()
-	token := busToken(t, h, assistantwire.AssistantID, "assistant")
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-	ws, err := bus.Dial(ctx, srv.URL, token, client)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = ws.CloseNow() })
-	conn := bus.NewConn(ctx, ws)
-	peer := rpc.New("m", conn)
-	peer.OnRequest = func(ctx context.Context, method string, params json.RawMessage) (any, error) {
-		if method != assistantwire.MethodHTTP && method != assistantwire.MethodHTTPStreamed {
-			return map[string]any{}, nil
-		}
-		var p assistantwire.HTTPRequest
-		if err := json.Unmarshal(params, &p); err != nil {
-			return nil, err
-		}
-		m.mu.Lock()
-		notify := m.onRequest
-		m.mu.Unlock()
-		if notify != nil {
-			notify()
-		}
-		if method == assistantwire.MethodHTTPStreamed {
-			m.mu.Lock()
-			turn := m.turn
-			m.mu.Unlock()
-			if turn != "" {
-				m.mu.Lock()
-				m.how, m.got = append(m.how, method+" turned down"), append(m.got, p)
-				m.mu.Unlock()
-				return nil, &rpc.Error{Code: turn, Message: "turned down"}
-			}
-			c, err := bus.DialAt(ctx, srv.URL, token, client, devicewire.RelayPath, url.Values{"id": {p.BodyStream.ID}}.Encode())
-			if err != nil {
-				return nil, &rpc.Error{Code: assistantwire.CodeBodyIncomplete, Message: err.Error()}
-			}
-			if p.Body, err = bus.ReadBody(ctx, c, p.BodyStream.Size); err != nil {
-				return nil, &rpc.Error{Code: assistantwire.CodeBodyIncomplete, Message: err.Error()}
-			}
-		}
-		m.mu.Lock()
-		m.how, m.got = append(m.how, method), append(m.got, p)
-		m.mu.Unlock()
-		return assistantwire.HTTPResponse{Status: http.StatusOK, Header: map[string][]string{"Content-Type": {"application/json"}},
-			Body: []byte(`{"size":` + jsonInt(len(p.Body)) + `}`)}, nil
-	}
-	go func() { _ = peer.Serve(ctx, conn) }()
-	hello := map[string]any{"id": assistantwire.AssistantID, "capabilities": []string{assistantwire.CapabilityConfigOwn}}
-	if streams {
-		hello["capabilities"] = []string{assistantwire.CapabilityConfigOwn, assistantwire.CapabilityHTTPBodyStream}
-	}
-	hctx, hcancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer hcancel()
-	if err := peer.Call(hctx, busHello, hello, nil); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func jsonInt(n int) string { b, _ := json.Marshal(n); return string(b) }
 
 // bodyHub is a hub without a database, its routes served, identities in memory.
 func bodyHub(t *testing.T) (*Hub, *httptest.Server) {

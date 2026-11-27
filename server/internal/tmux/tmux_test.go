@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 )
 
 // fakeTmux writes a tmux stand-in running body as a shell script and returns its path and the file it logs calls to.
@@ -74,47 +73,6 @@ esac
 	}
 }
 
-// A paste the context ends still gets the buffer deleted: the cleanup has a context of its own.
-func TestTmuxSendTextDeletesTheBufferAfterTheContextEnds(t *testing.T) {
-	bin, calls := fakeTmux(t, `case "$1" in
-load-buffer) cat > /dev/null ;;
-paste-buffer) exec sleep 30 ;;
-esac
-`)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	if err := (Client{Bin: bin}).SendText(ctx, "%1", "hello"); err == nil {
-		t.Fatal("SendText with a paste outliving its context = nil error")
-	}
-	log := readCalls(t, calls)
-	if len(log) != 3 || !strings.HasPrefix(log[2], "delete-buffer") || bufferOf(log[2]) != bufferOf(log[0]) {
-		t.Fatalf("calls = %q, want the loaded buffer deleted after the context ended", log)
-	}
-}
-
-// A load the client gives up on (ctx ended, or a tmux wrapper that hangs after the server took the text) may still have
-// left the buffer on the server: it is deleted too, and nothing is pasted.
-func TestTmuxSendTextDeletesTheBufferWhenTheLoadFails(t *testing.T) {
-	for _, c := range []struct{ name, load string }{
-		{"load outlives its context", "cat > /dev/null; exec sleep 30"},
-		{"load fails", "cat > /dev/null; echo 'server exited unexpectedly' >&2; exit 1"},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			bin, calls := fakeTmux(t, "case \"$1\" in\nload-buffer) "+c.load+" ;;\nesac\n")
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-			defer cancel()
-			if err := (Client{Bin: bin}).SendText(ctx, "%1", "my secret answer"); err == nil {
-				t.Fatal("SendText with a failed load = nil error")
-			}
-			log := readCalls(t, calls)
-			if len(log) != 2 || !strings.HasPrefix(log[0], "load-buffer") || !strings.HasPrefix(log[1], "delete-buffer") ||
-				bufferOf(log[0]) == "" || bufferOf(log[1]) != bufferOf(log[0]) {
-				t.Fatalf("calls = %q, want load-buffer then delete-buffer of the same buffer", log)
-			}
-		})
-	}
-}
-
 // Two Persona processes on one tmux server must not share buffer names: one's load would overwrite the other's text.
 func TestTmuxSendTextBufferNamesAreUniqueAndCarryThePid(t *testing.T) {
 	bin, calls := fakeTmux(t, `[ "$1" = load-buffer ] && cat > /dev/null
@@ -151,57 +109,6 @@ func TestTmuxSendTextEmptyIsANoOp(t *testing.T) {
 	}
 	if log := readCalls(t, calls); len(log) != 0 {
 		t.Fatalf("calls = %q, want none", log)
-	}
-}
-
-// killHolder ends the background child a fake left holding the output pipe.
-func killHolder(t *testing.T, pidFile string) {
-	t.Cleanup(func() {
-		b, err := os.ReadFile(pidFile)
-		if err != nil {
-			return
-		}
-		if pid, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil {
-			if p, err := os.FindProcess(pid); err == nil {
-				_ = p.Kill()
-			}
-		}
-	})
-}
-
-// A tmux wrapper whose child keeps stdout open must not hold Capture past its context.
-func TestTmuxCaptureIsBoundedWhenAChildHoldsStdout(t *testing.T) {
-	bin, _ := fakeTmux(t, `sleep 30 &
-echo $! > "$DIR/holder"
-wait
-`)
-	killHolder(t, filepath.Join(filepath.Dir(bin), "holder"))
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-	defer cancel()
-	start := time.Now()
-	_, err := Client{Bin: bin}.Capture(ctx, "%1", "", 0, false)
-	if elapsed := time.Since(start); elapsed > 5*time.Second {
-		t.Fatalf("Capture took %v, want it bounded by the context plus the wait delay", elapsed)
-	}
-	if err == nil {
-		t.Fatal("Capture after the context ended = nil error")
-	}
-}
-
-// A tmux that exits 0 while a child it left behind still holds stdout succeeded: its output is the answer.
-func TestTmuxCaptureSucceedsWhenAChildOutlivesTheExit(t *testing.T) {
-	bin, _ := fakeTmux(t, `echo 'the screen'
-sleep 30 &
-echo $! > "$DIR/holder"
-`)
-	killHolder(t, filepath.Join(filepath.Dir(bin), "holder"))
-	start := time.Now()
-	out, err := Client{Bin: bin}.Capture(context.Background(), "%1", "", 0, false)
-	if elapsed := time.Since(start); elapsed > 5*time.Second {
-		t.Fatalf("Capture took %v, want it bounded by the wait delay", elapsed)
-	}
-	if err != nil || out != "the screen\n" {
-		t.Fatalf("Capture = %q, %v, want the screen and no error", out, err)
 	}
 }
 

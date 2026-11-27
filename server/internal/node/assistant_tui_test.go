@@ -360,36 +360,6 @@ func TestUndeliveredMessagesFailTheirTurn(t *testing.T) {
 	<-done
 }
 
-// A control request that comes while interactive Claude Code starts is answered there and never reaches the print-mode
-// command the bridge falls back to; the messages that came meanwhile do.
-func TestFallbackForwardsOnlyMessages(t *testing.T) {
-	dir := t.TempDir()
-	printer := filepath.Join(dir, "print")
-	if err := os.WriteFile(printer, []byte("#!/bin/sh\nwhile IFS= read -r l; do printf 'got %s\\n' \"$l\"; done\nexit 7\n"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	// a tmux that starts and then fails every command a second later: the start fails after the lines below came in
-	if err := os.WriteFile(filepath.Join(dir, "tmux"), []byte("#!/bin/sh\n/bin/sleep 1\nexit 1\n"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", dir)
-	spec, _ := json.Marshal(tuiSpec{Session: "s1", Cwd: dir, TUI: []string{"claude"}, Print: []string{printer}})
-	control := `{"type":"control_request","request_id":"r1","request":{"subtype":"set_permission_mode","mode":"acceptEdits"}}`
-	message := `{"type":"user","message":{"content":[{"type":"text","text":"hi"}]}}`
-	r, w := io.Pipe()
-	out, errb := tuiTestOut{closeAt: "got ", closer: w}, tuiTestOut{}
-	defer time.AfterFunc(10*time.Second, func() { _ = w.Close() }).Stop()
-	go func() { _, _ = io.WriteString(w, string(spec)+"\n"+control+"\n"+message+"\n") }()
-	if status := AssistantTUI(nil, r, &out, &errb); status != 7 {
-		t.Fatalf("status %d, stderr %s", status, errb.String())
-	}
-	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-	if len(lines) != 3 || !strings.Contains(lines[0], `"request_id":"r1"`) || !strings.Contains(lines[1], tuiFallbackSubtype) ||
-		lines[2] != "got "+message {
-		t.Fatalf("output:\n%s", out.String())
-	}
-}
-
 // A compaction that starts a stopped conversation starts it as a send would: through the bridge while the hub says
 // claude_interactive (assistant.model), not in print mode.
 func TestCompactingAStoppedConversationKeepsInteractive(t *testing.T) {

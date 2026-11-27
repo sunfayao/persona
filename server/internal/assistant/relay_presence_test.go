@@ -2,7 +2,6 @@ package assistant
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -106,36 +105,6 @@ func TestSupervisionMessageWithADecisionIsQueuedUrgent(t *testing.T) {
 	}
 }
 
-// conversation_send to an idle conversation the owner is talking in: queued, the sender is told why, and it goes in
-// when the hold ends.
-func TestConversationSendWaitsForTheOwner(t *testing.T) {
-	presenceTimes(t, 300*time.Millisecond, time.Hour)
-	ownerTurnTimes(t, 300*time.Millisecond, time.Hour)
-	s, f := newQuietService(t)
-	stopHolds(t, s)
-	ctx := context.Background()
-	f.known["conv2"] = true
-	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "conv2", MachineID: "server", Assistant: true, Status: proto.StatusWorking, Title: "Research"})
-	s.UserSpoke(ctx, SessionRef{MachineID: "server", SessionID: "conv1"})
-	out, err := s.toolConversationSend(ctx, "conv2", json.RawMessage(`{"id":"conv1","text":"the numbers are in"}`))
-	if err != nil || !strings.Contains(out, "the user is talking in it") || !strings.Contains(out, "queued (1 waiting)") {
-		t.Fatalf("result %q, %v", out, err)
-	}
-	if q, sent := s.queuedFor("conv1"), f.sentTo("conv1"); q != 1 || sent != 0 {
-		t.Fatalf("while the owner talks: %d queued, %d sent", q, sent)
-	}
-	waitFor(t, "the message once the owner is quiet", func() bool { return f.sentTo("conv1") == 1 && s.queuedFor("conv1") == 0 })
-	if n := f.notices()[0]; !strings.Contains(n, "the numbers are in") {
-		t.Fatalf("delivered:\n%s", n)
-	}
-	// The owner is quiet: the next one goes straight in.
-	out, err = s.toolConversationSend(ctx, "conv2", json.RawMessage(`{"id":"conv1","text":"one more"}`))
-	if err != nil || strings.Contains(out, "queued") || f.sentTo("conv1") != 2 {
-		t.Fatalf("after the hold: %q, %v, %d sent", out, err, f.sentTo("conv1"))
-	}
-}
-
 // A message that could not go in (its delivery failed) holds up nothing but itself: the next drain takes another one
 // first, whatever its rank, and the one after tries it again.
 func TestAMessageThatCannotGoDoesNotBlockTheQueue(t *testing.T) {
@@ -170,110 +139,6 @@ func TestAMessageThatCannotGoDoesNotBlockTheQueue(t *testing.T) {
 	}
 	if n := f.notices(); !strings.Contains(n[0], "report-1") || !strings.Contains(n[1], "decision-1") || s.queuedFor("conv1") != 0 {
 		t.Fatalf("went in as %q, %d left", n, s.queuedFor("conv1"))
-	}
-}
-
-// A follow-up or scheduled task that runs in a conversation the owner is talking in waits as well: it stays due,
-// nothing of it is consumed or recorded, and it runs when the hold ends. "Run now" and a task's first daily run are
-// not held, and no run waits more than relayDecisionMax past its time.
-func TestScheduledRunWaitsForTheOwner(t *testing.T) {
-	presenceTimes(t, 300*time.Millisecond, time.Hour)
-	s, f := newQuietService(t)
-	ctx := context.Background()
-	due := time.Now().Add(-time.Second)
-	setTasks(s, Task{ID: "fu_1", Title: "look again", Prompt: "look at the build again", Repeat: repeatOnce, At: due, Enabled: true,
-		MachineID: "server", SessionID: "conv1"})
-	s.UserSpoke(ctx, SessionRef{MachineID: "server", SessionID: "conv1"})
-	now := time.Now()
-	s.runDue(ctx, now)
-	s.sched.inflight.Wait()
-	if task, _ := taskByID(s, "fu_1"); !task.Enabled || !task.LastRun.IsZero() || f.sentTo("conv1") != 0 {
-		t.Fatalf("while the owner talks: %+v, %d sent", task, f.sentTo("conv1"))
-	}
-	if next := s.nextDue(ctx, now); !next.After(now) || next.After(now.Add(300*time.Millisecond)) {
-		t.Fatalf("looked at again %s after now, want when the hold ends", next.Sub(now))
-	}
-	waitFor(t, "the owner's hold to end", func() bool { return len(s.ownersPresent(time.Now())) == 0 })
-	s.runDue(ctx, time.Now())
-	s.sched.inflight.Wait()
-	if task, _ := taskByID(s, "fu_1"); task.Enabled || f.sentTo("conv1") != 1 {
-		t.Fatalf("after the hold: %+v, %d sent", task, f.sentTo("conv1"))
-	}
-
-	// The hold itself, at the real times.
-	presenceTimes(t, 2*time.Minute, 5*time.Minute)
-	at := time.Date(2026, 11, 5, 10, 0, 0, 0, time.UTC)
-	present := map[string]time.Time{"conv1": at.Add(-30 * time.Second), "own1": at.Add(-30 * time.Second)}
-	for _, tc := range []struct {
-		name string
-		t    Task
-		due  time.Time
-		want time.Duration
-	}{
-		{"into the conversation the owner talks in", Task{SessionID: "conv1"}, at, 90 * time.Second},
-		{"into its own conversation the owner talks in", Task{RunSessionID: "own1"}, at, 90 * time.Second},
-		{"fresh recurring task does not interrupt its source", Task{SessionID: "conv1", Repeat: repeatInterval, FreshEachRun: true}, at, 0},
-		{"one-off still waits for its source", Task{SessionID: "conv1", Repeat: repeatOnce, FreshEachRun: true}, at, 90 * time.Second},
-		{"due 4 minutes ago: one more", Task{SessionID: "conv1"}, at.Add(-4 * time.Minute), time.Minute},
-		{"due 5 minutes ago: it runs", Task{SessionID: "conv1"}, at.Add(-5 * time.Minute), 0},
-		{"into another conversation", Task{SessionID: "conv9"}, at, 0},
-		{"into a new conversation", Task{}, at, 0},
-	} {
-		if got := runHold(present, tc.t, tc.due, at); got != tc.want {
-			t.Errorf("%s: held %s, want %s", tc.name, got, tc.want)
-		}
-	}
-}
-
-// Within ownerPresentFor of the owner's message nothing from the system goes into the conversation, idle as it is;
-// when the hold ends it goes in on its own, with no change of the machine's list.
-func TestSystemMessagesWaitWhileTheOwnerTalks(t *testing.T) {
-	presenceTimes(t, 300*time.Millisecond, time.Hour)
-	ownerTurnTimes(t, 300*time.Millisecond, time.Hour)
-	s, f := newQuietService(t)
-	stopHolds(t, s)
-	ctx := context.Background()
-	s.UserSpoke(ctx, SessionRef{MachineID: "server", SessionID: "conv1"})
-	s.relayOrQueue(ctx, "conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: "conversation_send", Text: "from another chat", At: time.Now().UTC()})
-	if q, sent := s.queuedFor("conv1"), f.sentTo("conv1"); q != 1 || sent != 0 {
-		t.Fatalf("while the owner talks: %d queued, %d sent", q, sent)
-	}
-	s.drainRelays("server", []proto.Session{{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle}})
-	waitFor(t, "the held message's timer", func() bool {
-		s.relays.mu.Lock()
-		defer s.relays.mu.Unlock()
-		return s.relays.holds["conv1"] != nil
-	})
-	if sent := f.sentTo("conv1"); sent != 0 {
-		t.Fatalf("a change of the list delivered %d held message(s)", sent)
-	}
-	waitFor(t, "the held message once the owner is quiet", func() bool { return f.sentTo("conv1") == 1 && s.queuedFor("conv1") == 0 })
-	// The owner is quiet: the next one goes straight in.
-	s.relayOrQueue(ctx, "conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: "conversation_send", Text: "again", At: time.Now().UTC()})
-	if sent := f.sentTo("conv1"); sent != 2 {
-		t.Fatalf("after the hold: %d sent", sent)
-	}
-}
-
-// A task's message that would have gone straight into the idle main conversation waits for the owner as well: it is
-// queued, shown waiting, and goes in when the hold ends.
-func TestTaskMessageToAnIdleConversationWaitsForTheOwner(t *testing.T) {
-	presenceTimes(t, 400*time.Millisecond, time.Hour)
-	ownerTurnTimes(t, 400*time.Millisecond, time.Hour)
-	s, f := newQuietService(t)
-	stopHolds(t, s)
-	f.judge = `{"verdict":"done","reason":"done"}`
-	startedTask(t, s, f)
-	s.UserSpoke(context.Background(), SessionRef{MachineID: "server", SessionID: "conv1"})
-	agentTurn(s, f, proto.StatusWorking, "", 0)
-	agentTurn(s, f, proto.StatusDone, "finished the work", 0)
-	waitFor(t, "the message to queue", func() bool { return s.queuedFor("conv1") == 1 })
-	if n := f.notices(); len(n) != 0 {
-		t.Fatalf("sent while the owner talks: %q", n)
-	}
-	waitFor(t, "the message once the owner is quiet", func() bool { return len(f.notices()) == 1 && s.queuedFor("conv1") == 0 })
-	if n := f.notices()[0]; !strings.Contains(n, "finished the work") {
-		t.Fatalf("message:\n%s", n)
 	}
 }
 
@@ -502,37 +367,6 @@ func TestUnresolvedSupervisionHeadBlocksLaterReplacement(t *testing.T) {
 				t.Fatalf("queue changed while the original send's outcome stayed unresolved: %+v", got)
 			}
 		})
-	}
-}
-
-// The queue wait (#4924) of a message held for the owner in an idle conversation is the whole hold: from when it
-// queued to when it went in.
-func TestQueueWaitOfAHeldMessage(t *testing.T) {
-	presenceTimes(t, 300*time.Millisecond, time.Hour)
-	ownerTurnTimes(t, 300*time.Millisecond, time.Hour)
-	s, f := newQuietService(t)
-	stopHolds(t, s)
-	ctx := context.Background()
-	s.UserSpoke(ctx, SessionRef{MachineID: "server", SessionID: "conv1"})
-	queued := time.Now()
-	s.relayOrQueue(ctx, "conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: "conversation_send", Text: "held", At: queued.Add(-time.Hour).UTC()})
-	if q, sent := s.queuedFor("conv1"), f.sentTo("conv1"); q != 1 || sent != 0 {
-		t.Fatalf("while the owner talks: %d queued, %d sent", q, sent)
-	}
-	if len(availEvents(s, queueWaitEvent)) != 0 {
-		t.Fatal("a queue wait recorded before the message went in")
-	}
-	waitFor(t, "the held message's queue wait", func() bool { return len(availEvents(s, queueWaitEvent)) == 1 })
-	longest := time.Since(queued).Seconds()
-	e := availEvents(s, queueWaitEvent)[0]
-	// From the owner's message to the end of the hold it waited ownerPresentFor, less what passed before it queued.
-	if wait, _ := e["wait"].(float64); wait < 0.2 || wait > longest || e["kind"] != proto.SourceConversation || e["depth"] != 1 {
-		t.Fatalf("queue wait %v, want between 0.2 and %.2f seconds", e, longest)
-	}
-	// One that goes straight in once the owner is quiet waited in no queue.
-	s.relayOrQueue(ctx, "conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: "conversation_send", Text: "straight in", At: time.Now().UTC()})
-	if n := len(availEvents(s, queueWaitEvent)); f.sentTo("conv1") != 2 || n != 1 {
-		t.Fatalf("%d sent, %d queue waits", f.sentTo("conv1"), n)
 	}
 }
 

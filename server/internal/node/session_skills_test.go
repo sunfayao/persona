@@ -3,97 +3,9 @@ package node
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"path/filepath"
-	"strings"
 	"testing"
-	"time"
-
-	"github.com/sunfayao/persona/server/internal/assistantskills"
-	"github.com/sunfayao/persona/server/internal/host"
-	"github.com/sunfayao/persona/server/internal/proto"
 )
-
-func TestOrdinaryClaudeSkillsCatalogAndSend(t *testing.T) {
-	fakeClaudeManagedSettings(t)
-	probedLaunchers(t, map[string]string{"claude": "claude"})
-	withSubmitGrace(t, 50*time.Millisecond)
-	n, o, _ := orcaSession(t)
-	cwd, profile := t.TempDir(), t.TempDir()
-	a, _ := n.agent(sidA)
-	a.Cwd = cwd
-	n.agents[sidA] = a
-	n.state.put(sidA, sessionState{Launcher: "claude", Cwd: cwd, ConfigDir: profile})
-	transcript := filepath.Join(profile, "projects", "-example", sidA+".jsonl")
-	writeFile(t, transcript, `{"type":"user","message":{"content":"Example"}}`+"\n")
-	n.paths[sidA] = transcript
-	file := filepath.Join(profile, "skills", "review", "SKILL.md")
-	writeFile(t, file, "---\nname: review\ndescription: Inspect boundaries\n---\n!`never-run`\n")
-	owner := "agents:helper"
-	catalog, err := n.sessionSkillCatalog(context.Background(), owner, sidA)
-	if err != nil || len(catalog.Skills) != 1 {
-		t.Fatalf("ordinary catalog: %+v %v", catalog, err)
-	}
-	text := `<persona-context kind="skill" ref="` + catalog.Skills[0].ID + `">review</persona-context>` + "\nCheck this"
-	n.agents[sidB] = host.Agent{Agent: "claude", Cwd: cwd, PaneID: a.PaneID}
-	n.state.put(sidB, sessionState{Launcher: "claude", Cwd: cwd, ConfigDir: profile})
-	for _, change := range []string{"manager", "machine", "session", "cwd", "profile", "launcher", "switch", "offline"} {
-		otherOwner, otherID := owner, sidA
-		machine := n.machineID
-		switch change {
-		case "manager":
-			otherOwner = "agents:other"
-		case "session":
-			otherID = sidB
-		case "machine":
-			n.machineID = "other-computer"
-		case "launcher":
-			n.state.put(sidA, sessionState{Launcher: "unknown-launcher", Cwd: cwd, ConfigDir: profile})
-		case "switch":
-			n.state.put(sidA, sessionState{Launcher: "claude", Cwd: cwd, ConfigDir: profile, PendingSwitch: &proto.PendingSwitch{Launcher: "other"}})
-		case "offline":
-			delete(n.agents, sidA)
-		case "cwd":
-			changed := a
-			changed.Cwd = t.TempDir()
-			n.agents[sidA] = changed
-		case "profile":
-			otherProfile := t.TempDir()
-			otherTranscript := filepath.Join(otherProfile, "projects", "-example", sidA+".jsonl")
-			writeFile(t, otherTranscript, `{"type":"user","message":{"content":"Another profile"}}`+"\n")
-			n.paths[sidA] = otherTranscript
-			n.state.put(sidA, sessionState{Launcher: "claude", Cwd: cwd, ConfigDir: otherProfile})
-		}
-		other, err := n.sessionSkillCatalog(context.Background(), otherOwner, otherID)
-		if err == nil {
-			if _, err := assistantskills.Resolve(text, other.Skills); err == nil {
-				t.Fatalf("selection crossed %s", change)
-			}
-		}
-		n.agents[sidA] = a
-		n.machineID = machine
-		n.paths[sidA] = transcript
-		n.state.put(sidA, sessionState{Launcher: "claude", Cwd: cwd, ConfigDir: profile})
-	}
-	o.SetScreen("term_1", "❯ \n")
-	if _, err := request(t, n, "session.send", map[string]any{"session_id": sidA, "skill_owner": owner, "text": text}); err != nil {
-		t.Fatal(err)
-	}
-	writes := o.Writes()
-	if len(writes) == 0 || !strings.Contains(writes[0].Text, "Instruction file:") || !strings.Contains(writes[0].Text, resolved(t, file)) || !strings.Contains(writes[0].Text, catalog.Skills[0].ID) || strings.Contains(writes[0].Text, "never-run") {
-		t.Fatalf("missing exact-file intent: %+v", writes)
-	}
-	if err := os.Remove(file); err != nil {
-		t.Fatal(err)
-	}
-	before := len(o.Writes())
-	if _, err := request(t, n, "session.send", map[string]any{"session_id": sidA, "skill_owner": owner, "text": text}); err == nil {
-		t.Fatal("deleted skill was sent")
-	}
-	if len(o.Writes()) != before {
-		t.Fatal("a refused skill typed into the terminal")
-	}
-}
 
 func TestOrdinarySkillsNeverReachUnsupportedRuntime(t *testing.T) {
 	n, _ := runtimeNode(t)

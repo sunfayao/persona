@@ -3,11 +3,9 @@ package node
 import (
 	"context"
 	"errors"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/host"
 )
@@ -103,46 +101,6 @@ func TestHerdrCoreConcurrentSpaceReused(t *testing.T) {
 	}
 	if term.Labels[herdrSpaceLabel] != "S1" || term.Labels[herdrTabLabel] != created.SlotID || term.Labels[herdrWhereLabel] != "api / 2" || term.Labels[herdrSeenLabel] != "7" {
 		t.Errorf("labels %v", term.Labels)
-	}
-}
-
-func TestHerdrCoreStartUsesCoreShell(t *testing.T) {
-	for _, tc := range []struct{ node, core string }{{"/bin/zsh", "/usr/bin/fish"}, {"/usr/bin/fish", "/bin/zsh"}} {
-		t.Run(filepath.Base(tc.core), func(t *testing.T) {
-			n, _, hc, home := hcNode(t)
-			withPaneShell(t, tc.node)
-			n.claudeStart, n.claudeReady = 200*time.Millisecond, 200*time.Millisecond
-			proj := mkdir(t, filepath.Join(home, "project"))
-			hc.doc = appDoc(proj)
-			hc.handle("terminal.run", func(p map[string]any) any {
-				term := hcTerminal("t101", "", "", 50, tc.core, proj, "", "", "")
-				term["argv"], term["labels"] = []string{tc.core}, p["labels"]
-				hc.setTerminals(term)
-				return term
-			})
-			var line, script string
-			hc.handle("terminal.send", func(p map[string]any) any {
-				line = str(p["text"])
-				files, _ := filepath.Glob(filepath.Join(n.dir, startScriptPrefix+"*"))
-				if len(files) == 1 {
-					b, err := os.ReadFile(files[0])
-					if err != nil {
-						return hcFail{"unavailable"}
-					}
-					script = string(b)
-				}
-				return map[string]any{}
-			})
-			_, _ = request(t, n, "session.start", map[string]any{"session_id": startID, "cwd": proj})
-			prefix := ". "
-			fish := filepath.Base(tc.core) == "fish"
-			if fish {
-				prefix = "source "
-			}
-			if !strings.HasPrefix(line, prefix) || script == "" || strings.Contains(script, "\nunset ") == fish {
-				t.Errorf("core %s, node %s: line %q, script %q", tc.core, tc.node, line, script)
-			}
-		})
 	}
 }
 

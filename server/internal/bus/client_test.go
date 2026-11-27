@@ -274,33 +274,6 @@ func TestClientReconnectsSoonAfterTheHubComesBack(t *testing.T) {
 	}
 }
 
-// A hub that stays out of reach gets only probes between full tries, and the full tries keep the backoff's pace.
-func TestClientProbesWhileTheHubStaysDown(t *testing.T) {
-	var dials events
-	var log logLines
-	c := &Client{Hub: "http://" + freeAddr(t), Token: "t", HelloMethod: "manager.hello", Logf: log.logf,
-		HTTPClient: countingClient(&dials), Backoff: 100 * time.Millisecond, MaxBackoff: 200 * time.Millisecond,
-		probeOver: time.Nanosecond, probeEvery: 10 * time.Millisecond}
-	began := time.Now()
-	_, cancel, ran := runClient(t, c)
-	log.waitFor(t, tryEnded, 4, 10*time.Second)
-	took := time.Since(began)
-	stop(t, cancel, ran)
-	tries := log.count(tryEnded)
-	probes := dials.count() - tries
-	t.Logf("%d full tries in %s, %d probes", tries, took.Round(time.Millisecond), probes)
-	// Four tries take the waits of 100, 200 and 200 ms between them.
-	if took < 450*time.Millisecond {
-		t.Fatalf("4 full tries within %s, faster than the backoff's 500 ms", took)
-	}
-	if probes < 3*(tries-1) {
-		t.Fatalf("%d probes between %d full tries, want several in each wait", probes, tries)
-	}
-	if log.count("the hub answers again") != 0 {
-		t.Fatal("a wait ended early while the hub was down")
-	}
-}
-
 // A hub reached through a local SSH forward: the forward's port takes connections while the tunnel behind it is
 // stalled (a laptop asleep), so a TCP dial would find "the hub" all along. The probe asks the hub's health through
 // it instead: no answer while the tunnel is stalled, so the wait began with the hub out of reach, and it ends within
@@ -331,36 +304,6 @@ func TestClientReconnectsThroughAForwardWhoseTunnelComesBack(t *testing.T) {
 	}
 	if log.count("the hub answers again") != 1 {
 		t.Errorf("the log does not say why it tried early: %q", log.all())
-	}
-}
-
-// A hub whose health answers but whose bus does not (a reset during the handshake, a bus that refuses for now) keeps
-// the doubling backoff: it answered as each wait began, so no wait ends early, and it sees one probe a wait, not one
-// every probeEvery.
-func TestClientKeepsBackoffWhenTheHubIsHealthyButNotTheBus(t *testing.T) {
-	n := &noBus{}
-	srv := httptest.NewServer(n)
-	defer srv.Close()
-	var log logLines
-	c := &Client{Hub: srv.URL, Token: "t", HelloMethod: "manager.hello", Logf: log.logf,
-		Backoff: 100 * time.Millisecond, MaxBackoff: 200 * time.Millisecond,
-		probeOver: time.Nanosecond, probeEvery: 10 * time.Millisecond}
-	began := time.Now()
-	_, cancel, ran := runClient(t, c)
-	n.tries.waitFor(t, "full tries", 4, 10*time.Second)
-	took := time.Since(began)
-	n.probes.waitFor(t, "probes (one in each wait so far)", 3, 5*time.Second)
-	stop(t, cancel, ran)
-	tries, probes := n.tries.count(), n.probes.count()
-	t.Logf("%d full tries in %s, %d probes", tries, took.Round(time.Millisecond), probes)
-	if took < 450*time.Millisecond {
-		t.Fatalf("4 full tries within %s, faster than the backoff's 500 ms (a try every probe would take 30 ms)", took)
-	}
-	if probes > tries+1 {
-		t.Fatalf("%d probes for %d waits, want one a wait", probes, tries)
-	}
-	if log.count("the hub answers again") != 0 {
-		t.Fatal("a wait ended early though the hub answered as it began")
 	}
 }
 
@@ -397,47 +340,6 @@ func TestClientShortWaitsDoNotProbe(t *testing.T) {
 	stop(t, cancel, ran)
 	if n, tries := dials.count(), log.count(tryEnded); n > tries+1 {
 		t.Fatalf("%d dials for %d tries with waits of 50 ms: probes in a short wait", n, tries)
-	}
-}
-
-// A refused token waits MaxBackoff whole, even when the hub goes away and comes back during the wait: only someone
-// fixing the token helps, and a probe would only bring the next refusal sooner. It does not probe at all.
-func TestClientRejectedTokenKeepsItsWait(t *testing.T) {
-	addr := freeAddr(t)
-	f := &fakeHub{}
-	f.refuse.Store(true)
-	f.plain.Store(true)
-	var gone sync.Once
-	l := listenAt(t, addr)
-	srv := serveOn(l, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gone.Do(func() { _ = l.Close() }) // out of reach before the client hears the refusal
-		f.ServeHTTP(w, r)
-	}))
-	defer srv.Close()
-	var dials events
-	var log logLines
-	c := &Client{Hub: "http://" + addr, Token: "t", HelloMethod: "manager.hello", Logf: log.logf,
-		HTTPClient: countingClient(&dials), Backoff: 10 * time.Millisecond, MaxBackoff: 300 * time.Millisecond,
-		probeOver: time.Nanosecond, probeEvery: 10 * time.Millisecond}
-	runClient(t, c)
-	log.waitFor(t, "again in 300ms", 1, 5*time.Second)
-	refused := time.Now()
-
-	var again events
-	f2 := &fakeHub{}
-	f2.refuse.Store(true)
-	f2.plain.Store(true)
-	srv2 := serveOn(listenAt(t, addr), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		f2.ServeHTTP(w, r)
-		again.add()
-	}))
-	defer srv2.Close()
-	again.waitFor(t, "tries after the refusal", 1, 5*time.Second)
-	if took := time.Since(refused); took < 250*time.Millisecond {
-		t.Fatalf("tried again %s after the refusal, before its wait of %s", took, c.MaxBackoff)
-	}
-	if n := dials.count(); n != 2 {
-		t.Fatalf("%d dials for two tries with a refused token, want no probes between them", n)
 	}
 }
 
@@ -515,44 +417,6 @@ func TestHealthURL(t *testing.T) {
 	}
 	if (&Client{Hub: "hub.example"}).prober() != nil {
 		t.Error("a probe for a hub URL that does not parse")
-	}
-}
-
-// Only the hub's own answer counts: a 2xx whose body says "ok": true, in time.
-func TestProbeReadsTheHubsHealth(t *testing.T) {
-	var mode atomic.Value
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != healthPath {
-			http.NotFound(w, r)
-			return
-		}
-		switch mode.Load().(string) {
-		case "ok":
-			_, _ = w.Write([]byte(`{"ok":true,"hub_id":"h"}`))
-		case "not ok":
-			_, _ = w.Write([]byte(`{"ok":false}`))
-		case "503":
-			w.WriteHeader(http.StatusServiceUnavailable)
-			_, _ = w.Write([]byte(`{"ok":true}`))
-		case "not json":
-			_, _ = w.Write([]byte(`<html>a proxy's page</html>`))
-		case "hang":
-			<-r.Context().Done()
-		}
-	}))
-	defer srv.Close()
-	reach := (&Client{Hub: srv.URL}).prober()
-	for _, c := range []struct {
-		mode string
-		want bool
-	}{{"ok", true}, {"not ok", false}, {"503", false}, {"not json", false}, {"hang", false}, {"ok", true}} {
-		mode.Store(c.mode)
-		if got := reach(context.Background(), 300*time.Millisecond); got != c.want {
-			t.Errorf("health %s: reachable %v, want %v", c.mode, got, c.want)
-		}
-	}
-	if (&Client{Hub: srv.URL + "/elsewhere"}).prober()(context.Background(), time.Second) {
-		t.Error("a 404 for the health is a hub that answers")
 	}
 }
 

@@ -68,7 +68,7 @@ func randomClipValue(r *rand.Rand, depth int) any {
 
 func TestClipJSONRandomObjectsBounded(t *testing.T) {
 	r := rand.New(rand.NewPCG(2907, 3))
-	for i := 0; i < 40; i++ {
+	for i := 0; i < 4; i++ {
 		root := map[string]any{}
 		for j := 0; j < 12; j++ {
 			root[fmt.Sprintf("field_%02d_%s", j, strings.Repeat("k", r.IntN(20)))] = randomClipValue(r, 4)

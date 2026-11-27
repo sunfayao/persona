@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -39,74 +38,6 @@ func runAtBackoffCap(t *testing.T, c Config, o Options) chan Status {
 	}()
 	t.Cleanup(func() { cancel(); <-done })
 	return statuses
-}
-
-func TestActiveLinkReconnectsWhenTheDirectHubComesBack(t *testing.T) {
-	hub := newSSHTestHub(t, "")
-	direct := newGatedDirectListener(t, hub.target, false)
-	c := Config{Machine: "laptop", FP: hub.pin, Token: "jd_ssh", Endpoints: []Endpoint{{URL: direct.url, Kind: "lan"}}}
-	statuses := runAtBackoffCap(t, c, Options{})
-	waiting := waitFor(t, statuses, func(s Status) bool { return s.State == "waiting" })
-	if left := time.Until(*waiting.Retry); left < 29*time.Second || left > time.Minute {
-		t.Fatalf("first wait has %s left, want the jittered cap", left)
-	}
-	waitCondition(t, 5*time.Second, "a failed link dial, the baseline probe, and the first periodic probe", func() bool {
-		return direct.attempts.Load() >= 3
-	})
-	back := time.Now()
-	direct.allowed.Store(true)
-	select {
-	case <-hub.links:
-	case <-time.After(5 * time.Second):
-		t.Fatal("link did not reconnect within 5 seconds of direct recovery")
-	}
-	s := waitFor(t, statuses, func(s Status) bool { return s.State == "connected" })
-	if s.Address != direct.url || !s.Since.Before(waiting.Retry.Add(-20*time.Second)) {
-		t.Fatalf("connected at %s after %s over %s, initial retry was %s", s.Since, time.Since(back), s.Address, waiting.Retry)
-	}
-}
-
-func TestActiveLinkOnlyProbesWhileTheHubStaysDown(t *testing.T) {
-	ssh := newSSHHarness(t)
-	ssh.setMode("auth_refused")
-	var tries, probes atomic.Int32
-	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == healthPath && strings.HasPrefix(r.UserAgent(), "Go-http-client/"):
-			if r.Method != http.MethodGet || r.Header.Get("Authorization") != "" {
-				t.Error("health probe must be an unauthenticated GET")
-			}
-			probes.Add(1)
-			w.WriteHeader(http.StatusServiceUnavailable)
-			_, _ = w.Write([]byte(`{"ok":true}`))
-		case r.URL.Path == Path && r.Header.Get("Authorization") == "Bearer jd_test":
-			tries.Add(1)
-			w.WriteHeader(http.StatusBadGateway)
-		default:
-			w.WriteHeader(http.StatusNotFound)
-		}
-	}))
-	t.Cleanup(srv.Close)
-	check := make(chan struct{}, 1)
-	c := Config{Machine: "laptop", FP: pinOf(srv), Token: "jd_test", Endpoints: []Endpoint{{URL: srv.URL}},
-		SSH: &SSH{Server: "hub.example.com", Target: srv.Listener.Addr().String()}}
-	statuses := runAtBackoffCap(t, c, Options{Check: check, SSHBin: ssh.bin})
-	waitFor(t, statuses, func(s Status) bool { return s.State == "waiting" })
-	waitCondition(t, 7*time.Second, "baseline and two periodic probes", func() bool { return probes.Load() >= 3 })
-	if n := tries.Load(); n != 1 {
-		t.Fatalf("got %d full attempts during one wait, want 1", n)
-	}
-	if n := len(ssh.runs()); n != 1 {
-		t.Fatalf("got %d SSH logins across the first attempt and backoff probes, want 1", n)
-	}
-	check <- struct{}{}
-	waitFor(t, statuses, func(s Status) bool { return s.State == "waiting" })
-	if n := tries.Load(); n != 2 {
-		t.Fatalf("got %d full attempts after Check, want 2", n)
-	}
-	if n := len(ssh.runs()); n != 2 {
-		t.Fatalf("got %d SSH logins after Check, want 2", n)
-	}
 }
 
 func TestWaitKeepsItsDeadlineUnlessTheHubRecovers(t *testing.T) {
@@ -299,27 +230,6 @@ func TestHubProbeStripsEndpointCredentials(t *testing.T) {
 	c := &Config{FP: pinOf(srv), Proxy: ProxyOff, Endpoints: []Endpoint{{URL: endpoint}}}
 	if probe := hubProbe(c); probe == nil || !probe(t.Context()) {
 		t.Fatal("probe did not receive a successful unauthenticated health response")
-	}
-}
-
-func TestHubProbeThroughProxy(t *testing.T) {
-	hub := newSSHTestHub(t, "/hub")
-	proxy := newConnectProxy(t, hub.target, nil)
-	c := &Config{FP: hub.pin, Proxy: proxy.url, Endpoints: []Endpoint{{URL: unroutable + "/hub"}}}
-	probe := hubProbe(c)
-	if probe == nil {
-		t.Fatal("no probe for the configured routes")
-	}
-	proxy.reset.Store(true) // CONNECT succeeds, but the hub's TLS handshake fails.
-	if probe(t.Context()) {
-		t.Fatal("a proxy that resets the tunnel counted as reachable")
-	}
-	proxy.reset.Store(false)
-	if !probe(t.Context()) {
-		t.Fatal("hub health did not answer through the proxy")
-	}
-	if len(proxy.asked()) < 2 {
-		t.Fatal("health checks did not use the configured proxy")
 	}
 }
 

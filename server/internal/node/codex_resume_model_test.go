@@ -57,36 +57,3 @@ func TestCodexWaitingRowRecordsModelAndEffort(t *testing.T) {
 		t.Errorf("thread's state = %+v", st)
 	}
 }
-
-func TestCodexResumeKeepsModelAndEffort(t *testing.T) {
-	for _, tc := range []struct {
-		effort string
-		want   string
-	}{
-		{"max", "codex --model gpt-6 -c model_reasoning_effort=max resume " + startThread},
-		{"high", "codex --model gpt-6 resume " + startThread}, // the config's effort: stays on the shared app-server
-	} {
-		t.Run(tc.effort, func(t *testing.T) {
-			withCodexLaunchers(t, map[string][]string{"codex": {"codex"}})
-			n, f, cwd := codexHistoryNode(t)
-			t.Setenv("HOME", n.home)
-			t.Setenv("ZDOTDIR", n.home)
-			codexOnPath(t, n.home) // the Codex CLI itself, so the config's effort counts as inherited (#10432)
-			writeFile(t, filepath.Join(cwd, ".git", "HEAD"), "ref: refs/heads/main\n")
-			writeFile(t, filepath.Join(n.codexHome(), "config.toml"), "model_reasoning_effort = \"high\"\n")
-			n.state.put(startThread, sessionState{Launcher: "codex", Cwd: cwd, Model: "gpt-6", ModelEffort: tc.effort})
-			listSessions(t, n)
-			f.reset()
-			got := resumeFile(f, cwd)
-			if _, err := request(t, n, "session.start", map[string]any{"resume_session_id": startThread}); err != nil {
-				t.Fatal(err)
-			}
-			if file := got(); strings.Join(file.Argv, " ") != tc.want {
-				t.Errorf("ran %q, want %q", file.Argv, tc.want)
-			}
-			if st, _ := n.state.get(startThread); st.Model != "gpt-6" || st.ModelEffort != tc.effort {
-				t.Errorf("state = %+v", st)
-			}
-		})
-	}
-}

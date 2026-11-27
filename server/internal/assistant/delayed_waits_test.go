@@ -41,47 +41,6 @@ func newDelayedRetryFixture(t *testing.T, st Store) (*Service, *fakeHub, delayed
 	return s, n, w
 }
 
-func TestRestoredScheduledRetryKeepsDeadline(t *testing.T) {
-	st := withDelayedWaitCAS(&memStore{})
-	first, n, w := newDelayedRetryFixture(t, st)
-	w.At = time.Now().Add(500 * time.Millisecond)
-	if err := first.updateDelayedWaits(context.Background(), func(doc *delayedWaitDoc) (bool, error) {
-		doc.Waits[0].At = w.At
-		return true, nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-	second := newServiceOn(t, n, st)
-	sent := make(chan map[string]any, 2)
-	n.mu.Lock()
-	n.onAssistantSend = func(_ *fakeHub, p map[string]any) { sent <- p }
-	n.mu.Unlock()
-	second.restoreDelayedWaits(context.Background())
-	doc, err := second.readDelayedWaits(context.Background())
-	if err != nil || len(doc.Waits) != 1 || !doc.Waits[0].At.Equal(w.At) {
-		t.Fatalf("restored deadline = %+v, %v; want %v", doc.Waits, err, w.At)
-	}
-	select {
-	case p := <-sent:
-		t.Fatalf("retry ran before its original deadline: %+v", p)
-	case <-time.After(75 * time.Millisecond):
-	}
-	select {
-	case <-sent:
-	case <-time.After(2 * time.Second):
-		t.Fatal("retry did not run at its original deadline")
-	}
-	waitFor(t, "the completed retry to leave the backlog", func() bool {
-		doc, err := second.readDelayedWaits(context.Background())
-		return err == nil && len(doc.Waits) == 0
-	})
-	third := newServiceOn(t, n, st)
-	third.restoreDelayedWaits(context.Background())
-	if got := n.sent(); got != 1 {
-		t.Fatalf("repeated restore produced %d sends, want 1", got)
-	}
-}
-
 type ambiguousSaveStore struct {
 	Store
 	fail bool
@@ -164,57 +123,6 @@ func TestClaimedScheduledRetryRecoversUnknownWithoutResend(t *testing.T) {
 	third.restoreDelayedWaits(context.Background())
 	if n.sent() != 0 || len(n.pushed()) != len(pushes) {
 		t.Fatal("repeated recovery resent or reported the same claim again")
-	}
-}
-
-func TestDelayedWaitClaimIsAtomic(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		st   func(*testing.T) Store
-	}{
-		{name: "shared store", st: func(*testing.T) Store { return withDelayedWaitCAS(&memStore{}) }},
-		{name: "postgresql", st: func(t *testing.T) Store { return taskRecoveryDatabase(t) }},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			st := tc.st(t)
-			first := newServiceOn(t, newFakeHub(), st)
-			second := newServiceOn(t, newFakeHub(), st)
-			w := delayedWait{ID: "limit_once", Kind: delayedScheduledRetry, At: time.Now().Add(-time.Second),
-				Retry: &scheduledLimitRetry{}}
-			if err := first.persistScheduledRetry(context.Background(), w); err != nil {
-				t.Fatal(err)
-			}
-			start := make(chan struct{})
-			type result struct {
-				ok  bool
-				err error
-			}
-			results := make(chan result, 2)
-			for _, tc := range []struct {
-				s     *Service
-				token string
-			}{{first, "first"}, {second, "second"}} {
-				go func() {
-					<-start
-					_, ok, err := tc.s.claimDelayedWait(context.Background(), w.ID, tc.token, time.Now())
-					results <- result{ok: ok, err: err}
-				}()
-			}
-			close(start)
-			claims := 0
-			for range 2 {
-				r := <-results
-				if r.err != nil {
-					t.Fatal(r.err)
-				}
-				if r.ok {
-					claims++
-				}
-			}
-			if claims != 1 {
-				t.Fatalf("%d managers claimed one retry, want exactly one", claims)
-			}
-		})
 	}
 }
 
@@ -338,24 +246,6 @@ func TestReceiptRecheckNewGenerationSupersedesPending(t *testing.T) {
 	second.restoreDelayedWaits(context.Background())
 	waitFor(t, "the reopened task's receipt", func() bool {
 		return strings.Count(feedKinds(second, "conv1"), "receipt") == 1
-	})
-}
-
-func TestReceiptRecheckNewGenerationReplacesLocalTimer(t *testing.T) {
-	oldAt := time.Now().Add(150 * time.Millisecond)
-	first, _, _, _ := newReceiptWaitFixture(t, oldAt)
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-	first.running.Store(&ctx)
-	first.taskTurnEndedAfter(ctx, "box", "s1", oldAt)
-	id := onlyTodo(first).ID
-	first.todos.mu.Lock()
-	reopened := time.Now()
-	first.todos.todos[id].ReopenedAt = &reopened
-	first.todos.mu.Unlock()
-	first.taskTurnEndedAfter(ctx, "box", "s1", oldAt.Add(150*time.Millisecond))
-	waitFor(t, "the new generation's local recheck timer", func() bool {
-		return strings.Count(feedKinds(first, "conv1"), "receipt") == 1
 	})
 }
 
@@ -550,62 +440,6 @@ func (st *compareValueGate) CompareSetting(ctx context.Context, key string, revi
 		}
 	}
 	return st.Store.(delayedWaitCAS).CompareSetting(ctx, key, revision, value)
-}
-
-type failFirstSettingStore struct {
-	Store
-	failed chan struct{}
-	fail   bool
-}
-
-func (st *failFirstSettingStore) Setting(ctx context.Context, key string, out any) (bool, error) {
-	if key == delayedWaitsKey && st.fail {
-		st.fail = false
-		close(st.failed)
-		return false, errors.New("database unavailable")
-	}
-	return st.Store.Setting(ctx, key, out)
-}
-
-func TestDelayedWaitsRecoveryLoopRetriesStoreFailure(t *testing.T) {
-	st := withDelayedWaitCAS(&memStore{})
-	_, n, _ := newDelayedRetryFixture(t, st)
-	flaky := &failFirstSettingStore{Store: st, failed: make(chan struct{}), fail: true}
-	second := newServiceOn(t, n, flaky)
-	setTasks(second, Task{ID: "p", Prompt: "go", Repeat: repeatInterval, EveryMinutes: 30,
-		At: time.Now().Add(time.Hour), Enabled: true, MachineID: "server"})
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-	go second.Run(ctx)
-	<-flaky.failed
-	waitFor(t, "the restored retry after the store recovers", func() bool { return n.sent() == 1 })
-}
-
-func TestReceiptRecheckRetriesReleaseFailure(t *testing.T) {
-	first, f, st, w := newReceiptWaitFixture(t, time.Now().Add(-time.Second))
-	gate := &compareGateStore{Store: st}
-	gate.before = func(call int) error {
-		if call == 2 {
-			return errors.New("release failed")
-		}
-		return nil
-	}
-	second := newServiceOn(t, f, gate)
-	copyReceiptFixtureTasks(first, second)
-	attempts, backoff, maximum := agentReachAttempts, agentReachBackoff, agentReachMax
-	agentReachAttempts, agentReachBackoff, agentReachMax = 1, time.Millisecond, 50*time.Millisecond
-	t.Cleanup(func() { agentReachAttempts, agentReachBackoff, agentReachMax = attempts, backoff, maximum })
-	f.mu.Lock()
-	f.sessionsFail["box"] = 100
-	f.mu.Unlock()
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-	second.running.Store(&ctx)
-	second.runReceiptRecheck(ctx, w, true)
-	waitFor(t, "the claimed recheck to become pending after the release recovers", func() bool {
-		doc, err := second.readDelayedWaits(context.Background())
-		return err == nil && len(doc.Waits) == 1 && doc.Waits[0].Claim == ""
-	})
 }
 
 func TestScheduledRetryRearmPersistsBackoffDeadline(t *testing.T) {

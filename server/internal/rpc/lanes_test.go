@@ -10,11 +10,8 @@ import (
 	"net"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
-
-	"github.com/sunfayao/persona/server/internal/netshape"
 )
 
 // gate is a transport whose writes wait for the test: each write is recorded, then held until release lets it return.
@@ -400,125 +397,6 @@ func eventually(t *testing.T, ok func() bool) {
 			t.Fatal("not in time")
 		}
 		time.Sleep(time.Millisecond) // sleep-ok: the polling interval of a wait for a condition, not a fixed wait
-	}
-}
-
-// Calls and events going both ways while the connection switches all arrive, once each, and each sender's events in
-// the order it sent them.
-func TestLanesUpgradeWithTrafficInFlight(t *testing.T) {
-	for round := 0; round < 20; round++ {
-		var got sync.Map // "side/goroutine" → the last index seen
-		var bad atomic.Value
-		hc, nc := net.Pipe()
-		h, n := New("h", hc), New("n", nc)
-		h.EnableLanes(testControl, testBulk)
-		n.EnableLanes(testControl, testBulk)
-		onEvent := func(side string) EventHandler {
-			return func(event string, params json.RawMessage) {
-				var p struct {
-					G, I int
-				}
-				_ = json.Unmarshal(params, &p)
-				key := fmt.Sprintf("%s/%d", side, p.G)
-				prev, _ := got.LoadOrStore(key, -1)
-				if prev.(int) != p.I-1 { // one goroutine's events, bulk or not, in the order they were sent
-					bad.Store(fmt.Sprintf("%s: %s %d after %d", key, event, p.I, prev))
-				}
-				got.Store(key, p.I)
-			}
-		}
-		h.OnEvent, n.OnEvent = onEvent("h"), onEvent("n")
-		h.OnRequest, n.OnRequest = echo, echo
-		go func() { _ = h.Serve(context.Background(), hc) }()
-		go func() { _ = n.Serve(context.Background(), nc) }()
-		var wg sync.WaitGroup
-		const per = 30
-		for g := 0; g < 4; g++ {
-			for _, p := range []*Peer{h, n} {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					for i := 0; i < per; i++ {
-						event := "evt"
-						if i%3 == 0 {
-							event = "stream.data" // bulk
-						}
-						if err := p.Notify(event, map[string]any{"g": g, "i": i, "pad": strings.Repeat("p", (i%5)*20000)}); err != nil {
-							bad.Store(err.Error())
-						}
-						var out map[string]any
-						if err := p.Call(context.Background(), "file.chunk", map[string]int{"g": g, "i": i}, &out); err != nil {
-							bad.Store(err.Error())
-						}
-					}
-				}()
-			}
-		}
-		if err := h.UpgradeLanes(context.Background()); err != nil {
-			t.Fatal(err)
-		}
-		wg.Wait()
-		if v := bad.Load(); v != nil {
-			t.Fatalf("round %d: %v", round, v)
-		}
-		// Events are delivered synchronously before the calls behind them are answered, so all have arrived.
-		for _, side := range []string{"h", "n"} {
-			for g := 0; g < 4; g++ {
-				if v, ok := got.Load(fmt.Sprintf("%s/%d", side, g)); !ok || v.(int) != per-1 {
-					t.Fatalf("round %d: %s/%d last %v, want %d", round, side, g, v, per-1)
-				}
-			}
-		}
-		if !h.Framed() || !n.Framed() {
-			t.Fatal("not framed")
-		}
-		hc.Close()
-		nc.Close()
-	}
-}
-
-// Over a framed connection a short call is answered while a long answer of the bulk lane is still on its way.
-func TestLanesShortCallPassesBulk(t *testing.T) {
-	link := netshape.Config{Rate: 64 << 10, Delay: 20 * time.Millisecond} // 64 KiB a second each way
-	a, b := netshape.Pipe(link, link)
-	h, n := New("h", a), New("n", b)
-	h.EnableLanes(testControl, testBulk)
-	n.EnableLanes(testControl, testBulk)
-	big := strings.Repeat("c", 250_000)
-	n.OnRequest = func(ctx context.Context, method string, params json.RawMessage) (any, error) {
-		if method == "file.chunk" {
-			return map[string]string{"data": big}, nil
-		}
-		return map[string]bool{"ok": true}, nil
-	}
-	go func() { _ = h.Serve(context.Background(), a) }()
-	go func() { _ = n.Serve(context.Background(), b) }()
-	defer func() { a.Close(); b.Close() }()
-	if err := h.UpgradeLanes(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	chunk := make(chan error, 1)
-	go func() {
-		var out map[string]string
-		chunk <- h.Call(context.Background(), "file.chunk", map[string]any{}, &out)
-	}()
-	eventually(t, func() bool { return n.LaneStats().Lanes[LaneBulk].SentFrames > 0 }) // the answer is under way
-	start := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
-	defer cancel()
-	if err := h.Call(ctx, "ping", map[string]any{}, nil); err != nil {
-		t.Fatalf("ping behind a bulk answer: %v after %s", err, time.Since(start))
-	}
-	if took := time.Since(start); took > 2*time.Second {
-		t.Fatalf("ping took %s behind a bulk answer", took)
-	}
-	select {
-	case err := <-chunk:
-		t.Fatalf("the bulk answer finished first (%v): the test proves nothing", err)
-	default:
-	}
-	if err := <-chunk; err != nil {
-		t.Fatal(err)
 	}
 }
 

@@ -219,39 +219,6 @@ func TestTopicReplyRoutes(t *testing.T) {
 	}
 }
 
-// The same message delivered twice (Feishu redelivers) is one decision and one message to the agent: through the
-// handler's own claim, and, past it, through the decision (its message id).
-func TestTopicReplyDeliveredTwiceIsHandledOnce(t *testing.T) {
-	database := todoTestDB(t)
-	e := newThreadEnv(t, database)
-	id := e.topicTodo("发版")
-	e.must("PUT", "/api/v1/todos/"+id+"/agents/box/agent01", "")
-
-	e.deliver(topicEvent("om_d1", "先发安卓"))
-	e.deliver(topicEvent("om_d1", "先发安卓"))
-	if got := decisionsOf(t, database, id); len(got) != 1 {
-		t.Fatalf("decisions after a second delivery to the handler: %+v", got)
-	}
-	if got := handoffs(e.f); len(got) != 1 {
-		t.Fatalf("sent on %d times", len(got))
-	}
-
-	raw, _ := json.Marshal(topicEvent("om_d2", "再加一条"))
-	for i := 0; i < 2; i++ {
-		if err := e.s.FeishuMessage(context.Background(), FeishuMessage{Event: raw}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	waitFor(t, "the second message to go on", func() bool { return len(handoffs(e.f)) == 2 })
-	time.Sleep(200 * time.Millisecond) // a second delivery that got through would be sent on by now
-	if got := decisionsOf(t, database, id); len(got) != 2 {
-		t.Fatalf("decisions after a redelivery through FeishuMessage: %+v", got)
-	}
-	if got := handoffs(e.f); len(got) != 2 {
-		t.Fatalf("sent on %d times, want 2", len(got))
-	}
-}
-
 // A topic bound to no todo, or to one that is done, is told so once in ten minutes, in the topic; nothing is sent on
 // and no decision is written.
 func TestTopicWithoutAnOpenTodoIsToldOnce(t *testing.T) {

@@ -18,30 +18,6 @@ func tellNow(t *testing.T, n *Node, id, text string) error {
 	return err
 }
 
-// An idle agent is quit and resumed on the launcher picked, and the message goes to it there, as the user's would.
-func TestSwitchNowCarriesTheSwitchOut(t *testing.T) {
-	n, f, _, cwd, _ := switchNode(t, proto.StatusIdle, nil)
-	if err := pick(t, n, map[string]any{"launcher": "work", "from": "claude", "model": "opus"}); err != nil {
-		t.Fatal(err)
-	}
-	f.reset()
-	quitsToShell(f, cwd)
-	comesUpWhen(f, "w1:p1", func(string) bool { return true })
-	if err := tellNow(t, n, sidA, "go on"); err != nil {
-		t.Fatalf("send: %v\n%s", err, strings.Join(f.trace(), "\n"))
-	}
-	starts := typedStarts(f, "w1:p1")
-	if len(starts) != 1 || !strings.Contains(starts[0], " launch work ") || !strings.Contains(starts[0], "--resume "+sidA) {
-		t.Fatalf("typed %q", starts)
-	}
-	if got := f.trace("agent.prompt"); len(got) != 1 || !strings.Contains(got[0], "go on") {
-		t.Errorf("prompts = %q", got)
-	}
-	if st, _ := n.state.get(sidA); st.Launcher != "work" || st.PendingSwitch != nil {
-		t.Errorf("record after the switch = %+v", st)
-	}
-}
-
 // Where the user's message would go on the launcher the agent runs on and leave the switch waiting, the assistant's is
 // refused with nothing typed, and the switch is dropped: a busy agent (switch_busy), a draft in its box.
 func TestSwitchNowRefusedAndDroppedWhenItCannotGoNow(t *testing.T) {

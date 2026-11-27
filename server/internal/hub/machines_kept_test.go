@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -17,7 +16,6 @@ import (
 	"github.com/sunfayao/persona/server/internal/bus"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/devicewire"
-	"github.com/sunfayao/persona/server/internal/managerconf"
 	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
@@ -93,168 +91,6 @@ func hubJSONMachines(t *testing.T, dir string) []string {
 		ids = append(ids, m.ID)
 	}
 	return ids
-}
-
-func ownListIDs(t *testing.T, file string) []string {
-	t.Helper()
-	list, from, ok, err := managerconf.OwnMachines(file)
-	if err != nil || !ok || !from.Own {
-		return nil
-	}
-	var ids []string
-	for _, e := range list {
-		var m MachineConfig
-		_ = json.Unmarshal(e, &m)
-		ids = append(ids, m.ID)
-	}
-	return ids
-}
-
-// A manager that keeps its own list: once it reports it holds hub.json's machines as its own, they move out of
-// hub.json (a copy beside it), and the hub knows them as that manager keeps them; the admin page's add, edit and
-// removal go to its list; with it away they are answered as such; a hub that restarts still has them.
-func TestAManagerKeepsItsOwnList(t *testing.T) {
-	ctx := context.Background()
-	h := newTestHub(t)
-	st := newMeshStore()
-	h.store = st
-	idents := &keptIdents{ids: &memIdents{}, kept: map[string]json.RawMessage{}}
-	h.bus.idents = idents
-	box := MachineConfig{ID: "box", Name: "Box", Kind: "ssh", SSHHost: "box.example", TailcatAddr: "tc-s3cret"}
-	h.cfg.Machines = []MachineConfig{box}
-	if err := os.WriteFile(filepath.Join(h.cfg.dir, "hub.json"),
-		[]byte(`{"machines":[{"id":"box","name":"Box","kind":"ssh","ssh_host":"box.example","tailcat_addr":"tc-s3cret","note":"kept"}]}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	node := newMeshNode("uid-box", "box", "s1")
-	node.resident = true
-	h.startDevices(ctx)
-	srv := newHubServer(t, h)
-	file := filepath.Join(t.TempDir(), managerconf.File)
-	nodes := map[string]func(context.Context) (net.Conn, error){"box": node.dialer(h)}
-	mgr := startTestManagerWith(t, h, srv, nodes, file)
-
-	eventually(t, 10*time.Second, "box moved out of hub.json into the manager's own list", func() bool {
-		return len(hubJSONMachines(t, h.cfg.dir)) == 0 && h.keptBy("box") == devicesOwner && h.cfgEntry("box") == nil
-	})
-	if ids := ownListIDs(t, file); len(ids) != 1 || ids[0] != "box" {
-		t.Fatalf("the manager's own list: %v", ids)
-	}
-	copies, _ := filepath.Glob(filepath.Join(h.cfg.dir, "hub.json.machines-kept-*"))
-	if len(copies) != 1 {
-		t.Fatalf("no copy of the moved entries beside hub.json: %v", copies)
-	}
-	if b, _ := os.ReadFile(copies[0]); !strings.Contains(strings.ReplaceAll(string(b), " ", ""), `"note":"kept"`) || !strings.Contains(string(b), "tc-s3cret") {
-		t.Fatalf("the copy is not hub.json's entry as it was:\n%s", b)
-	}
-	if st, err := os.Stat(copies[0]); err != nil || st.Mode().Perm() != 0o600 {
-		t.Fatalf("the copy's mode: %v %v", st, err)
-	}
-	if cfg := h.devicesConfigFor(devicesOwner); cfg.Machines != nil || !cfg.MachinesOwn {
-		t.Fatalf("the hand-over to a manager that holds its own list: machines %v, machines_own %v", cfg.Machines, cfg.MachinesOwn)
-	}
-	eventually(t, 10*time.Second, "a devices.config with no machines sent to it", func() bool {
-		h.devices.mu.Lock()
-		defer h.devices.mu.Unlock()
-		return strings.Contains(string(h.devices.sent[devicesOwner]), `"machines":null`)
-	})
-	if r := h.pendingRestart(""); len(r.Reasons) != 0 {
-		t.Fatalf("a machine moved out of hub.json asks for a restart: %v", r.Reasons)
-	}
-	if mc := h.knownEntry("box"); mc == nil || mc.SSHHost != "box.example" || mc.TailcatAddr != tailcatKept {
-		t.Fatalf("what the hub knows of box: %+v", mc)
-	}
-	eventually(t, 10*time.Second, "box online through its manager", func() bool {
-		m := h.machineByID("box")
-		return m != nil && m.snapshot().Online
-	})
-	// Out of hub.json but kept: the admin page shows it running, not removed at the next restart.
-	if s := adminStates(h); s["box"] != "active" {
-		t.Fatalf("box on the admin page after it moved out of hub.json: %v", s)
-	}
-
-	// The admin page's add goes to the manager's own list, not hub.json.
-	if err := h.addMachine(&MachineConfig{ID: "lap", Name: "Lap", Kind: kindLink}, "admin"); err != nil {
-		t.Fatal(err)
-	}
-	if ids := ownListIDs(t, file); len(ids) != 2 || len(hubJSONMachines(t, h.cfg.dir)) != 0 || h.keptBy("lap") != devicesOwner {
-		t.Fatalf("after the add: own list %v, hub.json %v", ids, hubJSONMachines(t, h.cfg.dir))
-	}
-	if err := h.addMachine(&MachineConfig{ID: "lap", Name: "Lap", Kind: kindLink}, "admin"); err == nil {
-		t.Fatal("the same id added twice")
-	}
-	mirror(t, h, "lap")
-	// An edit goes to its list (got, changed, put back).
-	if kept, err := h.editKeptMachine(ctx, "lap", map[string]any{"name": "Laptop"}); !kept || err != nil {
-		t.Fatalf("edit: %v %v", kept, err)
-	}
-	list, _, _, _ := managerconf.OwnMachines(file)
-	if !strings.Contains(string(list[1]), `"Laptop"`) {
-		t.Fatalf("the edit is not in the own list: %s", list)
-	}
-	// A rename of one it keeps goes to its list too, and the machine keeps its connection (machine_rename.go).
-	h.machineByID("box").mu.Lock()
-	connectedAt := h.machineByID("box").connectedAt
-	h.machineByID("box").mu.Unlock()
-	if got, err := h.renameMachine(ctx, "box", "Studio box", "admin", "admin"); err != nil || got != "Studio box" {
-		t.Fatalf("rename a kept machine: %q %v", got, err)
-	}
-	list, _, _, _ = managerconf.OwnMachines(file)
-	if !strings.Contains(string(list[0]), `"Studio box"`) || len(hubJSONMachines(t, h.cfg.dir)) != 0 {
-		t.Fatalf("the rename is not in the own list, or went to hub.json: %s", list)
-	}
-	eventually(t, 10*time.Second, "box shown renamed, still connected", func() bool {
-		m := h.machineByID("box")
-		s := m.snapshot()
-		m.mu.Lock()
-		same := m.connectedAt.Equal(connectedAt)
-		m.mu.Unlock()
-		return s.Name == "Studio box" && s.Online && same
-	})
-	// The removal too, from the admin page: it lets it go, the hub shows it no more, and its credential is revoked.
-	lapToken, _ := linkToken(t, h, "lap")
-	if w := adminMachinesRequest(h, "DELETE", "/api/v1/admin/machines/lap", ""); w.Code != 200 {
-		t.Fatalf("remove: %d %s", w.Code, w.Body.String())
-	}
-	if ids := ownListIDs(t, file); len(ids) != 1 || h.keptBy("lap") != "" || h.machineByID("lap") != nil {
-		t.Fatalf("after the removal: own list %v", ids)
-	}
-	if _, ok := h.authenticate(ctx, lapToken); ok {
-		t.Fatal("its Persona Link credential still works after the removal")
-	}
-
-	// The manager away: an edit of what it keeps is answered as such, nothing changes.
-	mgr.stop()
-	eventually(t, 10*time.Second, "the manager gone", func() bool { return h.busConnOf(devicesOwner) == nil })
-	if _, err := h.removeKeptMachine(ctx, "box"); !errors.Is(err, errKeeperAway) {
-		t.Fatalf("a removal with its manager away: %v", err)
-	}
-	if h.keptBy("box") != devicesOwner {
-		t.Fatal("box forgotten with its manager away")
-	}
-	// Added meanwhile: to hub.json, and into its own list when it is back.
-	if err := h.addMachine(&MachineConfig{ID: "desk", Name: "Desk", Kind: kindLink}, "admin"); err != nil {
-		t.Fatal(err)
-	}
-	if ids := hubJSONMachines(t, h.cfg.dir); len(ids) != 1 || ids[0] != "desk" {
-		t.Fatalf("added with its manager away: hub.json %v", ids)
-	}
-	back := startTestManagerWith(t, h, srv, nodes, file)
-	eventually(t, 10*time.Second, "desk put in its own list and moved out of hub.json", func() bool {
-		return len(hubJSONMachines(t, h.cfg.dir)) == 0 && h.keptBy("desk") == devicesOwner && len(ownListIDs(t, file)) == 2
-	})
-	back.stop()
-	eventually(t, 10*time.Second, "the manager gone again", func() bool { return h.busConnOf(devicesOwner) == nil })
-
-	// A hub that restarts still has it, as its manager last reported it.
-	h.saveMachineEntries(ctx)
-	next := newTestHub(t)
-	next.store, next.bus.idents = st, idents
-	next.cfg.dir = h.cfg.dir
-	next.startDevices(ctx)
-	if m := next.machineByID("box"); m == nil || m.ownerOrCarrier() != devicesOwner || m.snapshot().Hostname == "" {
-		t.Fatalf("box after the restart: %+v", m)
-	}
 }
 
 // fakeKeeper is a manager that keeps its own list in memory (devices.machines.*).

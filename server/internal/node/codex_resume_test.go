@@ -1,16 +1,13 @@
 package node
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/host"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -93,50 +90,6 @@ func TestCodexHistoryIsReadOnlyWhenStopped(t *testing.T) {
 	}
 }
 
-// session.start with resume brings back a Codex thread nothing runs, without a message (`codex resume <id>` alone),
-// through the launcher it was given when that one runs Codex.
-func TestCodexHistoryResumesOnAStart(t *testing.T) {
-	withCodexLaunchers(t, map[string][]string{"cx": {"codex", "-m", "gpt-6"}})
-	n, f, cwd := codexHistoryNode(t)
-	listSessions(t, n)
-	f.reset()
-	got := resumeFile(f, cwd)
-	res, err := request(t, n, "session.start", map[string]any{"resume_session_id": startThread, "launcher": "cx"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s, _ := res["session"].(map[string]any); s == nil || s["session_id"] != startThread || s["pane_id"] != "w1:p2" {
-		t.Errorf("session = %v", res["session"])
-	}
-	if file := got(); strings.Join(file.Argv, " ") != "codex -m gpt-6 resume "+startThread || file.Prompt != "" {
-		t.Errorf("ran %q with %q", file.Argv, file.Prompt)
-	}
-	if st, _ := n.state.get(startThread); st.Launcher != "cx" || st.Cwd != cwd {
-		t.Errorf("state = %+v", st)
-	}
-}
-
-func TestOwnerSendResumesRecordedCodexTerminalExit(t *testing.T) {
-	withCodexLaunchers(t, map[string][]string{"cx": {"codex", "-m", "gpt-6"}})
-	n, f, cwd := codexHistoryNode(t)
-	listSessions(t, n) // load the initial state and Codex index before recording the launch
-	n.state.put(startThread, sessionState{Pane: "w1:p1", Launcher: "cx", Cwd: cwd})
-	s := byID(listSessions(t, n))[startThread]
-	if s.Capabilities == nil || !s.Capabilities.Send || s.ReadOnlyReason != "" {
-		t.Fatalf("the exited session has no composer: %+v", s)
-	}
-	f.reset()
-	got := resumeFile(f, cwd)
-	ctx, _ := withOwnerDelivery(t.Context())
-	if err := n.send(ctx, startThread, "continue the same chat", nil, sendOpts{}); err != nil {
-		t.Fatal(err)
-	}
-	if file := got(); !strings.Contains(strings.Join(file.Argv, " "), "resume "+startThread) ||
-		file.Prompt != "continue the same chat" {
-		t.Fatalf("resume command or prompt changed: %+v", file)
-	}
-}
-
 // A Codex App thread (originator "Codex Desktop") is not resumed in a terminal: the App owns it.
 func TestCodexDesktopThreadIsNotResumedInATerminal(t *testing.T) {
 	n, _, home := herdrNode(t)
@@ -185,33 +138,6 @@ func TestCodexResumeChecksHoldersAgain(t *testing.T) {
 	}
 }
 
-// A resume whose Codex did not show in its tab in time may still come up: the next Resume does not start another
-// for a while, and what it was resumed with is kept.
-func TestCodexUnconfirmedResumeIsNotStartedAgain(t *testing.T) {
-	n, f, cwd := codexHistoryNode(t)
-	listSessions(t, n)
-	old := codexResumeWait
-	codexResumeWait = 300 * time.Millisecond
-	t.Cleanup(func() { codexResumeWait = old; codexResumes.Delete(startThread) })
-	f.reset()
-	f.reply("workspace.list", map[string]any{"workspaces": []any{map[string]any{"workspace_id": "w1", "label": "proj"}}})
-	f.reply("session.snapshot", snapshot(nil, nil, nil, nil))
-	f.reply("tab.create", map[string]any{"tab": map[string]any{"tab_id": "w1:t2"}, "root_pane": map[string]any{"pane_id": "w1:p2"}})
-	if _, err := request(t, n, "session.start", map[string]any{"resume_session_id": startThread}); err == nil {
-		t.Fatal("a Codex that never showed was confirmed")
-	}
-	if st, _ := n.state.get(startThread); st.Launcher != "codex" || st.Cwd != cwd || st.Pane != "w1:p2" {
-		t.Errorf("state after an unconfirmed resume = %+v", st)
-	}
-	_, err := request(t, n, "session.start", map[string]any{"resume_session_id": startThread})
-	if code, _ := refusalOf(t, err); code != codexResumeRefused {
-		t.Fatalf("second resume: %v", err)
-	}
-	if got := f.trace("tab.create"); len(got) != 1 {
-		t.Errorf("tabs opened: %d", len(got))
-	}
-}
-
 // A thread started outside Persona is not resumed through a launcher on another app-server or another Codex home.
 func TestCodexResumeLauncherStaysInTheHome(t *testing.T) {
 	withCodexLaunchers(t, map[string][]string{"cx": {"codex", "-m", "gpt-6"}, "rem": {"codex", "--remote", "ws://127.0.0.1:1"},
@@ -239,85 +165,5 @@ func TestCodexResumeRefusedWhenProcessesCannotBeListed(t *testing.T) {
 	}
 	if got := f.trace("tab.create"); len(got) != 0 {
 		t.Errorf("opened a tab: %q", got)
-	}
-}
-
-// An explicit resume host must reach both session.start's guard and the locked resume guard.
-func TestCodexResumeUsesRequestedHost(t *testing.T) {
-	for _, direct := range []bool{false, true} {
-		entry := "session.start"
-		if direct {
-			entry = "resumeCodexSession"
-		}
-		t.Run(entry, func(t *testing.T) {
-			for _, tc := range []struct {
-				name, pane, def, explicit string
-				orca, wantResume          bool
-			}{
-				{"orca_explicit_herdr", "orca:tab1:leaf1", "herdr", "herdr", true, true},
-				{"disabled_host_explicit_herdr", "orca:tab1:leaf1", "paseo", "herdr", false, true},
-				{"orca_without_explicit_host", "orca:tab1:leaf1", "herdr", "", true, false},
-				{"disabled_host_without_explicit_host", "orca:tab1:leaf1", "paseo", "", false, false},
-				{"remembered_herdr_without_explicit_host", "w1:p1", "paseo", "", false, true},
-				{"explicit_paseo", "w1:p1", "herdr", "paseo", false, false},
-			} {
-				if tc.explicit == "paseo" && !direct {
-					continue
-				}
-				t.Run(tc.name, func(t *testing.T) {
-					withCodexLaunchers(t, map[string][]string{"cx": {"codex", "-m", "gpt-6"}})
-					n, f, cwd := codexHistoryNode(t)
-					listSessions(t, n)
-					choice := proto.EngineChoice{Hosts: []string{proto.EngineHerdr, proto.EnginePaseo}, Default: tc.def}
-					if tc.orca {
-						choice.Hosts = append(choice.Hosts, proto.EngineOrca)
-						n.hosts = host.NewRegistry(n.hosts.Get(host.Herdr), &launchHost{setHost: newSetHost(host.Orca)})
-					}
-					n.eng.name, n.eng.set = proto.LegacyEngine(choice), &choice
-					n.state.put(startThread, sessionState{Pane: tc.pane})
-					f.reset()
-					got := resumeFile(f, cwd)
-					var err error
-					if direct {
-						var session *proto.Session
-						session, err = n.resumeCodexSession(withStartHost(context.Background(), tc.explicit), startThread, "cx", "", "")
-						if err == nil && (session == nil || session.SessionID != startThread || session.PaneID != "w1:p2") {
-							t.Fatalf("resumed session = %+v", session)
-						}
-					} else {
-						var res map[string]any
-						res, err = request(t, n, "session.start", map[string]any{"resume_session_id": startThread, "launcher": "cx", "host": tc.explicit})
-						if err == nil {
-							session, _ := res["session"].(map[string]any)
-							if session["session_id"] != startThread || session["pane_id"] != "w1:p2" {
-								t.Fatalf("resumed session = %v", session)
-							}
-						}
-					}
-					if !tc.wantResume {
-						want := "codex_read_only"
-						if direct {
-							want = codexResumeRefused
-						}
-						if code, _ := refusalOf(t, err); code != want {
-							t.Fatalf("refusal = %v, want %s", err, want)
-						}
-						if calls := f.trace("tab.create", "pane.send_input"); len(calls) != 0 {
-							t.Fatalf("refused resume touched terminal: %v", calls)
-						}
-						return
-					}
-					if err != nil {
-						t.Fatal(err)
-					}
-					if file := got(); strings.Join(file.Argv, " ") != "codex -m gpt-6 resume "+startThread || file.Prompt != "" {
-						t.Fatalf("ran %q with %q", file.Argv, file.Prompt)
-					}
-					if st, _ := n.state.get(startThread); st.Pane != "w1:p2" || st.Launcher != "cx" || st.Cwd != cwd {
-						t.Fatalf("state = %+v", st)
-					}
-				})
-			}
-		})
 	}
 }

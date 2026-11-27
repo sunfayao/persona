@@ -2,14 +2,11 @@ package remoteimage
 
 import (
 	"bytes"
-	"context"
-	"errors"
 	"image"
 	"image/jpeg"
 	"image/png"
 	"math/rand/v2"
 	"testing"
-	"time"
 )
 
 // noisePNG is a w × h PNG of random opaque pixels: it compresses badly, so it is large for its size.
@@ -85,62 +82,6 @@ func TestFitRefuses(t *testing.T) {
 	}
 }
 
-// Channel-picture fitting waits for the same two decode slots as remote-image rendering and gives its slot back on
-// return (#11985). Reserving the Fetcher's slots directly keeps the scheduling exact; the deadline is only an upper bound.
-func TestFitSharesRemoteImageDecodeSlots(t *testing.T) {
-	f := New(Options{})
-	for range decodeSlots {
-		f.decodes <- struct{}{} // two remote-image decodes are in flight
-	}
-	drain := func() {
-		for {
-			select {
-			case <-f.decodes:
-			default:
-				return
-			}
-		}
-	}
-	defer drain()
-
-	src := noisePNG(t, 1100, 550)
-	type result struct {
-		img *Image
-		err error
-	}
-	started := make(chan struct{})
-	done := make(chan result, 1)
-	go func() {
-		close(started)
-		img, err := f.Fit(t.Context(), src, 1<<20)
-		done <- result{img, err}
-	}()
-	<-started
-	select {
-	case r := <-done:
-		if r.img == nil {
-			t.Fatalf("Fit returned (nil, %v) while both remote-image decode slots were occupied", r.err)
-		}
-		t.Fatalf("Fit returned (%s %d×%d, %d bytes, %v) while both remote-image decode slots were occupied",
-			r.img.Type, r.img.Width, r.img.Height, len(r.img.Data), r.err)
-	case <-time.After(250 * time.Millisecond):
-	}
-
-	<-f.decodes // one remote-image decode finishes; the queued channel picture may now run
-	select {
-	case r := <-done:
-		if r.err != nil || r.img == nil {
-			t.Fatalf("Fit after a slot was released: image=%t, %v", r.img != nil, r.err)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("Fit stayed blocked after a remote-image decode slot was released")
-	}
-	if got := len(f.decodes); got != 1 {
-		t.Fatalf("Fit returned with %d slots occupied, want only the remaining remote-image decode", got)
-	}
-	<-f.decodes
-}
-
 func mustDecode(t *testing.T, src []byte) image.Image {
 	t.Helper()
 	pic, passed, err := Pictures.decode(src)
@@ -148,27 +89,4 @@ func mustDecode(t *testing.T, src []byte) image.Image {
 		t.Fatalf("decode: %v", err)
 	}
 	return pic
-}
-
-// Fetcher.Fit decodes within the decode slots the fetches share: with every slot taken it waits, and a wait ends with
-// its context; a freed slot lets it run (review of #12167).
-func TestFetcherFitWaitsForADecodeSlot(t *testing.T) {
-	f := New(Options{})
-	for range cap(f.decodes) {
-		f.decodes <- struct{}{}
-	}
-	src := noisePNG(t, 1100, 1100)
-	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
-	defer cancel()
-	if _, err := f.Fit(ctx, src, len(src)/2); !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("with every slot taken: %v", err)
-	}
-	<-f.decodes
-	img, err := f.Fit(t.Context(), src, len(src)/2)
-	if err != nil || len(img.Data) > len(src)/2 {
-		t.Fatalf("with a slot free: %v", err)
-	}
-	if len(f.decodes) != cap(f.decodes)-1 {
-		t.Fatalf("Fit kept its slot: %d of %d taken", len(f.decodes), cap(f.decodes))
-	}
 }

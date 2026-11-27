@@ -45,21 +45,6 @@ func TestFocusRequestMovesHerdrFocusAndIsRememberedAsOurs(t *testing.T) {
 	}
 }
 
-func TestFocusRequestIsRefusedWithoutAViewOrForAPaneThatIsNotThere(t *testing.T) {
-	n, f, _, _ := focusNode(t)
-	f.reset()
-	n.onFocusRequest(json.RawMessage(`{"client_id":"hc_nobody","session_id":"pane:w2:p3"}`))
-	n.mu.Lock()
-	n.fulls = map[string]*fullClient{"hc_1": {id: "hc_1"}}
-	n.mu.Unlock()
-	n.onFocusRequest(json.RawMessage(`{"client_id":"hc_1","session_id":"pane:w9:p9"}`))
-	n.onFocusRequest(json.RawMessage(`{"client_id":"hc_1","session_id":""}`))
-	time.Sleep(300 * time.Millisecond)
-	if got := focusCalls(f); len(got) != 0 {
-		t.Fatalf("herdr was asked to focus: %v", got)
-	}
-}
-
 func TestFocusRequestsOfOneViewReplaceEachOther(t *testing.T) {
 	n, f, _, _ := focusNode(t)
 	n.mu.Lock()

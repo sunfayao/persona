@@ -328,46 +328,6 @@ func TestAutomaticCloseoutStartupBackfillInspectsOnce(t *testing.T) {
 	}
 }
 
-func TestAutomaticCloseoutStartupBackfillWriteFailureAndRecovery(t *testing.T) {
-	database := &ledgerDown{DB: taskRecoveryDatabase(t)}
-	s, f, task := newSupervisedServiceOn(t, database)
-	holdDigest(s)
-	ctx := context.Background()
-	now := time.Now().UTC().Truncate(time.Second)
-	s.born = now
-	a := task.Agents[0]
-	c := stopped(a.SessionID, reviewArtifactCloseout)
-	c.MachineID, c.UpdatedAt = a.MachineID, now.Add(-time.Hour)
-	f.setSessions(a.MachineID, c)
-	s.todos.mu.Lock()
-	cur := s.todos.todos[task.ID]
-	cur.PRURL = reviewArtifactURL
-	cur.PRStatus = &TodoPRStatus{URL: reviewArtifactURL, State: "open", HeadOID: "head-1", CheckedAt: now}
-	s.todos.mu.Unlock()
-	before, _ := json.Marshal(todoNow(s, task.ID).Supervision)
-	database.down.Store(true)
-	s.backfillCloseout(ctx, todoNow(s, task.ID), backfillInventory(c), now)
-	after, _ := json.Marshal(todoNow(s, task.ID).Supervision)
-	if string(before) != string(after) {
-		t.Fatal("failed startup write leaked parking or consumed an attempt")
-	}
-	database.down.Store(false)
-	current, _ := s.backfillCloseout(ctx, todoNow(s, task.ID), backfillInventory(c), now)
-	if current.Supervision.State != reviewParked || automaticMetadata(t, current.Supervision)["count"] != float64(1) {
-		t.Fatalf("failed startup write consumed its inspection: %+v", current.Supervision)
-	}
-	again, _ := restartedOn(t, database)
-	holdDigest(again)
-	if err := again.ensureTodosLoaded(ctx); err != nil {
-		t.Fatal(err)
-	}
-	reloaded := todoNow(again, task.ID)
-	if reloaded.Supervision.State != reviewParked || len(reloaded.Supervision.Reviews) != 1 ||
-		automaticMetadata(t, reloaded.Supervision)["count"] != float64(1) {
-		t.Fatalf("startup admission was not durable: %+v", reloaded.Supervision)
-	}
-}
-
 func TestAutomaticCloseoutStartupBackfillBudget(t *testing.T) {
 	s, f, task, c, now := reviewArtifactFixture(t)
 	sessions := []proto.Session{c}

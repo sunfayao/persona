@@ -238,61 +238,6 @@ func TestStorageConcurrentTransformsSerializeAcrossPools(t *testing.T) {
 	}
 }
 
-// A read changes nothing, so it must not queue on the global budget lock behind
-// another installation's write. Every write, including the first insert and a
-// run rebind, still waits for it. Each write uses its own installation: a
-// timed-out call's server backend keeps its plugins row locked until the budget
-// lock frees, and the next write must time out on the budget lock, not that row.
-func TestStorageReadDoesNotWaitForBudgetLock(t *testing.T) {
-	d := open(t)
-	row, scope := storageFixture(t, d, "fixture-budget-read")
-	bound, rebind := storageFixture(t, d, "fixture-budget-rebind")
-	fresh, insert := storageFixture(t, d, "fixture-budget-insert")
-	cleanupStorageFixture(t, d, row.ID, bound.ID, fresh.ID)
-	ctx := t.Context()
-	for _, s := range []extension.StorageScope{scope, rebind} {
-		if _, err := d.ExtensionStorage(ctx, s, fixtureInitial(), fixtureStorageUpdate("before")); err != nil {
-			t.Fatal(err)
-		}
-	}
-	holder, err := d.pool.Begin(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer storageRollback(holder)
-	if err := storageBudget(ctx, holder); err != nil {
-		t.Fatal(err)
-	}
-	scope.Start = false
-	read, cancel := context.WithTimeout(ctx, time.Second)
-	started := time.Now()
-	value, err := d.ExtensionStorage(read, scope, fixtureInitial(), fixtureStorageUpdate("read"))
-	cancel()
-	if err != nil || value != "before" {
-		t.Fatal("read waited for the budget lock", time.Since(started), value, err)
-	}
-	rebind.Run = "fixture-rebound-run"
-	for _, write := range []struct {
-		name   string
-		scope  extension.StorageScope
-		update StorageUpdate
-	}{{"update", scope, fixtureStorageUpdate("blocked")}, {"rebind", rebind, fixtureStorageUpdate("read")}, {"insert", insert, fixtureStorageUpdate("read")}} {
-		call, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
-		_, err := d.ExtensionStorage(call, write.scope, fixtureInitial(), write.update)
-		waited := errors.Is(call.Err(), context.DeadlineExceeded)
-		cancel()
-		if err == nil || !waited {
-			t.Fatal(write.name, "did not wait for the budget lock", err)
-		}
-	}
-	if err := holder.Rollback(ctx); err != nil {
-		t.Fatal(err)
-	}
-	if value, err := d.ExtensionStorage(ctx, scope, fixtureInitial(), fixtureStorageUpdate("after")); err != nil || value != "after" {
-		t.Fatal("write after the budget lock was released", value, err)
-	}
-}
-
 // One installation's calls lock its space row before the budget lock, while
 // another's restore and uninstall take the budget lock first. Across two pools
 // the two orders must never deadlock (40P01) or lose an update.

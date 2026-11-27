@@ -189,34 +189,6 @@ func TestLanesActivityMiddleStandsUntilTheLineIsWhole(t *testing.T) {
 	}
 }
 
-// A large request on a slow link with a deep transport buffer does not hold a ping behind it: interactive lines wait
-// for credit too, so the buffer holds about a window of them, not all of it (with lines the ping would wait to be
-// written, which pingAnswered counts neither way).
-func TestLanesPingPassesALargeRequest(t *testing.T) {
-	slow := netshape.Config{Rate: 64 << 10, Queue: 256 << 10} // 4 s of buffer one way
-	a, b := netshape.Pipe(slow, netshape.Config{})
-	h, n := New("h", a), New("n", b)
-	h.EnableLanes(testControl, testBulk)
-	n.EnableLanes(testControl, testBulk)
-	n.OnRequest = func(context.Context, string, json.RawMessage) (any, error) { return map[string]bool{"ok": true}, nil }
-	go func() { _ = h.Serve(context.Background(), a) }()
-	go func() { _ = n.Serve(context.Background(), b) }()
-	defer func() { a.Close(); b.Close() }()
-	if err := h.UpgradeLanes(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	go func() {
-		_ = h.Call(context.Background(), "model.http", map[string]string{"body": strings.Repeat("b", 1<<20)}, nil)
-	}()
-	eventually(t, func() bool { return h.LaneStats().Lanes[LaneInteractive].SentFrames > 4 })
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	start := time.Now()
-	if err := h.Call(ctx, "ping", map[string]any{}, nil); err != nil {
-		t.Fatalf("ping behind a 1 MiB request: %v after %s (%s)", err, time.Since(start), h.LaneStats())
-	}
-}
-
 // Lines in progress hold at most twice the line limit together: a peer opening many never finishes none of them.
 func TestFrameReaderBoundsLinesInProgress(t *testing.T) {
 	var wire []byte

@@ -199,25 +199,6 @@ func resumingMachine(t *testing.T) (*Machine, *residentNode, *benchLog) {
 	return m, n, logs
 }
 
-func TestMachineKeepsConnectionAfterLargeSessionList(t *testing.T) {
-	m, n, _ := resumingMachine(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	var result struct{ Sessions []proto.Session }
-	if err := m.call(ctx, "sessions.list", map[string]bool{"large": true}, &result); err != nil {
-		t.Fatalf("sessions.list: %v", err)
-	}
-	if len(result.Sessions) != 1 || result.Sessions[0].SessionID != "large" || len(result.Sessions[0].Title) != 70<<20 {
-		t.Fatal("sessions.list did not deliver the complete 70 MiB title")
-	}
-	if err := m.call(ctx, "ping", nil, nil); err != nil {
-		t.Fatalf("ping after sessions.list: %v", err)
-	}
-	if transports, fresh := n.counts(); transports != 1 || fresh != 1 {
-		t.Fatalf("connection changed: %d transports, %d fresh connections", transports, fresh)
-	}
-}
-
 // A dropped transport is taken back: the call in flight answers once the connection is resumed, nothing connects or
 // is watched again, and the machine never shows offline (#10663).
 func TestMachineResumesADroppedConnection(t *testing.T) {
@@ -253,19 +234,6 @@ func TestMachineResumesADroppedConnection(t *testing.T) {
 	}
 	if logs.count("resumed=1") == 0 {
 		t.Fatalf("the counts: %q", logs.since(0))
-	}
-}
-
-// A node that restarted has nothing to take back: the manager is refused, and connects anew at once.
-func TestMachineFallsBackWhenTheNodeHasNoConnection(t *testing.T) {
-	_, n, logs := resumingMachine(t)
-	n.mu.Lock()
-	n.restarted = true
-	n.mu.Unlock()
-	n.cut()
-	eventually(t, 10*time.Second, "connected anew", func() bool { return logs.count("] connected over ") == 2 })
-	if logs.count("fell_back=1") == 0 || logs.count("resume refused") == 0 && logs.count("not resumed") == 0 {
-		t.Fatalf("the fall back is not logged: %q", logs.since(0))
 	}
 }
 

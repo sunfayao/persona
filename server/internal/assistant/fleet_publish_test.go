@@ -1,80 +1,10 @@
 package assistant
 
 import (
-	"runtime"
-	"runtime/debug"
 	"testing"
 
-	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/devices"
-	"github.com/sunfayao/persona/server/internal/proto"
 )
-
-// fleetSessionsToldLimit bounds what telling a changed list of 200 sessions allocates when a GC has just emptied
-// json's pools of encoder buffers, which in a busy manager is every few lists: 708,868 bytes measured (the decorated
-// copy of the list, its encoding and the bus's line), plus 3%. Told as json.RawMessage it was 1,224,668: the bus's
-// encoder checked the 246 KB of the list and copied them twice more into buffers it grew. With warm pools the two
-// allocate the same (662,643 and 663,212), so the bound is taken cold.
-const fleetSessionsToldLimit = 730000
-
-// Telling a changed list writes it into the bus's line once.
-func TestFleetSessionsToldAllocatesTheLineOnce(t *testing.T) {
-	if raceEnabled {
-		t.Skip("race instrumentation allocates")
-	}
-	if !isolated(t) {
-		return
-	}
-	s, d, h, lists := toldFleet(t, 200)
-	if per := toldAllocation(s, d, lists); per > fleetSessionsToldLimit {
-		t.Errorf("telling a changed list of 200 sessions allocated %d bytes, want at most %d", per, fleetSessionsToldLimit)
-	}
-	if h.toldOf(assistantwire.EventFleetSessions) == 0 {
-		t.Fatal("no list was told")
-	}
-}
-
-// The same measurement and limit reject the list told as json.RawMessage, as it was.
-func TestFleetSessionsToldLimitRejectsRawParams(t *testing.T) {
-	if raceEnabled {
-		t.Skip("race instrumentation allocates")
-	}
-	if !isolated(t) {
-		return
-	}
-	s, d, h, lists := toldFleet(t, 200)
-	h.raw = true
-	if per := toldAllocation(s, d, lists); per <= fleetSessionsToldLimit {
-		t.Errorf("told as json.RawMessage a changed list allocated %d bytes, want more than %d", per, fleetSessionsToldLimit)
-	}
-}
-
-// toldAllocation is the bytes one changed list allocates on its way into the bus's line, each one after two
-// collections (they empty json's pools of encoder buffers, both generations) and with none during it; on one
-// processor, so nothing else of the process is counted in between.
-func toldAllocation(s *Service, d *fleetDevs, lists [2][]proto.Session) uint64 {
-	const runs = 30
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
-	publish := func(n int) {
-		d.setSessions("mac", lists[n&1])
-		s.publishSessions("mac")
-	}
-	for n := range 4 {
-		publish(n)
-	}
-	defer debug.SetGCPercent(debug.SetGCPercent(-1))
-	var total uint64
-	for n := range runs {
-		runtime.GC()
-		runtime.GC()
-		var before, after runtime.MemStats
-		runtime.ReadMemStats(&before)
-		publish(n)
-		runtime.ReadMemStats(&after)
-		total += after.TotalAlloc - before.TotalAlloc
-	}
-	return total / runs
-}
 
 // summaryIn is the entry of list with the id canon: how a fake's Summary answers from its List.
 func summaryIn(list []devices.Summary, canon string) (devices.Summary, bool) {

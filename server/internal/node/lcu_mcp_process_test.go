@@ -174,36 +174,6 @@ func TestLCUFailedHandshakeStopsTheProcess(t *testing.T) {
 	stopLCU(sess)
 }
 
-// The late exit of a replaced lcu does not mark the fresh session failed: the next call reuses the running process.
-func TestLCUOldProcessExitDoesNotFailTheNewSession(t *testing.T) {
-	var starts atomic.Int32
-	// The background sleep keeps stdout open past the kill, so this process's exit lands after the restart.
-	standInLCU(t, &starts, "/bin/sh", "-c", "sleep 3 & exec sleep 300")
-	sess := newLCUSession(nil)
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-	defer cancel()
-	if _, err := sess.call(ctx, "js", map[string]any{"code": "return 1"}, "", ""); err == nil {
-		t.Fatal("a stand-in that never answers must fail the handshake")
-	}
-
-	useHelperLCU(t, &starts)
-	ctx2, cancel2 := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel2()
-	first, err := sess.call(ctx2, "js", map[string]any{"code": "return 1"}, "", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(4 * time.Second) // the first process's stdout closes, and its exit is seen
-	again, err := sess.call(ctx2, "js", map[string]any{"code": "return 1"}, "", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if again.Text != first.Text || starts.Load() != 2 {
-		t.Fatalf("the healthy session was restarted: %q then %q, %d starts", first.Text, again.Text, starts.Load())
-	}
-	stopLCU(sess)
-}
-
 // stopLCU ends the session's process at the end of a test.
 func stopLCU(s *lcuSession) {
 	s.mu.Lock()

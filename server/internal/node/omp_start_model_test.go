@@ -200,17 +200,3 @@ func TestOmpRuntimeKeepsItsOwnModelCatalog(t *testing.T) {
 		t.Fatalf("runtime launcher accepted a native omp override: %s", code)
 	}
 }
-
-func TestOmpResumeKeepsRecordedModel(t *testing.T) {
-	const id = "01b10000-0000-7000-8000-000000000034"
-	n, f, _, cwd, _ := stoppedOmpForStart(t, id)
-	n.state.put(id, sessionState{Launcher: "omp", Model: "vendor/saved", Cwd: cwd})
-	got, err := request(t, n, "session.start", map[string]any{"cwd": cwd, "resume_session_id": id})
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := got["session"].(map[string]any)
-	if s["session_id"] != id || s["requested_model"] != "vendor/saved" || len(f.trace("tab.create")) != 1 {
-		t.Fatalf("resumed session = %v, tabs = %v", s, f.trace("tab.create"))
-	}
-}

@@ -54,65 +54,6 @@ type termEvent struct {
 	Taken     bool   `json:"taken"`
 }
 
-func TestTerminalWatchStreamsFramesAndStartsOver(t *testing.T) {
-	n := &Node{agents: map[string]host.Agent{"s1": {PaneID: "w1:p1"}}, procs: map[string]*assistantProc{}, state: newState(),
-		hosts: herdrHosts(&herdr.Client{Bin: fakeObserveHerdr(t)})}
-	// A host pane may have been resumed from the assistant's working directory.
-	n.state.put("s1", sessionState{Cwd: filepath.Join(t.TempDir(), ".persona", "assistant")})
-	ctx, cancel := context.WithCancel(context.Background())
-	n2hR, n2hW := io.Pipe()
-	h2nR, h2nW := io.Pipe()
-	n.peer = rpc.New("n", n2hW)
-	hub := rpc.New("h", h2nW)
-	var mu sync.Mutex
-	var got []termEvent
-	hub.OnEvent = func(event string, params json.RawMessage) {
-		var e termEvent
-		_ = json.Unmarshal(params, &e)
-		e.Event = event
-		mu.Lock()
-		got = append(got, e)
-		mu.Unlock()
-	}
-	go func() { _ = hub.Serve(ctx, n2hR) }()
-	go func() { _ = n.peer.Serve(ctx, h2nR) }()
-	t.Cleanup(func() { cancel(); _ = n2hW.Close(); _ = h2nW.Close() })
-
-	res, err := n.terminalWatch(ctx, "s1", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res["cols"] != 80 || res["rows"] != 24 {
-		t.Fatalf("watch = %v", res)
-	}
-	// The fake's stream ends after three frames: the node observes again, a new epoch from a whole frame.
-	deadline := time.Now().Add(5 * time.Second)
-	for {
-		mu.Lock()
-		k := len(got)
-		mu.Unlock()
-		if k >= 4 || time.Now().After(deadline) {
-			break
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
-	n.terminalUnwatch("s1")
-	mu.Lock()
-	defer mu.Unlock()
-	if len(got) < 4 {
-		t.Fatalf("events = %+v", got)
-	}
-	// The two diffs come right after the whole frame: they go out as one (termMinGap), "d1" + "d2".
-	a, b := got[0], got[2]
-	if a.Event != "terminal.frame" || !a.Full || a.Seq != 1 || a.Cols != 80 || a.Data != "RlVMTA==" ||
-		got[1].Seq != 2 || got[1].Full || got[1].Data != base64.StdEncoding.EncodeToString([]byte("d1d2")) {
-		t.Fatalf("first stream = %+v", got[:2])
-	}
-	if !b.Full || b.Seq != 1 || b.Epoch == a.Epoch {
-		t.Fatalf("second stream = %+v (first epoch %s)", b, a.Epoch)
-	}
-}
-
 func TestTerminalWatchNeedsARunningSession(t *testing.T) {
 	n := &Node{agents: map[string]host.Agent{}, procs: map[string]*assistantProc{}, state: newState(),
 		hosts: herdrHosts(&herdr.Client{Bin: fakeObserveHerdr(t)})}

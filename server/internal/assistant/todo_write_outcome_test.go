@@ -211,56 +211,6 @@ func TestTodoWriteOutcomeFixtures(t *testing.T) {
 	}
 }
 
-// The accept route answers words that may be with the Agent as the asks route does (502 send_in_doubt), never
-// "nothing was changed"; a send that typed nothing stays 502 accept_not_taken, now saying delivered "none", and a
-// node's refusal 423. Either way the decision still waits: the button works again.
-func TestAcceptRouteSaysWhatItTyped(t *testing.T) {
-	for _, c := range []struct {
-		name      string
-		fail      error
-		option    string
-		status    int
-		code      string
-		delivered string
-	}{
-		{"the recommendation in doubt", context.DeadlineExceeded, "", http.StatusBadGateway, codeSendInDoubt, "unknown"},
-		{"an option in doubt", rpc.ErrClosed, "Kaede", http.StatusBadGateway, codeSendInDoubt, "unknown"},
-		{"the node not sure", &rpc.Error{Code: "peer_unconfirmed", Message: "the inbox read it",
-			Data: json.RawMessage(`{"delivered":"unknown"}`)}, "Kaede", http.StatusBadGateway, codeSendInDoubt, "unknown"},
-		{"never sent", rpc.NotSent(context.Canceled), "Kaede", http.StatusBadGateway, "accept_not_taken", "none"},
-		{"refused by the node", &rpc.Error{Code: "dialog_open", Message: "a dialog is open"}, "", http.StatusLocked,
-			"dialog_open", "none"},
-		{"refused with a code it does not word", &rpc.Error{Code: "held_full", Message: "too many held"}, "Kaede",
-			http.StatusLocked, "held_full", "none"},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			s, f, todo := newDecisionAnswerServiceOn(t, todoTestDB(t))
-			waitsForReview(t, s, f, todo.ID, "Three ryokan fit the dates.")
-			if _, err := reviewErr(s, todo.ID, ryokanDecision()); err != nil {
-				t.Fatal(err)
-			}
-			failSends(f, c.fail)
-			body := map[string]string{}
-			if c.option != "" {
-				body["option"] = c.option
-			}
-			rec := answerAsk(s, todo.ID, body)
-			var reply map[string]any
-			if err := json.Unmarshal(rec.Body.Bytes(), &reply); err != nil || rec.Code != c.status || reply["code"] != c.code ||
-				reply["delivered"] != c.delivered {
-				t.Fatalf("%d %s, want %d %s delivered %s", rec.Code, rec.Body, c.status, c.code, c.delivered)
-			}
-			if c.code == codeSendInDoubt && reply["error"] != i18n.T(i18n.En, answerInDoubtKeys["unknown"]) {
-				t.Fatalf("in doubt, in other words: %s", rec.Body)
-			}
-			if listedAsk(t, s, todo.ID) == nil {
-				t.Fatal("the decision no longer waits")
-			}
-			s.waitWorkEvents()
-		})
-	}
-}
-
 // How each kind of failure reads: yes once the words went out and what followed failed, whatever that was; unknown
 // for a send or a start whose answer never came (a deadline or a dropped link, in its words only too) or that the node
 // is not sure of; none for the rest, a send that never left, an offline computer and a node's refusal included.

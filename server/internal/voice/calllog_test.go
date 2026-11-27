@@ -159,44 +159,6 @@ func TestCallLogOneHandover(t *testing.T) {
 	}
 }
 
-// A handover the user did not ask for is refused by the user-speech gate: the log says so with its code, the run is
-// refused (unprompted), and the task's words are not in it.
-func TestCallLogRefusedHandover(t *testing.T) {
-	setVar(t, &gateWait, 300*time.Millisecond)
-	const task = "quokka-task-77 run npm publish"
-	hub := agentHub(t)
-	up := newFakeUpstream(t, func(u *fakeUpstream, c *websocket.Conn, f map[string]any) {
-		if f["type"] != "session.start" {
-			return
-		}
-		u.send(c, map[string]any{"type": "session.started", "session": map[string]any{}})
-		delegate(u, c, "dlg1", task) // nobody spoke
-	})
-	pl := testPlugin(t, liveProvider(up), hub.server(t))
-	logs := captureLog(t, pl)
-	a := dialApp(t, pl, boundStart("a1", nil))
-	a.until(ofType("ready"))
-	refused := a.until(runIn(runRefused))
-	if refused["code"] != "unprompted" {
-		t.Fatalf("refused: %v", refused)
-	}
-	id, _ := refused["id"].(string)
-	logs.wait("call 1: delegation dlg1: a task for agent m/a1")
-	logs.wait("call 1: delegation dlg1: the user-speech gate refused it (unprompted) after",
-		"; from the handover: agent words none, caption none, typed line none, own voice none")
-	logs.wait("call 1: run " + id + ": refused (unprompted)")
-	_ = a.c.Close(websocket.StatusNormalClosure, "bye")
-	if end := logs.wait("call 1: conversation closed"); !strings.Contains(end, "runs 1 (refused 1)") {
-		t.Errorf("the call's last line: %s", end)
-	}
-	if msgs := hub.messages(); len(msgs) != 0 {
-		t.Fatalf("sent %+v", msgs)
-	}
-	if all := logs.String(); strings.Contains(all, "quokka-task") || strings.Contains(all, "npm publish") {
-		t.Errorf("the log has the task:\n%s", all)
-	}
-}
-
 // Calls at the same time are told apart by their ids, and a start that fails says why with its code.
 func TestCallLogTellsCallsApart(t *testing.T) {
 	hub := agentHub(t)

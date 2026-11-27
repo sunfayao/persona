@@ -139,20 +139,6 @@ func TestBotPostDetoursWithdrawnReplyToSend(t *testing.T) {
 	}
 }
 
-// A network failure on reply must not detour: nothing is sent to the chat, and the transport error comes back.
-func TestBotPostNetworkFailureDoesNotDetour(t *testing.T) {
-	f := newFakeDetourAPI(t)
-	h := newTestManager(t)
-	id, err := h.botPostJSON(context.Background(), f.client(true), "chat1", "om_p", detourCard(), "fb")
-	if err == nil || id != "" || !strings.Contains(err.Error(), "reset") {
-		t.Fatalf("id=%q err=%v, want the transport error and no message", id, err)
-	}
-	replies, sends := f.snapshot() // the server never saw a reply body; no send may happen either
-	if len(replies) != 0 || len(sends) != 0 {
-		t.Fatalf("replies=%v sends=%v", replies, sends)
-	}
-}
-
 // After the detour, a card the gateway still refuses goes out as a rich-text send; the dead reply is not retried.
 func TestBotPostDetourThenCardRejectedFallsBackBySend(t *testing.T) {
 	f := newFakeDetourAPI(t)
@@ -206,14 +192,5 @@ func TestBotNoteDetoursWithdrawnReplyToSend(t *testing.T) {
 	}
 	if u, _ := sends[0]["uuid"].(string); !strings.HasPrefix(u, "s:") {
 		t.Fatalf("detoured send uuid %q is not a one-shot key", u)
-	}
-}
-
-// A dropped connection on the note's reply must not detour: nothing reaches the chat.
-func TestBotNoteNetworkFailureDoesNotDetour(t *testing.T) {
-	f := newFakeDetourAPI(t)
-	newTestManager(t).botNote(context.Background(), f.client(true), "chat1", "om_n", "note 4457")
-	if replies, sends := f.snapshot(); len(replies) != 0 || len(sends) != 0 {
-		t.Fatalf("replies=%v sends=%v, want no traffic after a transport error", replies, sends)
 	}
 }

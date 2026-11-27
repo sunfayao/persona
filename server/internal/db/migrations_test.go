@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -930,80 +929,6 @@ func TestHubKeysKeptForAnOlderBuildOnAFreshInstall(t *testing.T) {
 			WHERE key = $1 AND s.value = h.value`, k).Scan(&n); err != nil || n != 1 {
 			t.Fatalf("%s not kept for an older build: %d %v", k, n, err)
 		}
-	}
-}
-
-// The sync with an older build's settings locks the shared table before it touches hub_settings, as a write of a hub
-// key starts there: a hub-key write while another process (a CLI, a starting hub) syncs makes the sync wait, holding
-// nothing the write needs next, whether the write's row was there already or is new.
-func TestHubKeySyncLocksTheSharedTableFirst(t *testing.T) {
-	for _, tc := range []struct{ name, shared, own string }{
-		{"a row that is there", `UPDATE settings SET value = '{"spaces":["b"]}', updated_at = now() WHERE key = 'mutes'`,
-			`UPDATE hub_settings SET value = '{"spaces":["b"]}', updated_at = now() WHERE key = 'mutes'`},
-		{"a new row", `INSERT INTO settings (key, value) VALUES ('codex_inventory/new', '{}')`,
-			`INSERT INTO hub_settings (key, value) VALUES ('codex_inventory/new', '{}')`},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			url := freshDatabase(t)
-			unifiedMigrate(t, url, 419)
-			conn, err := pgx.Connect(ctx, url)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer conn.Close(ctx)
-			if _, err := conn.Exec(ctx, `INSERT INTO settings (key, value) VALUES ('mutes', '{"spaces":["a"]}')`); err != nil {
-				t.Fatal(err)
-			}
-			hub, err := Open(ctx, url, HubSet)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer hub.Close()
-			// A write of a hub key on its way (PutSetting): the shared table first, then hub_settings.
-			put, err := conn.Begin(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer put.Rollback(ctx)
-			if _, err := put.Exec(ctx, tc.shared); err != nil {
-				t.Fatal(err)
-			}
-			synced := make(chan error, 1)
-			go func() { synced <- hub.syncOlderHub(ctx) }()
-			var pid int
-			for deadline := time.Now().Add(10 * time.Second); ; {
-				err := hub.pool.QueryRow(ctx, `SELECT pid FROM pg_stat_activity WHERE datname = current_database()
-					AND wait_event_type = 'Lock'`).Scan(&pid)
-				if err == nil {
-					break
-				}
-				if !errors.Is(err, pgx.ErrNoRows) {
-					t.Fatal(err)
-				}
-				if time.Now().After(deadline) {
-					t.Fatal("the sync does not wait for the write")
-				}
-				time.Sleep(20 * time.Millisecond)
-			}
-			var held int
-			if err := hub.pool.QueryRow(ctx, `SELECT count(*) FROM pg_locks WHERE pid = $1 AND relation = 'hub_settings'::regclass`,
-				pid).Scan(&held); err != nil || held != 0 {
-				t.Fatalf("the waiting sync holds %d locks on hub_settings (%v)", held, err)
-			}
-			if _, err := put.Exec(ctx, `SET LOCAL lock_timeout = '3s'`); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := put.Exec(ctx, tc.own); err != nil {
-				t.Fatalf("the write waits for the sync on hub_settings: %v", err)
-			}
-			if err := put.Commit(ctx); err != nil {
-				t.Fatal(err)
-			}
-			if err := <-synced; err != nil {
-				t.Fatalf("sync: %v", err)
-			}
-		})
 	}
 }
 

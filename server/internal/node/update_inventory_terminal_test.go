@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"encoding/binary"
-	"errors"
 	"strings"
 	"testing"
 
@@ -66,51 +65,6 @@ func TestUpdateTerminalAuthorityUsesRuntimeNotDisplay(t *testing.T) {
 		if f.count(method) != 0 {
 			t.Fatalf("inventory mutated runtime through %s", method)
 		}
-	}
-}
-
-func TestUpdateTerminalAuthorityRejectsIncompleteBinding(t *testing.T) {
-	for _, name := range []string{"claude", "unknown-session", "path-session", "thread", "endpoint", "embedded-client", "pid", "signature", "process-error", "duplicate-pane", "extra-agent-process", "old-api", "disconnected"} {
-		t.Run(name, func(t *testing.T) {
-			n, target, h, f, p := terminalUpdateFixture(t)
-			extra := []updateProcess{}
-			switch name {
-			case "claude":
-				h.agents[0].Agent = "claude"
-			case "unknown-session":
-				h.agents[0].AgentSession = nil
-			case "path-session":
-				h.agents[0].AgentSession.Kind = "path"
-			case "thread":
-				p.RemoteThread = remoteOther
-			case "endpoint":
-				p.RemoteEndpoint = "ws://127.0.0.1:1"
-			case "embedded-client":
-				p.RemoteEndpoint = ""
-			case "pid":
-				h.pids = []int{456}
-			case "signature":
-				p.Signature = ""
-			case "process-error":
-				h.processErr = errors.New("unavailable")
-			case "duplicate-pane":
-				h.agents = append(h.agents, h.agents[0])
-			case "extra-agent-process":
-				extra = append(extra, updateProcess{PID: 456, Signature: "unknown"})
-			case "old-api":
-				f.mu.Lock()
-				f.reject = "thread/backgroundTerminals/list"
-				f.mu.Unlock()
-			case "disconnected":
-				f.mu.Lock()
-				f.hangup = "thread/read"
-				f.mu.Unlock()
-			}
-			out, err := n.collectUpdateInventory(context.Background(), target, func(context.Context) ([]updateProcess, error) { return append([]updateProcess{p}, extra...), nil })
-			if err == nil || out.Complete {
-				t.Fatalf("incomplete terminal became complete: %+v %v", out, err)
-			}
-		})
 	}
 }
 

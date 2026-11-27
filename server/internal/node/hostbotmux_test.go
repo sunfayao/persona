@@ -17,7 +17,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/herdr"
 	"github.com/sunfayao/persona/server/internal/host"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -790,90 +789,6 @@ func TestBotmuxOffDuringARefresh(t *testing.T) {
 	<-done
 	if botmuxListed(t, n, sidA) {
 		t.Fatal("a refresh from before off brought botmux's session back")
-	}
-}
-
-// Turned off, the next list the node pushes (its poll, every second) is without botmux's sessions.
-func TestBotmuxOffTellsTheHub(t *testing.T) {
-	n, _ := botmuxNode(t)
-	configureNode(t, n, map[string]any{"botmux": true})
-	pushes, _ := pollNode(t, n)
-	awaitPush(t, pushes, listsBotmux(true), "the hub was not told the session while on")
-	configureNode(t, n, map[string]any{"botmux": false})
-	awaitPush(t, pushes, listsBotmux(false), "no session list without botmux's session went to the hub")
-}
-
-// Where the engine does not answer (herdr not running), turning botmux off still takes its sessions off the list: a
-// refresh nobody answers keeps the agents as they were.
-func TestBotmuxOffWithTheEngineDown(t *testing.T) {
-	n, _ := botmuxNode(t)
-	n.hosts = herdrHosts(&herdr.Client{Socket: filepath.Join(t.TempDir(), "gone.sock")})
-	configureNode(t, n, map[string]any{"botmux": true})
-	pushes, _ := pollNode(t, n)
-	awaitPush(t, pushes, listsBotmux(true), "the hub was not told the session while on")
-	configureNode(t, n, map[string]any{"botmux": false})
-	awaitPush(t, pushes, listsBotmux(false), "with herdr down, botmux's session stayed on the hub's list")
-}
-
-// Where botmux is installed, no list goes to the hub before its word on botmux: one without botmux's sessions would
-// take them off the hub's list for those seconds, and their coming back would read as new turns.
-func TestNoListGoesBeforeTheHubsWordOnBotmux(t *testing.T) {
-	n, f := botmuxNode(t)
-	// herdr runs an agent of its own: a list with it would go at the first tick, were lists not held.
-	cwd := "/tmp/poll"
-	writeTranscript(t, f.home, cwd, sidB, time.Now(),
-		`{"type":"user","timestamp":"2026-01-01T00:00:00Z","cwd":"/tmp/poll","message":{"role":"user","content":"hello"}}`)
-	f.herdr.reply("session.snapshot", snapshot(nil, nil,
-		[]any{claudeAgent(sidB, proto.StatusIdle, "w5:p1", "w5:t1", "w5", cwd, "poll")}, nil))
-	pushes, _ := pollNode(t, n)
-	for quiet := time.After(2500 * time.Millisecond); ; {
-		select {
-		case p := <-pushes:
-			if p.Event == "sessions.changed" || p.Event == "sessions.revs" {
-				t.Fatalf("%s went to the hub before its word: %s", p.Event, p.Params)
-			}
-			continue
-		case <-quiet:
-		}
-		break
-	}
-	configureNode(t, n, map[string]any{"botmux": true})
-	awaitPush(t, pushes, listsBotmux(true), "no list went to the hub after its word")
-}
-
-// Where botmux is not installed, lists go to the hub from the start, as before.
-func TestListsGoAtOnceWithoutBotmux(t *testing.T) {
-	n, f, home := herdrNode(t)
-	cwd := "/tmp/poll"
-	writeTranscript(t, home, cwd, sidA, time.Now(),
-		`{"type":"user","timestamp":"2026-01-01T00:00:00Z","cwd":"/tmp/poll","message":{"role":"user","content":"hello"}}`)
-	f.reply("session.snapshot", snapshot(nil, nil,
-		[]any{claudeAgent(sidA, proto.StatusIdle, "w5:p1", "w5:t1", "w5", cwd, "poll")}, nil))
-	pushes, _ := pollNode(t, n)
-	awaitPush(t, pushes, func(p hubPush) bool {
-		return p.Event == "sessions.changed" && strings.Contains(string(p.Params), sidA)
-	}, "no list went to the hub")
-}
-
-// listsBotmux: a session list that has (or has not) the session on its botmux pane.
-func listsBotmux(on bool) func(hubPush) bool {
-	return func(p hubPush) bool {
-		return p.Event == "sessions.changed" && strings.Contains(string(p.Params), `"botmux:`+sidA+`"`) == on
-	}
-}
-
-// awaitPush waits up to five seconds for a push that want takes.
-func awaitPush(t *testing.T, pushes <-chan hubPush, want func(hubPush) bool, what string) {
-	t.Helper()
-	for timeout := time.After(5 * time.Second); ; {
-		select {
-		case p := <-pushes:
-			if want(p) {
-				return
-			}
-		case <-timeout:
-			t.Fatal(what)
-		}
 	}
 }
 

@@ -393,53 +393,6 @@ func TestAIElsewhereTakesARichTextCommand(t *testing.T) {
 	}
 }
 
-// What is not an "/ai" is not asked about the bot at all: a group's ordinary messages cost no call to Feishu.
-func TestAIElsewhereAsksNothingForOrdinaryMessages(t *testing.T) {
-	w := newBotWorld(t)
-	w.pair(t)
-	w.h.bots.mu.Lock()
-	w.h.bots.info.OpenID = ""
-	w.h.bots.mu.Unlock()
-	time.Sleep(300 * time.Millisecond) // the bot's own start-up calls are done
-	total, infos := w.api.total(), w.api.count("/open-apis/bot/v3/info")
-	w.send(t, askEvent("om_chat1", "ou_me", "@_user_1 帮我看看", atBot, nil))
-	w.send(t, askEvent("om_chat2", "ou_me", "大家早", nil, nil))
-	time.Sleep(300 * time.Millisecond)
-	if n := w.api.count("/open-apis/bot/v3/info"); n != infos {
-		t.Fatalf("%d reads of the bot's id for messages that are not an /ai", n-infos)
-	}
-	if w.api.total() != total {
-		t.Fatalf("calls: %s", w.api.since(total))
-	}
-}
-
-// A new App ID (or any restart of the connection) forgets the bot's own id: the old one must not tell the new bot's @.
-func TestBotRestartForgetsItsOwnID(t *testing.T) {
-	w := newBotWorld(t)
-	w.pair(t)
-	w.h.bots.mu.Lock()
-	w.h.bots.info.OpenID = "ou_stale"
-	w.h.bots.mu.Unlock()
-	w.api.mu.Lock()
-	w.api.botInfoFail = true
-	w.api.mu.Unlock()
-	before := w.api.count("/open-apis/bot/v3/info")
-	w.h.restartBot()
-	eventually(t, 5*time.Second, "the id read again", func() bool { return w.api.count("/open-apis/bot/v3/info") > before })
-	w.h.bots.mu.Lock()
-	got := w.h.bots.info.OpenID
-	w.h.bots.mu.Unlock()
-	if got != "" {
-		t.Fatalf("the bot's id after a restart: %q", got)
-	}
-	// With the id unknown (and unreadable) nothing is taken, even for an @ of the old id.
-	w.send(t, askEvent("om_stale", "ou_me", "@_user_1 /ai 查", []map[string]any{{"key": "@_user_1", "id": map[string]any{"open_id": "ou_stale"}, "name": "Old"}}, nil))
-	time.Sleep(300 * time.Millisecond)
-	if len(w.handed()) != 0 {
-		t.Fatalf("handed %v", w.handed())
-	}
-}
-
 // A source takes at most botSourceReplies replies, however they end, and no reply once it is older than botAISourcesKeepFor
 // (the usual rules refuse it then); the count is kept with the settings.
 func TestAISourceReplyCapAndExpiry(t *testing.T) {

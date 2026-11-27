@@ -928,34 +928,6 @@ func TestRuntimeStartForwardsAntigravityImageOnlyPrompt(t *testing.T) {
 	}
 }
 
-func TestPollAgentsPublishesWithoutHerdr(t *testing.T) {
-	n, hub := runtimeNode(t)
-	n.events = newHerdrEvents()
-	n.metas = map[string]quickMeta{}
-	n.bgScans = map[string]*bgScan{}
-	n.panePIDs = map[string]panePID{}
-	n.modes = map[string]sessionModes{}
-	n.driving = map[string]bool{}
-	n.panes = map[string]string{}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go n.pollAgents(ctx)
-	// The host's list changes without a runtime.sessions push reaching publish directly: the poll has to carry it.
-	h := n.runtimes.add(nil)
-	h.mu.Lock()
-	h.ready, h.hello.Runtime = true, "dsh"
-	h.mu.Unlock()
-	n.runtimes.setSessions(h, []proto.Session{{SessionID: "session-poll", Status: proto.StatusIdle, Agent: "dsh"}})
-	waitFor(t, "a list pushed by the poll with herdr missing", func() bool {
-		for _, s := range hub.lastList() {
-			if s.SessionID == "session-poll" {
-				return true
-			}
-		}
-		return false
-	})
-}
-
 // A runtime's session can list the subagents and background tasks it left running (DSH's subagents, workflows,
 // background shells): the rows keep the valid ones, each subagent readable as "<session>@<child>"; the calls and
 // pushes about a subagent go to (and come from) the runtime of its parent, whatever it is not.

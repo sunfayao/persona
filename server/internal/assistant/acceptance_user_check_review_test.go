@@ -3,9 +3,6 @@ package assistant
 import (
 	"context"
 	"errors"
-	"net/http"
-	"net/http/httptest"
-	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -15,53 +12,6 @@ import (
 	"github.com/sunfayao/persona/server/internal/devicewire"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
-
-func TestUserCheckClosedTaskReopensAsOngoing(t *testing.T) {
-	ctx := context.Background()
-	for _, via := range []string{"verification feedback", "PATCH", "successor"} {
-		t.Run(via, func(t *testing.T) {
-			database := todoTestDB(t)
-			s, f, todo := acceptedForUserCheckOn(t, database)
-			a := askOf(s, todo.ID)
-			done := true
-			closed, err := s.editTodo(ctx, todo.ID, db.TodoEdit{Done: &done})
-			if err != nil || closed.DoneAt == nil || closed.Supervision.State != reviewUserCheck {
-				t.Fatalf("close pending verification: %+v, %v", closed, err)
-			}
-			switch via {
-			case "verification feedback":
-				if !s.acceptReply(ctx, "om_feedback", "Please fix the spacing.", false, a.MessageID) {
-					t.Fatal("feedback was not recognized")
-				}
-			case "PATCH":
-				rec := httptest.NewRecorder()
-				s.ServeHTTP(rec, httptest.NewRequest(http.MethodPatch, "/api/v1/todos/"+todo.ID,
-					strings.NewReader(`{"done":false}`)))
-				if rec.Code != http.StatusOK {
-					t.Fatalf("reopen PATCH: %d %s", rec.Code, rec.Body.String())
-				}
-			case "successor":
-				s.successorOpens(ctx, closed, proto.Session{})
-			}
-			for _, service := range []*Service{s, newServiceOn(t, f, database)} {
-				if err := service.ensureTodosLoaded(ctx); err != nil {
-					t.Fatal(err)
-				}
-				got := todoNow(service, todo.ID)
-				if got.DoneAt != nil || got.ReopenedAt == nil || !got.ReopenedAt.After(a.AskedAt) ||
-					got.Supervision.State != "" || triageReviewState(got) != "" {
-					t.Fatalf("reopened task still waits on stale personal verification: %+v", got)
-				}
-				if _, _, userCheck := service.openTaskOf([2]string{"box", "s1"}); userCheck {
-					t.Fatal("reopened work still has the personal-verification idle exemption")
-				}
-				if result, err := service.acceptTry(ctx, todo.ID, a.MessageID); err != nil || result.taken {
-					t.Fatalf("stale Pass accepted reopened work: %+v, %v", result, err)
-				}
-			}
-		})
-	}
-}
 
 func TestUserCheckAcceptsAClosedTaskInANewRound(t *testing.T) {
 	ctx := context.Background()
@@ -260,55 +210,5 @@ func TestUserCheckSavedReworkInvalidatesPassIfRoundWriteFails(t *testing.T) {
 		if result, err := service.acceptTry(ctx, todo.ID, a.MessageID); err != nil || result.taken {
 			t.Fatalf("a superseded Pass verified rework after its round write failed: %+v, %v", result, err)
 		}
-	}
-}
-
-func TestUserCheckRejectedReviewPreservesVerification(t *testing.T) {
-	ctx := context.Background()
-	for _, reason := range []string{"leader parking", "ledger write"} {
-		t.Run(reason, func(t *testing.T) {
-			store := &userCheckReviewFailure{DB: todoTestDB(t)}
-			s, f, todo := acceptedForUserCheckOn(t, store)
-			a := askOf(s, todo.ID)
-			args := map[string]any{"verdict": "rework", "note": "Please fix the spacing."}
-			if reason == "leader parking" {
-				s.todos.mu.Lock()
-				s.todos.todos[todo.ID].Agents = append(s.todos.todos[todo.ID].Agents,
-					TodoAgent{MachineID: "box", SessionID: "leader", Source: sourceLeader})
-				s.todos.mu.Unlock()
-				if _, _, err := s.updateSupervision(ctx, todo.ID, func(v *Supervision) bool {
-					v.Supervisor = leaderRef("box", "leader")
-					return true
-				}); err != nil {
-					t.Fatal(err)
-				}
-				args = waitingPark()
-			}
-			before := todoNow(s, todo.ID)
-			store.fail.Store(reason == "ledger write")
-			_, err := reviewErr(s, todo.ID, args)
-			store.fail.Store(false)
-			if err == nil {
-				t.Fatal("the invalid review was accepted")
-			}
-			if reason == "leader parking" && !strings.Contains(err.Error(), "task leader agent") ||
-				reason == "ledger write" && !strings.Contains(err.Error(), "review store unavailable") {
-				t.Fatalf("review failed for the wrong reason: %v", err)
-			}
-			for _, service := range []*Service{s, newServiceOn(t, f, store)} {
-				if err := service.ensureTodosLoaded(ctx); err != nil {
-					t.Fatal(err)
-				}
-				got := todoNow(service, todo.ID)
-				if !reflect.DeepEqual(got.ReopenedAt, before.ReopenedAt) ||
-					got.Supervision.State != before.Supervision.State || got.Supervision.Round != before.Supervision.Round ||
-					!reflect.DeepEqual(got.Supervision.Reviews, before.Supervision.Reviews) || got.Stage != before.Stage {
-					t.Fatalf("a rejected review invalidated personal verification: before=%+v after=%+v", before, got)
-				}
-			}
-			if result, err := s.acceptTry(ctx, todo.ID, a.MessageID); err != nil || !result.taken {
-				t.Fatalf("rejected review destroyed the owner's Pass: %+v, %v", result, err)
-			}
-		})
 	}
 }

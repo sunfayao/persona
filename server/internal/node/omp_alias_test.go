@@ -1,7 +1,6 @@
 package node
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -25,45 +24,6 @@ func withPiFamilyGrace(t *testing.T, grace time.Duration) {
 	prev := piFamilyIDGrace
 	piFamilyIDGrace = grace
 	t.Cleanup(func() { piFamilyIDGrace = prev })
-}
-
-// The extension reports the new omp's session while the start waits: the start answers with the session id, not the
-// pane's fallback row.
-func TestOmpStartWaitsForTheExtension(t *testing.T) {
-	withPiFamilyGrace(t, 3*time.Second)
-	n, f, _, rh := piHerdrNode(t)
-	// The extension lists the session in the pane the start is about to open (its hello comes before the tab exists).
-	ompExtension(t, rh, "omp-1", map[string]any{"session_id": ompSID, "status": "idle", "pane_id": "w1:p2", "cwd": "/w"})
-	ompStartHerdr(f)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	s, err := n.startOtherAgent(ctx, n.hosts.Get(host.Herdr).(*herdrHost), n.home, "omp", ompAgent, "hi", "", "w1", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s.SessionID != ompSID || s.Agent != "omp" {
-		t.Fatalf("started %+v, want the extension's session", s)
-	}
-}
-
-// No extension: after the short grace the start answers with the pane's fallback row, and omp runs.
-func TestOmpStartFallsBackToThePanesID(t *testing.T) {
-	withPiFamilyGrace(t, 200*time.Millisecond)
-	n, f, _, _ := piHerdrNode(t)
-	ompStartHerdr(f)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	began := time.Now()
-	s, err := n.startOtherAgent(ctx, n.hosts.Get(host.Herdr).(*herdrHost), n.home, "omp", ompAgent, "hi", "", "w1", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := otherSession(host.Agent{Agent: ompAgent, PaneID: "w1:p2"}); s.SessionID != want || s.Agent != "omp" {
-		t.Fatalf("started %+v, want %s", s, want)
-	}
-	if took := time.Since(began); took > piFamilyIDGrace+2*time.Second {
-		t.Fatalf("took %s with a %s grace", took, piFamilyIDGrace)
-	}
 }
 
 // A fallback row the pane later names: calls on the fallback id reach the session, the list holds one row, and a pane

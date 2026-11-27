@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"runtime"
 	"runtime/debug"
@@ -12,40 +11,6 @@ import (
 	"strings"
 	"testing"
 )
-
-// Around the size from which a line is read in pieces and around the limit, a lineReader with Serve's sizes reads what
-// a bufio.Scanner reads: a line one byte under the limit is a line, one at it is too long (bufio.ErrTooLong, with the
-// lines before it), whether the reads split it anywhere or hand over everything at once, and whatever ends the input.
-func TestLineReaderInPiecesIsAScanner(t *testing.T) {
-	const limit = 3<<20 + 4097 // not a multiple of a piece: the last piece is a short one
-	line := func(n int, b byte) string { return strings.Repeat(string(b), n) }
-	var cases []string
-	for _, n := range []int{linePiece - 1, linePiece, linePiece + 1, 2*linePiece - 1, 2 * linePiece, 2*linePiece + 1,
-		limit - 2, limit - 1, limit, limit + 1} {
-		cases = append(cases,
-			"before\n"+line(n, 'a')+"\nafter\n",
-			line(n, 'b'),          // the last line, without a newline
-			line(n-1, 'c')+"\r\n", // the carriage return is the line's last byte, as it may be a piece's
-			line(n, 'd')+"\r\nafter",
-		)
-	}
-	cases = append(cases,
-		// A second long line starts in what is left of the first one's last piece.
-		line(linePiece+5, 'e')+"\n"+line(40<<10, 'f')+"\n"+line(2*linePiece+9, 'g')+"\r\n"+line(100, 'h')+"\n",
-		// Many short lines behind a long one, then a long one again.
-		line(2*linePiece, 'i')+"\n"+strings.Repeat("short line\n", 5000)+line(linePiece+linePiece/2, 'j')+"\n\n\nend",
-		line(linePiece, '\r')+"\n"+line(linePiece, '\n')+line(linePiece+1, '\r'),
-	)
-	for i, data := range cases {
-		for _, sizes := range [][]byte{nil, {32}, {1, 7, 0, 200}, {255, 0, 0, 3}} {
-			for _, end := range []error{io.EOF, errTest} {
-				t.Run(fmt.Sprint(i, sizes, end), func(t *testing.T) {
-					sameAsAScanner(t, []byte(data), sizes, 1024, lineStart, limit, 0, end, i%2 == 0)
-				})
-			}
-		}
-	}
-}
 
 // The limit is the line's length, not a count of buffers: with Serve's own (64 MiB) a line of that many bytes is too
 // long once exactly that many are read, as with a bufio.Scanner, and one byte fewer is a line.

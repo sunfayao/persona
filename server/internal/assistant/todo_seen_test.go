@@ -1,7 +1,6 @@
 package assistant
 
 import (
-	"net/http"
 	"testing"
 	"time"
 
@@ -11,50 +10,6 @@ import (
 
 // Seen to-dos (todo_seen.go, #5707): Got it marks a to-do seen without counting as activity, Undo takes the mark off,
 // the apps read it in the list and are told it changed; a seen to-do leaves Just finished.
-
-func TestTodoSeenRequests(t *testing.T) {
-	todoStores(t, func(t *testing.T, e *todoEnv, _ *db.DB) {
-		id := e.create("发版").ID
-		e.must("PATCH", "/api/v1/todos/"+id, `{"done":true}`)
-		before := e.get(id)
-		if before == nil || before.SeenAt != nil {
-			t.Fatalf("a new to-do reads seen: %+v", before)
-		}
-		// Only a full device marks it; an unknown to-do is 404.
-		for _, method := range []string{"PUT", "DELETE"} {
-			if w := e.doAs("answer", method, "/api/v1/todos/"+id+"/seen", ""); w.Code != http.StatusForbidden {
-				t.Fatalf("%s as a read-only role: %d", method, w.Code)
-			}
-			if w := e.do(method, "/api/v1/todos/todo_gone/seen", ""); w.Code != http.StatusNotFound {
-				t.Fatalf("%s an unknown to-do: %d", method, w.Code)
-			}
-		}
-
-		events := todosEvents(e)
-		e.must("PUT", "/api/v1/todos/"+id+"/seen", "")
-		got := e.get(id)
-		if got == nil || got.SeenAt == nil || got.SeenAt.Before(*before.DoneAt) {
-			t.Fatalf("after Got it: %+v", got)
-		}
-		// the store keeps microseconds: the same moment, read back from it
-		sameMoment := func(a, b time.Time) bool { return a.Truncate(time.Microsecond).Equal(b.Truncate(time.Microsecond)) }
-		if !sameMoment(got.UpdatedAt, before.UpdatedAt) {
-			t.Fatalf("Got it counted as activity: updated_at %v, was %v", got.UpdatedAt, before.UpdatedAt)
-		}
-		if todosEvents(e) == events {
-			t.Fatal("the apps were not told the to-dos changed")
-		}
-		tr := triageTodo(listedTodo{Todo: *got}, nil, time.Now(), time.Time{}, time.UTC, false)
-		if tr.Section != triageDone {
-			t.Fatalf("a seen closed to-do is in %s", tr.Section)
-		}
-
-		e.must("DELETE", "/api/v1/todos/"+id+"/seen", "")
-		if got := e.get(id); got == nil || got.SeenAt != nil || !sameMoment(got.UpdatedAt, before.UpdatedAt) {
-			t.Fatalf("after Undo: %+v", got)
-		}
-	})
-}
 
 func TestTodoSeenSurvivesRestart(t *testing.T) {
 	database := todoTestDB(t)

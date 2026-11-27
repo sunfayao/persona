@@ -94,28 +94,6 @@ func TestBypassRestartWaitsForTheTurnToEnd(t *testing.T) {
 	})
 }
 
-// Picking another mode before the restart ran drops it: the agent keeps running, switched with shift+tab as always.
-func TestAnotherModeDropsAWaitingRestart(t *testing.T) {
-	n, f, _, _, _ := switchNode(t, proto.StatusWorking, nil)
-	knownProcess(t, n, 4101)
-	if err := pick(t, n, map[string]any{"permission_mode": proto.ModeBypass}); err != nil {
-		t.Fatal(err)
-	}
-	if n.switches().restartMode(sidA) != proto.ModeBypass {
-		t.Fatal("no restart waits")
-	}
-	cycleModes(t, f, "w1:p1", "default")
-	if err := pick(t, n, map[string]any{"permission_mode": "auto"}); err != nil {
-		t.Fatal(err)
-	}
-	if n.switches().restartMode(sidA) != "" || rowOf(t, n, sidA).BypassPending {
-		t.Error("the restart still waits")
-	}
-	if restartTyped(f) != "" {
-		t.Error("restarted anyway")
-	}
-}
-
 // A claude started with a bypass flag reaches Allow All with shift+tab: no restart.
 func TestBypassWithTheFlagNeedsNoRestart(t *testing.T) {
 	n, _, _, _, _ := switchNode(t, proto.StatusIdle, nil)

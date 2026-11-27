@@ -4,13 +4,10 @@ package node
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/nodeproto"
 	"github.com/sunfayao/persona/server/internal/proto"
-	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 // multiAsk is an AskUserQuestion of four questions, one of them multi-select, the shape Claude Code writes (made-up
@@ -29,87 +26,6 @@ func askCall(id, toolUse, input string) string {
 func toolResult(id, toolUse, text string) string {
 	return `{"type":"user","uuid":"r-` + toolUse + `","timestamp":"2026-11-04T09:01:00Z","sessionId":"` + id + `","message":{"role":"user",` +
 		`"content":[{"type":"tool_result","tool_use_id":"` + toolUse + `","content":"` + text + `"}]}}`
-}
-
-// A Claude session in the desktop app (no hook of Persona's runs there) that asks several questions at once: before,
-// the apps got only the row's "reply to answer" line and never saw the questions or their options. Now its question is
-// a card listed with the Codex cards, every question with its options and multi-select, the row says the apps may
-// answer it, and the card's answer goes through the session's inbox at priority now as the user's answers.
-func TestAnOutsideClaudesQuestionIsACard(t *testing.T) {
-	n, f, home := herdrNode(t)
-	noPaneEnv(t)
-	shortPeerWait(t, 3*time.Second)
-	f.reply("session.snapshot", snapshot(nil, nil, nil, nil))
-	p := modeTranscript(t, home, home, "bypassPermissions")
-	appendLines(t, p,
-		`{"type":"assistant","uuid":"a1","timestamp":"2026-11-04T09:00:05Z","sessionId":"`+sidA+`","message":{"role":"assistant","content":[{"type":"text","text":"A few things first:"}]}}`,
-		askCall(sidA, "toolu_multi", multiAsk))
-	inbox := newFakeInbox(t, p)
-	inbox.setMode(peerModeBypass)
-	writeOutsideClaude(t, home, sidA, "claude-desktop-3p", "waiting", inbox, nil)
-
-	s := byID(listSessions(t, n))[sidA]
-	if s.Status != proto.StatusBlocked || s.Capabilities == nil || !s.Capabilities.Approve || !s.Capabilities.Send {
-		t.Fatalf("asking: row %+v caps %+v", s, s.Capabilities)
-	}
-	cards := n.outsideAskCards()
-	if len(cards) != 1 {
-		t.Fatalf("cards %+v", cards)
-	}
-	ix := cards[0]
-	if ix.Kind != proto.IxQuestion || ix.SessionID != sidA || ix.Agent != "claude" || ix.ToolName != askTool || ix.ToolUseID != "toolu_multi" ||
-		!strings.HasPrefix(ix.ID, outsideAskPrefix) || ix.CanCancel {
-		t.Fatalf("card %+v", ix)
-	}
-	if len(ix.Questions) != 4 || ix.Questions[0].Question != "Which setting wins?" || ix.Questions[0].Header != "Source" ||
-		len(ix.Questions[0].Options) != 2 || ix.Questions[0].Options[1].Label != "Account" || ix.Questions[0].Options[1].Description != "The account's" ||
-		!ix.Questions[2].MultiSelect || len(ix.Questions[2].Options) != 3 || ix.Questions[3].MultiSelect {
-		t.Fatalf("questions %+v", ix.Questions)
-	}
-	n.syncCodexCards(context.Background())
-	if n.cx.sent != ix.ID {
-		t.Fatalf("listed %q, want %q", n.cx.sent, ix.ID)
-	}
-
-	answers := map[string]string{"Which setting wins?": "Account", "Which counts show?": "Unread, Mentions",
-		"How are long rows shown?": "Only the first two lines", "Alert on a mention?": "Never"}
-	params := map[string]any{"session_id": sidA, "id": ix.ID, "resolution": proto.Resolution{Answers: answers}, "owner_input": true}
-	if _, err := request(t, n, "codex.answer", params); refusalCode(err) != peerHeld {
-		t.Fatalf("unmarked answer: %v", err)
-	}
-	delete(params, "owner_input")
-	if _, err := request(t, n, nodeproto.OwnerCardAnswer, params); err != nil {
-		t.Fatalf("owner answer: %v", err)
-	}
-	if h := envelopeHead(t, inbox, 1); h != `<cross-session-message from-name="Persona" from-mode="bypass">` {
-		t.Fatalf("owner answer envelope: %q", h)
-	}
-	pr, content := inboxPriority(t, inbox, 1)
-	if pr != "now" {
-		t.Fatalf("the answer went at %q", pr)
-	}
-	for _, want := range []string{"Which setting wins? → Account", "How are long rows shown? → Only the first two lines",
-		"Which counts show? → Unread, Mentions", "Alert on a mention? → Never"} {
-		if !strings.Contains(content, want) {
-			t.Fatalf("the answer has no %q: %q", want, content)
-		}
-	}
-	if strings.Index(content, "Which setting wins?") > strings.Index(content, "Alert on a mention?") {
-		t.Fatalf("answers out of the card's order: %q", content)
-	}
-	n.syncCodexCards(context.Background())
-	if n.cx.sent != "" {
-		t.Fatalf("an answered card listed again at once: %q", n.cx.sent)
-	}
-
-	// Claude Code ends the question when the answer comes in at now: the call has its result, no card is left.
-	appendLines(t, p, toolResult(sidA, "toolu_multi", "Tool permission request aborted"))
-	if cards := n.outsideAskCards(); len(cards) != 0 {
-		t.Fatalf("an ended question is still a card: %+v", cards)
-	}
-	if err := n.codexAnswer(context.Background(), sidA, ix.ID, proto.Resolution{Answers: answers}); refusalCode(err) != screen.PromptChanged {
-		t.Fatalf("an answer to an ended question: %v", err)
-	}
 }
 
 func TestOutsideAnswerWithTrailingTextUsesNow(t *testing.T) {

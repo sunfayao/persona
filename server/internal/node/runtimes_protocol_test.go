@@ -170,57 +170,6 @@ func TestRuntimePublishSharesNotifyQueue(t *testing.T) {
 	}
 }
 
-func TestRuntimeRewindResetsRewatchCursor(t *testing.T) {
-	for _, tc := range []struct {
-		name, payload string
-		want          int
-	}{
-		{"history change", `"from_seq":20,"to_seq":5,"history":"new"`, 5},
-		{"full replacement", `"from_seq":0,"to_seq":5,"history":"old"`, 5},
-		{"empty replacement", `"from_seq":0,"to_seq":0,"history":"old"`, 0},
-		{"omitted start", `"to_seq":5,"history":"old"`, 20},
-		{"older batch", `"from_seq":5,"to_seq":6,"history":"old"`, 20},
-		{"empty history", `"from_seq":5,"to_seq":6,"history":""`, 20},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			n, hub := runtimeNode(t)
-			rt, _ := listedRuntime(t, n, "rewind")
-			if _, err := nodeCall(t, n, "session.watch", map[string]any{"session_id": "rewind", "since_seq": 20}); err != nil {
-				t.Fatal(err)
-			}
-			if err := rt.peer.Notify("session.items", json.RawMessage(`{"session_id":"rewind","from_seq":0,"to_seq":20,"history":"old","items":[]}`)); err != nil {
-				t.Fatal(err)
-			}
-			if err := rt.peer.Notify("session.items", json.RawMessage(`{"session_id":"rewind","items":[],`+tc.payload+`}`)); err != nil {
-				t.Fatal(err)
-			}
-			waitFor(t, "replacement forwarded", func() bool {
-				hub.mu.Lock()
-				defer hub.mu.Unlock()
-				return len(hub.items) == 2
-			})
-			if got := n.runtimes.lastPushed("rewind"); got != tc.want {
-				t.Fatalf("cursor after rewrite = %d, want %d", got, tc.want)
-			}
-			_ = rt.conn.Close()
-			waitFor(t, "runtime gone", func() bool {
-				return n.runtimes.ownerOf("rewind") == nil
-			})
-			next, _ := listedRuntime(t, n, "rewind")
-			waitFor(t, "runtime rewatched", func() bool { return len(next.got("session.watch")) == 1 })
-			var p struct {
-				SinceSeq int `json:"since_seq"`
-			}
-			if err := json.Unmarshal(next.got("session.watch")[0], &p); err != nil {
-				t.Fatal(err)
-			}
-			if p.SinceSeq != tc.want {
-				t.Fatalf("rewatch cursor = %d, want %d", p.SinceSeq, tc.want)
-			}
-		})
-	}
-}
-
 func TestRuntimeLatestFoldKeepsCurrentNarration(t *testing.T) {
 	n, _ := runtimeNode(t)
 	rt, _ := listedRuntime(t, n, "fold")

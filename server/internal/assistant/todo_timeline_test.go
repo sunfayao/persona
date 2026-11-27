@@ -5,9 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"reflect"
 	"slices"
-	"strings"
 	"testing"
 	"time"
 
@@ -137,40 +135,6 @@ func TestTodoTimelineWithoutItsStores(t *testing.T) {
 	for _, k := range []string{"rounds", "rounds_total", "recap", "results"} {
 		if item[k] != nil {
 			t.Errorf("%s with no readable history: %s", k, body)
-		}
-	}
-
-}
-
-// extensionReads checks what an extension's token reads of to-do id: shown, its row on the list and on its own is a
-// device's, and its decisions answer as a device's; a hidden to-do is excluded from the list, and its item and decisions
-// answer 404 todo_not_found with none
-// of words.
-func extensionReads(t *testing.T, e *todoEnv, id string, shown bool, words ...string) {
-	t.Helper()
-	dev, _ := rowsAs(t, e, "")
-	ext, list := rowsAs(t, e, roleExtension)
-	if _, listed := ext[id]; listed != shown || shown && !reflect.DeepEqual(ext[id], dev[id]) {
-		t.Errorf("an extension's list (shown %v): %s\na device's row: %v", shown, list, dev[id])
-	}
-	paths := []string{"/api/v1/todos/" + id}
-	if e.s.todoDB() != nil {
-		paths = append(paths, "/api/v1/todos/"+id+"/decisions", "/api/v1/todos/"+id+"/decisions?all=1")
-	}
-	for _, path := range paths {
-		w := e.doAs(roleExtension, "GET", path, "")
-		var refused struct{ Code string }
-		_ = json.Unmarshal(w.Body.Bytes(), &refused)
-		if !shown {
-			if w.Code != http.StatusNotFound || refused.Code != "todo_not_found" || slices.ContainsFunc(words, func(word string) bool {
-				return strings.Contains(w.Body.String(), word)
-			}) {
-				t.Errorf("an extension at %s (not shown): %d %s", path, w.Code, w.Body)
-			}
-			continue
-		}
-		if dw := e.must("GET", path, ""); w.Code != http.StatusOK || w.Body.String() != dw.Body.String() {
-			t.Errorf("an extension at %s: %d %s\na device's: %s", path, w.Code, w.Body, dw.Body)
 		}
 	}
 

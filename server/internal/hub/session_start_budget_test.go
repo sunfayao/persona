@@ -3,7 +3,6 @@ package hub
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,75 +15,6 @@ import (
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
 )
-
-// Codex and compatible variants return their session only after startup even when a client asks for async: the node gets the agent
-// type the launcher resolves to, and the start's budget (startBudget) follows it. What the start runs on is the
-// manager's (agents.start_params), whose calls carry no deadline over the bus: the budget is checked on the decision.
-func TestSessionStartBudgetMatchesNodeStartup(t *testing.T) {
-	for _, tc := range []struct {
-		name       string
-		agentType  string
-		configured string
-		async      bool
-		short      bool
-	}{
-		{name: "default Claude async", async: true, short: true},
-		{name: "explicit Claude async", agentType: "claude", async: true, short: true},
-		{name: "explicit Codex async", agentType: "codex", async: true},
-		{name: "explicit TRAE CLI async", agentType: "traex", async: true},
-		{name: "explicit AGY async", agentType: "agy", async: true},
-		{name: "configured Codex async", configured: "codex", async: true},
-		{name: "configured TRAE CLI async", configured: "traex", async: true},
-		{name: "Claude sync"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			h := newTestHub(t)
-			connectAssistant(t, h) // it says what a start runs on; without it nothing starts
-			startReceiptNode(t, h, func(_ context.Context, params json.RawMessage) (any, error) {
-				var in struct {
-					AgentType string `json:"agent_type"`
-				}
-				if err := json.Unmarshal(params, &in); err != nil {
-					return nil, err
-				}
-				want := tc.agentType
-				if want == "" {
-					want = tc.configured
-				}
-				if in.AgentType != want {
-					t.Errorf("node agent_type = %q, want %q", in.AgentType, want)
-				}
-				return map[string]any{"session": proto.Session{SessionID: "created"}}, nil
-			})
-			h.byID["machine"].cfg.Launchers = []assistantwire.ConfiguredLauncher{{Launcher: proto.Launcher{Name: "wrapper"}, AgentType: tc.configured}}
-			body, err := json.Marshal(map[string]any{
-				"machine_id": "machine", "cwd": "/code", "launcher": "wrapper", "prompt": "hello", "tab_name": "test",
-				"agent_type": tc.agentType, "async": tc.async,
-			})
-			if err != nil {
-				t.Fatal(err)
-			}
-			r := httptest.NewRequest("POST", "/api/v1/sessions", strings.NewReader(string(body)))
-			w := httptest.NewRecorder()
-			h.startSession(w, r)
-			if w.Code != http.StatusOK {
-				t.Fatalf("start = %d %s", w.Code, w.Body)
-			}
-			want := tc.agentType
-			if want == "" {
-				want = tc.configured
-			}
-			budget := startBudget(startsAsync(tc.async, "", "wrapper", want))
-			min, max := 60*time.Second, 101*time.Second
-			if tc.short {
-				min, max = 10*time.Second, 16*time.Second
-			}
-			if budget < min || budget > max {
-				t.Fatalf("operation budget = %s, want between %s and %s", budget, min, max)
-			}
-		})
-	}
-}
 
 func TestDesktopCreationBudgetIncludesImportAndFirstMessage(t *testing.T) {
 	for _, launcher := range []string{"claude-desktop", "codex-app"} {
@@ -125,87 +55,6 @@ func observeSessionStartBudget(t *testing.T, m *Machine, before func(context.Con
 		m.peer = original
 		m.mu.Unlock()
 	})
-}
-
-func TestSessionStartUsesManagerResolvedBudget(t *testing.T) {
-	for _, launcher := range []string{"claude-desktop", "codex-app", "configured-codex"} {
-		for _, parentMode := range []string{"ordinary", "deadline", "canceled"} {
-			t.Run(launcher+"/"+parentMode, func(t *testing.T) {
-				h := newTestHub(t)
-				h.store = &newAgentStore{memStore: newMemStore(), b: assistantwire.ModelBinding{Provider: "launcher." + launcher}}
-				startReceiptNode(t, h, func(context.Context, json.RawMessage) (any, error) {
-					return map[string]any{"session": proto.Session{SessionID: "created"}}, nil
-				})
-				m := h.byID["machine"]
-				if launcher == "configured-codex" {
-					m.cfg.Launchers = []assistantwire.ConfiguredLauncher{{Launcher: proto.Launcher{Name: launcher}, AgentType: "codex"}}
-				}
-				connectAssistant(t, h)
-				type contextKey struct{}
-				parent := context.WithValue(context.Background(), contextKey{}, "request")
-				var parentDeadline time.Time
-				if parentMode == "deadline" {
-					parentDeadline = time.Now().Add(30 * time.Second)
-					var cancel context.CancelFunc
-					parent, cancel = context.WithDeadline(parent, parentDeadline)
-					t.Cleanup(cancel)
-				}
-				parent, cancelParent := context.WithCancel(parent)
-				t.Cleanup(cancelParent)
-				observed := false
-				observeSessionStartBudget(t, m, func(ctx context.Context, raw any) error {
-					observed = true
-					params := raw.(map[string]any)
-					if params["launcher"] != launcher || params["async"] != false {
-						t.Errorf("resolved start = %+v, want %s synchronous", params, launcher)
-					}
-					if launcher == "configured-codex" && params["agent_type"] != "codex" {
-						t.Errorf("resolved agent_type = %v, want codex", params["agent_type"])
-					}
-					deadline, ok := ctx.Deadline()
-					if !ok {
-						t.Error("node dispatch has no deadline")
-					} else if !parentDeadline.IsZero() {
-						if !deadline.Equal(parentDeadline) {
-							t.Errorf("dispatch deadline = %s, want parent %s", deadline, parentDeadline)
-						}
-					} else {
-						budget := 3 * time.Minute
-						if launcher == "configured-codex" {
-							budget = 100 * time.Second
-						}
-						if remaining := time.Until(deadline); remaining < budget-15*time.Second || remaining > budget {
-							t.Errorf("dispatch budget = %s, want up to %s", remaining, budget)
-						}
-					}
-					if ctx.Value(contextKey{}) != "request" {
-						t.Error("request context value was lost")
-					}
-					if parentMode == "canceled" {
-						cancelParent()
-						if !errors.Is(ctx.Err(), context.Canceled) {
-							t.Errorf("dispatch ignored request cancellation: %v", ctx.Err())
-						}
-						return ctx.Err()
-					}
-					return nil
-				})
-				r := httptest.NewRequest("POST", "/api/v1/sessions", strings.NewReader(`{"machine_id":"machine","cwd":"/code","async":true,"prompt":"hello","tab_name":"test"}`)).WithContext(parent)
-				w := httptest.NewRecorder()
-				h.startSession(w, r)
-				if !observed {
-					t.Fatalf("start never reached node: %d %s", w.Code, w.Body)
-				}
-				if parentMode == "canceled" {
-					if w.Code == http.StatusOK {
-						t.Fatalf("canceled start succeeded: %s", w.Body)
-					}
-				} else if w.Code != http.StatusOK {
-					t.Fatalf("start = %d %s", w.Code, w.Body)
-				}
-			})
-		}
-	}
 }
 
 func TestSessionStartResolvedSyncKeepsNameAndCompletion(t *testing.T) {

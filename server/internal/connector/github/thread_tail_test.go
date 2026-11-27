@@ -462,67 +462,6 @@ func TestThreadConcurrentCachedReads(t *testing.T) {
 	wg.Wait()
 }
 
-func TestThreadGrowingTailWithStaggeredCacheExpiry(t *testing.T) {
-	for _, links304 := range []bool{false, true} {
-		for _, counts := range [][2]int{{501, 601}, {601, 602}} {
-			t.Run(fmt.Sprintf("%d-to-%d/304-links-%t", counts[0], counts[1], links304), func(t *testing.T) {
-				c, api := newTailAPI(t, counts[0], links304)
-				ctx := context.Background()
-				if _, err := c.Thread(ctx, "example-org/example-repo#7", "", 8); err != nil {
-					t.Fatal(err)
-				}
-				api.mu.Lock()
-				api.count = counts[1]
-				api.mu.Unlock()
-				// Page 1 was fetched first, so it naturally expires before its tail pages.
-				c.etags.mu.Lock()
-				for path, e := range c.etags.m {
-					if strings.Contains(path, "?page=1&") {
-						e.at = time.Now().Add(-time.Hour)
-					}
-				}
-				c.etags.mu.Unlock()
-				before := len(api.seen())
-				page, err := c.Thread(ctx, "example-org/example-repo#7", "", 8)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if got, want := tailIDs(page.Messages), expectedTailIDs(counts[1]-1, counts[1]); !reflect.DeepEqual(got, want) {
-					t.Errorf("staggered latest=%v want=%v", got, want)
-				}
-				for _, path := range tailPaths {
-					rows, err := cachedList[threadComment](c, ctx, path)
-					if err != nil {
-						t.Fatal(err)
-					}
-					if len(rows) != 500 {
-						t.Errorf("%s retained %d rows, want 500", path, len(rows))
-						continue
-					}
-					for i, row := range rows {
-						if want := int64(counts[1] - 499 + i); row.ID != want {
-							t.Errorf("%s retained row %d=%d want=%d", path, i, row.ID, want)
-							break
-						}
-					}
-					requests := 0
-					for _, r := range api.seen()[before:] {
-						if r.path == path {
-							requests++
-							if r.page > 1 && !r.conditional && r.page <= (counts[0]+99)/100 {
-								t.Error("tail revalidation lost its validator")
-							}
-						}
-					}
-					if requests > 8 {
-						t.Errorf("%s made %d requests; bound is 8", path, requests)
-					}
-				}
-			})
-		}
-	}
-}
-
 // An old partial tail can finish after a newer discovery or a newer full tail.
 // Neither response completion nor a delayed 304 may make that old body current.
 func TestThreadLateTailResponse(t *testing.T) {

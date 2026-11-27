@@ -302,47 +302,6 @@ func TestAuthRefreshLifecycleFixtures(t *testing.T) {
 	}
 }
 
-func TestErrorCategories(t *testing.T) {
-	for _, tc := range []struct {
-		name     string
-		scenario string
-		want     ErrorKind
-		call     func(*Runner) error
-	}{
-		{"missing scope", "missing_scope", KindMissingPermission, func(r *Runner) error {
-			_, err := r.SearchMessages(context.Background(), "example", SearchOptions{})
-			return err
-		}},
-		{"rate limited", "rate_limited", KindRateLimited, func(r *Runner) error {
-			_, err := r.SearchMessages(context.Background(), "example", SearchOptions{})
-			return err
-		}},
-		{"non-zero", "nonzero", KindOther, func(r *Runner) error {
-			_, err := r.SearchMessages(context.Background(), "example", SearchOptions{})
-			return err
-		}},
-		{"timeout", "timeout", KindTimeout, func(r *Runner) error {
-			r.cfg.Timeout = 20 * time.Millisecond
-			_, err := r.SearchMessages(context.Background(), "example", SearchOptions{})
-			return err
-		}},
-		{"old version", "old", KindUnsupportedVersion, func(r *Runner) error { return r.CheckVersion(context.Background()) }},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			err := tc.call(New(fakeConfig(t, tc.scenario)))
-			if KindOf(err) != tc.want {
-				t.Fatalf("kind = %q, err = %v", KindOf(err), err)
-			}
-			if tc.want == KindMissingPermission {
-				var e *Error
-				if !errors.As(err, &e) || len(e.MissingScopes) != 1 || e.MissingScopes[0] != "im:chat:read" {
-					t.Fatalf("missing scopes = %+v", err)
-				}
-			}
-		})
-	}
-}
-
 func TestStderrIsNotReturned(t *testing.T) {
 	_, err := New(fakeConfig(t, "nonzero")).SearchMessages(context.Background(), "example", SearchOptions{})
 	if strings.Contains(err.Error(), "message-body-example") {

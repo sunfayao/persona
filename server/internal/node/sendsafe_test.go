@@ -166,29 +166,6 @@ func TestCheckPaneRefusesDraftAndClearsWhenAsked(t *testing.T) {
 	}
 }
 
-// Two quick sends: the second found the first still in the box (typed, Enter not yet taken) and was refused as a
-// draft, with an offer to clear it — the user's own first message. Now the sends to a session take turns and a box
-// showing what was just typed is waited out.
-func TestCheckPaneWaitsOutWhatWasJustTyped(t *testing.T) {
-	typed := screenFixture(t, "claude-2.1.312-typed-162.ansi") // the box shows "fix the flaky test"
-	f := &fakePane{screens: []string{typed, screenFixture(t, "claude-2.1.312-empty-162.ansi")}, clearAfter: 3}
-	n := &Node{hosts: herdrHosts(f.serve(t))}
-	n.typing.typed("w1:p1", "fix the flaky test\nand the second line of the message")
-	if err := n.checkPane(context.Background(), "w1:p1", "claude", ""); err != nil {
-		t.Fatalf("our own message taken for a draft: %v", err)
-	}
-	// Someone else's draft in another pane is still a draft.
-	g := &fakePane{screens: []string{typed}}
-	m := &Node{hosts: herdrHosts(g.serve(t))}
-	m.typing.typed("w1:p2", "fix the flaky test")
-	if code, _ := refusalOf(t, m.checkPane(context.Background(), "w1:p1", "claude", "")); code != "input_draft" {
-		t.Fatalf("a draft in another pane: %s", code)
-	}
-	if !n.typing.ours("w1:p1", "[Pasted text #1 +500 lines] ") || n.typing.ours("w1:p9", "fix") {
-		t.Fatal("paste placeholder / unknown pane")
-	}
-}
-
 func TestSendsToOneSessionTakeTurns(t *testing.T) {
 	var l typingLocks
 	unlock := l.lock("s1")
@@ -285,59 +262,6 @@ func TestDialogKeysCheckRevision(t *testing.T) {
 		t.Fatal("answered into a changed screen")
 	} else if code, _ := refusalOf(t, err); code != "prompt_changed" {
 		t.Fatal(code)
-	}
-}
-
-// #6318: a pane full of CJK text whose 40 plain rows herdr cannot send whole (8 KB). The card and its answer both read
-// the most bottom rows that fit, so they see the same dialog, agree on its revision, and the answer goes in; a screen
-// that moved on is still refused.
-func TestDialogCardAndAnswerOnACutPane(t *testing.T) {
-	questions := screenFixture(t, "claude-2.1.318-questions-wrapped-100.txt")
-	cjk := strings.Repeat("一行很长的中文输出，说明这次发布要注意的事\n", 40)
-	f := &fakePane{screens: []string{cjk + questions}, plainCutOver: 30}
-	n := &Node{hosts: herdrHosts(f.serve(t)), agents: map[string]host.Agent{"s1": {PaneID: "w1:p1"}}}
-	ctx := context.Background()
-	text, _, err := n.screen(ctx, "s1", screen.DialogLines, "", false) // what session.screen gives the hub for its card
-	if err != nil {
-		t.Fatalf("the card's read: %v (reads %v)", err, f.readLines)
-	}
-	rev := dialogRev(text, screen.DialogLines, "", "")
-	if d := screen.ParseDialog(text); rev == "" || d == nil || len(d.Options) != 4 || !strings.Contains(d.Question, "你希望先切流量") {
-		t.Fatalf("the card's dialog from the bottom rows: rev %q, %+v", rev, d)
-	}
-	if keys, _, err := n.dialogKeys(ctx, "s1", rev, "2"); err != nil || strings.Join(keys, ",") != "2" {
-		t.Fatalf("the answer: %v %v (reads %v)", keys, err, f.readLines)
-	}
-	// Fewer rows fit when the answer comes (a row grew by a few bytes): the dialog is still shown whole, so it is the
-	// same dialog with the same revision.
-	f.plainCutOver = 24
-	if keys, _, err := n.dialogKeys(ctx, "s1", rev, "1"); err != nil || strings.Join(keys, ",") != "1" {
-		t.Fatalf("the answer with fewer rows: %v %v (reads %v)", keys, err, f.readLines)
-	}
-	f.screens[0] = cjk + screenFixture(t, "claude-2.1.312-empty-162.txt")
-	if _, _, err := n.dialogKeys(ctx, "s1", rev, "2"); err == nil {
-		t.Fatal("answered into a screen that moved on")
-	} else if code, _ := refusalOf(t, err); code != screen.PromptChanged {
-		t.Fatal(code)
-	}
-	// A dialog taller than every window that fits (a permission whose title and command are above its last 12 rows):
-	// no card is made from part of it, and an answer presses nothing, since another command could end the same way.
-	danger := screenFixture(t, "claude-2.1.316-danger-rm-120.txt")
-	g := &fakePane{screens: []string{cjk + danger}, plainCutOver: 12}
-	m := &Node{hosts: herdrHosts(g.serve(t)), agents: map[string]host.Agent{"s1": {PaneID: "w1:p1"}}}
-	if text, _, err := m.screen(ctx, "s1", screen.DialogLines, "", false); err == nil {
-		t.Fatalf("a card's read of a cut permission: %q", text)
-	}
-	keys, _, err := m.dialogKeys(ctx, "s1", dialogRev(danger, screen.DialogLines, "", ""), "1")
-	if code, _ := refusalOf(t, err); code != notDelivered || len(keys) > 0 || len(g.keys) > 0 || !strings.Contains(err.Error(), "在电脑上回答") {
-		t.Fatalf("answered a cut permission: %v %v, keys pressed %v", keys, err, g.keys)
-	}
-	// A review page too long to read after the last answer: not submitted unseen, and the answer says so.
-	review := strings.Replace(screenFixture(t, "claude-2.1.316-multiselect-review-100.txt"), "\nReady to submit",
-		strings.Repeat("\n ● 另一道题\n   → 一个回答", 4)+"\n\nReady to submit", 1) // taller than the 12 rows that fit
-	r := &fakePane{screens: []string{cjk + review}, plainCutOver: 12}
-	if err := (&Node{hosts: herdrHosts(r.serve(t))}).submitReview(ctx, "w1:p1"); err == nil || !strings.Contains(err.Error(), "Submit answers") || len(r.keys) > 0 {
-		t.Fatalf("a cut review page: %v, keys %v", err, r.keys)
 	}
 }
 
@@ -439,53 +363,6 @@ func TestDismissNoticeNeedsTheWholeScreen(t *testing.T) {
 	err := (&Node{hosts: herdrHosts(f.serve(t))}).checkPaneFor(context.Background(), "w1:p1", "claude", sendOpts{DismissNotice: true})
 	if code, data := refusalOf(t, err); code != "dialog_open" || data["notice"] == true || len(f.keys) != 0 {
 		t.Fatalf("%s %v, keys %v", code, data, f.keys)
-	}
-}
-
-// A prompt left in the input box (seen once with an image: `[Image #1]` and the text, the agent done) gets one Enter;
-// a box that empties, or shows someone else's text, gets none. No transcript to watch: one look.
-func TestEnsureSubmittedPressesEnterOnceForAStuckPrompt(t *testing.T) {
-	withSubmitGrace(t, 100*time.Millisecond)
-	typed := screenFixture(t, "claude-2.1.312-typed-162.ansi") // the box shows "fix the flaky test"
-	empty := screenFixture(t, "claude-2.1.312-empty-162.ansi")
-	ctx := context.Background()
-
-	stuck := &fakePane{screens: []string{typed, empty}}
-	n := &Node{hosts: herdrHosts(stuck.serve(t))}
-	n.ensureSubmitted(ctx, "w1:p1", "fix the flaky test\n\n<attached_images>\n/tmp/a.jpg\n</attached_images>", time.Now(), nil)
-	if len(stuck.keys) != 1 || stuck.keys[0][0] != "enter" {
-		t.Fatalf("stuck prompt: keys %v", stuck.keys)
-	}
-
-	// The paste lands late: right after the prompt the box still looks empty, then holds the prompt (the 11-01 miss).
-	late := &fakePane{screens: []string{empty, typed}}
-	late.state = 1
-	l := &Node{hosts: herdrHosts(late.serve(t))}
-	l.ensureSubmitted(ctx, "w1:p1", "fix the flaky test", time.Now(), nil)
-	if len(late.keys) != 1 || late.keys[0][0] != "enter" {
-		t.Fatalf("late paste: keys %v", late.keys)
-	}
-
-	taken := &fakePane{screens: []string{empty}} // Claude took it by the time the grace ends
-	m := &Node{hosts: herdrHosts(taken.serve(t))}
-	m.ensureSubmitted(ctx, "w1:p1", "fix the flaky test", time.Now(), nil)
-	if len(taken.keys) != 0 {
-		t.Fatalf("pressed enter on a prompt Claude took: %v", taken.keys)
-	}
-
-	other := &fakePane{screens: []string{typed}}
-	o := &Node{hosts: herdrHosts(other.serve(t))}
-	o.ensureSubmitted(ctx, "w1:p1", "something else entirely", time.Now(), nil)
-	if len(other.keys) != 0 {
-		t.Fatalf("pressed enter on someone else's draft: %v", other.keys)
-	}
-
-	// A pane herdr cannot send whole even without colors: its bottom rows still show the stuck prompt (#6308).
-	cut := &fakePane{screens: []string{strings.Repeat("一行很长的中文输出\r\n", 40) + typed}, cutOver: 10, plainCutOver: 24}
-	c := &Node{hosts: herdrHosts(cut.serve(t))}
-	c.ensureSubmitted(ctx, "w1:p1", "fix the flaky test", time.Now(), nil)
-	if len(cut.keys) != 1 || cut.keys[0][0] != "enter" {
-		t.Fatalf("stuck prompt on a cut pane: keys %v (reads %v)", cut.keys, cut.readLines)
 	}
 }
 

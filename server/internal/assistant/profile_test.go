@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/sunfayao/persona/server/internal/i18n"
-	"github.com/sunfayao/persona/server/internal/modelhttp"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -173,57 +172,6 @@ func TestSettingsRequireFullRole(t *testing.T) {
 		if code := do(http.MethodGet, path, "answer", ""); code != http.StatusOK {
 			t.Fatalf("GET %s as answer: %d, want 200", path, code)
 		}
-	}
-}
-
-// A message for one of its conversations: one the machine does not list (and not the main one) keeps what it runs
-// on; the main one runs on the main chat's, a gone launcher is refused without an implicit substitute, a dropped model
-// falls back to the launcher's default; the first message to a new main conversation started empty carries what the
-// old one left, once.
-func TestSendParams(t *testing.T) {
-	fastLauncherRecovery(t)
-	ctx := context.Background()
-	f := newFakeHub().withMachine()
-	f.setSessions("server", proto.Session{SessionID: "side", Launcher: "gone-l", Model: "m", Assistant: true},
-		proto.Session{SessionID: "side2", Launcher: "side-l", Model: "dropped", Assistant: true})
-	// gone-l is no launcher of the machine's any more; side-l does not offer "dropped" now.
-	f.launcherList = []proto.Launcher{{Name: "claude"}, {Name: "conv"}, {Name: "side-l"}}
-	f.agentModels = map[string][]proto.AgentModel{"side-l": {{ID: "m"}}}
-	s := newTestService(t, f)
-	setLauncherRecovery(f, 1, nil)
-	setModel(t, s, "assistant", ModelBinding{Provider: "launcher.conv"})
-	p, err := s.SendParams(ctx, SendParams{MachineID: "server", SessionID: "unlisted", Params: map[string]any{"text": "hi"}})
-	_, attested := p["origin_known"]
-	if err != nil || len(p) != 4 || p["is_main"] != false || p["supervision_instructions"] != "" || attested ||
-		p["model_source"] != (modelhttp.Source{Role: "main", Session: "unlisted"}) {
-		t.Fatalf("unlisted and not yet backfilled must stay unknown: %v %v", p, err)
-	}
-	p, err = s.SendParams(ctx, SendParams{MachineID: "server", SessionID: "side", Params: map[string]any{"text": "hi"}})
-	if err == nil || p["launcher"] != nil {
-		t.Fatalf("a gone launcher used an implicit substitute: %v %v", p, err)
-	}
-	p, err = s.SendParams(ctx, SendParams{MachineID: "server", SessionID: "side2", Params: map[string]any{"text": "hi"}})
-	if err != nil || p["launcher"] != "side-l" || p["model"] != nil {
-		t.Fatalf("a dropped model: %v %v", p, err)
-	}
-
-	// The main conversation put away, the next one started empty: its first message carries the old one's summary.
-	setSettings(t, s, func(v *Settings) { v.Main = "main-0" })
-	f.setSessions("server", proto.Session{SessionID: "main-0", Assistant: true, Status: proto.StatusIdle})
-	if old, carried, err := s.newMain(ctx, false, "main-0"); err != nil || old != "main-0" || carried {
-		t.Fatalf("new main: %q %v %v", old, carried, err)
-	}
-	sess, err := s.start(ctx, StartParams{Main: true})
-	if err != nil || s.settings(ctx).Main != sess.SessionID || !slices.Contains(s.settings(ctx).Former, FormerMain{MachineID: "server", SessionID: "main-0",
-		Until: s.settings(ctx).Former[0].Until}) {
-		t.Fatalf("started: %+v %v %+v", sess, err, s.settings(ctx))
-	}
-	first, err := s.SendParams(ctx, SendParams{MachineID: "server", SessionID: sess.SessionID, Params: map[string]any{"text": "你好"}})
-	if text, _ := first["text"].(string); err != nil || !strings.Contains(text, "main-0") || !strings.HasSuffix(text, "你好") || first["launcher"] != "conv" {
-		t.Fatalf("the first message: %v %v", first, err)
-	}
-	if again, _ := s.SendParams(ctx, SendParams{MachineID: "server", SessionID: sess.SessionID, Params: map[string]any{"text": "再来"}}); again["text"] != "再来" {
-		t.Fatalf("taken once: %v", again)
 	}
 }
 

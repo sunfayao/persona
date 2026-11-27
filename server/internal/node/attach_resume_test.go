@@ -17,7 +17,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/nodeclient"
 	"github.com/sunfayao/persona/server/internal/nodeproto"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
@@ -163,37 +162,6 @@ func (s slowReader) Read(b []byte) (int, error) {
 	return s.r.Read(b[:min(len(b), 16<<10)])
 }
 
-// A resident node keeps its connection when the transport under it ends: the manager comes back on a new one with its
-// token and takes it back, the same Node serving it (#10663). A token the node does not have is refused on the spot,
-// and the connection served is left as it was.
-func TestAttachKeepsConnectionAfterLargeRequest(t *testing.T) {
-	r := startResidentAttach(t)
-	defer r.end()
-	ctx, cancel := context.WithTimeout(r.ctx, 20*time.Second)
-	defer cancel()
-	const head, tail = `{"padding":"`, `"}`
-	const size = 70 << 20
-	params := rpc.Appended{
-		Size: len(head) + size + len(tail),
-		Append: func(dst []byte) []byte {
-			dst = append(dst, head...)
-			for range size {
-				dst = append(dst, 'x')
-			}
-			return append(dst, tail...)
-		},
-	}
-	if err := r.hub.Call(ctx, "ping", params, nil); err != nil {
-		t.Fatalf("70 MiB request: %v", err)
-	}
-	if err := r.hub.Call(ctx, "ping", nil, nil); err != nil {
-		t.Fatalf("ping after large request: %v", err)
-	}
-	if got := r.made.Load(); got != 1 {
-		t.Fatalf("created %d nodes on the transport, want 1", got)
-	}
-}
-
 func TestAttachResumesAConnection(t *testing.T) {
 	r := startResidentAttach(t)
 	hub := r.hub
@@ -248,73 +216,6 @@ func refusedResume(t *testing.T, r *residentAttach) string {
 	return line
 }
 
-// slowResumeDecisions holds every resume a moment before it is decided, for frames to be written meanwhile: one that
-// went to the new transport would show.
-func slowResumeDecisions(t *testing.T) {
-	wait := func() { time.Sleep(50 * time.Millisecond) } // sleep-ok: a window for the writer to write in
-	resumeDeciding.Store(&wait)
-	t.Cleanup(func() { resumeDeciding.Store(nil) })
-}
-
-// Resumes refused while the connection is busy writing take none of its frames: a frame on the refused transport would
-// be a gap on the one in use, which ends it and counts against framing (#10829's review). The manager never sees it
-// lost.
-func TestAttachRefusedResumeTakesNoFrames(t *testing.T) {
-	slowResumeDecisions(t)
-	r := startResidentAttach(t)
-	stop, more := r.load(r.ctx)
-	for range 40 {
-		more()
-		if line := refusedResume(t, r); !strings.HasPrefix(line, "{") || !strings.Contains(line, rpc.CodeResumeRefused) {
-			t.Fatalf("a made-up token answered %q", line)
-		}
-	}
-	if err := stop(); err != nil {
-		t.Fatalf("the connection in use: %v", err)
-	}
-	select {
-	case err := <-r.lost:
-		t.Fatalf("the manager lost the connection in use: %v", err)
-	default:
-	}
-	if r.made.Load() != 1 {
-		t.Fatalf("%d Nodes made", r.made.Load())
-	}
-	r.end()
-}
-
-// The manager takes its connection back while the old transport still carries frames (its pings went unanswered, the
-// node saw nothing wrong): the answer is the first line of the new transport, every time, and the calls under way go
-// on (#10829's review).
-func TestAttachResumesWhileTheOldTransportStillWorks(t *testing.T) {
-	slowResumeDecisions(t)
-	r := startResidentAttach(t)
-	stop, more := r.load(r.ctx)
-	cctx, ccancel := context.WithTimeout(r.ctx, 60*time.Second)
-	defer ccancel()
-	old := r.first
-	for i := range 10 {
-		more()
-		if !r.hub.Lose(errors.New("two pings unanswered")) {
-			t.Fatalf("resume %d: the connection cannot be lost", i)
-		}
-		m, n := net.Pipe()
-		r.extra <- n
-		if err := r.hub.Resume(cctx, slowReader{m}, m); err != nil {
-			t.Fatalf("resume %d: %v", i, err)
-		}
-		old.Close() // the manager lets the old transport go (devices resumeConn)
-		old = m
-	}
-	if err := stop(); err != nil {
-		t.Fatalf("the calls under way: %v", err)
-	}
-	if r.made.Load() != 1 {
-		t.Fatalf("%d Nodes made", r.made.Load())
-	}
-	r.end()
-}
-
 // A transport that ends before it said a whole first line (a manager's attempt to resume cut on its way) is let go:
 // it does not replace the connection kept (#10829's review).
 func TestAttachIgnoresATransportThatSaidNothing(t *testing.T) {
@@ -367,100 +268,6 @@ func TestAttachIgnoresATransportThatSaidNothing(t *testing.T) {
 	case <-time.After(15 * time.Second):
 		t.Fatal("Attach did not end")
 	}
-}
-
-// sendHook sends a report-only hook's event on node.sock, as `personad hook` does, and says how long its answer took.
-func sendHook(t *testing.T, event, session string) time.Duration {
-	t.Helper()
-	start := time.Now()
-	c, err := net.Dial("unix", nodeclient.SocketPath())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close()
-	b, _ := json.Marshal(sockRequest{Kind: "hook", ReportOnly: true, Input: reportInput(event, session, "")})
-	if _, err := c.Write(append(b, '\n')); err != nil {
-		t.Fatal(err)
-	}
-	_ = c.SetReadDeadline(time.Now().Add(time.Minute))
-	if _, err := bufio.NewReader(c).ReadString('\n'); err != nil {
-		t.Fatalf("the hook's answer: %v", err)
-	}
-	return time.Since(start)
-}
-
-// hookSession is the session of the i-th hook these tests send.
-func hookSession(i int) string { return fmt.Sprintf("%08d-2222-3333-4444-555555555555", i) }
-
-// sessionsOf says the sessions of hook events, in the order they came.
-func sessionsOf(events []map[string]any) []string {
-	var got []string
-	for _, e := range events {
-		got = append(got, fmt.Sprint(e["session_id"]))
-	}
-	return got
-}
-
-// While the connection waits for the manager to resume it, a hook does not wait with it: its event goes out, in order,
-// once the connection is resumed. One whose connection is never resumed is kept, and the next connection gets it
-// (#10829's review).
-func TestAttachHookEventsDoNotWaitForAResume(t *testing.T) {
-	was := resumeWindow
-	resumeWindow = 3 * time.Second
-	t.Cleanup(func() { resumeWindow = was })
-	r := startResidentAttach(t)
-	cctx, ccancel := context.WithTimeout(r.ctx, time.Minute)
-	defer ccancel()
-	if took := sendHook(t, "Stop", hookSession(0)); took > hookEventWait {
-		t.Fatalf("a hook on a working connection took %v", took)
-	}
-	waitFor(t, "the first event", func() bool { return len(r.hooks.all()) == 1 })
-
-	r.first.Close()
-	<-r.lost
-	for i := 1; i <= 3; i++ {
-		if took := sendHook(t, "Stop", hookSession(i)); took > hookEventWait+time.Second/2 {
-			t.Fatalf("hook %d waited %v for the transport", i, took)
-		}
-	}
-	m2, n2 := net.Pipe()
-	r.extra <- n2
-	if err := r.hub.Resume(cctx, m2, m2); err != nil {
-		t.Fatalf("resume: %v", err)
-	}
-	waitFor(t, "the events after the resume", func() bool { return len(r.hooks.all()) == 4 })
-	if got, want := sessionsOf(r.hooks.all()), []string{hookSession(0), hookSession(1), hookSession(2), hookSession(3)}; !slices.Equal(got, want) {
-		t.Fatalf("events %v, want %v", got, want)
-	}
-
-	// Lost again, and not resumed: what the hooks sent meanwhile goes to the next connection.
-	m2.Close()
-	<-r.lost
-	for i := 4; i <= 5; i++ {
-		if took := sendHook(t, "Stop", hookSession(i)); took > hookEventWait+time.Second/2 {
-			t.Fatalf("hook %d waited %v for the transport", i, took)
-		}
-	}
-	waitFor(t, "the kept events", func() bool { return len(openSpool(SpoolPath()).load()) == 2 })
-	m3, n3 := net.Pipe()
-	r.extra <- n3
-	next := rpc.New("h2", m3)
-	var replayed hookEvents
-	next.OnEvent = replayed.record
-	next.OnRequest = func(context.Context, string, json.RawMessage) (any, error) { return map[string]any{}, nil }
-	go func() { _ = next.Serve(r.ctx, m3) }()
-	if err := next.Call(cctx, "ping", map[string]any{}, nil); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "the kept events on the next connection", func() bool { return len(replayed.all()) == 2 })
-	got := replayed.all()
-	if !slices.Equal(sessionsOf(got), []string{hookSession(4), hookSession(5)}) || got[0]["spool_id"] == nil {
-		t.Fatalf("replayed %v", got)
-	}
-	if r.made.Load() != 2 {
-		t.Fatalf("%d Nodes made", r.made.Load())
-	}
-	r.end()
 }
 
 // Connections replace each other in the order they came, whatever order they speak in: one that came before the

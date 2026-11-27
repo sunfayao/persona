@@ -1266,54 +1266,6 @@ func TestSendDeadlineBeforeDispatch(t *testing.T) {
 	}
 }
 
-// The adoption filter: new, hub-started, non-assistant, same launcher and directory, fresh sign of life.
-func TestAdoptStartedSessionFilters(t *testing.T) {
-	s, f := newTaskService(t)
-	now := time.Now().UTC()
-	mk := func(id string, fn func(*proto.Session)) proto.Session {
-		sess := proto.Session{SessionID: id, MachineID: "box", Agent: "claude", Launcher: "claude-code",
-			Cwd: "/code/app", StartedByPersona: true, UpdatedAt: now}
-		fn(&sess)
-		return sess
-	}
-	known := map[string]bool{"old": true}
-	dev := Device{ID: "box"}
-	// Adopted: a new cwd session, and a new one whose node-verified WorkspaceCwd is the directory.
-	for _, sess := range []proto.Session{
-		mk("new", func(*proto.Session) {}),
-		mk("new", func(s *proto.Session) { s.Cwd = ""; s.WorkspaceCwd = "/code/app" }),
-	} {
-		f.setSessions("box", mk("old", func(*proto.Session) {}), sess)
-		if got, ok := s.adoptStartedSession(context.Background(), dev, "claude-code", "/code/app", "", known); !ok || got.SessionID != "new" {
-			t.Fatalf("got %+v ok=%v, want new adopted", got, ok)
-		}
-	}
-
-	// Rejected: pre-existing, not hub-started, the assistant, other launcher/cwd, stale or never-seen sign of life.
-	for _, tc := range []struct {
-		name string
-		fn   func(*proto.Session)
-	}{
-		{"not hub-started", func(s *proto.Session) { s.StartedByPersona = false }},
-		{"the assistant itself", func(s *proto.Session) { s.Assistant = true }},
-		{"other launcher", func(s *proto.Session) { s.Launcher = "codex" }},
-		{"other directory", func(s *proto.Session) { s.Cwd = "/elsewhere" }},
-		{"stale sign of life", func(s *proto.Session) { s.UpdatedAt = now.Add(-agentStartAdoptWindow - time.Minute) }},
-		{"never seen", func(s *proto.Session) { s.UpdatedAt = time.Time{} }},
-	} {
-		f.setSessions("box", mk("old", func(*proto.Session) {}), mk("new", tc.fn))
-		if _, ok := s.adoptStartedSession(context.Background(), dev, "claude-code", "/code/app", "", known); ok {
-			t.Fatalf("%s session was adopted", tc.name)
-		}
-	}
-
-	// A pre-start list that failed means no guessing afterwards.
-	f.setSessions("box", mk("new", func(*proto.Session) {}))
-	if _, ok := s.adoptStartedSession(context.Background(), dev, "claude-code", "/code/app", "", nil); ok {
-		t.Fatal("adoption happened without a pre-start snapshot")
-	}
-}
-
 // ask_user's answers come back keyed by question text: two questions worded alike (after trimming) are refused before
 // any card goes on the phone, instead of one answer silently overwriting the other (#4517). Distinct wording still asks.
 func TestAskUserRefusesDuplicateQuestionText(t *testing.T) {

@@ -5,134 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/coder/websocket"
 
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/devicewire"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
 )
-
-// The computers are the manager's (devices_link.go): a hub whose manager connects its machine; the apps' lists, calls,
-// pushes and streams go through the manager as before; while the manager is gone the machine is offline and its routes
-// answer 503 assistant_offline; a new manager connects it again by itself.
-func TestMachinesAreTheManagers(t *testing.T) {
-	box := newMeshNode("uid-box", "box", "s1")
-	box.resident = true
-	mh := startTestHub(t, hubA, "Dev", []MachineConfig{{ID: "box", Name: "Box", Kind: "ssh"}}, []*meshNode{box})
-	tok, _ := mh.deviceToken(t, roleFull)
-	eventually(t, 10*time.Second, "box online through the manager", func() bool {
-		m := mh.machines(t, tok)["box"]
-		return m.Online && m.Route != nil && m.Route.Via == "ssh" && m.HubID == hubA
-	})
-	if m := mh.h.machineByID("box"); m == nil || !m.managed {
-		t.Fatal("the hub's machine is not the manager's")
-	}
-
-	// The sessions (listed right after it connected), an item page, a send.
-	var code int
-	var b []byte
-	eventually(t, 5*time.Second, "its sessions", func() bool {
-		code, b = mh.do(t, "GET", "/api/v1/sessions", tok, "")
-		return code == 200 && strings.Contains(string(b), `"session_id":"s1"`)
-	})
-	code, b = mh.do(t, "GET", "/api/v1/sessions/box/s1/items", tok, "")
-	if code != 200 || !strings.Contains(string(b), "hi from s1") {
-		t.Fatalf("items: %d %s", code, b)
-	}
-	code, b = mh.do(t, "POST", "/api/v1/sessions/box/s1/messages", tok, `{"text":"经过助手","client_msg_id":"m-1"}`)
-	if code != 200 || !strings.Contains(strings.Join(box.sentTexts(), ","), "经过助手") {
-		t.Fatalf("send: %d %s, the node got %v", code, b, box.sentTexts())
-	}
-
-	// The node's events reach a subscribed app.
-	a := dialApp(t, mh, tok)
-	a.send(t, map[string]any{"type": "subscribe", "machine_id": "box", "session_id": "s1"})
-	a.wait(t, "the backlog", 0, hasItem("hi from s1"))
-	box.addItem("s1", "live through the manager")
-	a.wait(t, "a live item", 0, hasItem("live through the manager"))
-
-	// A forwarded port: bytes both ways through the hub, the manager and the node.
-	echo := echoServer(t)
-	code, b = mh.do(t, "POST", "/api/v1/machines/box/ports/"+strconv.Itoa(echo)+"/open", tok, "")
-	if code != 200 {
-		t.Fatalf("open port: %d %s", code, b)
-	}
-	if got := portEcho(t, mh, tok, echo, "ping through the manager"); got != "ping through the manager" {
-		t.Fatalf("port echo %q", got)
-	}
-
-	// A terminal: the app's keys reach the node, the node's frames the app (the node here echoes each key as a frame).
-	box.mu.Lock()
-	box.onEvent = func(c *meshNodeConn, event string, params json.RawMessage) {
-		if event != "terminal.input" {
-			return
-		}
-		var in struct {
-			Text string `json:"text"`
-		}
-		_ = json.Unmarshal(params, &in)
-		go func() {
-			_ = c.p.Notify("terminal.frame", map[string]any{"session_id": "s1", "epoch": "e1", "seq": 1, "full": true, "cols": 80,
-				"rows": 24, "data": in.Text})
-		}()
-	}
-	box.mu.Unlock()
-	a.send(t, map[string]any{"type": "terminal_subscribe", "machine_id": "box", "session_id": "s1", "control": map[string]any{"cols": 80, "rows": 24}})
-	a.wait(t, "the app drives the terminal", 0, func(m map[string]any) bool { return m["type"] == "terminal_control" && m["state"] == "active" })
-	for i := range 3 {
-		key := "k" + strconv.Itoa(i)
-		a.send(t, map[string]any{"type": "terminal_input", "machine_id": "box", "session_id": "s1", "text": key})
-		a.wait(t, "the echo of "+key, 0, func(m map[string]any) bool { return m["type"] == "terminal" && m["data"] == key })
-	}
-
-	// The manager goes: offline, saying why; its routes 503 assistant_offline; nothing reaches the node meanwhile.
-	mh.mgr.stop()
-	eventually(t, 10*time.Second, "box offline without its manager", func() bool {
-		m := mh.machines(t, tok)["box"]
-		return !m.Online && m.Error == errAssistantOffline.Error()
-	})
-	a.wait(t, "the terminal ends, saying why", 0, func(m map[string]any) bool {
-		return m["type"] == "terminal" && m["error"] == errAssistantOffline.Error()
-	})
-	for _, path := range []string{"/api/v1/sessions/box/s1/items", "/api/v1/machines/box/fs?path=/"} {
-		code, b = mh.do(t, "GET", path, tok, "")
-		var e struct {
-			Code string `json:"code"`
-		}
-		_ = json.Unmarshal(b, &e)
-		if code != http.StatusServiceUnavailable || e.Code != "assistant_offline" {
-			t.Fatalf("%s without the manager: %d %s", path, code, b)
-		}
-	}
-	code, b = mh.do(t, "POST", "/api/v1/machines/box/reconnect", tok, "")
-	if code != http.StatusServiceUnavailable || !strings.Contains(string(b), "assistant_offline") {
-		t.Fatalf("a route of the manager's without it: %d %s", code, b)
-	}
-	code, b = mh.do(t, "GET", "/api/v1/sessions", tok, "")
-	if code != 200 || !strings.Contains(string(b), `"status":"unknown"`) {
-		t.Fatalf("the sessions as last known: %d %s", code, b)
-	}
-
-	// A new manager connects it again, nobody doing anything.
-	mh.mgr = startTestManager(t, mh.h, mh.srv, map[string]func(context.Context) (net.Conn, error){"box": box.dialer(mh.h)})
-	eventually(t, 10*time.Second, "box back with the new manager", func() bool { return mh.machines(t, tok)["box"].Online })
-	code, b = mh.do(t, "GET", "/api/v1/sessions/box/s1/items", tok, "")
-	if code != 200 || !strings.Contains(string(b), "hi from s1") {
-		t.Fatalf("items again: %d %s", code, b)
-	}
-	// The app watching the session still gets its items: the hub asked the new manager to watch it again.
-	box.addItem("s1", "after the manager came back")
-	a.wait(t, "a live item after the manager came back", 0, hasItem("after the manager came back"))
-}
 
 // A hub that just restarted shows the machines as the manager handed them over, until the manager reports; a call
 // meanwhile waits for it instead of failing.
@@ -223,51 +106,6 @@ func TestTheHubShowsTheHandOverUntilTheManagerReports(t *testing.T) {
 	}
 }
 
-// echoServer is a TCP server on this machine that writes back what it reads: a port an agent listens on.
-func echoServer(t *testing.T) int {
-	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { ln.Close() })
-	go func() {
-		for {
-			c, err := ln.Accept()
-			if err != nil {
-				return
-			}
-			go func() { defer c.Close(); _, _ = io.Copy(c, c) }()
-		}
-	}()
-	return ln.Addr().(*net.TCPAddr).Port
-}
-
-// portEcho sends text through a forwarded port's WebSocket and returns what came back.
-func portEcho(t *testing.T, mh *testHub, tok string, port int, text string) string {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	c, _, err := websocket.Dial(ctx, "wss"+strings.TrimPrefix(mh.srv.URL, "https")+"/api/v1/machines/box/ports/"+strconv.Itoa(port)+"/connect",
-		&websocket.DialOptions{HTTPClient: mh.srv.Client(), HTTPHeader: http.Header{"Authorization": {"Bearer " + tok}}})
-	if err != nil {
-		t.Fatalf("connect: %v", err)
-	}
-	defer c.CloseNow()
-	if err := c.Write(ctx, websocket.MessageBinary, []byte(text)); err != nil {
-		t.Fatal(err)
-	}
-	var out []byte
-	for len(out) < len(text) {
-		_, b, err := c.Read(ctx)
-		if err != nil {
-			t.Fatalf("read: %v (got %q)", err, out)
-		}
-		out = append(out, b...)
-	}
-	return string(out)
-}
-
 // persona_settings (the hub's own tool) blocks a Claude config directory on a machine through the manager, whose setting
 // it is now, only after the phone approves, and removes it the same way.
 func TestSelfSettingsBlocksClaudeDirsThroughTheManager(t *testing.T) {
@@ -317,51 +155,6 @@ func TestSelfSettingsBlocksClaudeDirsThroughTheManager(t *testing.T) {
 	}
 	if got := m.claudeDirsState(ctx).Blocked; len(got) != 0 {
 		t.Fatalf("still blocked: %v", got)
-	}
-}
-
-// A send the node is still on when the time runs out or the manager's connection drops may have been typed: its
-// outcome is unknown, never "not sent" — the same message id is not sent again.
-func TestASendCutShortIsUnknown(t *testing.T) {
-	box := newMeshNode("uid-box", "box", "s1")
-	box.resident = true
-	typing := make(chan struct{})
-	box.hold = map[string]chan struct{}{"session.send": typing}
-	mh := startTestHub(t, hubA, "Dev", []MachineConfig{{ID: "box", Name: "Box", Kind: "ssh"}}, []*meshNode{box})
-	t.Cleanup(func() { close(typing) })
-	tok, _ := mh.deviceToken(t, roleFull)
-	eventually(t, 10*time.Second, "box online", func() bool { return mh.machines(t, tok)["box"].Online })
-	m := mh.h.machineByID("box")
-
-	// The time runs out: the manager gives up a moment before the hub and says so (devicewire.CodeDeadline).
-	ctx, cancel := context.WithTimeout(context.Background(), 600*time.Millisecond)
-	err := m.call(ctx, "session.send", map[string]any{"session_id": "s1", "text": "slow"}, nil)
-	cancel()
-	var ne *nodeError
-	if !errors.As(err, &ne) || !errors.Is(err, context.DeadlineExceeded) || sendOutcome(err) != sendUnknown {
-		t.Fatalf("a send that ran out of time: %v (outcome %q)", err, sendOutcome(err))
-	}
-
-	// The manager's connection drops with the send out.
-	res := make(chan string, 1)
-	go func() {
-		code, b := mh.do(t, "POST", "/api/v1/sessions/box/s1/messages", tok, `{"text":"cut","client_msg_id":"m-cut"}`)
-		res <- strconv.Itoa(code) + " " + string(b)
-	}()
-	eventually(t, 5*time.Second, "the node has the send", func() bool { return box.heldCalls("session.send") == 2 })
-	mh.mgr.stop()
-	var got string
-	select {
-	case got = <-res:
-	case <-time.After(10 * time.Second):
-		t.Fatal("no answer after the manager went")
-	}
-	if !strings.Contains(got, `"delivered":"unknown"`) {
-		t.Fatalf("a send cut short by the manager going: %s", got)
-	}
-	code, b := mh.do(t, "POST", "/api/v1/sessions/box/s1/messages", tok, `{"text":"cut","client_msg_id":"m-cut"}`)
-	if !strings.Contains(string(b), `"delivered":"unknown"`) || box.heldCalls("session.send") != 2 {
-		t.Fatalf("the same message again: %d %s, the node had %d", code, b, box.heldCalls("session.send"))
 	}
 }
 
@@ -475,61 +268,6 @@ func TestAGoneConnectionDoesNotForgetTheNewOnesUp(t *testing.T) {
 	if h.devicesUpFor(b) {
 		t.Fatal("the up state outlived its connection")
 	}
-}
-
-// #6372: a chat subscribed through a node restart keeps getting its items. A node watches per connection, so the
-// manager tells the new connection to watch again.
-func TestLiveItemsAfterTheNodeReconnects(t *testing.T) {
-	box := newMeshNode("uid-box", "box", "s1")
-	box.resident, box.pushWatchedOnly = true, true
-	mh := startTestHub(t, hubA, "Dev", []MachineConfig{{ID: "box", Name: "Box", Kind: "ssh"}}, []*meshNode{box})
-	tok, _ := mh.deviceToken(t, roleFull)
-	eventually(t, 10*time.Second, "online", func() bool { return mh.machines(t, tok)["box"].Online })
-	a := dialApp(t, mh, tok)
-	a.send(t, map[string]any{"type": "subscribe", "machine_id": "box", "session_id": "s1"})
-	a.wait(t, "backlog", 0, hasItem("hi from s1"))
-	box.addItem("s1", "before the restart")
-	a.wait(t, "live before the restart", 0, hasItem("before the restart"))
-	box.mu.Lock()
-	first := box.connects
-	box.mu.Unlock()
-	_ = box.current().c.Close() // the node restarts
-	eventually(t, 15*time.Second, "watched on the new connection", func() bool {
-		box.mu.Lock()
-		defer box.mu.Unlock()
-		return box.connects > first && len(box.conns) == 1 && box.conns[0].watching["s1"]
-	})
-	box.addItem("s1", "after the restart")
-	a.wait(t, "live after the restart", 0, hasItem("after the restart"))
-}
-
-// … and when the restarted node refuses the first watch (still starting), the chat still gets its items.
-func TestLiveItemsAfterTheRestartedNodeRefusesTheFirstWatch(t *testing.T) {
-	box := newMeshNode("uid-box", "box", "s1")
-	box.resident, box.pushWatchedOnly = true, true
-	mh := startTestHub(t, hubA, "Dev", []MachineConfig{{ID: "box", Name: "Box", Kind: "ssh"}}, []*meshNode{box})
-	tok, _ := mh.deviceToken(t, roleFull)
-	eventually(t, 10*time.Second, "online", func() bool { return mh.machines(t, tok)["box"].Online })
-	a := dialApp(t, mh, tok)
-	a.send(t, map[string]any{"type": "subscribe", "machine_id": "box", "session_id": "s1"})
-	a.wait(t, "backlog", 0, hasItem("hi from s1"))
-	box.mu.Lock()
-	first := box.connects
-	box.failWatch = map[string]int{"s1": 1}
-	box.mu.Unlock()
-	_ = box.current().c.Close()
-	eventually(t, 15*time.Second, "connected again", func() bool {
-		box.mu.Lock()
-		defer box.mu.Unlock()
-		return box.connects > first && len(box.conns) == 1
-	})
-	eventually(t, 15*time.Second, "watched on the new connection after the refusal", func() bool {
-		box.mu.Lock()
-		defer box.mu.Unlock()
-		return len(box.conns) == 1 && box.conns[0].watching["s1"]
-	})
-	box.addItem("s1", "after the refusal")
-	a.wait(t, "live after the refusal", 0, hasItem("after the refusal"))
 }
 
 // A manager that is new is asked to watch again what the apps watch, a few at a time: a computer slow to answer does

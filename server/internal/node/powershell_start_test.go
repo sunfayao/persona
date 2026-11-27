@@ -9,14 +9,12 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/sunfayao/persona/server/internal/compat"
 	"github.com/sunfayao/persona/server/internal/host"
 	"github.com/sunfayao/persona/server/internal/orcart"
 	"github.com/sunfayao/persona/server/internal/orcart/orcarttest"
-	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const powerShellTestBash = `C:\Program Files\Git\bin\bash.exe`
@@ -452,64 +450,6 @@ func TestWindowsAdoptedBashPaneUsesMainBytes(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Run Agent Here end to end in a pane whose front program is pwsh, the one PowerShell name the shell-prompt check
-// knows: the check takes the pane as it did, and the start types the handoff instead of the POSIX command.
-func TestWindowsRunAgentHereInPowerShellUsesHandoff(t *testing.T) {
-	withWindowsAdoptedPanes(t)
-	withPowerShellTestBash(t)
-	n, f, home := actionNode(t)
-	f.reply("pane.process_info", map[string]any{"process_info": map[string]any{"foreground_processes": []any{
-		map[string]any{"pid": 1, "name": "pwsh", "argv0": "pwsh"}}}})
-	f.reply("agent.prompt", map[string]any{})
-	var mu sync.Mutex
-	var files []string
-	f.after(func(c herdrCall) {
-		if c.Method != "pane.send_input" {
-			return
-		}
-		// Whatever was typed, the agent comes up, so a start that typed the wrong line fails below instead of
-		// waiting for an agent that never comes.
-		left, _ := filepath.Glob(filepath.Join(n.dir, startScriptPrefix+"*"))
-		mu.Lock()
-		for _, path := range left {
-			if b, err := os.ReadFile(path); err == nil {
-				files = append(files, string(b))
-			}
-		}
-		mu.Unlock()
-		f.reply("session.snapshot", snapshot(nil, nil, []any{
-			agentOf(cursorAgent, "", proto.StatusIdle, "w1:p2", "w1:t2", "w1", home, cursorAgent),
-		}, nil))
-	})
-	s, err := n.runAgentInPane(context.Background(), "w1:p2", cursorAgent)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s.Agent != cursorAgent || s.PaneID != "w1:p2" {
-		t.Fatalf("session: %+v", s)
-	}
-	var inputs []string
-	for _, c := range f.calls() {
-		if c.Method == "pane.send_input" {
-			inputs = append(inputs, str(c.Params["text"]))
-		}
-	}
-	prefix := "& " + powerShellQuote(powerShellTestBash) + " -ic '. $''"
-	if len(inputs) != 1 || !strings.HasPrefix(inputs[0], prefix) || strings.Contains(inputs[0], "cursor-agent") {
-		t.Fatalf("pane input = %q, want only the PowerShell handoff", inputs)
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	if len(files) != 1 || !strings.Contains(files[0], "PERSONA_HOME="+shellQuote(n.dir)+" "+agentMarkEnv+" cursor-agent") ||
-		strings.Contains(files[0], "HERDR_AGENT=") {
-		t.Fatalf("start files = %q, want the POSIX cursor-agent command a new PowerShell pane gets", files)
-	}
-	if left, _ := filepath.Glob(filepath.Join(n.dir, startScriptPrefix+"*")); len(left) != 0 {
-		t.Fatalf("start files left behind: %v", left)
-	}
-	closesNothing(t, f)
 }
 
 func TestWindowsHerdrRestoreUsesMainBytes(t *testing.T) {

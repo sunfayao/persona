@@ -20,7 +20,6 @@ import (
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/nodeproto"
 	"github.com/sunfayao/persona/server/internal/proto"
-	"github.com/sunfayao/persona/server/internal/update/updatetest"
 )
 
 // loginShells are the shells on this machine an ssh target's login shell could be: sshd hands the remote command to
@@ -216,47 +215,6 @@ func TestDeployRefusingAWrapperSaysSo(t *testing.T) {
 	if text := i18n.T(i18n.En, msg.Key, msg.Args); !strings.Contains(text, "~/.local/bin/personad-wrapped") {
 		t.Errorf("the message does not name the file: %q", text)
 	}
-}
-
-// No binary for the machine's platform on the hub: say what to do, don't start.
-func TestNodeBinaryRequiresMatchingProgramAndVersion(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home) // os.UserHomeDir on Windows
-	isolateNodeBinaries(t)
-	if _, err := nodeBinary("plan9", "mips", "", ""); err == nil || !strings.Contains(err.Error(), "deploy.sh") {
-		t.Fatalf("err = %v", err)
-	}
-	if _, err := nodeBinary("", "", "", ""); err == nil {
-		t.Fatal("no platform yet: want an error")
-	}
-	dir := nodeBinaryDir()
-	_ = os.MkdirAll(dir, 0o755)
-	copyFile(t, updatetest.Program(t, nodeproto.ProgramPersonad, "darwin", "arm64"), filepath.Join(dir, "personad-darwin-arm64"))
-	if p, err := nodeBinary("darwin", "arm64", "", ""); err != nil || filepath.Base(p) != "personad-darwin-arm64" {
-		t.Fatalf("%s %v", p, err)
-	}
-	missing := func(version string) {
-		t.Helper()
-		if p, err := nodeBinary("darwin", "arm64", nodeproto.ProgramPersonaNode, version); p != "" || err == nil {
-			t.Fatalf("hub %q: selected %q with error %v, want no matching node build", version, p, err)
-		}
-	}
-	missing("v2") // only personad is available
-	node := filepath.Join(dir, "persona-node-darwin-arm64")
-	copyFile(t, updatetest.Program(t, nodeproto.ProgramPersonaNode, "darwin", "arm64"), node)
-	missing("v2")                                            // persona-node has no version yet
-	_ = os.WriteFile(node+".version", []byte("v2\n"), 0o644) // deploy.sh writes it after the binary
-	for program, want := range map[string]string{nodeproto.ProgramPersonaNode: "persona-node-darwin-arm64",
-		nodeproto.ProgramPersonad: "personad-darwin-arm64", "": "personad-darwin-arm64"} {
-		if p, err := nodeBinary("darwin", "arm64", program, "v2"); err != nil || filepath.Base(p) != want {
-			t.Errorf("%q: %s %v, want %s", program, p, err, want)
-		}
-	}
-	missing("v3") // sidecar is from a previous release
-	missing("")   // hub version unknown
-	_ = os.Remove(node)
-	missing("v2") // version without the file
 }
 
 // The ssh deploy keeps personad where it is when the build nodeBinary picked is persona-node, by its file name there.

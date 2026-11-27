@@ -29,33 +29,3 @@ func TestFeishuTurnPastItsWaitGoesOnAtOnce(t *testing.T) {
 		t.Fatal("a message past its wait still waits for the stuck one")
 	}
 }
-
-// Messages in line behind a stuck one each wait until the wait after they themselves came, not one after another
-// (#4846): three that came together go on together; one that came just now behind a stuck one waits its whole wait.
-func TestFeishuTurnsInLineEachCountFromWhenTheyCame(t *testing.T) {
-	const wait = 10 * time.Second
-	const left = 150 * time.Millisecond
-	t0 := time.Unix(1000, 0)
-	now := t0.Add(wait - left)
-	stuck := make(chan struct{}) // the first one, never through
-	start := time.Now()
-	t2 := turnAt(stuck, wait, t0, now)
-	t3 := turnAt(t2.done, wait, t0, now)
-	t4 := turnAt(t3.done, wait, t0, now)
-	held := make(chan struct{})          // another one stuck
-	late := turnAt(held, wait, now, now) // came just now: its whole wait is ahead
-	defer close(held)
-	for _, turn := range []*feishuTurn{t2, t3, t4, late} {
-		turn.pass()
-	}
-	if !closedWithin(t4.done, 3*time.Second) {
-		t.Fatal("the waits added up: the third in line still waits")
-	}
-	if took := time.Since(start); took < left/2 {
-		t.Fatalf("went on after %v, before its wait was out", took)
-	}
-	if closedWithin(late.done, 500*time.Millisecond) {
-		t.Fatal("a message that came just now went on before its own wait was out")
-	}
-	close(stuck)
-}

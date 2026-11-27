@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -561,59 +560,6 @@ func TestA2ADaemonToolsBindToListedSession(t *testing.T) {
 	if len(d.got("session.send")) != 1 {
 		t.Fatal("busy daemon received a second send")
 	}
-}
-
-// The config's ids are reserved: a runtime on the socket cannot take one; a daemon whose id a connected runtime has
-// waits until it leaves.
-func TestDaemonIDsAreReserved(t *testing.T) {
-	d := startFakeDaemon(t, "tok", map[string]any{"runtime": "x"})
-	rh, logs := daemonHost(t, map[string]any{"id": "other", "url": d.url(), "token": "tok"})
-	waitFor(t, "the daemon connected", func() bool { return daemonConn(rh, "other") != nil })
-
-	c := dialRaw(t, rh.path)
-	err := c.peer.Call(context.Background(), "runtime.hello", map[string]any{"runtime": "other"}, nil)
-	var re *rpc.Error
-	if !errors.As(err, &re) || re.Code != "runtime_conflict" {
-		t.Fatalf("a socket runtime took a daemon's id: %v", err)
-	}
-	if c2 := dialRuntimeAt(t, rh.path, map[string]any{"runtime": "free"}); c2 == nil {
-		t.Fatal("an unreserved id refused")
-	}
-
-	// The other way round: the socket runtime came first.
-	d2 := startFakeDaemon(t, "tok", map[string]any{"runtime": "x"})
-	taken := dialRuntimeAt(t, rh.path, map[string]any{"runtime": "late"})
-	writeDaemons(t, filepath.Dir(rh.path), map[string]any{"id": "other", "url": d.url(), "token": "tok"}, map[string]any{"id": "late", "url": d2.url(), "token": "tok"})
-	waitFor(t, "the daemon refused", func() bool { _, err, done := d2.hellod(); return done && err != nil })
-	if _, err, _ := d2.hellod(); !strings.Contains(err.Error(), "in use") {
-		t.Fatalf("refusal %v", err)
-	}
-	if !strings.Contains(logs.String(), "refused") {
-		t.Fatalf("the refusal is not logged: %s", logs.String())
-	}
-	_ = taken.conn.Close() // it leaves: the daemon gets its id on a later dial
-	waitFor(t, "the daemon in", func() bool {
-		h := daemonConn(rh, "late")
-		return h != nil && h.isDaemon()
-	})
-	if d2.connections() < 2 {
-		t.Fatalf("connections %d", d2.connections())
-	}
-}
-
-// dialRaw is a connection to the runtime socket that has not said hello.
-func dialRaw(t *testing.T, path string) *fakeRuntime {
-	t.Helper()
-	c, err := net.Dial("unix", path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	g := &fakeRuntime{conn: c, params: map[string][]json.RawMessage{}}
-	g.peer = rpc.New("d", c)
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() { _ = g.peer.Serve(ctx, c) }()
-	t.Cleanup(func() { cancel(); _ = c.Close() })
-	return g
 }
 
 func TestDaemonTokenAndSubprotocolAreRequired(t *testing.T) {

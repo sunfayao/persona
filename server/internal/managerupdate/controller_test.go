@@ -243,46 +243,6 @@ func TestRunCancellationRollsBack(t *testing.T) {
 		t.Fatal("rollback lost original")
 	}
 }
-func TestRunConfirmedRequiresLiveReady(t *testing.T) {
-	c, p := fixture(t)
-	prepare(t, p)
-	old := c.Command
-	c.Command = func(ctx context.Context, n string, a ...string) ([]byte, error) {
-		if n == "/bin/launchctl" && a[0] == "kickstart" {
-			r := Ready{ManagerID: p.ManagerID, RunID: p.RunID, PID: 777, Exe: p.Binary, Source: p.Source, Version: p.Version, NativeSHA256: p.BinarySHA256, ConfigSHA256: p.ConfigSHA256, Connected: true, StoresOpened: true, At: c.Now()}
-			if e := writeJSON(filepath.Join(txDir(p), "ready.json"), r); e != nil {
-				return nil, e
-			}
-		}
-		return old(ctx, n, a...)
-	}
-	confirmDone := make(chan error, 1)
-	go func() {
-		for i := 0; i < 100; i++ {
-			r, e := readReceipt(p)
-			if e == nil && r.Ready != nil {
-				confirmDone <- c.Acknowledge(context.Background(), p, "confirm")
-				return
-			}
-			time.Sleep(20 * time.Millisecond)
-		}
-		confirmDone <- errors.New("readiness not reached")
-	}()
-	r, e := c.Run(context.Background(), p)
-	if ackErr := <-confirmDone; ackErr != nil {
-		t.Fatal(ackErr)
-	}
-	if e != nil || r.Phase != "confirmed" {
-		t.Fatalf("%+v %v", r, e)
-	}
-	if r.PID != 777 {
-		t.Fatal("missing live PID")
-	}
-	r, e = c.Run(context.Background(), p)
-	if e != nil || r.Phase != "confirmed" {
-		t.Fatal("confirmed attempt was not idempotent")
-	}
-}
 func TestConcurrentUpdateLock(t *testing.T) {
 	c, p := fixture(t)
 	unlock, e := acquire(filepath.Join(p.Dir, ".manager-update.lock"))

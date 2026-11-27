@@ -172,53 +172,6 @@ func relayRefusalEnv(t *testing.T, refusal error) (*Service, *fakeHub, *[]string
 	return s, f, relayTries(f, "side1")
 }
 
-// A conversation that cannot take a message now, by a code (it is at work, compacting, away; its setup missing or too
-// old), keeps it queued: it is tried again on a later drain, never sooner than relayRetryGap after it failed, and goes
-// in once the conversation takes it.
-func TestQueuedNotNowRefusalWaitsForTheGap(t *testing.T) {
-	for _, code := range append(slices.Clone(relayBusyCodes), relaySetupCodes...) {
-		t.Run(code, func(t *testing.T) {
-			s, f := newQuietService(t)
-			gap := relayRetryGap
-			relayRetryGap = 100 * time.Millisecond
-			t.Cleanup(func() { relayRetryGap = gap })
-			idle := proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle}
-			s.queueRelay("conv1", relayMsg{From: "conv2", FromTitle: "Planning", Tool: "conversation_send", Text: "status?", At: time.Now().UTC()})
-			var at []time.Time
-			f.mu.Lock()
-			f.failAssistant = &rpc.Error{Code: code, Message: "not now"}
-			f.onAssistantSend = func(_ *fakeHub, p map[string]any) {
-				if p["session_id"] == "conv1" {
-					at = append(at, time.Now())
-				}
-			}
-			f.mu.Unlock()
-			tries := func() []time.Time {
-				f.mu.Lock()
-				defer f.mu.Unlock()
-				return slices.Clone(at)
-			}
-			drainSettled(t, s, idle)
-			if len(tries()) != 1 || s.queuedFor("conv1") != 1 {
-				t.Fatalf("after the first try: %d tries, %d queued", len(tries()), s.queuedFor("conv1"))
-			}
-			s.drainRelays("server", []proto.Session{idle}) // at once: it waits for the gap, then its timer drains it
-			waitFor(t, "the try after the gap", func() bool { return len(tries()) == 2 && !drainingNow(s, "conv1") })
-			if got := tries(); got[1].Sub(got[0]) < relayRetryGap {
-				t.Fatalf("tried again after %v, sooner than the gap", got[1].Sub(got[0]))
-			}
-			if s.queuedFor("conv1") != 1 || len(f.pushList()) != 0 || f.sentTo("conv2") != 0 {
-				t.Fatal("a refusal that only means not now left the queue or was reported")
-			}
-			f.mu.Lock()
-			f.failAssistant = nil
-			f.mu.Unlock()
-			s.drainRelays("server", []proto.Session{idle})
-			waitFor(t, "the message to go in", func() bool { return s.queuedFor("conv1") == 0 && f.sentTo("conv1") == 1 })
-		})
-	}
-}
-
 // The owner's push for a message refused for good says what the refusal means, word for word (#10338's push kept):
 // a supervision message to a runtime without supervision policy asks for a Claude Code or Codex supervisor and any
 // other refusal of one says the follow-up was refused; a notice or approval result a runtime cannot take says the

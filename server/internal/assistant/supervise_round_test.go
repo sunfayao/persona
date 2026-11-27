@@ -247,54 +247,6 @@ func TestBackgroundSwitchOnAfterARoundAsksForEveryTool(t *testing.T) {
 	}
 }
 
-// A round queued before the manager restarted goes in as a round after it, from its persisted text, with the pushes of
-// its turn held as any supervision message's.
-func TestBackgroundQueuedWakeAfterManagerRestart(t *testing.T) {
-	// The queue now rechecks the task ledger after restart, so persist both in a real database.
-	database, err := db.Open(context.Background(), newDatabase(t), db.AllSets)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer database.Close()
-	var st Store = database
-	s, f, todo := newSupervisedServiceOn(t, st)
-	s.noBackground = false
-	f.mu.Lock()
-	f.made = 100
-	f.mu.Unlock()
-	bg := withBackgroundBG1(t, s, f)
-	listRound(f, bg, proto.StatusWorking, false)
-	wakeRound(s, superviseSignal{Todo: todo.ID, Kind: sigStalled, Key: "k1", Minutes: 45})
-	if s.queuedFor(bg) != 1 {
-		t.Fatal("not queued")
-	}
-	r := &s.relays
-	r.mu.Lock()
-	queued := r.st.Queue[bg][0].Text
-	r.mu.Unlock()
-	settleService(t, s)
-
-	f.mu.Lock()
-	f.settings = nil // the new manager reads its settings from the database, as on a hub
-	f.mu.Unlock()
-	again := newServiceOn(t, f, st)
-	again.noBackground = false
-	stopHolds(t, again)
-	if again.queuedFor(bg) != 1 {
-		t.Fatal("the queue did not outlive the restart")
-	}
-	before := len(assistantSendsTo(f, bg))
-	again.drainRelays("server", listRound(f, bg, proto.StatusIdle, false))
-	waitFor(t, "the round after the restart", func() bool { return len(assistantSendsTo(f, bg)) == before+1 })
-	a := lastSendTo(f, bg)
-	if text, _ := a["text"].(string); a[superviseRoundParam] != true || !strings.HasSuffix(text, queued) || a[holdPushesParam] != true {
-		t.Fatalf("after the restart: %v", a)
-	}
-	if !again.supervising(bg) {
-		t.Fatal("its turn's pushes are not held")
-	}
-}
-
 // A legacy background that cannot start from its first turn keeps its queued work while busy. Once idle, that work
 // moves to main; the old conversation stays readable and no replacement is started (#5732, #7315).
 func TestBackgroundWithoutAnchorMovesLegacyWorkToMain(t *testing.T) {

@@ -98,14 +98,6 @@ func dirsHub(t *testing.T) (*Devices, *settingsStore, *Machine, http.Handler) {
 	return h, st, m, mux
 }
 
-func listedIDs(m *Machine) []string {
-	var ids []string
-	for _, s := range m.sessionList() {
-		ids = append(ids, s.SessionID)
-	}
-	return ids
-}
-
 // Connecting tells the node whether to list botmux's sessions: as before unless hub.json turns them off for the
 // machine (machines[].botmux false). So does handing it new config directories, which asks for the session list
 // next: the node must not take that list for an older hub's.

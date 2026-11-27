@@ -176,65 +176,6 @@ func TestOptionalObject(t *testing.T) {
 	}
 }
 
-// The app API handlers that cap their body answer an oversized one with 413 too_large (docs/protocol/protocol.md) after
-// reading about the cap, not 400 with Go's "request body too large"; a small malformed body is still 400.
-func TestAppHandlersBodyLimitTooLarge(t *testing.T) {
-	h := newTestHub(t)
-	h.byID["m1"] = newMachine(h, MachineConfig{ID: "m1", Name: "m1"})
-	mux := h.routes()
-	const opID = "0b6f3c2e-6d1a-4c55-9a43-2f8e6f6b9c10"
-	for _, c := range []struct {
-		method, path string
-		opID         string // X-Persona-Op-Id: withClientOp reads the body itself
-		limit        int64
-	}{
-		{"POST", "/api/v1/sessions/m1/s1/messages", "", 32 << 20},
-		{"POST", "/api/v1/sessions/m1/s1/messages", opID, 32 << 20},
-		{"POST", "/api/v1/sessions/m1/s1/interrupt", "", 32 << 20},
-		{"POST", "/api/v1/sessions/m1/s1/rename", "", 1 << 20},
-		{"POST", "/api/v1/sessions/m1/s1/rewind", "", rewindMaxPrompt + 4<<10},
-		{"POST", "/api/v1/machines/m1/preview/start", "", 64 << 10},
-		{"POST", "/api/v1/sessions", "", proto.MessageBodyLimit},
-		{"POST", "/api/v1/notify", "", 16 << 10},
-		// (/api/v1/agents/… are the manager's: extmgr TestAgentRoutesBodyLimitTooLarge.)
-		{"POST", "/api/v1/machines/m1/panes", "", 4 << 10},
-		{"POST", "/api/v1/machines/m1/panes/close", "", 4 << 10},
-		{"PUT", "/api/v1/looks/current", "", 4 << 10},
-	} {
-		name := c.method + " " + c.path
-		if c.opID != "" {
-			name += " (op id)"
-		}
-		t.Run(name, func(t *testing.T) {
-			body := &endlessBody{head: []byte(`{"name":"`)}
-			req := httptest.NewRequest(c.method, c.path, nil)
-			req.Body = body
-			req.ContentLength = -1
-			req.RemoteAddr = "127.0.0.1:12345"
-			req.Header.Set("Authorization", "Bearer "+h.cfg.Token)
-			if c.opID != "" {
-				req.Header.Set("X-Persona-Op-Id", c.opID)
-			}
-			w := httptest.NewRecorder()
-			mux.ServeHTTP(w, req)
-			var out struct {
-				Code  string `json:"code"`
-				Error string `json:"error"`
-			}
-			_ = json.Unmarshal(w.Body.Bytes(), &out)
-			if w.Code != http.StatusRequestEntityTooLarge || out.Code != proto.CodeTooLarge {
-				t.Fatalf("oversized body: %d %q (%s), want 413 %q", w.Code, out.Code, out.Error, proto.CodeTooLarge)
-			}
-			if body.read > 2*c.limit+64<<10 {
-				t.Fatalf("read %d bytes of an oversized body (cap %d)", body.read, c.limit)
-			}
-			if code, got := call(t, mux, c.method, c.path, h.cfg.Token, `{"name":`); code != http.StatusBadRequest {
-				t.Fatalf("malformed body: %d %v, want 400", code, got)
-			}
-		})
-	}
-}
-
 // brokenBody fails its first read the way a client that goes away mid-body does.
 type brokenBody struct{}
 

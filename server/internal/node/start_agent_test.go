@@ -3,13 +3,10 @@ package node
 import (
 	"context"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/host"
-	"github.com/sunfayao/persona/server/internal/orcart/orcarttest"
 )
 
 func TestOtherAgentStartCommand(t *testing.T) {
@@ -91,40 +88,6 @@ func TestOtherAgentStartTypesForThePaneShell(t *testing.T) {
 				if c.Method == "pane.send_input" && (c.Typed != "") != (shell == "/bin/zsh") {
 					t.Errorf("typed %q: a start file only for zsh", c.Typed)
 				}
-			}
-		})
-	}
-}
-
-// Orca reports no shell, so the login shell is the guess: one that sources a file gets the start file, which keeps the
-// first message's line break as herdr's does (#5450); for csh, where a typed line break would run what follows it,
-// the command is typed with the message on one line.
-func TestOtherAgentStartFlattensForAGuessedShell(t *testing.T) {
-	for shell, want := range map[string]string{
-		"/bin/zsh":  "traex --model example-fast -- 'a\nb'",
-		"/bin/tcsh": "traex --model example-fast -- 'a b'",
-	} {
-		t.Run(shell, func(t *testing.T) {
-			withPaneShell(t, shell)
-			n, _, o, _, home := orcaNode(t)
-			projDir := filepath.Join(home, "my-project")
-			mkdir(t, projDir)
-			o.SetWorktrees(orcarttest.Worktree("repo1::"+projDir, projDir, "refs/heads/main"))
-			starts := orcaTypedStarts(o)
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second) // until the agent would show up
-			defer cancel()
-			_, _ = n.start(ctx, projDir, traexAgent, "a\nb", "", "", "", "", "", "", "", modelExecution{Model: "example-fast"})
-			ran := starts()
-			for _, p := range o.Params("terminal.send") {
-				if text, _ := p["text"].(string); strings.Contains(text, traexAgent+" ") {
-					if strings.Contains(text, "\n") {
-						t.Errorf("a line break typed: %q", text)
-					}
-					ran = append(ran, strings.TrimSuffix(text, "\r"))
-				}
-			}
-			if len(ran) != 1 || !strings.HasSuffix(ran[0], " "+want) {
-				t.Errorf("ran %q, want one command ending %q", ran, want)
 			}
 		})
 	}

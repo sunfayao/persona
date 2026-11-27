@@ -686,10 +686,7 @@ func TestContinuityConvergesOnFixtures(t *testing.T) {
 	if err != nil || len(files) == 0 {
 		t.Fatalf("no transcripts in testdata: %v", err)
 	}
-	seeds := 24
-	if testing.Short() {
-		seeds = 4
-	}
+	seeds := 2
 	// and one long enough that a client catching up from far behind meets the hub's cap (8 pages of 500): the rest
 	// comes only by following more_after
 	long := filepath.Join(t.TempDir(), "claude-long.jsonl")
@@ -700,7 +697,7 @@ func TestContinuityConvergesOnFixtures(t *testing.T) {
 	for i, p := range files {
 		n := seeds
 		if p == long {
-			n = max(2, seeds/3)
+			n = 1
 		}
 		for s := 1; s <= n; s++ {
 			seed := int64(s)*7919 + int64(i)

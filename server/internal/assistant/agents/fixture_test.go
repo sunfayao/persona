@@ -2,6 +2,8 @@ package agents
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -79,18 +81,52 @@ type a2aTestHub struct {
 	executable     func() string
 }
 
-func a2aFixture(t *testing.T) (*Domain, *a2aTestHub, *testStore, assistantwire.A2AConfig, Caller, Ref) {
+// TestMain gives the package's run a database of its own (dbtest), which a2aDatabase's copies sit next to.
+func TestMain(m *testing.M) {
+	os.Exit(dbtest.Main(m))
+}
+
+// a2aTemplate is the database a2aDatabase copies: migrated once per test binary.
+var a2aTemplate struct {
+	sync.Once
+	name string
+	err  error
+}
+
+// a2aDatabase is a new migrated database for one test: a copy of a2aTemplate, dropped with the run's own database.
+func a2aDatabase(t *testing.T) string {
 	t.Helper()
-	base := os.Getenv(dbtest.Env)
-	if base == "" {
+	own := os.Getenv(dbtest.Env)
+	if own == "" {
 		t.Skip(dbtest.Env + " not set")
 	}
-	url, drop, err := dbtest.Own(t.Context(), base)
+	a2aTemplate.Do(func() {
+		ctx := context.Background()
+		url, err := dbtest.Template(ctx, own)
+		if err == nil {
+			var d *db.DB
+			if d, err = db.Open(ctx, url, db.ManagerSet); err == nil {
+				d.Close()
+				a2aTemplate.name = db.DatabaseName(url)
+			}
+		}
+		a2aTemplate.err = err
+	})
+	if a2aTemplate.err != nil {
+		t.Fatal(a2aTemplate.err)
+	}
+	b := make([]byte, 4)
+	_, _ = rand.Read(b)
+	url, err := dbtest.Clone(t.Context(), own, a2aTemplate.name, db.DatabaseName(own)+"_tpl_"+hex.EncodeToString(b))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(drop)
-	database, err := db.Open(t.Context(), url, db.ManagerSet)
+	return url
+}
+
+func a2aFixture(t *testing.T) (*Domain, *a2aTestHub, *testStore, assistantwire.A2AConfig, Caller, Ref) {
+	t.Helper()
+	database, err := db.Open(t.Context(), a2aDatabase(t), db.ManagerSet)
 	if err != nil {
 		t.Fatal(err)
 	}

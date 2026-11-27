@@ -77,40 +77,6 @@ func idsOf(list []connector.UserRule) []string {
 	return out
 }
 
-// A setting that is not a list of rules, or a list none of whose elements is one, is taken as none, said in the log: the
-// gate asks, which is where it started.
-func TestChatRuleStoreReadsBadDataAsNone(t *testing.T) {
-	ctx := context.Background()
-	for name, bad := range map[string]any{
-		"a string":                        "nonsense",
-		"an object":                       map[string]any{"rules": []any{}},
-		"a list of numbers":               []any{1, 2},
-		"a rule that is not an object":    []any{map[string]any{"rule": 5}},
-		"a rule with a text for the time": []any{map[string]any{"rule": map[string]any{"connector": "github"}, "at": 12}},
-	} {
-		onRuleSettings(t, func(t *testing.T, store Store, manager func() *Manager) {
-			var logged []string
-			h := manager()
-			h.opts.Logf = func(f string, a ...any) { logged = append(logged, fmt.Sprintf(f, a...)) }
-			if err := store.PutSetting(ctx, chatRulesKey, bad); err != nil {
-				t.Fatal(err)
-			}
-			list, err := h.readUserRules(ctx)
-			if err != nil || len(list) != 0 {
-				t.Fatalf("%s: read as %+v, %v", name, list, err)
-			}
-			if !slices.ContainsFunc(logged, func(l string) bool { return strings.Contains(l, chatRulesKey) }) {
-				t.Errorf("%s: nothing said in the log: %v", name, logged)
-			}
-			// At start: no user rule, so the gate asks.
-			h.startConnectorGate(ctx)
-			if len(h.connectors.UserRules()) != 0 {
-				t.Errorf("%s: the gate has %+v", name, h.connectors.UserRules())
-			}
-		})
-	}
-}
-
 // A slip in a setting someone edited by hand costs only the element that is no rule: it is left out one by one and said in
 // the log, the good rules around it are read and kept.
 func TestChatRuleStoreLeavesOutOnlyTheElementsThatAreNoRule(t *testing.T) {

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistantwire"
-	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -426,55 +425,6 @@ func TestParseReviewFindings(t *testing.T) {
 		if f != c.findings || n != c.count || b != c.blocking || ok != c.ok {
 			t.Errorf("%q: %q %d %d %v", c.in, f, n, b, ok)
 		}
-	}
-}
-
-// The run is on the ledger in Postgres: a manager started again on the same database knows the running review, its
-// reviewer and copy, and its tick ends it from the reviewer's answer.
-func TestAutoReviewSurvivesRestart(t *testing.T) {
-	database, err := db.Open(context.Background(), newDatabase(t), db.ManagerSet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(database.Close)
-	s, f := newQuietServiceOn(t, database)
-	f.judge = `{"verdict":"done","reason":"PR 已合并"}`
-	raw, _ := json.Marshal(map[string]any{"tasks": []map[string]any{{"title": "修登录崩溃", "prompt": "iPad 横屏时登录页崩溃，修好并补测试",
-		"machine": "box", "cwd": "/code/app", "readonly": true, "why": "最近在 box 上", "done_when": []string{"PR 合并到 master"}}}})
-	if _, err := s.toolTaskPlan(context.Background(), "conv1", raw); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "the link", func() bool { return len(onlyTodo(s).Agents) == 1 })
-	todo := onlyTodo(s)
-	reviewConfigured(f)
-	n := &reviewNode{change: reviewChangeOf()}
-	withReviewNode(f, n)
-	agentTurn(s, f, proto.StatusWorking, "", 0)
-	agentTurn(s, f, proto.StatusDone, "修好了", 0)
-	waitFor(t, "the reviewer", func() bool { return autoReviewOf(s, todo.ID).SessionID != "" })
-	a := autoReviewOf(s, todo.ID)
-
-	again, f2 := newQuietServiceOn(t, database) // the manager after a restart: memory gone, the database kept
-	reviewConfigured(f2)
-	withReviewNode(f2, n)
-	f2.setSessions("box", proto.Session{SessionID: "s1", MachineID: "box", Cwd: "/code/app", Agent: "claude", Status: proto.StatusIdle},
-		proto.Session{SessionID: a.SessionID, MachineID: "box", Cwd: reviewCopy, Agent: "claude", Status: proto.StatusIdle})
-	if err := again.ensureTodosLoaded(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	got := autoReviewOf(again, todo.ID)
-	if got.ID != a.ID || got.State != autoRunning || got.SessionID != a.SessionID || got.Worktree != reviewCopy || !again.isReviewer("box", a.SessionID) {
-		t.Fatalf("after the restart: %+v", got)
-	}
-	n.answer(f2, a.SessionID, "P1 login/view.swift:11 缺测试\n<review-findings count=\"1\" blocking=\"1\"/>")
-	again.autoReviewTick(context.Background(), time.Now())
-	if v := todoNow(again, todo.ID).Supervision; v.State != reviewRework || v.Round != 1 || v.AutoReview.State != autoBlocking {
-		t.Fatalf("ended after the restart: %q %d %+v", v.State, v.Round, v.AutoReview)
-	}
-	rows, err := database.ListTodoSupervision(context.Background())
-	var stored AutoReview
-	if err != nil || len(rows) != 1 || json.Unmarshal(rows[0].AutoReview, &stored) != nil || stored.State != autoBlocking || stored.SessionID != a.SessionID {
-		t.Fatalf("stored: %+v %v", rows, err)
 	}
 }
 

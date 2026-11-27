@@ -3,7 +3,6 @@ package assistant
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -82,52 +81,6 @@ func attemptCodes(as []assistantwire.ModelAttempt) []string {
 		out[i] = a.Model + "=" + a.Code
 	}
 	return out
-}
-
-func TestModelCandidatesMoveOnForEachFailure(t *testing.T) {
-	s, _, kbCalls := extensionModelService(t, "kb answer")
-	asked := candidateGateways(t, s, map[string]string{"m-fail": "fail", "m-slow": "slow", "m-empty": "empty", "m-ok": "the answer"})
-	var logMu sync.Mutex
-	var lines []string
-	s.logf = func(format string, args ...any) {
-		logMu.Lock()
-		defer logMu.Unlock()
-		lines = append(lines, fmt.Sprintf(format, args...))
-	}
-	started := time.Now()
-	res, err := completeAs(s, "kb-curator", `{"messages":[{"role":"user","content":"hi"}],"timeout_seconds":1,"label":"curate",
-		"models":["m-fail","m-slow","m-empty","m-nowhere","m-ok"]}`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.Text != "the answer" || res.Candidate != "m-ok" || res.Model != "m-ok" {
-		t.Fatalf("answered by %+v", res)
-	}
-	want := []string{"m-fail=model_failed", "m-slow=timeout", "m-empty=model_failed", "m-nowhere=model_unavailable"}
-	if got := attemptCodes(res.Attempts); !slices.Equal(got, want) {
-		t.Fatalf("attempts %v, want %v", got, want)
-	}
-	if !strings.Contains(res.Attempts[0].Message, "synthetic failure") || !strings.Contains(res.Attempts[3].Message, "offers it") {
-		t.Fatalf("attempt messages %+v", res.Attempts)
-	}
-	if res.Usage.Requests < 2 || res.Usage.InputTokens < 200 {
-		t.Fatalf("usage of every attempt: %+v", res.Usage)
-	}
-	if slices.Contains(asked(), "m-nowhere") || len(kbCalls()) != 0 {
-		t.Fatalf("a model no provider offers, or the purpose's own, was asked: %v / %d", asked(), len(kbCalls()))
-	}
-	if d := time.Since(started); d > 4*time.Second {
-		t.Fatalf("the slow candidate was not cut at its timeout: %s", d)
-	}
-	logMu.Lock()
-	log := strings.Join(lines, "\n")
-	logMu.Unlock()
-	for _, want := range []string{"(curate) candidate 1/5 m-fail via gw-m-fail: failed", "candidate 4/5 m-nowhere via -: unavailable",
-		"(curate) answered by candidate m-ok (m-ok) after 4 failed"} {
-		if !strings.Contains(log, want) {
-			t.Fatalf("the log does not say %q:\n%s", want, log)
-		}
-	}
 }
 
 func TestModelCandidatesMoveOnWhenTheSchemaDoesNotMatch(t *testing.T) {

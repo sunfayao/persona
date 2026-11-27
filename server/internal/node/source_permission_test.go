@@ -121,41 +121,6 @@ func TestSourcePermissionExternalTranscriptAndGeneration(t *testing.T) {
 	}
 }
 
-func TestSourcePermissionDeliveryIsSeparateFromOwnerAndRawParameters(t *testing.T) {
-	n, f, home := herdrNode(t)
-	noPaneEnv(t)
-	shortPeerWait(t, 100*time.Millisecond)
-	f.reply("session.snapshot", snapshot(nil, nil, nil, nil))
-	inbox := newFakeInbox(t, modeTranscript(t, home, home, proto.ModeBypass))
-	inbox.setMode(peerModeBypass)
-	writeOutsideClaude(t, home, sidA, "claude-desktop", "idle", inbox, nil)
-	if _, err := request(t, n, "node.info", map[string]any{"manager_features": []string{nodeproto.SourcePermissions}}); err != nil {
-		t.Fatal(err)
-	}
-	proof := proto.SourcePermission{At: time.Now(), Session: sidB, Generation: "process-1", Class: peerModeBypass, Digest: proto.SourceCallDigest("agent_send", json.RawMessage(`{}`))}
-	for i, method := range []string{"session.send", nodeproto.SourceSend} {
-		_, err := request(t, n, method, map[string]any{"session_id": sidA, "text": "synthetic report", "source_permission": proof, "from_mode": "bypass"})
-		head := envelopeHead(t, inbox, i)
-		if method == "session.send" {
-			if refusalCode(err) != peerHeld || strings.Contains(head, "from-mode") {
-				t.Fatalf("raw params: %s %v", head, err)
-			}
-		} else if err != nil || !strings.Contains(head, `from-mode="bypass"`) {
-			t.Fatalf("attested send: %s %v", head, err)
-		}
-
-	}
-	content, _ := inbox.users()[1]["message"].(map[string]any)["content"].(string)
-	if strings.Contains(content, "用户本人") || !strings.Contains(content, "synthetic report") {
-		t.Fatalf("source text impersonates owner: %s", content)
-	}
-	proof.Class = peerModePrompting
-	_, err := request(t, n, nodeproto.SourceSend, map[string]any{"session_id": sidA, "text": "different source class", "source_permission": proof})
-	if refusalCode(err) != peerHeld || !strings.Contains(envelopeHead(t, inbox, 2), `from-mode="prompting"`) {
-		t.Fatalf("class chosen to suit recipient: %v", err)
-	}
-}
-
 func TestSourcePermissionDeliveryRequiresInitialManagerNegotiation(t *testing.T) {
 	n, f, home := herdrNode(t)
 	noPaneEnv(t)

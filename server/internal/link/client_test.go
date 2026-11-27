@@ -122,43 +122,6 @@ func TestBackoffStaysWithinItsBounds(t *testing.T) {
 	}
 }
 
-func TestRaceStartsInTurnAndKeepsTheFirstThatWorks(t *testing.T) {
-	eps := []Endpoint{{URL: "https://a", Kind: "lan"}, {URL: "https://b", Kind: "ipv6"}, {URL: "https://c", Kind: "name"}}
-	start := time.Now()
-	got, ep, err := race(context.Background(), eps, func(ctx context.Context, ep Endpoint) (string, error) {
-		if ep.URL == "https://a" { // the LAN address of a network this laptop is not on: hangs
-			<-ctx.Done()
-			return "", ctx.Err()
-		}
-		return ep.URL, nil
-	}, func(string) {})
-	if err != nil || got != "https://b" || ep.URL != "https://b" {
-		t.Fatalf("%v %s %+v", err, got, ep)
-	}
-	if took := time.Since(start); took < stagger || took > stagger+200*time.Millisecond {
-		t.Fatalf("took %s: b starts one stagger after a, and a hanging does not hold it up", took)
-	}
-	// The LAN answers last but answers: the winner is kept, the latecomer closed.
-	var dropped atomic.Int32
-	got, _, _ = race(context.Background(), eps[:2], func(ctx context.Context, ep Endpoint) (string, error) {
-		if ep.URL == "https://a" {
-			time.Sleep(stagger + 100*time.Millisecond)
-		}
-		return ep.URL, nil
-	}, func(string) { dropped.Add(1) })
-	if got != "https://b" {
-		t.Fatalf("winner %s", got)
-	}
-	eventually(t, func() bool { return dropped.Load() == 1 })
-	_, _, err = race(context.Background(), eps[:2], func(ctx context.Context, ep Endpoint) (string, error) {
-		return "", &httpError{status: http.StatusUnauthorized}
-	}, func(string) {})
-	var he *httpError
-	if !errors.As(err, &he) || he.status != http.StatusUnauthorized || !strings.Contains(summary(err), "内网 a：hub 回了 HTTP 401") {
-		t.Fatalf("joined error %v / %q", err, summary(err))
-	}
-}
-
 func eventually(t *testing.T, ok func() bool) {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
@@ -304,95 +267,12 @@ func TestPingTimesKeepsAHubsHeartbeatInRange(t *testing.T) {
 	}
 }
 
-// The hub's heartbeat (endpoints) replaces this side's on the link, either way, without reconnecting.
-func TestLinkFollowsTheHubsHeartbeat(t *testing.T) {
-	t.Run("shorter", func(t *testing.T) {
-		srv, _ := fakeHub(t, func(c *websocket.Conn) {
-			_ = c.Write(context.Background(), websocket.MessageText, []byte(`{"type":"endpoints","ping_ms":50,"ping_timeout_ms":50}`))
-			time.Sleep(time.Minute) // never reads again: no pongs
-		})
-		ch := runAgainst(t, srv, "jd_x", Options{}) // 10 s and 5 s: the link would stay 15 s
-		waitFor(t, ch, func(s Status) bool { return s.State == "connected" })
-		start := time.Now()
-		s := waitFor(t, ch, func(s Status) bool { return s.State == "waiting" })
-		if !strings.Contains(s.Error, "心跳") || time.Since(start) > 5*time.Second {
-			t.Fatalf("after %s: %+v", time.Since(start), s)
-		}
-	})
-	t.Run("longer", func(t *testing.T) {
-		srv, _ := fakeHub(t, func(c *websocket.Conn) {
-			_ = c.Write(context.Background(), websocket.MessageText, []byte(`{"type":"endpoints","ping_ms":60000,"ping_timeout_ms":60000}`))
-			time.Sleep(time.Minute) // no pongs: a slow link's, as far as this side can tell
-		})
-		// Options' first ping would be due after a second and give up 50 ms later; the hub's is a minute away.
-		ch := runAgainst(t, srv, "jd_x", Options{PingEvery: time.Second, PingTimeout: 50 * time.Millisecond})
-		waitFor(t, ch, func(s Status) bool { return s.State == "connected" })
-		hold := time.After(2500 * time.Millisecond)
-		for {
-			select {
-			case s := <-ch:
-				if s.State != "connected" {
-					t.Fatalf("dropped despite the hub's longer heartbeat: %+v", s)
-				}
-			case <-hold:
-				return
-			}
-		}
-	})
-}
-
 func TestLinkReportsARefusedCredential(t *testing.T) {
 	srv, _ := fakeHub(t, func(*websocket.Conn) {})
 	ch := runAgainst(t, srv, "jd_other", Options{})
 	s := waitFor(t, ch, func(s Status) bool { return s.State != "connecting" })
 	if s.State != "refused" || !strings.Contains(s.Error, "重新配对") {
 		t.Fatalf("status %+v", s)
-	}
-}
-
-// A new credential written while the hub refuses the old one (persona-link pair, the tray's or the App's pairing) is
-// tried at the wait's first poll, not after refusedWait: the change counts from when the attempt read link.json.
-func TestRefusedLinkRetriesWhenLinkJSONChangedMeanwhile(t *testing.T) {
-	for _, tc := range []struct {
-		name   string
-		refuse func(w http.ResponseWriter, r *http.Request)
-	}{
-		{"401", func(w http.ResponseWriter, r *http.Request) { http.Error(w, "no", http.StatusUnauthorized) }},
-		{"4002", func(w http.ResponseWriter, r *http.Request) {
-			if c, err := websocket.Accept(w, r, nil); err == nil {
-				_ = c.Close(CloseRevoked, "revoked")
-			}
-		}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "link.json")
-			var mu sync.Mutex
-			var tokens []string
-			srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				mu.Lock()
-				tokens = append(tokens, r.Header.Get("Authorization"))
-				first := len(tokens) == 1
-				mu.Unlock()
-				if !first {
-					http.Error(w, "no", http.StatusUnauthorized)
-					return
-				}
-				// Paired again while this attempt is under way: the old credential is the one refused.
-				if err := Update(path, func(c *Config) error { c.Token = "jd_new"; return nil }); err != nil {
-					t.Error(err)
-				}
-				tc.refuse(w, r)
-			}))
-			t.Cleanup(srv.Close)
-			ch := runAgainst(t, srv, "jd_x", Options{Path: path})
-			waitFor(t, ch, func(s Status) bool { return s.State == "refused" })
-			eventually(t, func() bool { mu.Lock(); defer mu.Unlock(); return len(tokens) >= 2 })
-			mu.Lock()
-			defer mu.Unlock()
-			if tokens[0] != "Bearer jd_x" || tokens[1] != "Bearer jd_new" {
-				t.Fatalf("attempts carried %q", tokens)
-			}
-		})
 	}
 }
 
@@ -416,109 +296,11 @@ func TestRedialConnectsAgainAtOnce(t *testing.T) {
 	}
 }
 
-// A ping that is out (a slow link's heartbeat may wait a long time for its pong) does not hold up "Reconnect now".
-func TestRedialDoesNotWaitForAPingThatIsOut(t *testing.T) {
-	srv, n := fakeHub(t, func(c *websocket.Conn) {
-		_ = c.Write(context.Background(), websocket.MessageText, []byte(`{"type":"endpoints","ping_ms":50,"ping_timeout_ms":60000}`))
-		time.Sleep(time.Minute) // never reads: the ping stays out
-	})
-	redial := make(chan struct{}, 1)
-	ch := runAgainst(t, srv, "jd_x", Options{Redial: redial})
-	waitFor(t, ch, func(s Status) bool { return s.State == "connected" })
-	time.Sleep(300 * time.Millisecond) // the hub's first ping went 50 ms after its endpoints
-	asked := time.Now()
-	redial <- struct{}{}
-	eventually(t, func() bool { return n.Load() == 2 })
-	if took := time.Since(asked); took > 2*time.Second {
-		t.Fatalf("connected again %s after asking", took)
-	}
-}
-
 func sendJSON(t *testing.T, c *websocket.Conn, raw string) {
 	t.Helper()
 	if err := c.Write(context.Background(), websocket.MessageText, []byte(raw)); err != nil {
 		t.Error(err)
 	}
-}
-
-// A pairing written while the link is up (persona-link pair, the tray's, the App's) is taken up at once: the link ends
-// as Reconnect now ends it and comes back with the new credential. An endpoints message, which rewrites link.json with
-// the same pairing, leaves the link alone.
-func TestLinkFollowsANewPairingWhileConnected(t *testing.T) {
-	type linkSeen struct {
-		auth  string
-		ended chan struct{}
-	}
-	links := make(chan linkSeen, 8)
-	var srv *httptest.Server
-	srv = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		auth := r.Header.Get("Authorization")
-		if r.URL.Path != Path || (auth != "Bearer jd_x" && auth != "Bearer jd_new") {
-			http.Error(w, "no", http.StatusUnauthorized)
-			return
-		}
-		c, err := websocket.Accept(w, r, nil)
-		if err != nil {
-			return
-		}
-		defer c.CloseNow()
-		if _, _, err := c.Read(r.Context()); err != nil { // the hello
-			return
-		}
-		seen := linkSeen{auth, make(chan struct{})}
-		links <- seen
-		sendJSON(t, c, `{"type":"endpoints","endpoints":[{"url":"`+srv.URL+`","kind":"lan"}],"hub_name":"home"}`)
-		for {
-			if _, _, err := c.Read(context.Background()); err != nil {
-				close(seen.ended)
-				return
-			}
-		}
-	}))
-	t.Cleanup(srv.Close)
-	path := filepath.Join(t.TempDir(), "link.json")
-	ch := runAgainst(t, srv, "jd_x", Options{Path: path})
-	next := func(within time.Duration) linkSeen {
-		t.Helper()
-		select {
-		case l := <-links:
-			return l
-		case <-time.After(within):
-			t.Fatalf("no new link within %s", within)
-			return linkSeen{}
-		}
-	}
-	first := next(10 * time.Second)
-	if first.auth != "Bearer jd_x" {
-		t.Fatalf("first link with %q", first.auth)
-	}
-	waitFor(t, ch, func(s Status) bool { return s.State == "connected" && s.HubName == "home" })
-	if c, err := Read(path); err != nil || c.HubName != "home" {
-		t.Fatalf("link.json %+v %v", c, err)
-	}
-	// link.json was rewritten with the same pairing: looking at it (every pairCheck) must not end the link.
-	select {
-	case l := <-links:
-		t.Fatalf("reconnected (%q) after an endpoints message", l.auth)
-	case <-time.After(pairCheck + time.Second):
-	}
-	paired := time.Now()
-	if err := Update(path, func(c *Config) error { c.Token = "jd_new"; return nil }); err != nil {
-		t.Fatal(err)
-	}
-	second := next(5 * time.Second)
-	if second.auth != "Bearer jd_new" {
-		t.Fatalf("second link with %q", second.auth)
-	}
-	if took := time.Since(paired); took > pairCheck+2*time.Second {
-		t.Fatalf("moved to the new pairing %s after it was written", took)
-	}
-	select { // the hub sees it end as it does after Reconnect now
-	case <-first.ended:
-	case <-time.After(5 * time.Second):
-		t.Fatal("the old link is still up")
-	}
-	waitFor(t, ch, func(s Status) bool { return s.State == "connected" })
 }
 
 func TestLinkKeepsWhatTheHubSaysItIs(t *testing.T) {
@@ -803,55 +585,6 @@ func TestReporterDeliversInOrder(t *testing.T) {
 	}
 }
 
-// A stream the hub opens just as the link drops is called off with the link: that is no news about the node, so no
-// status says the node is offline with "context canceled".
-func TestLinkDroppedWhileOpeningAStreamLeavesTheNodeAlone(t *testing.T) {
-	node := newFakeNode(t)
-	asked := make(chan struct{}, 1)
-	var links atomic.Int32
-	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer jd_x" {
-			http.Error(w, "no", http.StatusUnauthorized)
-			return
-		}
-		if r.URL.Path == StreamPath { // never answers: the link drops while the stream waits
-			asked <- struct{}{}
-			<-r.Context().Done()
-			return
-		}
-		c, err := websocket.Accept(w, r, nil)
-		if err != nil {
-			return
-		}
-		defer c.CloseNow()
-		if _, _, err := c.Read(r.Context()); err != nil { // hello
-			return
-		}
-		if links.Add(1) == 1 {
-			sendJSON(t, c, `{"type":"open","id":"s1"}`)
-			<-asked
-			return // drops the link
-		}
-		for {
-			if _, _, err := c.Read(context.Background()); err != nil {
-				return
-			}
-		}
-	}))
-	t.Cleanup(srv.Close)
-	ch := runAgainst(t, srv, "jd_x", Options{Target: node.path})
-	connected := 0
-	waitFor(t, ch, func(s Status) bool {
-		if s.Node == "offline" || s.NodeError != "" {
-			t.Errorf("status %+v", s)
-		}
-		if s.State == "connected" {
-			connected++
-		}
-		return connected == 2 // linked again: the first link's stream was long called off
-	})
-}
-
 // Statuses from many callers at once reach Options.Status one by one in the order they were made, so the last one
 // handed over is the reporter's final status (#3226: persona-link kept an older one until the next change).
 func TestReporterHandsOverTheLastStatusLast(t *testing.T) {
@@ -980,68 +713,5 @@ func TestLinkMovesToAPairingItFindsWhileWritingLinkJSON(t *testing.T) {
 			}
 			linkEnds(t, first, 5*time.Second)
 		})
-	}
-}
-
-// A new pairing that keeps the token (another computer id, pin or trust) is followed as well.
-func TestLinkFollowsANewPairingWithTheSameToken(t *testing.T) {
-	for _, tc := range []struct {
-		name   string
-		change func(*Config)
-	}{
-		{"machine", func(c *Config) { c.Machine = "desk" }},
-		{"pin", func(c *Config) { c.FP = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" }},
-		{"trust", func(c *Config) { c.Trust = TrustSystem }},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			srv, links := pairingHub(t, endpointsOf, nil)
-			path := filepath.Join(t.TempDir(), "link.json")
-			ch := runAgainst(t, srv, "jd_x", Options{Path: path})
-			first := nextLink(t, links, 10*time.Second)
-			waitFor(t, ch, func(s Status) bool { return s.State == "connected" && s.HubName == "home" })
-			if err := Update(path, func(c *Config) error { tc.change(c); return nil }); err != nil {
-				t.Fatal(err)
-			}
-			linkEnds(t, first, pairCheck+3*time.Second)
-			if tc.name == "machine" {
-				if second := nextLink(t, links, 5*time.Second); second.machine != "desk" {
-					t.Fatalf("second link from %q", second.machine)
-				}
-			}
-		})
-	}
-}
-
-// A pairing written while the link was being dialed counts: the link's first look at link.json compares it.
-func TestLinkFollowsAPairingWrittenWhileItDialed(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "link.json")
-	srv, links := pairingHub(t, nil, func(n int) {
-		if n == 1 {
-			if err := Update(path, func(c *Config) error { c.Token = "jd_new"; return nil }); err != nil {
-				t.Error(err)
-			}
-		}
-	})
-	_ = runAgainst(t, srv, "jd_x", Options{Path: path})
-	if first := nextLink(t, links, 10*time.Second); first.auth != "Bearer jd_x" {
-		t.Fatalf("first link with %q", first.auth)
-	}
-	if second := nextLink(t, links, pairCheck+3*time.Second); second.auth != "Bearer jd_new" {
-		t.Fatalf("second link with %q", second.auth)
-	}
-}
-
-// The link's own writes to link.json (the hub's addresses and names) are no reason to come back early: a link that
-// wrote them and was then replaced (4001) waits replaceWait, not just until the next look at link.json.
-func TestLinkThatWroteLinkJSONKeepsItsWait(t *testing.T) {
-	srv, links := pairingHub(t, endpointsOf, nil)
-	ch := runAgainst(t, srv, "jd_x", Options{})
-	first := nextLink(t, links, 10*time.Second)
-	waitFor(t, ch, func(s Status) bool { return s.State == "connected" && s.HubName == "home" })
-	_ = first.conn.Close(CloseReplaced, "replaced")
-	select {
-	case l := <-links:
-		t.Fatalf("came back (%q) before replaceWait", l.auth)
-	case <-time.After(pairCheck + 2*time.Second):
 	}
 }

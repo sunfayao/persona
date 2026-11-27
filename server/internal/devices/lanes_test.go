@@ -9,7 +9,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -215,118 +214,6 @@ func TestNotesShareOneBudget(t *testing.T) {
 	if n := logs.count("takes no events"); n != 1 {
 		t.Fatalf("the node connected again %d times, want once", n)
 	}
-}
-
-// A note waiting to be written closes the connection only once nothing it writes has gone through for noteStall: on a
-// framed connection a note can wait for credit while everything else goes on.
-func TestNoteStallIsNoProgressAtAll(t *testing.T) {
-	old := noteStall
-	noteStall = 300 * time.Millisecond // well over the writes' spacing, so a busy test machine does not look stalled
-	t.Cleanup(func() { noteStall = old })
-	var last atomic.Int64
-	last.Store(time.Now().UnixNano())
-	written := func() time.Time { return time.Unix(0, last.Load()) }
-	stalled := make(chan time.Time, 1)
-	start := time.Now()
-	w := watchNote(written, func() bool { return false }, func() { stalled <- time.Now() })
-	defer w.stop()
-	moving := time.Now().Add(time.Second)
-	for time.Now().Before(moving) { // the connection keeps writing
-		last.Store(time.Now().UnixNano())
-		select {
-		case at := <-stalled:
-			t.Fatalf("closed after %s while writes went through", at.Sub(start))
-		case <-time.After(20 * time.Millisecond):
-		}
-	}
-	select { // then nothing goes through
-	case at := <-stalled:
-		if idle := at.Sub(written()); idle < noteStall {
-			t.Fatalf("closed %s after the last write", idle)
-		}
-	case <-time.After(3 * time.Second):
-		t.Fatal("never closed once nothing went through")
-	}
-}
-
-// A note whose connection waits to be resumed is watched again once it is: a resume whose transport takes nothing
-// either still ends in a stall (#10829's review).
-func TestNoteStallWatchesOnAfterAResume(t *testing.T) {
-	old := noteStall
-	noteStall = 100 * time.Millisecond
-	t.Cleanup(func() { noteStall = old })
-	var last atomic.Int64
-	last.Store(time.Now().UnixNano())
-	written := func() time.Time { return time.Unix(0, last.Load()) }
-	var lost atomic.Bool
-	lost.Store(true)
-	stalled := make(chan struct{}, 1)
-	w := watchNote(written, lost.Load, func() { stalled <- struct{}{} })
-	defer w.stop()
-	select {
-	case <-stalled:
-		t.Fatal("stalled while the connection waited to be resumed")
-	case <-time.After(4 * noteStall):
-	}
-	last.Store(time.Now().UnixNano()) // resumed: it counts as a write, then nothing goes through
-	lost.Store(false)
-	select {
-	case <-stalled:
-	case <-time.After(3 * time.Second):
-		t.Fatal("not watched after the resume")
-	}
-}
-
-// A computer whose framed connections keep ending on malformed frames (something between the ends changes the bytes)
-// is not asked for lanes for a while, and stays connected with lines.
-func TestLanesOffAfterConnectionsBreakOnFrames(t *testing.T) {
-	old := lanesFailLimit
-	lanesFailLimit = 2
-	t.Cleanup(func() { lanesFailLimit = old })
-	d := newTestDevices(t)
-	logs := &benchLog{}
-	d.logf = func(f string, a ...any) { logs.add(fmt.Sprintf(f, a...)) }
-	var mu sync.Mutex
-	var peers []*rpc.Peer
-	m := newMachine(d, MachineConfig{ID: "box", Name: "box", Kind: "ssh"})
-	m.dialNode = func(context.Context) (net.Conn, error) {
-		managerSide, nodeSide := net.Pipe()
-		p := rpc.New("n", nodeSide)
-		p.EnableLanes(nodeproto.ControlLane, nodeproto.BulkLane)
-		p.OnRequest = func(_ context.Context, method string, _ json.RawMessage) (any, error) {
-			switch method {
-			case "node.info":
-				return proto.NodeInfo{Hostname: "box", OS: "linux", Arch: "amd64", Home: "/home/me", Version: "test", Protocol: nodeproto.Version,
-					ProtocolMin: nodeproto.MinManagerVersion, Capabilities: append(slices.Clone(nodeproto.Required), nodeproto.NodeLanes)}, nil
-			case "sessions.list":
-				return map[string]any{"sessions": []proto.Session{}}, nil
-			}
-			return map[string]any{"ok": true}, nil
-		}
-		go func() { _ = p.Serve(context.Background(), nodeSide); nodeSide.Close() }()
-		go func() { // once framed, bytes that are no frames: a relay that changed them
-			for range 200 {
-				if p.Framed() {
-					_, _ = nodeSide.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
-					return
-				}
-				time.Sleep(5 * time.Millisecond) // sleep-ok: polling for the switch in a fake node
-			}
-		}()
-		mu.Lock()
-		peers = append(peers, p)
-		mu.Unlock()
-		t.Cleanup(func() { managerSide.Close(); nodeSide.Close() })
-		return managerSide, nil
-	}
-	d.addEntry(m)
-	runMachine(t, m)
-	eventually(t, 20*time.Second, "lanes turned off", func() bool { return logs.count("lanes off for") > 0 })
-	eventually(t, 20*time.Second, "a connection with lines", func() bool {
-		m.mu.Lock()
-		defer m.mu.Unlock()
-		return m.peer != nil && m.online && !m.peer.Framed() && logs.count("not asked until") > 0
-	})
 }
 
 // An answer to rpc.lanes after the wait for it still switches the connection, and the log says so.

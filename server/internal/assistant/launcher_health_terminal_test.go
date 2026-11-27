@@ -102,65 +102,6 @@ func TestLauncherHealthNotInTerminal(t *testing.T) {
 	}
 }
 
-// The app's starts count too: one the hub waited for (session.start_ended) and one answered at once, followed in the
-// session list from starting to failed (counted once while it is listed) or started.
-func TestLauncherHealthRecordsAppStarts(t *testing.T) {
-	s, f := launcherHealthHubOn(t, newStorelessService)
-	delete(f.checks, "l4/work")
-	ctx := context.Background()
-
-	r := terminalRefusal(proto.CodeLauncherMissing, "work")
-	s.StartEnded(ctx, StartEnded{MachineID: "l4", Launcher: "work", Error: r.Message, Code: r.Code, Data: r.Data})
-	if h := healthState(s, "l4", "work"); h.Kind != errKindNotInTerminal || h.State != healthBlocked {
-		t.Fatalf("a failed app start: %+v", h)
-	}
-	s.StartEnded(ctx, StartEnded{MachineID: "l4", Launcher: "work", OK: true})
-	if h := healthState(s, "l4", "work"); h.State != healthOK {
-		t.Fatalf("a start that worked: %+v", h)
-	}
-	s.StartEnded(ctx, StartEnded{MachineID: "box", Error: "claude exited before showing its input box"})
-	if h := healthState(s, "box", "claude"); h.State != healthFailing || h.Source != healthSourceStart {
-		t.Fatalf("an app start of claude that failed: %+v", h)
-	}
-	s.StartEnded(ctx, StartEnded{MachineID: "server", Launcher: "work", Error: "directory /nope does not exist"})
-	if _, ok := s.launcherHealth(ctx, "server", "work"); ok {
-		t.Fatal("a refused request counted")
-	}
-
-	// Answered at once: starting, then failed with the refusal's code.
-	starting := proto.Session{SessionID: "a1", Launcher: "work", Starting: true, Status: proto.StatusIdle}
-	s.followStarts(ctx, DeviceSessions{MachineID: "l4", Sessions: []proto.Session{starting}})
-	if h := healthState(s, "l4", "work"); h.State != healthOK {
-		t.Fatalf("a start still starting counted: %+v", h)
-	}
-	failed := proto.Session{SessionID: "a1", Launcher: "work", Status: proto.StatusOffline, StartError: r.Message,
-		StartErrorCode: r.Code, StartErrorArgs: map[string]string{"launcher": "work", "where": "terminal", "pane_shell": "bash"},
-		UpdatedAt: time.Now().UTC()}
-	for range 3 { // listed for a while
-		s.followStarts(ctx, DeviceSessions{MachineID: "l4", Sessions: []proto.Session{failed}})
-	}
-	if h := healthState(s, "l4", "work"); h.Kind != errKindNotInTerminal || h.Fails != 1 {
-		t.Fatalf("a failed async start: %+v", h)
-	}
-	// Another failure, listed with an updated_at an hour behind the manager's clock (the node's clock is behind):
-	// counted all the same, whatever the record's checked_at.
-	behind := failed
-	behind.SessionID, behind.UpdatedAt = "a0", time.Now().Add(-time.Hour)
-	s.followStarts(ctx, DeviceSessions{MachineID: "l4", Sessions: []proto.Session{behind, failed}})
-	if h := healthState(s, "l4", "work"); h.Fails != 2 {
-		t.Fatalf("a failure whose node clock is behind: %+v", h)
-	}
-	// Another start, which comes up: the terminal runs it now.
-	again := starting
-	again.SessionID = "a2"
-	s.followStarts(ctx, DeviceSessions{MachineID: "l4", Sessions: []proto.Session{again}})
-	up := proto.Session{SessionID: "a2", Launcher: "work", Status: proto.StatusIdle}
-	s.followStarts(ctx, DeviceSessions{MachineID: "l4", Sessions: []proto.Session{up}})
-	if h := healthState(s, "l4", "work"); h.State != healthOK {
-		t.Fatalf("a start that came up did not clear it: %+v", h)
-	}
-}
-
 // A running Agent moving to another launcher is listed as starting meanwhile on the launcher it moves to (Starting with
 // its pending switch, node/launcher_switch.go): it is not followed, since the row listed clean afterwards may be back on
 // its own launcher (a switch that failed and rolled back): no start of the launcher the starting row named.

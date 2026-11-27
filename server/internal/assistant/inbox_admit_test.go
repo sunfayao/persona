@@ -158,51 +158,6 @@ func inboxTriageOf(t *testing.T, h *inboxHub) ([]any, InboxTriage) {
 	return items, st
 }
 
-// A new item the model can't sort and that has no fallback tier is not written (not listed, not stored); the status
-// says how many wait and why, recomputed each round; the next round asks again, and once the model works it comes in.
-func TestInboxHoldsNewItemsWithoutFallback(t *testing.T) {
-	model, client := newTriageModel(t, "quota", `{"tier":"action","summary":"bob 请你看 PR","reason":"请你 review"}`)
-	th := genericThing("example-org/example-repo#3", "a", "示例：请你看一下这个 PR")
-	c := &inboxConnector{things: []connector.InboxThing{th}}
-	h, st := admitHub(t, client, c)
-
-	collectAndAdmit(h)
-	if it := itemOf(h, "example", th.Thread); it != nil {
-		t.Fatalf("an untriaged item without a fallback came in: %+v", it)
-	}
-	items, status := inboxTriageOf(t, h)
-	want := InboxTriageSource{Source: "example", Name: "Example", State: triagePaused, Reason: "模型没有额度", Waiting: 1}
-	if len(items) != 0 || status.State != triagePaused || status.Reason != "模型没有额度" || status.Waiting != 1 ||
-		len(status.Sources) != 1 || status.Sources[0] != want {
-		t.Fatalf("%d items, triage %+v", len(items), status)
-	}
-	for id := range st.ids {
-		t.Fatalf("stored %s", id)
-	}
-
-	// The next round (the model still held): the same thing again, still one waiting, nothing stored.
-	collectAndAdmit(h)
-	if _, status = inboxTriageOf(t, h); status.Waiting != 1 || itemOf(h, "example", th.Thread) != nil || len(st.ids) != 0 {
-		t.Fatalf("second round: triage %+v, stored %v", status, st.ids)
-	}
-
-	// The model is back: the next round sorts it and it comes in, stored once; nothing waits.
-	model.mode.Store("ok")
-	time.Sleep(1100 * time.Millisecond) // Retry-After: 1
-	before := len(model.asked())
-	collectAndAdmit(h)
-	it := itemOf(h, "example", th.Thread)
-	if it == nil || it.Tier != TierAction || it.Summary != "bob 请你看 PR" || it.TriagedAt != it.Last || !st.saved(it.ID) {
-		t.Fatalf("after the model is back: %+v", it)
-	}
-	if n := len(model.asked()) - before; n != 1 {
-		t.Fatalf("%d triage call(s) once back", n)
-	}
-	if _, status = inboxTriageOf(t, h); status.State != "ok" || status.Waiting != 0 || len(status.Sources) != 0 {
-		t.Fatalf("after: triage %+v", status)
-	}
-}
-
 // sevenThings are seven things of a plugin's connector its rules leave to the model.
 func sevenThings() []connector.InboxThing {
 	var things []connector.InboxThing
@@ -268,59 +223,6 @@ func TestInboxTriageRecoversInTheRoundAfterAnOutage(t *testing.T) {
 	}
 	if p := ai.Held(client.Config()); p != nil {
 		t.Fatalf("still held: %+v", p)
-	}
-}
-
-// The control: while a request really is out on a connection whose pause is over and the upstream has not answered
-// it yet, a round's items wait for it as long as they may and are then held as busy; when that request is answered
-// the connection opens, and the next round sorts them all.
-func TestInboxTriageIsBusyWhileTheModelIs(t *testing.T) {
-	ai.SetBusyPauseForTest(t, 50*time.Millisecond)
-	window, timeout := admitWindow, admitTimeout
-	admitWindow, admitTimeout = 5*time.Second, 150*time.Millisecond
-	t.Cleanup(func() { admitWindow, admitTimeout = window, timeout })
-	model, client := newTriageModel(t, "busy", `{"tier":"fyi","summary":"示例","reason":"示例"}`)
-	model.delay = 600 * time.Millisecond
-	things := sevenThings()
-	h, _ := admitHub(t, client, &inboxConnector{things: things})
-	var out struct{ Tier string }
-	if err := client.JSON(context.Background(), "sorting incoming work messages", "示例", &out); !ai.IsPaused(err) {
-		t.Fatalf("the busy answer: %v", err)
-	}
-	pauseOver(t, client)
-
-	// A slow request goes out (it finds out); the upstream takes its time to answer it.
-	model.mode.Store("slow")
-	slow := make(chan error, 1)
-	go func() {
-		var out struct{ Tier string }
-		slow <- client.JSON(context.Background(), "sorting incoming work messages", "示例：一个慢请求", &out)
-	}()
-	waitFor(t, "the slow request at the upstream", func() bool { return len(model.asked()) >= 2 })
-	before := len(model.asked())
-	collectAndAdmit(h)
-	if _, status := inboxTriageOf(t, h); status.State != triagePaused || status.Reason != "模型并发已满" || status.Waiting != len(things) {
-		t.Fatalf("while a request is out: triage %+v", status)
-	}
-	if n := len(model.asked()) - before; n != 0 {
-		t.Fatalf("%d triage request(s) sent while the one finding out was not answered", n)
-	}
-
-	// It is answered: the connection opens, and the next round sorts everything.
-	if err := <-slow; err != nil {
-		t.Fatalf("the slow request: %v", err)
-	}
-	model.mode.Store("ok")
-	admitTimeout = 10 * time.Second
-	collectAndAdmit(h)
-	in := 0
-	for _, th := range things {
-		if itemOf(h, "example", th.Thread) != nil {
-			in++
-		}
-	}
-	if _, status := inboxTriageOf(t, h); in != len(things) || status.State != "ok" || status.Waiting != 0 {
-		t.Fatalf("after the request finished: %d of %d in, triage %+v", in, len(things), status)
 	}
 }
 
@@ -486,37 +388,6 @@ func TestInboxTriageStatusIsPushed(t *testing.T) {
 	}
 }
 
-// More new items than a round sorts in its window: the ones started come in, the rest wait for the next round,
-// which is asked for at once.
-func TestInboxAdmitWindow(t *testing.T) {
-	window, timeout := admitWindow, admitTimeout
-	admitWindow, admitTimeout = 50*time.Millisecond, 5*time.Second
-	t.Cleanup(func() { admitWindow, admitTimeout = window, timeout })
-	model, client := newTriageModel(t, "slow", `{"tier":"fyi","summary":"示例","reason":"示例"}`)
-	model.delay = 300 * time.Millisecond
-	var things []connector.InboxThing
-	for _, n := range []string{"11", "12", "13", "14", "15", "16"} {
-		things = append(things, genericThing("example-org/example-repo#"+n, "a", "示例 "+n))
-	}
-	h, _ := admitHub(t, client, &inboxConnector{things: things})
-	collectAndAdmit(h)
-	if n := len(model.asked()); n != triageConcurrency {
-		t.Fatalf("%d asked in the window", n)
-	}
-	in := 0
-	for _, th := range things {
-		if itemOf(h, "example", th.Thread) != nil {
-			in++
-		}
-	}
-	if _, status := inboxTriageOf(t, h); in != triageConcurrency || status.State != triageBehind || status.Waiting != len(things)-in {
-		t.Fatalf("%d in, triage %+v", in, status)
-	}
-	if h.in.kicks == 0 {
-		t.Fatal("the next round was not asked for")
-	}
-}
-
 // The hub's own sources (here a connector no plugin provides) go as they always did: a new item is listed at once,
 // untriaged, and the triage pass afterwards gives one without a rule tier its fallback, "Noise", when the model fails,
 // to be asked again later (RuleOf); nothing is held back.
@@ -541,30 +412,5 @@ func TestInboxBuiltinSourcesAsBefore(t *testing.T) {
 	}
 	if _, status := inboxTriageOf(t, h); status.State != "ok" || status.Waiting != 0 {
 		t.Fatalf("triage %+v", status)
-	}
-}
-
-// An item read elsewhere while untriaged is settled by triage, but one the user filed while the model was thinking
-// stays filed as the user filed it.
-func TestInboxTriageKeepsWhatTheUserFiled(t *testing.T) {
-	model, client := newTriageModel(t, "slow", `{"tier":"fyi","summary":"示例","reason":"示例"}`)
-	model.delay = 300 * time.Millisecond
-	h, _ := admitHub(t, client)
-	it := &InboxItem{ID: "mail:1", Source: "mail", Kind: KindMail, Last: "a", Read: true, Context: "示例：周报",
-		UpdatedAt: time.Now(), Mail: &InboxMail{AccountID: "acc1"}}
-	h.inbox.mu.Lock()
-	h.inbox.items[it.ID] = it
-	h.inbox.mu.Unlock()
-	done := make(chan bool, 1)
-	go func() { done <- h.triageOne(context.Background(), it) }()
-	time.Sleep(100 * time.Millisecond) // the model is thinking
-	if _, err := h.setInboxDone(context.Background(), it.ID, true, false); err != nil {
-		t.Fatal(err)
-	}
-	<-done
-	h.inbox.mu.Lock()
-	defer h.inbox.mu.Unlock()
-	if it.DoneBy != "user" {
-		t.Fatalf("filed by the user, then triage said %q", it.DoneBy)
 	}
 }

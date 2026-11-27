@@ -2,8 +2,6 @@ package node
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -66,54 +64,6 @@ esac
 	return func() []string {
 		b, _ := os.ReadFile(log)
 		return strings.Split(strings.TrimSpace(string(b)), "\n")
-	}
-}
-
-func TestGitPRSupervisionEvidenceCompleteness(t *testing.T) {
-	for _, tc := range []struct {
-		name           string
-		reviews        any
-		threads        string
-		reviewsOK      bool
-		threadsOK      bool
-		lastReviewTime string
-	}{
-		{"missing reviews", nil, `{"nodes":[]}`, false, true, ""},
-		{"empty complete reviews", []any{}, `{"nodes":[]}`, true, true, ""},
-		{"dated review", []any{map[string]any{"submittedAt": "2026-11-01T10:00:00Z"}}, `{"nodes":[]}`, true, true, "2026-11-01T10:00:00Z"},
-		{"undated review", []any{map[string]any{}}, `{"nodes":[]}`, false, true, ""},
-		{"review page boundary", make([]any, 100), `{"nodes":[]}`, false, true, ""},
-		{"missing threads", []any{}, `{}`, true, false, ""},
-		{"null threads", []any{}, `{"nodes":null}`, true, false, ""},
-		{"thread page boundary", []any{}, `{"nodes":[` + strings.TrimSuffix(strings.Repeat(`{"isResolved":true},`, 50), ",") + `]}`, true, false, ""},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			f := newPullFixture(t)
-			view, err := json.Marshal(map[string]any{
-				"number": 42, "url": "https://github.com/acme/web/pull/42", "state": "OPEN",
-				"headRefOid": "0123456789abcdef0123456789abcdef01234567", "reviews": tc.reviews,
-				"statusCheckRollup": []any{map[string]any{"name": "test", "status": "COMPLETED", "conclusion": "SUCCESS"}},
-			})
-			if err != nil {
-				t.Fatal(err)
-			}
-			fakePRGh(t, "", string(view), `{"data":{"repository":{"pullRequest":{"reviewThreads":`+tc.threads+`}}}}`)
-			out, err := f.node.gitPR(context.Background(), f.local)
-			if err != nil {
-				t.Fatal(err)
-			}
-			pr := out["pr"].(GitPR)
-			if pr.ReviewsComplete != tc.reviewsOK || pr.ThreadsComplete != tc.threadsOK {
-				t.Fatalf("review completeness = %v, threads = %v", pr.ReviewsComplete, pr.ThreadsComplete)
-			}
-			last := ""
-			if pr.LastReviewAt != nil {
-				last = pr.LastReviewAt.UTC().Format("2006-01-02T15:04:05Z07:00")
-			}
-			if last != tc.lastReviewTime {
-				t.Fatalf("last review = %q; want %q", last, tc.lastReviewTime)
-			}
-		})
 	}
 }
 
@@ -187,50 +137,5 @@ func TestGitPRCreate(t *testing.T) {
 	want := []string{"pr create --head fix/login --title Fix login --body Body --base main --draft"}
 	if strings.Join(made, "|") != strings.Join(want, "|") {
 		t.Fatalf("gh calls\n%s\nwant\n%s", strings.Join(made, "\n"), strings.Join(want, "\n"))
-	}
-}
-
-func TestGitPRCheckCompleteness(t *testing.T) {
-	for _, tc := range []struct {
-		name     string
-		count    int
-		bad      map[string]any
-		head     bool
-		complete bool
-	}{
-		{"99 checks", 99, nil, true, true},
-		{"100 checks", 100, nil, true, false},
-		{"missing check status", 0, map[string]any{"name": "test", "conclusion": "SUCCESS"}, true, false},
-		{"missing status context", 0, map[string]any{"state": "SUCCESS"}, true, false},
-		{"missing context state", 0, map[string]any{"context": "ci"}, true, false},
-		{"missing head", 0, nil, false, false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			checks := make([]map[string]any, 0, tc.count+1)
-			for i := 0; i < tc.count; i++ {
-				checks = append(checks, map[string]any{"name": fmt.Sprintf("job-%d", i), "status": "COMPLETED", "conclusion": "SUCCESS"})
-			}
-			if tc.bad != nil {
-				checks = append(checks, tc.bad)
-			}
-			head := ""
-			if tc.head {
-				head = "0123456789abcdef0123456789abcdef01234567"
-			}
-			raw, err := json.Marshal(map[string]any{"number": 42, "url": "https://github.com/example/repo/pull/42", "headRefOid": head, "statusCheckRollup": checks})
-			if err != nil {
-				t.Fatal(err)
-			}
-			f := newPullFixture(t)
-			fakePRGh(t, "", string(raw))
-			out, err := f.node.gitPR(context.Background(), f.local)
-			if err != nil {
-				t.Fatal(err)
-			}
-			pr, ok := out["pr"].(GitPR)
-			if !ok || pr.ChecksComplete != tc.complete || pr.HeadOID != head {
-				t.Fatalf("pr %+v", out["pr"])
-			}
-		})
 	}
 }

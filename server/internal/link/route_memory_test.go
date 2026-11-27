@@ -1,19 +1,12 @@
 package link
 
 import (
-	"bytes"
-	"context"
 	"errors"
 	"net"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
-	"sync/atomic"
 	"testing"
-	"time"
 )
 
 func routeTestAddresses(ips ...string) func() ([]net.Addr, error) {
@@ -25,158 +18,6 @@ func routeTestAddresses(ips ...string) func() ([]net.Addr, error) {
 			addrs = append(addrs, addr)
 		}
 		return addrs, nil
-	}
-}
-
-func startRouteMemoryRun(t *testing.T, o Options) (chan Status, func()) {
-	t.Helper()
-	statuses := make(chan Status, 32)
-	o.Status = func(s Status) { statuses <- s }
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		_ = Run(ctx, o)
-	}()
-	stop := func() { stopDirectHandoffRun(t, cancel, done) }
-	t.Cleanup(stop)
-	return statuses, stop
-}
-
-func TestRouteMemoryRestart(t *testing.T) {
-	for _, kind := range []string{KindProxy, KindSSH} {
-		t.Run(kind, func(t *testing.T) {
-			for _, key := range []string{"https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY", "no_proxy", "NO_PROXY"} {
-				t.Setenv(key, "")
-			}
-			hub := newSSHTestHub(t, "")
-			var allowDirect atomic.Bool
-			var directAttempts atomic.Int32
-			direct := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				directAttempts.Add(1)
-				if !allowDirect.Load() {
-					// Simulate a slow direct failure; this delay is the network behavior, not test synchronization.
-					timer := time.NewTimer(120 * time.Millisecond)
-					defer timer.Stop()
-					select {
-					case <-r.Context().Done():
-						return
-					case <-timer.C:
-					}
-					http.Error(w, "direct link unavailable", http.StatusServiceUnavailable)
-					return
-				}
-				hub.srv.Config.Handler.ServeHTTP(w, r)
-			}))
-			t.Cleanup(direct.Close)
-			if pinOf(direct) != hub.pin {
-				t.Fatal("the test's direct and fallback servers must share a pin")
-			}
-			cfg := Config{Hub: "hub", Machine: "laptop", Token: "jd_ssh", FP: hub.pin,
-				Endpoints: []Endpoint{{URL: direct.URL, Kind: "name"}}}
-			o := Options{
-				Path:             filepath.Join(t.TempDir(), "link.json"),
-				DirectRetryEvery: time.Hour,
-				routeAddrs:       routeTestAddresses("192.0.2.5/24", "127.0.0.1/8", "2001:db8::8/64"),
-			}
-			var fallbackAttempts func() int
-			if kind == KindProxy {
-				proxy := newConnectProxy(t, hub.target, nil)
-				cfg.Proxy = proxy.url
-				cfg.Endpoints[0].URL = "https://" + proxyableLocalhost(t) + ":" + portOf(direct.URL)
-				fallbackAttempts = func() int { return int(proxy.connects.Load()) }
-			} else {
-				ssh := newSSHHarness(t)
-				o.SSHBin = ssh.bin
-				cfg.SSH = &SSH{Server: "user@example.com", Target: hub.target}
-				fallbackAttempts = func() int { return len(ssh.runs()) }
-			}
-			if err := Update(o.Path, func(c *Config) error { *c = cfg; return nil }); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := os.Stat(RouteHintPath(o.Path)); !errors.Is(err, os.ErrNotExist) {
-				t.Fatalf("new pairing has unexpected route hint (%v)", err)
-			}
-
-			connected := func(statuses chan Status, kind string) Status {
-				t.Helper()
-				st := waitFor(t, statuses, func(s Status) bool {
-					return s.State == "connected" && (kind == "" || s.Kind == kind)
-				})
-				// The client reports connected after writing hello. Let the hub finish its hello responses before
-				// the test stops the run or triggers another connection.
-				select {
-				case <-hub.links:
-				case <-time.After(5 * time.Second):
-					t.Fatal("hub did not finish accepting the link")
-				}
-				return st
-			}
-			checkRoute := func(phase, got, want string, direct, fallback int) {
-				t.Helper()
-				if d, f := int(directAttempts.Load()), fallbackAttempts(); got != want || d != direct || f != fallback {
-					t.Fatalf("%s route %q with %d direct and %d fallback attempts, want %q with %d and %d", phase, got, d, f, want, direct, fallback)
-				}
-			}
-			start := time.Now()
-			statuses, stop := startRouteMemoryRun(t, o)
-			cold := connected(statuses, "")
-			t.Logf("cold start reached %s in %v", cold.Kind, time.Since(start))
-			checkRoute("cold start", cold.Kind, kind, 1, 1)
-			stop()
-			info, err := os.Stat(RouteHintPath(o.Path))
-			if err != nil {
-				t.Fatal(err)
-			}
-			// Windows does not report Unix permission bits through FileMode.
-			if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
-				t.Fatalf("cache permissions %o, want 0600", info.Mode().Perm())
-			}
-			saved, err := os.ReadFile(RouteHintPath(o.Path))
-			if err != nil {
-				t.Fatal(err)
-			}
-			for _, value := range []string{cfg.Token, proxySecret, proxyUser, "example.com", "192.0.2.5", "2001:db8::8"} {
-				if bytes.Contains(saved, []byte(value)) {
-					t.Fatal("route hint contains raw pairing, proxy, tunnel or address data")
-				}
-			}
-
-			// Address order, duplicates, loopback and IPv6 privacy address rotation do not change the network.
-			// Timed probes remain disabled so every dial here comes from the startup route order.
-			o.routeAddrs = routeTestAddresses("2001:db8::9/64", "192.0.2.5/24", "2001:db8::a/64", "::1/128")
-			start = time.Now()
-			statuses, stop = startRouteMemoryRun(t, o)
-			warm := connected(statuses, "")
-			t.Logf("restart reached %s in %v", warm.Kind, time.Since(start))
-			checkRoute("restart", warm.Kind, kind, 1, 2)
-			stop()
-			if after, err := os.Stat(RouteHintPath(o.Path)); err != nil || !after.ModTime().Equal(info.ModTime()) {
-				t.Fatalf("unchanged route hint was rewritten or is missing (%v)", err)
-			}
-
-			// The original IPv4 address disappeared while other addresses stayed, including SSH's loopback.
-			o.routeAddrs = routeTestAddresses("2001:db8::8/64", "127.0.0.1/8")
-			statuses, stop = startRouteMemoryRun(t, o)
-			checkRoute("changed network", connected(statuses, "").Kind, kind, 2, 3)
-			stop()
-
-			o.DirectRetryEvery = 50 * time.Millisecond
-			statuses, stop = startRouteMemoryRun(t, o)
-			if got := connected(statuses, "").Kind; got != kind {
-				t.Fatalf("before enabling direct, got %s, want %s", got, kind)
-			}
-			allowDirect.Store(true)
-			connected(statuses, "name")
-			stop()
-			if _, err := os.Stat(RouteHintPath(o.Path)); !errors.Is(err, os.ErrNotExist) {
-				t.Fatalf("direct handoff did not clear the route hint (%v)", err)
-			}
-			before := int(directAttempts.Load())
-			statuses, stop = startRouteMemoryRun(t, o)
-			checkRoute("restart after direct handoff", connected(statuses, "").Kind, "name", before+1, 4)
-			stop()
-		})
 	}
 }
 

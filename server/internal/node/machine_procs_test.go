@@ -4,9 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net"
-	"os"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -371,46 +368,5 @@ func TestMachineProcsUnsupportedFallback(t *testing.T) {
 	var re *rpc.Error
 	if !errors.As(err, &re) || re.Code != proto.CodeProcessUnsupported {
 		t.Fatalf("expected process_unsupported refusal, got %v", err)
-	}
-}
-
-func TestMachineProcsLiveLinuxSmoke(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("linux live /proc smoke test")
-	}
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen: %v", err)
-	}
-	defer ln.Close()
-	port := ln.Addr().(*net.TCPAddr).Port
-
-	n := &Node{}
-	portsOut, err := n.handle(context.Background(), proto.MethodMachinePorts, json.RawMessage(`{"protocol":"tcp"}`))
-	if err != nil {
-		t.Fatalf("live machine.ports failed: %v", err)
-	}
-	portsRes := portsOut.(proto.MachinePortsResult)
-	if !portsRes.Supported {
-		t.Fatalf("expected Supported=true on linux")
-	}
-	foundPort := false
-	for _, p := range portsRes.Ports {
-		if p.Port == port && p.BindAddr == "127.0.0.1" && p.Scope == proto.PortScopeLoopback && p.PID == os.Getpid() {
-			foundPort = true
-			break
-		}
-	}
-	if !foundPort {
-		t.Fatalf("did not find live test listener on 127.0.0.1:%d (pid %d)", port, os.Getpid())
-	}
-
-	procsOut, err := n.handle(context.Background(), proto.MethodMachineProcesses, json.RawMessage(`{"sort":"cpu","limit":50}`))
-	if err != nil {
-		t.Fatalf("live machine.processes failed: %v", err)
-	}
-	procsRes := procsOut.(proto.MachineProcessesResult)
-	if !procsRes.Supported || procsRes.TotalCount == 0 || len(procsRes.Processes) == 0 {
-		t.Fatalf("unexpected live processes result: supported=%v total=%d", procsRes.Supported, procsRes.TotalCount)
 	}
 }

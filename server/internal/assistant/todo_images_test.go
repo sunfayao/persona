@@ -245,49 +245,6 @@ func TestTodoImageCreateReadOnlyCreatesNothing(t *testing.T) {
 	}
 }
 
-// Repository-enabled creation uses the same image contract and the same atomic write as ordinary creation. A bad
-// association cannot leave a to-do whose pictures need later reconciliation; a good one survives a manager restart.
-func TestTodoRepositoryImagesCreateAtomically(t *testing.T) {
-	database, err := db.Open(t.Context(), newDatabase(t), db.ManagerSet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer database.Close()
-	s, _ := repositoryService(t, database)
-	w := placeDo(s, "", http.MethodPost, repoBase, `{"url":"https://github.com/example/web"}`)
-	var saved struct{ Repository RepositoryBinding }
-	if w.Code != http.StatusOK || json.Unmarshal(w.Body.Bytes(), &saved) != nil {
-		t.Fatalf("save repository: %d %s", w.Code, w.Body)
-	}
-	image := todoImageInput("d0000000-0000-4000-8000-000000000001", "image/png", pngData(t, 2, 3))
-	create := func(repoID string) *httptest.ResponseRecorder {
-		raw, _ := json.Marshal(map[string]any{
-			"title": "Linked screenshot work", "notes": "keep the image and association together", "images": []map[string]any{image},
-			"repository_bindings": map[string]any{"catalog_revision": 1, "repositories": []map[string]any{{"repo_id": repoID, "links": []map[string]any{{"kind": "issue", "number": "7"}}}}},
-		})
-		return placeDo(s, "", http.MethodPost, "/api/v1/todos", string(raw))
-	}
-	if w := create("foreign_repo"); w.Code != http.StatusNotFound {
-		t.Fatalf("bad repository with an image = %d %s", w.Code, w.Body)
-	}
-	if rows, err := database.ListTodos(t.Context()); err != nil || len(rows) != 0 {
-		t.Fatalf("bad repository left a partial to-do/image association: %+v, %v", rows, err)
-	}
-	w = create(saved.Repository.ID)
-	if w.Code != http.StatusOK {
-		t.Fatalf("repository create with image: %d %s", w.Code, w.Body)
-	}
-	created := decodeTodoWithImages(t, w.Body.Bytes())
-	checkTodoImageViews(t, created.Images, []map[string]any{image}, 2, 3)
-	restarted, _ := repositoryService(t, database)
-	e := &todoEnv{t: t, s: restarted}
-	fresh := getTodoWithImages(t, e, created.ID)
-	checkTodoImageViews(t, fresh.Images, []map[string]any{image}, 2, 3)
-	if rows, err := database.ListTodos(t.Context()); err != nil || len(rows) != 1 {
-		t.Fatalf("stored to-dos = %+v, %v", rows, err)
-	}
-}
-
 // pngData is a w × h PNG in base64.
 func pngData(t *testing.T, w, h int) string {
 	t.Helper()

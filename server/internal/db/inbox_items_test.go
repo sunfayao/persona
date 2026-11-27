@@ -442,11 +442,14 @@ func TestInboxJSONMigrationKeepsStoredItems(t *testing.T) {
 		t.Fatal(err)
 	}
 	// json, and a document stored compressed before is compressed again with lz4 (the same ALTER: copied as it is it
-	// would stay pglz).
-	var typ, compression string
+	// would stay pglz), on a server built with lz4.
+	var typ, compression, wantCompression string
+	if err := d.pool.QueryRow(ctx, `SELECT CASE WHEN 'lz4' = ANY(enumvals) THEN 'lz4' ELSE 'pglz' END FROM pg_settings WHERE name = 'default_toast_compression'`).Scan(&wantCompression); err != nil {
+		t.Fatal(err)
+	}
 	if err := d.pool.QueryRow(ctx, `SELECT pg_typeof(data)::text, pg_column_compression(data) FROM inbox_items WHERE id = 'lark:2'`).
-		Scan(&typ, &compression); err != nil || typ != "json" || compression != "lz4" {
-		t.Fatalf("data is %q compressed %q (%v), want json and lz4", typ, compression, err)
+		Scan(&typ, &compression); err != nil || typ != "json" || compression != wantCompression {
+		t.Fatalf("data is %q compressed %q (%v), want json and %s", typ, compression, err, wantCompression)
 	}
 	for _, sql := range []string{doneInboxItemsSQLBefore0471, doneInboxItemsSQL} {
 		if got := page(sql); got != want {

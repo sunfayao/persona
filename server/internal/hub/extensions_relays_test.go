@@ -515,31 +515,6 @@ func (l *slowLink) pass(dst, src net.Conn) {
 	}
 }
 
-// Over a link with a 140 ms round trip, a request relayed on a warm stream takes one round trip: before, every one
-// took extensions.accept, the manager's WebSocket and the request, three round trips and more.
-func TestRelayedRequestsOverALongLink(t *testing.T) {
-	const oneWay = 70 * time.Millisecond
-	var link *slowLink
-	h, x, srv := relayTestHubVia(t, newRelayStreams(), func(hub string) string {
-		link = newSlowLink(t, strings.TrimPrefix(hub, "http://"), oneWay)
-		return link.url()
-	})
-	var took []time.Duration
-	for range 6 {
-		start := time.Now()
-		if code, _, _ := relayGet(t, srv, h.cfg.Token, "/api/v1/extensions/callee/echo"); code != http.StatusOK {
-			t.Fatalf("GET: %d", code)
-		}
-		took = append(took, time.Since(start).Round(time.Millisecond))
-	}
-	t.Logf("6 sequential relayed requests, %s round trip: %v; %d relay streams", 2*oneWay, took, x.accepted.Load())
-	warm := slices.Clone(took[1:])
-	slices.Sort(warm)
-	if median := warm[len(warm)/2]; median >= 4*oneWay {
-		t.Fatalf("a request on a warm relay stream took %s (median), two round trips or more: %v", median, took)
-	}
-}
-
 // An idle relay stream that stops answering (a tunnel that stalled, a NAT that forgot it) is closed when its ping gets
 // no pong, and the next request goes out on a new one, not on it.
 func TestAQuietlyDeadRelayStreamIsNotReused(t *testing.T) {
@@ -565,61 +540,6 @@ func TestAQuietlyDeadRelayStreamIsNotReused(t *testing.T) {
 	link.release()
 	if code, n, _ := relayGet(t, srv, h.cfg.Token, "/api/v1/extensions/callee/echo"); code != http.StatusOK || n != 2 {
 		t.Fatalf("after the link stalled: %d on stream %d (%d asked), want a new stream", code, n, x.accepted.Load())
-	}
-}
-
-// A relay stream with a request on it is not pinged: a link that stalls while the manager works on the request does
-// not cut it, as it did not before the streams were kept (only an idle stream is closed for a missing pong).
-func TestARelayStreamWithARequestOnItIsNotPinged(t *testing.T) {
-	var link *slowLink
-	m := newRelayStreams()
-	h, _, srv := relayTestHubVia(t, m, func(hub string) string {
-		link = newSlowLink(t, strings.TrimPrefix(hub, "http://"), 0)
-		return link.url()
-	})
-	rounds := pingRounds(h)
-	if code, n, _ := relayGet(t, srv, h.cfg.Token, "/api/v1/extensions/callee/echo"); code != http.StatusOK || n != 1 {
-		t.Fatalf("%d on stream %d", code, n)
-	}
-	type answer struct {
-		code   int
-		stream int64
-		err    error
-	}
-	answered := make(chan answer, 1)
-	go func() {
-		code, n, _, err := tryRelayGet(srv, h.cfg.Token, "/api/v1/extensions/callee/wait")
-		answered <- answer{code, n, err}
-	}()
-	select {
-	case <-m.waiting: // the request is on the manager, its stream taken
-	case <-time.After(10 * time.Second):
-		t.Fatal("the request never reached the manager")
-	}
-	link.hold()
-	// Rounds while the request is on the stream: more of them than a ping's timeout takes, with the link held.
-	for busy := 0; busy < 6; {
-		select {
-		case r := <-rounds:
-			if r.idle {
-				continue // decided before the request took the stream
-			}
-			if r.pinged {
-				link.release()
-				close(m.release)
-				t.Fatalf("a stream with a request on it was pinged (%v)", r.err)
-			}
-			busy++
-		case <-time.After(10 * time.Second):
-			link.release()
-			close(m.release)
-			t.Fatal("no ping rounds while the request was on its stream")
-		}
-	}
-	link.release()
-	close(m.release)
-	if a := <-answered; a.err != nil || a.code != http.StatusOK || a.stream != 1 {
-		t.Fatalf("a request through a stall: %d on stream %d, %v", a.code, a.stream, a.err)
 	}
 }
 

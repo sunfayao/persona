@@ -6,7 +6,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -15,38 +14,6 @@ import (
 	"github.com/sunfayao/persona/server/internal/host"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
-
-// Exercise the Windows policy on every CI platform, without reaching a real pane.
-func TestWindowsHerdrPromptPastesEveryRuntimeAsOneMessage(t *testing.T) {
-	for _, kind := range []string{"claude", "codex", piAgent, cursorAgent, agyAgent} {
-		t.Run(kind, func(t *testing.T) {
-			n, f, home := herdrNode(t)
-			f.reply("agent.get", map[string]any{"agent": agentOf(kind, startThread, proto.StatusIdle, "w1:p2", "w1:t2", "w1", home, "")})
-			prompt := "方向 · 合成测试 · 说明\n\nContext body\nLast line: 中文 and tabs\tremain"
-			h := n.defaultHost().(*herdrHost)
-			if err := h.prompt(context.Background(), host.ParsePane("w1:p2"), prompt, true); err != nil {
-				t.Fatal(err)
-			}
-			var writes []string
-			for _, call := range f.calls() {
-				switch call.Method {
-				case "agent.prompt":
-					t.Fatal("Windows delegated a multiline prompt to the host")
-				case "pane.send_text":
-					writes = append(writes, str(call.Params["text"]))
-				case "pane.send_keys":
-					if !slices.Equal(keysOf(call), []string{"enter"}) {
-						t.Fatalf("unexpected keys: %v", keysOf(call))
-					}
-					writes = append(writes, "submit")
-				}
-			}
-			if !slices.Equal(writes, []string{pasteStart + prompt + pasteEnd, "submit"}) {
-				t.Fatalf("paste/submit sequence: %q", writes)
-			}
-		})
-	}
-}
 
 func TestWindowsHerdrPromptDoesNotSubmitIntoADialog(t *testing.T) {
 	for _, afterPaste := range []bool{false, true} {

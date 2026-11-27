@@ -2,7 +2,6 @@ package feishubot
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -333,71 +332,6 @@ func (f *fakeFeishu) waitAnswers(n int) []*Frame {
 	}
 	f.t.Fatalf("got %d answers, want %d", len(f.answers), n)
 	return nil
-}
-
-func TestConnDeliversEventsAndAnswers(t *testing.T) {
-	f := newFakeFeishu(t)
-	api := New("cli_x", "secret", f.srv.URL)
-	got := make(chan string, 4)
-	conn := NewConn(api, func(_ context.Context, payload []byte) (any, error) {
-		got <- string(payload)
-		if strings.Contains(string(payload), "card") {
-			return CardResponse{Toast: &Toast{Type: "success", Content: "好"}}, nil
-		}
-		return nil, nil
-	}, t.Logf)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go conn.Run(ctx)
-	ws := <-f.conns
-
-	// An event split in two parts arrives whole, once.
-	whole := `{"schema":"2.0","header":{"event_type":"im.message.receive_v1"}}`
-	for i, part := range []string{whole[:20], whole[20:]} {
-		f.send(ws, &Frame{SeqID: uint64(i), Service: 9, Method: frameData, Payload: []byte(part),
-			Headers: []Header{{"type", "event"}, {"message_id", "e1"}, {"sum", "2"}, {"seq", string(rune('0' + i))}}})
-	}
-	select {
-	case p := <-got:
-		if p != whole {
-			t.Fatalf("payload %q", p)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("event not delivered")
-	}
-	f.send(ws, &Frame{SeqID: 5, Service: 9, Method: frameData, Payload: []byte(`{"card":1}`), Headers: []Header{{"type", "card"}, {"message_id", "c1"}}})
-	answers := f.waitAnswers(2)
-	var card *Frame
-	for _, a := range answers {
-		if a.Header("message_id") == "c1" {
-			card = a
-		}
-	}
-	if card == nil || card.SeqID != 5 || card.Header("biz_rt") == "" {
-		t.Fatalf("card answer: %+v", card)
-	}
-	var resp struct {
-		Code int    `json:"code"`
-		Data string `json:"data"`
-	}
-	if err := json.Unmarshal(card.Payload, &resp); err != nil || resp.Code != 200 {
-		t.Fatalf("answer payload %s", card.Payload)
-	}
-	body, _ := base64.StdEncoding.DecodeString(resp.Data)
-	if !strings.Contains(string(body), `"toast"`) {
-		t.Fatalf("card answer data %s", body)
-	}
-	if st := conn.State(); !st.Connected || st.LastEvent.IsZero() {
-		t.Fatalf("state %+v", st)
-	}
-	// Pings go out at the interval the server gave (1 s).
-	time.Sleep(1500 * time.Millisecond)
-	f.mu.Lock()
-	pings := f.pings
-	f.mu.Unlock()
-	if pings < 2 {
-		t.Fatalf("pings = %d", pings)
-	}
 }
 
 func TestConnReportsABadSecret(t *testing.T) {

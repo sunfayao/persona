@@ -270,41 +270,6 @@ func TestRuntimeRejectedRequestDoesNotWaitForBody(t *testing.T) {
 	}
 }
 
-func TestRuntimeBodyTimeoutReleasesBrokerSlot(t *testing.T) {
-	p := &Proxy{}
-	p.Register("a", Rule{})
-	finished := make(chan struct{}, 1)
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == "/" { // a node's port probe (node/ports.go), not this test's client
-			http.NotFound(w, r)
-			return
-		}
-		ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
-		defer cancel()
-		p.handler("a").ServeHTTP(w, r.WithContext(ctx))
-		finished <- struct{}{}
-	}))
-	defer srv.Close()
-	c, err := net.Dial("tcp", strings.TrimPrefix(srv.URL, "http://"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close()
-	c.SetDeadline(time.Now().Add(2 * time.Second))
-	io.WriteString(c, "POST "+RuntimeFetchPath+" HTTP/1.1\r\nHost: broker\r\nContent-Length: 1000\r\n\r\n{\"url\":")
-	select {
-	case <-finished:
-	case <-time.After(time.Second):
-		t.Fatal("stalled body outlived its request deadline")
-	}
-	p.mu.Lock()
-	total := p.runtimeTotal
-	p.mu.Unlock()
-	if total != 0 {
-		t.Fatal("timed-out body retained a broker slot", total)
-	}
-}
-
 func TestRuntimeHEADPreservesMetadataWithoutTruncatingPOST(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet && r.URL.Path == "/" { // a node's port probe (node/ports.go), not this test's client

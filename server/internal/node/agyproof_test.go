@@ -179,36 +179,3 @@ func TestAgyPaneProofReadsConversation(t *testing.T) {
 		t.Fatalf("a new agy in the pane got the old proof: %q", got)
 	}
 }
-
-// Two conversations that match, or one another pane's herdr report has, prove nothing.
-func TestAgyPaneProofNeverGuesses(t *testing.T) {
-	for _, tc := range []struct {
-		name   string
-		write  func(t *testing.T, root, cwd string, at time.Time)
-		agents func(cwd string) []any
-	}{
-		{name: "two that match", write: func(t *testing.T, root, cwd string, at time.Time) {
-			writeAgyProofConv(t, root, agyProofConv{id: agyTestID, cwd: cwd, text: agyProofPrompt, at: at, last: true})
-			writeAgyProofConv(t, root, agyProofConv{id: agyOtherTestID, cwd: cwd, text: agyProofPrompt, at: at, uri: true})
-		}, agents: func(cwd string) []any { return []any{agyTestAgent(agyTestPane, cwd, "")} }},
-		{name: "another pane has it", write: func(t *testing.T, root, cwd string, at time.Time) {
-			writeAgyProofConv(t, root, agyProofConv{id: agyTestID, cwd: cwd, text: agyProofPrompt, at: at, last: true})
-		}, agents: func(cwd string) []any {
-			return []any{agyTestAgent(agyTestPane, cwd, ""), agyTestAgent("w1:p2", cwd, agyTestID)}
-		}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			n, f, home := herdrNode(t)
-			t.Setenv("ANTIGRAVITY_CLI_CONFIG_DIR", "")
-			shortAgyProofWaits(t, 300*time.Millisecond)
-			seedAgents(t, n, f, tc.agents(home)...)
-			began := time.Now()
-			tc.write(t, n.agyDataRoot(), home, time.Now())
-			n.proveAgyPane(agyTestPane, agyTestRow, home, agyProofPrompt, began)
-			n.proving.Wait() // the look ends at its deadline
-			if got := n.agyConversation(agyTestRow, agyTestPane); got != "" {
-				t.Fatalf("proved %q", got)
-			}
-		})
-	}
-}

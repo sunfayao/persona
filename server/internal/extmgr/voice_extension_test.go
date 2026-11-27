@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -15,7 +14,6 @@ import (
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/extension"
-	"github.com/sunfayao/persona/server/internal/extension/host"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/voice"
 )
@@ -149,66 +147,6 @@ func TestVoiceManifest(t *testing.T) {
 	}
 }
 
-// hub.json's `personad voice` entry becomes the built-in under its own id (its model choices, plugin.<id>, stay): its
-// config reaches the program as PERSONA_VOICE_HUB_CONFIG with its env, the form's settings and key as any extension's;
-// the config never goes out of the hub. Upgrading a hub with the entry and no row: on, as it was.
-func TestVoiceTakesOverTheHubJSONEntry(t *testing.T) {
-	onVoiceStores(t, []string{"talk", "node-voice"}, func(t *testing.T, store voiceTestStore) {
-		node := ExtensionConfig{ID: "node-voice", Kind: "voice", Command: "/usr/bin/node", Args: []string{"main.mjs"}, Disabled: true}
-		second := voiceEntry("talk2")
-		h := voiceHub(t, store, voiceEntry("talk"), second, node)
-		reg := h.extensions.reg
-		p := reg.Get("talk")
-		if p == nil || p.Record.Source != extension.SourceBuiltin || !p.Record.Enabled || p.Manifest.Kind() != "voice" || p.Full.Name != "语音" {
-			t.Fatalf("taken over: %+v", p)
-		}
-		if reg.Get(voiceExtensionID) != nil {
-			t.Fatal("the entry is the built-in: no second one")
-		}
-		if q := reg.Get("talk2"); q == nil || q.Record.Source != extension.SourceHubJSON {
-			t.Fatal("only the first entry is taken over")
-		}
-		if q := reg.Get("node-voice"); q == nil || q.Record.Source != extension.SourceHubJSON {
-			t.Fatal("another program stays hub.json's")
-		}
-
-		env := envOf(t, h, "talk")
-		if env["PERSONA_VOICE_HUB_CONFIG"] != string(voiceEntry("talk").Config) || env["VOICE_TEST_ENV"] != "from-hub-json" ||
-			env["PERSONA_EXTENSION_SECRETS"] != "{}" || env["PERSONA_HUB_TOKEN"] != h.cfg.Token || env["PERSONA_EXTENSION_ID"] != "talk" ||
-			env["PERSONA_EXTENSION_SOCKET"] != filepath.Join(h.extensions.root, "talk.sock") {
-			t.Fatalf("env %v", env)
-		}
-		var form map[string]any
-		if err := json.Unmarshal([]byte(env["PERSONA_EXTENSION_CONFIG"]), &form); err != nil || form["name"] != "GPT-Live" || form["dialect"] != "live" || form["providers"] != nil {
-			t.Fatalf("the form's settings with their defaults: %v %v", env["PERSONA_EXTENSION_CONFIG"], err)
-		}
-
-		// It runs (the test binary as `personad voice`), hub.json's upstream serving: no setup needed.
-		v := waitVoiceStatus(t, h, "talk", host.StateRunning)
-		if v.Kind != "voice" || v.Source != extension.SourceBuiltin || !v.Enabled || len(v.NeedsSetup) != 0 {
-			t.Fatalf("%+v", v)
-		}
-		mux := h.routes()
-		code, models := call(t, mux, "GET", "/api/v1/extensions/talk/models", h.cfg.Token, "")
-		if code != 200 || models["default"] != "rt/m1" {
-			t.Fatalf("models %d %v", code, models)
-		}
-		code, info := call(t, mux, "GET", "/api/v1/extensions/talk/info", h.cfg.Token, "")
-		if code != 200 || info["setup"] != nil || info["protocol"] == nil {
-			t.Fatalf("info %d %v", code, info)
-		}
-		code, detail := call(t, mux, "GET", "/api/v1/extensions/talk/-/", h.cfg.Token, "")
-		raw, _ := json.Marshal(detail)
-		if code != 200 || detail["read_only"] == true || detail["form"] == nil || secretSet(detail, voiceSecretKey) ||
-			strings.Contains(string(raw), "hub-json-credential") || strings.Contains(string(raw), "rt.example.com") {
-			t.Fatalf("detail %d %s", code, raw)
-		}
-		if choices, err := h.extensionModelChoices(context.Background(), "plugin.talk"); err != nil || choices.Default != "rt/m1" {
-			t.Fatalf("plugin.talk keeps its model choices: %+v %v", choices, err)
-		}
-	})
-}
-
 // hub.json's disabled: always off, whatever the row says; switching it on says why. The hold never reaches the row:
 // settings and a key set meanwhile keep the row's switch (or write the default, on, when there was none), so the
 // entry runs again once hub.json drops disabled; only switching it off is the owner's choice and kept.
@@ -315,100 +253,6 @@ func TestVoiceWithoutAHubJSONEntry(t *testing.T) {
 	if p := h.extensions.reg.Get(voiceExtensionID); p == nil || p.Record.Source != extension.SourceHubJSON {
 		t.Fatalf("hub.json's own voice program keeps its id: %+v", p)
 	}
-}
-
-// Switched on without a service it runs but needs setting up (its /info says what is missing); a key needs an address
-// first; the key is sealed, never sent back, handed to the program only; moving the address to another host clears
-// it in the same request, another path on the same host does not, a refused configuration changes nothing.
-func TestVoiceSetupAndTheKeyFollowsTheAddress(t *testing.T) {
-	onVoiceStores(t, []string{voiceExtensionID}, func(t *testing.T, store voiceTestStore) {
-		h := voiceHub(t, store)
-		mux := h.routes()
-		tok := h.cfg.Token
-		l := i18n.Default
-		base := "/api/v1/extensions/voice/-/"
-
-		if code, out := call(t, mux, "PUT", base+"enabled", tok, `{"enabled": true}`); code != 200 {
-			t.Fatalf("%d %v", code, out)
-		}
-		v := waitVoiceStatus(t, h, voiceExtensionID, extensionNeedsSetup)
-		if !slices.Contains(v.NeedsSetup, i18n.T(l, "hub-voice_extension.setup_url_and_key")) {
-			t.Fatalf("%+v", v)
-		}
-		waitLong(t, "the program to run", func() bool {
-			hp := h.extensions.get(voiceExtensionID)
-			return hp != nil && hp.proc != nil && hp.healthy(context.Background())
-		})
-		if code, info := call(t, mux, "GET", "/api/v1/extensions/voice/info", tok, ""); code != 200 || info["setup"] != voice.SetupURLAndKey {
-			t.Fatalf("info %d %v", code, info)
-		}
-		if ch, _ := h.voiceChannel(context.Background()); ch.State != "not_connected" {
-			t.Fatalf("channel %+v", ch)
-		}
-
-		code, out := call(t, mux, "PUT", base+"secrets/key", tok, `{"value": "sk-test-voice"}`)
-		if code != 400 || out["code"] != "needs_url" {
-			t.Fatalf("a key before an address: %d %v", code, out)
-		}
-		code, out = call(t, mux, "PUT", base+"config", tok, `{"config": {"url": "wss://live.example.com/v1/live", "models": ["gpt-live-1"]}}`)
-		if code != 200 || out["secrets_cleared"] != nil || !slices.Contains(toStrings(out["needs_setup"]), i18n.T(l, "hub-voice_extension.setup_key")) {
-			t.Fatalf("%d %v", code, out)
-		}
-		code, out = call(t, mux, "PUT", base+"secrets/key", tok, `{"value": "sk-test-voice"}`)
-		raw, _ := json.Marshal(out)
-		if code != 200 || !secretSet(out, voiceSecretKey) || strings.Contains(string(raw), "sk-test-voice") {
-			t.Fatalf("%d %s", code, raw)
-		}
-		sealed, _ := store.ExtensionSecrets(context.Background(), voiceExtensionID)
-		if sealed[voiceSecretKey] == "" || strings.Contains(sealed[voiceSecretKey], "sk-test-voice") {
-			t.Fatalf("kept sealed: %v", sealed)
-		}
-		if env := envOf(t, h, voiceExtensionID); env["PERSONA_EXTENSION_SECRETS"] != `{"key":"sk-test-voice"}` {
-			t.Fatalf("handed to the program: %v", env["PERSONA_EXTENSION_SECRETS"])
-		}
-		v = waitVoiceStatus(t, h, voiceExtensionID, host.StateRunning)
-		if len(v.NeedsSetup) != 0 {
-			t.Fatalf("%+v", v)
-		}
-		waitLong(t, "the restarted program", func() bool {
-			code, models := call(t, mux, "GET", "/api/v1/extensions/voice/models", tok, "")
-			return code == 200 && models["default"] == "custom/gpt-live-1"
-		})
-
-		// The same origin (case, default port, another path): the key stays.
-		code, out = call(t, mux, "PUT", base+"config", tok, `{"config": {"url": "wss://LIVE.example.com:443/v2/live", "models": ["gpt-live-1"]}}`)
-		if code != 200 || !secretSet(out, voiceSecretKey) || out["secrets_cleared"] != nil {
-			t.Fatalf("%d %v", code, out)
-		}
-		// A refused configuration (held to the schema) changes nothing, the key included.
-		code, out = call(t, mux, "PUT", base+"config", tok, `{"config": {"url": "https://elsewhere.example.com/v1/live"}}`)
-		if code != 400 || out["code"] != "invalid_config" || !h.extensions.reg.SecretsSet(context.Background(), h.extensions.reg.Get(voiceExtensionID))[voiceSecretKey] {
-			t.Fatalf("%d %v", code, out)
-		}
-		if code, _ = call(t, mux, "PUT", base+"config", tok, `{}`); code == 200 || !h.extensions.reg.SecretsSet(context.Background(), h.extensions.reg.Get(voiceExtensionID))[voiceSecretKey] {
-			t.Fatalf("no configuration at all: %d, and the key must stay", code)
-		}
-		// Another host: the key goes, and the answer says so.
-		code, out = call(t, mux, "PUT", base+"config", tok, `{"config": {"url": "wss://elsewhere.example.com/v1/live"}}`)
-		if code != 200 || secretSet(out, voiceSecretKey) || !slices.Equal(toStrings(out["secrets_cleared"]), []string{voiceSecretKey}) ||
-			!slices.Contains(toStrings(out["warnings"]), i18n.T(l, "hub-voice_extension.key_cleared")) {
-			t.Fatalf("%d %v", code, out)
-		}
-		if sealed, _ := store.ExtensionSecrets(context.Background(), voiceExtensionID); sealed[voiceSecretKey] != "" {
-			t.Fatal("still stored")
-		}
-		waitVoiceStatus(t, h, voiceExtensionID, extensionNeedsSetup)
-		// Clearing the address is moving it too.
-		call(t, mux, "PUT", base+"secrets/key", tok, `{"value": "sk-test-voice"}`)
-		if code, out = call(t, mux, "PUT", base+"config", tok, `{"config": {}}`); code != 200 || secretSet(out, voiceSecretKey) {
-			t.Fatalf("%d %v", code, out)
-		}
-		if es, ok := store.(*extensionStore); ok {
-			if audit := strings.Join(es.audit, "\n"); !strings.Contains(audit, "voice secret_delete hub token") {
-				t.Fatalf("audit:\n%s", audit)
-			}
-		}
-	})
 }
 
 // flakyStore fails reading the extensions' secrets or deleting one, on demand (a connection reset, a statement

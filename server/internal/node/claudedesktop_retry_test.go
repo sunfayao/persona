@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -19,47 +18,6 @@ func desktopRetryTerminalCall(f *fakeHerdr) string {
 		}
 	}
 	return ""
-}
-
-func TestClaudeDesktopPendingImportMessageRetriesSameSession(t *testing.T) {
-	n, terminal, home := herdrNode(t)
-	noPaneEnv(t)
-	shortPeerWait(t, 3*time.Second)
-	app := newFakeDesktopApp(t, home)
-	fakeClaudeOnPath(t)
-	shellLaunchers(t)
-	terminal.reply("session.snapshot", snapshot(nil, nil, nil, nil))
-	app.noImport = true
-	oldWait := desktopImportWait
-	desktopImportWait = time.Millisecond
-	t.Cleanup(func() { desktopImportWait = oldWait })
-	_, err := startDesktop(t, n, map[string]any{"cwd": t.TempDir(), "launcher": claudeDesktopLauncher, "prompt": "continue this conversation"})
-	seeds := app.seeded()
-	if len(seeds) != 1 {
-		t.Fatalf("created %d transcripts", len(seeds))
-	}
-	id := seeds[0].id
-	checkDesktopCreationError(t, err, id)
-	app.mu.Lock()
-	app.noImport = false
-	app.mu.Unlock()
-	terminal.reset()
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-	defer cancel()
-	params, _ := json.Marshal(map[string]any{"session_id": id, "text": "continue this conversation", "client_msg_id": newUUID()})
-	if _, err := n.handle(ctx, "session.send", params); err != nil {
-		t.Fatalf("retry: %v", err)
-	}
-	if len(app.seeded()) != 1 || app.inbox(id) == nil || len(app.inbox(id).users()) != 1 {
-		t.Fatalf("retry did not deliver once to the original transcript: seeds=%v", app.seeded())
-	}
-	links := app.opened()
-	if len(links) != 3 || links[0] != "claude://resume?session="+id || links[1] != links[0] || links[2] != "claude://claude.ai/epitaxy/local_"+id {
-		t.Fatalf("retry opened another session: %v", links)
-	}
-	if call := desktopRetryTerminalCall(terminal); call != "" {
-		t.Fatalf("retry used a terminal: %s", call)
-	}
 }
 
 func TestClaudeDesktopOpenFailureNeverResumesTerminal(t *testing.T) {

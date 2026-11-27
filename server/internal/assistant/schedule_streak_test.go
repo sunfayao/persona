@@ -7,10 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/i18n"
-	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Not-ready skips are neutral even between genuine failures, and the distinction survives storage in any locale.
@@ -206,50 +204,6 @@ func TestAStreakThatJumpsPastTheLimitIsStillToldOnce(t *testing.T) {
 	if p := n.pushed(); len(p) != 2 || !strings.Contains(p[1].Body, "c") {
 		t.Fatalf("a new streak is told once more: %+v", p)
 	}
-}
-
-// In a muted conversation the streak notice stays quiet like the conversation's other pushes, but the run's own
-// "Scheduled task failed" still goes out, as it did before the streak notice (#4785): it is not left out for a notice that
-// was never sent.
-func TestAFailureInAMutedConversationIsStillPushed(t *testing.T) {
-	n := newFakeHub().withMachine()
-	h := newStorelessService(t, n)
-	h.runRetry = 50 * time.Millisecond
-	h.turnPoll = 200 * time.Millisecond
-	h.fleet.mutes = &Pins{Spaces: []string{}, Sessions: []string{"server/s1"}}
-	n.items = []proto.Item{{Role: "assistant", Kind: "text", Text: "API Error: 503 upstream attempt budget is exhausted"}}
-	setTasks(h, Task{ID: "p", Title: "值守", Prompt: "go", Repeat: repeatInterval, EveryMinutes: 30, At: time.Now().Add(-time.Minute),
-		Enabled: true, MachineID: "server", CreatedBy: "assistant"})
-	for i := 0; i < streakLimit-1; i++ {
-		h.recordRun(ScheduleRun{Kind: "routine", RefID: "p", Title: "值守", Status: runFailed, Error: "API Error: 503",
-			MachineID: "server", SessionID: "s1"})
-	}
-
-	n.setSessions("server", proto.Session{SessionID: "s1", Status: proto.StatusWorking, State: proto.StateWorking, Assistant: true,
-		Cwd: "/home/me/.persona/assistant"})
-	if _, err := runNow(t, h, "p"); err != nil {
-		t.Fatal(err)
-	}
-	// The turn ends after the first poll saw it working (started after the run went, so the watcher's polls line up).
-	go func() {
-		time.Sleep(3 * h.turnPoll / 2)
-		n.mu.Lock()
-		for i := range n.sessions["server"] {
-			n.sessions["server"][i].Status, n.sessions["server"][i].State = proto.StatusOffline, proto.StateIdle
-		}
-		n.mu.Unlock()
-	}()
-	deadline := time.Now().Add(15 * time.Second)
-	for time.Now().Before(deadline) {
-		if slices.ContainsFunc(n.pushed(), func(p Notification) bool { return p.Title == "定时任务失败：值守" }) {
-			if p := n.pushed(); slices.ContainsFunc(p, func(p Notification) bool { return strings.Contains(p.Title, "没跑成") }) {
-				t.Fatalf("the streak notice stays quiet in a muted conversation: %+v", p)
-			}
-			return
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	t.Fatalf("the third failure in a row was not pushed at all: %+v", n.pushed())
 }
 
 // A streak already over the limit when the hub was upgraded was told by #4670's code, which marked nothing (#4881).

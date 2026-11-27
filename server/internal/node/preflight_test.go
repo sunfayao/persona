@@ -43,14 +43,6 @@ func symlink(t *testing.T, target, link string) {
 	}
 }
 
-// testPreflightEnv reads with a short stall; the child (the test binary) gets the tests' long start (TestMain).
-func testPreflightEnv(home string) preflightEnv {
-	env := preflightEnv{goos: "linux", home: home, via: "", exe: "/x/personad", stall: 400 * time.Millisecond,
-		start: preflightStart}
-	env.child, env.childEnv = preflightChildCmd("")
-	return env
-}
-
 func TestBlockedPath(t *testing.T) {
 	for _, tc := range []struct {
 		r    preflightResult

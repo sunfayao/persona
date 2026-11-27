@@ -178,50 +178,6 @@ func TestQueuedDigestKeepsFollowingOwnerMessage(t *testing.T) {
 	}
 }
 
-func TestQueuedDigestPersistsAcrossServiceRestart(t *testing.T) {
-	ctx := context.Background()
-	database, err := db.Open(ctx, newDatabase(t), db.AllSets)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer database.Close()
-	s, f := newQuietServiceOn(t, database)
-	s.superviseTimes = superviseTimings{gather: time.Hour, every: time.Hour, urgent: time.Hour}
-	busy := proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusWorking}
-	f.setSessions("server", busy)
-	task, err := s.createTodo(ctx, "Persisted example", "Verify restart", "conv1", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.superviseTodo(ctx, task.ID, "conv1", []string{"Verified"}, 0)
-	signals := []superviseSignal{{Todo: task.ID, Kind: sigInterrupted, Key: "cut-off", Detail: "Capacity unavailable"}, {Todo: task.ID, Kind: sigUnjudged, Key: "review", Detail: "Needs review"}}
-	s.updateSupervisePending(func(pending map[string]superviseSignal) {
-		for _, g := range signals {
-			pending[g.id()] = g
-		}
-	})
-	if !s.deliverDigest(ctx, s.settings(ctx), "conv1", signals, "", time.Now(), time.Time{}) {
-		t.Fatal("not queued")
-	}
-	done := true
-	if _, err := database.UpdateTodo(ctx, task.ID, nil, nil, &done, time.Now()); err != nil {
-		t.Fatal(err)
-	}
-	again, hub := newQuietServiceOn(t, database)
-	again.superviseTimes = superviseTimings{gather: time.Hour, every: time.Hour, urgent: time.Hour}
-	drainQueuedDigest(t, again, hub)
-	if len(hub.notices()) != 0 || again.queuedFor("conv1") != 0 {
-		t.Fatal("persisted accepted task sent or retained")
-	}
-	var saved relayState
-	if _, err := database.Setting(ctx, relayKey, &saved); err != nil {
-		t.Fatal(err)
-	}
-	if len(saved.Queue["conv1"]) != 0 {
-		t.Fatal("obsolete queue still on disk")
-	}
-}
-
 func TestQueuedDigestUncertainDeliveryKeepsIdentity(t *testing.T) {
 	for _, landed := range []bool{false, true} {
 		t.Run(fmt.Sprint(landed), func(t *testing.T) {

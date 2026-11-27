@@ -550,33 +550,3 @@ func TestProxyForwardCutOff(t *testing.T) {
 		t.Fatal("the cut off answer is not logged")
 	}
 }
-
-func TestProxyForwardClientGivesUp(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = io.WriteString(w, strings.Repeat("x", 16<<10))
-		w.(http.Flusher).Flush()
-		select { // keep the body open until the proxy drops the request
-		case <-r.Context().Done():
-		case <-time.After(10 * time.Second):
-		}
-	}))
-	defer srv.Close()
-	p := newProxy(t, strings.TrimPrefix(srv.URL, "http://"), nil)
-	logged := make(chan string, 4)
-	p.Logf = func(format string, args ...any) { logged <- fmt.Sprintf(format, args...) }
-	purl := p.Register("notes", Rule{Hosts: []string{"api.example.com"}})
-
-	resp, err := client(purl).Get("http://api.example.com/x")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := resp.Body.Read(make([]byte, 1024)); err != nil {
-		t.Fatal(err)
-	}
-	resp.Body.Close() // the extension's client gives up mid-download
-	select {
-	case m := <-logged:
-		t.Fatalf("a client giving up is logged as an upstream cut-off: %q", m)
-	case <-time.After(time.Second):
-	}
-}

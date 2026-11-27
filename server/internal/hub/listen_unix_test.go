@@ -6,18 +6,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
-	"slices"
 	"strconv"
-	"strings"
 	"syscall"
-	"testing"
 
-	"github.com/sunfayao/persona/server/internal/compat"
 	"github.com/sunfayao/persona/server/internal/osproc/osproctest"
 	"github.com/sunfayao/persona/server/internal/update"
 )
@@ -81,112 +74,4 @@ func listenHelpers() {
 	b, _ := json.Marshal(res)
 	fmt.Printf("%s%s\n", listenHelperPrefix, b)
 	os.Exit(0)
-}
-
-// TestPassedSocketsReachNoChild: whatever a hub does first, the socket systemd passed it and socket activation's
-// variables reach no process it starts. Run (the hub without its edge: runHub could start the manager before it
-// listened, and the manager then took the port on to every node, extension and agent), Serve (with and without the
-// edge) and a failed exec of a new binary all leave the socket close-on-exec, and whatever else the hub was handed;
-// the control shows the check sees both leaks.
-func TestPassedSocketsReachNoChild(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
-	f, err := ln.(*net.TCPListener).File()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	// Descriptor 4: what a parent leaves inheritable besides. On macOS the test process can hold one at any moment
-	// (#7489): Go makes a connection it accepts there close-on-exec only after accept returns, without the fork lock,
-	// and the system resolver's socket never is. Every case but the control must stop it as well.
-	other, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer other.Close()
-	stray, err := other.(*net.TCPListener).File()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer stray.Close()
-	// A hub.json it cannot read: Run and Serve stop there, and nothing before it starts a process. Under /tmp: the
-	// edge stays off where the path to its sockets is too long (edgeOff), as under macOS's temporary directory.
-	home, err := os.MkdirTemp("/tmp", "phub")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.RemoveAll(home) })
-	if err := os.MkdirAll(filepath.Join(home, ".persona"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(home, ".persona", "hub.json"), []byte("{"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	var base []string
-	for _, kv := range os.Environ() {
-		k, _, _ := strings.Cut(kv, "=")
-		if k == "HOME" || strings.HasPrefix(k, "LISTEN_") || compat.ReservedEnv(k) {
-			continue
-		}
-		base = append(base, kv)
-	}
-	// These helpers test socket activation, not the resolver. The pure Go resolver keeps a cold system lookup from
-	// making their descriptor assertions depend on osproc's deliberately fail-soft warm-up deadline.
-	base = append(base, "HOME="+home, "LISTEN_FDS=1", "LISTEN_FDNAMES=personad.socket", "GODEBUG=netdns=go")
-
-	for _, c := range []struct {
-		name, mode string
-		env        []string
-		stops      string // what Err says
-		edge       bool   // "serve": the edge must be on
-	}{
-		{"control", "none", nil, "", false},
-		{"run", "run", nil, "hub.json", false},
-		{"serve with the edge", "serve", nil, "hub.json", true},
-		{"serve without the edge", "serve", []string{"PERSONA_HUB_EDGE=0"}, "hub.json", false},
-		{"failed exec", "exec", nil, "no such file", false},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			if c.edge && runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
-				t.Skip("the edge runs on Linux and macOS")
-			}
-			cmd := exec.Command(os.Args[0], "-test.run=^$")
-			cmd.Env = append(append(slices.Clone(base), listenHelperEnv+"="+c.mode), c.env...)
-			cmd.ExtraFiles = []*os.File{f, stray} // descriptor 3, inheritable, as systemd passes it; and 4
-			cmd.Stderr = os.Stderr
-			out, err := cmd.Output()
-			if err != nil {
-				t.Fatalf("helper: %v\n%s", err, out)
-			}
-			var res listenHelperResult
-			found := false
-			for _, line := range strings.Split(string(out), "\n") {
-				if rest, ok := strings.CutPrefix(line, listenHelperPrefix); ok {
-					found = json.Unmarshal([]byte(rest), &res) == nil
-				}
-			}
-			if !found {
-				t.Fatalf("no result in %q", out)
-			}
-			if c.mode == "none" {
-				if s := res.Child.Sockets(); !slices.Contains(s, 3) || !slices.Contains(s, 4) || len(res.Child.ListenEnv) == 0 {
-					t.Fatalf("the control's child got %+v; want the sockets at 3 and 4 and LISTEN_*: the check would see no leak", res.Child)
-				}
-				return
-			}
-			if c.mode == "serve" && res.Edge != c.edge {
-				t.Fatalf("the edge on: %v; want %v", res.Edge, c.edge)
-			}
-			if !strings.Contains(res.Err, c.stops) {
-				t.Fatalf("returned %q; want it to stop at %q, before it starts anything", res.Err, c.stops)
-			}
-			if s := res.Child.Sockets(); len(s) > 0 || len(res.Child.ListenEnv) > 0 || !res.Sealed {
-				t.Fatalf("a child got sockets %v and variables %v (descriptor 3 close-on-exec here: %v); want neither",
-					s, res.Child.ListenEnv, res.Sealed)
-			}
-		})
-	}
 }

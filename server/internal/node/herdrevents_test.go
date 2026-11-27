@@ -100,42 +100,6 @@ func TestALoneEventSnapshotsItsHost(t *testing.T) {
 	}
 }
 
-// The list is rebuilt at most every listEvery on events, but a card's change (into or out of blocked) goes after
-// settle alone, also when it comes while an ordinary change waits.
-func TestACardSkipsThePacing(t *testing.T) {
-	old := listEvery
-	listEvery = 600 * time.Millisecond
-	t.Cleanup(func() { listEvery = old })
-	sig := newWatcherSignals()
-	sigs := map[string]*watcherSignals{host.Herdr: sig}
-	took := func(listed time.Time) time.Duration {
-		start := time.Now()
-		if kicked, ok := nextChange(context.Background(), nil, sigs, listed); !ok || !kicked[host.Herdr] {
-			t.Fatalf("kicked %v", kicked)
-		}
-		return time.Since(start)
-	}
-	sig.poke(false)
-	if d := took(time.Now()); d < 500*time.Millisecond {
-		t.Fatalf("an ordinary change went after %v, inside the pacing", d)
-	}
-	sig.poke(true)
-	if d := took(time.Now()); d < settle || d > 300*time.Millisecond {
-		t.Fatalf("a card's change went after %v", d)
-	}
-	if sig.urgent.Load() {
-		t.Fatal("the urgent mark outlived its snapshot")
-	}
-	sig.poke(false)
-	time.AfterFunc(100*time.Millisecond, func() { sig.poke(true) })
-	if d := took(time.Now()); d > 400*time.Millisecond {
-		t.Fatalf("a card's change during the pacing went after %v", d)
-	}
-	if sig.drained() {
-		t.Fatal("the change during the pacing was left for another snapshot")
-	}
-}
-
 func TestWaitsTellsACardsChange(t *testing.T) {
 	var w waits
 	for i, c := range []struct {

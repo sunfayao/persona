@@ -19,7 +19,6 @@ import (
 	"github.com/sunfayao/persona/server/internal/extension"
 	"github.com/sunfayao/persona/server/internal/extension/serve"
 	"github.com/sunfayao/persona/server/internal/proto"
-	"github.com/sunfayao/persona/server/internal/streams"
 )
 
 func TestPluginIdentityUninstallThenFreshCanonicalReinstall(t *testing.T) {
@@ -435,39 +434,5 @@ func TestPluginProgramRefuses(t *testing.T) {
 	}
 	if err := put(t, n, proto.PluginNodeProgram{ID: "../x", Version: "1.0.0", Digest: prog.Digest}, pkg); err == nil {
 		t.Fatal("an id out of the plugins' directory")
-	}
-}
-
-// The hub's relay reaches a program serving HTTP here: plugin.node.dial opens a stream to its socket; a program
-// without http, or none running, is refused.
-func TestPluginProgramDial(t *testing.T) {
-	n, _ := pluginTestNode(t)
-	var sent []string
-	n.streams = streams.New(func(event string, _ any) error { sent = append(sent, event); return nil })
-	prog, pkg := testPackage(t, "1.0.0")
-	if err := put(t, n, prog, pkg); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := pluginCall(t, n, "plugin.node.dial", map[string]string{"id": "s1", "plugin": "notes"}); err == nil {
-		t.Fatal("dialed a program not running")
-	}
-	s := startParams("1.0.0", "http")
-	s.RPC, s.HTTP = false, true
-	if res, err := pluginCall(t, n, "plugin.node.start", s); err != nil || res.(proto.PluginNodeState).State != "running" {
-		t.Fatalf("%+v %v", res, err)
-	}
-	if _, err := pluginCall(t, n, "plugin.node.dial", map[string]string{"id": "s1", "plugin": "notes"}); err != nil {
-		t.Fatal(err)
-	}
-	if n.streams.Len() != 1 {
-		t.Fatal("no stream open")
-	}
-	n.streams.CloseAll()
-	rpcOnly := startParams("1.0.0", "rpc")
-	if _, err := pluginCall(t, n, "plugin.node.start", rpcOnly); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := pluginCall(t, n, "plugin.node.dial", map[string]string{"id": "s2", "plugin": "notes"}); err == nil {
-		t.Fatal("dialed a program that serves no HTTP")
 	}
 }

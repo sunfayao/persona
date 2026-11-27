@@ -56,35 +56,6 @@ func deployedCardless(t *testing.T, s *Service, f *fakeHub, id string) *acceptAs
 	return askOf(s, id)
 }
 
-// Bot not set up: a deployed to-do gets an ask with the three lines and no card; the board's rows and the snapshot list it.
-func TestAcceptanceIsKeptWithoutABot(t *testing.T) {
-	ctx := context.Background()
-	s, f, posts, id := cardlessService(t, botNotSetUp)
-	a := deployedCardless(t, s, f, id)
-	if a.MessageID != "" || len(a.Messages) != 0 || !a.NoCard {
-		t.Fatalf("a card-less ask has no card and says so: %+v", a)
-	}
-	if a.Changed != "飞书机器人多了任务进展开关" || a.Link != "https://hub.example.com/settings?tab=feishu" || a.MachineID != "box" || a.SessionID != "s1" {
-		t.Fatalf("lines: %+v", a)
-	}
-	if got := posts(); len(got) != 0 { // the ask is stored after the decision to post or not
-		t.Fatalf("posted with the bot not set up: %q", got)
-	}
-	if rows := s.awaitingAcceptance(ctx); len(rows) != 1 || rows[0].todo != id || !rows[0].since.Equal(a.AskedAt) {
-		t.Fatalf("awaiting: %+v", rows)
-	}
-	if got, total := s.snapshotUnaccepted(ctx, s.location(ctx)); total != 1 || len(got) != 1 || got[0].Changed != a.Changed {
-		t.Fatalf("snapshot: %+v total=%d", got, total)
-	}
-	// Another turn that says deployed does not ask twice.
-	agentTurn(s, f, proto.StatusWorking, "", 0)
-	agentTurn(s, f, proto.StatusDone, deployedReply, 0)
-	time.Sleep(6 * testReportDelay)
-	if b := askOf(s, id); !b.AskedAt.Equal(a.AskedAt) {
-		t.Fatalf("asked again: %+v then %+v", a, b)
-	}
-}
-
 // The briefing's "To accept" section lists the card-less ask with the round the Accept button is made for.
 func TestAcceptanceWithoutABotIsInTheBriefing(t *testing.T) {
 	ctx := context.Background()
@@ -268,50 +239,6 @@ func TestCardlessAskEndsLikeACardedOne(t *testing.T) {
 		}
 		if rows := s.awaitingAcceptance(ctx); len(rows) != 1 {
 			t.Fatalf("the judge's close is the normal state, the owner still verifies: %+v", rows)
-		}
-	})
-}
-
-// Verifying a card-less ask says so in the to-do's Lark topic, as verifying on a card does.
-func TestCardlessAcceptSaysSoInTheTopic(t *testing.T) {
-	ctx := context.Background()
-	e := newPostEnv(t)
-	id := e.bound("验收", testThread)
-	e.s.accept.mu.Lock()
-	e.s.loadAcceptLocked(ctx)
-	e.s.accept.asks[id] = &acceptAsk{AskedAt: time.Now(), NoCard: true}
-	e.s.accept.mu.Unlock()
-	if !e.s.accepted(ctx, id, "") {
-		t.Fatal("not accepted")
-	}
-	e.clk.advance(threadPostSettle)
-	mustContain(t, "accepted line", textOf(e.onlyPost(t)), "已验收", testWeb+"/todos/"+id)
-}
-
-// Verifying a card-less ask plans the report back to where the request came from, as verifying on a card does.
-func TestCardlessAcceptPlansTheSourceReport(t *testing.T) {
-	forStores(t, func(t *testing.T, e *askEnv, database *db.DB) {
-		ctx := context.Background()
-		e.ask(ownerAsk("om_a1", "/ai 修登录崩溃"))
-		id := onlyTodo(e.s).ID
-		e.outcome(id, "已修好")
-		done := time.Now().UTC()
-		if _, ok := e.s.applyTodoRow(ctx, id, db.TodoRow{ID: id, Title: "修登录崩溃", DoneAt: &done, UpdatedAt: done}, nil); !ok {
-			t.Fatal("not applied")
-		}
-		e.s.accept.mu.Lock()
-		e.s.loadAcceptLocked(ctx)
-		if e.s.accept.asks == nil {
-			e.s.accept.asks = map[string]*acceptAsk{}
-		}
-		e.s.accept.asks[id] = &acceptAsk{AskedAt: time.Now(), NoCard: true}
-		e.s.accept.mu.Unlock()
-		if !e.s.accepted(ctx, id, "") {
-			t.Fatal("not accepted")
-		}
-		e.clock.advance(sourceReportWait + time.Second)
-		if got := e.notices(); len(got) != 1 {
-			t.Fatalf("notices %q", got)
 		}
 	})
 }

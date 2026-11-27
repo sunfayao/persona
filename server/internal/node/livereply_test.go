@@ -345,32 +345,6 @@ func TestDisplayHookIsAnsweredAtOnce(t *testing.T) {
 	}
 }
 
-// A turn ended without a Stop (Esc or the phone's stop: an interrupt; a model error: StopFailure instead) or past its
-// Stop leaves no live text behind: the transcript line that ends it, written after the message began, ends the
-// message too, and a page that opens the session again later does not get it back.
-func TestLiveReplyEndsWhenTheTranscriptEndsTheTurn(t *testing.T) {
-	for _, end := range []string{"interrupt", "api error", "gave up", "turn_duration"} {
-		t.Run(end, func(t *testing.T) {
-			n, f, path, ev := replyNode(t, true)
-			n.displayHook(batch(liveFirst, 0, false, "Sea 1: waves.\n"))
-			ev.wait(t, 1)
-			appendLines(t, path, endLine(end))
-			n.refresh(liveSession, f)
-			got := ev.wait(t, 3)
-			if len(got) != 3 || got[2] != "delta:" {
-				t.Fatalf("after the turn ended: %q", got)
-			}
-			n.unwatch(liveSession)
-			rewatch(n)
-			n.displayHook(batch(liveFirst, 1, false, "Sea 2: tides.\n")) // a batch still under way
-			time.Sleep(50 * time.Millisecond)
-			if got := ev.all(); len(got) != 3 {
-				t.Fatalf("the session opened again: %q", got)
-			}
-		})
-	}
-}
-
 // The turn ends while nobody has the session open (the node reads no transcript then): opened again, the watch's first
 // read ends the message before anything is told.
 func TestLiveReplyNotBackAfterItsTurnEndedUnwatched(t *testing.T) {

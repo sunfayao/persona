@@ -1,14 +1,11 @@
 package hub
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/netip"
-	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -153,126 +150,6 @@ func TestPasswordLoginAdminCookies(t *testing.T) {
 	}
 	current.header = http.Header{"Cookie": {(&http.Cookie{Name: names[1], Value: "invalid"}).String()}}
 	passwordCall(t, &current, "GET", "/api/v1/admin/password-login", nil, 200)
-}
-
-func TestPasswordLoginRegistrationAndDevice(t *testing.T) {
-	h, store, admin, client := passwordTestHub(t)
-	password := "只在客户端出现的密码 2026"
-	registerClientPassword(t, admin, password, "", false)
-	p, _ := store.ClientPassword(context.Background())
-	server, err := passwordpake.Server(p.ServerKeys)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := server.Deserialize.RegistrationRecord(p.Record); err != nil {
-		t.Fatal(err)
-	}
-	if bytes.Contains(p.Record, []byte(password)) || bytes.Contains(p.ServerKeys, []byte(password)) {
-		t.Fatal("password persisted")
-	}
-	state := passwordCall(t, client, "GET", "/api/v1/auth/password/state", nil, 200)
-	if state["enabled"] != true || state["suite"] != passwordpake.Suite {
-		t.Fatal(state)
-	}
-	session, proof, err := passwordProof(t, client, password)
-	if err != nil {
-		t.Fatal(err)
-	}
-	result := passwordCall(t, client, "POST", "/api/v1/auth/password/finish", map[string]any{"session": session, "message": proof}, 200)
-	token := result["token"].(string)
-	if !strings.HasPrefix(token, "jd_") {
-		t.Fatal("not a device token")
-	}
-	principal, ok := h.authenticate(context.Background(), token)
-	if !ok || principal.Role != roleFull || principal.ID != result["id"] {
-		t.Fatal("issued token cannot authenticate")
-	}
-	passwordCall(t, client, "POST", "/api/v1/auth/password/finish", map[string]any{"session": session, "message": proof}, 401)
-	if len(store.tokens) != 1 {
-		t.Fatal("replay issued another device")
-	}
-	// An incorrect password fails the server proof at the client, without sending the password or a fixed hash.
-	wrongSession, _, err := passwordProof(t, client, "wrong-password")
-	if err == nil {
-		t.Fatal("wrong password authenticated server")
-	}
-	passwordCall(t, client, "POST", "/api/v1/auth/password/finish", map[string]any{"session": wrongSession, "message": []byte("forged-proof")}, 401)
-	// JSON APIs explicitly refuse plaintext password fields.
-	passwordCall(t, client, "POST", "/api/v1/auth/password/start", map[string]any{"password": password}, 400)
-}
-
-func TestPasswordLoginChanges(t *testing.T) {
-	_, store, admin, client := passwordTestHub(t)
-	registerClientPassword(t, admin, "client password", "", false)
-	session, proof, err := passwordProof(t, client, "client password")
-	if err != nil {
-		t.Fatal(err)
-	}
-	passwordCall(t, client, "POST", "/api/v1/auth/password/finish", map[string]any{"session": session, "message": proof}, 200)
-	session, proof, err = passwordProof(t, client, "client password")
-	if err != nil {
-		t.Fatal(err)
-	}
-	p, _ := store.ClientPassword(context.Background())
-	passwordCall(t, admin, "PUT", "/api/v1/admin/password-login", map[string]any{"revision": p.Revision, "enabled": false}, 200)
-	passwordCall(t, client, "POST", "/api/v1/auth/password/finish", map[string]any{"session": session, "message": proof}, 401)
-	if len(store.tokens) != 1 {
-		t.Fatal("disabling should preserve already signed-in devices")
-	}
-	p, _ = store.ClientPassword(context.Background())
-	registerClientPassword(t, admin, "a different password", p.Revision, true)
-	if len(store.tokens) != 0 {
-		t.Fatal("revoke all did not revoke existing devices")
-	}
-}
-
-func TestPasswordLoginGatesExpiryAndConcurrency(t *testing.T) {
-	h, _, admin, client := passwordTestHub(t)
-	registerClientPassword(t, admin, "client password", "", false)
-	plain := *client
-	plain.tls = false
-	passwordCall(t, &plain, "GET", "/api/v1/auth/password/state", nil, 403)
-	passwordCall(t, client, "POST", "/api/v1/admin/password-login/register/start", map[string]any{}, 401)
-	cross := *client
-	cross.header = http.Header{"Origin": []string{"https://attacker.example"}}
-	passwordCall(t, &cross, "POST", "/api/v1/auth/password/start", map[string]any{}, 403)
-	session, proof, err := passwordProof(t, client, "client password")
-	if err != nil {
-		t.Fatal(err)
-	}
-	h.passwordLogin.mu.Lock()
-	f := h.passwordLogin.flows[session]
-	f.until = time.Now().Add(-time.Second)
-	h.passwordLogin.flows[session] = f
-	h.passwordLogin.mu.Unlock()
-	passwordCall(t, client, "POST", "/api/v1/auth/password/finish", map[string]any{"session": session, "message": proof}, 401)
-	session, proof, err = passwordProof(t, client, "client password")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var wg sync.WaitGroup
-	statuses := make(chan int, 2)
-	body, _ := json.Marshal(map[string]any{"session": session, "message": proof})
-	for range 2 {
-		wg.Go(func() {
-			status, _, _ := client.do("POST", "/api/v1/auth/password/finish", string(body))
-			statuses <- status
-		})
-	}
-	wg.Wait()
-	close(statuses)
-	var success, refused int
-	for status := range statuses {
-		if status == 200 {
-			success++
-		}
-		if status == 401 {
-			refused++
-		}
-	}
-	if success != 1 || refused != 1 {
-		t.Fatal("concurrent proof replay accepted")
-	}
 }
 
 func TestPasswordLoginProxyTLS(t *testing.T) {

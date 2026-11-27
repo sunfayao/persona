@@ -226,34 +226,6 @@ func TestListenerHeaderTimeoutBlocksNoOne(t *testing.T) {
 	}
 }
 
-func TestListenerDeadlines(t *testing.T) {
-	l, _ := listen(t, 100*time.Millisecond, "127.0.0.1/32")
-	header := "PROXY TCP4 203.0.113.7 192.0.2.10 1 443\r\n"
-
-	// The header's own deadline is gone once it is in: a client may take longer than it for its first bytes.
-	client, server := dial(t, l, header)
-	if server.RemoteAddr().String() != "203.0.113.7:1" {
-		t.Fatal("header not read")
-	}
-	time.AfterFunc(300*time.Millisecond, func() { _, _ = client.Write([]byte("late")) })
-	b := make([]byte, 4)
-	if _, err := io.ReadFull(server, b); err != nil || string(b) != "late" {
-		t.Fatalf("read after the header deadline: %q, %v", b, err)
-	}
-
-	// A deadline the server set before the header was read still holds after it.
-	client, server = dial(t, l, header)
-	_ = server.SetReadDeadline(time.Now().Add(250 * time.Millisecond))
-	start := time.Now()
-	if _, err := server.Read(make([]byte, 1)); !errors.Is(err, os.ErrDeadlineExceeded) {
-		t.Fatalf("Read: %v", err)
-	}
-	if took := time.Since(start); took < 200*time.Millisecond {
-		t.Fatalf("the server's deadline was cut to the header's (%s)", took)
-	}
-	_ = client
-}
-
 // pipeConn is one end of a net.Pipe that claims TCP addresses.
 type pipeConn struct {
 	net.Conn

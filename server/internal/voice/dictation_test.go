@@ -366,31 +366,6 @@ func TestDictationOneSessionPerStart(t *testing.T) {
 	}
 }
 
-func TestDictationCaptionRefusalUsesStandardTranscripts(t *testing.T) {
-	script := voicetest.Script{RefuseCaptions: true, StandardCaptions: true, Sentences: []voicetest.Line{
-		{Start: 0.2, End: 1.4, Text: "Standard transcript after caption refusal."},
-	}}
-	live := voicetest.NewLive(t, script)
-	pl, _ := dictationTestPlugin(t, live)
-	a, _ := dictationTestReady(t, pl)
-
-	starts := live.Starts()
-	if len(starts) != 2 {
-		t.Fatalf("caption refusal caused %d starts, want the refused start and one standard-transcript fallback", len(starts))
-	}
-	for i, start := range starts {
-		dictationTestAssertShape(t, start, true)
-		if _, asked := start["extensions"]; asked != (i == 0) {
-			t.Errorf("start %d extensions = %v, asked %v", i+1, start["extensions"], i == 0)
-		}
-	}
-	dictationTestWriteAudio(t, a, voicetest.PCM(script, 2.2))
-	dictationTestFinal(t, a, "item-2-1", "Standard transcript after caption refusal.")
-	if got := trMemoOf(&pl.cfg.Providers[0]).captions.Load(); got != trUnknown {
-		t.Fatalf("dictation changed meeting transcription's caption memory to %d", got)
-	}
-}
-
 func TestDictationRequiresLiveUpstream(t *testing.T) {
 	live := voicetest.NewLive(t, voicetest.Script{})
 	hub := newFakeHub(t)

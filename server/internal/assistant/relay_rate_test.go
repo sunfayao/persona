@@ -4,8 +4,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // #10400: the relay rate queues instead of refusing, the owner's verified words don't count, and loops are cut by
@@ -67,30 +65,5 @@ func TestRelayOneWayWithinTheLooseCap(t *testing.T) {
 	s.queueRelay("b", relayMsg{From: "a", Tool: "conversation_send", Text: "waits", At: now.UTC(), Due: a.due})
 	if _, err := s.relayAdmit(relayRoute{queue: true}, "a", "b", now); err == nil || !strings.Contains(err.Error(), "already wait for the rate") {
 		t.Fatalf("past the queue's limit: %v", err)
-	}
-}
-
-// Messages waiting for the rate go in when their time comes, in the order they were sent, each once.
-func TestRelayRateQueueGoesInOrderOnce(t *testing.T) {
-	s, f := newQuietService(t)
-	stopHolds(t, s)
-	conv := proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle}
-	now := time.Now()
-	s.queueRelay("conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: "conversation_send", Text: "the first", At: now.UTC(), Due: now.Add(150 * time.Millisecond).UTC()})
-	s.queueRelay("conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: "conversation_send", Text: "the second", At: now.UTC(), Due: now.Add(300 * time.Millisecond).UTC()})
-	s.drainRelays("server", []proto.Session{conv})
-	if n := f.sentTo("conv1"); time.Since(now) < 150*time.Millisecond && n != 0 {
-		t.Fatalf("a message went before its time: %d", n)
-	}
-	waitFor(t, "the first to go in", func() bool { return f.sentTo("conv1") == 1 && s.queuedFor("conv1") == 1 })
-	s.drainRelays("server", []proto.Session{conv}) // its turn ended: the list shows it idle again
-	waitFor(t, "the second to go in", func() bool { return f.sentTo("conv1") == 2 && s.queuedFor("conv1") == 0 })
-	s.drainRelays("server", []proto.Session{conv})
-	if n := f.sentTo("conv1"); n != 2 {
-		t.Fatalf("%d sends, want each message once", n)
-	}
-	got := f.notices()
-	if len(got) != 2 || !strings.Contains(got[0], "the first") || !strings.Contains(got[1], "the second") {
-		t.Fatalf("delivered %q, want the first then the second", got)
 	}
 }

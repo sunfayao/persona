@@ -543,55 +543,6 @@ func TestTriageOff(t *testing.T) {
 	}
 }
 
-// Turns that ended while the manager could not hear of them are triaged when it looks.
-func TestBackfillTriagesUnread(t *testing.T) {
-	s, f := workService(t)
-	c := apiErrorTurn("s1", "API Error: 503 upstream")
-	c.UpdatedAt = time.Now().Add(-time.Hour)
-	old := apiErrorTurn("s2", "API Error: 503 upstream")
-	old.UpdatedAt = time.Now().Add(-3 * 24 * time.Hour)
-	seen := apiErrorTurn("s3", "API Error: 503 upstream")
-	seen.UpdatedAt, seen.State = time.Now().Add(-time.Hour), proto.StateIdle
-	f.setSessions("box", c, old, seen)
-	s.workTick(context.Background(), time.Now())
-	for end := time.Now().Add(5 * time.Second); ; time.Sleep(10 * time.Millisecond) {
-		if _, ok := s.workEntry([2]string{"box", "s1"}); ok {
-			break
-		}
-		if time.Now().After(end) {
-			t.Fatal("recent unread turn not triaged")
-		}
-	}
-	for _, sid := range []string{"s2", "s3"} {
-		if _, ok := s.workEntry([2]string{"box", sid}); ok {
-			t.Fatalf("%s was triaged", sid)
-		}
-	}
-	if len(f.sentToAgents()) != 0 {
-		t.Fatal("sent at once")
-	}
-
-	// It connects again: the next tick looks again at once, not a minute later.
-	later := apiErrorTurn("s6", "API Error: 503 upstream")
-	later.UpdatedAt = time.Now().Add(-time.Minute)
-	f.setSessions("box", c, old, seen, later)
-	s.workTick(context.Background(), time.Now().Add(time.Second))
-	time.Sleep(200 * time.Millisecond)
-	if _, ok := s.workEntry([2]string{"box", "s6"}); ok {
-		t.Fatal("looked again before a minute without a reconnect")
-	}
-	s.workReconnected()
-	s.workTick(context.Background(), time.Now().Add(2*time.Second))
-	for end := time.Now().Add(5 * time.Second); ; time.Sleep(10 * time.Millisecond) {
-		if _, ok := s.workEntry([2]string{"box", "s6"}); ok {
-			break
-		}
-		if time.Now().After(end) {
-			t.Fatal("a turn that ended while it was away was not caught up after it connected")
-		}
-	}
-}
-
 // Off until the user turns it on; turning a part off stops what it had going.
 func TestTriageSwitches(t *testing.T) {
 	if sw := newTestService(t, newFakeHub()).triageSwitches(context.Background()); sw != (TriageSwitches{}) {

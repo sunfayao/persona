@@ -42,7 +42,11 @@ func TestAPushSourceHasNoRecipeIntervalOrPull(t *testing.T) {
 			t.Fatalf("%s: how it is sent: %+v", lang, how)
 		}
 	}
+	off := s
+	off.ToInbox = false // the Inbox's consent is asked only while its switch is off
+	f.subs[s.ID] = off
 	en := draw(t, f, env(i18n.En, true), state{P: pageSource, ID: s.ID})
+	f.subs[s.ID] = s
 	in := item(en, "d.to_inbox")
 	if in == nil || in.Control == nil || strings.Contains(in.Control.Action.Confirm, "Pulled") || !strings.Contains(in.Control.Action.Confirm, "shortcut") {
 		t.Fatalf("the Inbox's consent: %+v", in)

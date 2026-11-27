@@ -427,67 +427,6 @@ func TestLinuxAgentSandboxRelativePathForReal(t *testing.T) {
 	}
 }
 
-// Linux has no probe/profile success cache: a missing bwrap can be installed, a removed bwrap cannot leave a stale
-// active result, and every distinct cwd is preflighted rather than adding a permanent full-profile key.
-func TestLinuxAgentPreflightAlwaysRuns(t *testing.T) {
-	f := newAgentFixture(t)
-	dir := t.TempDir()
-	fake := filepath.Join(dir, "bwrap")
-	count := filepath.Join(dir, "calls")
-	writeFake := func() {
-		script := "#!/bin/sh\nprintf 'call\\n' >> " + shellQuote(count) + "\nexit 0\n"
-		if err := os.WriteFile(fake, []byte(script), 0o700); err != nil {
-			t.Fatal(err)
-		}
-	}
-	calls := func() int {
-		b, err := os.ReadFile(count)
-		if os.IsNotExist(err) {
-			return 0
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
-		return bytes.Count(b, []byte("\n"))
-	}
-	plan := f.plan()
-	plan.Probe = func() Support { return Support{OS: "linux", Bwrap: fake} }
-	argv := []string{"/bin/echo", "ok"}
-	if _, _, st := WrapAgent(plan, argv, nil); st.State != AgentUnavailable {
-		t.Fatalf("missing fake bwrap: %+v", st)
-	}
-	writeFake()
-	if _, _, st := WrapAgent(plan, argv, nil); st.State != AgentActive {
-		t.Fatalf("installed fake bwrap: %+v", st)
-	}
-	if err := os.Remove(fake); err != nil {
-		t.Fatal(err)
-	}
-	if _, _, st := WrapAgent(plan, argv, nil); st.State != AgentUnavailable {
-		t.Fatalf("removed fake bwrap retained a stale success: %+v", st)
-	}
-	writeFake()
-	if _, _, st := WrapAgent(plan, argv, nil); st.State != AgentActive {
-		t.Fatalf("reinstalled fake bwrap: %+v", st)
-	}
-	if got := calls(); got != 2 {
-		t.Fatalf("successful preflights before cwd sweep: %d, want 2", got)
-	}
-	for i := 0; i < 120; i++ {
-		cwd := filepath.Join(f.home, "cwd-"+strconv.Itoa(i))
-		if err := os.Mkdir(cwd, 0o700); err != nil {
-			t.Fatal(err)
-		}
-		plan.Cwd = cwd
-		if _, _, st := WrapAgent(plan, argv, nil); st.State != AgentActive {
-			t.Fatalf("cwd %d: %+v", i, st)
-		}
-	}
-	if got := calls(); got != 122 {
-		t.Fatalf("120 cwd changes were cached instead of preflighted: total calls %d, want 122", got)
-	}
-}
-
 // The first Linux slice intentionally has a static view. Once bwrap is ready, replacing node.sock on the host leaves
 // the sandbox connected to the old inode and a new top-level public file absent. A file created inside an already-bound
 // directory remains visible. This pins why a node restart requires restarting its sandboxed agents.

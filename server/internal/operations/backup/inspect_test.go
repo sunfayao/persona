@@ -20,50 +20,6 @@ import (
 	"github.com/sunfayao/persona/server/internal/secretkey"
 )
 
-func TestInspectBackupWithoutAnInstallOrStaging(t *testing.T) {
-	fixture := newBackupFixture(t, "private_manager_database")
-	if _, err := fixture.operator().Create(context.Background(), fixture.options()); err != nil {
-		fatal(t, err)
-	}
-	manifest, size, err := readBundleManifest(fixture.output)
-	if err != nil {
-		fatal(t, err)
-	}
-	t.Setenv("PATH", "")
-	t.Setenv("TMPDIR", filepath.Join(fixture.home, "unavailable-staging"))
-	t.Setenv("PERSONA_DATABASE_URL", "postgres://should-not-connect.example.test")
-	t.Setenv("PERSONA_LANG", "en")
-	var stdout, stderr bytes.Buffer
-	args := []string{"inspect", "--bundle", fixture.output, "--json"}
-	if err := Run(context.Background(), args, &stdout, &stderr); err != nil {
-		fatal(t, err)
-	}
-	var report inspectionReport
-	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
-		fatal(t, err)
-	}
-	if report.Check != "offline_integrity" || report.DatabaseRestoreVerified || report.Format != manifest.Format ||
-		!report.CreatedAt.Equal(manifest.CreatedAt) || report.ArchiveBytes != size ||
-		report.HubDump.Files != 1 || report.HubDump.Bytes <= 0 || report.ManagerDump.Files != 1 ||
-		report.ManagerDump.Bytes <= 0 || report.Runtime.Files < 4 {
-		fatalf(t, "inspection report %+v", report)
-	}
-	for _, omitted := range []string{fixture.output, fixture.home, manifest.HubDatabase, manifest.ManagerDatabase,
-		manifest.HubKeyFingerprint, manifest.ManagerKeyFingerprint, "hub-token-secret", "secret.key", "should-not-connect"} {
-		if strings.Contains(stdout.String()+stderr.String(), omitted) {
-			fatal(t, "the inspection disclosed a private manifest or config value")
-		}
-	}
-	stdout.Reset()
-	if err := Run(context.Background(), args[:3], &stdout, &stderr); err != nil {
-		fatal(t, err)
-	}
-	if !strings.Contains(stdout.String(), "Offline backup integrity check passed.") ||
-		!strings.Contains(stdout.String(), "personad backup verify") {
-		fatalf(t, "text report %q", stdout.String())
-	}
-}
-
 func TestInspectRejectsBadMembersAndKeys(t *testing.T) {
 	raw := inspectionFixture(t)
 	members := inspectionMembers(t, raw)

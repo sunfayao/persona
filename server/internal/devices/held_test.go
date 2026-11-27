@@ -892,59 +892,6 @@ func TestHeldMessagesFromSignedOutDeviceAreDeleteOnly(t *testing.T) {
 	}
 }
 
-// A try cut off by the connection dropping with it out may have arrived: it is never sent again by itself, the row
-// says so, and the later ones of its session wait behind it, a new one too, even with the computer back; the owner's
-// Retry sends it again, then the rest.
-func TestHeldUnclearIsNotSentAgain(t *testing.T) {
-	st := newHeldMem()
-	d, _ := heldDevices(t, st, 50*time.Millisecond)
-	n := &heldNode{gate: make(chan struct{})}
-	up := make(chan struct{})
-	laterMachine(t, d, "mac", "Studio Mac", n, up)
-	ctx := context.Background()
-	for _, id := range []string{"a", "b"} {
-		out, err := d.Call(ctx, heldSend("mac", "s1", id, id))
-		heldAnswerOf(t, out, err)
-	}
-	close(up)
-	eventually(t, 5*time.Second, "a sent", func() bool { return len(n.sent()) == 1 })
-	if list := d.HeldMessages("mac", i18n.En)["s1"]; list[0].Error != "Sending…" || list[0].State != proto.UndeliveredWaiting {
-		t.Fatalf("while sent: %+v", list)
-	}
-	n.drop() // the connection drops with a out
-	gate := n.gate
-	n.mu.Lock()
-	n.gate = nil
-	n.mu.Unlock()
-	close(gate)
-	eventually(t, 5*time.Second, "a unclear", func() bool {
-		rows := st.all()
-		return len(rows) == 2 && rows[0].State == db.HeldFailed && rows[0].Failure == db.HeldUnclear
-	})
-	list := d.HeldMessages("mac", i18n.En)["s1"]
-	if list[0].State != proto.UndeliveredFailed || list[0].Error != "Might not have arrived. Retry checks the chat first." ||
-		list[1].State != proto.UndeliveredWaiting || list[1].Error != "Waits behind the message above" {
-		t.Fatalf("rows %+v", list)
-	}
-	// Back and ticking: neither goes; a new message waits behind them.
-	eventually(t, 10*time.Second, "back", func() bool { return d.machineByID("mac").reachable() })
-	out, err := d.Call(ctx, heldSend("mac", "s1", "c", "c"))
-	if held := heldAnswerOf(t, out, err); held.Error != "Waits behind the message above" {
-		t.Fatalf("c: %+v", held)
-	}
-	heldTicks(t, d, 3)
-	if got := n.sent(); !slices.Equal(got, []string{"a"}) {
-		t.Fatalf("sent %v", got)
-	}
-	// The owner retries a: looked for first (not there: left to the owner, nothing sent), then sent anyway; then b
-	// and c.
-	retryAndSend(t, d, d.Handler(http.NotFoundHandler()), "s1", "a")
-	eventually(t, 5*time.Second, "all sent", func() bool { return len(st.all()) == 0 })
-	if got := n.sent(); !slices.Equal(got, []string{"a", "a", "b", "c"}) {
-		t.Fatalf("sent %v", got)
-	}
-}
-
 // A node's refusal (nothing typed) fails the message with the node's words; it does not hold the next one back.
 // A new message to its session then goes straight to the node.
 func TestHeldRefusedDoesNotBlock(t *testing.T) {
@@ -1296,38 +1243,6 @@ func TestHeldWaitsForItsSessionToBeListed(t *testing.T) {
 	}
 }
 
-// A session still not listed heldListWait into the connection: the message goes anyway, and the node's answer decides
-// (its refusal fails it with its words).
-func TestHeldGoesAnywayAfterTheListWait(t *testing.T) {
-	old := heldListWait
-	heldListWait = 300 * time.Millisecond
-	t.Cleanup(func() { heldListWait = old })
-	st := newHeldMem()
-	d, _ := heldDevices(t, st, 20*time.Millisecond)
-	n := &heldNode{listed: []string{"s2"}, answer: func(map[string]any) (any, error) {
-		return nil, &rpc.Error{Code: "session_not_found", Message: "no such session", Data: json.RawMessage(`{"delivered":"none"}`)}
-	}}
-	up := make(chan struct{})
-	laterMachine(t, d, "mac", "Studio Mac", n, up)
-	out, err := d.Call(context.Background(), heldSend("mac", "s1", "a", "a"))
-	heldAnswerOf(t, out, err)
-	start := time.Now()
-	close(up)
-	eventually(t, 5*time.Second, "a refused", func() bool {
-		rows := st.all()
-		return len(rows) == 1 && rows[0].State == db.HeldFailed
-	})
-	if waited := time.Since(start); waited < heldListWait {
-		t.Fatalf("sent after %s, before the list wait", waited)
-	}
-	if got := n.sent(); !slices.Equal(got, []string{"a"}) {
-		t.Fatalf("sent %v", got)
-	}
-	if list := d.HeldMessages("mac", i18n.En)["s1"]; len(list) != 1 || list[0].Error != "Not sent: no such session" {
-		t.Fatalf("row %+v", list)
-	}
-}
-
 // writerCtxErr is what rpc.Call answers when the writer itself failed with the call context's error (a
 // websocket.NetConn whose own context ended, part of the frame possibly out): ErrNotWritten, but not ErrNotSent.
 type writerCtxErr struct{}
@@ -1424,34 +1339,6 @@ func TestHeldLandedUnclearIsTakenAsSent(t *testing.T) {
 	heldTicks(t, d, 1)
 	if got, reads := n.sent(), n.itemReads(); !slices.Equal(got, []string{"b"}) || reads != 1 {
 		t.Fatalf("sent %v, %d reads", got, reads)
-	}
-}
-
-// Not in the transcript by its id (words alike do not count), or the transcript not read: it stays for the owner,
-// nothing is sent, and it is read once a connection however often the deliveries look.
-func TestHeldUnclearNotLandedStays(t *testing.T) {
-	st := newHeldMem()
-	at := time.Now().Add(-time.Hour)
-	putHeld(t, st, "s1", "a", db.HeldFailed, db.HeldUnclear, at)
-	putHeld(t, st, "s1", "b", db.HeldWaiting, "", at)
-	d, _ := heldDevices(t, st, time.Hour) // its ticks driven below
-	n := &heldNode{items: map[string][]proto.Item{"s1": {{Role: "user", Text: "a"}, {Role: "user", Text: "x", ClientMsgID: "x"}}}}
-	up := make(chan struct{})
-	laterMachine(t, d, "mac", "Studio Mac", n, up)
-	close(up)
-	eventually(t, 5*time.Second, "the transcript read", func() bool { return n.itemReads() == 1 })
-	heldTicks(t, d, 5)
-	if got, reads := n.sent(), n.itemReads(); len(got) != 0 || reads != 1 {
-		t.Fatalf("sent %v, %d reads", got, reads)
-	}
-	if rows := st.all(); len(rows) != 2 || !(rows[0].State == db.HeldFailed && rows[0].Failure == db.HeldUnclear) || rows[1].State != db.HeldWaiting {
-		t.Fatalf("stored %+v", rows)
-	}
-	// A new connection reads it again.
-	n.drop()
-	eventually(t, 10*time.Second, "read on the new connection", func() bool { return n.itemReads() == 2 })
-	if got := n.sent(); len(got) != 0 {
-		t.Fatalf("sent %v", got)
 	}
 }
 

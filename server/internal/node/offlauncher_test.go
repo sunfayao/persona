@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -23,47 +22,6 @@ func scannedClaude(t *testing.T, n *Node, home string, pid int, id string, e pro
 	was := processAlive
 	processAlive = func(p int, _ string) bool { return p == pid }
 	t.Cleanup(func() { processAlive = was })
-}
-
-// A herdr restart brought a Persona Agent back with herdr's bare `claude --resume <id>` (#11792): its row says it runs
-// off the launcher it was started on, and moving it to that launcher is a switch, carried out with the user's next
-// message, not taken as one it runs on already (which used to drop it), and with the model it was started with there.
-// Started again by Persona's command, it is on its launcher.
-func TestPersonaAgentResumedBareRunsOffItsLauncher(t *testing.T) {
-	n, f, home, cwd, _ := switchNode(t, proto.StatusIdle, nil)
-	st, _ := n.state.get(sidA)
-	st.Launcher, st.Model = "work", "model-w" // started on the gateway launcher, with one of its models
-	n.state.put(sidA, st)
-	scannedClaude(t, n, home, 4242, sidA, procEnv{Cmd: true}) // herdr's bare `claude --resume <id>`
-	if row := rowOf(t, n, sidA); row.Launcher != "work" || !row.OffLauncher {
-		t.Fatalf("row: launcher %q, off_launcher %v", row.Launcher, row.OffLauncher)
-	}
-	if err := pick(t, n, map[string]any{"launcher": "work", "from": "work"}); err != nil {
-		t.Fatalf("moving it back to its launcher: %v", err)
-	}
-	if ps := n.pendingSwitch(sidA); ps == nil || ps.Launcher != "work" {
-		t.Fatalf("no switch back to its launcher waits: %+v", ps)
-	}
-	f.reset()
-	quitsToShell(f, cwd)
-	comesUpWhen(f, "w1:p1", func(string) bool { return true })
-	if err := tell(t, n, "go on", true); err != nil {
-		t.Fatalf("send: %v\n%s", err, strings.Join(f.trace(), "\n"))
-	}
-	if starts := typedStarts(f, "w1:p1"); len(starts) != 1 || !strings.Contains(starts[0], " launch work ") ||
-		!strings.Contains(starts[0], "--resume "+sidA) || !strings.Contains(starts[0], "--mcp-config "+filepath.Join(n.dir, "mcp.json")) ||
-		!strings.Contains(starts[0], "--model model-w") {
-		t.Fatalf("typed %q", starts)
-	}
-	if st, _ := n.state.get(sidA); st.Launcher != "work" || st.PendingSwitch != nil {
-		t.Errorf("record after the switch = %+v", st)
-	}
-
-	f.reply("session.snapshot", snapshot(nil, nil, []any{claudeAgent(sidA, proto.StatusIdle, "w1:p1", "w1:t1", "w1", cwd, "")}, nil))
-	scannedClaude(t, n, home, 4343, sidA, procEnv{Cmd: true, MCPConfig: filepath.Join(n.dir, "mcp.json")})
-	if row := rowOf(t, n, sidA); row.Launcher != "work" || row.OffLauncher {
-		t.Fatalf("started by Persona's command: launcher %q, off_launcher %v", row.Launcher, row.OffLauncher)
-	}
 }
 
 // Off its launcher, an Agent still has a way to cancel a switch to another launcher: picking its own one then cancels

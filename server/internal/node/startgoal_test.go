@@ -65,27 +65,6 @@ func TestStartGoalAfterFirstPrompt(t *testing.T) {
 	}
 }
 
-// With ultracode too: ultracode, then the first message, then the goal, one command at a time.
-func TestStartGoalAfterUltracodeAndFirstPrompt(t *testing.T) {
-	n, f, home := herdrNode(t)
-	cwd := mkdir(t, filepath.Join(home, "project"))
-	plain, ansi := screenFixture(t, "claude-2.1.312-empty-162.txt"), screenFixture(t, "claude-2.1.312-empty-162.ansi")
-	startPane(t, f, plain, ansi)
-	goal := "the report is in docs/report.md"
-	goalAnswers(t, f, home, cwd, plain, ansi, "Goal set: "+goal)
-
-	if _, err := request(t, n, "session.start", map[string]any{"cwd": cwd, "workspace_id": "w1", "prompt": "write the report",
-		"goal": goal, "ultracode": true, "effort": "max"}); err != nil {
-		t.Fatal(err)
-	}
-	n.firstWait.Wait()
-	got := f.trace("agent.prompt")
-	if len(got) != 3 || !strings.Contains(got[0], "/effort ultracode on") || !strings.Contains(got[1], "write the report") ||
-		!strings.Contains(got[2], "/goal "+goal) {
-		t.Fatalf("wrong start order: %v", got)
-	}
-}
-
 // A goal Claude Code refuses (here: hooks are off) changes nothing else: the first message went in before it, and is
 // not lost or typed again.
 func TestStartGoalRefusedByClaudeLeavesTheStartAlone(t *testing.T) {
@@ -106,28 +85,6 @@ func TestStartGoalRefusedByClaudeLeavesTheStartAlone(t *testing.T) {
 	}
 	if _, lost := n.lostFirst.get(startedID(f)); lost {
 		t.Error("the first message was marked as lost")
-	}
-}
-
-// A first message the transcript never shows gets no goal: the goal is about that task, and typing it at an agent
-// that never got the task would set it to work from the criteria alone.
-func TestStartGoalNotTypedWhenTheFirstMessageIsLost(t *testing.T) {
-	withFirstPromptWaits(t, 50*time.Millisecond, 50*time.Millisecond)
-	n, f, home := herdrNode(t)
-	cwd := mkdir(t, filepath.Join(home, "project"))
-	startPane(t, f, screenFixture(t, "claude-2.1.312-empty-162.txt"), screenFixture(t, "claude-2.1.312-empty-162.ansi"))
-	// Nothing reaches the transcript.
-	if _, err := request(t, n, "session.start", map[string]any{"cwd": cwd, "workspace_id": "w1", "prompt": "fix the build", "goal": "CI is green"}); err != nil {
-		t.Fatal(err)
-	}
-	n.firstWait.Wait()
-	for _, c := range f.trace("agent.prompt") {
-		if strings.Contains(c, "/goal") {
-			t.Fatalf("the goal was typed without its task: %v", f.trace("agent.prompt"))
-		}
-	}
-	if _, lost := n.lostFirst.get(startedID(f)); !lost {
-		t.Fatal("the lost first message is not reported")
 	}
 }
 

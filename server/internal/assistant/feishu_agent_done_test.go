@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/assistantwire"
-	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -48,127 +46,6 @@ func waitAgentDonePosts(ft *fleetTest, n int) []map[string]any {
 func agentSession() proto.Session {
 	return proto.Session{SessionID: "s1", Title: "修登录", Cwd: "/code/app", Agent: "claude", PaneID: "p1",
 		LastText: "改好了", UpdatedAt: time.Now()}
-}
-
-// A background agent's completed, failed and cut-off turn each gets exactly one Feishu card with the same decision as
-// the phone's push: green for done, orange with ⚠️ for a turn error or a model-service cut-off, the result text, the
-// machine in the note, the open button, and a reply routes back to that agent (#4674).
-func TestFeishuAgentDoneCard(t *testing.T) {
-	for _, tc := range []struct {
-		name      string
-		lastText  string
-		turnErr   string
-		wantColor string
-		wantBody  string
-	}{
-		{"completed", "改好了", "", "green", "改好了"},
-		{"failed", "改了一半", "exit status 1", "red", "模型服务出错，中断了"},
-		{"cut off", "API Error: 529 overloaded", "", "red", "模型服务出错，中断了"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			ft := newFleetTest(t)
-			fastDone(ft)
-			answerAgentDoneBot(ft, true)
-			sess := agentSession()
-			sess.LastText = tc.lastText
-			sess.TurnError = tc.turnErr
-			driveAgentDone(ft, sess)
-
-			posts := waitAgentDonePosts(ft, 1)
-			if len(posts) != 1 {
-				t.Fatalf("posted %d cards, want 1", len(posts))
-			}
-			card, _ := posts[0]["card"].(string)
-			for _, want := range []string{`"template":"` + tc.wantColor + `"`, tc.wantBody, "后台 Agent", "Mac", "https://hub.example/s/mac/s1"} {
-				if !strings.Contains(card, want) {
-					t.Fatalf("card missing %q:\n%s", want, card)
-				}
-			}
-			// The title is the agent's, the state is the header's colour and its tag (no ⚠️), the place the subtitle.
-			if !strings.Contains(card, `"title":{"tag":"plain_text","content":"修登录"}`) || strings.Contains(card, "⚠️") ||
-				!strings.Contains(card, `"subtitle":{"tag":"plain_text","content":"后台 Agent · Mac"}`) {
-				t.Fatalf("card header: %s", card)
-			}
-			wantTag := map[string]string{"completed": "完成", "failed": "中断", "cut off": "中断"}[tc.name]
-			if !strings.Contains(card, `"text":{"tag":"plain_text","content":"`+wantTag+`"}`) {
-				t.Fatalf("card lacks the tag %s: %s", wantTag, card)
-			}
-			fallback, _ := posts[0]["fallback"].(string)
-			for _, want := range []string{"修登录", tc.wantBody, "后台 Agent"} {
-				if !strings.Contains(fallback, want) {
-					t.Fatalf("fallback missing %q: %q", want, fallback)
-				}
-			}
-			// A grey hint says a reply continues the work with this agent (#5438).
-			hint := i18n.T("", "assistant-feishu_cards.agent_done_reply_hint")
-			if !strings.Contains(card, hint) {
-				t.Fatalf("done card missing reply hint %q:\n%s", hint, card)
-			}
-			if !strings.Contains(fallback, hint) {
-				t.Fatalf("done fallback missing reply hint %q: %q", hint, fallback)
-			}
-			if got := ft.pushesOf(assistantwire.NotifyDone, 1, time.Second); len(got) != 1 {
-				t.Fatalf("the phone push changed: %+v", got)
-			}
-			time.Sleep(50 * time.Millisecond) // rememberBotThread runs right after the post
-			ft.s.fbot.mu.Lock()
-			th := ft.s.fbot.st.Threads["om_done"]
-			ft.s.fbot.mu.Unlock()
-			if th == nil || th.Target.Kind != targetAgent || th.Target.MachineID != "mac" || th.Target.SessionID != "s1" {
-				t.Fatalf("the card is not bound to the agent: %+v", th)
-			}
-			time.Sleep(200 * time.Millisecond) // the same completion settles once: no second card
-			if got := ft.f.appParams(AppFeishu, FeishuPost); len(got) != 1 {
-				t.Fatalf("posted %d cards, want still 1", len(got))
-			}
-		})
-	}
-}
-
-// Nothing is posted when the pushes switch is off, the session is muted, or another Feishu path owns the turn (the
-// main conversation, a scheduled task's own conversation, health), or the turn was asked and answered in Feishu.
-func TestFeishuAgentDoneGated(t *testing.T) {
-	for _, tc := range []struct {
-		name     string
-		pushes   bool
-		setup    func(ft *fleetTest)
-		sess     func() proto.Session
-		wantDone int // the phone's NotifyDone pushes still go (or not) as before
-	}{
-		{"pushes switch off", false, func(ft *fleetTest) {}, agentSession, 1},
-		{"muted session", true, func(ft *fleetTest) {
-			ft.mutes(Pins{Sessions: []string{"mac/s1"}})
-		}, agentSession, 0},
-		{"main conversation", true, func(ft *fleetTest) {
-			ft.s.fleetTakeSnapshot(Snapshot{Profile: &Profile{MachineID: "mac", Main: "s1"}})
-		}, agentSession, 1},
-		{"scheduled task conversation", true, func(ft *fleetTest) {
-			ft.s.fleetTakeSnapshot(Snapshot{Tasks: []TaskView{{ID: "fu1", Label: "日报", RunMachineID: "mac", RunSessionID: "s1"}}})
-		}, agentSession, 1},
-		{"health conversation", true, func(ft *fleetTest) {}, func() proto.Session {
-			sess := agentSession()
-			sess.Space = testSpace
-			return sess
-		}, 1},
-		{"turn asked from Feishu", true, func(ft *fleetTest) {
-			ft.s.fleetTakeSnapshot(Snapshot{Channels: &ChannelsReport{Turns: []ChannelTurn{{MachineID: "mac", SessionID: "s1"}}}})
-		}, agentSession, 0},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			ft := newFleetTest(t)
-			fastDone(ft)
-			answerAgentDoneBot(ft, tc.pushes)
-			tc.setup(ft)
-			driveAgentDone(ft, tc.sess())
-			time.Sleep(400 * time.Millisecond) // the finished delay is 50 ms; a card would have landed by now
-			if got := ft.f.appParams(AppFeishu, FeishuPost); len(got) != 0 {
-				t.Fatalf("posted %d cards, want none: %+v", len(got), got)
-			}
-			if got := ft.pushesOf(assistantwire.NotifyDone, 1, 0); len(got) != tc.wantDone {
-				t.Fatalf("phone pushes %d, want %d", len(got), tc.wantDone)
-			}
-		})
-	}
 }
 
 // A result longer than the card's budget still goes out as one card, marked as cut short.

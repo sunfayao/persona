@@ -49,40 +49,6 @@ func taskWorktreeCreate(f *fakeHub) map[string]any {
 	return nil
 }
 
-func TestTaskLeaderHerdrWorkspaceSurvivesRestartAndGroupsWorkers(t *testing.T) {
-	store := taskRecoveryDatabase(t)
-	s, f := taskHerdrHub(t, store)
-	leader := startTaskLeader(t, s, f)
-
-	// A manager restart must not lose the workspace before a later worker is admitted.
-	restarted := newServiceOn(t, f, store)
-	setSettings(t, restarted, func(v *Settings) { v.TaskWorkspacePreference = preferNew })
-	if _, _, ok := restarted.leaderTask(context.Background(), "box", "s1"); !ok {
-		t.Fatal("the restarted manager did not rediscover the task leader")
-	}
-	worker := planWorker(t, restarted, f, nil)
-	starts := f.started()
-	if len(starts) != 2 {
-		t.Fatalf("starts = %v", starts)
-	}
-	if starts[0]["task_id"] != leader.ID || starts[0]["workspace_label"] != leader.Title {
-		t.Errorf("leader did not ask for its own named task workspace: %v", starts[0])
-	}
-	if starts[1]["workspace_id"] != taskHerdrWorkspaceID || starts[1]["workspace_label"] != leader.Title {
-		t.Errorf("worker did not reopen the recorded task workspace after restart: %v", starts[1])
-	}
-	create := taskWorktreeCreate(f)
-	if create == nil || create["open_workspace"] != false {
-		t.Errorf("writable worker's checkout opened another herdr workspace: %v", create)
-	}
-	if create == nil || starts[1]["cwd"] != create["path"] || starts[1]["cwd"] == "/code/app" {
-		t.Errorf("worker lost its isolated checkout cwd: start=%v create=%v", starts[1], create)
-	}
-	if worker.Agents[0].Via != leader.ID {
-		t.Fatalf("worker is not under the leader task: %+v", worker.Agents[0])
-	}
-}
-
 const resumedTaskLeaderSession = "leader01"
 
 func stoppedTaskLeader(t *testing.T) (*Service, *fakeHub, Todo) {

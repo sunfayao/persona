@@ -367,8 +367,6 @@ func (e *workbenchEnv) companionsCall(method, path, body string) (int, map[strin
 	return rec.Code, out
 }
 
-const companionsBody = `{"bots":[{"kind":"inbox","name":"Inbox","icon":"📥","app_id":"cli_inboxbot01"},{"kind":"notify","name":"Notices","icon":"🔔","app_id":"cli_noticebot1"}]}`
-
 // /inbox lists what needs the owner first, each with Done and (for a reply that can be sent) AI draft; Done files it
 // and the card is redrawn without it.
 func TestWorkbenchInboxCardFilesAnItem(t *testing.T) {

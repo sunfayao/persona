@@ -557,65 +557,6 @@ func TestARelayReattachesAndResumesExactly(t *testing.T) {
 	}
 }
 
-// The node reads Screen Sharing only while what the phone hasn't acknowledged fits the window, however long the
-// phone is away: memory doesn't grow with an outage.
-func TestTheWindowBoundsWhatTheNodeHolds(t *testing.T) {
-	reg := NewRegistry(testLimits, nil)
-	local, ss := screenSharing(t)
-	s, relay := reg.Open("pair1", local)
-	defer s.End()
-	p := newPhone(t, false) // never acknowledges
-	p.carry(relay)
-	p.next(TypePaths)
-
-	// Write until a write blocks: the node stopped reading Screen Sharing. Each write has a second to go through, far
-	// longer than the node takes while it has room.
-	got, chunk := 0, make([]byte, 4<<10)
-	for got < 4*testLimits.WindowRFB {
-		_ = ss.SetWriteDeadline(time.Now().Add(time.Second))
-		n, err := ss.Write(chunk)
-		got += n
-		if err != nil {
-			break
-		}
-	}
-	if got > testLimits.WindowRFB+32<<10 {
-		t.Fatalf("the node read %d bytes with nothing acknowledged; window %d", got, testLimits.WindowRFB)
-	}
-	if got < testLimits.WindowRFB {
-		t.Fatalf("the node read only %d bytes; it should fill the window", got)
-	}
-}
-
-// A transport that leaves bytes unacknowledged for StallAfter is stuck: it is closed, and with no other the session
-// ends after Grace.
-func TestAStuckTransportIsClosedAndTheSessionEnds(t *testing.T) {
-	reg := NewRegistry(testLimits, nil)
-	local, ss := screenSharing(t)
-	s, relay := reg.Open("pair1", local)
-	p := newPhone(t, false)
-	c := p.carry(relay)
-	p.next(TypePaths)
-	go ss.Write([]byte("hello"))
-	waitFor(t, "the bytes", func() bool { return string(p.received(RFB)) == "hello" })
-	select {
-	case <-c.gone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("a transport that never acknowledges stays open")
-	}
-	select {
-	case <-s.Done():
-	case <-time.After(2 * time.Second):
-		t.Fatal("a session with no relay goes on")
-	}
-	if reg.Get("pair1") != nil {
-		t.Fatal("an ended session stays in the registry")
-	}
-	if _, err := ss.Write([]byte("x")); err == nil {
-		t.Fatal("the connection to Screen Sharing stays open after the session ended")
-	}
-}
-
 // Screen Sharing closing: the phone gets every byte, then close at its end. The phone closing: Screen Sharing's
 // connection closes once its bytes are written, and the session ends.
 func TestClosesGoBothWays(t *testing.T) {

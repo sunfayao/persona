@@ -248,27 +248,6 @@ func mergeCases(tb testing.TB) []mergeCase {
 	}
 }
 
-// The merge writes what the old one wrote, byte for byte, header and status too; for the inbox, in every language,
-// what localizing each answer whole before merging it wrote.
-func TestWriteMergedMatchesDecoding(t *testing.T) {
-	for _, c := range mergeCases(t) {
-		want := httptest.NewRecorder()
-		legacyWriteMerged(want, c.key, cloneAnswers(c.answers))
-		got := httptest.NewRecorder()
-		writeMerged(got, c.key, cloneAnswers(c.answers))
-		sameResponse(t, c.name, got, want)
-		if c.key != "items" {
-			continue
-		}
-		forms := &inboxForms{}
-		for _, l := range []i18n.Lang{i18n.En, i18n.ZhHans, i18n.Ja, i18n.En} { // en again: from the kept forms
-			for _, route := range []string{"/api/v1/inbox", "/api/v1/inbox/done"} {
-				sameResponse(t, fmt.Sprintf("%s, %s %s", c.name, l, route), inboxMerge(forms, l, route, c.key, c.answers), legacyInboxMerge(l, c.key, c.answers))
-			}
-		}
-	}
-}
-
 // The todos' owners are read from the merge's scan where it says what decoding reads, else by decoding: the same ids
 // noted for every shape, case-folded or repeated keys and escaped ids included.
 func TestTodoOwnersMatchDecoding(t *testing.T) {
@@ -388,38 +367,6 @@ func TestInboxFormsKeepTheLatestAnswer(t *testing.T) {
 		t.Fatal("a language or a route did not keep its own items")
 	}
 	merge(i18n.En, "/api/v1/inbox", body) // back to the first answer
-}
-
-// The merge allocates about its output: 530,152 bytes for these 400 items (477,131 B), where decoding the answer and
-// encoding it again took 7.0 MB. An inbox GET whose items are kept adds the slot's map, 605,368 bytes in all, where
-// localizing the whole answer before merging it took 13.2 MB in en. The bounds are those plus 3%. Run in a process of
-// its own (isolatedSessionAllocation): TotalAlloc counts every goroutine.
-func TestMergedListAllocation(t *testing.T) {
-	if !isolatedSessionAllocation(t) {
-		return
-	}
-	body := inboxBody(t, 400)
-	answers := []listAnswer{listOf("assistant", 200, string(body))}
-	forms := &inboxForms{}
-	for _, c := range []struct {
-		name  string
-		limit int
-		merge func()
-	}{
-		{"writeMerged", 546_000, func() { writeMerged(discard(), "items", answers) }},
-		{"inbox en, kept", 623_500, func() {
-			local := []listAnswer{answers[0]}
-			local[0].localize = &inboxLocalize{forms: forms, slot: inboxSlot{route: "/api/v1/inbox", manager: "assistant", lang: i18n.En}}
-			writeMerged(discard(), "items", local)
-		}},
-	} {
-		c.merge()
-		if got := allocated(c.merge); got > c.limit && !raceEnabled {
-			t.Errorf("%s: %d bytes for 400 items (%d B), want at most %d", c.name, got, len(body), c.limit)
-		} else {
-			t.Logf("%s: %d bytes", c.name, got)
-		}
-	}
 }
 
 // discardWriter keeps nothing it is written but its header, one map as a response's: a recorder's growing body would

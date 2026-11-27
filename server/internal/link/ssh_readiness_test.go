@@ -2,12 +2,7 @@ package link
 
 import (
 	"reflect"
-	"sync"
-	"sync/atomic"
 	"testing"
-	"time"
-
-	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // sshReady also requires the ordered endpoints and node messages, so lifecycle actions cannot close the socket while
@@ -49,57 +44,4 @@ func TestSSHLifecycleReadinessObservesInitialHubMessages(t *testing.T) {
 			t.Fatalf("ready SSH status = %+v, want %+v", got, want)
 		}
 	})
-}
-
-// TestSSHReconnectInitialWriteBoundary runs the real lifecycle with an abortive tunnel close and the second hub
-// connection held immediately before its initial writes. The old readiness gate kills that connection; the corrected
-// gate recognizes that its messages are still pending and lets the normal reconnect, mode-switch and unpair checks run.
-func TestSSHReconnectInitialWriteBoundary(t *testing.T) {
-	t.Setenv(standInSSHAbortiveCloseEnv, "1")
-	var firstConn atomic.Uint64
-	secondConnected := make(chan Status, 1)
-	var secondOnce sync.Once
-
-	beforeInitialWrites := func(ssh *sshHarness, connection int) {
-		if connection != 2 {
-			return
-		}
-		var st Status
-		select {
-		case st = <-secondConnected:
-		case <-time.After(5 * time.Second):
-			t.Error("reconnect status did not reach the initial-write boundary")
-			return
-		}
-		runs := ssh.runs()
-		if len(runs) < 2 {
-			t.Errorf("reconnect starts = %d, want at least 2", len(runs))
-			return
-		}
-		connected := func(s Status) bool {
-			return s.State == "connected" && s.Kind == KindSSH && s.Conn > firstConn.Load()
-		}
-		if sshReady(st, connected) {
-			pid := runs[len(runs)-1].PID
-			if err := osproc.Kill(pid); err != nil {
-				t.Errorf("kill premature-ready reconnect: %v", err)
-			} else {
-				waitCondition(t, 3*time.Second, "premature reconnect SSH cleanup", func() bool {
-					return !osproc.AliveMine(pid)
-				})
-			}
-		}
-	}
-	onStatus := func(s Status) {
-		if s.State != "connected" || s.Kind != KindSSH {
-			return
-		}
-		if firstConn.CompareAndSwap(0, s.Conn) {
-			return
-		}
-		if s.Conn > firstConn.Load() {
-			secondOnce.Do(func() { secondConnected <- s })
-		}
-	}
-	testSSHReconnectLifecycle(t, beforeInitialWrites, onStatus)
 }

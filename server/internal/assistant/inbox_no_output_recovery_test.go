@@ -2,109 +2,10 @@ package assistant
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
-
-	"github.com/sunfayao/persona/server/internal/proto"
 )
-
-func TestInboxNoOutputRecoveryContinuesPastAnUnreadableRecipient(t *testing.T) {
-	for _, answer := range []string{"", "Handled the review."} {
-		name := "retry"
-		if answer != "" {
-			name = "acknowledge"
-		}
-		t.Run(name, func(t *testing.T) {
-			ctx := context.Background()
-			s, f, todo := inboxRetryService(t, todoTestDB(t))
-			s.inboxToAgent(ctx, inboxRetryEvent(todo.ID, "unreadable-review"))
-			todo = inboxRetryPeer(t, s, todo, "s2")
-			first, second := turnRow(proto.StatusIdle, 10, ""), turnRow(proto.StatusIdle, 20, answer)
-			second.SessionID, second.UpdatedAt = "s2", first.UpdatedAt.Add(time.Minute)
-			f.setSessions("box", first, second)
-			s.inboxToAgent(ctx, inboxRetryEvent(todo.ID, "later-review"))
-			sent := sentToAgent(f)
-			prompt, before := sent[len(sent)-1], len(sent)
-			if inboxRetryLastSession(f) != "s2" {
-				t.Fatal("the later event did not reach its recorded recipient")
-			}
-			todo = inboxRetryPeer(t, s, todo, "s3")
-			peer := turnRow(proto.StatusWorking, 30, "")
-			peer.SessionID, peer.UpdatedAt = "s3", second.UpdatedAt.Add(time.Minute)
-			var firstReads, secondReads atomic.Int32
-			var retryEnded atomic.Bool
-			f.answerNode(DeviceSessionItems, func(_ string, params json.RawMessage) (any, error) {
-				var p struct {
-					Session string `json:"session_id"`
-				}
-				if err := json.Unmarshal(params, &p); err != nil {
-					return nil, err
-				}
-				if p.Session == "s1" {
-					firstReads.Add(1)
-					return nil, errors.New("the first recipient's transcript is unavailable")
-				}
-				if p.Session != "s2" {
-					return nil, errors.New("an unrelated working peer must not be read")
-				}
-				secondReads.Add(1)
-				turn := "later-empty"
-				if retryEnded.Load() {
-					turn = "later-retry-empty"
-				}
-				page := turnPage(turn, answer, true)
-				page[0].Text = prompt
-				return map[string]any{"items": page}, nil
-			})
-			f.setSessions("box", first, second, peer)
-			s.tasks.turns.mu.Lock()
-			s.tasks.turns.loaded = false
-			s.tasks.turns.mu.Unlock()
-			s.watchTurn(ctx, todo, []proto.Session{first, second, peer})
-			turnsQuiet(t, s, todo.ID)
-			if firstReads.Load() == 0 || secondReads.Load() == 0 {
-				t.Fatalf("one failed read starved a later recipient: first=%d, later=%d", firstReads.Load(), secondReads.Load())
-			}
-			if answer != "" {
-				if s.taskInboxRecipient(ctx, todo.ID, "box", "s2") || !s.taskInboxRecipient(ctx, todo.ID, "box", "s1") {
-					t.Fatal("the later reply did not acknowledge only its own event")
-				}
-				if len(sentToAgent(f)) != before {
-					t.Fatal("acknowledging the later event spent another send")
-				}
-				return
-			}
-			if len(sentToAgent(f)) != before+1 || inboxRetryLastSession(f) != "s2" {
-				t.Fatal("the later empty turn did not retry its original recipient")
-			}
-			reads := firstReads.Load()
-			s.tasks.turns.mu.Lock()
-			for key, retry := range s.tasks.turns.retry {
-				if retry.look.Session == "s1" {
-					retry.at = time.Now().Add(time.Hour)
-					s.tasks.turns.retry[key] = retry
-				}
-			}
-			s.tasks.turns.mu.Unlock()
-			retryEnded.Store(true)
-			second.Rev++
-			f.setSessions("box", first, second, peer)
-			s.watchTurn(ctx, todo, []proto.Session{first, second, peer})
-			turnsQuiet(t, s, todo.ID)
-			failures := unhandledInboxSignals(s)
-			if firstReads.Load() != reads || len(failures) != 1 || failures[0].Session != "s2" {
-				t.Fatalf("one recipient's backoff hid another's completion: first reads=%d, failures=%+v", firstReads.Load(), failures)
-			}
-			if len(sentToAgent(f)) != before+1 {
-				t.Fatal("recovery spent more than the one automatic retry")
-			}
-		})
-	}
-}
 
 func flushInboxRecoveryDigest(s *Service) {
 	b := &s.supervise

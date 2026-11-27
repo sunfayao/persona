@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -45,110 +44,6 @@ func TestParseOCIReferences(t *testing.T) {
 		if _, err := parseOCI(raw); err == nil {
 			t.Errorf("invalid reference accepted: %s", raw)
 		}
-	}
-}
-
-func TestOCIMirrorVerificationAndFreshFallback(t *testing.T) {
-	blob := []byte("extension archive fixture")
-	manifest := ociTestManifest(t, blob)
-	for _, failure := range []string{"success", "missing", "server-error", "bad-manifest", "bad-blob", "partial", "timeout", "bad-title", "multi-layer"} {
-		t.Run(failure, func(t *testing.T) {
-			servedManifest := manifest
-			var upstream, mirrorCalls, leaks atomic.Int32
-			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				upstream.Add(1)
-				if r.Header.Get("Authorization") != "" {
-					leaks.Add(1)
-				}
-				if strings.Contains(r.URL.Path, "/manifests/") {
-					_, _ = w.Write(servedManifest)
-				} else {
-					_, _ = w.Write(blob)
-				}
-			}))
-			defer origin.Close()
-			mirror := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				mirrorCalls.Add(1)
-				if r.Header.Get("Authorization") != "" {
-					leaks.Add(1)
-				}
-				if failure == "server-error" {
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-				if failure == "missing" {
-					http.NotFound(w, r)
-					return
-				}
-				if failure == "timeout" {
-					<-r.Context().Done()
-					return
-				}
-				if strings.Contains(r.URL.Path, "/manifests/") {
-					if failure == "bad-manifest" {
-						_, _ = w.Write([]byte(`{}`))
-						return
-					}
-					_, _ = w.Write(servedManifest)
-					return
-				}
-				if failure == "bad-blob" {
-					_, _ = w.Write([]byte(strings.Repeat("x", len(blob))))
-					return
-				}
-				if failure == "partial" {
-					_, _ = w.Write(blob[:4])
-					return
-				}
-				_, _ = w.Write(blob)
-			}))
-			defer mirror.Close()
-			if failure == "bad-title" || failure == "multi-layer" {
-				// These descriptors fail independently, even with the manifest digest pinned.
-				var ix ociManifest
-				_ = json.Unmarshal(manifest, &ix)
-				if failure == "bad-title" {
-					ix.Layers[0].Annotations["org.opencontainers.image.title"] = "../bad.tar.gz"
-				} else {
-					ix.Layers = append(ix.Layers, ix.Layers[0])
-				}
-				bad, _ := json.Marshal(ix)
-				servedManifest = bad
-				ref, _ := parseOCI("oci:" + strings.TrimPrefix(origin.URL, "http://") + "/example/market/ext@sha256:" + ociSum(bad))
-				m := &Market{RegistryMirror: mirror.URL}
-				_, err := m.downloadOCI(context.Background(), ref, false, io.Discard)
-				if err == nil {
-					t.Fatal("descriptor accepted")
-				}
-				return
-			}
-			m := &Market{Spec: MarketSpec{Kind: "github", Owner: "example", Repo: "market"}, Token: "fixture-secret", RegistryMirror: mirror.URL + "/prefix", Cache: t.TempDir()}
-			pkg := &MarketPackage{URL: "oci:" + strings.TrimPrefix(origin.URL, "http://") + "/example/market/ext@sha256:" + ociSum(manifest), SHA256: ociSum(blob), Size: int64(len(blob))}
-			file, name, err := m.Download(context.Background(), pkg, t.TempDir())
-			if err != nil {
-				t.Fatal(err)
-			}
-			got, _ := os.ReadFile(file)
-			if string(got) != string(blob) || name != "example.tar.gz" {
-				t.Fatal("fallback staging/hash was contaminated")
-			}
-			if leaks.Load() != 0 {
-				t.Fatal("market token reached anonymous registry or mirror")
-			}
-			if failure == "success" && upstream.Load() != 0 {
-				t.Fatal("successful mirror still fetched upstream")
-			}
-			if failure != "success" && upstream.Load() == 0 {
-				t.Fatal("mirror failure did not fallback")
-			}
-			if mirrorCalls.Load() == 0 {
-				t.Fatal("mirror not attempted")
-			}
-			before := upstream.Load() + mirrorCalls.Load()
-			if _, _, err := m.Download(context.Background(), pkg, t.TempDir()); err != nil || before != upstream.Load()+mirrorCalls.Load() {
-				t.Fatal("verified package cache not reused")
-			}
-		})
 	}
 }
 

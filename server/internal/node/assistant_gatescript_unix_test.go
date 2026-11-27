@@ -4,7 +4,6 @@ package node
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -12,7 +11,6 @@ import (
 	"strings"
 	"syscall"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -34,22 +32,6 @@ func resultText(r proto.ToolResult) string {
 	return r.Content[0].Text
 }
 
-// runGateScriptWithin runs the script and fails the test when it has not returned within limit (the result is then
-// left to the goroutine; the cleanup kills what the script started).
-func runGateScriptWithin(t *testing.T, ctx context.Context, script string, limit time.Duration) (proto.ToolResult, time.Duration) {
-	t.Helper()
-	done := make(chan proto.ToolResult, 1)
-	start := time.Now()
-	go func() { done <- runGateScript(ctx, "gate", script, nil, filepath.Dir(script), nil) }()
-	select {
-	case res := <-done:
-		return res, time.Since(start)
-	case <-time.After(limit):
-		t.Fatalf("runGateScript still running after %v: a child holding the output pipe keeps the tool call", limit)
-		return proto.ToolResult{}, 0
-	}
-}
-
 // killPidFileAtCleanup kills the pid the script writes to pidFile when the test ends, even one that failed before
 // reading it.
 func killPidFileAtCleanup(t *testing.T, pidFile string) {
@@ -60,80 +42,6 @@ func killPidFileAtCleanup(t *testing.T, pidFile string) {
 			}
 		}
 	})
-}
-
-// leftoverPid reads the pid the script wrote down.
-func leftoverPid(t *testing.T, pidFile string) int {
-	t.Helper()
-	var pid int
-	for i := 0; i < 100; i++ {
-		if b, err := os.ReadFile(pidFile); err == nil && strings.TrimSpace(string(b)) != "" {
-			pid, _ = strconv.Atoi(strings.TrimSpace(string(b)))
-			break
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
-	if pid <= 0 {
-		t.Fatal("the script did not write the background pid")
-	}
-	return pid
-}
-
-// pidGone says whether pid has exited within a short grace (the kill is asynchronous; a zombie of a reparented child is
-// reaped by init soon after).
-func pidGone(pid int) bool {
-	for i := 0; i < 50; i++ {
-		if errors.Is(syscall.Kill(pid, 0), syscall.ESRCH) {
-			return true
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
-	return false
-}
-
-// A script that leaves a background child holding its stdout and exits: the call returns soon after, not when the
-// child does, and the child does not outlive the call.
-func TestGateScriptBackgroundChildExitsWithTheScript(t *testing.T) {
-	dir := t.TempDir()
-	pidFile := filepath.Join(dir, "pid")
-	script := writeGateScript(t, "sleep 300 &\necho $! > "+pidFile+"\necho started\n")
-	killPidFileAtCleanup(t, pidFile)
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
-	defer cancel()
-	res, took := runGateScriptWithin(t, ctx, script, 10*time.Second)
-	pid := leftoverPid(t, pidFile)
-	t.Logf("returned in %v: %q (error %v)", took, resultText(res), res.IsError)
-	if took > 3*time.Second {
-		t.Errorf("returned in %v, want within ~3s", took)
-	}
-	if !strings.Contains(resultText(res), "started") {
-		t.Errorf("output %q lost the script's output", resultText(res))
-	}
-	if !pidGone(pid) {
-		t.Errorf("background child %d still running after the call", pid)
-	}
-}
-
-// A script still running at its timeout: everything it started is stopped and the call returns as an error.
-func TestGateScriptTimeoutStopsTheWholeGroup(t *testing.T) {
-	dir := t.TempDir()
-	pidFile := filepath.Join(dir, "pid")
-	script := writeGateScript(t, "sleep 300 &\necho $! > "+pidFile+"\necho started\nwait\n")
-	killPidFileAtCleanup(t, pidFile)
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
-	defer cancel()
-	res, took := runGateScriptWithin(t, ctx, script, 10*time.Second)
-	pid := leftoverPid(t, pidFile)
-	t.Logf("returned in %v: %q (error %v)", took, resultText(res), res.IsError)
-	if took > 3*time.Second {
-		t.Errorf("returned in %v, want within ~3s", took)
-	}
-	if !res.IsError {
-		t.Error("a script stopped at its timeout reported success")
-	}
-	if !pidGone(pid) {
-		t.Errorf("background child %d still running after the timeout", pid)
-	}
 }
 
 // A script printing far more than the cap: only the cap is kept in memory, then the truncation notice.

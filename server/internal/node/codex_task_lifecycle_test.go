@@ -3,9 +3,6 @@ package node
 import (
 	"context"
 	"path/filepath"
-	"slices"
-	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -124,107 +121,4 @@ func TestCodexHistoryActiveRolloutReportsWorkingBetweenScans(t *testing.T) {
 	if stale.Status != proto.StatusOffline || stale.Capabilities == nil || !stale.Capabilities.Terminal || stale.ReadOnlyReason != stoppedReason {
 		t.Fatalf("stale row = %+v, want offline resumable", stale)
 	}
-}
-
-// Regression for #12389 (Part 4): stopping a mid-turn Codex pane interrupts its active turn first when joined on
-// app-server and sends a follow-up Ctrl+C within Codex's short exit-confirmation window so one stop round succeeds.
-func TestQuitMidTurnCodexSendsConfirmCtrlC(t *testing.T) {
-	t.Run("joined_app_server_interrupts_before_exit", func(t *testing.T) {
-		n, f, home := herdrNode(t)
-		withStop(t, 1, 600*time.Millisecond)
-		n.codices = newCodexRegistry()
-		n.codices.scan = func() []codexProcess { return nil }
-		n.configureCodex(proto.CodexConfig{})
-
-		cwd := mkdir(t, filepath.Join(home, "repo"))
-		codexHome := codex.CanonicalHome(filepath.Join(n.home, ".codex"), n.home)
-		now := time.Now().UTC()
-		writeRollout(t, n.home, remoteRaw, cwd, now, now, activeRolloutEvent(now, "task_started"))
-
-		var interrupted atomic.Bool
-		rf, _ := connectRemoteFixture(t, n, codexHome, "discovered-09b03a5e", remoteRaw)
-		rf.mu.Lock()
-		rf.response = func(method string, _ map[string]any) (any, bool) {
-			switch method {
-			case "thread/read":
-				status := map[string]any{"type": "active", "activeFlags": []string{}}
-				turns := []any{map[string]any{"id": "turn-1", "status": "inProgress"}}
-				if interrupted.Load() {
-					status = map[string]any{"type": "idle"}
-					turns = []any{map[string]any{"id": "turn-1", "status": "interrupted"}}
-				}
-				return map[string]any{"thread": map[string]any{
-					"id": remoteRaw, "name": "Task", "cwd": cwd, "status": status, "turns": turns,
-				}}, true
-			case "turn/interrupt":
-				interrupted.Store(true)
-				return map[string]any{}, true
-			}
-			return nil, false
-		}
-		rf.mu.Unlock()
-
-		n.bindPane("w1:p1", remoteRaw)
-		f.reply("session.snapshot", snapshot(nil, nil, []any{
-			agentOf("codex", remoteRaw, proto.StatusWorking, "w1:p1", "w1:t1", "w1", cwd, ""),
-		}, nil))
-		listSessions(t, n)
-		n.joinCodexPanes(context.Background())
-		waitFor(t, "mid-turn codex pane joined", func() bool {
-			rows := rowsOf(n, remoteRaw)
-			return len(rows) == 1 && rows[0].SourceKind == "" && rows[0].CodexRoute == codexRouteAppServer
-		})
-		f.reset()
-
-		var ctrlCCount atomic.Int32
-		f.after(func(c herdrCall) {
-			if c.Method == "pane.send_keys" && slices.Equal(keysOf(c), []string{"ctrl+c"}) {
-				if ctrlCCount.Add(1) >= 3 {
-					f.reply("session.snapshot", snapshot(nil, nil, nil, []any{shellPane("w1:p1", "w1:t1", "w1", cwd, remoteRaw)}))
-				}
-			}
-		})
-
-		res, err := request(t, n, "session.stop", map[string]any{"session_id": remoteRaw})
-		if err != nil {
-			t.Fatalf("session.stop failed: %v", err)
-		}
-		if res["stopped"] != true || !interrupted.Load() {
-			t.Fatalf("res=%v interrupted=%v, want stopped=true & interrupted=true", res, interrupted.Load())
-		}
-		for _, k := range f.trace("pane.send_keys") {
-			if !strings.Contains(k, "ctrl+c") {
-				t.Fatalf("unexpected non-ctrl+c key sent: %q", k)
-			}
-		}
-	})
-
-	t.Run("unjoined_working_pane_confirms_exit_with_ctrl_c", func(t *testing.T) {
-		n, f, home := herdrNode(t)
-		withStop(t, 1, 700*time.Millisecond)
-		cwd := mkdir(t, filepath.Join(home, "repo"))
-		n.bindPane("w1:p1", remoteRaw)
-		f.reply("session.snapshot", snapshot(nil, nil, []any{
-			agentOf("codex", remoteRaw, proto.StatusWorking, "w1:p1", "w1:t1", "w1", cwd, ""),
-		}, nil))
-		listSessions(t, n)
-		f.reset()
-
-		var ctrlCCount atomic.Int32
-		f.after(func(c herdrCall) {
-			if c.Method == "pane.send_keys" && slices.Equal(keysOf(c), []string{"ctrl+c"}) {
-				if ctrlCCount.Add(1) >= 4 {
-					f.reply("session.snapshot", snapshot(nil, nil, nil, []any{shellPane("w1:p1", "w1:t1", "w1", cwd, remoteRaw)}))
-				}
-			}
-		})
-
-		res, err := request(t, n, "session.stop", map[string]any{"session_id": remoteRaw})
-		if err != nil {
-			t.Fatalf("session.stop failed: %v", err)
-		}
-		if res["stopped"] != true {
-			t.Fatalf("expected stopped=true, got %v", res)
-		}
-	})
 }

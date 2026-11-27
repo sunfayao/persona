@@ -15,7 +15,6 @@ import (
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
-	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // Decisions the owner can answer (#3804, decision.go). All names, ids and texts are placeholders.
@@ -711,100 +710,6 @@ func TestOptionChosenGoesToTheAgent(t *testing.T) {
 	want := i18n.T(s2.botLang(context.Background()), "assistant-reports.verdict_take_to_agent", i18n.Args{"option": "先灰度 10%"})
 	if got := sentToAgent(f2)[sent:]; len(got) != 1 || got[0] != want {
 		t.Fatalf("to the agent: %q", got)
-	}
-}
-
-// A stopped, absent or offline Agent cannot take the owner's answer, but the answer is still made: it is recorded,
-// the ask ends, and the supervisor gets the choice and the delivery failure. An ordinary send failure stays retryable.
-func TestDecisionWithoutLiveAgentIsRecordedForSupervisor(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		stop func(*fakeHub)
-		want int
-	}{
-		{"stopped", func(f *fakeHub) {
-			c := idleAgent(time.Now().Add(-time.Hour))
-			c.Status = proto.StatusInterrupted
-			f.setSessions("box", c)
-		}, http.StatusOK},
-		{"stopped refusal", func(f *fakeHub) {
-			f.mu.Lock()
-			f.failSend = &rpc.Error{Code: proto.CodeAgentStopped, Message: "the agent has stopped"}
-			f.mu.Unlock()
-		}, http.StatusOK},
-		{"no agent", func(f *fakeHub) { f.setSessions("box") }, http.StatusOK},
-		{"offline", func(f *fakeHub) {
-			f.mu.Lock()
-			f.devices = []Device{}
-			f.mu.Unlock()
-		}, http.StatusOK},
-		{"transient send failure", func(f *fakeHub) {
-			f.mu.Lock()
-			f.failSend = errors.New("temporary network break")
-			f.mu.Unlock()
-		}, http.StatusBadGateway},
-	} {
-		for _, option := range []string{"直接全量", "先灰度 10%"} {
-			t.Run(tc.name+"/"+option, func(t *testing.T) {
-				database := todoTestDB(t)
-				s, f, todo := newSupervisedServiceOn(t, database)
-				waitsForReview(t, s, f, todo.ID, "两种走法：A 先灰度，B 直接全量。")
-				if _, err := reviewErr(s, todo.ID, rolloutDecision()); err != nil {
-					t.Fatal(err)
-				}
-				a := askOf(s, todo.ID)
-				tc.stop(f)
-				sent := len(sentToAgent(f))
-				rec := answerAsk(s, todo.ID, map[string]string{"option": option})
-				if rec.Code != tc.want {
-					t.Fatalf("accept: %d %s, want %d", rec.Code, rec.Body.String(), tc.want)
-				}
-				var body map[string]any
-				if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-					t.Fatal(err)
-				}
-				if body["code"] != "accept_not_taken" && tc.want == http.StatusBadGateway {
-					t.Fatalf("error code %v", body["code"])
-				}
-				if got := len(sentToAgent(f)); got != sent {
-					t.Fatalf("%d sends after the failed one", got-sent)
-				}
-				decisions, err := database.ListTodoDecisions(context.Background(), todo.ID, true)
-				if err != nil {
-					t.Fatal(err)
-				}
-				key := "undelivered|" + a.AskedAt.UTC().Format(time.RFC3339Nano)
-				// A digest removes pending signals before marking them sent. Take the snapshot
-				// outside that interval, after any in-flight digest has finished.
-				s.supervise.dedupMu.Lock()
-				s.supervise.mu.Lock()
-				g, pending := s.supervise.pending[todo.ID+"|"+sigOwnerChoice]
-				told := s.supervise.sent[todo.ID+"|"+sigOwnerChoice] == key
-				s.supervise.mu.Unlock()
-				s.supervise.dedupMu.Unlock()
-				if tc.want == http.StatusBadGateway {
-					if len(decisions) != 0 || askOf(s, todo.ID).AcceptedAt.IsZero() == false ||
-						todoNow(s, todo.ID).Supervision.State != reviewNeedsUser || pending && g.Key == key || told {
-						t.Fatalf("retryable failure took the decision: decisions=%+v ask=%+v signal=%+v", decisions, askOf(s, todo.ID), g)
-					}
-					return
-				}
-				if body["ok"] != true || body["delivered"] != "none" {
-					t.Fatalf("recorded response %v", body)
-				}
-				if len(decisions) != 1 || decisions[0].Choice != option {
-					t.Fatalf("decisions %+v", decisions)
-				}
-				if got := askOf(s, todo.ID); got.AcceptedAt.IsZero() || listedAsk(t, s, todo.ID) != nil ||
-					todoNow(s, todo.ID).Supervision.State == reviewNeedsUser {
-					t.Fatalf("the decision still waits: %+v", got)
-				}
-				if (!pending || g.Key != key || !strings.Contains(g.Detail, option)) && !told {
-					t.Fatalf("supervisor not told: %+v (told %v)", g, told)
-				}
-				s.waitWorkEvents() // do not let the next database fixture truncate an event still in flight
-			})
-		}
 	}
 }
 

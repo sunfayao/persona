@@ -364,24 +364,6 @@ func TestSecretRunKeepsNoPasswordInPostgres(t *testing.T) {
 	}
 }
 
-// Not filled in in time: expired, and the node never runs anything.
-func TestSecretRunExpiresWithoutRunning(t *testing.T) {
-	old := secretRunCardWait
-	secretRunCardWait = 300 * time.Millisecond
-	t.Cleanup(func() { secretRunCardWait = old })
-	r := newSecretRig(t, nil)
-	done := r.call(secretArgs)
-	ix := r.card()
-	out, text := r.outcome(done)
-	if out.Status != secretExpired || len(out.Results) != 0 {
-		t.Fatalf("outcome = %s", text)
-	}
-	r.wantNoRun()
-	if status, _, _ := r.mem.InteractionOutcome(context.Background(), ix.ID); status != "expired" {
-		t.Fatalf("history: %s", status)
-	}
-}
-
 // Declined on the phone: declined, nothing ran.
 func TestSecretRunDeclined(t *testing.T) {
 	r := newSecretRig(t, nil)

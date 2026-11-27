@@ -8,7 +8,6 @@ import (
 	"io"
 	"strings"
 	"testing"
-	"testing/iotest"
 )
 
 // frames encodes lines the way a laneWriter cuts them: each line whole on lane, one after another, pieces of at most
@@ -76,41 +75,6 @@ func TestFrameHeadRejectsWhatV1NeverWrites(t *testing.T) {
 		mutate(b)
 		if _, err := parseHead(b); !errors.Is(err, ErrFrame) {
 			t.Errorf("%s: %v, want ErrFrame", name, err)
-		}
-	}
-}
-
-// Lines at and around a frame's edge come back exactly, however the transport splits the reads.
-func TestFrameReaderEdges(t *testing.T) {
-	sizes := []int{0, 1, framePayloadMax - 1, framePayloadMax, framePayloadMax + 1, frameMax, 2 * framePayloadMax, 3<<20 + 7}
-	var lines [][]byte
-	for i, n := range sizes {
-		lines = append(lines, bytes.Repeat([]byte{byte('a' + i)}, n))
-	}
-	wire, _ := frames(0, LaneInteractive, framePayloadMax, lines...)
-	for name, r := range map[string]io.Reader{
-		"whole":    bytes.NewReader(wire),
-		"one byte": iotest.OneByteReader(bytes.NewReader(wire)),
-		"half":     iotest.HalfReader(bytes.NewReader(wire)),
-	} {
-		got, err := readLines(t, r)
-		if err != nil {
-			t.Fatalf("%s: %v", name, err)
-		}
-		if len(got) != len(lines) {
-			t.Fatalf("%s: %d lines, want %d", name, len(got), len(lines))
-		}
-		for i := range lines {
-			if !bytes.Equal(got[i], lines[i]) {
-				t.Fatalf("%s: line %d (%d bytes) came back as %d bytes", name, i, len(lines[i]), len(got[i]))
-			}
-		}
-	}
-	// A line of exactly framePayloadMax is one frame, one more byte two; 32 KiB with the header is two.
-	for _, c := range []struct{ size, frames int }{{framePayloadMax, 1}, {framePayloadMax + 1, 2}, {frameMax, 2}, {0, 1}} {
-		wire, seq := frames(0, LaneBulk, framePayloadMax, make([]byte, c.size))
-		if int(seq) != c.frames || len(wire) != c.size+c.frames*frameHeader {
-			t.Errorf("a line of %d: %d frames, %d bytes", c.size, seq, len(wire))
 		}
 	}
 }

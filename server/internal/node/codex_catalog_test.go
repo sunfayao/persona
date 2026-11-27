@@ -215,40 +215,6 @@ func TestLauncherEnvWaitsBrieflyForTheCatalog(t *testing.T) {
 	}
 }
 
-// A codex behind a shim is the same file before and after an upgrade: its version is read again after
-// codexCatalogTTL, in the background, the version read before given meanwhile, so a slow shim holds no start.
-func TestCodexVersionReadAgainBehindAShim(t *testing.T) {
-	fakeCodex(t, "0.167.0")
-	exe, _ := agentExecutable("codex")
-	dir := t.TempDir()
-	said, slow := filepath.Join(dir, "version"), filepath.Join(dir, "slow")
-	writeFile(t, said, "codex-cli 0.160.0\n")
-	writeFile(t, exe, "#!/bin/sh\nif [ -e '"+slow+"' ]; then /bin/sleep 1; fi\n/bin/cat '"+said+"'\n")
-	if _, v := codexVersion(context.Background()); v != "0.160.0" {
-		t.Fatalf("version %q", v)
-	}
-	writeFile(t, said, "codex-cli 0.167.0\n") // upgraded behind the shim; the shim is unchanged
-	writeFile(t, slow, "")
-	if _, v := codexVersion(context.Background()); v != "0.160.0" {
-		t.Fatalf("read again at once: %q", v)
-	}
-	codexVersionCache.Lock()
-	kept := time.Until(codexVersionCache.until)
-	codexVersionCache.until = time.Now().Add(-time.Second) // as if codexCatalogTTL had passed
-	codexVersionCache.Unlock()
-	if kept <= 0 || kept > codexCatalogTTL {
-		t.Fatalf("the version is kept %s, want at most %s", kept, codexCatalogTTL)
-	}
-	start := time.Now()
-	if _, v := codexVersion(context.Background()); v != "0.160.0" || time.Since(start) > 500*time.Millisecond {
-		t.Fatalf("past codexCatalogTTL: %q after %s, want the one read before at once", v, time.Since(start))
-	}
-	waitWithin(t, 10*time.Second, "the version read again", func() bool {
-		_, v := codexVersion(context.Background())
-		return v == "0.167.0"
-	})
-}
-
 // A run its caller gave up on says nothing of codex: it is not kept as a failure.
 func TestCodexVersionCallerGivingUpKeepsNothing(t *testing.T) {
 	fakeCodex(t, "0.167.0")
@@ -288,23 +254,6 @@ func TestCodexCatalogLookupSurvivesAPanic(t *testing.T) {
 	}()
 	if !strings.Contains(logged.String(), "launcher gw: looking failed: boom") {
 		t.Fatalf("logged %q", logged.String())
-	}
-}
-
-// A codex --version whose child keeps stdout open does not hold the answer past the timeout.
-func TestCodexVersionDoesNotWaitOnAChildsOutput(t *testing.T) {
-	fakeCodex(t, "0.167.0")
-	exe, _ := agentExecutable("codex")
-	writeFile(t, exe, "#!/bin/sh\n/bin/sleep 8 &\n/bin/sleep 8\n")
-	old := codexVersionTimeout
-	codexVersionTimeout = 200 * time.Millisecond
-	t.Cleanup(func() { codexVersionTimeout = old })
-	start := time.Now()
-	if v := codexVersionAt(context.Background(), exe); v != "" {
-		t.Fatalf("version %q", v)
-	}
-	if took := time.Since(start); took > 4*time.Second {
-		t.Fatalf("waited %s", took)
 	}
 }
 

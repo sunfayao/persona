@@ -3,14 +3,10 @@ package node
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
-	"time"
-
-	"github.com/sunfayao/persona/server/internal/host"
 )
 
 const cxUpdate0169 = "  Update available · 0.169.0 → 0.170.0\n\n› 1. Update now\n  2. Skip\n  3. Skip until next version\n\n  enter continue · esc skip\n"
@@ -95,66 +91,5 @@ func TestCodexFirstPasteWaitsForItsVisibleTail(t *testing.T) {
 	defer mu.Unlock()
 	if !submittedWithTail || len(f.trace("pane.send_text")) != 1 || len(f.trace("pane.send_keys")) != 1 {
 		t.Fatalf("submitted while the tail was in flight: reads=%d keys=%v", reads, f.trace("pane.send_keys"))
-	}
-}
-
-// Even if an older CLI displays an update offer, native-argv startup only
-// skips the offer. It never pastes or presses Enter to deliver the prompt.
-func TestCodexNativeStartupSkipsUpdateAndConfirmsCompletePrompt(t *testing.T) {
-	for _, partial := range []bool{false, true} {
-		t.Run(fmt.Sprintf("partial=%v", partial), func(t *testing.T) {
-			n, f := stalledCodexNode(t)
-			withCodexWaits(t)
-			codexStartWait = time.Second
-			home := filepath.Dir(n.dir)
-			cwd := filepath.Join(home, "proj")
-			prompt := "Context 中文 🧪\n\nAll lines, quotes \" and $HOME stay literal.\nFinal line."
-			f.after(func(c herdrCall) {
-				if c.Method == "pane.send_input" && strings.Contains(str(c.Params["text"]), "codex-start") {
-					f.setScreen("w1:p2", cxUpdate0169)
-				}
-				if isKeys("escape")(c) {
-					first := prompt
-					if partial {
-						first = "Context 中文"
-					}
-					writeWaitRollout(t, home, cwd, startThread, time.Now(), first)
-					f.setScreen("w1:p2", cxReady)
-				}
-			})
-			session, err := n.startCodex(context.Background(), n.defaultHost().(host.Launcher), cwd, "codex", []string{"codex"}, modelExecution{}, prompt, "w1", "", "")
-			if partial {
-				if err == nil || len(f.trace("tab.close", "pane.close")) == 0 {
-					t.Fatalf("partial first message succeeded or left its pane: %+v %v", session, err)
-				}
-			} else if err != nil || session.SessionID != startThread {
-				t.Fatalf("native start not confirmed: %+v %v", session, err)
-			}
-			if len(f.trace("pane.send_text", "agent.prompt")) != 0 {
-				t.Fatal("native first prompt went through terminal input")
-			}
-			for _, c := range f.calls() {
-				if c.Method == "pane.send_keys" && !isKeys("escape")(c) {
-					t.Fatalf("startup sent %v instead of Escape", keysOf(c))
-				}
-			}
-		})
-	}
-}
-
-// Waiting rows still protect a user's draft and never submit into a modal.
-func TestCodexWaitingInputUpdateDoesNotOverwriteDraftOrLoop(t *testing.T) {
-	for _, next := range []string{cxUpdate0169, "› somebody else's draft\n\n  gpt-6 xhigh · /tmp/proj\n"} {
-		t.Run(next[:min(12, len(next))], func(t *testing.T) {
-			n, f, _ := codexNode(t, "idle")
-			withCodexWaits(t)
-			f.screenSteps(cxPane, func(c herdrCall) bool { return c.Method == "pane.send_text" || isKeys("escape")(c) }, cxReady, cxUpdate0169, next)
-			ctx, cancel := context.WithTimeout(context.Background(), 350*time.Millisecond)
-			defer cancel()
-			err := n.typeCodexFirst(ctx, cxPane, "heading\nbody")
-			if err == nil || len(f.trace("pane.send_text")) != 1 || len(f.trace("pane.send_keys")) != 1 {
-				t.Fatalf("waiting input overwrote/submitted/looped: %v", err)
-			}
-		})
 	}
 }

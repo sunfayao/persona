@@ -57,10 +57,6 @@ func unboundChannels(t *testing.T, a *fakeAssistant) []string {
 	return ids
 }
 
-type failingChannelLogout struct{ signInConnector }
-
-func (*failingChannelLogout) Logout(context.Context) error { return errors.New("logout failed") }
-
 func TestConnectorWithoutChannelsDoesNotNeedAssistantToLogout(t *testing.T) {
 	h, a := newConnectorChannels(t, "other_connector")
 	h.opts.Assistant = nil

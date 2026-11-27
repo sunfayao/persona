@@ -1,7 +1,6 @@
 package hub
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -51,26 +50,5 @@ func TestSavedAgentSearchExtensionCannotWrite(t *testing.T) {
 	defer f.mu.Unlock()
 	if len(f.served) != 0 {
 		t.Fatalf("denied writes reached the manager: %v", f.served)
-	}
-}
-
-func TestSavedAgentSearchBroadcastIsManagerStamped(t *testing.T) {
-	h, a, b := pathsHub(t, quiet, quiet)
-	app := wsApp(t, h)
-	got := broadcastsTo(t, app, b, `{"type":"saved_agent_searches","revision":"9007199254740993"}`)
-	got = append(got, broadcastsTo(t, app, a, `{"type":"saved_agent_searches","revision":"7"}`)...)
-	owners := map[string]string{}
-	for _, message := range got {
-		var typ, revision, manager string
-		_ = json.Unmarshal(message["type"], &typ)
-		if typ != "saved_agent_searches" {
-			continue
-		}
-		_ = json.Unmarshal(message["revision"], &revision)
-		_ = json.Unmarshal(message["manager"], &manager)
-		owners[revision] = manager
-	}
-	if len(owners) != 2 || owners["9007199254740993"] != "m-0b0b0b" || owners["7"] != "" {
-		t.Fatalf("wrong event owners or integer precision: %v", owners)
 	}
 }

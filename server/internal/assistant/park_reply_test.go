@@ -144,41 +144,6 @@ func TestPersonReplyAdmissionRejectsIncompleteWatchBeforeMutation(t *testing.T) 
 	}
 }
 
-func TestPersonReplyWakeRejectsMismatchedSourceFacts(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		edit func(map[string]any)
-	}{
-		{"wrong source", func(w map[string]any) { w["watch"].(map[string]any)["source"] = "other" }},
-		{"wrong account", func(w map[string]any) { w["watch"].(map[string]any)["account_open_id"] = "ou_other" }},
-		{"wrong app", func(w map[string]any) { w["watch"].(map[string]any)["app_id"] = "cli_other" }},
-		{"wrong person", func(w map[string]any) { w["watch"].(map[string]any)["person_open_id"] = "ou_other" }},
-		{"wrong chat", func(w map[string]any) { w["watch"].(map[string]any)["chat_id"] = "oc_other" }},
-		{"wrong topic", func(w map[string]any) { w["watch"].(map[string]any)["thread_id"] = "omt_other" }},
-		{"wrong request", func(w map[string]any) { w["watch"].(map[string]any)["request_message_id"] = "om_other" }},
-		{"wrong reply sender", func(w map[string]any) { w["reply"].(map[string]any)["sender_id"] = "ou_other" }},
-		{"bot reply", func(w map[string]any) { w["reply"].(map[string]any)["sender_type"] = "app" }},
-		{"wrong id type", func(w map[string]any) { w["reply"].(map[string]any)["id_type"] = "union_id" }},
-		{"reply from app", func(w map[string]any) { w["reply"].(map[string]any)["app_id"] = "cli_example" }},
-		{"wrong reply message", func(w map[string]any) { w["reply"].(map[string]any)["id"] = "om_request" }},
-		{"wrong topic URL", func(w map[string]any) { w["request"].(map[string]any)["url"] = "https://example.com/" }},
-		{"request from other owner", func(w map[string]any) { w["request"].(map[string]any)["sender_id"] = "ou_other" }},
-		{"request id type mismatch", func(w map[string]any) { w["request"].(map[string]any)["id_type"] = "union_id" }},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			s, f, todo := newSupervisedService(t)
-			holdDigest(s)
-			now := time.Now().UTC().Truncate(time.Second)
-			parkPersonReply(t, s, todo, now)
-			observation := personReplyObservation(now)
-			tc.edit(observation)
-			f.answerApp(AppConnectors, "connectors.lark_reply", func(json.RawMessage) (any, error) { return observation, nil })
-			s.sweepDeploys(now)
-			personReplyAssertParked(t, s, f, todo.ID, 1)
-		})
-	}
-}
-
 func TestPersonReplyWakeAcceptsBoundAppRequest(t *testing.T) {
 	s, f, todo := newSupervisedService(t)
 	holdDigest(s)

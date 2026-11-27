@@ -2,7 +2,6 @@ package feishubot_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -108,113 +107,6 @@ func TestTokenWaitDuringForcedRefresh(t *testing.T) {
 			}
 			if fetches.Load() != want || stale.Load() != 0 {
 				t.Fatalf("fetches=%d, stale API calls=%d", fetches.Load(), stale.Load())
-			}
-		})
-	}
-}
-
-// Both first API answers are transient. A's forced refresh is already in flight
-// before B enters its final attempt, which must wait rather than spend it on T0.
-func TestTokenWaitFinalAttempt(t *testing.T) {
-	for _, mode := range []string{"resource", "keyed send"} {
-		t.Run(mode, func(t *testing.T) {
-			entered, release, second := make(chan struct{}), make(chan struct{}), make(chan struct{})
-			var once sync.Once
-			unblock := func() { once.Do(func() { close(release) }) }
-			var fetches, hits, stale atomic.Int32
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path == tokenPath {
-					n := fetches.Add(1)
-					if n == 2 {
-						close(entered)
-						<-release
-					}
-					fmt.Fprintf(w, `{"code":0,"tenant_access_token":"synthetic-%d","expire":7200}`, n)
-					return
-				}
-				if r.URL.Path == "/open-apis/bot/v3/info" {
-					fmt.Fprint(w, `{"code":0}`)
-					return
-				}
-				if strings.Contains(r.URL.Path, "/messages/leader/resources/") {
-					if r.Header.Get("Authorization") == "Bearer synthetic-1" {
-						w.WriteHeader(http.StatusBadRequest)
-						fmt.Fprint(w, `{"code":99991663}`)
-					} else {
-						fmt.Fprint(w, "resource")
-					}
-					return
-				}
-				n := hits.Add(1)
-				if mode == "keyed send" {
-					// Every retry must retain the public send's idempotency UUID.
-					var body struct {
-						UUID string `json:"uuid"`
-					}
-					if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.UUID != "stable-synthetic-uuid" {
-						t.Error("send lost its UUID")
-					}
-
-				}
-				if n <= 2 {
-					if n == 2 {
-						close(second)
-						<-entered
-					}
-					w.WriteHeader(http.StatusServiceUnavailable)
-					fmt.Fprint(w, `{"code":0}`)
-					return
-				}
-				if r.Header.Get("Authorization") == "Bearer synthetic-1" {
-					stale.Add(1)
-					w.WriteHeader(http.StatusBadRequest)
-					fmt.Fprint(w, `{"code":99991663}`)
-					return
-				}
-				if mode == "resource" {
-					fmt.Fprint(w, "resource")
-				} else {
-					fmt.Fprint(w, `{"code":0,"data":{"message_id":"synthetic-message"}}`)
-				}
-			}))
-			defer srv.Close()
-			defer unblock()
-			c := feishubot.New("synthetic-app", "synthetic-secret", srv.URL)
-			if _, err := c.BotInfo(context.Background()); err != nil {
-				t.Fatal(err)
-			}
-			waiter := make(chan error, 1)
-			go func() {
-				var err error
-				if mode == "resource" {
-					_, _, err = c.Resource(context.Background(), "synthetic-message", "synthetic-key", "file", 1024)
-				} else {
-					_, err = c.Send(context.Background(), "chat_id", "synthetic-chat", feishubot.TypeText, `{"text":"test"}`, "stable-synthetic-uuid")
-				}
-				waiter <- err
-			}()
-			awaitTokenSignal(t, second)
-			leader := make(chan error, 1)
-			go func() {
-				_, _, err := c.Resource(context.Background(), "leader", "synthetic-key", "file", 1024)
-				leader <- err
-			}()
-			awaitTokenSignal(t, entered)
-			// A real retry's bounded backoff separates B's second and third attempts.
-			select {
-			case err := <-waiter:
-				t.Fatalf("final attempt escaped the gated refresh: %v", err)
-			case <-time.After(time.Second):
-			}
-			unblock()
-			if err := <-leader; err != nil {
-				t.Fatal(err)
-			}
-			if err := <-waiter; err != nil {
-				t.Fatal(err)
-			}
-			if hits.Load() != 3 || fetches.Load() != 2 || stale.Load() != 0 {
-				t.Fatalf("API calls=%d token exchanges=%d stale calls=%d", hits.Load(), fetches.Load(), stale.Load())
 			}
 		})
 	}

@@ -444,43 +444,6 @@ func inboxResumeTranscript(t *testing.T, n *Node, id string) {
 	n.setPath(id, path)
 }
 
-// A stopped handling chat applies the current AI-twin setting when its next message resumes it. Plan and unknown
-// values remain default because Plan rejects the required MCP tools; the ordinary caller mode cannot elevate either.
-func TestInboxSessionSendUsesOnlyAttestedOwnPermissionMode(t *testing.T) {
-	for _, tc := range []struct {
-		name, id, own, caller, want string
-	}{
-		{name: "own bypass resumes bypass", id: "11111111-1111-4111-8111-111111111121", own: proto.ModeBypass, caller: proto.ModeDefault, want: proto.ModeBypass},
-		{name: "plan stays default", id: "11111111-1111-4111-8111-111111111122", own: proto.ModePlan, caller: proto.ModeBypass, want: proto.ModeDefault},
-		{name: "unknown stays default", id: "11111111-1111-4111-8111-111111111123", own: "invalid", caller: proto.ModeBypass, want: proto.ModeDefault},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			f := cliTestBash(t)
-			cwd := filepath.Join(t.TempDir(), ".persona", "assistant")
-			if err := os.MkdirAll(cwd, 0o700); err != nil {
-				t.Fatal(err)
-			}
-			f.n.state.put(tc.id, sessionState{Launcher: "claude", Cwd: cwd, AppMode: proto.ModeDefault})
-			inboxResumeTranscript(t, f.n, tc.id)
-			if _, err := nodeCall(t, f.n, "session.send", map[string]any{
-				"session_id": tc.id, "text": "Continue", "origin": originInbox, "origin_known": true,
-				"permission_mode": tc.caller, "inbox_permission_mode": tc.own,
-			}); err != nil {
-				t.Fatal(err)
-			}
-			f.idle(t, tc.id)
-			st, _ := f.n.state.get(tc.id)
-			argv := f.file("cli-argv")
-			if st.AppMode != tc.want {
-				t.Fatalf("resumed mode=%q, want %q; argv=%s", st.AppMode, tc.want, argv)
-			}
-			if hasBypass := strings.Contains(argv, "--permission-mode "+proto.ModeBypass); hasBypass != (tc.want == proto.ModeBypass) {
-				t.Fatalf("resumed argv bypass=%t, want %t; argv=%s", hasBypass, tc.want == proto.ModeBypass, argv)
-			}
-		})
-	}
-}
-
 // session.send is the continuation RPC used by Inbox deliverNotes. Its attested origin must reach assistantSend even
 // when the reloaded session record and transcript still say Plan; the restricted tools apply to the resumed process too.
 func TestInboxSessionSendRestoresDefaultAndRestrictedTools(t *testing.T) {

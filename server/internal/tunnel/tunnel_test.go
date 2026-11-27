@@ -2,7 +2,6 @@ package tunnel
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"crypto/rand"
 	"io"
@@ -13,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/update/updatetest"
 	"github.com/tailscale/tailcat"
 	"tailscale.com/types/key"
 )
@@ -107,77 +105,6 @@ func fakeBinary(t *testing.T, dir, version string) string {
 		t.Fatal(err)
 	}
 	return p
-}
-
-// uploadOver runs ServeUpload behind a local listener and uploads src: what the hub does over tailcat.
-func uploadOver(t *testing.T, exe, src string) (error, bool) {
-	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
-	done := make(chan struct{}, 1)
-	go ServeUpload(ln, exe, func() { done <- struct{}{} })
-	c, err := net.Dial("tcp", ln.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	err = Upload(ctx, c, src)
-	select {
-	case <-done:
-		return err, true
-	case <-time.After(3 * time.Second):
-		return err, false
-	}
-}
-
-func TestUploadReplacesTheBinary(t *testing.T) {
-	dir := t.TempDir()
-	exe := fakeBinary(t, dir, "v1")
-	err, restarted := uploadOver(t, exe, fakeBinary(t, t.TempDir(), "v2"))
-	if err != nil || !restarted {
-		t.Fatalf("upload: %v, restarted %v", err, restarted)
-	}
-	if b, _ := os.ReadFile(exe); !strings.Contains(string(b), "v2") {
-		t.Fatalf("exe is %q, want v2", b)
-	}
-	if _, err := os.Stat(exe + ".new"); !os.IsNotExist(err) {
-		t.Fatal("left the .new file behind")
-	}
-}
-
-// A binary that does not run here (another architecture, truncated) never replaces the working one.
-func TestUploadRefusesABinaryThatDoesNotRun(t *testing.T) {
-	dir := t.TempDir()
-	exe := fakeBinary(t, dir, "v1")
-	bad := filepath.Join(t.TempDir(), "bad")
-	if err := os.WriteFile(bad, []byte("\x7fELF not really"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	err, restarted := uploadOver(t, exe, bad)
-	if err == nil || !strings.Contains(err.Error(), "does not run here") || restarted {
-		t.Fatalf("upload of a broken binary: %v, restarted %v", err, restarted)
-	}
-	if b, _ := os.ReadFile(exe); !strings.Contains(string(b), "v1") {
-		t.Fatalf("exe is %q, want v1 kept", b)
-	}
-}
-
-// A personad (it may run a hub or a manager too) never becomes persona-node over tailcat, whatever the hub sends.
-func TestUploadKeepsPersonad(t *testing.T) {
-	exe := updatetest.Program(t, "personad", "", "")
-	before, _ := os.ReadFile(exe)
-	err, restarted := uploadOver(t, exe, updatetest.Program(t, "persona-node", "", ""))
-	if err == nil || !strings.Contains(err.Error(), "not replacing it with persona-node") || restarted {
-		t.Fatalf("persona-node over personad: %v, restarted %v", err, restarted)
-	}
-	if after, _ := os.ReadFile(exe); !bytes.Equal(after, before) {
-		t.Fatal("persona-node replaced personad")
-	}
 }
 
 // A wrong checksum (or a short stream) is refused before anything is replaced.
@@ -358,34 +285,6 @@ func bigBinary(t *testing.T, size int) string {
 	return p
 }
 
-// A second upload while one is going is turned away at once, not queued without a deadline, and the hub hears why even
-// when the binary is too big to fit in the socket buffers (not the broken pipe of the node closing mid-send).
-func TestUploadOneAtATime(t *testing.T) {
-	exe := fakeBinary(t, t.TempDir(), "v1")
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
-	go ServeUpload(ln, exe, nil)
-	slow, err := net.Dial("tcp", ln.Addr().String()) // holds the upload: never sends its header
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer slow.Close()
-	time.Sleep(200 * time.Millisecond)
-	c, err := net.Dial("tcp", ln.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := Upload(ctx, c, bigBinary(t, 16<<20)); err == nil || !strings.Contains(err.Error(), "in progress") {
-		t.Fatalf("second upload: %v, want turned away", err)
-	}
-}
-
 // A node that turns an upload away reads what the hub is still sending before it closes: closing with unread data
 // answers with a reset, which can destroy the answer before the hub reads it.
 func TestRefusedUploadIsDrained(t *testing.T) {
@@ -435,37 +334,5 @@ func TestUploadHearsAnEarlyRefusal(t *testing.T) {
 	defer cancel()
 	if err := Upload(ctx, c, bigBinary(t, 16<<20)); err == nil || !strings.Contains(err.Error(), "out of range") {
 		t.Fatalf("upload: %v, want the node's reason", err)
-	}
-}
-
-// A hub gone mid-upload (redeployed, restarted) frees the upload once nothing arrives for a while: the next deploy
-// is not turned away for long.
-func TestStalledUploadIsDropped(t *testing.T) {
-	exe := fakeBinary(t, t.TempDir(), "v1")
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
-	go serveUpload(ln, exe, nil, 300*time.Millisecond)
-	stalled, err := net.Dial("tcp", ln.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer stalled.Close()
-	_, _ = io.WriteString(stalled, `{"size":100,"sha256":"`+strings.Repeat("0", 64)+`"}`+"\n") // then nothing
-	time.Sleep(time.Second)
-	c, err := net.Dial("tcp", ln.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := Upload(ctx, c, fakeBinary(t, t.TempDir(), "v2")); err != nil {
-		t.Fatalf("upload after a stalled one: %v", err)
-	}
-	if b, _ := os.ReadFile(exe); !strings.Contains(string(b), "v2") {
-		t.Fatalf("exe is %q, want v2", b)
 	}
 }

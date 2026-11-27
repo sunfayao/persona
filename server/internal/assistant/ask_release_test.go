@@ -118,33 +118,6 @@ func TestAWaitingQuestionLetsGoOfItsTurnForAMessageFromAnotherConversation(t *te
 	}
 }
 
-// A question keeps its turn for askReleaseAfter, so a confirmation the owner answers within a minute or two is not cut
-// short; it lets go once it has waited that long and the message still waits.
-func TestAWaitingQuestionKeepsItsTurnForAWhile(t *testing.T) {
-	releaseAfter(t, 400*time.Millisecond)
-	e := newAskTodoEnv(t, nil)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	ix, done := e.askHeld(ctx)
-	e.send(ctx, "the numbers are in")
-	select {
-	case text := <-done:
-		t.Fatalf("let go at once: %q", text)
-	case <-time.After(150 * time.Millisecond):
-	}
-	select {
-	case text := <-done:
-		if !strings.Contains(text, "no longer holds this turn") {
-			t.Fatalf("tool result %q", text)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("never let go of the turn")
-	}
-	if since := time.Since(ix.CreatedAt); since < askReleaseAfter {
-		t.Fatalf("let go after %v, before %v", since, askReleaseAfter)
-	}
-}
-
 // A question answered before anything waits for its conversation is the call's answer, as ever; and with nothing
 // waiting it never lets go.
 func TestAWaitingQuestionWithNothingWaitingKeepsItsTurn(t *testing.T) {

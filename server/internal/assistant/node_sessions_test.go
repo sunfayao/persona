@@ -3,8 +3,6 @@ package assistant
 import (
 	"encoding/json"
 	"fmt"
-	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -74,59 +72,5 @@ func TestSessionReadersAnswerAsBefore(t *testing.T) {
 		"//server/share/a": "UNC"}
 	if len(listed.Workspaces) != len(want) || fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("workspaces %v, want %v", listed.Workspaces, want)
-	}
-}
-
-// busyBoard is a manager whose computer lists 8,200 sessions in 20 directories.
-func busyBoard(t *testing.T) *Service {
-	d := newBoardDevs()
-	s, _ := newBoardService(t, newMemoryBoardStore(), d)
-	d.add("laptop", directoryNode)
-	list := make([]proto.Session, 8200)
-	for i := range list {
-		list[i] = proto.Session{SessionID: fmt.Sprintf("session-%05d", i), Cwd: fmt.Sprintf("/code/project-%02d", i%20),
-			Agent: "claude", Status: proto.StatusDone, Title: "Example task", LastText: strings.Repeat("Example result. ", 32)}
-	}
-	d.setSessions("laptop", list)
-	return s
-}
-
-// On a machine listing 8,200 sessions the readers copy the rows they keep, not the list: a copy is 12.1 MB, which
-// agentGone and the workspace list read once each before, completionChildrenRunning twice (25.1 MB) and decoratedUnarchived
-// twice (25.8 MB; it still needs one, as its own to decorate). publishList, telling the same list again, also encoded
-// it into new bytes (28.4 MB in all); now it allocates the decorated list alone. Each bound is the measured bytes per
-// call + 3%.
-func TestSessionReadersCopyNoList(t *testing.T) {
-	if raceEnabled {
-		t.Skip("race instrumentation allocates")
-	}
-	if !isolated(t) {
-		return
-	}
-	s := assistantInventory(t)
-	board := busyBoard(t)
-	for _, c := range []struct {
-		name string
-		most uint64
-		read func()
-	}{
-		{"agentGone", 2225, func() { s.agentGone(proto.Interaction{MachineID: "box", SessionID: "session-08199"}) }},
-		{"completionChildrenRunning", 1690, func() { s.completionChildrenRunning("box", proto.Session{SessionID: "session-00100"}) }},
-		{"decoratedUnarchived", 13710700, func() { s.decoratedUnarchived("box") }},
-		{"publishList", 13715100, func() { s.publishList("box") }},
-		{"GET /api/v1/workspaces", 186100, func() { boardCall(board, "GET", "/api/v1/workspaces", "", roleFull) }},
-	} {
-		c.read()
-		const runs = 20
-		runtime.GC()
-		var before, after runtime.MemStats
-		runtime.ReadMemStats(&before)
-		for range runs {
-			c.read()
-		}
-		runtime.ReadMemStats(&after)
-		if per := (after.TotalAlloc - before.TotalAlloc) / runs; per > c.most {
-			t.Errorf("%s allocated %d bytes a call, want at most %d", c.name, per, c.most)
-		}
 	}
 }

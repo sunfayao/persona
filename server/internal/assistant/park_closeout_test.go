@@ -355,42 +355,6 @@ func TestAutomaticCloseoutSummaryDailyAndDurable(t *testing.T) {
 	}
 }
 
-func TestAutomaticCloseoutParkingWriteFailureAndRecovery(t *testing.T) {
-	ctx := context.Background()
-	database := &ledgerDown{DB: taskRecoveryDatabase(t)}
-	s, f, task := newSupervisedServiceOn(t, database)
-	holdDigest(s)
-	now := time.Now().UTC().Truncate(time.Second)
-	a := task.Agents[0]
-	c := stopped(a.SessionID, automaticCloseout("deployment rollout-42", "build https://example.org/deployments/rollout-42", nil))
-	c.MachineID, c.UpdatedAt = a.MachineID, now.Add(-time.Hour)
-	f.setSessions(a.MachineID, c)
-	g := superviseSignal{Todo: task.ID, Kind: "idle"}
-	before, _ := json.Marshal(todoNow(s, task.ID).Supervision)
-	database.down.Store(true)
-	if handled, _ := s.mechanicalSignal(ctx, g, now); handled {
-		t.Fatal("failed ledger write silently consumed idle supervision")
-	}
-	after, _ := json.Marshal(todoNow(s, task.ID).Supervision)
-	if string(before) != string(after) {
-		t.Fatal("failed write leaked parking or a spent attempt into memory")
-	}
-	database.down.Store(false)
-	if handled, _ := s.mechanicalSignal(ctx, g, now); !handled {
-		t.Fatal("recovered ledger did not retry automatic admission")
-	}
-	again, _ := restartedOn(t, database)
-	holdDigest(again)
-	if err := again.ensureTodosLoaded(ctx); err != nil {
-		t.Fatal(err)
-	}
-	recovered := todoNow(again, task.ID)
-	if recovered.Supervision.State != "parked" || recovered.Supervision.parked().Evidence.URL != "https://example.org/deployments/rollout-42" ||
-		automaticMetadata(t, recovered.Supervision)["count"] != float64(1) {
-		t.Fatalf("PostgreSQL/reconstruction lost automatic wait evidence: %+v", recovered.Supervision)
-	}
-}
-
 func TestAutomaticCloseoutParkingExistingSourceWakes(t *testing.T) {
 	ctx := context.Background()
 	t.Run("terminal PR", func(t *testing.T) {

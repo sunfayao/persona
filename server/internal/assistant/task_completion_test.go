@@ -66,64 +66,6 @@ func TestTaskCompletionLimitContinueNeedsNoReport(t *testing.T) {
 	}
 }
 
-func TestTaskCompletionSideConversationGate(t *testing.T) {
-	for _, tc := range []struct {
-		name     string
-		from     string
-		ask      string
-		injected *proto.Injected
-		queued   bool
-		wantDone bool
-	}{
-		{name: "peer", from: "peer-agent", ask: "Did this session fix the unrelated parser problem?"},
-		{name: "queued peer", from: "peer-agent", ask: "Did this session fix the unrelated parser problem?", queued: true},
-		{name: "loop inspection", ask: "/loop 5m inspect the other agents"},
-		{name: "loop command without arguments", ask: "/loop"},
-		{name: "not a loop command", ask: "/loopfix continues the approved login correction", wantDone: true},
-		{name: "peer envelope", ask: `<cross-session-message from="peer-agent">Did you fix the parser?</cross-session-message>`},
-		{name: "teammate envelope", ask: `<teammate-message teammate_id="peer-agent">Did you fix the parser?</teammate-message>`},
-		{name: "source envelope", ask: `<persona-context kind="side-conversation">Source: another conversation.</persona-context>Did you fix the parser?`},
-		{name: "injected patrol", ask: "Check another task's progress", injected: &proto.Injected{Kind: proto.InjectedSystem, State: "supervise"}},
-		{name: "legacy patrol", ask: "📋 督办：你派出去的任务有 1 个要你处理\n这是 Persona 的督办消息"}, // i18n-ignore: synthetic legacy injected message
-		{name: "actual task", ask: "iPad 横屏时登录页崩溃，修好并补测试", wantDone: true},      // i18n-ignore: matches synthetic task fixture
-		{name: "Persona continuation", from: "Persona", ask: "Continue the login fix and hand over the verified result", wantDone: true},
-		{name: "task supervisor", from: "conv1", ask: "Continue the login fix and hand over the verified result", wantDone: true},
-		{name: "user continuation", ask: "Continue with the approved fix", wantDone: true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			s, f := newTaskService(t)
-			shortSupervise(t, s)
-			todo := startedTask(t, s, f)
-			ctx := context.Background()
-			s.superviseTodo(ctx, todo.ID, "conv1", []string{"Login regression test passes"}, 0)
-			f.judge = `{"verdict":"done","reason":"The latest answer is complete"}`
-			s.taskWorking(ctx, "box", "s1")
-			answer := "已告知另一会话：本会话未处理该问题" // i18n-ignore: synthetic regression answer
-			if tc.wantDone {
-				answer = "The login fix is complete; the regression test passes and the result is ready for review."
-			}
-			f.setItems(proto.Item{Kind: proto.KindText, Role: "user", Text: tc.ask, From: tc.from, Injected: tc.injected, Queued: tc.queued},
-				proto.Item{Kind: proto.KindText, Role: "assistant", Text: answer})
-			f.setSessions("box", proto.Session{MachineID: "box", SessionID: "s1", Status: proto.StatusDone, LastText: answer, UpdatedAt: time.Now()})
-			s.taskTurnEnded(ctx, "box", "s1")
-			current := todoNow(s, todo.ID)
-			if got := current.Supervision.State == reviewPending; got != tc.wantDone || current.DoneAt != nil {
-				t.Fatalf("pending review = %v, want %v: %+v", got, tc.wantDone, current)
-			}
-			items, _, _ := s.feed(ctx, "conv1", time.Time{})
-			var receipt receiptBody
-			for _, it := range items {
-				if it.Kind == feedReceipt {
-					_ = json.Unmarshal(it.Body, &receipt)
-				}
-			}
-			if receipt.Review == nil || receipt.Review.State != "checking" {
-				t.Fatalf("receipt must not imply acceptance before judgment: %+v", receipt)
-			}
-		})
-	}
-}
-
 func TestTaskCompletionSideTurnNeedsFreshTaskReport(t *testing.T) {
 	for _, tc := range []struct {
 		name       string

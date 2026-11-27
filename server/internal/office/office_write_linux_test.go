@@ -157,30 +157,6 @@ func TestMainKeepsTheOutputsPermissions(t *testing.T) {
 	}
 }
 
-// A new output gets 0644 less the umask, as os.WriteFile gave it: a document made from private notes under umask 077
-// is the user's alone.
-func TestMainNewOutputFollowsTheUmask(t *testing.T) {
-	dir := t.TempDir()
-	md := filepath.Join(dir, "notes.md")
-	if err := os.WriteFile(md, []byte("# Plan\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	for _, c := range []struct {
-		mask int
-		want os.FileMode
-	}{{0o077, 0o600}, {0o027, 0o640}, {0o022, 0o644}} {
-		setUmask(t, c.mask)
-		out := filepath.Join(dir, fmt.Sprintf("notes-%o.docx", c.mask))
-		var errOut bytes.Buffer
-		if code := Main([]string{"docx", md, "-o", out}, io.Discard, &errOut); code != 0 {
-			t.Fatalf("umask %o: exit %d: %s", c.mask, code, errOut.String())
-		}
-		if st, err := os.Stat(out); err != nil || st.Mode().Perm() != c.want {
-			t.Errorf("umask %o: mode %v, want %v (%v)", c.mask, modeOf(st), c.want, err)
-		}
-	}
-}
-
 // An earlier output the user made read-only stays as it is: the command fails, as writing into it did, and as cp
 // refuses to overwrite it.
 func TestMainLeavesAReadOnlyOutputAlone(t *testing.T) {

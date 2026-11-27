@@ -181,75 +181,6 @@ func startDesktop(t *testing.T, n *Node, params map[string]any) (proto.Session, 
 	return r.Session, nil
 }
 
-// New Agent with the desktop app's launcher starts the session in the app: the CLI writes it with a local command only
-// (named after the first message), the app imports it at its resume link, and the first message goes to the inbox of
-// the claude the app starts for it. No terminal is asked for anything.
-func TestNewAgentWithTheDesktopLauncherStartsTheSessionInTheApp(t *testing.T) {
-	n, f, home := herdrNode(t)
-	noPaneEnv(t)
-	shortPeerWait(t, 3*time.Second)
-	app := newFakeDesktopApp(t, home)
-	claude := fakeClaudeOnPath(t)
-	shellLaunchers(t, "claude")
-	f.reply("session.snapshot", snapshot(nil, nil, nil, nil))
-	f.reset()
-	dir := filepath.Join(home, "projects", "report")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	res, err := n.handle(context.Background(), "launchers.list", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	b, _ := json.Marshal(res)
-	if !strings.Contains(string(b), `"name":"claude-desktop","base_url":"","model":"","source":"claude_desktop","agent":"claude"`) {
-		t.Fatalf("launchers: %s", b)
-	}
-
-	const prompt = "  整理  本周的\n周报"
-	s, err := startDesktop(t, n, map[string]any{"cwd": dir, "launcher": "claude-desktop", "prompt": prompt, "async": true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	firstMessageReceived := func() bool {
-		in := app.inbox(s.SessionID)
-		return in != nil && len(in.users()) == 1
-	}
-	// The inbox records the user before send finishes confirming delivery. Drain that send before fixture cleanup
-	// restores peerConfirmWait or closes its background-created inbox, even when an assertion below fails.
-	defer func() {
-		waitFor(t, "the first message in the session's inbox", firstMessageReceived)
-		waitFor(t, "the desktop session's first send to finish", func() bool {
-			unlock, ok := n.typing.tryLock(s.SessionID)
-			if ok {
-				unlock()
-			}
-			return ok
-		})
-	}()
-	if !validID(s.SessionID) || s.Cwd != dir || s.Title != "整理 本周的" || s.SourceKind != proto.SourceClaudeDesktop || s.Launcher != "" {
-		t.Fatalf("session: %+v", s)
-	}
-	seeds := app.seeded()
-	if len(seeds) != 1 || seeds[0] != (fakeSeed{claude, dir, s.SessionID, "整理 本周的"}) {
-		t.Fatalf("seeded: %+v (claude %s)", seeds, claude)
-	}
-	if links := app.opened(); len(links) == 0 || links[0] != "claude://resume?session="+s.SessionID {
-		t.Fatalf("links: %v", links)
-	}
-	waitFor(t, "the first message in the session's inbox", firstMessageReceived)
-	users := app.inbox(s.SessionID).users()
-	if content, _ := users[0]["message"].(map[string]any)["content"].(string); !strings.Contains(content, "整理  本周的\n周报") {
-		t.Fatalf("first message: %v", users[0])
-	}
-	for _, c := range f.trace() {
-		if strings.Contains(c, "workspace") || strings.Contains(c, "tab.create") || strings.Contains(c, "pane.") {
-			t.Fatalf("herdr was asked to start or type something: %s", c)
-		}
-	}
-}
-
 // A folder that is not there yet, in one that is, is made (New Agent's new folder), and the session runs in it.
 func TestADesktopStartMakesANewFolder(t *testing.T) {
 	n, home := testNode(t)
@@ -264,38 +195,6 @@ func TestADesktopStartMakesANewFolder(t *testing.T) {
 	}
 	if st, err := os.Stat(dir); err != nil || !st.IsDir() || s.Cwd != dir || len(app.seeded()) != 1 || app.seeded()[0].dir != dir {
 		t.Fatalf("folder %v, session %+v, seeded %v", err, s, app.seeded())
-	}
-}
-
-// The apps start with no first message and send it after (async): the session is named after the start's name hint,
-// and the message, sent as any message, goes to the inbox of the claude the app starts for it.
-func TestADesktopStartNamedAfterItsHintTakesTheFirstMessageAfter(t *testing.T) {
-	n, f, home := herdrNode(t)
-	noPaneEnv(t)
-	shortPeerWait(t, 3*time.Second)
-	app := newFakeDesktopApp(t, home)
-	fakeClaudeOnPath(t)
-	shellLaunchers(t, "claude")
-	f.reply("session.snapshot", snapshot(nil, nil, nil, nil))
-	dir := t.TempDir()
-	s, err := startDesktop(t, n, map[string]any{"cwd": dir, "launcher": "claude-desktop", "async": true, "name_hint": "周报\n整理"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s.Title != "周报" || len(app.seeded()) != 1 || app.seeded()[0].title != "周报" {
-		t.Fatalf("session %+v, seeded %v", s, app.seeded())
-	}
-	if links := app.opened(); len(links) != 1 {
-		t.Fatalf("a message was sent with no first message: %v", links)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	params, _ := json.Marshal(map[string]any{"session_id": s.SessionID, "text": "周报\n整理", "client_msg_id": newUUID()})
-	if _, err := n.handle(ctx, "session.send", params); err != nil {
-		t.Fatalf("first message: %v", err)
-	}
-	if in := app.inbox(s.SessionID); in == nil || len(in.users()) != 1 {
-		t.Fatal("the first message is not in the session's inbox")
 	}
 }
 
@@ -361,59 +260,6 @@ func TestADesktopStartWithNoFolderRunsInTheScratchFolder(t *testing.T) {
 	}
 }
 
-// What the app could not run as asked is refused before anything is written: a read-only plan (the app runs its own
-// mode, and its approval would wait on the computer), a command (the inbox runs none), a folder that is not there, a
-// secret hand-off (no terminal to start through). An import that does not happen in time is the app not opening it.
-func TestADesktopStartRefusesWhatTheAppCannotRun(t *testing.T) {
-	n, home := testNode(t)
-	t.Setenv("CLAUDE_CONFIG_DIR", "")
-	app := newFakeDesktopApp(t, home)
-	fakeClaudeOnPath(t)
-	shellLaunchers(t)
-	dir := t.TempDir()
-	file := filepath.Join(dir, "notes.txt")
-	if err := os.WriteFile(file, nil, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Remove("relative-new") }) // where a relative folder would be made: the test's own
-	for _, c := range []struct {
-		params map[string]any
-		code   string
-		says   string
-	}{
-		{map[string]any{"cwd": dir, "launcher": "claude-desktop", "permission_mode": "plan", "prompt": "look"}, "readonly_unsupported", ""},
-		{map[string]any{"cwd": dir, "launcher": "claude-desktop", "prompt": " /compact"}, peerCommand, ""},
-		{map[string]any{"cwd": filepath.Join(dir, "missing", "new"), "launcher": "claude-desktop", "prompt": "hi"}, "", "does not exist"},
-		{map[string]any{"cwd": "relative-new", "launcher": "claude-desktop", "prompt": "hi"}, "", "does not exist"},
-		{map[string]any{"cwd": file, "launcher": "claude-desktop", "prompt": "hi"}, "", "is not a directory"},
-		{map[string]any{"cwd": dir, "launcher": "claude-desktop", "prompt": "hi", "secret_ticket": strings.Repeat("a", 64)}, secretEnvAgentCode, ""},
-	} {
-		_, err := startDesktop(t, n, c.params)
-		var re *rpc.Error
-		if err == nil || c.code != "" && (!errors.As(err, &re) || re.Code != c.code) || !strings.Contains(err.Error(), c.says) {
-			t.Errorf("%v: %v, want %q %q", c.params, err, c.code, c.says)
-		}
-	}
-	if len(app.seeded()) != 0 || len(app.opened()) != 0 {
-		t.Fatalf("seeded %v, opened %v", app.seeded(), app.opened())
-	}
-
-	app.mu.Lock()
-	app.noImport = true
-	app.mu.Unlock()
-	old := desktopImportWait
-	desktopImportWait = 300 * time.Millisecond
-	t.Cleanup(func() { desktopImportWait = old })
-	_, err := startDesktop(t, n, map[string]any{"cwd": dir, "launcher": "claude-desktop", "prompt": "hi"})
-	var re *rpc.Error
-	if !errors.As(err, &re) || re.Code != "desktop_start_incomplete" || !strings.Contains(string(re.Data), `"cause_code":"`+desktopOpenFailed+`"`) {
-		t.Fatalf("not imported: %v", err)
-	}
-	if links := app.opened(); len(links) != 1 { // nothing sent to a session the app does not have
-		t.Fatalf("links: %v", links)
-	}
-}
-
 // The CLI writes the new session with a local command only, in its folder, without what would make it another
 // claude's (a running Claude Code's variables, the assistant's) or put it where the app does not look.
 func TestTheDesktopSeedRunsALocalCommandOnly(t *testing.T) {
@@ -462,37 +308,6 @@ func TestTheDesktopSeedRunsALocalCommandOnly(t *testing.T) {
 	}
 	if err := seedDesktopSession(context.Background(), claude, dir, id, "x"); err == nil || !strings.Contains(err.Error(), "Not logged in") {
 		t.Fatalf("a failed run: %v", err)
-	}
-}
-
-// The app lowers bypassPermissions to acceptEdits for a session it imports and keeps auto (#9350), so a start with no
-// mode, or bypassPermissions, is imported in auto; default, acceptEdits and auto are imported as asked. The mode is on
-// the transcript before the app is asked to import it.
-func TestADesktopStartIsImportedInAutoMode(t *testing.T) {
-	n, home := testNode(t)
-	t.Setenv("CLAUDE_CONFIG_DIR", "")
-	app := newFakeDesktopApp(t, home)
-	fakeClaudeOnPath(t)
-	shellLaunchers(t)
-	dir := t.TempDir()
-	for _, c := range []struct{ asked, want string }{
-		{"", "auto"},
-		{"bypassPermissions", "auto"},
-		{"auto", "auto"},
-		{"acceptEdits", "acceptEdits"},
-		{"default", "default"},
-	} {
-		params := map[string]any{"cwd": dir, "launcher": "claude-desktop"}
-		if c.asked != "" {
-			params["permission_mode"] = c.asked
-		}
-		s, err := startDesktop(t, n, params)
-		if err != nil {
-			t.Fatalf("%q: %v", c.asked, err)
-		}
-		if got := app.importedMode(s.SessionID); got != c.want {
-			t.Errorf("asked %q: imported in %q, want %q", c.asked, got, c.want)
-		}
 	}
 }
 

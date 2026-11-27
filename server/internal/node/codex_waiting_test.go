@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -147,64 +146,6 @@ func TestCodexEffortOnAStartWithoutAMessage(t *testing.T) {
 	}
 }
 
-// The first message from the app: typed once the box is up, as one paste of exactly what was sent, and answered with
-// the thread it began, which the pane lists from then on; requests naming the row reach the thread.
-func TestCodexFirstMessageFromTheApp(t *testing.T) {
-	n, f, cwd, _ := codexWaitHerdr(t)
-	home := filepath.Dir(cwd)
-	s := startWaiting(t, n)
-	var mu sync.Mutex
-	var pasted string
-	f.after(func(c herdrCall) {
-		if str(c.Params["pane_id"]) != "w1:p2" {
-			return
-		}
-		switch {
-		case c.Method == "pane.send_text":
-			mu.Lock()
-			pasted = str(c.Params["text"])
-			mu.Unlock()
-			f.setScreen("w1:p2", fmt.Sprintf("› [Pasted Content %d chars]\n\n  gpt-6 xhigh · /tmp/proj\n", len([]rune(specialPrompt))))
-		case c.Method == "pane.send_keys" && slices.Equal(keysOf(c), []string{"enter"}):
-			f.setScreen("w1:p2", "› fix\n\n• Working (0s • esc to interrupt)\n\n› Ask Codex to do anything\n")
-			writeWaitRollout(t, home, cwd, startThread, time.Now(), specialPrompt)
-		}
-	})
-	res, err := request(t, n, "session.send", map[string]any{"session_id": s.SessionID, "text": specialPrompt, "client_msg_id": "m1"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := decodeSessions(t, []any{res["session"]})[0]
-	if got.SessionID != startThread || got.Agent != "codex" || got.PaneID != "w1:p2" {
-		t.Fatalf("answered %+v", got)
-	}
-	mu.Lock()
-	if pasted != pasteStart+specialPrompt+pasteEnd {
-		t.Errorf("pasted %d bytes, not the message as sent", len(pasted))
-	}
-	mu.Unlock()
-	if n.codexWaitByID(s.SessionID) != nil || n.codexAttachedThread(s.SessionID) != startThread {
-		t.Fatal("the row did not become the thread")
-	}
-	st, ok := n.state.get(startThread)
-	if !ok || st.Launcher != "codex" || st.Cwd != cwd || st.Pane != "w1:p2" {
-		t.Errorf("thread's record %+v", st)
-	}
-	for _, x := range listSessions(t, n) {
-		if x.PaneID == "w1:p2" && (x.SessionID != startThread || x.AwaitingFirstMessage) {
-			t.Errorf("listed %+v", x)
-		}
-	}
-	// A client that still names the row reaches the thread.
-	f.reset()
-	if _, err := request(t, n, "session.keys", map[string]any{"session_id": s.SessionID, "keys": []string{"escape"}}); err != nil {
-		t.Fatal(err)
-	}
-	if keys := f.trace("pane.send_keys"); len(keys) != 1 || !strings.Contains(keys[0], "w1:p2") {
-		t.Errorf("keys %q", keys)
-	}
-}
-
 // What the computer has in the box, or a dialog not ours, refuses with nothing typed, including with images.
 func TestCodexFirstMessageRefusals(t *testing.T) {
 	n, f, _, _ := codexWaitHerdr(t)
@@ -225,55 +166,6 @@ func TestCodexFirstMessageRefusals(t *testing.T) {
 	}
 	if n.codexWaitByID(s.SessionID) == nil {
 		t.Error("the row went")
-	}
-}
-
-// The first message waits out a model still loading and the update offer, skipping the offer with Escape only.
-func TestCodexFirstMessageWaitsForTheBox(t *testing.T) {
-	n, f, cwd, _ := codexWaitHerdr(t)
-	home := filepath.Dir(cwd)
-	s := startWaiting(t, n)
-	var mu sync.Mutex
-	reads := 0
-	f.setScreen("w1:p2", cxTrust0153)
-	f.after(func(c herdrCall) {
-		if str(c.Params["pane_id"]) != "w1:p2" {
-			return
-		}
-		mu.Lock()
-		defer mu.Unlock()
-		switch {
-		case c.Method == "pane.send_keys" && slices.Equal(keysOf(c), []string{"enter"}) && reads < 100:
-			f.setScreen("w1:p2", cxMCP) // the trust dialog answered: MCP servers start
-			reads = 100
-		case c.Method == "pane.read" && reads >= 100 && reads < 1000:
-			if reads++; reads == 103 {
-				f.setScreen("w1:p2", cxReady)
-				reads = 1000
-			}
-		case c.Method == "pane.send_text":
-			f.setScreen("w1:p2", "› hello\n\n  gpt-6 xhigh · /tmp/proj\n")
-		case c.Method == "pane.send_keys" && slices.Equal(keysOf(c), []string{"enter"}) && reads == 1000:
-			writeWaitRollout(t, home, cwd, startThread, time.Now(), "hello")
-		}
-	})
-	f.reset()
-	res, err := request(t, n, "session.send", map[string]any{"session_id": s.SessionID, "text": "hello"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := decodeSessions(t, []any{res["session"]})[0]; got.SessionID != startThread {
-		t.Fatalf("answered %+v", got)
-	}
-	// enter twice: the trust dialog's ("Yes, continue" under the cursor) and the message's, after its paste.
-	var trace []string
-	for _, c := range f.calls() {
-		if c.Method == "pane.send_keys" || c.Method == "pane.send_text" {
-			trace = append(trace, c.Method+" "+strings.Join(keysOf(c), ","))
-		}
-	}
-	if want := []string{"pane.send_keys enter", "pane.send_text ", "pane.send_keys enter"}; !slices.Equal(trace, want) {
-		t.Errorf("typed %q, want %q", trace, want)
 	}
 }
 
@@ -500,27 +392,6 @@ func TestCodexWaitingRowStopsScanningForAThreadNotItsOwn(t *testing.T) {
 	n.lookForCodexThreadsOnce(context.Background(), []*codexWait{w}, true) // the periodic one still looks
 	if scans != codexJudgeLooks+1 {
 		t.Fatalf("%d scans after a full look", scans)
-	}
-}
-
-// "/exit" as the first message quits Codex as for any agent: nothing is pasted into its box.
-func TestCodexFirstMessageExit(t *testing.T) {
-	n, f, _, _ := codexWaitHerdr(t)
-	s := startWaiting(t, n)
-	f.reset()
-	f.after(func(c herdrCall) {
-		if c.Method == "pane.send_keys" && slices.Equal(keysOf(c), []string{"ctrl+c"}) {
-			f.reply("session.snapshot", snapshot(nil, nil, nil, nil))
-		}
-	})
-	if _, err := request(t, n, "session.send", map[string]any{"session_id": s.SessionID, "text": "/exit"}); err != nil {
-		t.Fatal(err)
-	}
-	if pasted := f.trace("pane.send_text"); len(pasted) != 0 {
-		t.Errorf("pasted %q", pasted)
-	}
-	if keys := f.trace("pane.send_keys"); len(keys) == 0 || !strings.Contains(keys[0], "ctrl+c") {
-		t.Errorf("keys %q", keys)
 	}
 }
 

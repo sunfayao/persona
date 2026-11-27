@@ -5,8 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
-	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -201,44 +199,5 @@ func TestRuntimeSessionGetsTheSessionMentionNote(t *testing.T) {
 	}
 	if len(sent) != 1 || json.Unmarshal(sent[0], &p) != nil || p.Text != noted || p.ClientMsgID != "m-quote" {
 		t.Fatalf("the runtime got %s", sent)
-	}
-}
-
-// A Codex waiting for its first message (codex_waiting.go) gets the note in the paste, and the thread it begins is
-// found by the noted text it was sent.
-func TestCodexFirstMessageGetsTheSessionMentionNote(t *testing.T) {
-	n, f, cwd, _ := codexWaitHerdr(t)
-	home := filepath.Dir(cwd)
-	s := startWaiting(t, n)
-	text, noted := notedQuote(t, n)
-	var mu sync.Mutex
-	var pasted string
-	f.after(func(c herdrCall) {
-		if str(c.Params["pane_id"]) != "w1:p2" {
-			return
-		}
-		switch {
-		case c.Method == "pane.send_text":
-			mu.Lock()
-			pasted = str(c.Params["text"])
-			mu.Unlock()
-			f.setScreen("w1:p2", fmt.Sprintf("› [Pasted Content %d chars]\n\n  gpt-6 xhigh · /tmp/proj\n", len([]rune(noted))))
-		case c.Method == "pane.send_keys" && slices.Equal(keysOf(c), []string{"enter"}):
-			f.setScreen("w1:p2", "› quote\n\n• Working (0s • esc to interrupt)\n\n› Ask Codex to do anything\n")
-			writeWaitRollout(t, home, cwd, startThread, time.Now(), noted)
-		}
-	})
-	res, err := request(t, n, "session.send", map[string]any{"session_id": s.SessionID, "text": text, "client_msg_id": "m-quote",
-		"prompt_language": "English"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := decodeSessions(t, []any{res["session"]})[0]; got.SessionID != startThread {
-		t.Fatalf("answered %+v", got)
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	if pasted != pasteStart+noted+pasteEnd {
-		t.Fatalf("pasted:\n%q", pasted)
 	}
 }

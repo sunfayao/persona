@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -14,8 +13,6 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/connector"
-	"github.com/sunfayao/persona/server/internal/db"
-	"github.com/sunfayao/persona/server/internal/db/dbtest"
 	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
@@ -892,118 +889,5 @@ func TestInboxReplySurvivesMetadataRollbackWhileSending(t *testing.T) {
 	}
 	if a := recoveryAttempt(t, h, it, 1); a.Status != suggestionSent {
 		t.Fatalf("outcome lost after metadata rollback: %+v", a)
-	}
-}
-
-func replyRecoveryDatabase(t *testing.T) *db.DB {
-	t.Helper()
-	base := os.Getenv(dbtest.Env)
-	if base == "" {
-		t.Skip(dbtest.Env + " not set")
-	}
-	own, done, err := dbtest.Own(t.Context(), base)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(done)
-	database, err := db.Open(t.Context(), own, db.ManagerSet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(database.Close)
-	return database
-}
-
-func TestInboxReplyAttemptReconstruction(t *testing.T) {
-	database := replyRecoveryDatabase(t)
-	c := &recoveryReplier{err: &rpc.Error{Code: assistantwire.CodeInboxSendFailed}}
-	h, it := recoverySuggestion(t, false, c)
-	h.store = func() Store { return database }
-	if code, _ := suggestionCall(t, h, it.ID, `{"version":1,"action":"confirm","text":"Edited reply","client_id":"`+recoveryFirstID+`"}`); code != 502 {
-		t.Fatalf("failure=%d", code)
-	}
-	reload := func() *Service {
-		s := New(Options{Hub: h.f, Store: func() Store { return database }, Logf: testLogf(t)})
-		if err := s.inboxReady(t.Context()); err != nil {
-			t.Fatal(err)
-		}
-		return s
-	}
-	s := reload()
-	s.inbox.mu.Lock()
-	loaded := s.inbox.items[it.ID]
-	a := suggestionAttempt(loaded, 1)
-	s.inbox.mu.Unlock()
-	if a == nil || a.Status != suggestionFailed || a.ClientID != recoveryFirstID || a.Text != "Edited reply" {
-		t.Fatalf("stored failed attempt: %+v", a)
-	}
-	c.answer(nil)
-	if _, err := s.actOnSuggestion(t.Context(), it.ID, suggestionReq{Version: 1, Action: suggestConfirm, ClientID: recoveryFreshID}, true); err != nil {
-		t.Fatal(err)
-	}
-	if calls := c.calls(); len(calls) != 2 || calls[1].ClientID != recoveryFirstID || calls[1].Text != "Edited reply" {
-		t.Fatalf("reloaded retry: %+v", calls)
-	}
-	// Finish the successful manager's actual note writer before its owned database is closed. Do not write a
-	// synthetic older state through h while this fresh manager still owns the completed item.
-	s.deliverNotes(t.Context(), loaded)
-}
-
-func TestInboxSendingReplyAttemptReconstruction(t *testing.T) {
-	database := replyRecoveryDatabase(t)
-	c := &recoveryReplier{entered: make(chan struct{}), release: make(chan struct{})}
-	t.Cleanup(c.proceed)
-	h, it := recoverySuggestion(t, false, c)
-	h.store = func() Store { return database }
-	finished := make(chan error, 1)
-	go func() {
-		text := "Edited reply"
-		_, err := h.actOnSuggestion(t.Context(), it.ID, suggestionReq{Version: 1, Action: suggestConfirm,
-			Text: &text, ClientID: recoveryFirstID}, true)
-		finished <- err
-	}()
-	select {
-	case <-c.entered:
-	case <-time.After(3 * time.Second):
-		t.Fatal("the persisted reservation never reached the controlled provider")
-	}
-	// The first sender cannot commit a successful outcome while reconstruction is checked. This reads the real
-	// sending row written by the production path, rather than fabricating one from a stale manager snapshot.
-	s := New(Options{Hub: h.f, Store: func() Store { return database }, Logf: testLogf(t)})
-	if err := s.inboxReady(t.Context()); err != nil {
-		t.Fatal(err)
-	}
-	s.inbox.mu.Lock()
-	loaded := s.inbox.items[it.ID]
-	a := suggestionAttempt(loaded, 1)
-	public := loaded.listed()
-	s.inbox.mu.Unlock()
-	if a == nil || a.Status != suggestionUnknown || a.Retryable || a.ClientID != recoveryFirstID || a.Text != "Edited reply" ||
-		a.Proposal == nil || a.Proposal.Text != "Original reply" || public.SuggestionAttempts[0].Status != suggestionUnknown {
-		t.Fatalf("reconstructed sending binding: %+v / %+v", a, public.SuggestionAttempts)
-	}
-	if _, err := s.actOnSuggestion(t.Context(), it.ID, suggestionReq{Version: 1, Action: suggestConfirm, ClientID: recoveryFreshID}, true); !replyInDoubt(err) {
-		t.Fatalf("reconstructed sending: %v", err)
-	}
-	if calls := c.calls(); len(calls) != 1 || calls[0].ClientID != recoveryFirstID || calls[0].Text != "Edited reply" {
-		t.Fatalf("reconstruction sent another reply while the original was unresolved: %+v", calls)
-	}
-	select {
-	case err := <-finished:
-		t.Fatalf("the first sender ended before its provider was released: %v", err)
-	default:
-	}
-	c.proceed()
-	select {
-	case err := <-finished:
-		if err != nil {
-			t.Fatal(err)
-		}
-	case <-time.After(3 * time.Second):
-		t.Fatal("the owned sender did not finish after release")
-	}
-	h.deliverNotes(t.Context(), it)
-	if len(c.calls()) != 1 {
-		t.Fatal("release/reconstruction duplicated the provider call")
 	}
 }

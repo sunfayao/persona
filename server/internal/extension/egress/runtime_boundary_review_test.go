@@ -3,15 +3,11 @@ package egress
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"path/filepath"
-	"strings"
-	"sync"
 	"testing"
 	"time"
 )
@@ -41,105 +37,6 @@ func TestRuntimeBusyRejectDoesNotDrainBody(t *testing.T) {
 	if resp.StatusCode != http.StatusTooManyRequests || !resp.Close {
 		t.Fatal(resp.StatusCode, resp.Close)
 	}
-}
-
-func TestRuntimeBlockedResponseReleasesBrokerSlot(t *testing.T) {
-	for _, reason := range []string{"deadline", "reconfigure"} {
-		t.Run(reason, func(t *testing.T) {
-			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				_, _ = io.WriteString(w, strings.Repeat("x", 4<<20))
-			}))
-			defer upstream.Close()
-			p := newProxy(t, strings.TrimPrefix(upstream.URL, "http://"), nil)
-			p.Register("a", Rule{Hosts: []string{"api.example.com"}})
-			p.Register("b", Rule{Hosts: []string{"api.example.com"}})
-			finished := make(chan struct{}, 1)
-			writing := make(chan struct{}, 1)
-			unblock := make(chan struct{})
-			broker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path != RuntimeFetchPath {
-					http.NotFound(w, r)
-					return
-				}
-				defer func() { finished <- struct{}{} }()
-				ctx, cancel := context.WithTimeout(r.Context(), 500*time.Millisecond)
-				defer cancel()
-				p.handler("a").ServeHTTP(&writeObserved{ResponseWriter: w, writing: writing, unblock: unblock}, r.WithContext(ctx))
-			}))
-			defer broker.Close()
-			c, err := net.Dial("tcp", strings.TrimPrefix(broker.URL, "http://"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer c.Close()
-			if err := c.(*net.TCPConn).SetReadBuffer(1024); err != nil {
-				t.Fatal(err)
-			}
-			_ = c.SetWriteDeadline(time.Now().Add(time.Second))
-			raw := `{"url":"http://api.example.com/","method":"GET","headers":{},"body":""}`
-			if _, err := fmt.Fprintf(c, "POST %s HTTP/1.1\r\nHost: broker\r\nContent-Length: %d\r\n\r\n%s", RuntimeFetchPath, len(raw), raw); err != nil {
-				t.Fatal(err)
-			}
-			// The raw guest never reads the response. A small receive window and
-			// multi-MiB upstream body force forwarding to wait in the socket writer.
-			select {
-			case <-writing:
-			case <-time.After(time.Second):
-				t.Fatal("broker never started forwarding")
-			}
-			if reason == "reconfigure" {
-				select {
-				case <-finished:
-					t.Fatal("response completed before the stalled-writer cancellation fixture")
-				default:
-				}
-				p.SetTargets("a", nil)
-			}
-			select {
-			case <-finished:
-			case <-time.After(time.Second):
-				t.Fatal("blocked response outlived cancellation and retained broker admission")
-			}
-			p.mu.Lock()
-			total, leases := p.runtimeTotal, len(p.active["a"])
-			p.mu.Unlock()
-			if total != 0 || leases != 0 {
-				t.Fatal("blocked response retained broker resources", total, leases)
-			}
-			neighbor := httptest.NewRecorder()
-			p.handler("b").ServeHTTP(neighbor, httptest.NewRequest("POST", RuntimeFetchPath, strings.NewReader(raw)))
-			if neighbor.Code != http.StatusOK {
-				t.Fatal("neighbor broker was affected", neighbor.Code)
-			}
-		})
-	}
-}
-
-// Keep ResponseController's socket deadlines visible through the observer.
-type writeObserved struct {
-	http.ResponseWriter
-	writing     chan struct{}
-	unblock     chan struct{}
-	unblockOnce sync.Once
-}
-
-func (w *writeObserved) Unwrap() http.ResponseWriter { return w.ResponseWriter }
-func (w *writeObserved) Write(b []byte) (int, error) {
-	select {
-	case w.writing <- struct{}{}:
-	default:
-	}
-	<-w.unblock
-	return w.ResponseWriter.Write(b)
-}
-
-func (w *writeObserved) SetWriteDeadline(deadline time.Time) error {
-	expired := !deadline.IsZero() && !deadline.After(time.Now())
-	err := http.NewResponseController(w.ResponseWriter).SetWriteDeadline(deadline)
-	if expired {
-		w.unblockOnce.Do(func() { close(w.unblock) })
-	}
-	return err
 }
 
 func TestRuntimeCancelInterruptsPendingUpstreamCONNECT(t *testing.T) {

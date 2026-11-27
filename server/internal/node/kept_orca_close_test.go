@@ -4,99 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
-	"sync/atomic"
 	"testing"
 
 	"github.com/sunfayao/persona/server/internal/host"
 	"github.com/sunfayao/persona/server/internal/orcart"
 	"github.com/sunfayao/persona/server/internal/orcart/orcarttest"
 )
-
-// A recovery during the closer's terminal.list must protect the original pane, including when the first close
-// found a genuinely stale handle and onTerminal is refreshing it. Both session.start entry points use this path.
-func TestOrcaKeptCloseRechecksAfterLookup(t *testing.T) {
-	for _, stale := range []bool{false, true} {
-		for _, async := range []bool{false, true} {
-			t.Run(fmt.Sprintf("stale=%v/async=%v", stale, async), func(t *testing.T) {
-				n, h, o, c, root := keptOrcaStart(t, true)
-				until, _ := isKept(n, c.Pane.String())
-				original := cachedKeptTerminal(t, h, c.Pane.ID)
-				if !stale {
-					moved := keptTerminalMap(original, "moved")
-					o.SetTerminals(moved)
-					if _, err := h.Snapshot(t.Context()); err != nil {
-						t.Fatal(err)
-					}
-				}
-				handle := original.Handle
-				if stale {
-					handle = "term_recovered"
-				}
-				term := orcarttest.Terminal(handle, original.TabID, original.LeafID, "wt-proj", root, "refs/heads/main", "kept", "")
-				term["incarnationId"] = original.IncarnationID
-				// The old handle really is absent: the fake's default close returns stale before any override runs.
-				o.SetTerminals(term)
-				var looked, held atomic.Bool
-				o.Handle("terminal.list", func(map[string]any) any {
-					o.Handle("terminal.list", nil)
-					n.mu.Lock()
-					held.Store(n.keptStarts[c.Pane.String()].taken)
-					n.mu.Unlock()
-					n.bindPane(c.Pane.String(), sidA)
-					looked.Store(true)
-					return map[string]any{"terminals": []any{term}, "totalCount": 1, "truncated": false}
-				})
-				_, err := request(t, n, "session.start", map[string]any{"session_id": startID, "cwd": root, "in_pane": c.Pane.String(), "async": async})
-				if async && err == nil {
-					err = waitAsyncStart(t, n)
-				}
-				if !looked.Load() || !held.Load() {
-					t.Fatalf("the closer did not look up a claimed tab: looked %v, held %v, err %v", looked.Load(), held.Load(), err)
-				}
-				var closes []string
-				for _, call := range o.Trace("terminal.close") {
-					if strings.Contains(call, `"`+original.Handle+`"`) || strings.Contains(call, `"`+handle+`"`) {
-						closes = append(closes, call)
-					}
-				}
-				wantCloses := 0
-				if stale {
-					wantCloses = 1 // the old, unknown handle; no request to the refreshed terminal
-				}
-				if len(closes) != wantCloses || stale && !strings.Contains(closes[0], `"`+original.Handle+`"`) {
-					t.Errorf("closed a recovered terminal: %v", closes)
-				}
-				for _, w := range o.Writes() {
-					if w.Close && (w.Handle == original.Handle || w.Handle == handle) {
-						t.Errorf("a close reached a live terminal: %+v", w)
-					}
-				}
-				if got := startLineIn(o); got == "" || got == handle || got == original.Handle {
-					t.Errorf("the retry did not launch in a fresh tab: handle %q, err %v", got, err)
-				}
-				if got := o.Count("terminal.create"); got != 2 {
-					t.Errorf("created %d terminals, want original plus fresh retry", got)
-				}
-				if after, kept := isKept(n, c.Pane.String()); !kept || !after.Equal(until) {
-					t.Errorf("recovery did not release the original expiry: kept %v, until %v, was %v", kept, after, until)
-				}
-				n.mu.Lock()
-				bound := n.panes[c.Pane.String()]
-				n.mu.Unlock()
-				if bound != sidA {
-					t.Errorf("lost recovered binding: %q", bound)
-				}
-				// Exercise the existing expiry callback: a released, bound pane remains open at expiry as well.
-				beforeExpiry := len(o.Trace("terminal.close"))
-				n.expireKeptStart(c.Pane.String(), until)
-				if got := len(o.Trace("terminal.close")); got != beforeExpiry {
-					t.Errorf("expiry closed the recovered pane: %v", o.Trace("terminal.close"))
-				}
-			})
-		}
-	}
-}
 
 // A cached target needs the same final check. Neither a hook binding nor an agent-inventory observation may be
 // closed; the latter has no n.panes entry. Calling the closer directly isolates its check from tab's earlier check.

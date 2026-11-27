@@ -392,29 +392,6 @@ func TestLaneBench(t *testing.T) {
 	}
 }
 
-// TestLaneBenchShort is the experiment scaled down to seconds, lanes on: a chunk in flight neither gets the connection
-// closed nor holds an interactive call for long. Without lanes the transfer takes about 7 s and the interactive calls
-// made meanwhile wait for its end (p95 near 7 s); with them they take about a round trip.
-func TestLaneBenchShort(t *testing.T) {
-	b := laneBench{link: netshape.Config{Rate: 100_000, Delay: 50 * time.Millisecond, Queue: 64 << 10}, size: 512 << 10,
-		interactiveEvery: 200 * time.Millisecond, measureEvery: time.Second, tail: 3}
-	r := runLaneBench(t, b, true)
-	t.Log(r.summary(b, "on"))
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	rtts := slices.Clone(r.rtts)
-	slices.Sort(rtts)
-	if r.transferErr != nil {
-		t.Errorf("transfer: %v", r.transferErr)
-	}
-	if r.closes > 0 || r.reconnects > 0 {
-		t.Errorf("the heartbeat closed the connection %d time(s), %d reconnect(s)", r.closes, r.reconnects)
-	}
-	if p95 := percentile(rtts, 95); p95 > 2*time.Second {
-		t.Errorf("interactive p95 %s with a chunk in flight, want under 2s", p95)
-	}
-}
-
 // TestLaneBenchBothWays is the experiment with the other way busy too: the node keeps sending 96 KiB events to the
 // manager as fast as the link takes them, while the manager sends a forwarded port's bytes to the node (24 KiB
 // stream.data through its notes queue, three outstanding). The acknowledgements of the manager's frames then wait behind

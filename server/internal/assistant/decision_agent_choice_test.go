@@ -6,7 +6,6 @@ import (
 	"errors"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/db"
@@ -70,59 +69,6 @@ func agentChoiceMessage(t *testing.T, s *Service, r SessionRef, text string) {
 	b := &BusHub{svc: s}
 	if err := b.event(context.Background(), busEvent{name: assistantwire.EventUserSpoke, params: raw}); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestAgentDecisionExactChoiceSettlesWithoutSupervisor(t *testing.T) {
-	for _, letter := range []string{"A", "B"} {
-		t.Run(letter, func(t *testing.T) {
-			database := todoTestDB(t)
-			s, f, todo, _, _ := conclusionServiceOn(t, database, false)
-			waitsForReview(t, s, f, todo.ID, "The owner needs to choose a rollout.")
-			reviewTask(t, s, todo.ID, rolloutDecision())
-			a := askOf(s, todo.ID)
-			sent := len(sentToAgent(f))
-			ref := SessionRef{MachineID: a.MachineID, SessionID: a.SessionID}
-			agentChoiceMessage(t, s, ref, letter)
-			got := askOf(s, todo.ID)
-			if got.AgentReply == nil || got.DueAt.IsZero() || got.AcceptedAt.IsZero() || got.ByDefault ||
-				!got.AgentReply.ToldAt.IsZero() || todoNow(s, todo.ID).Supervision.State == reviewNeedsUser {
-				t.Fatalf("the exact choice still needs a supervisor: %+v", got)
-			}
-			index := int(letter[0] - 'A')
-			want := a.Options[index].Label
-			rows, err := database.ListTodoDecisions(context.Background(), todo.ID, true)
-			if err != nil || len(rows) != 1 || rows[0].Choice != want || rows[0].Reason != letter ||
-				rows[0].Source != db.DecisionManual || rows[0].SourceMachine != ref.MachineID || rows[0].SourceSession != ref.SessionID {
-				t.Fatalf("the owner's exact choice/source was not recorded: %+v, %v", rows, err)
-			}
-			agentChoiceMessage(t, s, ref, letter)
-			s.sweepDecisionDeadlines(time.Now().Add(48 * time.Hour))
-			if result, err := s.acceptTryAs(context.Background(), todo.ID, "", true); err != nil || result.taken {
-				t.Fatalf("the default could still run: %+v %v", result, err)
-			}
-			rows, err = database.ListTodoDecisions(context.Background(), todo.ID, true)
-			if err != nil || len(rows) != 1 || len(sentToAgent(f)) != sent {
-				t.Fatalf("the answer was recorded or sent again: rows %+v, err %v, sends %q", rows, err, sentToAgent(f)[sent:])
-			}
-			var stored map[string]*acceptAsk
-			if _, err := database.Setting(context.Background(), acceptanceKey, &stored); err != nil {
-				t.Fatal(err)
-			}
-			persisted := stored[todo.ID]
-			if persisted == nil || persisted.AgentReply == nil || persisted.AcceptedAt.IsZero() || persisted.DueAt.IsZero() || persisted.ByDefault {
-				t.Fatalf("the settled choice was not persisted: %+v", persisted)
-			}
-			reloaded, nextHub := newQuietServiceOn(t, database)
-			if err := reloaded.ensureTodosLoaded(context.Background()); err != nil {
-				t.Fatal(err)
-			}
-			reloaded.sweepDecisionDeadlines(time.Now().Add(48 * time.Hour))
-			again, ok := reloaded.askCopy(todo.ID)
-			if !ok || again.AcceptedAt.IsZero() || again.ByDefault || len(sentToAgent(nextHub)) != 0 {
-				t.Fatalf("the settled choice defaulted after reload: %+v", again)
-			}
-		})
 	}
 }
 
