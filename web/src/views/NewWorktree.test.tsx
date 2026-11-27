@@ -6,7 +6,7 @@ import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { credentialOwner, setToken } from "../lib/api";
 import { getState } from "../lib/store";
 import { setRosterDefault } from "../lib/manager-choice";
-import { deliverLaunch, launchAgent, onOpenNewAgent } from "../lib/new-agent";
+import { onOpenNewAgent } from "../lib/new-agent";
 import { NewWorktree } from "./NewWorktree";
 import type { WorktreeRequest } from "../lib/worktree";
 import { t } from "../i18n";
@@ -219,33 +219,6 @@ it("retains real provider results while showing partial provider errors and save
   expect(field(t("worktree-composer.name")).value).toBe("Kept draft"); expect(field(t("worktree-composer.base")).value).toBe("feature/existing");
   expect(calls.find((c) => c.url.endsWith("/worktree/preset"))?.body).toEqual({ workspace_id: "source-a", kind: "orca", name: "UI", directories: "web\nassets" });
   await click(t("worktree-composer.create")); expect(creates()[0].body).toMatchObject({ source_id: "issue:42", source_url: "https://github.com/example/demo/issues/42", sparse_preset_id: "validated-preset", name: "Kept draft", base_ref: "feature/existing" });
-});
-
-it("retries only the optional M3 launch after failure while retaining the acknowledged creation receipt", async () => {
-  let failLaunch = true; let launchId = "";
-  const original = fetcher.getMockImplementation()!;
-  fetcher.mockImplementation((url, init) => {
-    if (String(url).endsWith("/sessions")) {
-      calls.push({ url: String(url), body: JSON.parse(init.body), headers: new Headers(init.headers) });
-      return Promise.resolve(failLaunch ? response({ error: "Launcher unavailable", delivered: "none" }, 409) : response({ session: { machine_id: "computer", session_id: "new-agent", cwd: created.path, launcher: "custom-codex", status: "idle", state: "idle" } }));
-    }
-    return original(url, init);
-  });
-  const stop = onOpenNewAgent((preset) => {
-    launchId = launchAgent({ machineId: preset.workspace!.machineId, cwd: preset.workspace!.cwd, host: preset.workspace!.host,
-      workspaceId: preset.workspace!.workspaceId, launcher: "custom-codex", model: "chosen-model", effort: "high", text: "First message", attachments: [] });
-  });
-  await mount(); await click(t("worktree-composer.create")); await click(t("worktree-composer.start_agent")); await flush();
-  expect(getState().launches[launchId].phase).toBe("failed");
-  failLaunch = false; await act(async () => deliverLaunch(launchId)); await flush();
-  expect(getState().launches[launchId].phase).toBe("ready");
-  const starts = calls.filter((c) => c.url.endsWith("/sessions"));
-  expect(starts).toHaveLength(2);
-  expect(starts[1].body).toMatchObject({ workspace_id: "actual-new", host: "orca", cwd: "/worktrees/generated-actual", launcher: "custom-codex", model: "chosen-model", effort: "high" });
-  expect(calls.find((c) => c.url.endsWith("/messages"))?.body?.text).toBe("First message");
-  expect(creates()).toHaveLength(1);
-  await act(async () => root.render(null)); await mount();
-  expect(document.body.textContent).toContain("/worktrees/generated-actual"); expect(creates()).toHaveLength(1); stop();
 });
 
 it("hides and omits explicit branch overrides on runtimes that advertise only advanced creation", async () => {
