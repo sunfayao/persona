@@ -120,7 +120,9 @@ func TestComputerRunNeverOperatesProtectedApps(t *testing.T) {
 		default:
 		}
 	}
-	const themselves = "do this themselves, on the Mac or through its live screen"
+	// The user is handed the Mac's live screen, on the hub's address (harness_test.go), told it opens in View only.
+	const themselves = "do this themselves, on the Mac or through its live screen at http://hub.example:18660/screen/mac-protected " +
+		"in the Persona web app (it opens in View only; switch to Take control to click)"
 
 	// A card can wait for minutes: a prompt that came up meanwhile is looked for again after the answer.
 	calcAsked := make(chan proto.ToolResult, 1)
@@ -182,6 +184,21 @@ func TestComputerRunNeverOperatesProtectedApps(t *testing.T) {
 		return `{"windows": [{"app_name": "UserNotificationCenter", "pid": 99, "is_on_screen": true}]}`
 	})
 	refused("a permission prompt on the screen, by its process name", calc, "prompt (UserNotificationCenter) is on its screen")
+	// Two prompts, one behind System Settings: each named by its window, the hidden one with what covers it.
+	setWindows(func(int) string {
+		return `{"windows": [{"app_name": "universalAccessAuthWarn", "pid": 98, "window_id": 900, "is_on_screen": true, "z_index": 30,
+			"bounds": {"x": 200, "y": 200, "width": 260, "height": 300}},
+			{"app_name": "Réglages Système", "pid": 70, "window_id": 7, "is_on_screen": true, "z_index": 9,
+			"bounds": {"x": 100, "y": 100, "width": 600, "height": 500}},
+			{"app_name": "UserNotificationCenter", "pid": 99, "window_id": 901, "title": "Screen Recording", "is_on_screen": true,
+			"z_index": 5, "bounds": {"x": 500, "y": 300, "width": 260, "height": 150}},
+			{"app_name": "Calculator", "pid": 63, "window_id": 3, "is_on_screen": true, "z_index": 4,
+			"bounds": {"x": 0, "y": 0, "width": 300, "height": 400}}]}`
+	})
+	refused("two prompts, one covered", calc, `2 macOS permission or password prompts (universalAccessAuthWarn, window 900; `+
+		`UserNotificationCenter "Screen Recording", window 901, covered by Réglages Système) are on its screen`)
+	refused("two prompts: the user handed the live screen", calc, "answer them themselves, on the Mac or through its live screen at "+
+		"http://hub.example:18660/screen/mac-protected in the Persona web app (it opens in View only; switch to Take control to click)")
 	setWindows(func(int) string { return `{"oops": true}` })
 	refused("the windows unreadable", calc, "could not be read")
 	setWindows(func(int) string {

@@ -1,12 +1,14 @@
-Act on one of the user's Macs through Cua Driver, in one call: either `steps` (Cua's run_steps: actions in order, stopping at the first failure) or `script` (Cua's run_script: JavaScript with loops and checks). Apps act in the background without taking focus.
-- steps: `[{"click": {"app": "Calculator", "role": "button", "name": "7"}}, {"press_key": {"app": "Calculator", "key": "return"}}]`. A step names its target by role/name (no earlier read needed) or by an `element_token` from computer_state. Other actions: double_click, right_click, type_text {text}, set_value {value}, hotkey {keys}, scroll, launch_app {name}. Add `observe: {}` to get what changed in the window after the last step (no screenshot).
-- script: the body of an async function with one API, `cua`: `const app = await cua.getApp("Calculator"); await app.click({role: "button", name: "7"}); const [d] = await app.query({role: "statictext"}); return d.value;`. Also `cua.launch(name)`, `app.typeText(text, target?)`, `app.pressKey("cmd+s")`, `app.waitFor({…})`, `app.getState()`. Its return value comes back; `timeout_ms` up to 120000.
-- An app with more than one process: pass `pid` (and `window_id`) on computer_run itself and leave `app` out of the steps, which then act in that window; a step's own `app` would have Cua Driver choose the window again. Such an app is never guessed at: a call or script naming it otherwise is refused with its processes' windows (`cua.getApp` cannot tell them apart).
-Read first with computer_state when unsure what is on screen, and again for a screenshot to show the user the result. Writes may be confirmed in Persona first, if the user set that.
+Act on one of the user's Macs through Cua Driver in one call: `steps` (actions in order, stopping at the first failure) or `script` (JavaScript). Apps act in the background without taking focus.
+- steps: `[{"click": {"app": "Calculator", "role": "button", "name": "7"}}, {"press_key": {"app": "Calculator", "key": "return"}}]`. Only click, double_click, right_click, set_value {value}, type_text {text}, press_key, hotkey {keys}, scroll, drag and move_cursor run as steps: open an app with script `await cua.launch("Calculator")`. A step names its target by role/name or an `element_token` from computer_state. `observe: {}` returns what the steps changed in the window.
+- press_key takes key names: return, tab, escape, space, delete, arrows, f1–f12, a letter or digit, with modifiers (cmd+s). Symbols (*, $, …) go through type_text.
+- Background apps may ignore typed keys: press a button by clicking it (by element_token from computer_state or observe, or by role/name), and check with observe.
+- script: the body of an async function using `cua`: `const app = await cua.getApp("Calculator"); await app.click({role: "button", name: "7"}); const [d] = await app.query({role: "statictext"}); return d.value;`. Also `cua.launch(name)`, `app.typeText(text, target?)`, `app.pressKey("cmd+s")`, `app.waitFor({…})`, `app.getState()`.
+- An app running as several processes: pass `pid` (or `window_id`) on computer_run, not `app` in the steps; naming it otherwise is refused with its processes' windows.
+Read with computer_state first when unsure what is on screen, or for a screenshot to show the user. Writes may need the user's confirmation in Persona.
 
-Never System Settings or macOS's permission and password prompts: a call that names one or would act in one is refused, and the user does that themselves on the Mac or through the live screen in the Persona app. Only they are off limits: with System Settings open, steps on other apps (by name or element token, keys to a named app) still run, but a point where System Settings is on top, keys with no app while it is in front, and scripts are refused, so prefer element tokens and steps then. Nothing runs while a permission or password prompt is on screen. Name every app a script touches with a literal `cua.getApp("…")` or `cua.launch("…")`; a script that names them otherwise, or names none, is refused. Steps naming no app run one at a time.
+Never System Settings or macOS's permission and password prompts: a call that names one or would act in one is refused: the user does that themselves. With System Settings open, steps on other apps (by name or element token) still run, but a point where it is on top, keys with no app while it is in front, and scripts are refused. Nothing runs while a prompt is on screen. A script names every app it touches with a literal `cua.getApp("…")` or `cua.launch("…")`, or is refused. Steps naming no app run one at a time.
 
-On a machine whose computer-use backend is LCU, `script` is that runtime's JavaScript and `steps` are translated into it. Per-app, session, always, and site confirmations are asked in Persona, on the same cards as other computer-use approvals. A refusal is the user's: do not retry or approve it yourself.
+On an LCU machine, `script` is LCU's JavaScript and `steps` are translated into it; its confirmations come as Persona cards. A refusal is the user's: do not retry or approve it yourself.
 
 ```json
 {
@@ -30,15 +32,15 @@ On a machine whose computer-use backend is LCU, `script` is that runtime's JavaS
     },
     "pid": {
       "type": "integer",
-      "description": "default process for steps that name no app, when the app has several (steps only)"
+      "description": "steps' default process, for an app with several"
     },
     "window_id": {
       "type": "integer",
-      "description": "default window for steps that name no app (steps only)"
+      "description": "steps' default window"
     },
     "observe": {
       "type": "object",
-      "description": "after the steps, read what changed in the window (get_window_state options; {} for defaults)"
+      "description": "what changed after the steps (get_window_state options; {} for defaults)"
     },
     "script": {
       "type": "string",

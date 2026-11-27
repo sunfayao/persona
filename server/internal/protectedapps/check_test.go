@@ -117,6 +117,10 @@ func TestCheckNamedOrAimed(t *testing.T) {
 			{"a script", "run_script", `{"script": "await cua.getApp(\"系统设置\")"}`, "named"},
 			{"moved", "set_window_frame", `{"pid": 3341, "window_id": 18640, "x": 0, "y": 0}`, "named"},
 			{"a prompt by name", "click", `{"app": "SecurityAgent"}`, "named"},
+			// Cua Driver also takes a step's arguments beside its "tool".
+			{"a step's app beside its tool", "run_steps", `{"steps": [{"tool": "click", "app": "System Settings", "name": "x"}]}`, "named"},
+			{"opened beside its tool", "run_steps", `{"steps": [{"tool": "launch_app", "name": "System Settings"}]}`, "named"},
+			{"its window beside its tool", "run_steps", `{"steps": [{"tool": "click", "window_id": 18640, "x": 1, "y": 1}]}`, "named"},
 		})
 	}
 }
@@ -222,12 +226,98 @@ func TestCheckPrompts(t *testing.T) {
 		{"the clipboard", "clipboard_write", `{"text": "x"}`, "prompt"},
 	} {
 		v := m.check(c.tool, c.args)
-		if v.Rule != "prompt" || !strings.Contains(v.Why, "(universalAccessAuthWarn) is on its screen") {
+		if v.Rule != "prompt" || v.App != "universalAccessAuthWarn" ||
+			!strings.Contains(v.Why, "a macOS permission or password prompt (universalAccessAuthWarn, window 900) is on its screen, and") {
 			t.Errorf("%s: %+v", c.what, v)
 		}
 	}
 	m.extra = strings.Replace(m.extra, `"is_on_screen": true`, `"is_on_screen": false`, 1)
 	runChecks(t, m, []checkCase{{"gone from the screen", "type_text", `{"pid": 626, "text": "x"}`, ""}})
+}
+
+// 5b. Each prompt is named window by window, with what covers it: the user may see only one of two (#4336), the
+// other hidden behind System Settings (945, 196, 723×625, z 17), which this one is under and Finder (z 24) is not over.
+func TestCheckPromptsNamedWindowByWindow(t *testing.T) {
+	const onTop = `{"window_id": 900, "pid": 98, "app_name": "universalAccessAuthWarn", "layer": 0, "z_index": 30, "is_on_screen": true,
+		"bounds": {"x": 700, "y": 300, "width": 260, "height": 300}}`
+	const behind = `{"window_id": 901, "pid": 99, "app_name": "UserNotificationCenter", "title": "Screen Recording", "layer": 0,
+		"z_index": 10, "is_on_screen": true, "bounds": {"x": 1000, "y": 650, "width": 260, "height": 150}}`
+	for _, c := range []struct {
+		what, extra string
+		noZ         bool
+		want        string
+	}{
+		{"one, covered", behind, false,
+			`a macOS permission or password prompt (UserNotificationCenter "Screen Recording", window 901, covered by System Settings) is on its screen, and`},
+		{"two, one covered", onTop + "," + behind, false,
+			`2 macOS permission or password prompts (universalAccessAuthWarn, window 900; UserNotificationCenter ` +
+				`"Screen Recording", window 901, covered by System Settings) are on its screen, and`},
+		{"the order not known: not said to be covered", behind, true,
+			`(UserNotificationCenter "Screen Recording", window 901) is on its screen`},
+		{"a prompt over a prompt is no cover", onTop + "," + strings.NewReplacer(`"x": 1000, "y": 650`, `"x": 750, "y": 350`,
+			`"z_index": 10`, `"z_index": 25`).Replace(behind), false, // over Finder (z 24), under the other prompt
+			`(universalAccessAuthWarn, window 900; UserNotificationCenter "Screen Recording", window 901) are on its screen`},
+	} {
+		m := behindEdge()
+		m.extra, m.noZ = c.extra, c.noZ
+		if c.noZ {
+			m.extra = strings.ReplaceAll(m.extra, `"z_index": 10`, `"z_index": null`)
+		}
+		v := m.check("click", `{"element_token": "s0000024a:5"}`)
+		if v.Rule != "prompt" || !strings.Contains(v.Why, c.want) {
+			t.Errorf("%s: %q", c.what, v.Why)
+		}
+	}
+	// Answering one names them all: "them", and the window gone from the screen is not named any more.
+	m := behindEdge()
+	m.extra = onTop + "," + behind
+	if v := m.check("click", `{"pid": 626, "x": 1, "y": 1}`); !strings.Contains(v.Why, "Tell the user to answer them themselves") {
+		t.Errorf("two prompts: %q", v.Why)
+	}
+	m.extra = onTop + "," + strings.Replace(behind, `"is_on_screen": true`, `"is_on_screen": false`, 1)
+	if v := m.check("click", `{"pid": 626, "x": 1, "y": 1}`); strings.Contains(v.Why, "901") || !strings.Contains(v.Why, "answer it themselves") {
+		t.Errorf("one left: %q", v.Why)
+	}
+}
+
+// 5c. A refusal the user has to act on hands them the Mac's live screen, and says it opens in View only; one the model
+// can mend itself does not. Without the screen's address it still names the live screen.
+func TestRefusalsHandTheUserTheLiveScreen(t *testing.T) {
+	const link = "https://hub.example.com/screen/mac-1"
+	const viewOnly = "(it opens in View only; switch to Take control to click)"
+	at := Mac{Name: "Mac Studio", Screen: link}
+	settingsFront := behindEdge()
+	settingsFront.active = "System Settings"
+	prompted := behindEdge()
+	prompted.extra = `{"window_id": 900, "pid": 98, "app_name": "universalAccessAuthWarn", "z_index": 30, "is_on_screen": true}`
+	for _, c := range []struct {
+		what       string
+		m          *fakeMac
+		tool, args string
+		handoff    bool
+	}{
+		{"named", behindEdge(), "click", `{"app": "System Settings", "name": "x"}`, true},
+		{"a prompt", prompted, "click", `{"pid": 626, "x": 1, "y": 1}`, true},
+		{"covered", behindEdge(), "click", `{"pid": 656, "window_id": 159, "x": 700, "y": 400}`, true},
+		{"in front", settingsFront, "press_key", `{"key": "space"}`, true},
+		{"a script", behindEdge(), "run_script", `{"script": "await cua.getApp(\"Notes\")"}`, true},
+		{"unplaced", behindEdge(), "click", `{"x": 5, "y": 5}`, false},
+		{"a token not traced", behindEdge(), "click", `{"element_token": "s000000aa:1"}`, false},
+	} {
+		v := NewLook(c.m.read, nil).CheckOn(at, c.tool, json.RawMessage(c.args))
+		if !strings.HasPrefix(v.Why, "Refused on Mac Studio: ") && !strings.HasPrefix(v.Why, "Nothing was done on Mac Studio: ") {
+			t.Errorf("%s: the Mac's name: %q", c.what, v.Why)
+		}
+		if got := strings.Contains(v.Why, "on the Mac or through its live screen at "+link+" in the Persona web app "+viewOnly); got != c.handoff {
+			t.Errorf("%s: the live screen handed over %v: %q", c.what, got, v.Why)
+		}
+	}
+	if v := behindEdge().check("click", `{"app": "System Settings"}`); !strings.Contains(v.Why, "on the Mac or through its live screen in the Persona web app "+viewOnly) {
+		t.Errorf("no address: %q", v.Why)
+	}
+	if got := Refusal(at, "it would operate Keychain Access"); !strings.Contains(got, link) || !strings.HasPrefix(got, "Refused on Mac Studio: it would operate") {
+		t.Errorf("Refusal: %q", got)
+	}
 }
 
 // 6. What cannot be checked is refused: windows not read, a script, a tool whose place is not known.

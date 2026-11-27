@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/sunfayao/persona/server/internal/apierr"
@@ -382,6 +383,16 @@ func (h *Manager) callComputerTool(ctx context.Context, sessionID, name string, 
 	}
 	session := cuaConversationLabel(sessionID)
 	lcu := h.callBackend(m) == "lcu"
+	at := h.refusalMac(m)
+	// Steps Cua Driver would not run as given are refused before anything is asked of the Mac, with the call that
+	// works. LCU's steps are translated into its JavaScript, which opens apps and presses keys its own way; on auto,
+	// until the Mac is known to be on LCU, the call is Cua Driver's run_steps (the fix, a script, works on both).
+	if name == "computer_run" && !lcu && a.Script == "" {
+		if why := stepsRefusal(at, a.Steps); why != "" {
+			h.logf("[%s] computer_run refused before it ran: %s", m.cfg.ID, computerLogWhat("run_steps", "", a.Steps))
+			return proto.TextResult(why, true)
+		}
+	}
 	if a.PID != 0 || a.WindowID != 0 {
 		switch {
 		case lcu:
@@ -453,21 +464,22 @@ func (h *Manager) callComputerTool(ctx context.Context, sessionID, name string, 
 		return proto.TextResult(protectedapps.UnreadableScript, true)
 	}
 	var known []protectedapps.App
-	// guard checks this call, or one of its steps alone, on the Mac as it is now (protectedapps.Look.Check). LCU asks
-	// before touching any app, and those questions are refused for these (computer_lcu.go): it only checks names here.
+	// guard checks this call, or one of its steps alone, on the Mac as it is now (protectedapps.Look.CheckOn). LCU
+	// asks before touching any app, and those questions are refused for these (computer_lcu.go): it only checks names
+	// here.
 	guard := func(string, map[string]any) protectedapps.Verdict { return protectedapps.Verdict{} }
 	if lcu {
 		for _, x := range h.appsOn(ctx, m, apps, nil) {
 			if protectedApp(x) {
 				h.logf("[%s] computer_run refused: protected app %s", m.cfg.ID, strings.TrimPrefix(x.BundleID, "name:"))
-				return proto.TextResult(refusedText(m.name(), "it would operate "+x.Name), true)
+				return proto.TextResult(protectedapps.Refusal(at, "it would operate "+x.Name), true)
 			}
 		}
 	} else {
 		guard = func(tool string, in map[string]any) protectedapps.Verdict {
 			raw, _ := json.Marshal(in)
 			look := h.protectedLook(ctx, m, known)
-			v := look.Check(m.name(), tool, raw)
+			v := look.CheckOn(at, tool, raw)
 			known = look.Apps()
 			return v
 		}
@@ -508,7 +520,13 @@ func (h *Manager) callComputerTool(ctx context.Context, sessionID, name string, 
 	if stopped != "" {
 		return proto.TextResult(stopped, true)
 	}
-	return computerResult(res)
+	out := computerResult(res)
+	if tool == "run_steps" {
+		if notes := unverifiedSteps(res.Output); len(notes) > 0 {
+			out.Content[0].Text += "\n" + strings.Join(notes, "\n")
+		}
+	}
+	return out
 }
 
 // computerMachine is the machine the assistant named, when the plugin is on for it, it is a Mac and it is online.
@@ -718,6 +736,116 @@ func stepActions(steps json.RawMessage) []string {
 		out = append(out, tool)
 	}
 	return out
+}
+
+// stepsRefusal is why Cua Driver would not run these steps as given, said before anything runs with the call that
+// works; "" lets them go. run_steps takes only clicks, keys, typing, scrolls and drags: a launch_app step makes it
+// refuse the whole call (invalid_batch), so the app is opened by a script; a protected app such a step would open gets
+// protectedapps' refusal instead. press_key takes key names: a symbol fails at its step ("Unknown key name") after the
+// steps before it ran, while type_text types it.
+func stepsRefusal(at protectedapps.Mac, steps json.RawMessage) string {
+	var list []map[string]json.RawMessage
+	_ = json.Unmarshal(steps, &list)
+	var opens []string
+	for _, s := range list {
+		if opened, ok := protectedapps.LaunchTarget(s); ok {
+			if protectedapps.Is(opened, opened) {
+				return protectedapps.Refusal(at, "it would operate "+opened)
+			}
+			if opened == "" {
+				opened = "App name"
+			}
+			opens = append(opens, "await cua.launch("+jsString(opened)+");")
+		}
+	}
+	if len(opens) > 0 {
+		apps, then := "the app", ""
+		if len(opens) > 1 {
+			apps = "the apps"
+		}
+		if len(opens) < len(list) {
+			then = ", then send the other steps"
+		}
+		return "Nothing was done: launch_app cannot be a step (Cua Driver refuses it in run_steps). Open " + apps +
+			" with script `" + strings.Join(opens, " ") + "`" + then + "."
+	}
+	for i, s := range list {
+		var a struct {
+			Key string `json:"key"`
+		}
+		if tool, args := stepCall(s); tool == "press_key" && json.Unmarshal(args, &a) == nil && loneSymbol(a.Key) {
+			return fmt.Sprintf("Nothing was done: step %d presses %q, and press_key takes key names (return, tab, escape, "+
+				"space, delete, arrows, f1-f12, a letter or digit). Type a symbol with type_text, or click the app's button "+
+				"for it by its element_token.", i+1, strings.TrimSpace(a.Key))
+		}
+	}
+	return ""
+}
+
+// stepCall is a run_steps step's tool and arguments: {"tool": …, "args": {…}}, {"tool": …, <arguments beside it>} or
+// {<tool>: {…}}.
+func stepCall(s map[string]json.RawMessage) (tool string, args json.RawMessage) {
+	if raw, ok := s["tool"]; ok {
+		_ = json.Unmarshal(raw, &tool)
+		if args, ok = s["args"]; !ok {
+			args, _ = json.Marshal(s)
+		}
+		return tool, args
+	}
+	for k, raw := range s {
+		if k != "wait_for" && k != "expect" && k != "timeout_ms" {
+			return k, raw
+		}
+	}
+	return "", nil
+}
+
+// cuaKeySymbols are the one-character key names Cua Driver's press_key knows besides letters and digits: the
+// unshifted punctuation keys of a US keyboard, and "+", which it presses as shift and "=".
+const cuaKeySymbols = "=-[]';\\,./`+"
+
+// loneSymbol: key is one character that no key of press_key's is named by ("*", "$", "×"); white space is left to Cua
+// Driver, which names it.
+func loneSymbol(key string) bool {
+	key = strings.TrimSpace(key)
+	r, size := utf8.DecodeRuneInString(key)
+	return size > 0 && size == len(key) && !unicode.IsLetter(r) && !unicode.IsDigit(r) && !strings.ContainsRune(cuaKeySymbols, r)
+}
+
+// unverifiedSteps is a line for each step of a run_steps answer whose effect Cua Driver could not confirm. A step's
+// report carries only the first line of that action's own answer, which says "(unverified)" for type_text and
+// set_value when the result was not read back; other actions' verification is in fields run_steps leaves out.
+// Background apps (Calculator) often ignore posted keys, while a button pressed through its element token works.
+func unverifiedSteps(out json.RawMessage) []string {
+	var r struct {
+		OneByOne bool              `json:"one_by_one"`
+		Steps    []json.RawMessage `json:"steps"`
+	}
+	if json.Unmarshal(out, &r) != nil {
+		return nil
+	}
+	var lines []string
+	for i, raw := range r.Steps {
+		if r.OneByOne { // each step's own run_steps answer (runStepsOneByOne)
+			var one struct {
+				Steps []json.RawMessage `json:"steps"`
+			}
+			if json.Unmarshal(raw, &one) != nil || len(one.Steps) != 1 {
+				continue
+			}
+			raw = one.Steps[0]
+		}
+		var step struct {
+			Tool    string `json:"tool"`
+			OK      bool   `json:"ok"`
+			Message string `json:"message"`
+		}
+		if json.Unmarshal(raw, &step) == nil && step.OK && strings.Contains(step.Message, "(unverified)") {
+			lines = append(lines, fmt.Sprintf("Step %d (%s) is unverified: the app may have ignored it (check with "+
+				"observe). To press a button, click its element_token from computer_state or observe instead.", i+1, step.Tool))
+		}
+	}
+	return lines
 }
 
 // jsString is s as a JavaScript string literal.
