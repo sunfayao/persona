@@ -106,3 +106,8 @@ add one and keep the old name working, or remove a tool whose feature is gone to
 Every always-loaded instruction and tool description is paid for in every turn of every conversation. Put what only
 some turns need behind a skill (`server/internal/assistantskills/builtin/`) or a tool the model can call, state a
 rule once, and delete a sentence before you add one.
+
+A tool description keeps what a call needs: what the tool does, when to use it, its required fields and the mistakes
+calls make. Its long tail goes into a reference of `persona-work`, which every Assistant directory has under
+`.claude/skills/persona-work/references/` with or without the work guide, named in a one-line pointer at the end of
+the description; a rule the code enforces is explained by its refusal, which says what to do instead.
