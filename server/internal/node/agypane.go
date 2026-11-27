@@ -464,7 +464,7 @@ type agyWatch struct {
 	stepHashes                  map[int][32]byte
 }
 
-type agyPaneFiles struct{ transcript, receipts os.FileInfo }
+type agyPaneFiles struct{ transcript, full, receipts os.FileInfo }
 
 func sameAgyFile(a, b os.FileInfo) bool {
 	if a == nil || b == nil {
@@ -474,11 +474,12 @@ func sameAgyFile(a, b os.FileInfo) bool {
 }
 
 func agyStepsHistory(conversation string) agyHistory {
-	return agyHistory{token: "agy-pane:" + conversation + ":steps:context-resources-v1:lazy-media:checkpoints:wakes:file-links"}
+	return agyHistory{token: "agy-pane:" + conversation + ":steps:context-resources-v1:lazy-media:checkpoints:wakes:file-links:full-replies"}
 }
 
-// agyRead loads the compact export for pages and live updates. The revision memo
-// distinguishes a rewrite of complete records from an append or partial write.
+// agyRead loads the compact export for pages and live updates, hydrating
+// truncated prose steps from transcript_full.jsonl when present. The revision
+// memo distinguishes a rewrite of complete records from an append or partial write.
 func (n *Node) agyRead(root *os.Root, key, conversation string, previous *agyPaneFiles) (agyHistory, *agyPaneFiles, error) {
 	empty := agyStepsHistory(conversation)
 	info, err := root.Stat(agyTranscriptPath)
@@ -488,12 +489,17 @@ func (n *Node) agyRead(root *os.Root, key, conversation string, previous *agyPan
 	if !info.Mode().IsRegular() {
 		return empty, nil, os.ErrNotExist
 	}
+	fullInfo, _ := root.Stat(agyFullTranscriptPath)
+	if fullInfo != nil && !fullInfo.Mode().IsRegular() {
+		fullInfo = nil
+	}
 	receiptsFile, _ := root.Lstat(agyWakeReceipts)
 	if receiptsFile != nil && !receiptsFile.Mode().IsRegular() {
 		receiptsFile = nil
 	}
-	files := &agyPaneFiles{transcript: info, receipts: receiptsFile}
-	if previous != nil && sameAgyFile(info, previous.transcript) && sameAgyFile(receiptsFile, previous.receipts) && time.Since(info.ModTime()) > time.Second {
+	files := &agyPaneFiles{transcript: info, full: fullInfo, receipts: receiptsFile}
+	if previous != nil && sameAgyFile(info, previous.transcript) && sameAgyFile(fullInfo, previous.full) && sameAgyFile(receiptsFile, previous.receipts) &&
+		time.Since(info.ModTime()) > time.Second && (fullInfo == nil || time.Since(fullInfo.ModTime()) > time.Second) {
 		return agyHistory{}, files, nil
 	}
 	raw, err := root.ReadFile(agyTranscriptPath)
@@ -527,6 +533,9 @@ func (n *Node) agyRead(root *os.Root, key, conversation string, previous *agyPan
 				}
 			}
 		}
+	}
+	if fullInfo != nil {
+		steps = agyHydrateFullSteps(root, steps)
 	}
 	h := mapAgySteps(steps, info.ModTime(), receipts)
 	h.token = empty.token

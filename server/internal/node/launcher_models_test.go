@@ -623,6 +623,29 @@ printf '%s\n' '[{"config_name":"example-fast","name":"Example Fast","description
 	}
 }
 
+func TestLauncherModelsTraexRetriesNativeProvider(t *testing.T) {
+	n, _ := testNode(t)
+	t.Setenv("HOME", n.home)
+	t.Setenv("ZDOTDIR", n.home)
+	bin := t.TempDir()
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	script := `#!/bin/sh
+if [ "$1" = "models" ]; then
+  echo "Error: Model provider 'custom' not found" >&2
+  exit 1
+fi
+test "$*" = '-c model_provider=trae models --json' || exit 2
+printf '%s\n' '[{"config_name":"native-model","name":"Native Model"}]'
+`
+	if err := os.WriteFile(filepath.Join(bin, "traex"), []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	res, err := n.launcherModels(context.Background(), traexAgent, "", true)
+	if err != nil || len(res.Models) != 1 || res.Models[0].ID != "native-model" {
+		t.Fatalf("got %+v %v", res, err)
+	}
+}
+
 func TestLauncherModelsRejectsInvalidName(t *testing.T) {
 	n, _ := testNode(t)
 	if _, err := n.launcherModels(context.Background(), "bad name;", "", false); err == nil {

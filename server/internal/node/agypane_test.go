@@ -1136,3 +1136,100 @@ func TestAgyPaneSendSavesImagesAndTagsClientMsgID(t *testing.T) {
 		t.Fatalf("send across /clear conversation switch lost client_msg_id: %+v", switchedItems)
 	}
 }
+
+func TestAgyPaneHydratesTruncatedStepsFromFullTranscript(t *testing.T) {
+	node, herdr, home := herdrNode(t)
+	t.Setenv("ANTIGRAVITY_CLI_CONFIG_DIR", "")
+	seedAgents(t, node, herdr, agyTestAgent(agyTestPane, home, agyTestID))
+
+	fullReply := "Here is the code:\n\n```go\nif pool.IsDefault && pool.HasEndpoints && !pool.Legacy {\n\treturn true\n}\n```\n\n| Scenario | Before | Action | Breaks v1? |\n| --- | --- | --- | --- |\n| Scenario 1 | Pool B | Switch default | Yes |\n| Scenario 2 | Pool A | Add non-default | No |"
+	compactReply := "Here is the code:\n\n```go\nif pool.IsDefault && pool.HasEndpoints && !p\n<truncated 455 bytes>\ng v1? |\n| --- | --- | --- | --- |\n| Scenario 1 | Pool B | Switch default | Yes |\n| Scenario 2 | Pool A | Add non-default | No |"
+	fullThinking := "Full chain of reasoning across all pools and endpoints."
+	compactThinking := "Full chain <truncated 40 bytes> endpoints."
+	fullUser := "Explain why ValidateLegacySDKDefaults rejected Pool B allocation across all channels."
+	compactUser := "Explain why <truncated 55 bytes> channels."
+	fullErr := "API Error: upstream gateway returned detailed quota diagnostics for all pools."
+	compactErr := "API Error: upstream <truncated 45 bytes> pools."
+
+	compact := strings.Join([]string{
+		fmt.Sprintf(`{"step_index":0,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","created_at":"2026-11-27T09:39:50Z","content":%q,"truncated_fields":["content"]}`, compactUser),
+		`{"step_index":1,"type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-11-27T09:39:51Z","tool_calls":[{"name":"run_command","args":{"CommandLine":"cat big.log"}}]}`,
+		`{"step_index":2,"type":"GENERIC","status":"DONE","created_at":"2026-11-27T09:39:52Z","content":"head <truncated 9000 bytes> tail","truncated_fields":["content"]}`,
+		fmt.Sprintf(`{"step_index":3,"type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-11-27T09:39:57Z","thinking":%q,"content":%q,"truncated_fields":["thinking","content"]}`, compactThinking, compactReply),
+		fmt.Sprintf(`{"step_index":4,"type":"ERROR_MESSAGE","status":"ERROR","created_at":"2026-11-27T09:39:59Z","error":%q,"truncated_fields":["error"]}`, compactErr),
+	}, "\n") + "\n"
+	agyTestFile(t, node.agyDataRoot(), agyTestID, compact)
+
+	// Without transcript_full.jsonl, falls back gracefully to compact transcript.jsonl.
+	items, _ := agyTestItems(t, node, agyTestRow, nil)
+	if len(items) != 6 {
+		t.Fatalf("expected 6 items without full transcript, got %d: %+v", len(items), items)
+	}
+	if !strings.Contains(items[4].Text, "<truncated 455 bytes>") {
+		t.Fatalf("expected compact fallback reply, got %q", items[4].Text)
+	}
+
+	// Write transcript_full.jsonl with an earlier RUNNING step 3 followed by DONE step 3,
+	// plus a large GENERIC line that must remain lazy (not loaded into session.items).
+	fullPath := filepath.Join(node.agyDataRoot(), "brain", agyTestID, agyFullTranscriptPath)
+	full := strings.Join([]string{
+		fmt.Sprintf(`{"step_index":0,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","created_at":"2026-11-27T09:39:50Z","content":%q}`, fullUser),
+		`{"step_index":1,"type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-11-27T09:39:51Z","tool_calls":[{"name":"run_command","args":{"CommandLine":"cat big.log"}}]}`,
+		`{"step_index":2,"type":"GENERIC","status":"DONE","created_at":"2026-11-27T09:39:52Z","content":"HUGE_TOOL_OUTPUT_ONLY_FOR_LAZY_OUTPUT_TXT"}`,
+		`{"step_index":3,"type":"PLANNER_RESPONSE","status":"RUNNING","created_at":"2026-11-27T09:39:57Z","thinking":"partial thinking","content":"partial reply"}`,
+		fmt.Sprintf(`{"step_index":3,"type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-11-27T09:39:57Z","thinking":%q,"content":%q}`, fullThinking, fullReply),
+		fmt.Sprintf(`{"step_index":4,"type":"ERROR_MESSAGE","status":"ERROR","created_at":"2026-11-27T09:39:59Z","error":%q}`, fullErr),
+	}, "\n") + "\n"
+	agyTestWrite(t, fullPath, full)
+
+	// Start watcher before/after check: session.items and session.item should return untruncated prose,
+	// while GENERIC keeps its compact text (lazy output.txt handles full tool output).
+	items, _ = agyTestItems(t, node, agyTestRow, nil)
+	if len(items) != 6 {
+		t.Fatalf("expected 6 hydrated items, got %d: %+v", len(items), items)
+	}
+	if items[0].Text != fullUser {
+		t.Fatalf("user input not hydrated:\ngot:  %q\nwant: %q", items[0].Text, fullUser)
+	}
+	if items[2].Kind != proto.KindToolResult || strings.Contains(items[2].Text, "HUGE_TOOL_OUTPUT_ONLY_FOR_LAZY_OUTPUT_TXT") {
+		t.Fatalf("GENERIC tool result should stay compact in session.items, got %+v", items[2])
+	}
+	if items[3].Kind != proto.KindThinking || items[3].Text != fullThinking {
+		t.Fatalf("thinking not hydrated:\ngot:  %q\nwant: %q", items[3].Text, fullThinking)
+	}
+	if items[4].Kind != proto.KindText || items[4].Text != fullReply {
+		t.Fatalf("reply not hydrated:\ngot:  %q\nwant: %q", items[4].Text, fullReply)
+	}
+	if items[5].Kind != proto.KindText || items[5].Text != fullErr {
+		t.Fatalf("error not hydrated:\ngot:  %q\nwant: %q", items[5].Text, fullErr)
+	}
+
+	itemDetail := agyTestCall(t, node, "session.item", agyTestRow, map[string]any{"item_id": items[4].ID}).(proto.Item)
+	if itemDetail.Text != fullReply {
+		t.Fatalf("session.item reply not hydrated:\ngot:  %q\nwant: %q", itemDetail.Text, fullReply)
+	}
+
+	// Verify cached fold.steps in n.agyParses was not mutated in place: removing transcript_full.jsonl
+	// must cleanly revert to compact transcript.jsonl.
+	if err := os.Remove(fullPath); err != nil {
+		t.Fatal(err)
+	}
+	reverted, _ := agyTestItems(t, node, agyTestRow, nil)
+	if !strings.Contains(reverted[4].Text, "<truncated 455 bytes>") {
+		t.Fatalf("cached fold.steps was mutated in place; expected compact text after removing full transcript, got %q", reverted[4].Text)
+	}
+
+	// Verify live watcher pushes an in-place update when transcript_full.jsonl arrives after transcript.jsonl.
+	watchHub := withHub(t, node)
+	agyTestCall(t, node, "session.watch", agyTestRow, map[string]any{"since_seq": 0})
+	agyTestWrite(t, fullPath, full)
+	node.pollWatchedAgyPane(agyTestRow)
+	waitFor(t, "watcher pushes hydrated full reply in place", func() bool {
+		for _, it := range watchHub.got() {
+			if it.ID == items[4].ID && it.Text == fullReply {
+				return true
+			}
+		}
+		return false
+	})
+}

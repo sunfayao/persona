@@ -1,6 +1,7 @@
 package node
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/sha256"
 	"encoding/json"
@@ -230,6 +231,153 @@ func agyReadFile(brain *os.Root, path string) ([]byte, error) {
 		return nil, os.ErrNotExist
 	}
 	return brain.ReadFile(path)
+}
+
+type agyFullStepKey struct {
+	seq       int
+	stepType  string
+	createdAt string
+}
+
+type agyFullStepRecord struct {
+	Index           *int     `json:"step_index"`
+	Type            string   `json:"type"`
+	CreatedAt       string   `json:"created_at"`
+	Content         string   `json:"content"`
+	Thinking        string   `json:"thinking"`
+	Error           string   `json:"error"`
+	TruncatedFields []string `json:"truncated_fields"`
+}
+
+func agyStepNeedsFullHydration(step agyStep) bool {
+	switch step.Type {
+	case "PLANNER_RESPONSE", "USER_INPUT", "ERROR_MESSAGE":
+	default:
+		return false
+	}
+	for _, field := range step.TruncatedFields {
+		if field == "content" || field == "thinking" || field == "error" {
+			return true
+		}
+	}
+	return false
+}
+
+// agyHydrateFullSteps replaces truncated prose fields (content, thinking, error)
+// on PLANNER_RESPONSE, USER_INPUT, and ERROR_MESSAGE steps from transcript_full.jsonl.
+// GENERIC tool outputs stay compact here because session.item already loads full tool
+// output lazily from .system_generated/steps/<n>/output.txt.
+func agyHydrateFullSteps(root *os.Root, steps []agyStep) []agyStep {
+	var wanted map[agyFullStepKey]struct{}
+	hasNilIndex := false
+	for _, step := range steps {
+		if !agyStepNeedsFullHydration(step) {
+			continue
+		}
+		if wanted == nil {
+			wanted = make(map[agyFullStepKey]struct{})
+		}
+		wanted[agyFullStepKey{seq: step.seq, stepType: step.Type, createdAt: step.CreatedAt}] = struct{}{}
+		if step.Index == nil {
+			hasNilIndex = true
+		}
+	}
+	if len(wanted) == 0 {
+		return steps
+	}
+
+	f, err := root.Open(agyFullTranscriptPath)
+	if err != nil {
+		return steps
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil || !info.Mode().IsRegular() {
+		return steps
+	}
+
+	fullByKey := make(map[agyFullStepKey]agyFullStepRecord, len(wanted))
+	r := bufio.NewReaderSize(f, 64*1024)
+	prevSeq := 0
+	for {
+		line, err := r.ReadBytes('\n')
+		if err != nil {
+			// Ignore any trailing line without a newline so in-progress writes wait for completion.
+			break
+		}
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 || line[0] != '{' {
+			continue
+		}
+		if !hasNilIndex &&
+			!bytes.Contains(line, []byte("PLANNER_RESPONSE")) &&
+			!bytes.Contains(line, []byte("USER_INPUT")) &&
+			!bytes.Contains(line, []byte("ERROR_MESSAGE")) {
+			continue
+		}
+		var rec agyFullStepRecord
+		if json.Unmarshal(line, &rec) != nil {
+			continue
+		}
+		seq := prevSeq + 1
+		if rec.Index != nil && *rec.Index >= 0 {
+			seq = *rec.Index + 1
+		}
+		prevSeq = seq
+		key := agyFullStepKey{seq: seq, stepType: rec.Type, createdAt: rec.CreatedAt}
+		if _, ok := wanted[key]; ok {
+			fullByKey[key] = rec
+		}
+	}
+	if len(fullByKey) == 0 {
+		return steps
+	}
+
+	out := slices.Clone(steps)
+	for i := range out {
+		if !agyStepNeedsFullHydration(out[i]) {
+			continue
+		}
+		key := agyFullStepKey{seq: out[i].seq, stepType: out[i].Type, createdAt: out[i].CreatedAt}
+		rec, ok := fullByKey[key]
+		if !ok {
+			continue
+		}
+		changed := false
+		remaining := make([]string, 0, len(out[i].TruncatedFields))
+		for _, field := range out[i].TruncatedFields {
+			switch field {
+			case "content":
+				if !slices.Contains(rec.TruncatedFields, "content") && rec.Content != "" {
+					out[i].Content = rec.Content
+					changed = true
+					continue
+				}
+			case "thinking":
+				if !slices.Contains(rec.TruncatedFields, "thinking") && rec.Thinking != "" {
+					out[i].Thinking = rec.Thinking
+					changed = true
+					continue
+				}
+			case "error":
+				if !slices.Contains(rec.TruncatedFields, "error") && rec.Error != "" {
+					out[i].Error = rec.Error
+					changed = true
+					continue
+				}
+			}
+			remaining = append(remaining, field)
+		}
+		if changed {
+			if len(remaining) == 0 {
+				out[i].TruncatedFields = nil
+			} else {
+				out[i].TruncatedFields = remaining
+			}
+			out[i].rendered = out[i].renderedHash()
+		}
+	}
+	return out
 }
 
 // parseAgySteps follows the native export rules in integrations/antigravity/lib/map.js.

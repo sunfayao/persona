@@ -318,6 +318,21 @@ func (n *Node) listAgentModels(ctx context.Context, name, agent string) ([]proto
 	}
 	if agent == traexAgent {
 		out, err := cmd.Output()
+		if err != nil && name == traexAgent {
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) && bytes.Contains(exitErr.Stderr, []byte("Model provider")) && bytes.Contains(exitErr.Stderr, []byte("not found")) {
+				// A custom-provider wrapper (e.g. traex-ferry) can persist model_provider="custom"
+				// into ~/.trae/traecli.toml; retry plain traex against its built-in trae provider.
+				if shell, sErr := interactiveShell(); sErr == nil {
+					retry := exec.CommandContext(ctx, shell, "-ic", `builtin printf '\036'; `+n.launcherForScript(name)+` -c model_provider="trae" models --json`, "persona")
+					retry.Dir = dir
+					killGroupOnCancel(retry)
+					if retryOut, retryErr := retry.Output(); retryErr == nil {
+						out, err = retryOut, nil
+					}
+				}
+			}
+		}
 		if err != nil {
 			return nil, fmt.Errorf("%s models: %w", name, err)
 		}
