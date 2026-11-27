@@ -2,7 +2,7 @@
 // manager (the hub sends them to the manager named); rows of several managers cannot be merged, but each manager's rows make
 // their own to-dos.
 import { api, errorText } from "./api";
-import { applyInboxChange, itemKey, reloadInbox, type InboxItem } from "./inbox";
+import { applyInboxChange, reloadInbox, type InboxItem } from "./inbox";
 import { itemHeaders, otherManager } from "./manager-choice";
 import { t } from "../i18n";
 import { toast } from "../ui/atoms";
@@ -65,16 +65,16 @@ interface TodoAnswer {
   undo?: { items: { id: string; todo_id: string }[] };
 }
 
-/** "Add to to-dos": one to-do per row, without a due date, each titled like its row (`titles`: the title the user made of a row, by
- * item key). The rows count as handled; the toast has Undo. Resolves to how many were added. */
-export async function addTodos(items: InboxItem[], titles: Record<string, string> = {}): Promise<number> {
+/** "Add to to-dos": one to-do per row, without a due date, each titled like its row. The rows count as handled; the toast has
+ * Undo. Resolves to how many were added. */
+export async function addTodos(items: InboxItem[]): Promise<number> {
   let added = 0;
   const undo: { manager: string | undefined; items: { id: string; todo_id: string }[] }[] = [];
   let failure: unknown;
   for (const [m, list] of byManager(items)) {
     const manager = m || undefined;
     try {
-      const body = { items: list.map((it) => ({ id: it.id, version: it.version, title: titles[itemKey(it)] || undefined })) };
+      const body = { items: list.map((it) => ({ id: it.id, version: it.version })) };
       const r = await api<TodoAnswer>("/inbox/todo", { method: "POST", json: body, headers: itemHeaders(manager) });
       applyInboxChange(r.changed ?? [], [], manager);
       added += r.todos?.length ?? 0;
