@@ -4,11 +4,14 @@
 // Full access shown disabled with its reason where the agent can't take it) without Plan mode, which is the + panel's
 // check row (`usePlanMode`); each mode's description is its row's tooltip. A Persona conversation keeps all its modes
 // (#2416) in the same words. A session that lists its own modes (#8261, Paseo's Grok, OpenCode, Codex) has those two
-// rows alone, "Launcher default" and Full access, a switch both ways.
+// rows alone, "Launcher default" and Full access, a switch both ways. Where the mode is known but cannot be switched from
+// here (a Codex App thread, Claude's desktop app, a stopped agent) the same chip stands as a label (`PermissionLabel`).
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { bypassNote, leavePlanTo, modeConfirmation, modeMenuItems, pickerIcon } from "../../lib/header-mode";
 import { onPermissionPicker } from "../../lib/permissions-command";
-import { BYPASS_MODE, BYPASS_WARNING, listedModeNow, listedModeOption, listedModesOf, modeTitle, PERMISSION_MODES } from "../../lib/session-actions";
+import {
+  BYPASS_MODE, BYPASS_WARNING, LAUNCHER_DEFAULT, listedModeNow, listedModeOption, listedModesOf, modeTitle, PERMISSION_MODES, shownModeOf,
+} from "../../lib/session-actions";
 import type { Session } from "../../lib/types";
 import { cx, Menu, useMenu } from "../../ui/atoms";
 import type { MenuItem } from "../../ui/menu-model";
@@ -26,6 +29,18 @@ const LISTED_DEFAULT_ICON: IconName = "shield";
 function modeTip(mode: string | undefined): string {
   if (mode === BYPASS_MODE) return BYPASS_WARNING;
   return PERMISSION_MODES.find((m) => m.id === mode)?.detail ?? "";
+}
+
+/** The chip's look, the picker's and the read-only label's alike: as the model pill, no frame at rest, the capsule on
+ *  hover and while its menu is open; a very narrow box keeps the symbol (the words stay its accessible name and
+ *  tooltip), as cindy's icon-only chip. Full access in red. */
+function chipClass(mode: string | undefined): string {
+  return cx(
+    "touch-hit flex h-[30px] min-w-0 max-w-full shrink items-center gap-1 rounded-full border border-transparent px-2.5 text-[13px] leading-none whitespace-nowrap transition-colors duration-150",
+    "hover:border-line-strong hover:bg-hover aria-expanded:border-line-strong aria-expanded:bg-hover focus-visible:rounded-full!",
+    "@max-[300px]/composer:px-2",
+    mode === BYPASS_MODE ? "text-red" : mode === "auto" ? "text-mode-acts" : "text-ink",
+  );
 }
 
 /** The picker's rows: the header's, Plan mode left to the + panel, each with its symbol and its description on hover. A
@@ -52,7 +67,6 @@ export const PermissionPicker = memo(function PermissionPicker({ session, assist
   // a session that lists its own modes (#8261) always runs in one of them: no mode reported is its own approval
   const listed = assistant ? undefined : listedModesOf(session);
   const mode = listed ? listedModeNow(session, listed) : session.permission_mode;
-  const danger = mode === BYPASS_MODE;
   // `/permissions` opens the menu with every mode, Plan mode included (#6476); the chip's own click without it
   const [all, setAll] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
@@ -87,20 +101,49 @@ export const PermissionPicker = memo(function PermissionPicker({ session, assist
           setAll(false);
           menu.open(e);
         }}
-        className={cx(
-          // as the model pill: no frame at rest, the capsule on hover and while the menu is open
-          "touch-hit flex h-[30px] min-w-0 max-w-full shrink items-center gap-1 rounded-full border border-transparent px-2.5 text-[13px] leading-none whitespace-nowrap transition-colors duration-150",
-          "hover:border-line-strong hover:bg-hover aria-expanded:border-line-strong aria-expanded:bg-hover focus-visible:rounded-full!",
-          // a very narrow box keeps the symbol (the words stay its accessible name and tooltip), as cindy's icon-only chip
-          "@max-[300px]/composer:px-2",
-          danger ? "text-red" : mode === "auto" ? "text-mode-acts" : "text-ink",
-        )}
+        className={chipClass(mode)}
       >
         <Icon name={own && mode === "default" ? LISTED_DEFAULT_ICON : pickerIcon(mode)} size={14} stroke={2} className="shrink-0" />
         <span className={cx("min-w-0 truncate @max-[300px]/composer:hidden", mode === "default" && "@max-[420px]/composer:hidden")}>{label}</span>
         <Icon name="chevron" size={14} stroke={2} className="shrink-0 @max-[300px]/composer:hidden" />
       </button>
       {menu.anchor && <Menu anchor={menu.anchor} onClose={menu.close} side="top" width={300} items={pickerItems(session, (m) => void set({ permission_mode: m }), assistant, all)} />}
+    </>
+  );
+});
+
+/** The chip where the mode is known but cannot be switched from here (`shownModeOf`): in the picker's place with the
+ *  picker's look, Full access in red, without the chevron. Its menu is the mode alone, with what it does and where it is
+ *  decided under it, so a phone reads the same as the tooltip. `stopped`: the agent switches its mode while it runs, and
+ *  it does not run now. Nothing where the mode is not known. */
+export const PermissionLabel = memo(function PermissionLabel({ session, stopped }: { session: Session; stopped?: boolean }) {
+  const menu = useMenu();
+  const shown = shownModeOf(session);
+  if (!shown) return null;
+  const danger = shown.id === BYPASS_MODE;
+  const icon = shown === LAUNCHER_DEFAULT ? LISTED_DEFAULT_ICON : pickerIcon(shown.id);
+  const where = t(stopped ? "chat-sessiondialogs.mode_fixed_stopped" : "chat-sessiondialogs.mode_fixed_elsewhere");
+  const tip = [danger ? BYPASS_WARNING : shown.detail, where].filter(Boolean).join("\n");
+  const items: MenuItem[] = [{ key: shown.id, label: shown.title, icon, radio: true, checked: true, disabled: true, danger, detail: tip, onSelect: () => {} }];
+  return (
+    <>
+      <button
+        type="button"
+        data-testid="permission-picker"
+        data-readonly=""
+        data-mode={shown.id}
+        aria-haspopup="menu"
+        aria-expanded={Boolean(menu.anchor)}
+        aria-label={t("chat-sessiondialogs.header_mode", { mode: shown.title })}
+        title={tip}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={menu.open}
+        className={chipClass(shown.id)}
+      >
+        <Icon name={icon} size={14} stroke={2} className="shrink-0" />
+        <span className={cx("min-w-0 truncate @max-[300px]/composer:hidden", shown.id === "default" && "@max-[420px]/composer:hidden")}>{shown.title}</span>
+      </button>
+      {menu.anchor && <Menu anchor={menu.anchor} onClose={menu.close} side="top" width={300} items={items} />}
     </>
   );
 });

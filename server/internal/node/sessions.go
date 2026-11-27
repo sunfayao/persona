@@ -249,6 +249,9 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 				s.Model = thread.model
 			}
 			n.codexRewindRow(id, &s)
+			if mode := codex.PermissionMode(rollout.mode, rollout.sandbox); mode != "" { // its latest turn's, over its start's
+				s.PermissionMode = mode
+			}
 			s.Capabilities.NativeSlashCommands = host.ParsePane(a.PaneID).Kind == host.Herdr && s.Capabilities.Send
 			if c, thread, driven := n.codexEffortThread(id); driven {
 				s.Model = n.codexModelNow(id, c, thread, s.Model)

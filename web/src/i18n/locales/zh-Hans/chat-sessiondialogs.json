@@ -37,5 +37,7 @@
   "leave_bypass_detail": "这个 Agent 不是以完全访问启动的，切走后在这里切不回来。",
   "bypass_restart_detail": "这一轮结束后将重启会话以生效，对话接着进行",
   "bypass_pending": "这一轮结束后会重启会话，切到完全访问",
-  "bypass_next_message": "从下一条消息起生效"
+  "bypass_next_message": "从下一条消息起生效",
+  "mode_fixed_elsewhere": "在启动这个 Agent 的地方或它自己的应用里设置，这里不能切换。",
+  "mode_fixed_stopped": "这个 Agent 没有在运行；等它再次运行后可以在这里切换。"
 }

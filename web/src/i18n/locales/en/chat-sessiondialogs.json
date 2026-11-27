@@ -39,5 +39,7 @@
   "leave_bypass_detail": "This agent wasn't started with Full access, so it can't be switched back to it from here.",
   "bypass_restart_detail": "Restarts the session to apply it once this turn ends; the conversation carries on",
   "bypass_pending": "The session restarts in Full access once this turn ends",
-  "bypass_next_message": "Takes effect from the next message"
+  "bypass_next_message": "Takes effect from the next message",
+  "mode_fixed_elsewhere": "Set where this agent was started, or in its own app; it can't be switched from here.",
+  "mode_fixed_stopped": "The agent isn't running; you can switch this here once it runs again."
 }

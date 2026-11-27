@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canSwitchToBypass, EFFORTS, effortOptions, effortTitle, hasEffortOnly, hasModes, isMuted, listedModesOf, modeTitle, renameBody, SWITCHABLE_MODES, switchableModes, toggleMute } from "./session-actions";
+import { canSwitchToBypass, EFFORTS, effortOptions, effortTitle, hasEffortOnly, hasModes, isMuted, listedModesOf, LAUNCHER_DEFAULT, modeTitle, renameBody, shownModeOf, SWITCHABLE_MODES, switchableModes, toggleMute } from "./session-actions";
 import type { Session } from "./types";
 
 const s = (over: Partial<Session> = {}): Session => ({ machine_id: "mac", session_id: "s1", title: "修登录", cwd: "/home/me/app", status: "idle", space_name: "app", slot_id: "p1", slot_name: "login", ...over });
@@ -122,6 +122,29 @@ describe("modes", () => {
     expect(hasEffortOnly(s({ efforts: ["low"] }))).toBe(false); // Claude Code has both chips
     expect(hasEffortOnly(undefined)).toBe(false);
     expect(effortOptions(s())).toBe(EFFORTS);
+  });
+});
+
+describe("the mode a composer names where it cannot switch it", () => {
+  it("names a Codex thread's own approval or Full access, and nothing while it reports none", () => {
+    expect(shownModeOf(s({ agent: "codex", permission_mode: "bypassPermissions" }))?.id).toBe("bypassPermissions");
+    expect(shownModeOf(s({ agent: "codex", permission_mode: "default" }))).toBe(LAUNCHER_DEFAULT);
+    expect(shownModeOf(s({ agent: "codex" }))).toBeUndefined();
+  });
+
+  it("names Claude Code's and Antigravity's modes in Claude Code's words", () => {
+    expect(shownModeOf(s({ agent: "claude", source_kind: "claude_desktop", permission_mode: "default" }))?.title).toBe(modeTitle("default"));
+    expect(shownModeOf(s({ permission_mode: "auto" }))?.title).toBe(modeTitle("auto"));
+    expect(shownModeOf(s({ agent: "agy", pane_id: "w1:p2", permission_mode: "plan" }))?.title).toBe(modeTitle("plan"));
+    expect(shownModeOf(s({ permission_mode: "dontAsk" }))?.title).toBe("dontAsk");
+  });
+
+  it("reads a session that lists its modes as its picker does, and leaves a Persona conversation to its picker", () => {
+    const caps = { read: true, send: true, modes: false, permission_modes: ["default", "bypassPermissions"] };
+    expect(shownModeOf(s({ agent: "paseo", source_kind: "runtime", capabilities: caps }))).toBe(LAUNCHER_DEFAULT);
+    expect(shownModeOf(s({ agent: "paseo", source_kind: "runtime", capabilities: caps, permission_mode: "bypassPermissions" }))?.id).toBe("bypassPermissions");
+    expect(shownModeOf(s({ assistant: true, permission_mode: "bypassPermissions" }))).toBeUndefined();
+    expect(shownModeOf(undefined)).toBeUndefined();
   });
 });
 

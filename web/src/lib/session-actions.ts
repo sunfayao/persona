@@ -107,6 +107,20 @@ export function listedModeOption(id: string): ModeOption {
   return PERMISSION_MODES.find((m) => m.id === id) ?? { id, title: id, detail: "" };
 }
 
+/** The mode the composer names where it cannot switch it (a Codex App thread, Claude's desktop app, an agent in a
+ *  terminal whose mode is its start's, a stopped agent), named as its picker would name it: an agent that is neither
+ *  Claude Code nor Antigravity runs in its own approval or Full access (`listedModeOption`). Undefined while the session
+ *  reports no mode: nothing is shown rather than a guess. A session that lists its modes reports none in its own. */
+export function shownModeOf(s: Session | undefined): ModeOption | undefined {
+  if (!s || s.assistant) return undefined;
+  const listed = listedModesOf(s);
+  if (listed) return listedModeOption(listedModeNow(s, listed));
+  const mode = s.permission_mode;
+  if (!mode) return undefined;
+  if (s.agent && s.agent !== "claude" && s.agent !== "agy") return listedModeOption(mode);
+  return PERMISSION_MODES.find((m) => m.id === mode) ?? { id: mode, title: mode, detail: "" };
+}
+
 /** The effort chip and its speed submenu for protocol-driven Codex threads with advertised choices. */
 export function hasEffortOnly(s: Session | undefined): boolean {
   return Boolean(s && !s.assistant && !hasModes(s) && (s.efforts?.length || s.service_tiers?.length) && sessionCan(s, "send"));

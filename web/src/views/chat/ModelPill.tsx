@@ -115,9 +115,11 @@ export function ModelPill({
     <>
       {pending && <Icon name="clock" stroke={2} className="size-[12px] shrink-0 text-ink-3 @max-[520px]/composer:size-[11px]" />}
       {unknown && loading && <Spinner size={13} />}
-      {unknown && failed && !loading && <Icon name="warning" stroke={2} className="size-[13px] shrink-0 text-red @max-[520px]/composer:size-[12px]" />}
+      {/* the list failed: a quiet mark, not the red warning that means Full access in the permission chip beside it; the
+          tooltip says it, the panel says why and retries */}
+      {unknown && failed && !loading && <Icon name="retry" stroke={2} className="size-[12px] shrink-0 text-ink-3 @max-[520px]/composer:size-[11px]" />}
       <span aria-hidden data-pill-engine={shown.engine} className="mr-1 flex shrink-0 items-center @max-[520px]/composer:scale-[0.933]">
-        <ProviderMark engine={shown.engine} label={shown.engineLabel} className={failed && !unknown ? "text-red" : "text-ink-2"} />
+        <ProviderMark engine={shown.engine} label={shown.engineLabel} className="text-ink-2" />
       </span>
       {(launcher || pending) && (
         <>
@@ -141,7 +143,7 @@ export function ModelPill({
       {shown.fast && <Icon name="bolt" stroke={2} className={cx("ml-0.5 size-[13px] shrink-0 fill-current text-ink-2 @max-[520px]/composer:size-[12px]", ULTRA_HIDDEN)} />}
       {workflow && !pending && <UltraMark size={12} label={workflow.label} title={workflow.title} className={cx("ml-0.5", ULTRA_HIDDEN)} />}
       {!unknown && loading && <span className="ml-0.5 flex shrink-0"><Spinner size={12} /></span>}
-      {!unknown && failed && !loading && <Icon name="warning" stroke={2} className="ml-0.5 size-[12px] shrink-0 text-red @max-[520px]/composer:size-[11px]" />}
+      {!unknown && failed && !loading && <Icon name="retry" stroke={2} className="ml-0.5 size-[12px] shrink-0 text-ink-3 @max-[520px]/composer:size-[11px]" />}
       {onOpen && <Icon name="chevron" stroke={2} className="size-[14px] shrink-0 text-ink-3 @max-[520px]/composer:size-[13px]" />}
     </>
   );

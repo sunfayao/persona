@@ -18,7 +18,7 @@ const api = vi.hoisted(() => vi.fn(async () => ({})));
 vi.mock("../../lib/api", async (importOriginal) => ({ ...(await importOriginal<typeof import("../../lib/api")>()), api }));
 vi.mock("../../lib/store", async (importOriginal) => ({ ...(await importOriginal<typeof import("../../lib/store")>()), upsertSession: vi.fn() }));
 
-import { PermissionPicker, usePlanMode, type PlanMode } from "./PermissionPicker";
+import { PermissionLabel, PermissionPicker, usePlanMode, type PlanMode } from "./PermissionPicker";
 import { requestPermissionPicker } from "../../lib/permissions-command";
 import { PERMISSION_MODES, switchableModes } from "../../lib/session-actions";
 import type { Session } from "../../lib/types";
@@ -390,5 +390,59 @@ describe("a session that lists its modes (#8261)", () => {
     act(() => root.render(<PermissionPicker session={grok("bypassPermissions")} />));
     expect(chip().textContent).toBe(t("lib-session-actions.mode_bypass_permissions"));
     expect(chip().className).toContain("text-red");
+  });
+});
+
+// Where the mode is known but cannot be switched from here, the same chip in the same place names it, and its menu says
+// where it is decided; a mode not known shows nothing.
+describe("the mode as a label where it cannot be switched", () => {
+  const codexApp = (permission_mode?: string) => ({ machine_id: "mac", session_id: "c1", agent: "codex", agent_name: "Codex App", agent_surface: "desktop",
+    source_kind: "codex_history", status: "working", permission_mode, capabilities: { read: true, send: true } }) as unknown as Session;
+  const label = () => host.querySelector<HTMLButtonElement>('[data-testid="permission-picker"][data-readonly]');
+  const modeLabel = (id: string) => PERMISSION_MODES.find((m) => m.id === id)!.title;
+
+  it("names a Codex App thread's Full access in red, without a chevron, and says where it is decided", () => {
+    act(() => root.render(<PermissionLabel session={codexApp("bypassPermissions")} />));
+    const chip = label()!;
+    expect(chip.textContent).toBe(t("lib-session-actions.mode_bypass_permissions"));
+    expect(chip.className).toContain("text-red");
+    expect(chip.querySelectorAll("svg")).toHaveLength(1); // the symbol, no chevron
+    expect(chip.getAttribute("aria-label")).toBe(t("chat-sessiondialogs.header_mode", { mode: t("lib-session-actions.mode_bypass_permissions") }));
+    expect(chip.title).toBe(`${t("lib-session-actions.bypass_warning")}\n${t("chat-sessiondialogs.mode_fixed_elsewhere")}`);
+    // a tap reads the same: the mode alone, checked and not choosable, what it does and where it is decided under it
+    act(() => chip.click());
+    expect(rows()).toHaveLength(1);
+    expect(rows()[0].getAttribute("aria-checked")).toBe("true");
+    expect(rows()[0].disabled || rows()[0].getAttribute("aria-disabled") === "true").toBe(true);
+    expect(panel().textContent).toContain(t("chat-sessiondialogs.mode_fixed_elsewhere"));
+    act(() => rows()[0].click());
+    expect(api).not.toHaveBeenCalled();
+  });
+
+  it("names a Codex thread's own approval as a session that lists its modes does", () => {
+    act(() => root.render(<PermissionLabel session={codexApp("default")} />));
+    expect(label()!.textContent).toBe(t("lib-session-actions.mode_launcher_default"));
+    expect(label()!.className).toContain("text-ink");
+  });
+
+  it("names Claude's desktop app's mode in Claude Code's words", () => {
+    const desktop = { machine_id: "mac", session_id: "d1", agent: "claude", source_kind: "claude_desktop", status: "idle", permission_mode: "acceptEdits",
+      capabilities: { read: true, send: true, modes: false } } as unknown as Session;
+    act(() => root.render(<PermissionLabel session={desktop} />));
+    expect(label()!.textContent).toBe(modeLabel("acceptEdits"));
+  });
+
+  it("says a stopped agent switches once it runs again", () => {
+    const stopped = { machine_id: "mac", session_id: "o1", agent: "claude", status: "offline", permission_mode: "plan" } as unknown as Session;
+    act(() => root.render(<PermissionLabel session={stopped} stopped />));
+    expect(label()!.textContent).toBe(modeLabel("plan"));
+    expect(label()!.title).toBe(`${PERMISSION_MODES.find((m) => m.id === "plan")!.detail}\n${t("chat-sessiondialogs.mode_fixed_stopped")}`);
+  });
+
+  it("shows nothing where the mode is not known, nor for a Persona conversation", () => {
+    act(() => root.render(<PermissionLabel session={codexApp()} />));
+    expect(label()).toBeNull();
+    act(() => root.render(<PermissionLabel session={{ ...session, permission_mode: "bypassPermissions" }} />));
+    expect(label()).toBeNull();
   });
 });
