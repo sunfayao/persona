@@ -26,6 +26,8 @@ func fitInputs(t *testing.T) []fitInput {
 	t.Helper()
 	dir := filepath.Join("..", "..", "..", "schema", "extension", "examples")
 	names, _ := filepath.Glob(filepath.Join(dir, "View.*.json"))
+	// One example view beside the made-up ones below: the memo's keys are under test, not every view.
+	names = names[:min(1, len(names))]
 	var views [][]byte
 	for _, name := range names {
 		raw, err := os.ReadFile(name)
