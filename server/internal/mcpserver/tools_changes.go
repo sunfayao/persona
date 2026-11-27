@@ -13,8 +13,10 @@ type toolsListedKey struct{}
 type toolSnapshot struct {
 	Tools     []map[string]any
 	WorkGuide map[string]bool
-	Revision  string
-	Session   string
+	// Ranked: the manager ranked the list's core tools (personaLoading), so tools this server adds carry the marks too.
+	Ranked   bool
+	Revision string
+	Session  string
 }
 
 // Ignore ordering, but not schema/description changes. A task update that did not

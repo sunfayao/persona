@@ -14,16 +14,18 @@ import (
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
-// The tools that load up front, pinned: adding or dropping one is a reviewed change (#7317). Each is still a tool here
-// under that name (a rename would silently defer it), but for the Lark extension's lark_*, which are not in this repository.
+// The tools that load up front, pinned with their order (their rank on Antigravity): adding, dropping or moving one is
+// a reviewed change (#7317). Each is still a tool here under that name (a rename would silently defer it), but for the
+// Lark extension's lark_*, which are not in this repository.
 func TestCoreToolsPinned(t *testing.T) {
 	want := []string{
-		"agent_archive", "agent_interrupt", "agent_read", "agent_send", "agent_start", "agent_supervise", "agents_list",
-		"ask_user", "cancel_followup", "conversation_read", "conversation_send", "conversations_list", "interaction_answer",
-		"lark_chats", "lark_messages", "lark_search", "larkcli_chats",
-		"larkcli_messages", "larkcli_search", "list_followups", "machines_list", "model_profiles_list", "notify_user",
-		"persona_settings", "schedule_followup", "schedule_routine", "supervision_finish", "task_plan", "task_review",
-		"task_scope", "todo_get", "todo_list", "todo_update",
+		"agent_read", "agents_list", "todo_get", "persona_settings", "task_review", "supervision_finish", "task_plan",
+		"agent_send", "machines_list", "schedule_state_set", "agent_archive", "task_scope", "todo_list", "todo_update",
+		"todo_create", "computer_run", "computer_state",
+		"agent_interrupt", "agent_start", "agent_supervise", "ask_user", "browser_look", "browser_run", "cancel_followup",
+		"conversation_read", "conversation_send", "conversations_list", "interaction_answer", "lark_chats", "lark_messages",
+		"lark_search", "larkcli_chats", "larkcli_messages", "larkcli_search", "list_followups", "model_profiles_list",
+		"notify_user", "schedule_followup", "schedule_routine",
 	}
 	if !slices.Equal(coreTools, want) {
 		t.Fatalf("core tools changed:\n got %q\nwant %q", coreTools, want)
@@ -43,76 +45,118 @@ func TestCoreToolsPinned(t *testing.T) {
 	}
 }
 
-// deferringExt is guestExt with every tool arriving deferred, as a connector program sending defer_loading would
-// have it: the manager's rule alone decides.
+// deferringExt is guestExt with every tool arriving deferred, ranked and marked to fill, as a connector program
+// sending those fields would have it: the manager's rule alone decides.
 type deferringExt struct{ *guestExt }
 
 func (deferringExt) AgentTools(context.Context, bool) (agents, assistantOnly []proto.Tool) {
-	return []proto.Tool{{Name: "conn_read", DeferLoading: true}},
+	return []proto.Tool{{Name: "conn_read", DeferLoading: true, CoreRank: 1, Fill: true}},
 		[]proto.Tool{{Name: "computer_run", DeferLoading: true}, {Name: "lark_chats", DeferLoading: true}, {Name: "lark_agent_reply", DeferLoading: true}}
 }
 
 // An assistant conversation's tool list has every tool but the core ones deferred; a guest's (no ToolSearch, whether
 // the node or the manager says so), an agent's and every one while assistant.load_all_tools is on have none deferred,
-// whatever the tools arrived with.
+// whatever the tools arrived with. An extension's tool is core by its name alone (computer_run, lark_chats).
 func TestToolLoadingMarksAssistantTools(t *testing.T) {
 	ft := newFleetTest(t)
 	ft.f.hello.Assistant.MachineID = "mac"
 	s := ft.s
-	s.SetExtensions(deferringExt{&guestExt{}}) // lark_chats (core), conn_read, lark_agent_reply and computer_run (not)
+	s.SetExtensions(deferringExt{&guestExt{}}) // lark_chats and computer_run (core), conn_read and lark_agent_reply (not)
 	ctx := context.Background()
 	if err := s.guestSet(ctx, "mac", "g1", []string{"lark_agent_reply", "lark_chats"}); err != nil {
 		t.Fatal(err)
 	}
-	// list is the tool list as the node gets it (JSON), by name: whether each is deferred.
-	list := func(session string, assistant, guest bool) map[string]bool {
-		raw, _ := json.Marshal(map[string]any{"assistant": assistant, "session_id": session, "guest": guest})
-		out, handled, err := s.NodeRequest(ctx, "mac", "mcp.tools", raw)
-		if err != nil || !handled {
-			t.Fatal(err, handled)
-		}
-		b, _ := json.Marshal(out)
-		var res struct {
-			Tools []proto.Tool `json:"tools"`
-		}
-		if err := json.Unmarshal(b, &res); err != nil {
-			t.Fatal(err)
-		}
-		got := map[string]bool{}
-		for _, tool := range res.Tools {
-			got[tool.Name] = tool.DeferLoading
-		}
-		return got
-	}
-	got := list("o1", true, false)
+	got := mcpToolList(t, s, "o1", true, false)
 	for name, deferred := range map[string]bool{"agent_read": false, "ask_user": false, "lark_chats": false, "task_plan": false,
-		"inbox_move": true, "view_show": true, "task_plan_withdraw": true, "lark_agent_reply": true, "computer_run": true,
+		"computer_run": false, "inbox_move": true, "view_show": true, "task_plan_withdraw": true, "lark_agent_reply": true,
 		"conn_read": true} {
-		if d, ok := got[name]; !ok || d != deferred {
-			t.Errorf("%s: listed %v, deferred %v; want deferred %v", name, ok, d, deferred)
+		if tool, ok := got[name]; !ok || tool.DeferLoading != deferred {
+			t.Errorf("%s: listed %v, deferred %v; want deferred %v", name, ok, tool.DeferLoading, deferred)
 		}
 	}
-	for name, deferred := range got {
-		if deferred == slices.Contains(coreTools, name) {
-			t.Errorf("%s: deferred %v", name, deferred)
+	for name, tool := range got {
+		if tool.DeferLoading == slices.Contains(coreTools, name) {
+			t.Errorf("%s: deferred %v", name, tool.DeferLoading)
 		}
 	}
-	none := func(what string, got map[string]bool) {
+	none := func(what string, got map[string]proto.Tool) {
 		t.Helper()
 		if len(got) == 0 {
 			t.Fatalf("%s: no tools", what)
 		}
-		for name, deferred := range got {
-			if deferred {
+		for name, tool := range got {
+			if tool.DeferLoading {
 				t.Errorf("%s: %s deferred", what, name)
 			}
 		}
 	}
-	none("a guest", list("g1", true, true))
-	none("a guest the node did not name", list("g1", true, false))
-	none("an agent", list("a1", false, false))
+	none("a guest", mcpToolList(t, s, "g1", true, true))
+	none("a guest the node did not name", mcpToolList(t, s, "g1", true, false))
+	none("an agent", mcpToolList(t, s, "a1", false, false))
 	setSettings(t, s, func(v *Settings) { on := true; v.LoadAllTools = &on })
-	none("load_all_tools on", list("o1", true, false))
+	none("load_all_tools on", mcpToolList(t, s, "o1", true, false))
+}
+
+// mcpToolList is a conversation's tool list as the node gets it (JSON), by name.
+func mcpToolList(t *testing.T, s *Service, session string, assistant, guest bool) map[string]proto.Tool {
+	t.Helper()
+	raw, _ := json.Marshal(map[string]any{"assistant": assistant, "session_id": session, "guest": guest})
+	out, handled, err := s.NodeRequest(context.Background(), "mac", "mcp.tools", raw)
+	if err != nil || !handled {
+		t.Fatal(err, handled)
+	}
+	b, _ := json.Marshal(out)
+	var res struct {
+		Tools []proto.Tool `json:"tools"`
+	}
+	if err := json.Unmarshal(b, &res); err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]proto.Tool{}
+	for _, tool := range res.Tools {
+		got[tool.Name] = tool
+	}
+	return got
+}
+
+// Antigravity has no ToolSearch: its proxy declares an assistant conversation's core tools by their rank, the most
+// called first, whatever assistant.load_all_tools says, and with that setting on fills its budget with the tools
+// marked to fill, every other one. A guest's and an agent's lists carry neither mark, and a mark a tool arrived with
+// (a connector program's) is the manager's to set.
+func TestToolLoadingRanksCoreToolsForRuntimesWithoutToolSearch(t *testing.T) {
+	ft := newFleetTest(t)
+	ft.f.hello.Assistant.MachineID = "mac"
+	s := ft.s
+	s.SetExtensions(deferringExt{&guestExt{}})
+	ctx := context.Background()
+	if err := s.guestSet(ctx, "mac", "g1", []string{"lark_agent_reply", "lark_chats"}); err != nil {
+		t.Fatal(err)
+	}
+	check := func(what string, got map[string]proto.Tool, ranked, fill bool) {
+		t.Helper()
+		if len(got) == 0 {
+			t.Fatalf("%s: no tools", what)
+		}
+		for name, tool := range got {
+			rank := 0
+			if ranked {
+				rank = slices.Index(coreTools, name) + 1
+			}
+			if tool.CoreRank != rank || tool.Fill != (fill && rank == 0) {
+				t.Errorf("%s: %s ranked %d, fill %v; want %d, %v", what, name, tool.CoreRank, tool.Fill, rank, fill && rank == 0)
+			}
+		}
+	}
+	listed := mcpToolList(t, s, "o1", true, false)
+	if listed["agent_read"].CoreRank != 1 || listed["computer_run"].CoreRank == 0 || listed["conn_read"].CoreRank != 0 {
+		t.Fatalf("ranks: agent_read %d, computer_run %d, conn_read %d", listed["agent_read"].CoreRank,
+			listed["computer_run"].CoreRank, listed["conn_read"].CoreRank)
+	}
+	check("load_all_tools off", listed, true, false)
+	check("a guest", mcpToolList(t, s, "g1", true, true), false, false)
+	check("an agent", mcpToolList(t, s, "a1", false, false), false, false)
+	setSettings(t, s, func(v *Settings) { on := true; v.LoadAllTools = &on })
+	check("load_all_tools on", mcpToolList(t, s, "o1", true, false), true, true)
 }
 
 // assistant.load_all_tools through persona_settings: off by default, a change asks on the phone with its own card, and

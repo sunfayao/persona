@@ -22,11 +22,19 @@ type workCatalog struct {
 	notify   func()
 }
 
-var workSearchTool = map[string]any{
-	"name":        workSearchName,
-	"description": "Find Persona tools for to-dos, agents, tasks, conversations and repositories. Give exact names separated by spaces to load their definitions, or a name fragment to list matches. Then call the original tool.",
-	"inputSchema": map[string]any{"type": "object", "properties": map[string]any{"query": map[string]string{"type": "string"}}, "required": []string{"query"}},
-	"_meta":       map[string]bool{"anthropic/alwaysLoad": true},
+// workSearchTool is the search that stands in for the work tools. In a list the manager ranked it is a core tool too,
+// ahead of the ranked ones (personaLoading), since the most called of those are behind it.
+func workSearchTool(ranked bool) map[string]any {
+	meta := map[string]any{"anthropic/alwaysLoad": true}
+	if ranked {
+		meta["persona/core"], meta["persona/rank"] = true, 0
+	}
+	return map[string]any{
+		"name":        workSearchName,
+		"description": "Find Persona tools for to-dos, agents, tasks, conversations and repositories. Give exact names separated by spaces to load their definitions, or a name fragment to list matches. Then call the original tool.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{"query": map[string]string{"type": "string"}}, "required": []string{"query"}},
+		"_meta":       meta,
+	}
 }
 
 func (c *workCatalog) active() bool {
@@ -52,7 +60,7 @@ func (c *workCatalog) list(s toolSnapshot) []map[string]any {
 			tools = append(tools, t)
 		}
 	}
-	return append(tools, workSearchTool)
+	return append(tools, workSearchTool(s.Ranked))
 }
 
 func (c *workCatalog) search(ctx context.Context, args json.RawMessage) map[string]any {
