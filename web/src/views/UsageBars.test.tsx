@@ -504,6 +504,9 @@ describe("user-selected pinned usage accounts (#12418)", () => {
 
       // Open popover: all 4 accounts listed, none pinned, no reset bar
       await act(async () => stripBtn().click());
+      // the pins are in the detailed view; the popover opens compact
+      await vi.waitFor(() => expect(host.querySelector("[role=dialog]")).not.toBeNull());
+      await act(async () => Array.from(host.querySelectorAll<HTMLButtonElement>("[role=dialog] button")).find((button) => button.textContent === "详细")!.click());
       await vi.waitFor(() => expect(host.querySelector("[data-usage-pin=agy]")).not.toBeNull());
       expect(host.querySelector("[data-usage-reset-pins]")).toBeNull();
       expect(host.querySelectorAll("[data-usage-pin]")).toHaveLength(4);
