@@ -90,7 +90,12 @@ func (s *Service) takeOver(ctx context.Context, conversation string, t *PlanTask
 		return errContinued(t.Continues, succ)
 	}
 	if _, err := s.taskTodoForConversation(conversation, t.Continues); err != nil {
-		return err
+		// taskTodoForConversation words its refusal for todo_id, whose way out (a to-do of its own) would split this work.
+		if _, ok := s.todoNow(t.Continues); !ok {
+			return fmt.Errorf("continues: no task %q", t.Continues)
+		}
+		return fmt.Errorf("continues: %s was not opened from this conversation, nor is it supervised by it, so it cannot "+
+			"be continued from here: leave it to its supervisor, or plan separate work without continues", t.Continues)
 	}
 	t.ReuseTodo = t.Continues
 	return nil
