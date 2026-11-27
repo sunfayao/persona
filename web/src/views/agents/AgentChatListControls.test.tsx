@@ -193,19 +193,20 @@ describe("Agents list Filter menu (#4397) on the title row, the search in ⌘K (
     expect(updatedRows[0].getAttribute("data-session-id")).toBe("s1");
     expect(updatedRows[0].getAttribute("data-pinned")).toBe("true");
   });
-  it("keeps a row's state and time in sight under the pointer: its first line keeps the slot of the pin and ⋯", async () => {
+  it("keeps a row's status mark and time in sight under the pointer without redundant working text: its first line keeps the slot of the pin and ⋯", async () => {
     seed();
     localStorage.setItem("persona.agentChatList", "1");
     await act(async () => {
       root.render(<AgentsList route={{ name: "agent-list" }} onNewAgent={() => {}} />);
     });
     const row = host.querySelector<HTMLElement>('[data-testid="agent-chatlist-row"][data-session-id="s1"]')!;
-    const state = [...row.querySelectorAll("span")].find((el) => el.textContent === stateName("working"))!;
-    expect(state).toBeTruthy();
+    const mark = row.querySelector<HTMLElement>('[data-state="working"]')!;
+    expect(mark).toBeTruthy();
+    expect([...row.querySelectorAll("span")].find((el) => el.textContent === stateName("working"))).toBeUndefined();
     expect(row.querySelector('[class*="invisible"]')).toBeNull(); // nothing on the row hides on hover or focus
     const actions = row.querySelector('[data-testid="agent-row-pin-button"]')!.parentElement!;
     expect(actions.querySelectorAll("button")).toHaveLength(2);
-    expect(state.parentElement!.className.split(/\s+/)).toContain("pr-13");
+    expect(mark.parentElement!.parentElement!.className.split(/\s+/)).toContain("pr-13");
   });
   it("narrows by the query ⌘K put on the list: a chip that reopens ⌘K, counted on the button, cleared by × or Reset", async () => {
     seed();
@@ -283,7 +284,7 @@ describe("Agents list Filter menu (#4397) on the title row, the search in ⌘K (
 });
 
 describe("an associated tab name in the complete Agents list (#7595)", () => {
-  it("shows the current name and finds the same session by it", async () => {
+  it("omits terminal tab names from the visible card while still finding the session by tab name", async () => {
     const named = { ...sessions[1], slot_id: "w1:t2", slot_name: "Release Review", pane_id: "w1:p1" };
     seed();
     getState().sessions.mac = [named];
@@ -293,7 +294,7 @@ describe("an associated tab name in the complete Agents list (#7595)", () => {
     });
 
     const row = () => host.querySelector<HTMLElement>('[data-session-id="s2"]')!;
-    expect(row().textContent).toContain(t("sidebar.tab_named", { label: "Release Review" }));
+    expect(row().textContent).not.toContain(t("sidebar.tab_named", { label: "Release Review" }));
 
     await act(async () => filterAgentList("Release Review"));
     expect(row()).toBeTruthy();
@@ -303,8 +304,7 @@ describe("an associated tab name in the complete Agents list (#7595)", () => {
     await act(async () => {
       upsertSession({ ...named, slot_name: "Triage" });
     });
-    expect(row().textContent).toContain(t("sidebar.tab_named", { label: "Triage" }));
-    expect(row().textContent).not.toContain(t("sidebar.tab_named", { label: "Release Review" }));
+    expect(row().textContent).not.toContain(t("sidebar.tab_named", { label: "Triage" }));
 
     await act(async () => filterAgentList("Triage"));
     expect(host.querySelectorAll('[data-testid="agent-chatlist-row"]')).toHaveLength(1);
@@ -325,20 +325,7 @@ describe("an associated tab name in the complete Agents list (#7595)", () => {
     expect(row.textContent).not.toContain(t("sidebar.tab_named", { label: "Workspace name" }));
   });
 
-  it("keeps the index-only fallback with a real association", async () => {
-    seed();
-    getState().sessions.mac = [{ ...sessions[1], slot_id: "w1:t2", slot_index: 2, pane_id: "w1:p1" }];
-    localStorage.setItem("persona.agentChatList", "1");
-    await act(async () => {
-      root.render(<AgentsList route={{ name: "agent-list" }} onNewAgent={() => {}} />);
-    });
-
-    const row = host.querySelector<HTMLElement>('[data-session-id="s2"]')!;
-    expect(row.textContent).toContain(t("sidebar.tab_named", { label: "#2" }));
-    expect(row.textContent).toContain("Fix WebSocket Reconnect");
-  });
-
-  it("keeps the plain fallback in an idle multi-session space without duplicating an associated identity", async () => {
+  it("keeps the plain fallback in an idle multi-session space without showing terminal tab labels in the visible row", async () => {
     const plain = { ...sessions[1], session_id: "plain", title: "Plain fallback", space_id: "w1", space_name: "demo", slot_name: "Workspace only", status: "idle" as const, state: "idle" as const, updated_at: undefined };
     const associated = { ...plain, session_id: "associated", title: "Associated", slot_id: "w1:t1", tab_id: "w1:t1", slot_name: "Release Review", pane_id: "w1:p1" };
     seed();
@@ -355,9 +342,8 @@ describe("an associated tab name in the complete Agents list (#7595)", () => {
     expect(plainRow.textContent).toContain("demo › Workspace only");
     expect(plainRow.textContent).not.toContain(t("sidebar.tab_named", { label: "Workspace only" }));
     const associatedRow = host.querySelector<HTMLElement>('a[href="/s/mac/associated"]')!;
-    expect(associatedRow.textContent?.match(/Release Review/g)).toHaveLength(1);
     expect(associatedRow.getAttribute("aria-description")).toBe(t("sidebar.tab_named", { label: "Release Review" }));
     expect(plainRow.hasAttribute("aria-description")).toBe(false);
-    expect(associatedRow.textContent).not.toContain("demo › Release Review");
+    expect(associatedRow.textContent).not.toContain("Release Review");
   });
 });

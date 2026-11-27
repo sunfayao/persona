@@ -127,121 +127,22 @@ afterEach(async () => {
   setRoute("c1", null);
 });
 
-async function waitForSelector<T extends Element>(selector: string, container: ParentNode = document): Promise<T> {
-  for (let i = 0; i < 40; i++) {
-    const el = container.querySelector<T>(selector);
-    if (el) return el;
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 10));
-    });
-  }
-  throw new Error(`Selector not found: ${selector}`);
-}
-
-describe("ChatView one-click /compact preconditions", () => {
-  it("withholds /compact while a task route is active or setup gate is blocked", async () => {
-    setRoute("c1", "todo-1");
+describe("ChatView composer footer removal", () => {
+  it("renders no status line below the composer for agent chats", async () => {
     await act(async () => {
       root.render(<ChatView mid="hub" sid="c1" />);
     });
-    const meter = await waitForSelector<HTMLButtonElement>('[data-composer-usage] button[aria-haspopup="dialog"]', host);
-    await act(async () => {
-      meter.click();
-    });
-    const dialog = await waitForSelector<HTMLElement>("[data-session-insights]");
-    expect(dialog.querySelector("[data-insights-compact]")).toBeNull();
-
-    // Clear route, enable setup gate block -> still withheld
-    setRoute("c1", null);
-    mocks.blocked = { label: "Finish setup", onClick: vi.fn() };
-    await act(async () => {
-      root.render(<ChatView mid="hub" sid="c1" />);
-    });
-    expect(document.querySelector("[data-insights-compact]")).toBeNull();
+    expect(host.querySelector("[data-composer-usage]")).toBeNull();
+    expect(host.querySelector("[data-composer-source]")).toBeNull();
   });
 
-  it("keeps popover open and surfaces failure toast when send resolves false at click time", async () => {
-    await act(async () => {
-      root.render(<ChatView mid="hub" sid="c1" />);
-    });
-    const meter = await waitForSelector<HTMLButtonElement>('[data-composer-usage] button[aria-haspopup="dialog"]', host);
-    await act(async () => {
-      meter.click();
-    });
-    const dialog = await waitForSelector<HTMLElement>("[data-session-insights]");
-    const compactBtn = dialog.querySelector<HTMLButtonElement>("[data-insights-compact]")!;
-    expect(compactBtn).not.toBeNull();
-
-    // Simulate session becoming read-only right before click so deliver() resolves false
-    mocks.session = { ...mocks.session, capabilities: { send: false } };
-    await act(async () => {
-      compactBtn.click();
-    });
-
-    expect(mocks.apiOp).not.toHaveBeenCalled();
-    expect(mocks.toast).toHaveBeenCalledWith(expect.any(String), "error");
-    expect(document.querySelector("[data-session-insights]")).not.toBeNull();
-  });
-
-  it("keeps assistant one-click compact available even when offlineLine disables the composer, while still gating agents", async () => {
+  it("renders no status line below the composer for assistant chats", async () => {
     mocks.features = [COMPACT_FEATURE];
     mocks.session = { ...mocks.session, assistant: true };
-
     await act(async () => {
-      root.render(<ChatView mid="hub" sid="c1" assistant offline="Computer offline" />);
+      root.render(<ChatView mid="hub" sid="c1" assistant />);
     });
-    const meter = await waitForSelector<HTMLButtonElement>('[data-composer-usage] button[aria-haspopup="dialog"]', host);
-    await act(async () => {
-      meter.click();
-    });
-    const dialog = await waitForSelector<HTMLElement>("[data-session-insights]");
-    const compactBtn = dialog.querySelector<HTMLButtonElement>("[data-insights-compact]")!;
-    expect(compactBtn).not.toBeNull();
-
-    await act(async () => {
-      compactBtn.click();
-    });
-    expect(mocks.api).toHaveBeenCalledWith("/assistant/conversations/c1/compact", {
-      method: "POST",
-      json: { machine_id: "hub" },
-    });
-
-    // Agent chat with offlineLine still withholds /compact
-    mocks.session = { ...mocks.session, assistant: false };
-    await act(async () => {
-      root.render(<ChatView mid="hub" sid="c1" offline="Computer offline" />);
-    });
-    const agentMeter = await waitForSelector<HTMLButtonElement>('[data-composer-usage] button[aria-haspopup="dialog"]', host);
-    await act(async () => {
-      agentMeter.click();
-    });
-    const agentDialog = await waitForSelector<HTMLElement>("[data-session-insights]");
-    expect(agentDialog.querySelector("[data-insights-compact]")).toBeNull();
-  });
-
-  it("uses assistant_compact instead of agent /compact when session.assistant is true on a generic ChatView without the assistant prop", async () => {
-    mocks.features = [COMPACT_FEATURE];
-    mocks.session = { ...mocks.session, assistant: true };
-
-    await act(async () => {
-      root.render(<ChatView mid="hub" sid="c1" offline="Computer offline" />);
-    });
-    const meter = await waitForSelector<HTMLButtonElement>('[data-composer-usage] button[aria-haspopup="dialog"]', host);
-    await act(async () => {
-      meter.click();
-    });
-    const dialog = await waitForSelector<HTMLElement>("[data-session-insights]");
-    const compactBtn = dialog.querySelector<HTMLButtonElement>("[data-insights-compact]")!;
-    expect(compactBtn).not.toBeNull();
-    expect(compactBtn.textContent).not.toContain("/compact");
-
-    await act(async () => {
-      compactBtn.click();
-    });
-    expect(mocks.apiOp).not.toHaveBeenCalled();
-    expect(mocks.api).toHaveBeenCalledWith("/assistant/conversations/c1/compact", {
-      method: "POST",
-      json: { machine_id: "hub" },
-    });
+    expect(host.querySelector("[data-composer-usage]")).toBeNull();
+    expect(host.querySelector("[data-composer-source]")).toBeNull();
   });
 });

@@ -208,7 +208,7 @@ it("shows useful complete-list Agents before the delayed last page without settl
   expect(block().textContent).not.toContain("加载中…");
 });
 
-it("keeps an in-flight sending launch in Starting only without duplicating it in paged groups, then moves it once ready", async () => {
+it("omits a separate Starting section and keeps a sending launch's session in its project group", async () => {
   await render(true);
   await act(async () => vi.dynamicImportSettled());
   await flush();
@@ -221,7 +221,7 @@ it("keeps an in-flight sending launch in Starting only without duplicating it in
   expect(host.querySelectorAll('a[href*="/computer/First%20page%20agent"]')).toHaveLength(1);
 
   // While the launch is in flight ("sending") with its created session already present in the hub's paged list,
-  // it renders only under Starting (with the matching engine mark) and is excluded from the project group.
+  // no separate Starting section appears and the session stays rendered once in its project group.
   act(() => {
     putLaunch({
       id: "local-sending-1",
@@ -243,12 +243,11 @@ it("keeps an in-flight sending launch in Starting only without duplicating it in
   });
   await flush();
 
-  expect(host.textContent).toContain("正在启动");
-  expect(host.querySelector('a[href*="/computer/local-sending-1"] [data-agent-mark="claude"]')).not.toBeNull();
-  expect(group().querySelectorAll("[data-session-row]")).toHaveLength(0);
-  expect(host.querySelectorAll('a[href*="/computer/First%20page%20agent"]')).toHaveLength(0);
+  expect(host.textContent).not.toContain("正在启动");
+  expect(group().querySelectorAll("[data-session-row]")).toHaveLength(1);
+  expect(host.querySelectorAll('a[href*="/computer/First%20page%20agent"]')).toHaveLength(1);
 
-  // Once handoff reaches "ready", Starting disappears and the session renders in its project group again.
+  // Once handoff reaches "ready", the session remains rendered once in its project group.
   act(() => {
     putLaunch({
       id: "local-sending-1",
