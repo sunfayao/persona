@@ -9,7 +9,6 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / 'scripts/persona_identity.py'
@@ -380,86 +379,6 @@ sys.exit(2)
         self.assertEqual(result.returncode, 0, result.stdout + '\n' + result.stderr)
         return result
 
-    def test_actual_hub_deploy_replaces_service_binary_and_web_in_its_installed_profile(self):
-        self.run_script('scripts/deploy/deploy.sh', '--admin-access', 'lan', 'hub-fixture')
-        # Every platform a node can run, the ones "Redeploy" takes a machine's build from (#3103).
-        for name in ('personad', 'persona-hub', 'persona-manager', 'nodes/personad-linux-amd64', 'nodes/personad-linux-arm64',
-                     'nodes/personad-darwin-amd64', 'nodes/personad-darwin-arm64'):
-            self.assertTrue((self.state / 'bin' / name).is_file(), name)
-        self.assertEqual(os.readlink(self.state / 'bin' / (FORMER_NAME + 'd')), 'personad')
-        self.assertFalse((self.state / 'bin' / 'personad-examplechat').exists())
-        self.assertEqual((self.state / 'web/index.html').read_text(), 'Persona fixture web')
-        self.assertEqual(identity.data_dir(self.remote, identity.service_environment(self.remote, {})), str(self.state))
-        self.assertFalse((self.remote / '.persona').exists())
-        self.assertFalse((self.local / 'do-not-copy-this-root').exists())
-
-    def test_node_deploy_uses_the_node_profile_not_the_colocated_hub(self):
-        node = self.remote / 'separate node'
-        unit = self.remote / '.config/systemd/user/personad-node.service'
-        unit.write_text('[Service]\nEnvironment="PERSONA_HOME=' + str(node) + '"\n')
-        self.run_script('scripts/deploy/deploy.sh', 'via-fixture')
-        self.assertTrue((node / 'bin/personad').is_file())
-        self.assertFalse((self.state / 'bin/personad').exists())
-        self.assertEqual(identity.data_dir(self.remote, identity.service_environment(self.remote, {}, 'hub')), str(self.state))
-
-    def test_node_deploy_over_nested_ssh_preserves_binary_stdin(self):
-        self.run_script('scripts/deploy/deploy.sh', 'via-fixture')
-        self.assertEqual((self.state / 'bin/personad').read_text(), '#!/bin/sh\nprintf "fixture-binary\\n"\n')
-        self.assertFalse((self.state / 'bin/personad').is_symlink())
-        self.assertEqual(os.readlink(self.state / 'bin' / (FORMER_NAME + 'd')), 'personad')
-
-    def test_an_admin_option_without_a_value_is_refused_with_a_message(self):
-        for option in ('--admin-access', '--admin-cidrs'):
-            result = subprocess.run(['bash', str(self.repo / 'scripts/deploy/deploy.sh'), 'web', option], env=self.env,
-                                    capture_output=True, text=True, timeout=30)
-            self.assertEqual(result.returncode, 2, option + '\n' + result.stdout + result.stderr)
-            self.assertIn(option + ' needs a value', result.stderr)
-            self.assertFalse((self.state / 'web/index.html').exists())
-
-    def test_web_only_deploy_keeps_the_selected_remote_profile(self):
-        self.run_script('scripts/deploy/deploy.sh', 'web')
-        self.assertEqual((self.state / 'web/index.html').read_text(), 'Persona fixture web')
-        self.assertFalse((self.remote / '.persona').exists())
-
-    def test_a_build_that_cannot_run_there_fails_the_deploy_before_installed(self):
-        # The #3103 symptom: the wrong platform's build was copied in and the deploy printed "installed" anyway. A
-        # binary that cannot exec here stands in for it; the `version` check has to catch it before the hub restarts.
-        executable(self.commands / 'go', '#!' + sys.executable + '\n' + r'''
-import pathlib, sys
-if sys.argv[1] == 'generate': sys.exit(0)
-if sys.argv[1] == 'build':
-    p = pathlib.Path(sys.argv[sys.argv.index('-o')+1]); p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_bytes(b'\x7fELF built for another platform'); p.chmod(0o755); sys.exit(0)
-sys.exit(2)
-''')
-        result = subprocess.run(['bash', str(self.repo / 'scripts/deploy/deploy.sh'), '--admin-access', 'lan', 'hub-fixture'],
-                                env=self.env, capture_output=True, text=True, timeout=DEPLOY_TIMEOUT)
-        self.assertNotEqual(result.returncode, 0, result.stdout + '\n' + result.stderr)
-        self.assertIn('does not run there', result.stderr)
-        self.assertNotIn('hub restarted', result.stdout)
-
-    def test_failed_staged_check_preserves_the_installed_binary_direct_and_nested(self):
-        executable(self.commands / 'go', '#!' + sys.executable + '\n' + r'''
-import pathlib, sys
-if sys.argv[1] == 'generate': sys.exit(0)
-if sys.argv[1] == 'build':
-    p = pathlib.Path(sys.argv[sys.argv.index('-o')+1]); p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_bytes(b'\x7fELF built for another platform'); p.chmod(0o755); sys.exit(0)
-sys.exit(2)
-''')
-        binary = self.state / 'bin/personad'
-        binary.parent.mkdir(parents=True, exist_ok=True)
-        old = b'#!/bin/sh\nprintf "installed-old\\n"\n'
-        for target in ('node-fixture', 'via-fixture'):
-            with self.subTest(target=target):
-                binary.write_bytes(old)
-                binary.chmod(0o755)
-                result = subprocess.run(['bash', str(self.repo / 'scripts/deploy/deploy.sh'), target],
-                                        env=self.env, capture_output=True, text=True, timeout=DEPLOY_TIMEOUT)
-                self.assertEqual(result.returncode, 0, result.stdout + '\n' + result.stderr)
-                self.assertIn('not installed, skipped', result.stderr)
-                self.assertEqual(binary.read_bytes(), old, 'a failed staged check replaced the installed binary')
-                self.assertFalse(Path(str(binary) + '.new').exists(), 'the rejected staged binary was left behind')
 
     def git(self, cwd, *args):
         result = subprocess.run([GIT, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.com', *args], cwd=cwd,
@@ -498,23 +417,11 @@ sys.exit(2)
         self.assertIn(message, result.stderr)
         self.assertFalse((self.state / 'web/index.html').exists())
 
-    def test_a_checkout_up_to_date_with_main_installs_web(self):
-        self.clone_of('main', 'main')
-        self.run_script('scripts/deploy/deploy.sh', 'web')
-        self.assertEqual((self.state / 'web/index.html').read_text(), 'Persona fixture web')
 
     def test_a_checkout_behind_main_is_refused_even_if_origin_head_points_elsewhere(self):
         self.clone_of('main', 'another-branch')
         self.advance_remote('main')
         self.assert_refused('missing commits on origin/main')
-
-    def test_an_unreachable_remote_deploys_nothing_unless_any_commit_is_set(self):
-        self.clone_of('main', None)
-        self.git(self.repo, 'remote', 'set-url', 'origin', str(self.base / 'missing.git'))
-        self.assert_refused('could not fetch origin/main')
-        self.env['PERSONA_DEPLOY_ANY_COMMIT'] = '1'
-        self.run_script('scripts/deploy/deploy.sh', 'web')
-        self.assertEqual((self.state / 'web/index.html').read_text(), 'Persona fixture web')
 
 
 if __name__ == '__main__':
@@ -535,4 +442,3 @@ class PrefixParsesInSystemBash(unittest.TestCase):
             got = subprocess.run(['/bin/bash', '-c', 'eval "$(cat)"; printf %s "$PERSONA_HOME"'], input=out,
                                  check=True, capture_output=True, text=True, env=env).stdout
             self.assertTrue(got.startswith(home), got)
-

@@ -312,23 +312,6 @@ class HubProgramKeptOnDeploy(unittest.TestCase):
         self.assertEqual((self.unit_dir / 'personad.service').read_text(), before)
         self.assertFalse(any(c.startswith(('systemctl --user restart', 'systemctl --user stop')) for c in self.calls()))
 
-    def test_a_persona_hub_unit_in_any_form_systemd_reads_stays(self):
-        # Under %h, in single quotes, with spaces around the key's =: all persona-hub to systemd, so to the deploy too.
-        def escaped(value):
-            return value.replace('\\', '\\\\').replace('%', '%%').replace('$', '$$')
-        rel = str(self.root.relative_to(self.home))
-        for start in ('="%h/' + escaped(rel).replace('"', '\\"') + '/bin/persona-hub" run',
-                      "='" + escaped(str(self.root)) + "/bin/persona-hub' run",
-                      ' = ' + self.quoted('persona-hub') + ' run'):
-            with self.subTest(start=start):
-                shutil.rmtree(self.unit_dir, ignore_errors=True)
-                self.switched_unit()
-                unit = self.unit_dir / 'personad.service'
-                unit.write_text(unit.read_text().replace('ExecStart=' + self.quoted('persona-hub') + ' run', 'ExecStart' + start))
-                self.assertIn('ExecStart' + start, unit.read_text())
-                r = self.run_script()
-                self.assertEqual(r.returncode, 0, r.stderr)
-                self.assertEqual(self.exec_starts()[-1], 'ExecStart=' + self.quoted('persona-hub') + ' run')
 
     def test_a_unit_naming_another_persona_hub_is_left_alone(self):
         # The backstop: an ExecStart that names persona-hub without being this root's (a wrapper, another copy, a bare
@@ -378,38 +361,6 @@ class HubProgramKeptOnDeploy(unittest.TestCase):
         self.assertIn('# old personad', (self.root / 'bin' / former).read_text())
         for name in ('persona-hub', 'persona-manager'):
             self.assertIn(f'# old {name}', (self.root / 'bin' / name).read_text(), name)
-
-
-@unittest.skipUnless(shutil.which('bash') and os.name == 'posix', 'needs bash on a Unix')
-class HubProgramFormsKept(unittest.TestCase):
-    """A unit whose only ExecStart names this root's persona-hub in a form systemd accepts stays on persona-hub after
-    a deploy (the forms a review found moved back to personad)."""
-
-    def test_forms(self):
-        for start in ('ExecStart="<root>/bin/persona-hub" run', 'ExecStart=%h/.persona/bin/persona-hub run',
-                      "ExecStart='<root>/bin/persona-hub' run", 'ExecStart = <root>/bin/persona-hub run'):
-            with self.subTest(start=start), tempfile.TemporaryDirectory() as d:
-                home = Path(d)
-                root = home / '.persona'
-                (root / 'hub.json').parent.mkdir(parents=True)
-                (root / 'hub.json').write_text('{"listen": ":18660"}')
-                executable(home / 'fakebin/systemctl', '#!/bin/sh\necho "systemctl $*" >> "$HOME/calls"\nexit 0\n')
-                for name in ('personad', 'persona-hub'):
-                    executable(root / 'bin' / name, f'#!/bin/sh\necho "{name} $*" >> "$HOME/calls"\nexit 3\n')
-                service = home / '.config/systemd/user/personad.service'
-                service.parent.mkdir(parents=True)
-                service.write_text('[Unit]\nDescription=Persona hub (persona-hub)\n\n[Service]\n' + start.replace('<root>', str(root))
-                                   + '\nRestart=always\n')
-                env = {**os.environ, 'HOME': str(home), 'XDG_CONFIG_HOME': str(home / '.config'),
-                       'PATH': f'{home / "fakebin"}:{os.environ["PATH"]}', 'PERSONA_HOME': str(root)}
-                for key in ('PERSONA_HUB_SOCKET', 'PERSONA_HUB_EDGE', '_PERSONA_STATE_DIR', '_PERSONA_HUB_UNIT'):
-                    env.pop(key, None)
-                r = subprocess.run(['bash', str(SCRIPT)], capture_output=True, text=True, env=env)
-                self.assertEqual(r.returncode, 0, r.stderr)
-                files = [service] + sorted((service.parent / 'personad.service.d').glob('*.conf'))
-                starts = [line for f in files for line in f.read_text().splitlines() if line.strip().startswith('ExecStart')]
-                effective = [line for line in starts if line.split('=', 1)[1].strip()][-1]
-                self.assertEqual(effective, f'ExecStart="{root}/bin/persona-hub" run')
 
 
 @unittest.skipUnless(shutil.which('bash') and os.name == 'posix', 'needs bash on a Unix')

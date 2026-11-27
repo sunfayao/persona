@@ -215,6 +215,7 @@ class WireSchema(unittest.TestCase):
             self.assertGreater(count, 0, fname)
             self.assertEqual(sorted(set(doc["$defs"]) - reached), [], f"{fname}: definitions no sample reaches")
 
+    @unittest.skipUnless((ROOT / ".git").exists(), "reads the tracked files of a git checkout")
     def test_no_hand_written_copy_returns(self):
         tracked = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, text=True,
                                  check=True).stdout.split("\0")

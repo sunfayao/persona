@@ -95,6 +95,7 @@ class SDKBundle(unittest.TestCase):
                     with bundle.extractfile("ts/fixtures/" + name) as packed:
                         self.assertEqual(packed.read(), expected, name)
 
+    @unittest.skipUnless(os.path.exists(os.path.join(ROOT, ".git")), "names the checkout's commit")
     def test_selective_copy_preserves_the_other_sdk(self):
         git_env = os.environ.copy()
         for key in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY",
