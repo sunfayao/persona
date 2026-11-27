@@ -127,7 +127,8 @@ describe("Agents list Filter menu (#4397) on the title row, the search in ⌘K (
     await act(async () => {
       root.render(<AgentsList route={{ name: "agent-list" }} onNewAgent={() => {}} />);
     });
-    expect(host.querySelector("input")).toBeNull();
+    // no field to type in: the quick filters' segmented control keeps its own hidden radios
+    expect(host.querySelector('input:not([type="radio"])')).toBeNull();
     expect(host.querySelector('[data-testid="agent-dimension-filter-bar"]')).toBeNull();
     const button = host.querySelector<HTMLElement>('[data-sidebar-agents-controls] [data-testid="agent-filter-button"]')!;
     expect(button).not.toBeNull();

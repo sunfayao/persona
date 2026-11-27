@@ -147,7 +147,8 @@ function connectPrompt(p: UnconnectedProvider): string {
   return tr("usage.connect_prompt_other", { name: p.title, id: p.id });
 }
 
-/** Every live account organized device-first, window by window, plus active providers without usage data yet. */
+/** Every live account organized device-first, window by window, plus active providers without usage data yet. It opens
+ * compact (one row per provider); the detailed view lists every window. */
 export function UsagePopover({
   id,
   accounts,
@@ -156,6 +157,7 @@ export function UsagePopover({
   now: fixed,
   onClose,
   onRefresh = refreshUsageWindows,
+  initialView = "compact",
 }: {
   id?: string;
   accounts: UsageAccount[];
@@ -164,13 +166,14 @@ export function UsagePopover({
   now?: number;
   onClose?: () => void;
   onRefresh?: () => Promise<boolean>;
+  initialView?: "detailed" | "compact";
 }) {
   const storeMachines = useStore((s) => s.machines);
   const knownMachines = machines ?? storeMachines;
   const pinnedIds = usePinnedUsageAccounts();
   const pinnedSet = new Set(pinnedIds);
   const livePinnedCount = accounts.reduce((n, a) => n + (pinnedSet.has(a.id) ? 1 : 0), 0);
-  const [view, setView] = useState<"detailed" | "compact">("detailed");
+  const [view, setView] = useState<"detailed" | "compact">(initialView);
   const [deviceFilter, setDeviceFilter] = useState<string>("all");
   const [compactSelection, setCompactSelection] = useState<string>();
   const [refresh, setRefresh] = useState<"idle" | "loading" | "done" | "failed">("idle");

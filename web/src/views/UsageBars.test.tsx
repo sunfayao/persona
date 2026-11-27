@@ -139,19 +139,20 @@ describe("the sidebar's usage strip", () => {
       await act(async () => root.render(<UsageBars accounts={[account("a", 10, 20, { problem: "unreachable" })]} now={NOW} />));
       expect(host.querySelector("[role=dialog]")).toBeNull();
       await act(async () => host.querySelector<HTMLButtonElement>("[data-usage-bars] > button")!.click());
-      await vi.waitFor(() => expect(host.querySelector("[role=dialog]")?.textContent).toContain("5h"));
+      await vi.waitFor(() => expect(host.querySelector("[role=dialog] button[aria-expanded]")).not.toBeNull());
       const dialog = host.querySelector<HTMLElement>("[role=dialog]")!;
-      expect(dialog.textContent).toContain("网关暂时读不到，显示的是上次的数字");
-      const compact = Array.from(dialog.querySelectorAll("button")).find((button) => button.textContent === "紧凑")!;
-      await act(async () => compact.click());
+      // compact first: one row per provider, its windows behind a click
       expect(dialog.querySelector("[data-usage-provider]")).toBeNull();
       const provider = dialog.querySelector<HTMLButtonElement>("button[aria-expanded]")!;
       expect(provider.textContent).toContain("Codex");
       await act(async () => provider.click());
       expect(provider.getAttribute("aria-expanded")).toBe("true");
       expect(dialog.querySelector("[data-usage-provider=codex]")?.textContent).toContain("5h");
-      provider.focus();
-      await act(async () => provider.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+      const detailed = Array.from(dialog.querySelectorAll("button")).find((button) => button.textContent === "详细")!;
+      await act(async () => detailed.click());
+      expect(dialog.textContent).toContain("网关暂时读不到，显示的是上次的数字");
+      detailed.focus();
+      await act(async () => detailed.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
       expect(host.querySelector("[role=dialog]")).toBeNull();
       expect(document.activeElement).toBe(host.querySelector("[data-usage-bars] > button"));
     } finally {
@@ -205,10 +206,10 @@ describe("a prepaid balance in the sidebar (#11825)", () => {
     expect(html.match(/role="progressbar"/g)).toHaveLength(1);
     expect(html).toContain("opacity-60");
     // the words behind it are the popover's (it is not first-screen code)
-    expect(renderToStaticMarkup(<UsagePopover accounts={[failed]} now={NOW} />)).toContain("余额无法读取");
+    expect(renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[failed]} now={NOW} />)).toContain("余额无法读取");
   });
   it("shows the amount, the sample age and both kinds of account in the popover", () => {
-    const html = renderToStaticMarkup(<UsagePopover accounts={[balanceAccount("ds", "12.34"), account("a", 70, 10)]} now={NOW} />);
+    const html = renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[balanceAccount("ds", "12.34"), account("a", 70, 10)]} now={NOW} />);
     expect(html).toContain("预付余额");
     expect(html).toContain("CNY 12.34");
     expect(html).toContain("5h");
@@ -217,21 +218,21 @@ describe("a prepaid balance in the sidebar (#11825)", () => {
   });
   it("says in the popover why a balance is unavailable or is the last one", () => {
     const never = balanceAccount("ds", "12.34", { balance: undefined, problem: "unreachable" });
-    expect(renderToStaticMarkup(<UsagePopover accounts={[never]} now={NOW} />)).toContain("暂时连不上 DeepSeek");
+    expect(renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[never]} now={NOW} />)).toContain("暂时连不上 DeepSeek");
     const kept = balanceAccount("ds", "12.34", { problem: "unreachable" });
-    expect(renderToStaticMarkup(<UsagePopover accounts={[kept]} now={NOW} />)).toContain("上次的余额");
+    expect(renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[kept]} now={NOW} />)).toContain("上次的余额");
     const refused = balanceAccount("ds", "12.34", { balance: undefined, problem: "rejected" });
-    expect(renderToStaticMarkup(<UsagePopover accounts={[refused]} now={NOW} />)).toContain("Key");
-    expect(renderToStaticMarkup(<UsagePopover accounts={[refused]} now={NOW} />)).not.toContain("上次的余额");
+    expect(renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[refused]} now={NOW} />)).toContain("Key");
+    expect(renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[refused]} now={NOW} />)).not.toContain("上次的余额");
     const refusedKept = balanceAccount("ds", "12.34", { problem: "rejected" });
-    expect(renderToStaticMarkup(<UsagePopover accounts={[refusedKept]} now={NOW} />)).toContain("上次的余额");
+    expect(renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[refusedKept]} now={NOW} />)).toContain("上次的余额");
   });
 });
 
 describe("the popover", () => {
   it("lists every window with percent, countdown, sample age and the pace", () => {
     // 5h window, 2h elapsed = 40% expected: 70% is over; 7d window, 5 days elapsed (~71%): 10% is under
-    const html = renderToStaticMarkup(<UsagePopover accounts={[account("a", 70, 10)]} now={NOW} />);
+    const html = renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[account("a", 70, 10)]} now={NOW} />);
     expect(html).toContain("12秒钟前");
     expect(html).toContain("5h");
     expect(html).toContain("7d");
@@ -245,12 +246,12 @@ describe("the popover", () => {
   it("draws no pace hint in the first 5% of a window, nor a tick", () => {
     const a = account("a", 90, 90);
     a.windows[0].resets_at = iso(4.9 * H + 0.05 * H); // 5h window just started
-    const html = renderToStaticMarkup(<UsagePopover accounts={[a]} now={NOW} />);
+    const html = renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[a]} now={NOW} />);
     expect(html.match(/data-pace-tick/g)).toHaveLength(1);
     expect(html.match(/用得偏快/g)).toHaveLength(1);
   });
   it("keeps an out-of-date account's numbers and reset but gives no pace, nor a tick (#12411)", () => {
-    const html = renderToStaticMarkup(<UsagePopover accounts={[account("a", 70, 10, { stale: true })]} now={NOW} />);
+    const html = renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[account("a", 70, 10, { stale: true })]} now={NOW} />);
     expect(html).toContain("已过期");
     expect(html).toContain("70%");
     expect(html).toContain("2 天 3 小时后重置");
@@ -259,7 +260,7 @@ describe("the popover", () => {
     expect(html).not.toContain("data-pace-tick");
   });
   it("is a labelled dialog", () => {
-    expect(renderToStaticMarkup(<UsagePopover accounts={[account("a", 1, 1)]} now={NOW} />)).toContain('role="dialog" aria-label="订阅额度"');
+    expect(renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[account("a", 1, 1)]} now={NOW} />)).toContain('role="dialog" aria-label="订阅额度"');
   });
   it("groups accounts device-first, merges parenthesized host tags, and filters by device", async () => {
     const multiDeviceAccounts: UsageAccount[] = [
@@ -302,7 +303,7 @@ describe("the popover", () => {
     document.body.appendChild(host);
     const root = createRoot(host);
     try {
-      await act(async () => root.render(<UsagePopover accounts={multiDeviceAccounts} machines={machines} now={NOW} />));
+      await act(async () => root.render(<UsagePopover initialView="detailed" accounts={multiDeviceAccounts} machines={machines} now={NOW} />));
       expect(host.querySelectorAll("[data-usage-device]")).toHaveLength(2);
       const devboxCard = host.querySelector<HTMLElement>('[data-usage-device="n37-114-156"]')!;
       const macCard = host.querySelector<HTMLElement>('[data-usage-device="JVX94RC61Y"]')!;
@@ -336,25 +337,25 @@ describe("where the numbers came from (#2595)", () => {
     account("d", 1, 2, { name: "team-seat-3", sources: ["Relay"], stale: true, problem: "unreachable" }),
   ];
   it("names the sources of each account in the popover, the computers first", () => {
-    const html = renderToStaticMarkup(<UsagePopover accounts={mixed()} now={NOW} />);
+    const html = renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={mixed()} now={NOW} />);
     expect(html).toContain("MacBook · Relay");
     expect(html).toContain(">电脑<"); // an account an older hub only marks local
     expect(html).toContain("Relay · Team pool");
     expect(html.match(/data-usage-source/g)).toHaveLength(4); // every account has a source line (the plan or the sources)
   });
   it("writes the plan beside the name unless the name already says it", () => {
-    const html = renderToStaticMarkup(<UsagePopover accounts={mixed()} now={NOW} />);
+    const html = renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={mixed()} now={NOW} />);
     expect(html).toContain(">Max<");
     expect(html).toContain(">Plus<");
     expect(html).not.toContain(">pro<"); // "Codex Pro" says it already
   });
   it("says when the gateway could not be read and these are its last numbers", () => {
-    const html = renderToStaticMarkup(<UsagePopover accounts={mixed()} now={NOW} />);
+    const html = renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={mixed()} now={NOW} />);
     expect(html).toContain("网关暂时读不到，显示的是上次的数字");
     expect(html.match(/网关暂时读不到/g)).toHaveLength(1);
   });
   it("says why a gateway's numbers are old: a refused key is not a network problem (#1902)", () => {
-    const one = (problem: string) => renderToStaticMarkup(<UsagePopover accounts={[account("r", 1, 2, { name: "seat", sources: ["Relay"], stale: true, problem })]} now={NOW} />);
+    const one = (problem: string) => renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[account("r", 1, 2, { name: "seat", sources: ["Relay"], stale: true, problem })]} now={NOW} />);
     expect(one("rejected")).toContain("网关不认这把 Key，请到管理界面 → 用量来源更新");
     expect(one("rejected")).not.toContain("网关暂时读不到");
     expect(one("failed")).toContain("读网关出错，显示的是上次的数字");
@@ -365,7 +366,7 @@ describe("where the numbers came from (#2595)", () => {
   it("labels a per-model window by its model, and keeps it apart from the plan's own", () => {
     const a = account("m", 10, 20, { name: "claude-seat", sources: ["Relay"] });
     a.windows.push({ label: "7d", window_minutes: 10080, used_percent: 100, resets_at: iso(2 * 24 * H + 3 * H), model: "Fable" });
-    const html = renderToStaticMarkup(<UsagePopover accounts={[a]} now={NOW} />);
+    const html = renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[a]} now={NOW} />);
     expect(html).toContain("data-usage-model");
     expect(html).toContain(">Fable<");
     expect(html).toContain("claude-seat 7d（Fable）：100%已用");
@@ -457,7 +458,7 @@ describe("where the numbers came from (#2595)", () => {
     const off = onDraftEvent("persona-new", (e) => events.push(e));
     let closed = false;
     try {
-      act(() => root.render(<UsagePopover accounts={live} unconnected={unconnected} now={NOW} onClose={() => { closed = true; }} />));
+      act(() => root.render(<UsagePopover initialView="detailed" accounts={live} unconnected={unconnected} now={NOW} onClose={() => { closed = true; }} />));
       expect(host.textContent).toContain("让助手接入");
       act(() => host.querySelector<HTMLButtonElement>("[data-usage-connect=claude]")!.click());
       expect(closed).toBe(true);
@@ -588,7 +589,7 @@ describe("user-selected pinned usage accounts (#12418)", () => {
     expect(strip).toContain("Antigravity");
     expect(strip).toContain("CNY 12.34");
 
-    const popover = renderToStaticMarkup(<UsagePopover accounts={sampleAccounts()} now={NOW} />);
+    const popover = renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={sampleAccounts()} now={NOW} />);
     expect(popover).toContain("固定账号暂不可用");
     expect(popover).toContain("恢复默认");
   });
@@ -601,12 +602,12 @@ describe("user-selected pinned usage accounts (#12418)", () => {
     await initI18n(lang);
     try {
       const live = [account("agy", 20, 30, { provider: "agy", name: "Antigravity" })];
-      const unpinned = renderToStaticMarkup(<UsagePopover accounts={live} now={NOW} />);
+      const unpinned = renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={live} now={NOW} />);
       expect(unpinned).toContain(`aria-label="${pinLabel}"`);
       expect(unpinned).not.toContain(resetLabelText);
 
       localStorage.setItem(PINNED_USAGE_ACCOUNTS_KEY, '["agy"]');
-      const pinned = renderToStaticMarkup(<UsagePopover accounts={live} now={NOW} />);
+      const pinned = renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={live} now={NOW} />);
       expect(pinned).toContain(`aria-label="${unpinLabel}"`);
       expect(pinned).toContain(resetLabelText);
     } finally {
@@ -625,7 +626,7 @@ describe("provider cards with a reset timeline (#13173)", () => {
         { label: "5h", window_minutes: 300, used_percent: 10, resets_at: iso(3 * H) },
       ],
     });
-    const html = renderToStaticMarkup(<UsagePopover accounts={[claude("1", "Later", 100), claude("2", "Sooner", 30), account("3", 1, 1)]} now={NOW} />);
+    const html = renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[claude("1", "Later", 100), claude("2", "Sooner", 30), account("3", 1, 1)]} now={NOW} />);
     expect(html.match(/data-usage-provider="/g)).toHaveLength(2);
     expect(html).toContain("2 个账号");
     expect(html.indexOf("Sooner")).toBeLessThan(html.indexOf("Later"));
@@ -641,17 +642,17 @@ describe("provider cards with a reset timeline (#13173)", () => {
   it("draws no timeline for a card whose accounts have no reset time", () => {
     const a = account("a", 1, 1);
     a.windows.forEach((w) => delete w.resets_at);
-    expect(renderToStaticMarkup(<UsagePopover accounts={[a]} now={NOW} />)).not.toContain("data-usage-timeline");
+    expect(renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[a]} now={NOW} />)).not.toContain("data-usage-timeline");
   });
   it("draws a protection line, flag and zone on a window that carries protect_percent, and nothing without it", () => {
     const a = account("a", 10, 20);
     a.windows[1].protect_percent = 95;
-    const html = renderToStaticMarkup(<UsagePopover accounts={[a]} now={NOW} />);
+    const html = renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[a]} now={NOW} />);
     expect(html.match(/data-protect-line/g)).toHaveLength(1);
     expect(html).toContain("保护 95%");
     expect(html).toContain("data-protect-zone");
     expect(html).toContain("保护线在 95%");
-    expect(renderToStaticMarkup(<UsagePopover accounts={[account("b", 10, 20)]} now={NOW} />)).not.toContain("data-protect");
+    expect(renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[account("b", 10, 20)]} now={NOW} />)).not.toContain("data-protect");
   });
   it("renders usage bars and popover typography with named text tokens instead of hard-coded pixel classes (#13211)", () => {
     const a = account("a", 40, 65, {
@@ -664,7 +665,7 @@ describe("provider cards with a reset timeline (#13173)", () => {
     a.windows[1].protect_percent = 90;
     a.windows.push({ label: "7d", window_minutes: 10080, used_percent: 50, resets_at: iso(30 * H), model: "Sonnet" });
     const stripHtml = renderToStaticMarkup(<UsageBars accounts={[a, balanceAccount("ds", "12.34")]} now={NOW} />);
-    const popoverHtml = renderToStaticMarkup(<UsagePopover accounts={[a, balanceAccount("ds", "12.34")]} now={NOW} />);
+    const popoverHtml = renderToStaticMarkup(<UsagePopover initialView="detailed" accounts={[a, balanceAccount("ds", "12.34")]} now={NOW} />);
     const arbitraryPxFont = /text-\[(?:length:)?\d+(?:\.\d+)?px\]/;
     expect(stripHtml).not.toMatch(arbitraryPxFont);
     expect(popoverHtml).not.toMatch(arbitraryPxFont);
@@ -679,7 +680,7 @@ describe("provider cards with a reset timeline (#13173)", () => {
     document.body.appendChild(host);
     const root = createRoot(host);
     try {
-      await act(async () => root.render(<UsagePopover accounts={[account("a", 40, 65, { provider: "codex" })]} now={NOW} />));
+      await act(async () => root.render(<UsagePopover initialView="detailed" accounts={[account("a", 40, 65, { provider: "codex" })]} now={NOW} />));
       const dialog = host.querySelector<HTMLElement>("[role=dialog]")!;
 
       // Mode switch is a borderless FloatingSegment (@ui-sdk/react/segmented-control)
