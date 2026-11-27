@@ -453,21 +453,23 @@ func (h *Manager) callComputerTool(ctx context.Context, sessionID, name string, 
 		return proto.TextResult(protectedapps.UnreadableScript, true)
 	}
 	var known []protectedapps.App
-	// guard checks this call, or one of its steps alone, on the Mac as it is now (protectedapps.Look.Check). LCU asks
-	// before touching any app, and those questions are refused for these (computer_lcu.go): it only checks names here.
+	at := h.refusalMac(m)
+	// guard checks this call, or one of its steps alone, on the Mac as it is now (protectedapps.Look.CheckOn). LCU
+	// asks before touching any app, and those questions are refused for these (computer_lcu.go): it only checks names
+	// here.
 	guard := func(string, map[string]any) protectedapps.Verdict { return protectedapps.Verdict{} }
 	if lcu {
 		for _, x := range h.appsOn(ctx, m, apps, nil) {
 			if protectedApp(x) {
 				h.logf("[%s] computer_run refused: protected app %s", m.cfg.ID, strings.TrimPrefix(x.BundleID, "name:"))
-				return proto.TextResult(refusedText(m.name(), "it would operate "+x.Name), true)
+				return proto.TextResult(protectedapps.Refusal(at, "it would operate "+x.Name), true)
 			}
 		}
 	} else {
 		guard = func(tool string, in map[string]any) protectedapps.Verdict {
 			raw, _ := json.Marshal(in)
 			look := h.protectedLook(ctx, m, known)
-			v := look.Check(m.name(), tool, raw)
+			v := look.CheckOn(at, tool, raw)
 			known = look.Apps()
 			return v
 		}

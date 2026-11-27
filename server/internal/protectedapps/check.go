@@ -139,20 +139,65 @@ func (l *Look) loadWindows() bool {
 	return true
 }
 
+// windowsOf is the k windows (their indexes in l.windows), only those on the screen when shown is set.
+func (l *Look) windowsOf(k kind, shown bool) []int {
+	var out []int
+	for i, w := range l.windows {
+		if l.kinds[i] == k && (w.OnScreen || !shown) {
+			out = append(out, i)
+		}
+	}
+	return out
+}
+
 // listed is the names of the k windows, only those on the screen when shown is set, each once.
 func (l *Look) listed(k kind, shown bool) []string {
 	var out []string
-	for i, w := range l.windows {
-		if l.kinds[i] == k && (w.OnScreen || !shown) && !slices.Contains(out, l.names[i]) {
+	for _, i := range l.windowsOf(k, shown) {
+		if !slices.Contains(out, l.names[i]) {
 			out = append(out, l.names[i])
 		}
 	}
 	return out
 }
 
+// prompts are the permission and password prompts on the screen, window by window, for a refusal to name: two can
+// show at once, and the one the user cannot see is behind another app's window.
+func (l *Look) prompts() []Prompt {
+	var out []Prompt
+	for _, i := range l.windowsOf(prompt, true) {
+		w := l.windows[i]
+		out = append(out, Prompt{App: l.names[i], Title: w.Title, WindowID: w.ID, CoveredBy: l.coveredBy(i)})
+	}
+	return out
+}
+
+// coveredBy is the apps whose windows on the screen overlap window i from in front of it, each once. Another prompt
+// does not count (it is one more to answer, not one in the way), nor does a window whose place in the stacking order
+// is not known: that it covers i is not known either.
+func (l *Look) coveredBy(i int) []string {
+	p := l.windows[i]
+	if p.Bounds == nil || p.Z == nil {
+		return nil
+	}
+	var out []string
+	for j, w := range l.windows {
+		if l.kinds[j] != prompt && w.OnScreen && w.Bounds != nil && w.Z != nil && w.Bounds.overlaps(*p.Bounds) &&
+			above(w, p) && !slices.Contains(out, l.names[j]) {
+			out = append(out, l.names[j])
+		}
+	}
+	return out
+}
+
 // Check decides one acting Cua Driver call on where (a Mac's name, or "this Mac"): tool and its arguments,
-// run_steps and run_script included.
+// run_steps and run_script included. Its refusals name no live screen: CheckOn is for a caller that knows it.
 func (l *Look) Check(where, tool string, args json.RawMessage) Verdict {
+	return l.CheckOn(Mac{Name: where}, tool, args)
+}
+
+// CheckOn is Check on at, whose refusals hand the user at's live screen.
+func (l *Look) CheckOn(at Mac, tool string, args json.RawMessage) Verdict {
 	if !Acts(tool) {
 		return Verdict{}
 	}
@@ -185,7 +230,7 @@ func (l *Look) Check(where, tool string, args json.RawMessage) Verdict {
 		targets = []target{targetOf(tool, args)}
 	}
 	operate := func(app string) Verdict {
-		return Verdict{Why: Refusal(where, "it would operate "+app), Rule: "named", App: app}
+		return Verdict{Why: Refusal(at, "it would operate "+app), Rule: "named", App: app}
 	}
 
 	// Named, or aimed at by pid: whatever is on the screen.
@@ -217,13 +262,13 @@ func (l *Look) Check(where, tool string, args json.RawMessage) Verdict {
 		}
 	}
 
-	if shown := l.listed(prompt, true); len(shown) > 0 {
-		return Verdict{Why: PromptRefusal(where, strings.Join(shown, ", ")), Rule: "prompt", App: shown[0]}
+	if shown := l.prompts(); len(shown) > 0 {
+		return Verdict{Why: PromptRefusal(at, shown), Rule: "prompt", App: shown[0].App}
 	}
 	open := l.listed(settings, true)
 	if tool == "run_script" {
 		if len(open) > 0 {
-			return Verdict{Why: ScriptRefusal(where, open[0]), Rule: "script", App: open[0]}
+			return Verdict{Why: ScriptRefusal(at, open[0]), Rule: "script", App: open[0]}
 		}
 		return Verdict{}
 	}
@@ -231,7 +276,7 @@ func (l *Look) Check(where, tool string, args json.RawMessage) Verdict {
 		return Verdict{}
 	}
 	for _, t := range targets {
-		if v := l.place(where, t, open); v.Why != "" {
+		if v := l.place(at, t, open); v.Why != "" {
 			return v
 		}
 	}
@@ -267,12 +312,12 @@ var (
 )
 
 // place decides t while System Settings has a window (open: those on the screen, by name).
-func (l *Look) place(where string, t target, open []string) Verdict {
+func (l *Look) place(at Mac, t target, open []string) Verdict {
 	name := l.listed(settings, false)[0]
 	if len(open) > 0 {
 		name = open[0]
 	}
-	unplaced := Verdict{Why: UnplacedRefusal(where, name), Rule: "unplaced", App: name}
+	unplaced := Verdict{Why: UnplacedRefusal(at.Name, name), Rule: "unplaced", App: name}
 	switch {
 	case windowless[t.tool] || strings.HasPrefix(t.tool, "browser_") || t.tool == "page":
 		return Verdict{} // a browser tab's page, through the browser; no window of System Settings
@@ -284,7 +329,7 @@ func (l *Look) place(where string, t target, open []string) Verdict {
 		// Any other tool, one added later included: where it acts is not known.
 	default:
 		if t.token != "" {
-			if v := l.tokenCheck(where, t); v.Why != "" {
+			if v := l.tokenCheck(at, t); v.Why != "" {
 				return v
 			}
 		}
@@ -292,13 +337,13 @@ func (l *Look) place(where string, t target, open []string) Verdict {
 			if len(open) == 0 {
 				return Verdict{} // nothing of System Settings on the screen to land on
 			}
-			return l.pointCheck(where, t, open[0])
+			return l.pointCheck(at, t, open[0])
 		}
 		if t.token != "" || (t.placed() && !t.desktop) {
 			return Verdict{}
 		}
 		if keyTools[t.tool] || t.tool == "scroll" { // keys, or a scroll by keys, to whichever app is frontmost
-			return l.frontCheck(where, name)
+			return l.frontCheck(at, name)
 		}
 	}
 	if len(open) == 0 {
@@ -318,7 +363,7 @@ const (
 
 // tokenCheck traces t's element token to its window: refused when it is one of System Settings' windows, or when
 // that cannot be told.
-func (l *Look) tokenCheck(where string, t target) Verdict {
+func (l *Look) tokenCheck(at Mac, t target) Verdict {
 	snap, _, ok := strings.Cut(t.token, ":")
 	if !ok || !isSnapshotID(snap) {
 		// A bare row number is a row of window_id's current snapshot: the window was judged by its id (aimed).
@@ -326,7 +371,7 @@ func (l *Look) tokenCheck(where string, t target) Verdict {
 			return Verdict{}
 		}
 		name := l.listed(settings, false)[0]
-		return Verdict{Why: TokenUnchecked(where, name), Rule: "token", App: name}
+		return Verdict{Why: TokenUnchecked(at.Name, name), Rule: "token", App: name}
 	}
 	for i, w := range l.windows {
 		if l.kinds[i] != settings {
@@ -336,9 +381,9 @@ func (l *Look) tokenCheck(where string, t target) Verdict {
 		case otherWindow:
 			continue
 		case thisWindow:
-			return Verdict{Why: Refusal(where, "it would operate "+l.names[i]), Rule: "named", App: l.names[i]}
+			return Verdict{Why: Refusal(at, "it would operate "+l.names[i]), Rule: "named", App: l.names[i]}
 		default:
-			return Verdict{Why: TokenUnchecked(where, l.names[i]), Rule: "token", App: l.names[i]}
+			return Verdict{Why: TokenUnchecked(at.Name, l.names[i]), Rule: "token", App: l.names[i]}
 		}
 	}
 	return Verdict{}
@@ -388,26 +433,26 @@ func isSnapshotID(s string) bool {
 }
 
 // frontCheck decides keys that go to the frontmost app: refused when that is System Settings, or not known.
-func (l *Look) frontCheck(where, name string) Verdict {
+func (l *Look) frontCheck(at Mac, name string) Verdict {
 	if l.loadApps(true) {
 		for _, a := range l.apps {
 			if !a.Active {
 				continue
 			}
 			if Is(a.BundleID, a.Name) {
-				return Verdict{Why: FrontRefusal(where, a.Name), Rule: "front", App: a.Name}
+				return Verdict{Why: FrontRefusal(at, a.Name), Rule: "front", App: a.Name}
 			}
 			return Verdict{}
 		}
 	}
-	return Verdict{Why: UnplacedRefusal(where, name), Rule: "unplaced", App: name}
+	return Verdict{Why: UnplacedRefusal(at.Name, name), Rule: "unplaced", App: name}
 }
 
 // pointCheck decides t's points: refused where a window of System Settings can be the one on top (open names it, for
 // the text when the points are not in a known window).
-func (l *Look) pointCheck(where string, t target, open string) Verdict {
+func (l *Look) pointCheck(at Mac, t target, open string) Verdict {
 	covered := func(name string) Verdict {
-		return Verdict{Why: CoveredRefusal(where, name), Rule: "covered", App: name}
+		return Verdict{Why: CoveredRefusal(at, name), Rule: "covered", App: name}
 	}
 	if t.desktop { // the screen's pixels: from its top-left corner, out to the farthest window
 		var far point
@@ -428,7 +473,7 @@ func (l *Look) pointCheck(where string, t target, open string) Verdict {
 	}
 	frames := l.framesOf(t)
 	if len(frames) == 0 {
-		return Verdict{Why: UnplacedRefusal(where, open), Rule: "unplaced", App: open}
+		return Verdict{Why: UnplacedRefusal(at.Name, open), Rule: "unplaced", App: open}
 	}
 	for _, f := range frames {
 		if t.zoom { // a zoom image's pixels: anywhere in the window
@@ -569,9 +614,7 @@ func (l *Look) coveredIn(f Window) (string, bool) {
 		if l.kinds[i] != settings || !w.OnScreen || w.Bounds == nil {
 			continue
 		}
-		b := *w.Bounds
-		overlap := b.X < r.X+r.Width && r.X < b.X+b.Width && b.Y < r.Y+r.Height && r.Y < b.Y+b.Height
-		if overlap && (w.Z == nil || f.Z == nil || above(w, f)) {
+		if w.Bounds.overlaps(r) && (w.Z == nil || f.Z == nil || above(w, f)) {
 			return l.names[i], true
 		}
 	}

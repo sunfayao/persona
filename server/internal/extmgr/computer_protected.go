@@ -15,7 +15,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 
+	"github.com/sunfayao/persona/server/internal/deeplink"
 	"github.com/sunfayao/persona/server/internal/protectedapps"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -23,8 +25,18 @@ import (
 // protectedApp: a is one of the apps never operated (protectedapps.Is), by bundle id or by name.
 func protectedApp(a approvedApp) bool { return protectedapps.Is(a.BundleID, a.Name) }
 
-// refusedText is what the model is told; it passes the gist on to the user.
-func refusedText(machine, why string) string { return protectedapps.Refusal(machine, why) }
+// refusalMac is m as a refusal names it, for the model to pass on to the user: its name, and its live screen in the
+// web app (/screen/<machine id>, on the hub's public address when it has one), where the user does from anywhere
+// what Persona will not.
+func (h *Manager) refusalMac(m *Machine) protectedapps.Mac {
+	screen := "/screen/" + url.PathEscape(m.cfg.ID)
+	if h.cfg != nil {
+		if web := deeplink.Web(h.cfg.PublicURL, screen); web != "" {
+			screen = web
+		}
+	}
+	return protectedapps.Mac{Name: m.name(), Screen: screen}
+}
 
 // knownApps is Cua Driver's list of m's apps, nil when it cannot be read.
 func (h *Manager) knownApps(ctx context.Context, m *Machine) []protectedapps.App {

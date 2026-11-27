@@ -8,9 +8,11 @@ package protectedapps
 import (
 	"encoding/json"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/textfmt"
 )
 
 // settingsIDs and settingsNames: System Settings, by both bundle ids it has had and by the names macOS gives it, in
@@ -83,6 +85,11 @@ type Rect struct {
 // has says whether p is inside r (its right and bottom edges are outside).
 func (r Rect) has(p point) bool {
 	return p.x >= r.X && p.x < r.X+r.Width && p.y >= r.Y && p.y < r.Y+r.Height
+}
+
+// overlaps says whether r and o share some of their area.
+func (r Rect) overlaps(o Rect) bool {
+	return o.X < r.X+r.Width && r.X < o.X+o.Width && o.Y < r.Y+r.Height && r.Y < o.Y+o.Height
 }
 
 // Apps reads list_apps' answer (nil when it does not read).
@@ -275,42 +282,93 @@ var reads = map[string]bool{
 // Acts says whether a Cua Driver tool may act on an app (anything but the reads).
 func Acts(tool string) bool { return !reads[tool] }
 
-// Refusal is what the model is told when a call is refused on where (a Mac's name, or "this Mac") for why: it would
-// operate one of the protected apps itself. It passes the gist on to the user. The texts below are for the other
-// cases, each saying what can still be done (#7560): only the protected app is off limits.
-func Refusal(where, why string) string {
-	return "Refused on " + where + ": " + why + ". Persona never operates System Settings or macOS's permission and " +
-		"password prompts for anyone. Tell the user to do this themselves, on the Mac or through its live screen in the " +
-		"Persona app. Do not retry it or look for another way."
+// Mac is the Mac a refusal is about: Name as the text calls it (its name, or "this Mac"), and Screen, the address of its
+// live screen in the Persona web app (a full URL when the hub's address is known, else /screen/<machine id>; "" when
+// the caller cannot tell), where the user does from anywhere what Persona will not.
+type Mac struct {
+	Name, Screen string
 }
 
-// PromptRefusal: a permission or password prompt (names) is on where's screen. Modal and on top, it could take any
-// click or key, so nothing is operated while one shows.
-func PromptRefusal(where, names string) string {
-	return "Refused on " + where + ": a macOS permission or password prompt (" + names + ") is on its screen, and " +
-		"while one shows Persona operates nothing there, since a click or key could answer it. Tell the user to answer it " +
-		"themselves, on the Mac or through its live screen in the Persona app; then this can be tried again."
+// handoff is where the user does it themselves. The live screen opens in View only, so the user has to switch it to
+// Take control before a click of theirs reaches the Mac: the refusal says so, or the user is left looking at a
+// screen that ignores them.
+func (at Mac) handoff() string {
+	screen := "its live screen in the Persona web app"
+	if at.Screen != "" {
+		screen = "its live screen at " + at.Screen + " in the Persona web app"
+	}
+	return "on the Mac or through " + screen + " (it opens in View only; switch to Take control to click)"
+}
+
+// Refusal is what the model is told when a call is refused on at for why: it would operate one of the protected apps
+// itself. It passes the gist on to the user. The texts below are for the other cases, each saying what can still be
+// done (#7560): only the protected app is off limits.
+func Refusal(at Mac, why string) string {
+	return "Refused on " + at.Name + ": " + why + ". Persona never operates System Settings or macOS's permission and " +
+		"password prompts for anyone. Tell the user to do this themselves, " + at.handoff() + ". Do not retry it or look " +
+		"for another way."
+}
+
+// Prompt is one permission or password prompt's window on the screen, as a refusal names it, so the user can tell
+// which window to answer: its app, title and window id, and the apps whose windows cover it (an Accessibility prompt
+// can sit behind System Settings, out of sight).
+type Prompt struct {
+	App, Title string
+	WindowID   int
+	CoveredBy  []string
+}
+
+// String is the prompt in a few words: `universalAccessAuthWarn "Accessibility", window 900, covered by System
+// Settings`.
+func (p Prompt) String() string {
+	s := p.App
+	if title := textfmt.Clip(textfmt.OneLine(p.Title), 60); title != "" {
+		s += " " + strconv.Quote(title)
+	}
+	if p.WindowID > 0 {
+		s += ", window " + strconv.Itoa(p.WindowID)
+	}
+	if len(p.CoveredBy) > 0 {
+		s += ", covered by " + strings.Join(p.CoveredBy, " and ")
+	}
+	return s
+}
+
+// PromptRefusal: permission or password prompts are on at's screen. Modal and on top, one could take any click or key,
+// so nothing is operated while one shows.
+func PromptRefusal(at Mac, prompts []Prompt) string {
+	named := make([]string, len(prompts))
+	for i, p := range prompts {
+		named[i] = p.String()
+	}
+	what, it := "a macOS permission or password prompt ("+strings.Join(named, "; ")+") is", "it"
+	if len(prompts) > 1 {
+		what, it = strconv.Itoa(len(prompts))+" macOS permission or password prompts ("+strings.Join(named, "; ")+") are", "them"
+	}
+	return "Refused on " + at.Name + ": " + what + " on its screen, and while one shows Persona operates nothing there, " +
+		"since a click or key could answer it. Tell the user to answer " + it + " themselves, " + at.handoff() + "; then " +
+		"this can be tried again."
 }
 
 // CoveredRefusal: app is the window on top where a pointer action would land.
-func CoveredRefusal(where, app string) string {
-	return "Refused on " + where + ": " + app + " is on top where this would click, and Persona never operates it. " +
+func CoveredRefusal(at Mac, app string) string {
+	return "Refused on " + at.Name + ": " + app + " is on top where this would click, and Persona never operates it. " +
 		"Only " + app + " is off limits; other apps can still be operated. Act on the element by its element_token " +
-		"instead of a point, or ask the user to move " + app + " out of the way or close it."
+		"instead of a point, or ask the user to move " + app + " out of the way or close it, " + at.handoff() + "."
 }
 
 // FrontRefusal: keys with no target while app is the frontmost app.
-func FrontRefusal(where, app string) string {
-	return "Refused on " + where + ": " + app + " is the frontmost app, so keys sent without a target would go to it. " +
+func FrontRefusal(at Mac, app string) string {
+	return "Refused on " + at.Name + ": " + app + " is the frontmost app, so keys sent without a target would go to it. " +
 		"Only " + app + " is off limits; other apps can still be operated. Say which app the keys are for (its name, " +
-		"pid or an element_token), or ask the user to switch away from " + app + "."
+		"pid or an element_token), or ask the user to switch away from " + app + ", " + at.handoff() + "."
 }
 
 // ScriptRefusal: a script while app is open on the screen.
-func ScriptRefusal(where, app string) string {
-	return "Refused on " + where + ": scripts don't run while " + app + " is open on its screen, because what a script " +
-		"will click can't be checked beforehand. Only " + app + " is off limits: use steps instead, which are checked " +
-		"one by one, or ask the user to close " + app + "."
+func ScriptRefusal(at Mac, app string) string {
+	return "Refused on " + at.Name + ": scripts don't run while " + app + " is open on its screen, because what a " +
+		"script will click can't be checked beforehand. Only " + app + " is off limits: use steps instead, which are " +
+		"checked one by one, or ask the user to close " + app + ", " + at.handoff() + "."
 }
 
 // UnplacedRefusal: where a call acts can't be told while app is open.
