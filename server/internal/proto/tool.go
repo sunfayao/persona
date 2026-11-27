@@ -15,6 +15,14 @@ type Tool struct {
 	// (assistant/tool_loading.go). personad mcp leaves Claude Code's alwaysLoad off such a tool, so it waits behind
 	// ToolSearch. Absent (an older manager, node or MCP server) is loaded up front, as before.
 	DeferLoading bool `json:"defer_loading,omitempty"`
+	// CoreRank: one of the tools an assistant conversation calls most, by its place in the manager's list from 1, the
+	// most called (assistant/tool_loading.go coreTools); 0 is any other. Fill: assistant.load_all_tools is on and the
+	// tool is not a core one. The manager sets both for an assistant conversation whatever that setting says, and
+	// personad mcp passes them on as _meta persona/core, persona/rank and persona/fill: a runtime without ToolSearch
+	// that can declare only so many tools (Antigravity's MCP proxy) declares the core ones first, in this order, then
+	// the fill ones while they fit. Absent (an older manager): the runtime keeps its own rule.
+	CoreRank int  `json:"core_rank,omitempty"`
+	Fill     bool `json:"fill,omitempty"`
 	// WorkGuideTool is discoverable on demand in an opted-in Assistant conversation.
 	// Older MCP servers ignore it and keep advertising the original tool.
 	WorkGuideTool bool `json:"work_guide_tool,omitempty"`

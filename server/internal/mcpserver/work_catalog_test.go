@@ -104,3 +104,24 @@ func TestWorkGuideCatalogDiscoveryAndRollback(t *testing.T) {
 		t.Fatal("extension tool was intercepted", call)
 	}
 }
+
+// The search that stands in for the work tools is a core tool ahead of the ranked ones in a list the manager ranked,
+// so a runtime that declares only its core tools still gets it; in any other list it carries only Claude Code's mark.
+func TestWorkSearchIsCoreInARankedList(t *testing.T) {
+	snapshot := toolSnapshot{Tools: []map[string]any{{"name": "other"}}, WorkGuide: map[string]bool{"todo_get": true}}
+	search := func(ranked bool) any {
+		snapshot.Ranked = ranked
+		tools := (&workCatalog{}).list(snapshot)
+		if last := tools[len(tools)-1]; last["name"] == workSearchName {
+			return last["_meta"]
+		}
+		t.Fatalf("no search in %v", tools)
+		return nil
+	}
+	if got, want := search(true), map[string]any{"anthropic/alwaysLoad": true, "persona/core": true, "persona/rank": 0}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("ranked: %v", got)
+	}
+	if got, want := search(false), map[string]any{"anthropic/alwaysLoad": true}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("not ranked: %v", got)
+	}
+}

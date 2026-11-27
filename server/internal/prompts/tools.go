@@ -76,3 +76,12 @@ type NextMessageTurn struct{ Role, Text string }
 func RenderNextMessageInput(turns []NextMessageTurn) string {
 	return render("tools/next_message_input", turns)
 }
+
+// MCPInstructions is what `personad mcp` says of its tools when a client connects (tools/mcp_instructions, the
+// initialize answer's instructions, mcpserver): Assistant is an assistant conversation's process, which has the
+// assistant's tools too. It is written before any tool is listed and read by every runtime (Claude Code puts it in the
+// system prompt, Antigravity stores it beside the tools), so it names no Lark tool, which only some installs have, and
+// no runtime's own way of asking the user.
+type MCPInstructions struct{ Assistant bool }
+
+func RenderMCPInstructions(in MCPInstructions) string { return render("tools/mcp_instructions", in) }

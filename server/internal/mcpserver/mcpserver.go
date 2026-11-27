@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/identity"
 	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/prompts"
 
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -300,8 +302,7 @@ func handle(ctx context.Context, version string, req request) (any, *rpcError) {
 			"protocolVersion": p.ProtocolVersion,
 			"capabilities":    map[string]any{"tools": map[string]any{"listChanged": true}},
 			"serverInfo":      map[string]any{"name": "persona", "version": version},
-			"instructions": "Persona tools reach the user's email accounts (mail_* tools). " +
-				"mail_send asks the user to approve before sending." + assistantInstructions(),
+			"instructions":    prompts.RenderMCPInstructions(prompts.MCPInstructions{Assistant: isAssistant()}),
 		}, nil
 	case "ping":
 		return map[string]any{}, nil
@@ -471,6 +472,7 @@ func listToolsOnce(ctx context.Context, previous toolSnapshot) (toolSnapshot, er
 	}
 	tools := []map[string]any{}
 	var work map[string]bool
+	ranked := isAssistant() && slices.ContainsFunc(res.Tools, func(t proto.Tool) bool { return t.CoreRank > 0 || t.Fill })
 	for _, t := range res.Tools {
 		if os.Getenv("PERSONA_MCP_EXCLUDE_A2A") == "1" && assistantwire.IsA2ATool(t.Name) {
 			continue
@@ -486,10 +488,17 @@ func listToolsOnce(ctx context.Context, previous toolSnapshot) (toolSnapshot, er
 			schema = json.RawMessage(`{"type":"object","properties":{}}`)
 		}
 		tool := map[string]any{"name": t.Name, "description": description, "inputSchema": schema}
+		meta := map[string]any{}
 		if isAssistant() && !t.DeferLoading {
 			// Claude Code keeps these loaded up front (#5838); the tools the manager deferred and other MCP servers'
 			// stay behind ToolSearch (#7317).
-			tool["_meta"] = map[string]any{"anthropic/alwaysLoad": true}
+			meta["anthropic/alwaysLoad"] = true
+		}
+		if ranked {
+			maps.Copy(meta, personaLoading(t))
+		}
+		if len(meta) > 0 {
+			tool["_meta"] = meta
 		}
 		tools = append(tools, tool)
 	}
@@ -500,7 +509,26 @@ func listToolsOnce(ctx context.Context, previous toolSnapshot) (toolSnapshot, er
 			work = nil
 		}
 	}
-	return toolSnapshot{Tools: tools, WorkGuide: work, Revision: res.Revision, Session: res.Session}, nil
+	return toolSnapshot{Tools: tools, WorkGuide: work, Ranked: ranked, Revision: res.Revision, Session: res.Session}, nil
+}
+
+// personaLoading is a tool's _meta for a runtime with no ToolSearch that declares only what fits its own budget
+// (Antigravity's MCP proxy, integrations/antigravity/src/mcp-proxy.mjs), which, unlike Claude Code, cannot load the
+// rest when needed: persona/core with persona/rank for the manager's core tools, the most called first
+// (assistant/tool_loading.go), whatever assistant.load_all_tools says; rank 0, ahead of them, for a command gate's tool
+// the node adds to a runtime's chat (proto.Tool.Shell), which that chat's instructions name; persona/fill for the
+// others the manager loads up front with that setting on. Only in a list the manager ranked: with an older manager no
+// tool has any, and the runtime keeps its own rule.
+func personaLoading(t proto.Tool) map[string]any {
+	switch {
+	case t.CoreRank > 0:
+		return map[string]any{"persona/core": true, "persona/rank": t.CoreRank}
+	case len(t.Shell) > 0:
+		return map[string]any{"persona/core": true, "persona/rank": 0}
+	case t.Fill:
+		return map[string]any{"persona/fill": true}
+	}
+	return nil
 }
 
 // The assistant's processes start this server with PERSONA_ASSISTANT / PERSONA_SESSION_ID (node/assistant.go): it
@@ -521,15 +549,6 @@ func sessionID() string {
 		return id
 	}
 	return os.Getenv("CLAUDE_SESSION_ID")
-}
-
-func assistantInstructions() string {
-	if !isAssistant() {
-		return ""
-	}
-	return " As the Persona assistant you also have: ask_user (questions shown on the phone; AskUserQuestion does not work here), " +
-		"notify_user (push notification), schedule_followup / list_followups / cancel_followup (wake yourself up later), " +
-		"agents_* (the coding agents on the user's computers) and lark_* (Feishu chats, calendar, docs, search)."
 }
 
 func toolResult(r proto.ToolResult) map[string]any {
