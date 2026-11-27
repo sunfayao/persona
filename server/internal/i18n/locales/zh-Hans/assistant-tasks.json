@@ -32,6 +32,7 @@
   "start_answer_node_outdated": "先更新 {machine} 上的 Persona，才能在这里回答它终端里的提问。什么都没有输入。",
   "launcher_kind_missing": "{machine} 的 {engine} 里没有 {launcher}，也没有别的 {kind} provider，没有启动，也不会改用别类 Agent。它在那里的 provider：{launchers}",
   "readonly_launcher_unsupported": "{machine} 上的 {launcher} 启动的是 {agent}，它没有只读模式，所以这个只读任务被拒绝：没有启动任何 Agent，也不会改用别的启动器。可以把它规划成可写任务（readonly false），或用这台电脑上 Claude Code 或 Codex 的启动器以只读方式规划：{launchers}",
+  "readonly_agy_unsupported": "{machine} 上的 {launcher} 启动的是 Antigravity CLI，它只能在 Antigravity 伴随程序上以计划模式运行只读任务，而这台电脑的启动器列表里没有运行它的伴随程序：没有启动任何 Agent。如果伴随程序在那台电脑上运行（登录 shell 里定义的 agy 会把它从列表中挡住），请加上 host \"agy\" 重新规划。也可以把它规划成可写任务（readonly false），或用这台电脑上 Claude Code 或 Codex 的启动器以只读方式规划（{launchers}）。把 assistant.readonly_mode 设为 prompt 时，agy 会把只读当作指令来执行（不是安全边界）。",
   "start_identity_conflict": "启动响应未确认所请求电脑上的会话身份。",
   "start_interrupted": "Hub 在此任务的 Agent 启动途中重启了，之前的请求仍可能完成。请等电脑重新连接后检查会话，再决定是否重试，以免重复启动 Agent。",
   "failed_start": "没开起来：{reason}",

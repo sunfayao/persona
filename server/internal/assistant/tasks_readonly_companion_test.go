@@ -23,18 +23,19 @@ func readonlyCompanionService(t *testing.T) (*Service, *fakeHub) {
 }
 
 // A read-only agy task the computer's Antigravity companion runs starts there at once, pinned to it (host agy), in plan
-// mode, whether it names the agy launcher or a tier that resolves to it; with assistant.readonly_mode prompt it keeps
-// agy's Allow all and the first message's constraint, as Claude Code does. Without the companion, or with a terminal
-// host named, it is refused when it is planned, as before; and a companion that went away fails the start instead of
-// opening a pane (#13464).
+// mode, whether it names the agy launcher or a tier that resolves to it, or names host agy itself; with
+// assistant.readonly_mode prompt it keeps agy's Allow all and the first message's constraint, as Claude Code does,
+// wherever agy runs. Without the companion, or with a terminal host named, it is refused when it is planned, as
+// before; and a companion that went away fails the start instead of opening a pane (#13464).
 func TestReadonlyAgyTaskStartsOnCompanion(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		task      func(*PlanTask)
 		launchers []proto.Launcher
-		prompt    bool // assistant.readonly_mode prompt
-		away      bool // the node answers a start naming agy with agy_companion_offline
-		refused   bool // readonly_unsupported when planned
+		prompt    bool   // assistant.readonly_mode prompt
+		host      string // the host the start names (default: agy)
+		away      bool   // the node answers a start naming agy with agy_companion_offline
+		refused   bool   // readonly_unsupported when planned
 		mode      string
 	}{
 		{name: "agy launcher", task: func(p *PlanTask) { p.Launcher = "agy" }, launchers: companionLaunchers(), mode: "plan"},
@@ -46,6 +47,13 @@ func TestReadonlyAgyTaskStartsOnCompanion(t *testing.T) {
 			refused: true},
 		{name: "companion went away", task: func(p *PlanTask) { p.Launcher = "agy" }, launchers: companionLaunchers(), away: true,
 			mode: "plan"},
+		// An agy the owner defined in the shell hides the companion from the list; naming host agy, as the refusal
+		// says, still sends the task to it (the node refuses it there if none is connected).
+		{name: "host agy named", task: func(p *PlanTask) { p.Launcher, p.Host = "agy", proto.HostAgy }, launchers: paneLaunchers(),
+			mode: "plan"},
+		// With assistant.readonly_mode prompt, agy takes read-only as an instruction wherever it runs: no companion needed.
+		{name: "prompt mode without the companion", task: func(p *PlanTask) { p.Launcher = "agy" }, launchers: paneLaunchers(),
+			prompt: true, host: "none", mode: "bypassPermissions"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -77,9 +85,13 @@ func TestReadonlyAgyTaskStartsOnCompanion(t *testing.T) {
 				f.mu.Lock()
 				starts := append([]map[string]any(nil), f.starts...)
 				f.mu.Unlock()
-				if len(starts) != 1 || starts[0]["launcher"] != "agy" || starts[0]["host"] != proto.HostAgy ||
+				wantHost := any(proto.HostAgy)
+				if tc.host == "none" {
+					wantHost = nil
+				}
+				if len(starts) != 1 || starts[0]["launcher"] != "agy" || starts[0]["host"] != wantHost ||
 					starts[0]["permission_mode"] != tc.mode {
-					t.Fatalf("read-only agy start = %v, want one on the companion in %s", starts, tc.mode)
+					t.Fatalf("read-only agy start = %v, want one on host %v in %s", starts, wantHost, tc.mode)
 				}
 				// A companion that went away fails the task (no pane in its place); otherwise it runs.
 				if todo := onlyTodo(s); tc.away != (todo.StartError != "" && todo.DoneAt != nil) {

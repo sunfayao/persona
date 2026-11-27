@@ -395,7 +395,8 @@ func readonlyEngineLaunchers() []proto.Launcher {
 }
 
 // A read-only task for pi, cursor or agy is refused when it is planned, naming the launchers on that computer that take
-// a read-only task: nothing is saved or started, and no other launcher is put in its place (#8316).
+// a read-only task: nothing is saved or started, and no other launcher is put in its place (#8316). agy, which has no
+// companion in this list, is told its own ways out too: host "agy" (the companion) and assistant.readonly_mode prompt.
 func TestReadonlyTaskPlanRefusesLaunchersWithoutReadonly(t *testing.T) {
 	for _, launcher := range []string{"pi", "cursor", "agy"} {
 		t.Run(launcher, func(t *testing.T) {
@@ -411,8 +412,12 @@ func TestReadonlyTaskPlanRefusesLaunchersWithoutReadonly(t *testing.T) {
 				if !errors.As(err, &re) || re.Code != "readonly_unsupported" {
 					t.Fatalf("read-only %s plan: error = %v, want readonly_unsupported", launcher, err)
 				}
-				if !strings.HasPrefix(err.Error(), "task 1: "+launcher+" on box ") || !strings.Contains(err.Error(), "readonly false") ||
-					!strings.HasSuffix(err.Error(), "launchers: claude, codex") {
+				wayOut := strings.HasSuffix(err.Error(), "launchers: claude, codex")
+				if launcher == "agy" {
+					wayOut = strings.Contains(err.Error(), "(claude, codex)") && strings.Contains(err.Error(), `host "agy"`) &&
+						strings.Contains(err.Error(), "assistant.readonly_mode")
+				}
+				if !strings.HasPrefix(err.Error(), "task 1: "+launcher+" on box ") || !strings.Contains(err.Error(), "readonly false") || !wayOut {
 					t.Fatalf("refusal does not name the launcher, the way out and the read-only launchers: %v", err)
 				}
 				var data map[string]string

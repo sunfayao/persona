@@ -86,6 +86,11 @@ type Options struct {
 	// TranscriptionChanged invalidates the assistant's availability cache after an extension registry change.
 	// It must not block or call back into the registry; nil means no observer.
 	TranscriptionChanged func()
+	// ToolsChanged says the tools the extensions offer may have changed: an extension was configured, switched,
+	// installed, upgraded or removed, or one of them started again with its connectors. The assistant then wakes its
+	// conversations' tool watches, so a running conversation lists Cua's, ego's or a connector's new tools without a
+	// restart. It must not block or call back into the registry; nil means no observer.
+	ToolsChanged func()
 	// DialRelay opens the hub's relay channel with query.
 	DialRelay func(ctx context.Context, query string) (*websocket.Conn, error)
 	// Connected says whether the bus is up now (nil: always), and Connection which connection it is: a comparable
