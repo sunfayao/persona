@@ -111,3 +111,54 @@ func TestRefusalsNameTheMacsLiveScreen(t *testing.T) {
 		t.Fatalf("LCU: %+v", res)
 	}
 }
+
+// Cua Driver says "(unverified)" in a step's report when it could not read back what the step typed or set: the answer
+// adds a line for each such step, pointing at the element token, and makes up none for the rest.
+func TestComputerRunSaysWhichStepsWereUnverified(t *testing.T) {
+	const id = "mac-unverified"
+	h, _ := stepsMac(t, id, `{"machines": ["mac-unverified"], "app_approval": false}`)
+	ctx := context.Background()
+	report := func(r string) {
+		fakeNoLockMu.Lock()
+		fakeRunSteps[id] = r
+		fakeNoLockMu.Unlock()
+	}
+	t.Cleanup(func() { report("") })
+	run := func(args string) string {
+		t.Helper()
+		res := h.callComputerTool(ctx, "conv-unverified", "computer_run", json.RawMessage(args))
+		if res.IsError {
+			t.Fatalf("%s: %+v", args, res)
+		}
+		return res.Content[0].Text
+	}
+	const note = "Step 2 (type_text) is unverified: the app may have ignored it (check with observe). To press a button, " +
+		"click its element_token from computer_state or observe instead."
+	report(`{"ok": true, "total": 3, "executed": 3, "failed_step": null, "steps": [
+		{"index": 0, "tool": "click", "ok": true, "message": "✅ Performed AXPress on [5] AXButton \"7\"."},
+		{"index": 1, "tool": "type_text", "ok": true, "message": "📨 Sent (unverified) 1 char(s). — driver could not confirm the text landed"},
+		{"index": 2, "tool": "press_key", "ok": true, "message": "✅ Pressed return on pid 63."}]}`)
+	text := run(`{"machine": "mac-unverified", "app": "Calculator", "steps": [{"click": {"name": "7"}}, {"type_text": {"text": "*"}}, {"press_key": {"key": "return"}}]}`)
+	if !strings.HasSuffix(text, "}\n"+note) || strings.Count(text, "is unverified") != 1 {
+		t.Fatalf("one line, for step 2: %q", text)
+	}
+
+	// Steps naming no app run one at a time: each answer is one step's, numbered as the call's.
+	report(`{"ok": true, "total": 1, "executed": 1, "failed_step": null, "steps": [{"index": 0, "tool": "set_value", "ok": true, "message": "📨 Sent (unverified) AXValue on [4] AXTextField."}]}`)
+	text = run(`{"machine": "mac-unverified", "steps": [{"set_value": {"element_token": "s1:4", "value": "x"}}, {"set_value": {"element_token": "s1:5", "value": "y"}}]}`)
+	if !strings.Contains(text, `"one_by_one":true`) || !strings.Contains(text, "\nStep 1 (set_value) is unverified") || !strings.Contains(text, "\nStep 2 (set_value) is unverified") {
+		t.Fatalf("one at a time: %q", text)
+	}
+
+	// Nothing said unverified, nothing added: a step that failed says what went wrong itself.
+	for _, r := range []string{
+		`{"ok": true, "executed": 1}`,
+		`{"ok": true, "total": 1, "executed": 1, "steps": [{"index": 0, "tool": "type_text", "ok": true, "message": "✅ Inserted 1 char(s)."}]}`,
+		`{"ok": false, "total": 1, "executed": 1, "failed_step": 0, "steps": [{"index": 0, "tool": "type_text", "ok": false, "message": "type_text failed (unverified)"}]}`,
+	} {
+		report(r)
+		if text := run(`{"machine": "mac-unverified", "app": "Calculator", "steps": [{"type_text": {"text": "1"}}]}`); strings.Contains(text, "is unverified") {
+			t.Errorf("%s: %q", r, text)
+		}
+	}
+}

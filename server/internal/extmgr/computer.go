@@ -520,7 +520,13 @@ func (h *Manager) callComputerTool(ctx context.Context, sessionID, name string, 
 	if stopped != "" {
 		return proto.TextResult(stopped, true)
 	}
-	return computerResult(res)
+	out := computerResult(res)
+	if tool == "run_steps" {
+		if notes := unverifiedSteps(res.Output); len(notes) > 0 {
+			out.Content[0].Text += "\n" + strings.Join(notes, "\n")
+		}
+	}
+	return out
 }
 
 // computerMachine is the machine the assistant named, when the plugin is on for it, it is a Mac and it is online.
@@ -804,6 +810,42 @@ func loneSymbol(key string) bool {
 	key = strings.TrimSpace(key)
 	r, size := utf8.DecodeRuneInString(key)
 	return size > 0 && size == len(key) && !unicode.IsLetter(r) && !unicode.IsDigit(r) && !strings.ContainsRune(cuaKeySymbols, r)
+}
+
+// unverifiedSteps is a line for each step of a run_steps answer whose effect Cua Driver could not confirm. A step's
+// report carries only the first line of that action's own answer, which says "(unverified)" for type_text and
+// set_value when the result was not read back; other actions' verification is in fields run_steps leaves out.
+// Background apps (Calculator) often ignore posted keys, while a button pressed through its element token works.
+func unverifiedSteps(out json.RawMessage) []string {
+	var r struct {
+		OneByOne bool              `json:"one_by_one"`
+		Steps    []json.RawMessage `json:"steps"`
+	}
+	if json.Unmarshal(out, &r) != nil {
+		return nil
+	}
+	var lines []string
+	for i, raw := range r.Steps {
+		if r.OneByOne { // each step's own run_steps answer (runStepsOneByOne)
+			var one struct {
+				Steps []json.RawMessage `json:"steps"`
+			}
+			if json.Unmarshal(raw, &one) != nil || len(one.Steps) != 1 {
+				continue
+			}
+			raw = one.Steps[0]
+		}
+		var step struct {
+			Tool    string `json:"tool"`
+			OK      bool   `json:"ok"`
+			Message string `json:"message"`
+		}
+		if json.Unmarshal(raw, &step) == nil && step.OK && strings.Contains(step.Message, "(unverified)") {
+			lines = append(lines, fmt.Sprintf("Step %d (%s) is unverified: the app may have ignored it (check with "+
+				"observe). To press a button, click its element_token from computer_state or observe instead.", i+1, step.Tool))
+		}
+	}
+	return lines
 }
 
 // jsString is s as a JavaScript string literal.
