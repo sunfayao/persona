@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -71,13 +73,22 @@ func TestRepositoryRetrievalGuidanceContract(t *testing.T) {
 	// These scenarios pin available guidance and tool behavior, NOT model choice.
 	// No live model, launcher, private service or mandatory lookup preflight runs.
 	list, get, plan := prompts.Tool("repositories_list"), prompts.Tool("repository_get"), prompts.Tool("task_plan")
+	// task_plan's repository guidance is in the reference its description points every conversation at.
+	const planRef = "persona-work/references/task-plan.md"
+	if !strings.Contains(plan.Description, planRef) {
+		t.Fatalf("task_plan does not point at %s", planRef)
+	}
+	ref, err := os.ReadFile(filepath.Join("..", "assistantskills", "builtin", filepath.FromSlash(planRef)))
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, scenario := range []struct {
 		name, text string
 		phrases    []string
 	}{
 		{"ambiguous repository", list.Description, []string{"resolve repository identity", "repository_get"}},
-		{"explicit URL or path", plan.Description, []string{"explicit repository URL or path", "takes precedence"}},
-		{"non-repository task", plan.Description, []string{"Non-repository tasks need no lookup", "not a mandatory dispatch preflight"}},
+		{"explicit URL or path", string(ref), []string{"explicit repository URL or path", "takes precedence"}},
+		{"non-repository task", string(ref), []string{"Non-repository tasks need no lookup", "not a mandatory dispatch preflight"}},
 		{"reference not permission", get.Description, []string{"not authorization", "never infer", "machine", "checkout"}},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {

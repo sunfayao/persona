@@ -407,7 +407,7 @@ func (s *Service) reusableTodo(ctx context.Context, conversation, id string, tak
 			continue
 		}
 		if !s.todoAgentStopped(ctx, a) {
-			return nil, notReusable(id, "an agent is already working on it")
+			return nil, notReusable(id, "an agent is already working on it: send it what is new with agent_send")
 		}
 		stopped = append(stopped, a)
 	}

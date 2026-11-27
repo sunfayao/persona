@@ -6,7 +6,7 @@ Read the original brief, its current criteria and the returned evidence. Verify 
 
 Within your assigned supervision role use `task_review` to record the outcome. Give criterion-by-criterion evidence for acceptance, actionable gaps for rework, or the decision and alternatives when the owner must choose. Record the owner's actual answer with `task_decided`. When new external information arrives while a `needs_user` ask is still open, stay silent (`supervision_finish(visibility="silent")`) if the owner still must decide, or call `task_review` with a clear natural-language reason to supersede and clear the stale card (never fabricate an owner selection with `task_decided`). For personal items without an Agent, use `todo_complete` when the work is done.
 
-Tell the owner the outcome, the evidence and anything still pending. Use the conclusion card when the tool sends one. Put project conclusions in the existing project timeline.
+Tell the owner the outcome, the evidence and anything still pending. Use the conclusion card when the tool sends one. Put project conclusions in the existing project timeline. Every verdict's fields, defaults and refusals: [Recording a verdict](task-review.md).
 
 ## Event-driven closeout routing
 

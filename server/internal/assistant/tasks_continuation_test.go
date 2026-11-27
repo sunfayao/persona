@@ -72,6 +72,10 @@ func TestContinuationCannotTakeAnotherConversationsTask(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "not opened from this conversation") {
 		t.Fatalf("unauthorized continuation was not refused: %v", err)
 	}
+	// The way out is separate work, not todo_id's (a to-do of its own would split the task).
+	if !strings.Contains(err.Error(), "without continues") || strings.Contains(err.Error(), "todo_id") {
+		t.Fatalf("the refusal does not say what to do instead: %v", err)
+	}
 	if todoCount(e.s) != 1 || len(e.f.starts) != 0 || len(e.f.stopped) != 0 {
 		t.Fatal("unauthorized continuation touched the original task")
 	}

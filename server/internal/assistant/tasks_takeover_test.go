@@ -68,7 +68,9 @@ func TestTakeOverOfAWorkingAgent(t *testing.T) {
 	e := newThreadEnv(t, nil) // agent01 is listed as running
 	putTodo(e.s, Todo{ID: "todo_x", Title: "发版", Origin: "m1", Supervision: &Supervision{Supervisor: "m1"},
 		Agents: []TodoAgent{{MachineID: "box", SessionID: "agent01"}}})
-	if _, err := e.s.toolTaskPlan(context.Background(), "m1", reuseArgs(true, "todo_x")); err == nil || !strings.Contains(err.Error(), "already working on it") {
+	// The refusal points at the working Agent, not only at a to-do of its own that would split the work.
+	if _, err := e.s.toolTaskPlan(context.Background(), "m1", reuseArgs(true, "todo_x")); err == nil || !strings.Contains(err.Error(), "already working on it") ||
+		!strings.Contains(err.Error(), "agent_send") {
 		t.Fatalf("todo_id: %v", err)
 	}
 	if _, err := e.s.toolTaskPlan(context.Background(), "m1", continuesArgs("todo_x")); err != nil {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -369,6 +370,81 @@ func TestWorkGuideRoutesToNativeReferences(t *testing.T) {
 		if !strings.Contains(catalog, area.cue) || !strings.Contains(entry, "]("+ref+")") || !strings.Contains(read(ref), area.operation) {
 			t.Errorf("%s must route from the catalog to %s and its %s workflow", area.cue, ref, area.operation)
 		}
+	}
+}
+
+// The core tools' descriptions point every Assistant conversation at the guide's references under .claude/skills, so
+// they are there with the guide off too: alone, without SKILL.md, so no runtime lists a skill, List leaves it out and
+// the guide does not count as installed. Switching the guide swaps the two forms; Codex's skills get only the guide.
+func TestWorkGuideReferencesStayWithoutTheGuide(t *testing.T) {
+	t.Setenv("PERSONA_PLUGIN_SKILLS_DIR", t.TempDir())
+	cwd, user := t.TempDir(), t.TempDir()
+	claude, codex := filepath.Join(cwd, ".claude", "skills"), filepath.Join(cwd, ".agents", "skills")
+	refs, err := fs.ReadDir(builtin, workGuideName+"/references")
+	if err != nil || len(refs) == 0 {
+		t.Fatalf("the guide has no references: %v", err)
+	}
+	for _, on := range []bool{false, true, false} {
+		for _, dir := range []string{claude, codex} {
+			if err := Sync(dir, user, Selection{WorkGuide: on}, t.Logf); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, ref := range refs {
+			want, _ := fs.ReadFile(builtin, workGuideName+"/references/"+ref.Name())
+			if got, err := os.ReadFile(filepath.Join(claude, workGuideName, "references", ref.Name())); err != nil || string(got) != string(want) {
+				t.Fatalf("guide on=%v: reference %s: %v", on, ref.Name(), err)
+			}
+		}
+		entries, err := LocalCatalog([]Root{{Path: claude, Source: "project"}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		catalogued := slices.ContainsFunc(entries, func(e Entry) bool { return e.Name == workGuideName })
+		listed := slices.ContainsFunc(List(user, Selection{WorkGuide: on}), func(s Skill) bool { return s.Name == workGuideName })
+		_, codexErr := os.Lstat(filepath.Join(codex, workGuideName))
+		if hasSkill(claude, workGuideName) != on || catalogued != on || listed != on || WorkGuideInstalled(claude) != on ||
+			WorkGuideReady(cwd) != on || (codexErr == nil) != on {
+			t.Fatalf("guide on=%v: skill %v, catalogued %v, listed %v, installed %v, ready %v, Codex %v", on,
+				hasSkill(claude, workGuideName), catalogued, listed, WorkGuideInstalled(claude), WorkGuideReady(cwd), codexErr)
+		}
+	}
+	// The same form again is left as it is.
+	before, err := os.Stat(filepath.Join(claude, workGuideName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Sync(claude, user, Selection{}, t.Logf); err != nil {
+		t.Fatal(err)
+	}
+	if after, err := os.Stat(filepath.Join(claude, workGuideName)); err != nil || !os.SameFile(before, after) {
+		t.Fatalf("the references were copied again: %v", err)
+	}
+}
+
+// Without the guide the user's own persona-work still takes the name, and the references come back once it goes.
+func TestTheUsersPersonaWorkReplacesTheReferences(t *testing.T) {
+	t.Setenv("PERSONA_PLUGIN_SKILLS_DIR", t.TempDir())
+	dir, user := t.TempDir(), t.TempDir()
+	sync := func() {
+		t.Helper()
+		if err := Sync(dir, user, Selection{}, t.Logf); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sync()
+	skill(t, user, workGuideName, "mine")
+	sync()
+	if target, err := os.Readlink(filepath.Join(dir, workGuideName)); err != nil || target != filepath.Join(user, workGuideName) {
+		t.Fatalf("the user's skill is not linked in: %q %v", target, err)
+	}
+	if err := os.RemoveAll(filepath.Join(user, workGuideName)); err != nil {
+		t.Fatal(err)
+	}
+	sync() // the link to the gone skill goes
+	sync()
+	if _, err := os.Stat(filepath.Join(dir, workGuideName, "references", "delegate.md")); err != nil || hasSkill(dir, workGuideName) {
+		t.Fatalf("the references did not come back alone: %v", err)
 	}
 }
 
