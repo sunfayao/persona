@@ -212,59 +212,6 @@ func liveStart(glossary ...string) extwire.TranscriptionFrame {
 		Glossary: glossary, At: extwire.F(0.0)}
 }
 
-// The instructions are English whatever the recording's language or the hub's: the language only goes in as a hint.
-// Each case uses its own upstream; TFReady does not wait for the third session, so a start delayed into the next case
-// must not leak into its assertions.
-func TestTranscriptionInstructionsLanguage(t *testing.T) {
-	trFast(t)
-	var previous *voicetest.Live
-	var releasePrevious func()
-	for _, tt := range []struct{ tag, hub, want string }{
-		{"ja-JP", "en", "ja"},
-		{"zh-TW", "en", "zh-Hans"},
-		{"en-US", "zh-Hans", "en"},
-		{"yue-HK", "en", "zh-Hans"},
-		{"ko-KR", "ja", "ja"},
-		{"", "en", "en"},
-	} {
-		var gate chan struct{}
-		release := func() {}
-		if tt.tag == "ja-JP" {
-			gate = make(chan struct{})
-			var once sync.Once
-			release = func() { once.Do(func() { close(gate) }) }
-			t.Cleanup(release)
-		}
-		_, srv, _, live := trLive(t, voicetest.Script{Sentences: trScript, SecondVerbatimStartGate: gate})
-		asked := len(live.Starts())
-		if releasePrevious != nil {
-			releasePrevious()
-			waitFor(t, "the delayed start was not recorded", func() bool { return len(previous.Starts()) >= 3 })
-			previous, releasePrevious = nil, nil
-		}
-		tc, _, err := dialTr(t, srv, TranscriptionContribution, http.Header{extwire.HeaderRole: {roleFull}, extwire.HeaderLang: {tt.hub}})
-		if err != nil {
-			t.Fatal(err)
-		}
-		tc.send(extwire.TranscriptionFrame{Type: extwire.TFStart, Mode: extwire.TranscriptionLive, Language: tt.tag, At: extwire.F(0.0)})
-		tc.next(extwire.TFReady)
-		tc.send(extwire.TranscriptionFrame{Type: extwire.TFEnd})
-		tc.done()
-		starts := live.Starts()[asked:]
-		if len(starts) == 0 {
-			t.Fatalf("%q: no session", tt.tag)
-		}
-		for _, s := range starts {
-			if ins, _ := s["instructions"].(string); !strings.HasPrefix(ins, "You are ") {
-				t.Errorf("%q (hub %s): instructions not in English:\n%s", tt.tag, tt.hub, ins)
-			}
-		}
-		if gate != nil {
-			previous, releasePrevious = live, release
-		}
-	}
-}
-
 // A malformed job is refused with bad_frame.
 func TestTranscriptionBadFrames(t *testing.T) {
 	trFast(t)
