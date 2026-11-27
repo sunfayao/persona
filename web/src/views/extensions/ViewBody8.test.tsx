@@ -134,8 +134,9 @@ describe("UI 8: drawn from its own chunk", () => {
     const busy = draw(TODAY, { busy: "calendar" });
     const link = busy.querySelectorAll("[data-columns] section")[1].querySelector("h3 + button")!;
     expect(link.hasAttribute("disabled")).toBe(true);
-    // the spinner in place of the ›
-    expect(link.querySelector("svg")).toBeNull();
-    expect(link.querySelector("span[aria-hidden]")?.className).toContain("rounded-full");
+    // the spinner in place of the ›: its ring is the link's only drawing
+    const spinner = link.querySelector("[data-spinner]");
+    expect(spinner).not.toBeNull();
+    expect([...link.querySelectorAll("svg")].every((svg) => spinner!.contains(svg))).toBe(true);
   });
 });
