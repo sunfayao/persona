@@ -32,8 +32,8 @@ describe("an agent row's title behind a prefix", () => {
     expect(html).not.toContain("--row-title-min");
   });
 
-  it("a tab with several panes leaves its 终端 mark to the rows of its panes", () => {
-    expect(renderToStaticMarkup(<SessionRow {...props} prefix="release" />)).toContain('data-source="terminal"');
+  it("omits terminal source icons from sidebar rows whether endRoom is set or not", () => {
+    expect(renderToStaticMarkup(<SessionRow {...props} prefix="release" />)).not.toContain("data-source=");
     expect(renderToStaticMarkup(<SessionRow {...props} prefix="release" endRoom />)).not.toContain("data-source=");
   });
 });

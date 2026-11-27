@@ -120,21 +120,21 @@ describe("Sidebar launch handoff (#12380)", () => {
     expect([unread(), working()]).toEqual([1, 0]);
     expect(startingSection()).toBeUndefined();
 
-    // Phase 1: creating -> shown in Starting, the counts stay.
+    // Phase 1: creating -> no separate Starting section, the counts stay.
     let launchId = "";
     act(() => { launchId = launchAgent({ machineId: "mac", cwd: "/code/app", launcher: "claude", text: "Fix issue", attachments: [] }, { open: false }); });
     await flush();
-    expect(startingSection()).toBeDefined();
+    expect(startingSection()).toBeUndefined();
     expect([unread(), working()]).toEqual([1, 0]);
 
-    // Phase 2: POST /sessions returns an idle session while POST /messages is still in flight -> no duplicate in the list, no 2 Done unread flash.
+    // Phase 2: POST /sessions returns an idle session while POST /messages is still in flight -> shown directly in its group as Working, no Starting section and no 2 Done unread flash.
     await vi.waitFor(() => expect(resolveCreate).toBeDefined());
     await act(async () => { resolveCreate(json({ session: created })); });
     await flush();
     expect(getState().launches[launchId].phase).toBe("sending");
-    expect(startingSection()).toBeDefined();
-    expect([unread(), working()]).toEqual([1, 0]);
-    expect(listed()).toBe(0);
+    expect(startingSection()).toBeUndefined();
+    expect([unread(), working()]).toEqual([1, 1]);
+    expect(listed()).toBe(1);
 
     // Phase 3: POST /messages succeeds -> phase becomes ready while hub has not yet pushed working (and even if a transient unread arrives with no reply).
     await act(async () => { resolveSend(json({ ok: true })); });

@@ -182,19 +182,15 @@ export const NavRow = memo(function NavRow({ k, reg, hover, active, to, go, icon
 // The list's one-line notes (loading, no match), as each writes it.
 const NOTE = "px-2 py-1 text-[12px] text-ink-3";
 
-// two shapes as well as two colors, so they tell apart without color: a bare prompt (no frame) and a window with a title bar
-const SOURCE_ICON = { terminal: { name: "run", tone: "text-source-terminal" }, desktop: { name: "appWindow", tone: "text-source-desktop" } } as const;
-
-/** Where the agent was opened (#2526), as a mark: a terminal or a desktop app's window in its own color, Lark's mark for a
- *  Lark group (a click opens its Feishu topic). Nothing for other sources. Its name is the tooltip and what a screen reader
- *  reads. At the row's end, so the title starts where an unmarked one does (#3043). */
+/** Where the agent was opened (#2526): only Lark groups keep their clickable topic mark on sidebar rows;
+ *  terminal and desktop icons stay omitted to keep rows uncluttered (source name stays in the row tooltip). */
 function SourceTag({ s }: { s: Session }) {
   const source = sessionSource(s);
-  if (!source) return null;
+  if (source !== "feishu") return null;
   const label = sourceName(source);
-  const mark = source === "feishu" ? <BrandMark brand="lark" size={16} fit="badge" /> : <Icon name={SOURCE_ICON[source].name} size={14} className={SOURCE_ICON[source].tone} />;
+  const mark = <BrandMark brand="lark" size={16} fit="badge" />;
   const cls = "flex size-4 shrink-0 items-center justify-center";
-  if (source === "feishu" && s.external_url) {
+  if (s.external_url) {
     // a link inside the row's link: opened by hand, so the row does not navigate too
     const open = (e: React.SyntheticEvent) => {
       e.preventDefault();
@@ -271,6 +267,7 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
   // where it was opened, marked at the row's end: not on a tab with several panes (endRoom), where a herdr tab is a
   // terminal by definition, each pane's row under it says so, and the mark's room is the title's
   const source = !s.assistant && !endRoom ? sessionSource(s) : undefined;
+  const sourceShown = source === "feishu";
   // a Persona conversation the hub opened by itself (#3758, #5195): what opened it, in the source mark's place
   const origin = source ? undefined : autoOrigin(s);
   // the extension whose own icon that mark draws, which the row's tooltip names too (#10358)
@@ -293,7 +290,7 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
   const ageAtEnd = !withDetail && !!s.updated_at && (!endRoom || (!tail && st === "offline"));
   // beside the age, a row that already carries its marks (where it was opened, its to-do) drops an ordinary hint from
   // its end, where it would only squeeze the title.
-  const tailShown = !!tail && !(ageAtEnd && (source || (showTodoTag && s.todo)));
+  const tailShown = !!tail && !(ageAtEnd && (sourceShown || (showTodoTag && s.todo)));
   // the age at the row's end, in the details line, or a background workflow's progress
   // (#2935) moves on with the clock: the memo keeps an unchanged row from re-rendering on a push, so a minute tick
   // does it, and only in a row that shows one of them. The ages read the clock when the row renders: `now` is the
@@ -415,7 +412,7 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
           {label ?? title}
         </span>
       )}
-      {(host || (showTodoTag && s.todo) || source || origin || tailShown || ageAtEnd || pendingCount > 0) && <span className="sidebar-session-meta">
+      {(host || (showTodoTag && s.todo) || sourceShown || origin || tailShown || ageAtEnd || pendingCount > 0) && <span className="sidebar-session-meta">
         {host && <span className="shrink-0 text-[10.5px] text-ink-3">{host}</span>}
         {showTodoTag && s.todo && (
           <span
@@ -426,7 +423,7 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
             <Icon name="todo" size={11} stroke={2} />
           </span>
         )}
-        {source && <SourceTag s={s} />}
+        {sourceShown && <SourceTag s={s} />}
         {origin && <OriginMark origin={origin} size={16} session={s} onName={setOpenerName} />}
         {tailShown && <span className="max-w-[72px] min-w-6 shrink-[20] truncate text-[11px] text-ink-3">{tail}</span>}
         {ageAtEnd && <span data-row-age className="shrink-0 text-[11px] text-ink-3 tabular-nums">{ago(s.updated_at, Date.now(), "narrow")}</span>}

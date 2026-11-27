@@ -1,6 +1,5 @@
 import { useBotmuxHidden } from "../lib/agents-display";
 import { AgentsAdd } from "./agents/AgentsAdd";
-import { launchDisplayEngine } from "../lib/new-agent";
 import { storedValue, storeValue } from "../lib/compatibility";
 // Beautiful UI's Sidebar Nav: workspace row, quick search, sections, one gliding highlight. Persona's main conversation
 // is the first entry (the app opens on the assistant); a new agent is the "+" of the Agents section (#1239).
@@ -23,7 +22,6 @@ import { firstAndCurrent } from "../lib/persona-nav";
 import { href, navigate, onLinkClick, showsSession, type Route } from "../lib/router";
 import { useScrollMemory } from "../lib/scroll-memory";
 import { retryFullAgentSessions, useAgentSessions, useFullAgentSessions } from "../lib/sessions";
-import { isInFlightLaunch } from "../lib/launch-handoff";
 import { useHubUnreachable, useStore } from "../lib/store";
 import { SESSIONS_SIDE_FOLD_FEATURE } from "../lib/side-fold";
 import type { Session } from "../lib/types";
@@ -546,25 +544,8 @@ const HIDE_BOTMUX: ListFilters = { exclude_pane_source: "feishu" };
 const SHOW_ALL: ListFilters = {};
 const NO_COUNTS: FilterCounts = { needs: 0, unread: 0, working: 0, bg_waiting: 0, feishu: 0, terminal: 0 };
 
-const NO_EXCLUDED_IDS: ReadonlySet<string> = new Set();
-
 function BoundedAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, add = true }: AgentsBlockProps) {
   const machines = useStore(selectSidebarMachines);
-  const allLaunches = useStore((s) => s.launches);
-  const launches = useMemo(() => Object.values(allLaunches).filter((launch) => launch.phase !== "ready"), [allLaunches]);
-  // Keep actively starting/sending launches out of the paged list and its groups until handoff completes so a newly
-  // created session does not render in both Starting and its group at once.
-  const inFlightLaunchIds = useMemo(() => {
-    let ids: Set<string> | undefined;
-    for (const launch of launches) {
-      if (isInFlightLaunch(launch) && launch.session) {
-        ids ??= new Set();
-        ids.add(runtimeIdentity(launch.session));
-      }
-    }
-    return ids ?? NO_EXCLUDED_IDS;
-  }, [launches]);
-  const [launchesFolded, toggleLaunches] = useFolded("agents-launching", false, { holds: launches.some((l) => activeKey === `s:${l.machineId}/${l.id}`), scope: AGENTS_FOLD });
   const catalog = useStore((s) => s.features.includes(SESSIONS_CATALOG_FEATURE));
   // a hub that folds side sessions (#7944) leaves them out of the list: nothing to nest under a parent
   const sideFold = useStore((s) => s.features.includes(SESSIONS_SIDE_FOLD_FEATURE));
@@ -628,10 +609,7 @@ function BoundedAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate,
     {listMenu.anchor && <Menu anchor={listMenu.anchor} onClose={listMenu.close} align="right" items={listItems} />}
     <HubNoticeLine />
     <HerdrNotices />
-    {launches.length > 0 && <Section title={t("sidebar.launching")} folded={launchesFolded} onToggle={toggleLaunches} right={<GroupCount n={launches.length} label={t("sidebar.launching_count", { count: launches.length })} />}>
-      {launches.map((launch) => <NavRow key={launch.id} k={`s:${launch.machineId}/${launch.id}`} reg={reg} hover={hover} active={activeKey === `s:${launch.machineId}/${launch.id}`} to={{ name: "session", mid: launch.machineId, sid: launch.id }} go={go} icon={launch.phase === "failed" ? "retry" : "agent"} agent={launch.phase === "failed" ? undefined : launchDisplayEngine(launch)} label={launch.text || baseName(launch.cwd) || t("sidebar.launch_untitled")} hint={launch.phase === "failed" ? t("sidebar.launch_failed") : t("sidebar.launch_background")} />)}
-    </Section>}
-    <PagedSessionList root={runtimeAgents} path={RUNTIME_AGENTS_PATH} identity={runtimeIdentity} compare={runtimeOrder} removeIdentity={runtimeRemoval} parentOf={sideFold ? undefined : runtimeParentIdentity} excludeIdentities={inFlightLaunchIds} event="sessions_list" grouping={pagedGrouping}
+    <PagedSessionList root={runtimeAgents} path={RUNTIME_AGENTS_PATH} identity={runtimeIdentity} compare={runtimeOrder} removeIdentity={runtimeRemoval} parentOf={sideFold ? undefined : runtimeParentIdentity} event="sessions_list" grouping={pagedGrouping}
       activeAt={runtimeActiveAt} needsYou={runtimeNeedsYou} isOpen={(s) => activeKey === `s:${s.machine_id}/${s.session_id}`}
       catalog={catalog} placeOf={runtimePlace} failureText={agentsReadFailed} holdCounts={holdCounts}
       machineOrder={machineOrder} label={(dimension, id) => dimension === "machine" ? machineWithHub(id, machines) : id}
@@ -680,21 +658,10 @@ function LegacyAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, 
   const { sessions: every, loaded, error: listError } = useFullAgentSessions();
   const summaryAgents = useAgentSessions();
   const pagedTransport = useStore((s) => s.features.includes(SESSIONS_LIST_FEATURE));
-  const allLaunches = useStore((s) => s.launches);
-  const launches = useMemo(() => Object.values(allLaunches).filter((launch) => launch.phase !== "ready"), [allLaunches]);
-  // A session whose launch is still actively starting/sending is already listed under "Starting": keep it out of the
-  // regular groups until handoff completes so it moves cleanly from Starting to Working without duplicating (#12380).
-  const inFlightLaunchKeys = useMemo(() => {
-    const keys = new Set<string>();
-    for (const launch of launches) {
-      if (isInFlightLaunch(launch) && launch.session) keys.add(`${launch.machineId}\u0000${launch.session.session_id}`);
-    }
-    return keys;
-  }, [launches]);
   const [agents, previewAgents] = useMemo(() => {
-    const visible = (rows: Session[]) => rows.filter((s) => !s.assistant && (!inFlightLaunchKeys.size || !inFlightLaunchKeys.has(`${s.machine_id}\u0000${s.session_id}`)));
+    const visible = (rows: Session[]) => rows.filter((s) => !s.assistant);
     return [visible(every), pagedTransport ? visible(summaryAgents) : []];
-  }, [every, summaryAgents, pagedTransport, inFlightLaunchKeys]);
+  }, [every, summaryAgents, pagedTransport]);
   const all = useScoped(agents);
   const previewAll = useScoped(previewAgents);
   const mutes = useStore((s) => s.mutes);
@@ -787,7 +754,6 @@ function LegacyAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, 
   const [recentFolded, toggleRecent] = useFolded("recent", true, { holds: holdsRow(recent, activeKey), scope: AGENTS_FOLD });
   const [idleFolded, toggleIdle] = useFolded("idle-spaces", true, { scope: AGENTS_FOLD });
   const [pinnedFolded, togglePinned] = useFolded("agents-pinned", false, { holds: holdsRow(pinnedAgents, activeKey), scope: AGENTS_FOLD });
-  const [launchesFolded, toggleLaunches] = useFolded("agents-launching", false, { holds: launches.some((l) => activeKey === `s:${l.machineId}/${l.id}`), scope: AGENTS_FOLD });
   // the whole block folds under its title in the sidebar (#2524); the phone's Agents page is the block, it doesn't
   // and opens by itself when ⌘K puts words on the list, so what was asked for is in view (#6589)
   const [blockFolded, toggleBlock] = useFolded("agents", false, { all: false, holds: dimFilters.query.trim() !== "" });
@@ -910,10 +876,6 @@ function LegacyAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, 
           })}
         </Section>
       )}
-
-      {launches.length > 0 && <Section title={t("sidebar.launching")} folded={launchesFolded} onToggle={toggleLaunches} right={<GroupCount n={launches.length} label={t("sidebar.launching_count", { count: launches.length })} />}>
-        {launches.map((launch) => <NavRow key={launch.id} k={`s:${launch.machineId}/${launch.id}`} reg={reg} hover={hover} active={activeKey === `s:${launch.machineId}/${launch.id}`} to={{ name: "session", mid: launch.machineId, sid: launch.id }} go={go} icon={launch.phase === "failed" ? "retry" : "agent"} agent={launch.phase === "failed" ? undefined : launchDisplayEngine(launch)} label={launch.text || baseName(launch.cwd) || t("sidebar.launch_untitled")} hint={launch.phase === "failed" ? t("sidebar.launch_failed") : t("sidebar.launch_background")} />)}
-      </Section>}
 
       {loadingPreview ? <>
         {listNote}
