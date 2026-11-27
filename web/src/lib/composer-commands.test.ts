@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agentCommands, hasSlashSkillQuery, paneClaude, rankCommands, rankSlashSkills, SLASH_LIMIT } from "./composer-commands";
+import { agentCommands, hasSlashSkillQuery, isNativeTerminalCommand, nativeCommandRows, paneClaude, rankCommands, rankSlashSkills, SLASH_LIMIT } from "./composer-commands";
 import { t } from "../i18n";
 import { WORKFLOWS_COMMAND } from "./background-panel";
 import { LOOP_TEXT } from "./loop-command";
@@ -9,6 +9,35 @@ import { PERMISSIONS_COMMAND } from "./permissions-command";
 const session = (o: Partial<Session>): Session => ({ machine_id: "m", session_id: "s", cwd: "/x", status: "idle", state: "idle", pane_id: "p1", ...o }) as Session;
 const ALL = [{ text: "继续" }, { text: "/compact" }, { text: "/model " }, { text: LOOP_TEXT }, { text: "/clear" }];
 const words = (s?: Session) => agentCommands(ALL, s).map((c) => c.text.trim());
+
+describe("native terminal command suggestions", () => {
+  const codex = session({ agent: "codex", capabilities: { send: true, terminal: true, native_slash_commands: true } });
+
+  it.each([
+    [session({ agent: "claude" }), "/status", "/statusline"],
+    [codex, "/statusline", "/agents"],
+    [session({ agent: "agy" }), "/agents", "/statusline"],
+  ] as const)("selects the active CLI's commands", (s, offered, other) => {
+    const rows = nativeCommandRows(s, []);
+    expect(rows).toEqual(expect.arrayContaining([expect.objectContaining({ word: offered, text: offered, source: expect.any(String) })]));
+    expect(rows.map((row) => row.word)).not.toContain(other);
+    expect(nativeCommandRows(s, rows)).toEqual([]);
+  });
+
+  it("requires a writable terminal and Codex native dispatch support", () => {
+    for (const s of [session({ agent: "codex" }), { ...codex, pane_id: undefined }, { ...codex, agent_surface: "desktop" as const },
+      session({ agent: "agy", source_kind: "runtime" }), { ...codex, awaiting_first_message: true }]) {
+      expect(nativeCommandRows(s, [])).toEqual([]);
+    }
+  });
+
+  it("recognizes arguments without treating a context attachment or multiline prompt as a terminal command", () => {
+    expect(isNativeTerminalCommand(codex, "/review 123", 0)).toBe(true);
+    expect(isNativeTerminalCommand(codex, "/review 123", 1)).toBe(false);
+    expect(isNativeTerminalCommand(codex, "/review\nthis prompt", 0)).toBe(false);
+    expect(isNativeTerminalCommand(codex, "<context />\n/review", 0)).toBe(false);
+  });
+});
 
 // The "/" list by what the session can do (iOS canPickModel / canClear, Android canTypeClaudeCommands).
 describe("agentCommands", () => {

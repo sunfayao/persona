@@ -19,6 +19,23 @@ export function inlineMentionAt(ref: MentionAttrs, text: string): boolean {
   return Boolean(a && text.slice(a.start, a.end) === a.label);
 }
 
+/** Only picked session references with intact UTF-16 ranges get a highlight. */
+export function sessionMentionRanges(refs: readonly (MentionAttrs & { url?: string })[], text: string, offset = 0) {
+  const ranges = refs.flatMap((ref) => {
+    const a = anchor(ref);
+    if (!a || !ref.url?.startsWith("persona://session/")) return [];
+    const start = a.start - offset;
+    const end = a.end - offset;
+    return start >= 0 && text.slice(start, end) === a.label ? [{ start, end, url: ref.url }] : [];
+  }).sort((a, b) => a.start - b.start);
+  let end = 0;
+  return ranges.filter((range) => {
+    if (range.start < end) return false;
+    end = range.end;
+    return true;
+  });
+}
+
 export function inlineMention(ref: ContextRef, label: string, start: number): ContextRef {
   return { ...ref, attrs: { ...ref.attrs, inline_label: label, inline_start: String(start) } };
 }

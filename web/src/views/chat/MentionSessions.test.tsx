@@ -120,7 +120,9 @@ describe("@ other sessions on a paging hub (#12983)", () => {
     key("Enter");
     expect(options()).toHaveLength(0); // the panel closed
     expect(box().value).toBe("@Weather app redesign ");
+    expect(host.querySelector("[data-draft-session-mention]")?.textContent).toBe("@Weather app redesign");
     await type("@Weather app redesign What changed?");
+    expect(host.querySelector("[data-draft-session-mention]")?.textContent).toBe("@Weather app redesign");
     await act(async () => host.querySelector<HTMLButtonElement>(`button[aria-label="${t("chat-composer.send")}"]`)!.click());
     expect(onSend).toHaveBeenCalledOnce();
     const text = onSend.mock.calls[0][0].text;
@@ -128,5 +130,16 @@ describe("@ other sessions on a paging hub (#12983)", () => {
     expect(text).toContain("/home/me/code/weather");
     expect(text).toContain("The new icons are in.");
     expect(text.endsWith("</persona-context>\n\n@Weather app redesign What changed?")).toBe(true);
+  });
+
+  it("highlights a picked reference and removes the highlight when the label is edited", async () => {
+    render();
+    await type("@Weather app redesign");
+    expect(host.querySelector("[data-draft-session-mention]")).toBeNull();
+    await type("@weath");
+    key("Enter");
+    expect(host.querySelector("[data-draft-session-mention]")).not.toBeNull();
+    await type("@Weather app changed ");
+    expect(host.querySelector("[data-draft-session-mention]")).toBeNull();
   });
 });

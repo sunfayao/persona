@@ -6,10 +6,13 @@ import { useComposition } from "../../lib/ime";
 import { EASE } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
 import { useModalFocus } from "../../ui/overlay";
+import { DraftSessionMentions } from "./DraftSessionMentions";
+import type { sessionMentionRanges } from "../../lib/inline-mentions";
 
 type ExpandedProps = {
   editLabel?: string;
   value: string;
+  sessionMentions: ReturnType<typeof sessionMentionRanges>;
   placeholder: string;
   selection: [number, number];
   onChange: (v: string, caret: number) => void;
@@ -28,7 +31,7 @@ export function ComposerOverlay(props: ExpandedProps | SuggestionProps) {
 
 /** The draft full screen on a phone (#5688): collapse at the top right, the text filling the visible height, send at the
  *  bottom right. It edits the box's own draft; closing hands back the caret so the box picks up where this left off. */
-function ExpandedComposer({ editLabel, value, placeholder, selection, onChange, onCollapse, canSend, blocked, onSend }: ExpandedProps) {
+function ExpandedComposer({ editLabel, value, sessionMentions, placeholder, selection, onChange, onCollapse, canSend, blocked, onSend }: ExpandedProps) {
   const panel = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLTextAreaElement>(null);
   const start = useRef(selection);
@@ -73,6 +76,8 @@ function ExpandedComposer({ editLabel, value, placeholder, selection, onChange, 
           <Icon name="collapse" size={18} stroke={2} />
         </button>
       </div>
+      <div className="relative min-h-0 flex-1">
+      <DraftSessionMentions input={field} text={value} ranges={sessionMentions} />
       <textarea
         ref={field}
         value={value}
@@ -88,8 +93,9 @@ function ExpandedComposer({ editLabel, value, placeholder, selection, onChange, 
         }}
         placeholder={placeholder}
         aria-label={editLabel ?? t("chat-composer.message")}
-        className="min-h-0 w-full flex-1 resize-none bg-transparent px-5 py-1 text-[16px] leading-[24px] text-ink outline-none [overflow-wrap:anywhere] placeholder:text-ink-3"
+        className="relative block h-full min-h-0 w-full resize-none bg-transparent px-5 py-1 text-[16px] leading-[24px] text-ink outline-none [overflow-wrap:anywhere] placeholder:text-ink-3"
       />
+      </div>
       {!editLabel && <div className="flex justify-end px-3 pt-2 pb-[max(env(safe-area-inset-bottom),12px)]">
         <button
           type="button"
