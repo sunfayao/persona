@@ -30,6 +30,8 @@ describe("an agent's row", () => {
     const html = renderToStaticMarkup(<SessionRow {...rowProps} active />);
     expect(link(html)).toContain('aria-current="page"');
     expect(link(html)).toContain(SESSION_ACTIVE_ROW);
+    expect(link(html)).toContain("bg-float");
+    expect(link(html)).toContain("shadow-float");
   });
   it("is neither when it is not", () => {
     const html = renderToStaticMarkup(<SessionRow {...rowProps} active={false} />);
@@ -43,22 +45,29 @@ describe("an agent's row", () => {
   it("distinguishes working, background-waiting, needs-you, and quiet idle states cleanly without inactive row borders", () => {
     const workingHtml = renderToStaticMarkup(<SessionRow {...rowProps} s={{ ...session, status: "working", state: "working" }} active={false} />);
     expect(workingHtml).toContain(`>${stateName("working")}<`);
-    expect(workingHtml).toContain("bg-orange-tint/80");
-    expect(link(workingHtml)).not.toContain("ring-1");
+    expect(workingHtml).toContain('data-state="working"');
+    expect(workingHtml).toContain("text-accent-ink");
+    expect(workingHtml).not.toContain("bg-orange-tint");
+    expect(workingHtml).not.toContain("rounded-full");
+    expect(workingHtml).not.toContain("ring-1");
 
     const waitingHtml = renderToStaticMarkup(<SessionRow {...rowProps} s={{ ...session, status: "working", state: "working", background_waiting: true }} active={false} />);
     expect(waitingHtml).toContain(`>${stateName("bg_waiting")}<`);
-    expect(waitingHtml).not.toContain("bg-orange-tint/80");
-    expect(link(waitingHtml)).not.toContain("ring-1");
+    expect(waitingHtml).toContain('data-state="bg_waiting"');
+    expect(waitingHtml).not.toContain("text-accent-ink");
+    expect(waitingHtml).not.toContain("bg-orange-tint");
+    expect(waitingHtml).not.toContain("rounded-full");
+    expect(waitingHtml).not.toContain("ring-1");
 
     const needsHtml = renderToStaticMarkup(<SessionRow {...rowProps} s={{ ...session, state: "needs_you" }} active={false} />);
     expect(needsHtml).toContain('data-state="needs_you"');
     expect(needsHtml).toContain("font-medium text-ink");
-    expect(link(needsHtml)).not.toContain("ring-1");
+    expect(needsHtml).not.toContain("ring-1");
 
     const idleHtml = renderToStaticMarkup(<SessionRow {...rowProps} active={false} />);
     expect(idleHtml).toContain("opacity-35");
     expect(idleHtml).toContain("font-normal text-ink-2");
+    expect(idleHtml).not.toContain("ring-1");
   });
 });
 
@@ -187,7 +196,8 @@ describe("a personal agent's row", () => {
   it("is aria-current with the open row's fill and its pin shown when open", () => {
     const html = renderToStaticMarkup(<AgentRow {...props} active />);
     expect(link(html)).toContain('aria-current="page"');
-    expect(link(html)).toMatch(/class="[^"]*\bbg-hover-2\b/);
+    expect(link(html)).toMatch(/class="[^"]*\bbg-float\b/);
+    expect(link(html)).toMatch(/class="[^"]*\bshadow-float\b/);
     expect(pin(html)).toMatch(/class="[^"]*\bopacity-100\b/);
   });
   it("shows its pin on hover only otherwise", () => {

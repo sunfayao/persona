@@ -238,11 +238,11 @@ describe("the user's bubble and the answer", () => {
     expect(html).toContain("Manual attachment");
   });
 
-  it("on the right, fits its column up to 488 wide, 18 px corners", () => {
+  it("on the right, fits its column up to 488 wide, 16 px corners", () => {
     const html = renderToStaticMarkup(<UserBubble msg={msg("你好")} mid="m" sid="s" />);
     expect(html).toContain("ml-auto");
     expect(html).toContain("max-w-[min(100%,488px)]");
-    expect(html).toContain("rounded-[18px]");
+    expect(html).toContain("rounded-[16px]");
     expect(html).not.toContain("展开");
     expect(html).not.toContain("data-fold-scroll");
   });

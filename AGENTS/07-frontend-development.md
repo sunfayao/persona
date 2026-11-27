@@ -89,6 +89,10 @@ What you must not break:
    collapsed by default. Primary screens show no raw model ids, paths or session ids.
 10. **Words follow the glossary** in `docs/protocol/i18n.md` (Computer, not Machine or Node; Assistant, not manager)
     and every visible string goes through `t()` in three languages (`08`).
+11. **Build interactive primitives on `@ui-sdk`.** `@ui-sdk/react` and `@ui-sdk/core` back Persona's interactive
+    primitives (`Switch`, `UnderlineTabs`, `FloatingSegment`, `Disclosure`, `UiPopover`, `UiTooltip`,
+    `useAnimatedPresence`, `springCurve`). Consult `web/node_modules/@ui-sdk/react/docs/llms.txt` before creating new
+    UI primitives, and keep `@layer ui-sdk;` at the top of `src/styles.css`.
 
 Use the components of `src/ui/` (`Button`, `IconButton`, `Dialog`, `Menu`, `Switch`, `Segmented`, `StatusMark`,
 `SearchField`, `ErrorNotice`, `Collapse`, `toast`) before you write a new one.

@@ -11,7 +11,7 @@ export const ReplyStreaming = createContext(false);
  *  none), Copy on the right, which takes the whole block. Copy is 24 px drawn, 44 px to the finger (`touch-hit`). */
 export function CodeBar({ lang, onCopy }: { lang: string; onCopy: () => void }) {
   return (
-    <div className="flex h-8 items-center gap-2 border-b border-line/70 bg-ink/[0.03] pr-1.5 pl-3 text-label text-ink-3" data-code-bar>
+    <div className="flex h-8 items-center gap-2 border-b border-line/60 bg-transparent pr-1.5 pl-3 text-label text-ink-3" data-code-bar>
       {lang && <span className="min-w-0 truncate font-mono text-submeta font-medium">{lang}</span>}
       <button
         type="button"
@@ -40,9 +40,8 @@ export function copyInlineCode(e: React.MouseEvent<HTMLElement> | React.Keyboard
 /** About four lines of a quote show while it is folded. */
 const FOLD_PX = 104;
 
-/** A reply's quote, as Telegram draws it (#2984): a bar in the accent on the left of a faint accent card, a quote mark
- *  at its top right (styles.css `.prose-j blockquote`). A long one is folded to about four lines, fading out; a click on
- *  it opens it, its chevron folds it again. */
+/** An editorial reply quote (styles.css `.prose-j blockquote`): vertical accent bar with no tinted box. A long one is
+ *  folded to about four lines, fading out; a click on it opens it, its chevron folds it again. */
 export function ReplyQuote({ children }: { children?: ReactNode }) {
   const streaming = useContext(ReplyStreaming);
   const body = useRef<HTMLDivElement>(null);
@@ -59,19 +58,22 @@ export function ReplyQuote({ children }: { children?: ReactNode }) {
       <div
         ref={body}
         onClick={folded ? () => setOpen(true) : undefined}
-        className={cx(folded && "cursor-pointer overflow-hidden [mask-image:linear-gradient(to_bottom,black_65%,transparent)]")}
+        className={cx(
+          folds && "pr-7",
+          folded && "cursor-pointer overflow-hidden [mask-image:linear-gradient(to_bottom,black_65%,transparent)]",
+        )}
         style={folded ? { maxHeight: FOLD_PX } : undefined}
       >
         {children}
       </div>
-      <Icon name="quote" size={14} className="absolute top-2 right-2 text-accent-ink" aria-hidden />
+      <Icon name="quote" size={12} className="pointer-events-none absolute top-1 right-0 text-ink-3 opacity-35" aria-hidden />
       {folds && (
         <button
           type="button"
           aria-expanded={open}
           aria-label={open ? t("ui-markdown.quote_less") : t("ui-markdown.quote_more")}
           onClick={() => setOpen((o) => !o)}
-          className="absolute right-1 bottom-1 flex size-6 touch-hit items-center justify-center rounded-chip text-accent-ink transition-colors duration-150 hover:bg-hover-2"
+          className="absolute right-0 bottom-0.5 flex size-6 touch-hit items-center justify-center rounded-chip text-ink-3 transition-colors duration-150 hover:bg-hover hover:text-ink"
           data-quote-fold
         >
           <Icon name="chevron" size={14} className={cx("transition-transform duration-150", open && "rotate-180")} />

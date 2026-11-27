@@ -28,8 +28,8 @@ import type { IconName } from "../ui/icons";
 
 import type { MenuAt } from "../ui/menu-model";
 
-/** The open row's own fill (#2283): it stays while the pointer is elsewhere in the list, a step darker than hover. */
-export const CURRENT_ROW = "bg-hover-2";
+/** The open row's elevated floating surface: lifts off the sidebar plane via warm lighting and soft shadow, without a hard ring. */
+export const CURRENT_ROW = "sidebar-row-float bg-float text-ink shadow-float";
 /** The least an agent row's title gets behind a prefix (styles.css `--row-title-min`, about 4.5 characters). */
 export const ROW_TITLE_MIN = "min-w-(--row-title-min)";
 
@@ -205,7 +205,7 @@ export type GoFn = (to: Route, open?: () => boolean) => (e: React.MouseEvent) =>
  *  closes on a pointerdown outside its anchor, and a press on the ⋯ has to stay inside it for the click that
  *  follows to toggle. */
 export type RowMenuFn = (s: Session, anchor: HTMLElement, at?: MenuAt) => void;
-export const BADGE_CLASS = { attention: "bg-field text-attention", red: "bg-red-tint text-red", orange: "bg-orange-tint text-orange", green: "bg-green-tint text-green", accent: "bg-accent-tint text-accent-ink" } as const;
+export const BADGE_CLASS = { attention: "text-attention", red: "text-red", orange: "text-orange", green: "text-green", accent: "text-accent-ink" } as const;
 
 /** The badge of a folded page, as a dot on its icon. */
 export const DOT_CLASS = { attention: "bg-attention", red: "bg-red", orange: "bg-orange", green: "bg-green", accent: "bg-accent" } as const;

@@ -34,7 +34,7 @@ import { composerDraft, composerSelection, joinComposerDrafts, skillContext, spl
 import { getState } from "../../lib/store";
 import { AttachmentTray } from "../../ui/AttachmentTray";
 import { FileTiles } from "./FileTiles";
-import { cx, EASE, Spinner, toast } from "../../ui/atoms";
+import { cx, Spinner, toast } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
 import { ContextChips, ContextChipList } from "../link/ContextChips";
 import { ForwardBars } from "./ForwardCard";
@@ -1149,14 +1149,14 @@ export const Composer = memo(function Composer({
       <div
         className={cx(
           // a container: what sits in its bottom row (the model pill) takes its width modes from the card's own width
-          "@container/composer relative flex flex-col gap-1 rounded-[20px] border bg-surface px-3 pt-2.5 pb-2 transition-[border-color,box-shadow] duration-200",
+          "@container/composer relative flex flex-col gap-1 rounded-[20px] bg-float px-3.5 pt-3 pb-2.5 transition-[background-color,box-shadow,translate,transform] duration-200 ease-(--ease-out-strong) motion-reduce:transition-none",
           dragging
-            ? "border-accent shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_18%,transparent)]"
-            : "border-line-strong/80 shadow-[0_2px_12px_rgb(20_20_19/0.06)] dark:shadow-[0_4px_20px_rgb(0_0_0/0.28)] focus-within:border-line-strong focus-within:shadow-[0_4px_20px_rgb(20_20_19/0.09),0_0_0_1px_var(--line-strong)] dark:focus-within:shadow-[0_6px_26px_rgb(0_0_0/0.4),0_0_0_1px_var(--line-strong)]",
+            ? "shadow-[0_0_0_2px_var(--accent),var(--shadow-float)]"
+            : "shadow-float focus-within:-translate-y-[1px] focus-within:bg-surface focus-within:shadow-[0_2px_8px_-1px_rgb(20_20_19_/_0.07),0_10px_28px_-6px_rgb(20_20_19_/_0.12)] dark:focus-within:shadow-[inset_0_1px_0_rgb(255_250_240_/_0.11),0_4px_12px_-2px_rgb(0_0_0_/_0.45),0_14px_32px_-6px_rgb(0_0_0_/_0.52)] motion-reduce:focus-within:translate-y-0",
         )}
       >
-        {/* out to the card's border over its padding; nothing drawn yet (its chunk on the way), no gap either */}
-        {top && <div data-composer-top className="-mx-3 -mt-2.5 overflow-clip rounded-t-[19px] empty:hidden">{top}</div>}
+        {/* out to the card's edge over its padding; nothing drawn yet (its chunk on the way), no gap either */}
+        {top && <div data-composer-top className="-mx-3.5 -mt-3 overflow-clip rounded-t-[20px] empty:hidden">{top}</div>}
         {editingLast && (
           <div role="status" data-testid="composer-editing" className="flex min-w-0 items-center gap-1.5 pt-0.5 pr-0.5 pl-2 text-[11.5px] whitespace-nowrap" style={{ animation: "fade-in 160ms ease-out both" }}>
             <Icon name="pencil" size={12} stroke={2.2} className="shrink-0 text-accent-ink" />
@@ -1411,6 +1411,7 @@ export const Composer = memo(function Composer({
           )}
           {editor ? null : roundVoice ? (
             <button
+              key="voice"
               type="button"
               data-testid="composer-voice"
               data-voice-mode="start"
@@ -1418,27 +1419,28 @@ export const Composer = memo(function Composer({
               title={voice!.label}
               onClick={voice!.onClick}
               className={ROUND}
-              style={{ animation: `pop-in 180ms ${EASE} both` }}
+              style={{ animation: "pop-in 180ms var(--ease-out-strong) both" }}
             >
               <Icon name="voice" size={15} stroke={2.2} />
             </button>
           ) : showStop ? (
-            <StopButton stopping={stopping} onStop={onStop!} />
+            <StopButton key="stop" stopping={stopping} onStop={onStop!} />
           ) : blocked ? (
             <button
-              key={nudge}
+              key={`blocked-${nudge}`}
               type="button"
               data-testid="composer-blocked"
               onClick={blocked.onClick}
               disabled={!blocked.onClick}
-              className="touch-hit flex h-8 max-w-[60%] shrink-0 items-center gap-1 rounded-[10px] bg-ink px-3 text-[12px] font-medium whitespace-nowrap text-surface transition-[opacity,transform] duration-150 enabled:hover:opacity-90 enabled:active:scale-[0.96] disabled:opacity-40"
-              style={{ animation: nudge ? `nudge-x 420ms ease-out both` : `pop-in 180ms ${EASE} both` }}
+              className="touch-hit flex h-8 max-w-[60%] shrink-0 items-center gap-1 rounded-[10px] bg-ink px-3 text-[12px] font-medium whitespace-nowrap text-surface transition-[opacity,scale,transform] duration-150 ease-(--ease-out-strong) enabled:hover:opacity-90 enabled:active:scale-[0.94] disabled:opacity-40 motion-reduce:transition-none"
+              style={{ animation: nudge ? "nudge-x 420ms ease-out both" : "pop-in 180ms var(--ease-out-strong) both" }}
             >
               <span className="truncate">{blocked.label}</span>
               <Icon name="chevronRight" size={11} stroke={2.4} className="shrink-0" />
             </button>
           ) : (
             <button
+              key="send"
               type="button"
               data-testid="composer-send"
               // a message sent while the agent works or waits on you goes in its queue (Session.queued)
@@ -1450,6 +1452,7 @@ export const Composer = memo(function Composer({
               disabled={!canSend}
               onClick={() => void submit()}
               className={SEND}
+              style={{ animation: "pop-in 180ms var(--ease-out-strong) both" }}
             >
               <Icon name="arrowUp" size={16} stroke={2.4} />
             </button>
@@ -1509,10 +1512,11 @@ export const Composer = memo(function Composer({
   );
 });
 
-// Toolbar buttons: quiet borderless 32 px soft-squircle icons at rest, warm terracotta primary Send, and dark ink Stop / voice.
-const TOOL = "touch-hit flex size-8 shrink-0 items-center justify-center rounded-[9px] border border-transparent transition-[background-color,color,transform] duration-150 hover:border-transparent hover:bg-hover hover:text-ink active:scale-[0.94] aria-expanded:border-transparent aria-expanded:bg-hover-2 aria-expanded:text-ink";
-const SEND = "touch-hit flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-accent text-[#faf9f5] shadow-2xs transition-[background-color,opacity,transform] duration-150 enabled:hover:brightness-105 enabled:active:scale-[0.94] disabled:bg-ink/12 disabled:text-ink-3 disabled:opacity-100";
-const ROUND = "touch-hit flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-ink text-surface transition-[opacity,transform] duration-150 enabled:hover:opacity-90 enabled:active:scale-[0.94] disabled:opacity-40";
+// Toolbar buttons: quiet borderless 32 px soft-squircle icons at rest, warm terracotta primary Send & Stop, and dark ink voice.
+const TOOL = "touch-hit flex size-8 shrink-0 items-center justify-center rounded-[9px] border border-transparent transition-[background-color,color,scale,transform] duration-150 ease-(--ease-out-strong) hover:bg-hover hover:text-ink active:scale-[0.94] aria-expanded:bg-hover-2 aria-expanded:text-ink motion-reduce:transition-none";
+const SEND = "touch-hit flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-accent text-[#faf9f5] shadow-2xs transition-[background-color,opacity,scale,transform,filter] duration-150 ease-(--ease-out-strong) enabled:hover:brightness-105 enabled:active:scale-[0.94] disabled:bg-ink/12 disabled:text-ink-3 disabled:opacity-100 motion-reduce:transition-none";
+const STOP = "touch-hit flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-ink text-page shadow-2xs transition-[background-color,opacity,scale,transform,filter] duration-150 ease-(--ease-out-strong) enabled:hover:opacity-90 enabled:active:scale-[0.94] disabled:opacity-45 motion-reduce:transition-none";
+const ROUND = "touch-hit flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-ink text-surface transition-[opacity,scale,transform] duration-150 ease-(--ease-out-strong) enabled:hover:opacity-90 enabled:active:scale-[0.94] disabled:opacity-40 motion-reduce:transition-none";
 
 /** Stop in the action button's shell: a small square, a spinner while the stop is on its way. */
 function StopButton({ stopping, onStop }: { stopping?: boolean; onStop: () => void }) {
@@ -1524,8 +1528,8 @@ function StopButton({ stopping, onStop }: { stopping?: boolean; onStop: () => vo
       title={stopping ? t("chat-composer.stopping") : t("chat-composer.interrupt_hint")}
       onClick={onStop}
       disabled={stopping}
-      className={ROUND}
-      style={{ animation: `pop-in 180ms ${EASE} both` }}
+      className={STOP}
+      style={{ animation: "pop-in 180ms var(--ease-out-strong) both" }}
     >
       {stopping ? <Spinner size={12} /> : <span aria-hidden className="size-2.5 rounded-[1.5px] bg-current" />}
     </button>

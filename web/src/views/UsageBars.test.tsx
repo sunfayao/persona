@@ -673,4 +673,47 @@ describe("provider cards with a reset timeline (#13173)", () => {
     expect(popoverHtml).toContain("text-label");
     expect(popoverHtml).toContain("text-submeta");
   });
+
+  it("upgrades mode toggle, reset timeline disclosure, and shared control tooltips onto @ui-sdk primitives", async () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    try {
+      await act(async () => root.render(<UsagePopover accounts={[account("a", 40, 65, { provider: "codex" })]} now={NOW} />));
+      const dialog = host.querySelector<HTMLElement>("[role=dialog]")!;
+
+      // Mode switch is a borderless FloatingSegment (@ui-sdk/react/segmented-control)
+      const modeSwitch = dialog.querySelector<HTMLElement>('[data-slot="segmented-control"][data-variant="float"]')!;
+      expect(modeSwitch).not.toBeNull();
+      const detailedRadio = Array.from(modeSwitch.querySelectorAll<HTMLButtonElement>('[role="radio"]')).find((b) => b.textContent === "详细")!;
+      const compactRadio = Array.from(modeSwitch.querySelectorAll<HTMLButtonElement>('[role="radio"]')).find((b) => b.textContent === "紧凑")!;
+      expect(detailedRadio.getAttribute("aria-checked")).toBe("true");
+      expect(compactRadio.getAttribute("aria-checked")).toBe("false");
+
+      // Reset timeline uses @ui-sdk Disclosure with keepMounted panel & smooth toggle
+      const timeline = dialog.querySelector<HTMLElement>("[data-usage-timeline]")!;
+      const trigger = timeline.querySelector<HTMLButtonElement>('[data-slot="collapsible-trigger"]')!;
+      const panel = timeline.querySelector<HTMLElement>('[data-slot="collapsible-panel"]')!;
+      expect(trigger.getAttribute("aria-expanded")).toBe("false");
+      expect(panel.hasAttribute("hidden")).toBe(true);
+      await act(async () => trigger.click());
+      expect(trigger.getAttribute("aria-expanded")).toBe("true");
+      expect(panel.hasAttribute("hidden")).toBe(false);
+
+      // Shared tooltip backs refresh + pin controls without breaking aria-label (portaled to document.body)
+      expect(document.querySelectorAll('[role="tooltip"]').length).toBeGreaterThanOrEqual(1);
+      expect(dialog.querySelector('[data-usage-pin="a"]')?.getAttribute("aria-label")).toContain("固定到侧栏");
+
+      // Keyboard ArrowRight switches mode via segmented-control roving focus
+      detailedRadio.focus();
+      await act(async () => {
+        detailedRadio.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+      });
+      expect(compactRadio.getAttribute("aria-checked")).toBe("true");
+      expect(dialog.querySelector("[data-usage-provider]")).toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+    }
+  });
 });

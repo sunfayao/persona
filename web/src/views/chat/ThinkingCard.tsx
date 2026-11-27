@@ -13,14 +13,19 @@ export function LiveThinking() {
   const [since] = useState(Date.now);
   const now = useNow(500, useStore((s) => s.conn === "online"));
   return (
-    <div className="flex w-full min-w-0 items-center gap-1.5 px-2 py-0.5 select-none [@media(pointer:coarse)]:min-h-10" data-thinking="live" aria-live="polite">
-      <span className="inline-flex h-[1lh] shrink-0 items-center text-tool-ink">
+    <div
+      className="flex w-full min-w-0 items-center gap-1.5 px-2 py-0.5 select-none [@media(pointer:coarse)]:min-h-10"
+      style={{ animation: "fade-in 180ms var(--ease-out-strong) both" }}
+      data-thinking="live"
+      aria-live="polite"
+    >
+      <span className="inline-flex h-[1lh] shrink-0 items-center text-accent animate-[breathe_2.2s_ease-in-out_infinite] busy-motion">
         <Icon name="spark" size={14} />
       </span>
       <span className="translate-y-[1px] text-[length:var(--chat-secondary)] text-tool-ink">{t("chat-thinkingcard.thinking")}</span>
-      <span aria-hidden className="flex translate-y-[2px] items-center gap-[3px]">
-        {[0, 200, 400].map((d) => (
-          <span key={d} className="size-1 rounded-full bg-tool-ink animate-[breathe_1.2s_ease-in-out_infinite] busy-motion" style={{ animationDelay: `${d}ms` }} />
+      <span aria-hidden className="flex translate-y-[2px] items-center gap-1">
+        {[0, 160, 320].map((d) => (
+          <span key={d} className="size-1 rounded-full bg-accent/70 animate-[breathe_1.4s_ease-in-out_infinite] busy-motion" style={{ animationDelay: `${d}ms` }} />
         ))}
       </span>
       <span className="flex-1" />

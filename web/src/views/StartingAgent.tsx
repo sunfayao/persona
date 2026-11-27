@@ -49,7 +49,7 @@ export function StartingAgent({ launch, onToggleSidebar }: { launch: AgentLaunch
               releaseAttachments(launch.attachments.filter((a) => a.id === id));
               putLaunch({ ...launch, attachments: launch.attachments.filter((a) => a.id !== id), outgoing: undefined });
             } : undefined} />
-            {launch.text && <div className="max-w-full rounded-[18px] bg-user-bubble px-4 py-2.5 font-sans text-[length:var(--chat-body)] leading-[1.6] whitespace-pre-wrap text-ink ring-1 ring-inset ring-line/55 dark:ring-line/80 [overflow-wrap:anywhere]">{launch.text}</div>}
+            {launch.text && <div className="max-w-full rounded-[16px] bg-user-bubble px-4 py-2.5 font-sans text-[length:var(--chat-body)] leading-[1.6] whitespace-pre-wrap text-ink [overflow-wrap:anywhere]">{launch.text}</div>}
           </div>}
           {launch.phase === "failed" ? <div role="alert" className="flex flex-col items-start gap-3">
             <p className="text-[13px] text-red">{launch.error}</p>

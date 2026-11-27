@@ -1,5 +1,6 @@
 import { Suspense, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ComponentType } from "react";
 import { createPortal } from "react-dom";
+import { Switch as SdkSwitch, SwitchThumb } from "@ui-sdk/react/switch";
 import { t } from "../i18n";
 import type { AgentState } from "../lib/types";
 import { Icon, type IconName } from "./icons";
@@ -267,24 +268,26 @@ export function Spinner({ size = 12 }: { size?: number }) {
  *  (`--switch-on`, `--switch-off`, `--shadow-knob`). The `switch` class gives it a pill-shaped ring on keyboard focus only. */
 export function Switch({ on, onChange, disabled, label, className, describedBy, title }: { on: boolean; onChange: (on: boolean) => void; disabled?: boolean; label: string; className?: string; describedBy?: string; title?: string }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
+    <SdkSwitch
+      checked={on}
+      onCheckedChange={(checked) => onChange(checked)}
+      disabled={disabled}
       aria-label={label}
       aria-describedby={describedBy}
       title={title}
-      disabled={disabled}
-      onClick={() => onChange(!on)}
       className={cx("switch touch-hit relative inline-flex h-[22px] w-[38px] shrink-0 items-center rounded-full transition-colors duration-200 ease-out-strong disabled:opacity-50", on ? "bg-switch-on" : "bg-switch-off", className)}
     >
-      <span aria-hidden className="absolute left-[2px] size-[18px] rounded-full bg-white shadow-knob transition-transform duration-[220ms]" style={{ transform: on ? "translateX(16px)" : "translateX(0)", transitionTimingFunction: "cubic-bezier(0.34, 1.32, 0.64, 1)" }} />
-    </button>
+      <SwitchThumb
+        aria-hidden
+        className="absolute left-[2px] size-[18px] rounded-full bg-white shadow-knob transition-transform duration-[220ms]"
+        style={{ transform: on ? "translateX(16px)" : "translateX(0)", transitionTimingFunction: "cubic-bezier(0.34, 1.32, 0.64, 1)" }}
+      />
+    </SdkSwitch>
   );
 }
 
 export function Kbd({ children }: { children: React.ReactNode }) {
-  return <kbd className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-[5px] bg-surface px-1 font-sans text-[10px] text-ink-3 shadow-hairline">{children}</kbd>;
+  return <kbd className="inline-flex items-center font-mono text-[10.5px] tracking-[0.02em] text-ink-3/75">{children}</kbd>;
 }
 
 // Height-animating disclosure (grid 0fr → 1fr), the expand grammar every Beautiful UI trace uses.
@@ -1175,7 +1178,7 @@ export function Dialog({
         )}
         <div ref={body} data-dialog-body className={cx("min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-2.5 pb-4 [overflow-anchor:none]", !shown.footer && "max-sm:pb-[calc(16px+env(safe-area-inset-bottom))]")}>{shown.children}</div>
         {/* data-dialog-footer: what a toast on a phone keeps clear of (Toasts) */}
-        {shown.footer && <div data-dialog-footer className="flex shrink-0 items-center justify-end gap-2 border-t border-line/80 bg-surface px-5 py-3 max-sm:pb-[calc(10px+env(safe-area-inset-bottom))]">{shown.footer}</div>}
+        {shown.footer && <div data-dialog-footer className="flex shrink-0 items-center justify-end gap-2 border-t border-line/60 bg-surface px-5 py-3 max-sm:pb-[calc(10px+env(safe-area-inset-bottom))]">{shown.footer}</div>}
       </div>
     </div>,
     document.body,

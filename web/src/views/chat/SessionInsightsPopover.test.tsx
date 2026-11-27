@@ -428,4 +428,78 @@ describe("ContextMeter + lazy SessionInsightsPopover", () => {
     );
     expect(document.querySelector("[data-insights-ttft]")?.textContent).toBe("0 ms");
   });
+
+  it("renders on @ui-sdk popover with native dialog labelling, document Escape/outside dismissal, de-boxed layout, and shared breakdown tooltips", async () => {
+    await mount(
+      <ContextMeter
+        session={{
+          ...baseSession,
+          context_breakdown: {
+            source: "exact",
+            system_and_rules: 8000,
+            tools_and_mcp: 12000,
+            conversation: 28000,
+            tool_outputs: 30000,
+            free: 122000,
+            auto_compact_threshold: 160000,
+          },
+        }}
+        items={sampleItems}
+      />,
+    );
+    const trigger = host.querySelector("button")!;
+    await act(async () => {
+      trigger.click();
+    });
+    const dialog = await waitForPopover();
+
+    // Native @ui-sdk Popover dialog semantics & title wiring
+    expect(dialog.getAttribute("role")).toBe("dialog");
+    expect(dialog.getAttribute("data-slot")).toBe("popover-content");
+    const labelledBy = dialog.getAttribute("aria-labelledby");
+    expect(labelledBy).toBeTruthy();
+    expect(document.getElementById(labelledBy!)?.tagName).toBe("H2");
+
+    // De-boxed surface: no inner ring-1 cards, no rounded-chip source badge, no bg-inset metric boxes
+    const breakdown = dialog.querySelector<HTMLElement>("[data-insights-breakdown]")!;
+    expect(breakdown.className).not.toContain("ring-1");
+    expect(breakdown.className).not.toContain("bg-inset");
+    const sourceBadge = dialog.querySelector<HTMLElement>('[data-breakdown-source="exact"]')!;
+    expect(sourceBadge.className).not.toContain("rounded-chip");
+    expect(sourceBadge.className).not.toContain("bg-green-tint");
+    expect(dialog.querySelector("[data-insights-tokens]")?.innerHTML).not.toContain("bg-inset");
+
+    // Shared @ui-sdk tooltip controller inside StackedBreakdownBar (portaled to document.body)
+    const stackedBar = dialog.querySelector<HTMLElement>("[data-insights-stacked-bar]")!;
+    expect(document.querySelectorAll('[role="tooltip"]').length).toBeGreaterThanOrEqual(1);
+    expect(stackedBar.querySelector('[data-breakdown-segment="tool_outputs"]')?.getAttribute("aria-label")).toContain("30.0k");
+
+    // Pressing on the external anchor button cancels outside-press so toggle doesn't double-fire
+    await act(async () => {
+      trigger.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, composed: true, button: 0 }));
+    });
+    expect(document.querySelector("[data-session-insights]")).not.toBeNull();
+
+    // Pressing outside closes the popover via @ui-sdk outside-press
+    const outside = document.createElement("div");
+    document.body.appendChild(outside);
+    try {
+      await act(async () => {
+        outside.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, composed: true, button: 0 }));
+      });
+      expect(document.querySelector("[data-session-insights]")).toBeNull();
+    } finally {
+      outside.remove();
+    }
+
+    // Reopen and close via document-level Escape (native @ui-sdk layer path)
+    await act(async () => {
+      trigger.click();
+    });
+    await waitForPopover();
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    });
+    expect(document.querySelector("[data-session-insights]")).toBeNull();
+  });
 });

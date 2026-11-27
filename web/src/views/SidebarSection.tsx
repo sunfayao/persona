@@ -108,7 +108,7 @@ export function SidebarGroup({ heading, children, className }: { heading: React.
  *  selection behind it (#6458).
  *  `top`: one of the sidebar's top-level headings (Pages, Persona chats, Personal Agents), whose row is the Agents
  *  title row's box, `sidebar-heading` (#10637), whatever `right` carries; a group's heading inside a list keeps its own.
- *  `tree`: draws a subtle vertical guide rail under an open project/space folder so its sessions visually nest. */
+ *  `tree`: indents an open project/space folder's rows with clean whitespace so its sessions visually nest without cage lines. */
 export function Section({ title, children, folded, onToggle, right, onMenu, first, top, tree }: { title: React.ReactNode; children: React.ReactNode; folded: boolean; onToggle: () => void; right?: React.ReactNode; onMenu?: (at: MenuAt, el: HTMLElement) => void; first?: boolean; top?: boolean; tree?: boolean }) {
   return (
     <SidebarGroup className={first ? "mt-1" : "mt-3"} heading={
@@ -129,7 +129,7 @@ export function Section({ title, children, folded, onToggle, right, onMenu, firs
       </div>
     }>
       <Collapse open={!folded} sidebarFold unclipped>
-        <div className={cx("flex flex-col gap-0.5", tree && "ml-2.5 border-l border-line/55 pl-1.5")} inert={folded || undefined}>{children}</div>
+        <div className={cx("flex flex-col gap-1", tree && "pl-2.5")} inert={folded || undefined}>{children}</div>
       </Collapse>
     </SidebarGroup>
   );
@@ -157,7 +157,7 @@ export function GroupCount({ n, label, className, pill }: { n: number; label: st
 export function NeedsCount({ n }: { n: number }) {
   if (n <= 0) return null;
   return (
-    <span title={stateCount("needs_you", n)} className="flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-field px-1.5 text-[10.5px] font-semibold text-attention tabular-nums">
+    <span title={stateCount("needs_you", n)} className="shrink-0 text-[11px] font-semibold text-attention tabular-nums">
       {n}<span className="sr-only"> {t("sidebar.needs_you_suffix", { count: n })}</span>
     </span>
   );

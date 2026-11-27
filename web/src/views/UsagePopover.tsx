@@ -40,13 +40,19 @@ import {
 } from "../lib/usage-windows";
 import { AgentMark } from "../ui/AgentMark";
 import { cx } from "../ui/atoms";
+import { Disclosure, DisclosurePanel, DisclosureTrigger } from "../ui/Disclosure";
 import { Icon } from "../ui/icons";
+import { ScrollFade } from "../ui/ScrollFade";
+import { createTooltipController, TooltipRoot, TooltipTrigger, UiTooltipContent } from "../ui/UiTooltip";
+import { FloatingSegment, UnderlineTabs, type UnderlineTabItem } from "../ui/UnderlineTabs";
 import { Meter } from "./UsageBars";
 
-const PACE_CHIP: Record<PaceState, string> = {
-  over: "bg-orange-tint text-orange",
-  under: "bg-green-tint text-green",
-  on: "bg-hover text-ink-3",
+type UsageTooltipController = ReturnType<typeof createTooltipController<string>>;
+
+const PACE_TONE: Record<PaceState, string> = {
+  over: "text-orange",
+  under: "text-green",
+  on: "text-ink-3",
 };
 const paceLabel = (s: PaceState) => (s === "over" ? tr("usage.pace_over") : s === "under" ? tr("usage.pace_under") : tr("usage.pace_on"));
 const shown = (p: number) => `${Math.round(p)}%`;
@@ -168,6 +174,7 @@ export function UsagePopover({
   const [deviceFilter, setDeviceFilter] = useState<string>("all");
   const [compactSelection, setCompactSelection] = useState<string>();
   const [refresh, setRefresh] = useState<"idle" | "loading" | "done" | "failed">("idle");
+  const [tooltip] = useState(() => createTooltipController<string>());
   const refreshing = refresh === "loading";
   const detailsId = useId();
 
@@ -202,6 +209,30 @@ export function UsagePopover({
     if (!onStarter) navigate("/persona/new");
   };
 
+  const deviceTabItems: UnderlineTabItem<string>[] =
+    view === "detailed" && deviceGroups.length >= 2
+      ? [
+          {
+            key: "all",
+            label: tr("usage.all_devices"),
+            count: accounts.length,
+            dataAttrs: { "data-usage-filter": "all" },
+          },
+          ...deviceGroups.map((dev): UnderlineTabItem<string> => ({
+            key: dev.key,
+            label: <span className="block max-w-[9rem] truncate">{deviceTitle(dev)}</span>,
+            count: dev.accounts.length,
+            lead:
+              dev.online !== undefined ? (
+                <span aria-hidden className={cx("size-1.5 shrink-0 rounded-full", dev.online ? "bg-green" : "bg-ink-3/50")} />
+              ) : (
+                <Icon name={dev.kind === "global" ? "cloud" : "machine"} size={12} className="shrink-0 text-ink-3" />
+              ),
+            dataAttrs: { "data-usage-filter": dev.key },
+          })),
+        ]
+      : [];
+
   return (
     <div
       id={id}
@@ -209,96 +240,62 @@ export function UsagePopover({
       aria-label={tr("usage.title")}
       data-usage-popover
       className={cx(
-        "absolute bottom-full left-2 right-2 z-20 mb-2 flex max-h-[75dvh] flex-col overflow-hidden rounded-2xl border border-line/90 bg-surface shadow-overlay lg:right-auto",
+        "absolute bottom-full left-2 right-2 z-20 mb-2 flex max-h-[75dvh] flex-col overflow-hidden rounded-2xl bg-surface shadow-overlay lg:right-auto",
         selectedCompact ? "lg:w-184" : "lg:w-[26rem]",
       )}
       style={{ animation: "pop-in 180ms var(--ease-out-strong) both" }}
     >
-      <header className="shrink-0 border-b border-line/75 bg-surface px-4 py-3">
+      <header className="shrink-0 border-b border-line/60 px-4 py-3">
         <div className="flex items-center gap-2">
           <Icon name="gauge" size={14} className="shrink-0 text-ink-3" />
           <h2 className="text-meta font-semibold tracking-[-0.01em] text-ink">{tr("usage.short_title")}</h2>
           <span className="min-w-0 flex-1 truncate text-submeta text-ink-3">{tr("usage.used")}</span>
           {deviceGroups.length > 0 && (
-            <div role="group" aria-label={tr("usage.display")} className="inline-flex shrink-0 items-center rounded-control bg-inset p-0.5 ring-1 ring-inset ring-line/70">
-              {(["detailed", "compact"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  aria-pressed={view === mode}
-                  onClick={() => setView(mode)}
-                  className={cx(
-                    "min-h-7 rounded-chip px-2.5 text-submeta font-medium transition-[background-color,color,box-shadow] duration-150",
-                    view === mode ? "bg-surface text-ink shadow-hairline" : "text-ink-3 hover:text-ink",
-                  )}
-                >
-                  {mode === "detailed" ? tr("usage.detailed") : tr("usage.compact")}
-                </button>
-              ))}
-            </div>
+            <FloatingSegment
+              ariaLabel={tr("usage.display")}
+              value={view}
+              onChange={setView}
+              size="xs"
+              items={[
+                { key: "detailed", label: tr("usage.detailed") },
+                { key: "compact", label: tr("usage.compact") },
+              ]}
+            />
           )}
-          <button
+          <TooltipTrigger
+            controller={tooltip}
+            payload={tr("usage.refresh")}
             type="button"
             aria-label={tr("usage.refresh")}
-            title={tr("usage.refresh")}
             disabled={refreshing}
             aria-busy={refreshing || undefined}
             onClick={refreshAccounts}
             className="inline-flex size-7 shrink-0 items-center justify-center rounded-control text-ink-3 transition-[background-color,color,transform] duration-150 hover:bg-hover hover:text-ink active:scale-[0.94] disabled:opacity-60"
           >
             <Icon name="retry" size={14} className={refreshing ? BUSY_MOTION : undefined} style={refreshing ? spinStyle(900) : undefined} />
-          </button>
+          </TooltipTrigger>
         </div>
         <div role="status" className={refresh === "failed" ? "pt-1.5 text-submeta text-orange" : "sr-only"}>
           {refreshing ? tr("usage.refreshing") : refresh === "done" ? tr("usage.refreshed") : refresh === "failed" ? tr("usage.refresh_failed") : ""}
         </div>
       </header>
 
-      {view === "detailed" && deviceGroups.length >= 2 && (
-        <div role="group" aria-label={tr("usage.devices")} data-usage-device-filter className="scrollbar-none flex shrink-0 items-center gap-1.5 overflow-x-auto border-b border-line/70 bg-inset/35 px-3.5 py-2">
-          <button
-            type="button"
-            data-usage-filter="all"
-            aria-pressed={activeDevice === "all"}
-            onClick={() => setDeviceFilter("all")}
-            className={cx(
-              "inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-submeta font-medium transition-[background-color,color] duration-150",
-              activeDevice === "all" ? "bg-surface text-ink shadow-hairline ring-1 ring-inset ring-line/85" : "bg-inset/70 text-ink-3 hover:bg-hover hover:text-ink",
-            )}
-          >
-            <span>{tr("usage.all_devices")}</span>
-            <span className="tabular-nums text-ink-3">{accounts.length}</span>
-          </button>
-          {deviceGroups.map((dev) => {
-            const on = activeDevice === dev.key;
-            const title = deviceTitle(dev);
-            return (
-              <button
-                key={dev.key}
-                type="button"
-                data-usage-filter={dev.key}
-                aria-pressed={on}
-                onClick={() => setDeviceFilter(on ? "all" : dev.key)}
-                className={cx(
-                  "inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-submeta font-medium transition-[background-color,color] duration-150",
-                  on ? "bg-surface text-ink shadow-hairline ring-1 ring-inset ring-line/85" : "bg-inset/70 text-ink-2 hover:bg-hover hover:text-ink",
-                )}
-              >
-                {dev.online !== undefined ? (
-                  <span aria-hidden className={cx("size-1.5 shrink-0 rounded-full", dev.online ? "bg-green" : "bg-ink-3/50")} />
-                ) : (
-                  <Icon name={dev.kind === "global" ? "cloud" : "machine"} size={12} className="shrink-0 text-ink-3" />
-                )}
-                <span className="max-w-[9rem] truncate">{title}</span>
-                <span className="tabular-nums text-ink-3">{dev.accounts.length}</span>
-              </button>
-            );
-          })}
+      {deviceTabItems.length > 0 && (
+        <div data-usage-device-filter className="shrink-0">
+          <UnderlineTabs
+            items={deviceTabItems}
+            value={activeDevice}
+            onChange={(next) => setDeviceFilter(next !== "all" && next === activeDevice ? "all" : next)}
+            role="group"
+            ariaLabel={tr("usage.devices")}
+            size="sm"
+            className="px-4"
+          />
         </div>
       )}
 
       {pinnedIds.length > 0 && accounts.length > 0 && (
-        <div data-usage-pinned-bar className="flex shrink-0 items-center justify-between gap-2 border-b border-line/70 bg-inset/45 px-3.5 py-2 text-submeta">
+        <div data-usage-pinned-bar className="flex shrink-0 items-center justify-between gap-2 border-b border-line/60 px-4 py-2 text-submeta">
           <span className="min-w-0 truncate text-ink-3">
             {livePinnedCount > 0 ? tr("usage.pinned_summary", { count: livePinnedCount }) : tr("usage.pinned_fallback")}
           </span>
@@ -313,18 +310,18 @@ export function UsagePopover({
         </div>
       )}
 
-      <div className={cx("min-h-0 flex-1 overflow-y-auto overscroll-contain", selectedCompact && "lg:grid lg:grid-cols-2 lg:items-start lg:divide-x lg:divide-line/80")}>
-        <div className="flex min-w-0 flex-col p-3 pb-4">
+      <div className={cx("min-h-0 flex-1 overflow-y-auto overscroll-contain", selectedCompact && "lg:grid lg:grid-cols-2 lg:items-start lg:divide-x lg:divide-line/60")}>
+        <div className="flex min-w-0 flex-col pb-5">
           {view === "detailed" ? (
             shownDevices.length > 0 && (
-              <div className="flex flex-col gap-3">
+              <div className="divide-y divide-line/60">
                 {shownDevices.map((dev) => (
-                  <DeviceCard key={dev.key} device={dev} now={now} pinned={pinnedSet} />
+                  <DeviceSection key={dev.key} device={dev} now={now} pinned={pinnedSet} tooltip={tooltip} />
                 ))}
               </div>
             )
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 px-2 py-2.5">
               {deviceGroups.map((dev) => {
                 const title = deviceTitle(dev);
                 return (
@@ -356,7 +353,7 @@ export function UsagePopover({
           )}
 
           {unconnected.length > 0 && (
-            <div className={cx("divide-y divide-line/60 overflow-hidden rounded-xl border border-line/80 bg-inset/25 px-3.5", accounts.length > 0 && "mt-3")}>
+            <div className={cx("divide-y divide-line/45 px-4", accounts.length > 0 && "border-t border-line/60")}>
               {unconnected.map((p) => (
                 <section key={`provider:${p.id}`} aria-label={p.title} className="flex flex-col gap-1 py-3 text-label">
                   <div className="flex items-center gap-2">
@@ -379,29 +376,32 @@ export function UsagePopover({
         </div>
 
         {selectedCompact && (
-          <div id={detailsId} className="min-w-0 border-t border-line/80 p-3 pb-4 lg:border-t-0">
-            <div className="overflow-hidden rounded-xl border border-line/80 bg-surface">
-              <ProviderSection group={selectedCompact.group} device={selectedCompact.device} now={now} pinned={pinnedSet} />
-            </div>
+          <div id={detailsId} className="min-w-0 border-t border-line/60 pt-1 pb-5 lg:border-t-0">
+            <ProviderSection group={selectedCompact.group} device={selectedCompact.device} now={now} pinned={pinnedSet} tooltip={tooltip} />
           </div>
         )}
       </div>
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-6 bg-linear-to-t from-surface via-surface/70 to-transparent" />
+      <ScrollFade surface="surface" height="h-6" className="z-10" />
+      <TooltipRoot controller={tooltip} delay={250}>
+        <UiTooltipContent side="top" sideOffset={6}>
+          {(state) => (typeof state.payload === "string" ? state.payload : null)}
+        </UiTooltipContent>
+      </TooltipRoot>
     </div>
   );
 }
 
-function DeviceCard({ device, now, pinned }: { device: DeviceGroup; now: number; pinned: ReadonlySet<string> }) {
+function DeviceSection({ device, now, pinned, tooltip }: { device: DeviceGroup; now: number; pinned: ReadonlySet<string>; tooltip: UsageTooltipController }) {
   const title = deviceTitle(device);
   const onlineLabel = device.online !== undefined ? (device.online ? tr("usage.device_online") : tr("usage.device_offline")) : "";
   return (
-    <section data-usage-device={device.key} aria-label={title} className="overflow-hidden rounded-xl border border-line/80 bg-page/60">
-      <header className="flex items-center justify-between gap-2 border-b border-line/65 bg-inset/60 px-3.5 py-2">
+    <section data-usage-device={device.key} aria-label={title} className="flex flex-col">
+      <header className="flex items-center justify-between gap-2 px-4 pt-3.5 pb-1.5">
         <div className="flex min-w-0 items-center gap-1.5">
           <Icon name={device.kind === "global" ? "cloud" : "machine"} size={13} className="shrink-0 text-ink-3" />
-          <h3 className="min-w-0 truncate text-label font-semibold text-ink">{title}</h3>
+          <h3 className="min-w-0 truncate text-label font-semibold tracking-[-0.01em] text-ink">{title}</h3>
           {device.subtitle && (
-            <span className="shrink-0 rounded-chip bg-surface/85 px-1.5 py-px font-mono text-submeta text-ink-3 ring-1 ring-inset ring-line/65">
+            <span className="min-w-0 truncate font-mono text-submeta text-ink-3">
               {device.subtitle}
             </span>
           )}
@@ -414,9 +414,9 @@ function DeviceCard({ device, now, pinned }: { device: DeviceGroup; now: number;
         </div>
         {device.sampledAt && <span className="shrink-0 text-submeta tabular-nums text-ink-3">{sampleAge(device.sampledAt, now)}</span>}
       </header>
-      <div className="divide-y divide-line/60 bg-surface/85">
+      <div className="divide-y divide-line/45">
         {device.providers.map((g) => (
-          <ProviderSection key={g.provider} group={g} device={device} now={now} pinned={pinned} />
+          <ProviderSection key={g.provider} group={g} device={device} now={now} pinned={pinned} tooltip={tooltip} />
         ))}
       </div>
     </section>
@@ -454,17 +454,17 @@ function ProviderSummary({ group, selected, detailsId, now, onClick }: { group: 
   );
 }
 
-function ProviderSection({ group, device, now, pinned }: { group: ProviderGroup; device: DeviceGroup; now: number; pinned: ReadonlySet<string> }) {
+function ProviderSection({ group, device, now, pinned, tooltip }: { group: ProviderGroup; device: DeviceGroup; now: number; pinned: ReadonlySet<string>; tooltip: UsageTooltipController }) {
   const providerName = providerTitle(group.provider);
   if (group.accounts.length === 1) {
     const a = group.accounts[0];
     const subLabel = distinctAccountLabel(a.name, providerName, group.provider, device);
     return (
-      <section data-usage-provider={group.provider} aria-label={providerName} className="flex min-w-0 flex-col gap-2.5 px-3.5 py-3">
+      <section data-usage-provider={group.provider} aria-label={providerName} className="flex min-w-0 flex-col gap-2.5 px-4 py-2.5">
         <div role="group" aria-label={a.name} className={cx("flex flex-col gap-2.5", a.stale && "opacity-70")}>
-          <header className="flex flex-col gap-1">
+          <header className="flex flex-col gap-0.5">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
                 <AgentMark agent={group.provider} label={providerName} decorative size={15} />
                 <h4 className="shrink-0 text-meta font-semibold text-ink">{providerName}</h4>
                 {subLabel && <span className="min-w-0 truncate text-label font-medium text-ink-2">{subLabel}</span>}
@@ -472,11 +472,11 @@ function ProviderSection({ group, device, now, pinned }: { group: ProviderGroup;
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
                 {a.stale && (
-                  <span className="shrink-0 whitespace-nowrap rounded-chip bg-hover px-1.5 py-px text-submeta tabular-nums text-ink-3">
+                  <span className="shrink-0 whitespace-nowrap text-submeta tabular-nums text-ink-3">
                     {tr("usage.stale_age", { age: sampleAge(a.sampled_at, now) })}
                   </span>
                 )}
-                <PinButton a={a} pinned={pinned.has(a.id)} />
+                <PinButton a={a} pinned={pinned.has(a.id)} tooltip={tooltip} />
               </div>
             </div>
             <AccountProblem a={a} />
@@ -489,31 +489,35 @@ function ProviderSection({ group, device, now, pinned }: { group: ProviderGroup;
   }
 
   return (
-    <section data-usage-provider={group.provider} aria-label={providerName} className="flex min-w-0 flex-col gap-2.5 px-3.5 py-3">
+    <section data-usage-provider={group.provider} aria-label={providerName} className="flex min-w-0 flex-col gap-2.5 px-4 py-2.5">
       <header className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <AgentMark agent={group.provider} label={providerName} decorative size={15} />
           <h4 className="min-w-0 truncate text-meta font-semibold text-ink">{providerName}</h4>
         </div>
-        <span className="shrink-0 rounded-chip bg-hover px-1.5 py-px text-submeta font-medium tabular-nums text-ink-3">
+        <span className="shrink-0 text-submeta font-medium tabular-nums text-ink-3">
           {tr("usage.provider_accounts", { count: group.accounts.length })}
         </span>
       </header>
-      <div className="flex flex-col gap-2">
-        {group.accounts.map((a) => {
+      <div className="flex flex-col gap-3">
+        {group.accounts.map((a, idx) => {
           const subLabel = distinctAccountLabel(a.name, providerName, group.provider, device) || a.name;
           const ageText = a.stale ? tr("usage.stale_age", { age: sampleAge(a.sampled_at, now) }) : sampleAge(a.sampled_at, now);
           return (
-            <section key={a.id} aria-label={a.name} className={cx("flex flex-col gap-2.5 rounded-control bg-inset/50 px-3 py-2.5 ring-1 ring-inset ring-line/55", a.stale && "opacity-70")}>
+            <section
+              key={a.id}
+              aria-label={a.name}
+              className={cx("flex flex-col gap-2", idx > 0 && "border-t border-line/45 pt-2.5", a.stale && "opacity-70")}
+            >
               <header className="flex flex-col gap-0.5">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                    <h5 className="min-w-0 truncate text-label font-semibold text-ink">{subLabel}</h5>
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                    <h5 className="min-w-0 truncate text-label font-medium text-ink">{subLabel}</h5>
                     <AccountSourceMeta a={a} providerId={group.provider} providerName={providerName} device={device} />
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
                     {ageText && <span className="shrink-0 text-submeta tabular-nums text-ink-3">{ageText}</span>}
-                    <PinButton a={a} pinned={pinned.has(a.id)} />
+                    <PinButton a={a} pinned={pinned.has(a.id)} tooltip={tooltip} />
                   </div>
                 </div>
                 <AccountProblem a={a} />
@@ -528,22 +532,23 @@ function ProviderSection({ group, device, now, pinned }: { group: ProviderGroup;
   );
 }
 
-function PinButton({ a, pinned }: { a: UsageAccount; pinned: boolean }) {
+function PinButton({ a, pinned, tooltip }: { a: UsageAccount; pinned: boolean; tooltip: UsageTooltipController }) {
   return (
-    <button
+    <TooltipTrigger
+      controller={tooltip}
+      payload={pinned ? tr("usage.unpin_title") : tr("usage.pin_title")}
       type="button"
       data-usage-pin={a.id}
       aria-pressed={pinned}
       aria-label={pinned ? tr("usage.unpin_account", { name: a.name }) : tr("usage.pin_account", { name: a.name })}
-      title={pinned ? tr("usage.unpin_title") : tr("usage.pin_title")}
       onClick={() => togglePinnedUsageAccount(a.id)}
       className={cx(
         "inline-flex size-6 shrink-0 items-center justify-center rounded-chip transition-[background-color,color,transform] duration-150 active:scale-[0.94]",
-        pinned ? "bg-hover-2 text-accent-ink" : "text-ink-3/75 hover:bg-hover hover:text-ink",
+        pinned ? "bg-hover/80 text-accent-ink" : "text-ink-3/75 hover:bg-hover hover:text-ink",
       )}
     >
       <Icon name="pin" size={12} />
-    </button>
+    </TooltipTrigger>
   );
 }
 
@@ -557,7 +562,8 @@ function AccountSourceMeta({ a, providerId, providerName, device }: { a: UsageAc
   const hasVisibleMeta = Boolean(plan) || extraSources.length > 0;
   return (
     <div data-usage-source className={cx("inline-flex min-w-0 items-center gap-1.5 text-submeta text-ink-3", !hasVisibleMeta && "sr-only")}>
-      {plan && <span className="shrink-0 rounded-chip bg-hover px-1.5 py-px font-medium whitespace-nowrap text-ink-2">{plan}</span>}
+      {plan && <span className="shrink-0 font-medium whitespace-nowrap text-ink-3">{plan}</span>}
+      {plan && extraSources.length > 0 && <span aria-hidden className="shrink-0 text-ink-3/50">·</span>}
       {extraSources.length > 0 && (
         <span className="min-w-0 truncate text-ink-3" title={tr("usage.sources_title", { sources: fullText })}>
           {extraText}
@@ -578,7 +584,7 @@ function AccountBody({ a, now }: { a: UsageAccount; now: number }) {
   return (
     <>
       {a.balance && (
-        <div data-usage-balance className="flex items-baseline justify-between gap-2 rounded-control bg-inset/60 px-3 py-2 ring-1 ring-inset ring-line/60">
+        <div data-usage-balance className="flex items-baseline justify-between gap-2 border-t border-line/50 pt-2">
           <span className="text-label text-ink-3">{tr("usage.balance_label")}</span>
           <span className={cx("text-meta font-semibold tabular-nums", balanceEmpty(a.balance) ? "text-orange" : "text-ink")}>{balanceText(a.balance)}</span>
         </div>
@@ -604,15 +610,21 @@ function ProviderTimeline({ accounts, now }: { accounts: UsageAccount[]; now: nu
   if (!rows.length) return null;
   const tickLabel = (h: number) => (h < 24 ? tr("usage.hours", { h }) : tr("usage.days", { d: h / 24 }));
   return (
-    <details data-usage-timeline className="group/timeline @container/usage-timeline rounded-control bg-inset/45 ring-1 ring-inset ring-line/55">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-1.5 text-submeta font-medium text-ink-3 select-none hover:text-ink [&::-webkit-details-marker]:hidden">
-        <span className="inline-flex items-center gap-1.5">
-          <Icon name="clock" size={12} className="shrink-0 text-ink-3" />
-          <span>{tr("usage.timeline_title")}</span>
-        </span>
-        <Icon name="chevron" size={11} className="-rotate-90 shrink-0 text-ink-3/80 transition-transform duration-150 group-open/timeline:rotate-0" />
-      </summary>
-      <div role="group" aria-label={tr("usage.timeline_title")} className="border-t border-line/50 px-2.5 pt-2.5 pb-2">
+    <div data-usage-timeline className="@container/usage-timeline border-t border-line/50 pt-2">
+      <Disclosure>
+        <DisclosureTrigger className="group/timeline flex w-full items-center justify-between gap-2 py-0.5 text-submeta font-medium text-ink-3 select-none transition-colors duration-150 hover:text-ink">
+          <span className="inline-flex items-center gap-1.5">
+            <Icon name="clock" size={12} className="shrink-0 text-ink-3" />
+            <span>{tr("usage.timeline_title")}</span>
+          </span>
+          <Icon
+            name="chevron"
+            size={11}
+            className="-rotate-90 shrink-0 text-ink-3/80 transition-transform duration-200 ease-(--ease-out-strong) group-data-[open]/timeline:rotate-0"
+          />
+        </DisclosureTrigger>
+        <DisclosurePanel keepMounted>
+          <div role="group" aria-label={tr("usage.timeline_title")} className="pt-2.5 pb-1">
         <div className="relative mb-1.5 h-3.5" style={{ marginLeft: TIMELINE_NAME_W }} aria-hidden>
           <span className="absolute right-full top-0 mr-2 whitespace-nowrap text-submeta font-medium leading-none text-ink-2">{tr("usage.timeline_now")}</span>
           {TIMELINE_TICKS_HOURS.map((h, i) => {
@@ -622,7 +634,7 @@ function ProviderTimeline({ accounts, now }: { accounts: UsageAccount[]; now: nu
                 key={h}
                 className={cx(
                   "absolute top-0 whitespace-nowrap text-submeta leading-none tabular-nums text-ink-3",
-                  denseHide && "@max-[23rem]/usage-timeline:hidden",
+                  denseHide && "@max-[30rem]/usage-timeline:hidden",
                   i === TIMELINE_TICKS_HOURS.length - 1 ? "-translate-x-full" : "-translate-x-1/2",
                 )}
                 style={{ left: `${timelinePosition(h * 3600_000) * 100}%` }}
@@ -679,7 +691,7 @@ function ProviderTimeline({ accounts, now }: { accounts: UsageAccount[]; now: nu
                       />
                       <span
                         aria-hidden
-                        className="absolute z-[2] size-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-surface"
+                        className="absolute z-[2] size-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface"
                         style={{ left: `${l.end * 100}%`, top: centerY, backgroundColor: color }}
                       />
                       <span
@@ -699,8 +711,10 @@ function ProviderTimeline({ accounts, now }: { accounts: UsageAccount[]; now: nu
             );
           })}
         </div>
-      </div>
-    </details>
+          </div>
+        </DisclosurePanel>
+      </Disclosure>
+    </div>
   );
 }
 
@@ -708,17 +722,18 @@ function WindowRow({ name, w, stale, now }: { name: string; w: UsageWindow; stal
   const p = accountPace({ stale }, w, now);
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-2 text-submeta">
-        <span className="inline-flex min-w-7 shrink-0 items-center justify-center rounded-chip bg-hover px-1.5 py-0.5 font-mono text-submeta font-semibold tabular-nums text-ink">
-          {w.label}
-        </span>
+      <div className="flex items-center gap-1.5 text-submeta">
+        <span className="shrink-0 font-mono text-submeta font-semibold tabular-nums text-ink-2">{w.label}</span>
         {w.model && (
-          <span data-usage-model className="max-w-[11.5rem] shrink-0 truncate rounded-chip bg-inset/80 px-2 py-0.5 text-submeta font-medium text-ink-2 ring-1 ring-inset ring-line/65" title={w.model}>
-            {w.model}
-          </span>
+          <>
+            <span aria-hidden className="shrink-0 text-ink-3/50">·</span>
+            <span data-usage-model className="min-w-0 max-w-[11.5rem] truncate text-submeta text-ink-3" title={w.model}>
+              {w.model}
+            </span>
+          </>
         )}
         <span className="min-w-0 flex-1 truncate text-right text-ink-3">{resetLabel(w.resets_at, now)}</span>
-        {p && p.state !== "on" && <span className={cx("shrink-0 whitespace-nowrap rounded-chip px-1.5 py-px font-medium", PACE_CHIP[p.state])}>{paceLabel(p.state)}</span>}
+        {p && p.state !== "on" && <span className={cx("shrink-0 whitespace-nowrap font-medium", PACE_TONE[p.state])}>{paceLabel(p.state)}</span>}
         <span className={cx("w-9 shrink-0 text-right text-label font-semibold tabular-nums", valueTone(w.used_percent))}>
           {shown(w.used_percent)}
         </span>

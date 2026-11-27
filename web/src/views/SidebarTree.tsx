@@ -62,8 +62,8 @@ const TreeAgentRows = memo(function TreeAgentRows({ a, depth, machineLabel, show
         </div>
       </div>
       {a.children.length > 0 && (
-        <Collapse open={!folded} sidebarFold>
-          <div className="ml-2.5 flex flex-col gap-0.5 border-l border-line/55 pl-1.5" inert={folded || undefined}>
+        <Collapse open={!folded} sidebarFold unclipped>
+          <div className="flex flex-col gap-1 pl-2.5" inert={folded || undefined}>
             {a.children.map((c) => <SpawnedAgentRows key={c.key} a={c} depth={depth + 1} machineLabel={machineLabel} showHost={showHost} noContext={noContext} keyPrefix={keyPrefix} reg={reg} hover={hover} activeKey={withinAgent(c, activeKey)} go={go} onRowMenu={onRowMenu} />)}
           </div>
         </Collapse>
@@ -141,7 +141,7 @@ function SpaceTodoTag({ sp, onNavigate }: { sp: Space; onNavigate?: () => void }
         e.stopPropagation();
         openTodoFromTag(linkedTodo.id, navigate, onNavigate);
       }}
-      className="relative z-10 flex shrink-0 items-center justify-center rounded bg-hover px-1 py-0.5 text-ink-3 hover:bg-hover-2 hover:text-ink transition-colors cursor-pointer"
+      className="relative z-10 flex size-5 shrink-0 items-center justify-center rounded-[6px] text-ink-3 hover:bg-hover-2 hover:text-ink transition-colors cursor-pointer"
       title={t("sidebar.todo_tag", { title: linkedTodo.title })}
       aria-label={t("sidebar.todo_tag", { title: linkedTodo.title })}
     >

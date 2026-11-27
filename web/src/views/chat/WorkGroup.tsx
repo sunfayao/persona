@@ -165,23 +165,23 @@ export const WorkGroup = memo(function WorkGroup({ g, p, limit }: { g: WorkGroup
         aria-expanded={opens ? open : undefined}
         title={p.nested && actions.text ? actions.text : g.clock ? t(g.clock === "run" ? "chat-workgroup.run_clock" : "chat-workgroup.exchange_clock") : undefined}
         // on a touch screen 40 tall, the margin taking back what it adds, so nothing around it moves
-        className={cx("flex w-full min-w-0 items-center gap-1.5 rounded-[10px] px-2 py-[3px] text-left select-none [@media(pointer:coarse)]:-my-[7.5px] [@media(pointer:coarse)]:min-h-10", opens ? "cursor-pointer transition-colors duration-150 hover:bg-tool-hover motion-reduce:transition-none" : "cursor-default")}
+        className={cx("group flex w-full min-w-0 items-center gap-1.5 rounded-[10px] px-2 py-[3px] text-left select-none [@media(pointer:coarse)]:-my-[7.5px] [@media(pointer:coarse)]:min-h-10", opens ? "cursor-pointer transition-[background-color,color] duration-150 ease-(--ease-out-strong) hover:bg-tool-hover/90 motion-reduce:transition-none" : "cursor-default")}
       >
-        <span className="inline-flex h-[1lh] shrink-0 items-center text-tool-ink">{p.nested ? <Icon name={actions.icon} size={14} /> : g.live ? <Spinner size={14} /> : <Icon name="layers" size={14} />}</span>
-        <span className="min-w-0 translate-y-[1px] truncate text-[length:var(--chat-secondary)] text-tool-ink">{heading}</span>
+        <span className={cx("inline-flex h-[1lh] shrink-0 items-center", !p.nested && g.live ? "text-status-accent" : "text-tool-ink", opens && "transition-colors duration-150 group-hover:text-ink motion-reduce:transition-none")}>{p.nested ? <Icon name={actions.icon} size={14} /> : g.live ? <Spinner size={14} /> : <Icon name="layers" size={14} />}</span>
+        <span className={cx("min-w-0 translate-y-[1px] truncate text-[length:var(--chat-secondary)] text-tool-ink", opens && "transition-[color,translate,transform] duration-150 ease-(--ease-out-strong) group-hover:translate-x-[1px] group-hover:text-ink motion-reduce:transition-none motion-reduce:group-hover:translate-x-0")}>{heading}</span>
         <span className="flex-1" />
         {loading && <Spinner size={11} />}
         {!p.nested && g.live && g.startedAt !== undefined && <Elapsed since={g.startedAt} />}
-        {opens && <Icon name="chevronRight" size={14} stroke={2.2} className="shrink-0 text-tool-ink transition-transform duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none" style={{ transform: open ? "rotate(90deg)" : "none" }} />}
+        {opens && <Icon name="chevronRight" size={14} stroke={2.2} className="shrink-0 text-tool-ink transition-[transform,color] duration-200 ease-(--ease-out-strong) group-hover:text-ink motion-reduce:transition-none" style={{ transform: open ? "rotate(90deg)" : "none" }} />}
       </button>
       {open && failed && !loading && (
         <div className="mt-1 flex items-center gap-2 pl-[22px] text-[12px] text-ink-3" role="status">
           {t("chat-workgroup.load_failed")}
-          <button type="button" onClick={() => setAttempt((n) => n + 1)} className="touch-hit rounded-control px-1.5 py-0.5 font-medium whitespace-nowrap text-accent-ink hover:bg-hover">{t("chat-workgroup.retry")}</button>
+          <button type="button" onClick={() => setAttempt((n) => n + 1)} className="touch-hit rounded-control px-1.5 py-0.5 font-medium whitespace-nowrap text-accent-ink transition-colors duration-150 hover:bg-hover">{t("chat-workgroup.retry")}</button>
         </div>
       )}
-      <Collapse open={open} lazy>
-        <div className={cx("mt-1 flex min-w-0 flex-col gap-2 py-[2px]", !p.nested && "ml-[14px] border-l-[1.5px] border-tool-rail pl-3")} data-work-detail>
+      <Collapse open={open} lazy className="motion-safe:duration-[220ms]">
+        <div className={cx("mt-1 flex min-w-0 flex-col gap-2 py-[2px]", !p.nested && "ml-[14px] border-l border-tool-rail pl-3")} data-work-detail>
           <WorkNodes nodes={g.children} p={inside} live={rowsLive} limit={drawn} />
           {/* once, in the innermost live group: a live timeline's last run is live too */}
           {g.live && !g.children.some((c) => c.kind === "group" && c.live) && <LiveThinking mid={p.mid} sid={p.sid} />}

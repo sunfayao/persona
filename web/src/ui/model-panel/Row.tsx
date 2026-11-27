@@ -137,10 +137,10 @@ export function Row({ row, second, describes, keepSecond, asButton, dense, block
       }}
       onKeyDown={key}
       className={cx(
-        "group/row relative z-[1] flex w-full flex-col rounded-control px-3 text-[14px] leading-[1.43] text-ink outline-none select-none",
+        "group/row relative z-[1] flex w-full flex-col rounded-control px-3 text-[14px] leading-[1.43] text-ink outline-none select-none transition-[background-color,box-shadow,color] duration-150",
         dense ? "py-1.5 [&+[data-panel-row]]:mt-px" : "py-2 [&+[data-panel-row]]:mt-1",
         "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent",
-        row.current && "bg-hover-2 data-[glide]:bg-transparent",
+        row.current && "bg-float shadow-float-sm data-[glide]:bg-transparent data-[glide]:shadow-none",
         saved && "min-h-11 justify-center",
         ariaOff || frozen ? "cursor-not-allowed" : "cursor-pointer",
         ariaOff && "opacity-50",

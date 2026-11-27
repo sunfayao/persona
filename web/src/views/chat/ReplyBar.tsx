@@ -17,12 +17,12 @@ import { exactTime, relativeTime } from "../../lib/relative-time";
 import { Button, copyText, cx, Dialog, Menu, toast } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
 import { REPLY_BAR_FADE_MS, REPLY_BAR_LINGER_MS } from "../../ui/motion";
+import { createTooltipController, TooltipRoot, TooltipTrigger, UiTooltipContent } from "../../ui/UiTooltip";
 import { isNoHover } from "../../ui/media-query";
 import type { ForwardPick } from "../../lib/forward";
 import type { Action } from "./MessageActions";
 import { TurnUsage } from "./TurnUsage";
 import type { ReplyTranslation } from "../../lib/reply-translation";
-import { ReplyTranslationButton } from "./ReplyTranslationButton";
 import { useChatActions, type ChatActions } from "./chat-actions";
 import type { RewindRestore } from "../../lib/rewind";
 
@@ -173,7 +173,8 @@ export function MessageMenu({ anchor, onClose, primary: actions, itemId, text, r
  *  holds no timer per reply. */
 const TIME_TICK_MS = 30_000;
 
-const BUTTON = "flex size-6 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-hover-2";
+const BUTTON = "flex size-6 shrink-0 items-center justify-center rounded-full text-ink-3 transition-[background-color,color,scale,transform] duration-150 ease-(--ease-out-strong) hover:bg-hover-2 active:scale-[0.92] motion-reduce:transition-none";
+const REVEAL = "transition-[opacity,translate,transform] duration-200 ease-(--ease-out-strong)";
 
 /** Copies without a toast (the ✓ says it); without the async clipboard (plain http), copyText's way, which says it. */
 async function copyQuietly(text: string): Promise<boolean> {
@@ -196,6 +197,7 @@ export function ReplyBar({ text, ts, itemId, more: actions, pinned, usage, usage
   const [now, setNow] = useState(() => Date.now());
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const [card, setCard] = useState(false);
+  const [tooltip] = useState(() => createTooltipController<string>());
 
   // the pointer over the reply: the element this bar is in
   useEffect(() => {
@@ -236,8 +238,13 @@ export function ReplyBar({ text, ts, itemId, more: actions, pinned, usage, usage
 
   const time = relativeTime(ts, now);
   // with the pointer, an open ⋯ menu or keyboard focus in it: the whole bar; otherwise nothing, or (`pinned`) the time only
-  const fade = visible || menu || card ? "opacity-100" : pinned ? "pointer-events-none opacity-0 group-has-[:focus-visible]/bar:pointer-events-auto group-has-[:focus-visible]/bar:opacity-100" : "pointer-events-none opacity-0 has-[:focus-visible]:pointer-events-auto has-[:focus-visible]:opacity-100";
-  const fadeStyle = { transitionDuration: `${REPLY_BAR_FADE_MS}ms` };
+  const shown = visible || Boolean(menu) || card;
+  const fade = shown
+    ? "translate-y-0 opacity-100"
+    : pinned
+      ? "pointer-events-none translate-y-[2px] opacity-0 group-has-[:focus-visible]/bar:pointer-events-auto group-has-[:focus-visible]/bar:translate-y-0 group-has-[:focus-visible]/bar:opacity-100 motion-reduce:translate-y-0"
+      : "pointer-events-none translate-y-[2px] opacity-0 has-[:focus-visible]:pointer-events-auto has-[:focus-visible]:translate-y-0 has-[:focus-visible]:opacity-100 motion-reduce:translate-y-0";
+  const fadeStyle = { transitionDuration: shown ? "200ms" : `${REPLY_BAR_FADE_MS}ms` };
   const copyLabel = t("chat-messageactions.copy_message");
   const moreLabel = t("chat-replybar.more_actions");
   return (
@@ -247,42 +254,86 @@ export function ReplyBar({ text, ts, itemId, more: actions, pinned, usage, usage
       // hidden on touch screens, which have the copy + ⋯ row (MessageActions); the keyboard shows it (:focus-visible,
       // so a click does not keep it after the pointer leaves)
       className={cx(
-        "mt-1.5 hidden h-6 items-center gap-0.5 transition-opacity [@media(hover:hover)]:flex",
-        pinned ? "group/bar" : fade,
+        "mt-1.5 hidden h-6 items-center gap-0.5 [@media(hover:hover)]:flex",
+        pinned ? "group/bar" : cx(REVEAL, fade),
       )}
-      style={fadeStyle}
+      style={pinned ? undefined : fadeStyle}
       onFocus={() => setNow(Date.now())}
     >
-      <div className={cx("flex items-center gap-0.5", pinned && cx("transition-opacity", fade))} style={pinned ? fadeStyle : undefined}>
-        <button
-          type="button"
-          aria-label={copyLabel}
-          title={copyLabel}
-          onClick={async () => {
-            if (await copyQuietly(text)) setCopied(true);
-          }}
-          className={cx(BUTTON, !copied && "hover:text-ink")}
+      <TooltipRoot controller={tooltip} delay={280} disabled={Boolean(menu)}>
+        <UiTooltipContent side="top" sideOffset={6}>
+          {(state) => (typeof state.payload === "string" ? state.payload : null)}
+        </UiTooltipContent>
+      </TooltipRoot>
+      <div className={cx("flex items-center gap-0.5", pinned && cx(REVEAL, fade))} style={pinned ? fadeStyle : undefined}>
+        <TooltipTrigger
+          controller={tooltip}
+          payload={copyLabel}
+          render={
+            <button
+              type="button"
+              aria-label={copyLabel}
+              onClick={async () => {
+                if (await copyQuietly(text)) setCopied(true);
+              }}
+              className={cx(BUTTON, !copied && "hover:text-ink")}
+            />
+          }
         >
           <Icon name={copied ? "check" : "copy"} size={14} />
-        </button>
+        </TooltipTrigger>
         {branch && (
-          <button type="button" aria-label={branch.label} title={branch.label} onClick={() => void branch.onSelect()} className={cx(BUTTON, "hover:text-ink")}>
+          <TooltipTrigger
+            controller={tooltip}
+            payload={branch.label}
+            render={
+              <button
+                type="button"
+                aria-label={branch.label}
+                onClick={() => void branch.onSelect()}
+                className={cx(BUTTON, "hover:text-ink")}
+              />
+            }
+          >
             <Icon name={branch.icon} size={14} />
-          </button>
+          </TooltipTrigger>
         )}
-        {translation && <ReplyTranslationButton translation={translation} />}
+        {translation && (
+          <TooltipTrigger
+            controller={tooltip}
+            payload={translation.label}
+            render={
+              <button
+                type="button"
+                aria-label={translation.label}
+                aria-pressed={translation.shown}
+                aria-busy={translation.pending}
+                disabled={translation.pending}
+                onClick={translation.toggle}
+                className={cx(BUTTON, "hover:text-ink disabled:opacity-50", translation.shown && "text-accent")}
+              />
+            }
+          >
+            <Icon name="translate" size={14} />
+          </TooltipTrigger>
+        )}
         {more.length > 0 && (
-          <button
-            type="button"
-            aria-label={moreLabel}
-            title={moreLabel}
-            aria-haspopup="menu"
-            aria-expanded={Boolean(menu)}
-            onClick={(e) => setMenu(menu ? null : e.currentTarget)}
-            className={cx(BUTTON, "hover:text-ink", menu && "bg-hover-2 text-ink")}
+          <TooltipTrigger
+            controller={tooltip}
+            payload={moreLabel}
+            render={
+              <button
+                type="button"
+                aria-label={moreLabel}
+                aria-haspopup="menu"
+                aria-expanded={Boolean(menu)}
+                onClick={(e) => setMenu(menu ? null : e.currentTarget)}
+                className={cx(BUTTON, "hover:text-ink", menu && "bg-hover-2 text-ink")}
+              />
+            }
           >
             <Icon name="more" size={14} />
-          </button>
+          </TooltipTrigger>
         )}
       </div>
       {time && (
@@ -293,7 +344,7 @@ export function ReplyBar({ text, ts, itemId, more: actions, pinned, usage, usage
       {usage &&
         (pinned ? (
           // a pinned reply's time stays; what it cost comes with the pointer, as the buttons do
-          <span data-usage-fade className={cx("flex items-center transition-opacity", fade)} style={fadeStyle}>
+          <span data-usage-fade className={cx("flex items-center", REVEAL, fade)} style={fadeStyle}>
             <TurnUsage usage={usage} ms={usageMs} ttftMs={ttftMs} persona={persona} onOpen={setCard} />
           </span>
         ) : (

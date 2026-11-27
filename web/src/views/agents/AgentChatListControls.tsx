@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useState, type ReactNode } from "react";
 import { t } from "../../i18n";
 import { flipPin } from "../../lib/agent-actions";
 import {
@@ -236,7 +236,7 @@ export function AgentFilterChips({
             <span
               key={chip.key}
               data-chip={chip.key}
-              className="inline-flex max-w-full items-center gap-1 rounded-full bg-hover py-0.5 pr-1 pl-2 font-medium text-ink"
+              className="inline-flex max-w-full items-center gap-1 rounded-[6px] bg-ink/[0.045] dark:bg-ink/[0.06] py-0.5 pr-1 pl-2 font-medium text-ink"
             >
               {chip.onEdit ? (
                 <button type="button" onClick={chip.onEdit} title={t("sidebar.search_sessions")} className="min-w-0 truncate text-left hover:text-accent-ink">
@@ -269,7 +269,7 @@ export function AgentFilterChips({
       {filters.searchAsCode && plan && (
         <div
           data-testid="search-as-code-plan"
-          className="flex items-center gap-1.5 rounded-[9px] border border-line/80 bg-inset/75 px-2 py-1 text-[11px]"
+          className="flex items-center gap-1.5 rounded-[8px] bg-ink/[0.035] dark:bg-ink/[0.045] px-2 py-1 text-[11px]"
         >
           <Icon name="code" size={12} stroke={2} className="shrink-0 text-accent-ink" />
           {editingPlan ? (
@@ -366,8 +366,8 @@ export const AgentChatListRow = memo(function AgentChatListRow({
   const hasErr = sessionHasError(s, ctx.interactions);
   const statePill = st === "working"
     ? bgWait
-      ? { label: stateName("bg_waiting"), cls: "bg-hover text-ink-3" }
-      : { label: stateName("working"), cls: "bg-orange-tint/80 text-orange" }
+      ? { label: stateName("bg_waiting"), cls: "text-ink-3" }
+      : { label: stateName("working"), cls: "text-accent-ink" }
     : undefined;
 
   const evidence = useMemo(
@@ -385,7 +385,53 @@ export const AgentChatListRow = memo(function AgentChatListRow({
   const source = sessionSource(s);
   const regRow = useMemo(() => reg(k), [reg, k]);
   const cardTone = active ? SESSION_ACTIVE_ROW : "hover:bg-hover";
-  const metaChip = active ? "bg-canvas/65" : "bg-hover/80";
+  const metaParts: { key: string; node: ReactNode }[] = [];
+  if (machineLabel) {
+    metaParts.push({
+      key: "machine",
+      node: (
+        <span className="inline-flex max-w-[100px] items-center gap-0.5 truncate">
+          <Icon name="machine" size={9} stroke={2} className="shrink-0" />
+          <span className="truncate">{machineLabel}</span>
+        </span>
+      ),
+    });
+  }
+  if (projectLabel) {
+    metaParts.push({
+      key: "project",
+      node: (
+        <span className="inline-flex max-w-[116px] items-center gap-0.5 truncate">
+          <Icon name="folder" size={9} stroke={2} className="shrink-0" />
+          <span className="truncate">{projectLabel}</span>
+        </span>
+      ),
+    });
+  }
+  if (tabIdentity) {
+    metaParts.push({
+      key: "tab",
+      node: <span className="max-w-[100px] truncate" title={tabIdentity}>{tabIdentity}</span>,
+    });
+  }
+  if (harnessLabel) {
+    metaParts.push({
+      key: "harness",
+      node: <span className="max-w-[96px] truncate">{harnessLabel}</span>,
+    });
+  }
+  if (modelLabel) {
+    metaParts.push({
+      key: "model",
+      node: <span className="max-w-[116px] truncate font-mono text-[10px]">{modelLabel}</span>,
+    });
+  }
+  if (source) {
+    metaParts.push({
+      key: "source",
+      node: <span title={sourceName(source)}>{sourceName(source)}</span>,
+    });
+  }
 
   return (
     <div
@@ -407,34 +453,28 @@ export const AgentChatListRow = memo(function AgentChatListRow({
         onBlur={() => hover(null)}
         aria-current={active ? "page" : undefined}
         className={cx(
-          "relative z-10 flex w-full items-start gap-2.5 rounded-[10px] px-2.5 py-2 transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.99]",
+          "relative z-10 flex w-full items-start gap-2.5 rounded-[10px] px-2.5 py-2 transition-[background-color,box-shadow,color,transform] duration-200 ease-(--ease-out-strong) active:scale-[0.99]",
           cardTone,
         )}
       >
-        {/* Left: Borderless harness icon + corner live StatusMark badge */}
+        {/* Left: Clean borderless harness icon (no overlapping circular cutout) */}
         <span
           className={cx(
-            "relative mt-0.5 flex size-6 shrink-0 items-center justify-center bg-transparent transition-colors",
-            active || st === "needs_you" || (st === "working" && !bgWait) ? "text-ink" : "text-ink-2",
+            "mt-0.5 flex size-5 shrink-0 items-center justify-center bg-transparent transition-colors",
+            active || st === "needs_you" || (st === "working" && !bgWait) ? "text-ink" : "text-ink-2 group-hover/row:text-ink",
             st === "offline" && "opacity-50",
           )}
         >
           <SessionMark s={s} size={16} className="text-current" />
-          <span
-            className={cx(
-              "pointer-events-none absolute -right-0.5 -bottom-0.5 flex size-3.5 items-center justify-center rounded-full ring-1 transition-colors",
-              active ? "bg-hover-2 ring-hover-2" : "bg-canvas ring-canvas group-hover/row:bg-hover group-hover/row:ring-hover",
-              quietMark && "scale-75 opacity-35",
-            )}
-          >
-            <StatusMark state={markState} size="sm" awaiting={awaiting} finished={finished} unopened={unopened} waiting={bgWait} />
-          </span>
         </span>
 
-        {/* Center column: Title + Time, Second line (Evidence snippet or Last message), Metadata chips */}
+        {/* Center column: Title + Time, Second line (Evidence snippet or Last message), Inline metadata */}
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          {/* Line 1: Session Title + Ultracode + Pinned badge + State Pill + Relative Activity Time */}
+          {/* Line 1: Inline StatusMark + Pinned + Session Title + Ultracode + Inline State + Relative Activity Time */}
           <span className="flex min-w-0 items-center gap-1.5">
+            <span className={cx("inline-flex w-2.5 shrink-0 items-center justify-center", quietMark && "opacity-35")}>
+              <StatusMark state={markState} size="sm" awaiting={awaiting} finished={finished} unopened={unopened} waiting={bgWait} />
+            </span>
             {pinned && (
               <span className="shrink-0 text-accent" title={t("sidebar.pinned")}>
                 <Icon name="pin" size={11} stroke={2.3} />
@@ -454,7 +494,7 @@ export const AgentChatListRow = memo(function AgentChatListRow({
             </span>
             {ultra && <UltraMark size={10} />}
             {statePill && (
-              <span aria-hidden className={cx("shrink-0 rounded-full px-1.5 py-px text-[10px] font-medium leading-3.5 whitespace-nowrap group-hover/row:invisible", statePill.cls)}>
+              <span aria-hidden className={cx("shrink-0 text-[11px] font-medium whitespace-nowrap group-hover/row:invisible", statePill.cls)}>
                 {statePill.label}
               </span>
             )}
@@ -497,46 +537,22 @@ export const AgentChatListRow = memo(function AgentChatListRow({
             )
           )}
 
-          {/* Line 3: Compact metadata capsules (Machine · Project · Tab · Harness · Model) */}
-          <span className="mt-0.5 flex flex-wrap items-center gap-1 text-[10.5px] leading-4 text-ink-3" data-testid="agent-chatlist-chips">
-            {machineLabel && (
-              <span className={cx("inline-flex max-w-[96px] items-center gap-0.5 truncate rounded-[5px] px-1.5 py-px", metaChip)}>
-                <Icon name="machine" size={9} stroke={2} />
-                <span className="truncate">{machineLabel}</span>
-              </span>
-            )}
-            {projectLabel && (
-              <span className={cx("inline-flex max-w-[110px] items-center gap-0.5 truncate rounded-[5px] px-1.5 py-px", metaChip)}>
-                <Icon name="folder" size={9} stroke={2} />
-                <span className="truncate">{projectLabel}</span>
-              </span>
-            )}
-            {tabIdentity && (
-              <span className={cx("inline-flex max-w-[96px] items-center gap-0.5 truncate rounded-[5px] px-1.5 py-px", metaChip)} title={tabIdentity}>
-                <span className="truncate">{tabIdentity}</span>
-              </span>
-            )}
-            {harnessLabel && (
-              <span className={cx("inline-flex max-w-[96px] items-center gap-0.5 truncate rounded-[5px] px-1.5 py-px", metaChip)}>
-                <span className="truncate">{harnessLabel}</span>
-              </span>
-            )}
-            {modelLabel && (
-              <span className={cx("inline-flex max-w-[110px] items-center gap-0.5 truncate rounded-[5px] px-1.5 py-px font-mono text-[10px]", metaChip)}>
-                <span className="truncate">{modelLabel}</span>
-              </span>
-            )}
-            {source && (
-              <span className={cx("inline-flex items-center rounded-[5px] px-1.5 py-px", metaChip)} title={sourceName(source)}>
-                {sourceName(source)}
-              </span>
-            )}
-            {hasErr && st !== "needs_you" && (
-              <span className="inline-flex items-center gap-0.5 rounded-[5px] bg-red/10 px-1.5 py-px font-medium text-red">
-                <Icon name="warning" size={9} stroke={2.2} />
-              </span>
-            )}
-          </span>
+          {/* Line 3: Clean inline dot-separated metadata (Machine · Project · Tab · Harness · Model) */}
+          {(metaParts.length > 0 || (hasErr && st !== "needs_you")) && (
+            <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10.5px] leading-4 text-ink-3" data-testid="agent-chatlist-chips">
+              {metaParts.map((part, i) => (
+                <span key={part.key} className="inline-flex min-w-0 items-center gap-1.5">
+                  {i > 0 && <span aria-hidden className="text-ink-3/50">·</span>}
+                  {part.node}
+                </span>
+              ))}
+              {hasErr && st !== "needs_you" && (
+                <span className="inline-flex items-center text-red">
+                  <Icon name="warning" size={10} stroke={2.2} />
+                </span>
+              )}
+            </span>
+          )}
         </span>
       </a>
 

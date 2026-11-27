@@ -1,3 +1,4 @@
+@layer ui-sdk;
 @import "tailwindcss";
 /* Tailwind writes a utility for every class-like word in the files it scans. Tests and browser scripts are not the
    page: their assertions and fixtures (`not.toContain("outline-white")`, `[typed:zzz]`) cost every page's first
@@ -98,6 +99,7 @@
   --page: #faf9f5;
   --canvas: #f4f3ee;
   --surface: #ffffff;
+  --float: #ffffff;
   --inset: #f0eee6;
   --hover: #ebe8df;
   --hover-2: #e3e0d6;
@@ -151,6 +153,8 @@
   --shadow-btn: inset 0 0 0 1px var(--line-strong);
   --shadow-card: 0 0 0 1px var(--line), 0 1px 2px rgb(20 20 19 / 0.03);
   --shadow-raised: 0 0 0 1px var(--line), 0 4px 16px rgb(20 20 19 / 0.06);
+  --shadow-float: 0 1px 2px rgb(20 20 19 / 0.045), 0 4px 12px -2px rgb(20 20 19 / 0.08), 0 10px 22px -10px rgb(20 20 19 / 0.06);
+  --shadow-float-sm: 0 1px 2px rgb(20 20 19 / 0.05), 0 3px 8px -2px rgb(20 20 19 / 0.07);
   --shadow-overlay: 0 0 0 1px var(--line), 0 12px 32px rgb(20 20 19 / 0.1), 0 2px 8px rgb(20 20 19 / 0.04);
   --shadow-nav-preview: 0 14px 40px rgb(20 20 19 / 0.12);
   --shadow-inset-field: inset 0 0 0 1px var(--line-strong);
@@ -165,6 +169,7 @@
   --page: #262624;
   --canvas: #1f1e1d;
   --surface: #30302e;
+  --float: #2f2e2b;
   --inset: #232321;
   --hover: #2d2c2a;
   --hover-2: #383734;
@@ -200,6 +205,8 @@
   --shadow-btn: inset 0 0 0 1px var(--line-strong);
   --shadow-card: 0 0 0 1px var(--line);
   --shadow-raised: 0 0 0 1px var(--line), 0 4px 16px rgb(0 0 0 / 0.28);
+  --shadow-float: inset 0 1px 0 rgb(255 250 240 / 0.085), 0 2px 6px -1px rgb(0 0 0 / 0.38), 0 8px 20px -4px rgb(0 0 0 / 0.44), 0 14px 28px -10px rgb(0 0 0 / 0.3);
+  --shadow-float-sm: inset 0 1px 0 rgb(255 250 240 / 0.07), 0 2px 5px -1px rgb(0 0 0 / 0.34), 0 4px 12px -3px rgb(0 0 0 / 0.32);
   --shadow-overlay: 0 0 0 1px var(--line-strong), 0 14px 36px rgb(0 0 0 / 0.45), 0 2px 8px rgb(0 0 0 / 0.24);
   --shadow-nav-preview: 0 14px 40px rgb(0 0 0 / 0.48);
   --shadow-inset-field: inset 0 0 0 1px var(--line-strong);
@@ -249,6 +256,7 @@
   --color-page: var(--page);
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
+  --color-float: var(--float);
   --color-inset: var(--inset);
   --color-hover: var(--hover);
   --color-hover-2: var(--hover-2);
@@ -285,6 +293,8 @@
   --shadow-btn: var(--shadow-btn);
   --shadow-card: var(--shadow-card);
   --shadow-raised: var(--shadow-raised);
+  --shadow-float: var(--shadow-float);
+  --shadow-float-sm: var(--shadow-float-sm);
   --shadow-overlay: var(--shadow-overlay);
   --shadow-nav-preview: var(--shadow-nav-preview);
   --shadow-inset-field: var(--shadow-inset-field);
@@ -324,7 +334,10 @@ body {
 @keyframes eq-bounce{0%,to{transform:scaleY(.35)}50%{transform:scaleY(1)}}
 @keyframes stream-in{0%{opacity:0;filter:blur(4px)}to{opacity:1;filter:blur()}}
 @keyframes pop-in{0%{opacity:0;transform:scale(.975) translateY(3px)}to{opacity:1;transform:scale(1) translateY(0)}}
-@keyframes view-enter{0%{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+@keyframes view-enter{0%{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+@keyframes msg-launch{0%{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes answer-settle{0%{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes action-reveal{0%{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
 /* Spinners turn 100 times per cycle (lib/busy-motion.ts SPIN_TURNS): a looping CSS animation sends React's root listener an
    animationiteration event, and the page a style recalc, every cycle; at 100 turns that is once a minute or so, not every
    turn. --busy-cycles tells the reduced-motion rule below how many turns one cycle is. */
@@ -351,6 +364,14 @@ body {
 :root { --sidebar-row: 32px; --sidebar-row-pad: 4px; --sidebar-indent: 12px; }
 @utility sidebar-indent { padding-inline-start: var(--sidebar-indent); }
 @utility sidebar-row { min-height: var(--sidebar-row); padding-block: var(--sidebar-row-pad); line-height: 18px; }
+@utility sidebar-row-float {
+  background: var(--float);
+  box-shadow: var(--shadow-float);
+  transform: translateY(-0.5px);
+  z-index: 15;
+  &:active { transform: translateY(0) scale(0.988); }
+  @media (prefers-reduced-motion: reduce) { transform: none; }
+}
 /* A contextual row keeps provenance, tab and time below the conversation. On desktop
    a simple row with an avatar tile, title, and status/time fits cleanly on one horizontal line. */
 [data-sidebar-session] {
@@ -525,8 +546,8 @@ button:disabled { cursor: default; }
 .path-link { color: var(--accent-ink); text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; transition: text-decoration-color .15s; }
 .path-link:hover { text-decoration-color: currentColor; }
 .prose-j strong { font-weight: 600; }
-/* A quote as Telegram draws it (#2984, ui/ReplyBlocks.tsx ReplyQuote): the accent bar on a faint accent card, room on the right for its mark. */
-.prose-j blockquote { margin: .75em 0; padding: .5em 2em .5em .9em; border-left: 2.5px solid var(--accent); border-radius: 8px; background: color-mix(in srgb, var(--accent) 6%, transparent); color: var(--ink-2); }
+/* Editorial blockquote (ui/ReplyBlocks.tsx ReplyQuote): vertical accent bar without a tinted card box. */
+.prose-j blockquote { margin: .75em 0; padding: .2em 0 .2em 1em; border-left: 2px solid color-mix(in srgb, var(--accent) 60%, var(--line-strong)); border-radius: 0; background: transparent; color: var(--ink-2); }
 .prose-j blockquote > div > :first-child { margin-top: 0; }
 .prose-j blockquote > div > :last-child { margin-bottom: 0; }
 .prose-j hr { border: 0; border-top: 1px solid var(--line); margin: 1.2em 0; }
@@ -535,11 +556,11 @@ button:disabled { cursor: default; }
    a CJK face has proportional Latin letters. Its ink is a step quieter than --ink, a long way from --ink-2 (iOS
    Theme.Reply.codeInk; theme-contrast.test.ts keeps it readable). */
 .prose-j code { font-family: var(--font-inline-code, ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", "PingFang SC", "Microsoft YaHei", monospace); font-size: .94em; color: color-mix(in srgb, var(--ink) 55%, var(--ink-2)); }
-.prose-j pre { margin: .75em 0; background: var(--inset); border-radius: 12px; box-shadow: var(--shadow-hairline); padding: 10px 12px; overflow-x: auto; font-size: 12.5px; line-height: 1.6; }
+.prose-j pre { margin: .75em 0; background: var(--inset); border-radius: 12px; border: 1px solid color-mix(in srgb, var(--line) 75%, transparent); box-shadow: none; padding: 10px 12px; overflow-x: auto; font-size: 12.5px; line-height: 1.6; }
 .prose-j pre code { font-family: var(--font-mono); font-size: inherit; }
 /* A code block with its title bar (#2984, CodeBar): the box is the wrap's, the pre sits in it. */
-.prose-j .code-block { margin: .75em 0; background: var(--inset); border-radius: 12px; box-shadow: var(--shadow-hairline); overflow: hidden; }
-.prose-j .code-block > pre { margin: 0; background: none; border-radius: 0; box-shadow: none; }
+.prose-j .code-block { margin: .75em 0; background: var(--inset); border-radius: 12px; border: 1px solid color-mix(in srgb, var(--line) 75%, transparent); box-shadow: none; overflow: hidden; }
+.prose-j .code-block > pre { margin: 0; background: none; border: 0; border-radius: 0; box-shadow: none; }
 /* Inline code (#2984, #9477): no background, border or padding; 0.94 em, where the monospaced letters sit as large as the
    words beside them. In a link (a path that opens, a written link) it is the link's color. A little room where it meets a
    CJK letter, none beside a space or CJK punctuation (ReplyBlocks.tsx rehypeLinkedCode marks the sides). A click copies it:
@@ -549,7 +570,7 @@ button:disabled { cursor: default; }
 .prose-j code[data-gap*=e] { margin-right: .12em; }
 .prose-j code[data-copy-code] { cursor: pointer; }
 .prose-j code[data-copy-code]:hover { background: var(--hover-2); }
-.prose-j table { display: block; width: max-content; max-width: 100%; overflow-x: auto; border-collapse: separate; border-spacing: 0; margin: .85em 0; font-size: 13px; border-radius: 12px; box-shadow: var(--shadow-hairline); }
+.prose-j table { display: block; width: max-content; max-width: 100%; overflow-x: auto; border-collapse: separate; border-spacing: 0; margin: .85em 0; font-size: 13px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--line) 75%, transparent); box-shadow: none; }
 /* The copy button's wrap is what the edge rule above sees, so pass that rule through to the table. The wrap
    adds no margin, padding or border; the table keeps its own box, scroll and margin collapse. */
 .prose-j > .md-table:first-child > table { margin-top: 0; }
@@ -749,3 +770,100 @@ select:not([multiple], [size], .appearance-none) {
 .range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--accent), var(--shadow-btn); }
 .range:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px var(--accent), var(--shadow-btn); }
 .range:disabled { opacity: 0.5; cursor: default; }
+
+/* ── @ui-sdk primitives ─────────────────────────────────── */
+[data-slot="segmented-control"] {
+  position: relative;
+  isolation: isolate;
+}
+[data-slot="segmented-control-indicator"] {
+  transition:
+    left 220ms var(--ease-out-strong),
+    top 220ms var(--ease-out-strong),
+    width 220ms var(--ease-out-strong),
+    height 220ms var(--ease-out-strong),
+    opacity 220ms var(--ease-out-strong);
+}
+[data-slot="segmented-control-indicator"][data-activation-direction="none"] {
+  transition: none;
+}
+[data-slot="segmented-control"][data-variant="underline"] [data-slot="segmented-control-indicator"] {
+  position: absolute;
+  pointer-events: none;
+  left: var(--segmented-control-indicator-left, 0px);
+  top: calc(var(--segmented-control-indicator-top, 0px) + var(--segmented-control-indicator-height, 0px) - 1.5px);
+  width: var(--segmented-control-indicator-width, 0px);
+  height: 1.5px;
+  border-radius: 9999px;
+  background: var(--accent);
+}
+[data-slot="segmented-control"][data-variant="float"] [data-slot="segmented-control-indicator"] {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  left: var(--segmented-control-indicator-left, 0px);
+  top: var(--segmented-control-indicator-top, 0px);
+  width: var(--segmented-control-indicator-width, 0px);
+  height: var(--segmented-control-indicator-height, 0px);
+  border-radius: 7px;
+  background: var(--float);
+  box-shadow: var(--shadow-float-sm);
+}
+[data-slot="collapsible-panel"] {
+  height: var(--collapsible-panel-height);
+  overflow: hidden;
+  transition: height 220ms var(--ease-out-strong), opacity 180ms ease;
+  &:is([data-starting-style], [data-ending-style]) {
+    height: 0;
+    opacity: 0;
+  }
+}
+[data-slot="popover-content"].ui-popover-surface {
+  transform-origin: var(--transform-origin);
+  transition: opacity 180ms var(--ease-out-strong), transform 180ms var(--ease-out-strong);
+  &:is([data-starting-style], [data-ending-style]) {
+    opacity: 0;
+    transform: scale(0.97) translateY(4px);
+  }
+  &[data-side="bottom"]:is([data-starting-style], [data-ending-style]) {
+    transform: scale(0.97) translateY(-4px);
+  }
+  &[data-presentation="sheet"] {
+    transition: opacity 180ms var(--ease-out-strong);
+    &:is([data-starting-style], [data-ending-style]) {
+      transform: none;
+    }
+  }
+}
+[data-slot="tooltip-content"].ui-tooltip-surface {
+  transform-origin: var(--transform-origin);
+  transition:
+    opacity 140ms var(--ease-out-strong),
+    transform 140ms var(--ease-out-strong),
+    left 160ms var(--ease-out-strong),
+    top 160ms var(--ease-out-strong);
+  &:is([data-starting-style], [data-ending-style]) {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  &[data-instant] {
+    transition: none;
+  }
+}
+[data-presence-pill] {
+  transition: opacity 180ms var(--ease-out-strong), transform 180ms var(--ease-out-strong);
+  &:is([data-starting-style], [data-ending-style]) {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+    pointer-events: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="segmented-control-indicator"],
+  [data-slot="collapsible-panel"],
+  [data-slot="popover-content"].ui-popover-surface,
+  [data-slot="tooltip-content"].ui-tooltip-surface,
+  [data-presence-pill] {
+    transition: none !important;
+  }
+}

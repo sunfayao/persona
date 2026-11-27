@@ -285,7 +285,7 @@ function ExportMessageView({ message: m, chat }: { message: ExportMessage; chat:
             ))}
           </div>
         )}
-        {m.text && <div className="max-w-full rounded-[18px] bg-user-bubble px-4 py-2.5 font-sans text-[length:var(--chat-body)] leading-[1.6] whitespace-pre-wrap text-ink ring-1 ring-inset ring-line/55 dark:ring-line/80 [overflow-wrap:anywhere]">{m.text}</div>}
+        {m.text && <div className="max-w-full rounded-[16px] bg-user-bubble px-4 py-2.5 font-sans text-[length:var(--chat-body)] leading-[1.6] whitespace-pre-wrap text-ink [overflow-wrap:anywhere]">{m.text}</div>}
       </div>
     );
   }

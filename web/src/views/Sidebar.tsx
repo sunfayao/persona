@@ -29,6 +29,7 @@ import { SESSIONS_SIDE_FOLD_FEATURE } from "../lib/side-fold";
 import type { Session } from "../lib/types";
 import { Collapse, cx, EASE, Kbd, Menu, sidebarFoldMotion, useMenu, useNow, type MenuItem } from "../ui/atoms";
 import { StatusMark } from "../ui/StatusMark";
+import { UnderlineTabs, type UnderlineTabItem } from "../ui/UnderlineTabs";
 import { Icon } from "../ui/icons";
 import { HerdrNotices as HerdrNoticesContent } from "./agents/HerdrNotices";
 import { HubNoticeLine as HubNoticeLineContent } from "./agents/HubNoticeRow";
@@ -280,7 +281,7 @@ function GlideHighlight({ box }: { box: ReturnType<typeof glideStore> }) {
   // box.get is the server snapshot too: the shell views are also rendered to a string (shell-views.test)
   const { at, on, left, width } = useSyncExternalStore(box.subscribe, box.get, box.get);
   const horiz = width !== undefined && left !== undefined ? { left, width } : undefined;
-  return <span aria-hidden data-glide className="pointer-events-none absolute inset-x-2.5 rounded-[9px] bg-hover" style={glideStyle(at, on, EASE, horiz)} />;
+  return <span aria-hidden data-glide className="pointer-events-none absolute inset-x-3 rounded-[9px] bg-ink/[0.04] dark:bg-ink/[0.05]" style={glideStyle(at, on, EASE, horiz)} />;
 }
 
 export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Route; onSearch: () => void; onNewAgent: () => void; onNavigate?: () => void }) {
@@ -296,13 +297,13 @@ export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Ro
 
   return (
     <aside className="flex h-full w-full flex-col bg-canvas">
-      <div className="px-2.5 pt-2.5">
+      <div className="px-3 pt-2.5">
         <div className="mb-2 flex items-center gap-1">
           <div className="min-w-0 flex-1"><AssistantSwitcher phase={phase} online={online} total={total} route={route} /></div>
           {/* folds the column to the rail of icons (a wide screen; the drawer closes by its scrim) */}
           {!narrow && <CollapseButton collapsed={false} chord={BINDINGS["left-sidebar"]} />}
         </div>
-        <button type="button" onClick={onSearch} className="touch-hit mb-1 flex h-8 w-full items-center gap-2 rounded-[10px] border border-line/80 bg-inset/75 px-2.5 text-left transition-[background-color,border-color] duration-150 hover:border-line-strong hover:bg-hover/70">
+        <button type="button" onClick={onSearch} className="touch-hit mb-1 flex h-8 w-full items-center gap-2 rounded-[8px] bg-ink/[0.035] dark:bg-ink/[0.045] px-2.5 text-left transition-[background-color,color,transform] duration-150 ease-out hover:bg-ink/[0.06] dark:hover:bg-ink/[0.075] active:scale-[0.985]">
           <Icon name="search" size={12} stroke={2} className="text-ink-3" />
           <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink-3">{t("sidebar.search_sessions")}</span>
           <span className="hidden sm:inline-flex [@media(hover:none)]:hidden"><Kbd>{searchHint}</Kbd></span>
@@ -313,13 +314,13 @@ export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Ro
           (4 + 48 + 1 gap + 1 line + 8 margins), 58px on a coarse pointer (44px touch row): 64px covers both */}
       {/* isolate: the rows' own layers (the sticky Persona row and group headers at z-30, chips, segments) stay inside this
           column, so the usage popover that opens upward over it from the bottom is never drawn under them */}
-      <div ref={nav} data-sidebar-rows data-row-scroller onMouseLeave={() => hover(null)} className="relative isolate min-h-0 flex-1 scroll-pt-16 overflow-y-auto overscroll-contain px-2.5 pb-3">
+      <div ref={nav} data-sidebar-rows data-row-scroller onMouseLeave={() => hover(null)} className="relative isolate min-h-0 flex-1 scroll-pt-16 overflow-y-auto overscroll-contain px-3 pb-3">
         {highlight}
         {/* the main conversation is the column's first row, Main chat with the home symbol, and only there (#2004, #5109); it
             stays at the top while the rest scrolls (#5581), with a solid divider above the sticky groups */}
         <div data-sidebar-sticky className="sticky top-0 z-30 flex flex-col gap-px bg-canvas pt-1">
           <PersonaRow reg={reg} hover={hover} active={activeKey === "persona"} go={go} main={mainConversation} chord={BINDINGS.persona} />
-          <span aria-hidden data-persona-divider className="mx-2 my-1 h-px shrink-0 bg-line/70" />
+          <span aria-hidden data-persona-divider className="mx-2 mt-1.5 mb-1 h-px shrink-0 bg-line/70" />
         </div>
         {/* a phone's drawer has Pages as its grid of icons; every other group (#9071) is a section, as on a wide screen */}
         {narrow && <NavGrid pages={sections.find((g) => !g.id)?.pages ?? []} more={more} activeKey={activeKey} go={go} onNavigate={onNavigate} />}
@@ -382,7 +383,7 @@ export function AgentsList({ route, onNewAgent }: { route: Route; onNewAgent: ()
   useScrollMemory(scroller, "/agents");
   return (
     <div ref={scroller} data-row-scroller className="h-full overflow-y-auto overscroll-contain">
-      <div ref={nav} onMouseLeave={() => hover(null)} className="relative mx-auto max-w-[640px] px-2.5 pb-6">
+      <div ref={nav} onMouseLeave={() => hover(null)} className="relative mx-auto max-w-[640px] px-3 pb-6">
         {highlight}
         {none ? <NoComputers body={t("agentspage.no_computers_body")} onAdd={adding.open} /> : <AgentsBlock reg={reg} hover={hover} activeKey={activeKey} go={go} onNewAgent={onNewAgent} add={false} />}
         <NavRow k="terminal" reg={reg} hover={hover} active={activeKey === "terminal"} to={{ name: "terminal" }} go={go} label={t("work-entry.title")} icon="clock" />
@@ -426,12 +427,12 @@ export function NavGrid({ pages, more = [], activeKey, go, onNavigate }: { pages
             title={p.title ?? p.label}
             aria-label={pageLabel(p)}
             aria-current={active ? "page" : undefined}
-            className={cx("relative z-10 flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-[9px] px-0.5 py-1.5 transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.97]", active ? "bg-hover-2" : "hover:bg-hover")}
+            className={cx("relative z-10 flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-[9px] px-0.5 py-1.5 transition-[background-color,box-shadow,color,transform] duration-200 ease-(--ease-out-strong) active:scale-[0.97]", active ? "bg-float shadow-float-sm" : "hover:bg-hover")}
           >
             <span className={cx("relative", active ? "text-ink" : "text-ink-3")}>
               <Icon name={p.icon} size={17} stroke={1.8} />
               {p.badge !== undefined && (
-                <span className={cx("absolute -top-1.5 left-2.5 flex h-4 min-w-4 items-center justify-center whitespace-nowrap rounded-full px-1 text-[10px] font-semibold tabular-nums", BADGE_CLASS[p.badgeTone ?? "accent"])}>{p.badge}</span>
+                <span className={cx("absolute -top-1.5 left-3 whitespace-nowrap text-[10px] font-semibold leading-none tabular-nums", BADGE_CLASS[p.badgeTone ?? "accent"])}>{p.badge}</span>
               )}
             </span>
             <span className={cx("w-full truncate text-center text-[11px] leading-tight", active ? "font-medium text-ink" : "text-ink-2")}>{p.short ?? p.label}</span>
@@ -445,11 +446,11 @@ export function NavGrid({ pages, more = [], activeKey, go, onNavigate }: { pages
           aria-haspopup="menu"
           aria-expanded={!!menu}
           aria-label={t("sidebar.more_pages_count", { count: more.length })}
-          className={cx("relative z-10 flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-[9px] px-0.5 py-1.5 transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.97]", moreActive || menu ? "bg-hover-2" : "hover:bg-hover")}
+          className={cx("relative z-10 flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-[9px] px-0.5 py-1.5 transition-[background-color,box-shadow,color,transform] duration-200 ease-(--ease-out-strong) active:scale-[0.97]", moreActive || menu ? "bg-float shadow-float-sm" : "hover:bg-hover")}
         >
           <span className={cx("relative", moreActive ? "text-ink" : "text-ink-3")}>
             <Icon name="more" size={17} stroke={1.8} />
-            {moreBadge && <span aria-hidden className={cx("absolute -top-0.5 -right-1 size-2 rounded-full ring-2 ring-canvas", DOT_CLASS[moreBadge.badgeTone ?? "accent"])} />}
+            {moreBadge && <span aria-hidden className={cx("absolute -top-0.5 -right-1 size-1.5 rounded-full", DOT_CLASS[moreBadge.badgeTone ?? "accent"])} />}
           </span>
           <span className={cx("w-full truncate text-center text-[11px] leading-tight", moreActive ? "font-medium text-ink" : "text-ink-2")}>{t("sidebar.more_pages")}</span>
         </button>
@@ -482,8 +483,8 @@ function MorePages({ more, reg, hover, activeKey, go }: { more: NavPage[]; reg: 
         <span className="text-[11px] text-ink-3 tabular-nums">{more.length}</span>
         <Icon name="chevron" size={10} stroke={2.2} className="shrink-0 text-ink-3 transition-transform" style={{ ...sidebarFoldMotion(!folded), transform: folded ? "rotate(-90deg)" : "none" }} />
       </button>
-      <Collapse open={!folded} sidebarFold>
-        <div className="flex flex-col gap-px sidebar-indent" inert={folded || undefined}>
+      <Collapse open={!folded} sidebarFold unclipped>
+        <div className="flex flex-col gap-0.5 pt-0.5 sidebar-indent" inert={folded || undefined}>
           {more.map((p) => <NavRow key={p.k} {...p} reg={reg} hover={hover} active={activeKey === p.k} go={go} />)}
         </div>
       </Collapse>
@@ -916,7 +917,7 @@ function LegacyAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, 
 
       {loadingPreview ? <>
         {listNote}
-        <div data-agents-preview className="mt-1 flex flex-col gap-px">
+        <div data-agents-preview className="mt-1 flex flex-col gap-1">
           <WindowedRows items={previewListed} holds={(s) => rowKey(s) === activeKey} render={(s) => (
             <SessionRow key={s.session_id} s={s} k={`s:${s.machine_id}/${s.session_id}`} reg={reg} hover={hover} active={activeKey === `s:${s.machine_id}/${s.session_id}`} to={{ name: "session", mid: s.machine_id, sid: s.session_id }} go={go} onMenu={onRowMenu} />
           )} />
@@ -983,42 +984,29 @@ function LegacyAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, 
 const FilterBar = memo(function FilterBar({ selection, counts, onChoose }: { selection: AgentFilter; counts: FilterCounts; onChoose: (f: AgentFilter) => void }) {
   const keys = shownFilters(selection, counts);
   if (keys.length < 2) return null;
+  const items: UnderlineTabItem<AgentFilter>[] = keys.map((k) => {
+    const f = AGENT_FILTERS.find((x) => x.key === k)!;
+    const n = k === "all" ? undefined : counts[k];
+    return {
+      key: k,
+      label: f.label,
+      ariaLabel: n === undefined ? f.label : `${f.label} ${n}`,
+      count: n,
+      lead: f.state ? <StatusMark state={f.state} size="sm" waiting={k === "bg_waiting"} /> : undefined,
+      emphasized: n !== undefined && n > 0,
+    };
+  });
   return (
-    <div className="mt-1 flex flex-wrap items-center gap-0.5 px-1.5 py-0.5">
-      <div role="radiogroup" aria-label={t("sidebar.quick_filters")} className="contents">
-      {keys.map((k) => {
-        const f = AGENT_FILTERS.find((x) => x.key === k)!;
-        const on = k === selection;
-        const n = k === "all" ? undefined : counts[k];
-        const hasActiveCount = n !== undefined && n > 0;
-        return (
-          <button
-            key={k}
-            type="button"
-            role="radio"
-            aria-checked={on}
-            aria-label={n === undefined ? f.label : `${f.label} ${n}`}
-            onClick={() => onChoose(k)}
-            className={cx(
-              "touch-hit relative z-10 inline-flex h-[25px] items-center gap-1.5 whitespace-nowrap rounded-full px-2 text-[11.5px] leading-none transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.97]",
-              on
-                ? "bg-hover-2 font-medium text-ink"
-                : hasActiveCount
-                  ? "bg-transparent text-ink-2 hover:bg-hover hover:text-ink"
-                  : "bg-transparent text-ink-3 hover:bg-hover hover:text-ink-2",
-            )}
-          >
-            {f.state && <StatusMark state={f.state} size="sm" waiting={k === "bg_waiting"} />}
-            <span>{f.label}</span>
-            {n !== undefined && (
-              <span className={cx("text-[10.5px] font-medium tabular-nums", on ? "text-ink-2" : "text-ink-3")}>
-                {n}
-              </span>
-            )}
-          </button>
-        );
-      })}
-      </div>
+    <div className="mt-1 px-2">
+      <UnderlineTabs
+        items={items}
+        value={selection}
+        onChange={onChoose}
+        role="radiogroup"
+        ariaLabel={t("sidebar.quick_filters")}
+        size="xs"
+        wrap
+      />
     </div>
   );
 });

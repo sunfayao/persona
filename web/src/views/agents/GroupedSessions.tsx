@@ -18,7 +18,7 @@ import { useFolded } from "../../lib/use-folded";
 import { nestUnderParents, type StableRowOrder } from "../../lib/side-sessions";
 import { Button, Collapse, cx, sidebarFoldMotion } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
-import { SESSION_LIST_METRICS, SESSION_LIST_STYLE } from "../../ui/list-metrics";
+import { SESSION_LIST_METRICS } from "../../ui/list-metrics";
 import { SectionAdd } from "../SectionAdd";
 import { GroupCount, NeedsCount, Section, ShowMoreRow, SidebarGroup } from "../SidebarSection";
 
@@ -184,7 +184,7 @@ function GroupSection<T>({ group, first, startsOpen, dimension, kind, scope, sou
         title={<>{name}{group.qualifier && <span className="font-normal text-ink-3"> · {group.qualifier}</span>}</>}
         right={<>
           {/* the numbers step aside for the + where it shows: under the pointer, on keyboard focus, always on a touch screen */}
-          <span className={cx("flex shrink-0 items-center gap-1", start && STEP_ASIDE)}>
+          <span className={cx("flex shrink-0 items-center gap-1.5", start && STEP_ASIDE)}>
             <NeedsCount n={group.needs} />
             <GroupCount n={shownCount} label={t("paged-agents.count", { count: shownCount })} />
           </span>
@@ -283,7 +283,7 @@ function GroupRows<T>({ group, dimension, scope, source, renderRow, onExcluded }
   };
   return <>
     {rows.map((row) => <div key={identity(row)} data-session-row="">
-      {nesting?.nested.has(row) ? <div data-nested-session className={SESSION_LIST_STYLE.nestedRow}>{renderRow(row, dimension, group)}</div> : renderRow(row, dimension, group)}
+      {nesting?.nested.has(row) ? <div data-nested-session className="pl-2.5">{renderRow(row, dimension, group)}</div> : renderRow(row, dimension, group)}
     </div>)}
     {page.loading && (!page.loaded || page.loadingMore) && <p role="status" className="px-2 py-1 text-xs text-ink-3">{t("sidebar.loading")}</p>}
     {page.error && <div className="px-2 py-1"><p role="alert" className="text-xs text-red">{page.error}</p><Button onClick={() => void list.retry().catch(() => {})}>{t("sidebar.retry")}</Button></div>}

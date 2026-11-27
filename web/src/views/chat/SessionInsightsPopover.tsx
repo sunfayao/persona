@@ -1,9 +1,8 @@
 // Lazy-loaded Session Insights popover opened from ContextMeter (#12541, #13054).
-// Shows context window usage with stacked ContextBreakdown bar (exact/~estimated badge, auto-compact marker,
+// Shows context window usage with stacked ContextBreakdown bar (exact/~estimated indicator, auto-compact marker,
 // top consumer hint), cumulative session token & cache summary, per-model breakdown, performance metrics
 // (turn duration, tok/s, TTFT), and one-click /compact.
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useMemo, useState, type RefObject } from "react";
 import { t } from "../../i18n";
 import { api, errorText } from "../../lib/api";
 import { COMPACT_FEATURE, compactBody, compactPath, formatTokens } from "../../lib/compaction";
@@ -24,10 +23,10 @@ import type { ContextBreakdown, Item, Session } from "../../lib/types";
 import { workDuration } from "../../lib/work-groups";
 import { cx, EASE, toast } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
-import { placeMenu, useEscapeClose, useModalFocus } from "../../ui/overlay";
+import { UiPopover, UiPopoverClose, UiPopoverContent, UiPopoverTitle } from "../../ui/UiPopover";
+import { createTooltipController, TooltipRoot, TooltipTrigger, UiTooltipContent } from "../../ui/UiTooltip";
 
 const COMPACT_REQUESTED = "persona:compact-requested";
-const POPOVER_WIDTH = 340;
 const EMPTY_ITEMS: readonly Item[] = [];
 const TIER_BAR: Record<ContextTier, string> = { ok: "bg-accent", warn: "bg-orange", danger: "bg-orange" };
 const TIER_TEXT: Record<ContextTier, string> = { ok: "text-ink", warn: "text-orange", danger: "text-orange" };
@@ -75,6 +74,7 @@ async function requestAssistantCompaction(session: Session): Promise<boolean> {
 }
 
 export function StackedBreakdownBar({ breakdown }: { breakdown: SessionContextBreakdown }) {
+  const [tooltip] = useState(() => createTooltipController<string>());
   const markerShare = breakdown.autoCompactShare !== null ? Math.min(99, Math.max(1, breakdown.autoCompactShare)) : null;
   const markerLabel =
     breakdown.autoCompactThreshold !== null && breakdown.autoCompactShare !== null
@@ -93,27 +93,46 @@ export function StackedBreakdownBar({ breakdown }: { breakdown: SessionContextBr
           const tokText = breakdown.source === "estimated"
             ? t("chat-sessioninsights.breakdown_estimated_tokens", { tokens: compactTokens(seg.tokens) })
             : compactTokens(seg.tokens);
+          const tip = `${label}: ${tokText} (${formatShare(seg.windowShare)})`;
           return (
-            <div
+            <TooltipTrigger
               key={seg.key}
-              data-breakdown-segment={seg.key}
-              title={`${label}: ${tokText} (${formatShare(seg.windowShare)})`}
-              className="h-full shrink-0 first:rounded-l-full last:rounded-r-full motion-safe:transition-[width] motion-safe:duration-300"
-              style={{ width: `${seg.windowShare}%`, backgroundColor: BREAKDOWN_COLOR[seg.key], transitionTimingFunction: EASE }}
+              controller={tooltip}
+              payload={tip}
+              render={
+                <div
+                  data-breakdown-segment={seg.key}
+                  aria-label={tip}
+                  className="h-full shrink-0 first:rounded-l-full last:rounded-r-full motion-safe:transition-[width] motion-safe:duration-300"
+                  style={{ width: `${seg.windowShare}%`, backgroundColor: BREAKDOWN_COLOR[seg.key], transitionTimingFunction: EASE }}
+                />
+              }
             />
           );
         })}
       </div>
       {markerShare !== null && markerLabel && (
-        <span
-          role="img"
-          aria-label={markerLabel}
-          title={markerLabel}
-          data-breakdown-compact-marker
-          className="pointer-events-auto absolute -top-0.5 -bottom-0.5 w-px -translate-x-1/2 rounded-full bg-ink/80"
-          style={{ left: `${markerShare}%` }}
+        <TooltipTrigger
+          controller={tooltip}
+          payload={markerLabel}
+          render={
+            <span
+              role="img"
+              aria-label={markerLabel}
+              data-breakdown-compact-marker
+              className="pointer-events-auto absolute -top-1 -bottom-1 flex w-2.5 -translate-x-1/2 cursor-default items-stretch justify-center"
+              style={{ left: `${markerShare}%` }}
+            >
+              <span aria-hidden className="w-px rounded-full bg-ink/80" />
+            </span>
+          }
         />
       )}
+      <TooltipRoot controller={tooltip} delay={120}>
+        <UiTooltipContent side="top" sideOffset={8}>
+          {(state) => (typeof state.payload === "string" ? state.payload : null)}
+        </UiTooltipContent>
+      </TooltipRoot>
     </div>
   );
 }
@@ -124,14 +143,14 @@ export function BreakdownCard({ breakdown }: { breakdown: SessionContextBreakdow
     estimated ? t("chat-sessioninsights.breakdown_estimated_tokens", { tokens: compactTokens(n) }) : compactTokens(n);
 
   return (
-    <div className="rounded-lg bg-inset/60 px-3 py-2.5 ring-1 ring-inset ring-line/60" data-insights-breakdown>
+    <div className="border-t border-line/55 pt-2.5" data-insights-breakdown>
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="text-submeta font-medium text-ink-3">{t("chat-sessioninsights.breakdown_section")}</span>
         <span
           data-breakdown-source={breakdown.source}
           className={cx(
-            "shrink-0 rounded-chip px-1.5 py-0.5 text-submeta font-medium",
-            estimated ? "bg-hover text-ink-3" : "bg-green-tint text-green",
+            "shrink-0 text-submeta font-medium",
+            estimated ? "text-ink-3" : "text-green",
           )}
         >
           {t(estimated ? "chat-sessioninsights.breakdown_source_estimated" : "chat-sessioninsights.breakdown_source_exact")}
@@ -177,7 +196,7 @@ export function BreakdownCard({ breakdown }: { breakdown: SessionContextBreakdow
         )}
 
         {breakdown.autoCompactThreshold !== null && (
-          <div className="mt-1 flex items-center justify-between gap-2 border-t border-line/60 pt-2 text-submeta" data-breakdown-auto-compact>
+          <div className="mt-1 flex items-center justify-between gap-2 border-t border-line/55 pt-2 text-submeta" data-breakdown-auto-compact>
             <dt className="flex min-w-0 items-center gap-2 text-ink-3">
               <span aria-hidden className="inline-block h-2.5 w-px shrink-0 rounded-full bg-ink/70" />
               <span className="truncate">{t("chat-sessioninsights.breakdown_auto_compact")}</span>
@@ -195,7 +214,7 @@ export function BreakdownCard({ breakdown }: { breakdown: SessionContextBreakdow
       {breakdown.topConsumer && (
         <div
           data-breakdown-top-consumer={breakdown.topConsumer.key}
-          className="mt-2 flex items-center gap-2 border-t border-line/60 pt-2 text-submeta text-ink-3"
+          className="mt-2 flex items-center gap-2 border-t border-line/55 pt-2 text-submeta text-ink-3"
         >
           <span
             aria-hidden
@@ -226,10 +245,7 @@ export function SessionInsightsPopover({
   breakdown,
   ttftMs,
 }: SessionInsightsPopoverProps) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const titleId = useId();
   const [compactingNow, setCompactingNow] = useState(false);
-  const [place, setPlace] = useState<{ left: number; top: number; width: number } | null>(null);
 
   const hubSupportsAssistantCompact = useStore((s) => hubHas(s.features, COMPACT_FEATURE));
   const routed = useFeed((s) => Boolean(s.routes[session.session_id]));
@@ -252,48 +268,15 @@ export function SessionInsightsPopover({
     [session, assistant, hubSupportsAssistantCompact, onCompact, compactBlocked, routed],
   );
 
-  useEscapeClose(true, onClose);
-  useModalFocus(cardRef, true);
-
+  // Real keyboard Escape targets the focused element and is handled by UiPopover on document.
+  // Keep a narrow listener for synthetic window-targeted Escape events (e.g. window.dispatchEvent).
   useEffect(() => {
-    const down = (e: PointerEvent) => {
-      const target = e.target as Node | null;
-      if (target && !cardRef.current?.contains(target) && !anchor.current?.contains(target)) onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented && !(e.target instanceof Node)) onClose();
     };
-    document.addEventListener("pointerdown", down, true);
-    return () => document.removeEventListener("pointerdown", down, true);
-  }, [anchor, onClose]);
-
-  useLayoutEffect(() => {
-    const el = anchor.current;
-    const box = cardRef.current;
-    if (!el || !box) return;
-    const measure = () => {
-      const rect = el.getBoundingClientRect();
-      const screenW = document.documentElement.clientWidth || innerWidth;
-      const screenH = innerHeight;
-      const at = placeMenu(rect, box.offsetHeight || 240, {
-        width: POPOVER_WIDTH,
-        align: "right",
-        side: "top",
-        screenW,
-        screenH,
-        gap: 8,
-      });
-      setPlace((prev) => (
-        prev && prev.left === at.left && prev.top === at.top && prev.width === at.width
-          ? prev
-          : { left: at.left, top: at.top, width: at.width }
-      ));
-    };
-    measure();
-    addEventListener("resize", measure);
-    addEventListener("scroll", measure, { capture: true, passive: true });
-    return () => {
-      removeEventListener("resize", measure);
-      removeEventListener("scroll", measure, { capture: true });
-    };
-  }, [anchor, insights, compact.supported]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const triggerCompact = async () => {
     if (!compact.supported || compact.running || compactingNow) return;
@@ -319,201 +302,214 @@ export function SessionInsightsPopover({
   const hitText = tokens ? formatHitRate(tokens.cacheHitRate) : null;
   const compactBusy = compact.running || compactingNow;
   const hasContextSection = Boolean(context || normalizedBreakdown);
-  const style: CSSProperties = place
-    ? { left: place.left, top: place.top, width: place.width, animation: `pop-in 160ms ${EASE} both`, transformOrigin: "bottom right" }
-    : { left: 0, top: 0, width: POPOVER_WIDTH, visibility: "hidden" };
 
-  return createPortal(
-    <div
-      ref={cardRef}
-      role="dialog"
-      aria-labelledby={titleId}
-      tabIndex={-1}
-      data-session-insights
-      className="fixed z-50 max-h-[min(70vh,520px)] overflow-y-auto rounded-xl border border-line bg-surface p-4 text-label text-ink shadow-overlay outline-none"
-      style={style}
+  return (
+    <UiPopover
+      open
+      presentation={typeof matchMedia === "function" ? "auto" : "popover"}
+      onOpenChange={(next, details) => {
+        if (next) return;
+        const target = details.event?.target;
+        if (
+          details.reason === "outside-press" &&
+          target instanceof Node &&
+          anchor.current?.contains(target)
+        ) {
+          return details.cancel();
+        }
+        onClose();
+      }}
     >
-      <div className="flex items-center justify-between gap-2">
-        <h2 id={titleId} className="text-meta font-semibold text-ink">{t("chat-sessioninsights.title")}</h2>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={t("chat-sessioninsights.close")}
-          title={t("chat-sessioninsights.close")}
-          className="inline-flex size-6 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-hover hover:text-ink"
-          data-insights-close
-        >
-          <Icon name="x" size={13} stroke={2} />
-        </button>
-      </div>
+      <UiPopoverContent
+        anchor={anchor.current}
+        side="top"
+        align="end"
+        sideOffset={8}
+        collisionPadding={12}
+        data-session-insights=""
+        className="w-[min(340px,calc(100vw-24px))] max-h-[min(70vh,520px)] overflow-y-auto p-4 text-label text-ink"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <UiPopoverTitle className="text-meta font-semibold tracking-[-0.01em] text-ink">
+            {t("chat-sessioninsights.title")}
+          </UiPopoverTitle>
+          <UiPopoverClose
+            type="button"
+            aria-label={t("chat-sessioninsights.close")}
+            className="inline-flex size-6 items-center justify-center rounded-control text-ink-3 transition-colors duration-150 hover:bg-hover hover:text-ink"
+            data-insights-close=""
+          >
+            <Icon name="x" size={13} stroke={2} />
+          </UiPopoverClose>
+        </div>
 
-      <div className="mt-3 flex flex-col gap-3">
-        {hasContextSection && (
-          <section className="flex flex-col gap-2" data-insights-context>
-            {context && (
+        <div className="mt-3 flex flex-col gap-3">
+          {hasContextSection && (
+            <section className="flex flex-col gap-2" data-insights-context>
+              {context && (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-ink-2">{t("chat-sessioninsights.context_section")}</span>
+                  <span className="tabular-nums text-ink-3">
+                    {t("context.tokens", { used: formatTokens(context.tokens), window: formatTokens(context.window) })}
+                  </span>
+                </div>
+              )}
+              {normalizedBreakdown && normalizedBreakdown.totalTokens > 0 ? (
+                <StackedBreakdownBar breakdown={normalizedBreakdown} />
+              ) : context ? (
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-hover-2">
+                  <div
+                    className={cx("h-full rounded-full", TIER_BAR[contextTier(context)])}
+                    style={{ width: `${context.used}%` }}
+                  />
+                </div>
+              ) : null}
+              {context && (
+                <div className="flex flex-col gap-1">
+                  <div className={cx("font-medium tabular-nums", TIER_TEXT[contextTier(context)])}>
+                    {contextTooltip(context)}
+                  </div>
+                  <p className="leading-relaxed text-ink-3">{contextHint(context)}</p>
+                </div>
+              )}
+              {normalizedBreakdown && <BreakdownCard breakdown={normalizedBreakdown} />}
+            </section>
+          )}
+
+          {tokens && (
+            <section className={cx("flex flex-col gap-2.5", hasContextSection && "border-t border-line/55 pt-3")} data-insights-tokens>
               <div className="flex items-center justify-between gap-2">
-                <span className="font-medium text-ink-2">{t("chat-sessioninsights.context_section")}</span>
+                <span className="font-medium text-ink-2">{t("chat-sessioninsights.tokens_section")}</span>
                 <span className="tabular-nums text-ink-3">
-                  {t("context.tokens", { used: formatTokens(context.tokens), window: formatTokens(context.window) })}
+                  {t("chat-sessioninsights.total_tokens", { tokens: compactTokens(tokens.total) })}
                 </span>
               </div>
-            )}
-            {normalizedBreakdown && normalizedBreakdown.totalTokens > 0 ? (
-              <StackedBreakdownBar breakdown={normalizedBreakdown} />
-            ) : context ? (
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-hover-2">
-                <div
-                  className={cx("h-full rounded-full", TIER_BAR[contextTier(context)])}
-                  style={{ width: `${context.used}%` }}
-                />
-              </div>
-            ) : null}
-            {context && (
-              <div className="flex flex-col gap-1">
-                <div className={cx("font-medium tabular-nums", TIER_TEXT[contextTier(context)])}>
-                  {contextTooltip(context)}
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 tabular-nums">
+                <div className="flex flex-col gap-0.5">
+                  <dt className="text-submeta text-ink-3">{t("chat-sessioninsights.input")}</dt>
+                  <dd className="text-meta font-semibold text-ink" data-insights-input>{compactTokens(tokens.input)}</dd>
                 </div>
-                <p className="leading-relaxed text-ink-3">{contextHint(context)}</p>
-              </div>
-            )}
-            {normalizedBreakdown && <BreakdownCard breakdown={normalizedBreakdown} />}
-          </section>
-        )}
+                <div className="flex flex-col gap-0.5">
+                  <dt className="text-submeta text-ink-3">{t("chat-sessioninsights.output")}</dt>
+                  <dd className="text-meta font-semibold text-ink" data-insights-output>{compactTokens(tokens.output)}</dd>
+                </div>
+                {tokens.hasCache && (
+                  <>
+                    <div className="flex flex-col gap-0.5">
+                      <dt className="text-submeta text-ink-3">{t("chat-sessioninsights.cache_read")}</dt>
+                      <dd className="text-meta font-semibold text-ink" data-insights-cache-read>{compactTokens(tokens.cacheRead)}</dd>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <dt className="text-submeta text-ink-3">{t("chat-sessioninsights.cache_write")}</dt>
+                      <dd className="text-meta font-semibold text-ink" data-insights-cache-write>{compactTokens(tokens.cacheWrite)}</dd>
+                    </div>
+                  </>
+                )}
+              </dl>
+              {hitText && (
+                <div className="flex items-center justify-between gap-2 border-t border-line/45 pt-2 tabular-nums" data-insights-cache-hit>
+                  <span className="text-ink-3">{t("chat-sessioninsights.cache_hit_rate")}</span>
+                  <span className="font-medium text-ink">{hitText}</span>
+                </div>
+              )}
+              {tokens.models.length > 1 ? (
+                <div className="flex flex-col gap-1.5 border-t border-line/45 pt-2" data-insights-models>
+                  <div className="text-submeta text-ink-3">{t("chat-sessioninsights.by_model")}</div>
+                  <ul className="divide-y divide-line/45 tabular-nums">
+                    {tokens.models.map((m) => {
+                      const modelHit = formatHitRate(m.cacheHitRate);
+                      const name = m.label || t("chat-sessioninsights.unknown_model");
+                      const label = m.fast ? `${name} · ${t("chat-sessiondialogs.speed_fast")}` : name;
+                      return (
+                        <li key={`${m.model || "__unknown__"}\n${m.fast ? 1 : 0}`} className="flex items-center justify-between gap-2 py-1.5 first:pt-0 last:pb-0">
+                          <span className="min-w-0 truncate font-medium text-ink">{label}</span>
+                          <span className="shrink-0 text-ink-3">
+                            {compactTokens(m.total)}
+                            {modelHit ? ` · ${modelHit}` : ""}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : tokens.models.length === 1 && (tokens.models[0].label || tokens.models[0].fast) ? (
+                <div className="flex items-center justify-between gap-2 border-t border-line/45 pt-2 text-ink-3" data-insights-model-single>
+                  <span>{t("chat-sessioninsights.model_single")}</span>
+                  <span className="truncate font-medium text-ink">
+                    {tokens.models[0].fast
+                      ? `${tokens.models[0].label || t("chat-sessioninsights.unknown_model")} · ${t("chat-sessiondialogs.speed_fast")}`
+                      : tokens.models[0].label}
+                  </span>
+                </div>
+              ) : null}
+            </section>
+          )}
 
-        {tokens && (
-          <section className={cx("flex flex-col gap-2", hasContextSection && "border-t border-line pt-3")} data-insights-tokens>
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-medium text-ink-2">{t("chat-sessioninsights.tokens_section")}</span>
-              <span className="tabular-nums text-ink-3">
-                {t("chat-sessioninsights.total_tokens", { tokens: compactTokens(tokens.total) })}
-              </span>
+          {performance && (
+            <section className={cx("flex flex-col gap-2.5", (hasContextSection || tokens) && "border-t border-line/55 pt-3")} data-insights-performance>
+              <span className="font-medium text-ink-2">{t("chat-sessioninsights.performance_section")}</span>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 tabular-nums">
+                {performance.latestTurnDurationMs !== null && (
+                  <div className="flex flex-col gap-0.5">
+                    <dt className="text-submeta text-ink-3">{t("chat-sessioninsights.latest_turn")}</dt>
+                    <dd className="text-meta font-semibold text-ink" data-insights-duration>{workDuration(performance.latestTurnDurationMs)}</dd>
+                  </div>
+                )}
+                {performance.ttftMs != null && performance.ttftMs >= 0 && (
+                  <div className="flex flex-col gap-0.5">
+                    <dt className="text-submeta text-ink-3">{t("chat-sessioninsights.ttft")}</dt>
+                    <dd className="text-meta font-semibold text-ink" data-insights-ttft>
+                      {formatLatencyMs(performance.ttftMs)}
+                    </dd>
+                  </div>
+                )}
+                {performance.latestTokPerSec !== null && (
+                  <div className="flex flex-col gap-0.5">
+                    <dt className="text-submeta text-ink-3">{t("chat-sessioninsights.latest_speed")}</dt>
+                    <dd className="text-meta font-semibold text-ink" data-insights-speed-latest>
+                      {t("chat-sessioninsights.tok_per_sec", { rate: formatRate(performance.latestTokPerSec) })}
+                    </dd>
+                  </div>
+                )}
+                {performance.avgTokPerSec !== null && (
+                  <div className="flex flex-col gap-0.5">
+                    <dt className="text-submeta text-ink-3">{t("chat-sessioninsights.average_speed")}</dt>
+                    <dd className="text-meta font-semibold text-ink" data-insights-speed-avg>
+                      {t("chat-sessioninsights.tok_per_sec", { rate: formatRate(performance.avgTokPerSec) })}
+                    </dd>
+                  </div>
+                )}
+                {performance.peakTokPerSec !== null && (
+                  <div className="flex flex-col gap-0.5">
+                    <dt className="text-submeta text-ink-3">{t("chat-sessioninsights.peak_speed")}</dt>
+                    <dd className="text-meta font-semibold text-ink" data-insights-speed-peak>
+                      {t("chat-sessioninsights.tok_per_sec", { rate: formatRate(performance.peakTokPerSec) })}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </section>
+          )}
+
+          {compact.supported && (
+            <div className={cx((hasContextSection || tokens || performance) && "border-t border-line/55 pt-3")}>
+              <button
+                type="button"
+                onClick={() => void triggerCompact()}
+                disabled={compactBusy}
+                data-insights-compact
+                className="flex w-full items-center justify-between gap-2 rounded-[9px] bg-hover/60 px-3 py-2 text-label font-medium text-ink transition-[background-color,transform] duration-150 hover:bg-hover active:scale-[0.99] disabled:opacity-50"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Icon name="layers" size={14} className="shrink-0 text-ink-2" />
+                  <span>{compactBusy ? t("chat-sessioninsights.compacting") : t("chat-sessioninsights.compact_action")}</span>
+                </span>
+                {compact.mode === "agent" && <span className="font-mono text-ink-3">/compact</span>}
+              </button>
             </div>
-            <dl className="grid grid-cols-2 gap-2 tabular-nums">
-              <div className="rounded-lg bg-inset px-2.5 py-1.5">
-                <dt className="text-ink-3">{t("chat-sessioninsights.input")}</dt>
-                <dd className="font-medium text-ink" data-insights-input>{compactTokens(tokens.input)}</dd>
-              </div>
-              <div className="rounded-lg bg-inset px-2.5 py-1.5">
-                <dt className="text-ink-3">{t("chat-sessioninsights.output")}</dt>
-                <dd className="font-medium text-ink" data-insights-output>{compactTokens(tokens.output)}</dd>
-              </div>
-              {tokens.hasCache && (
-                <>
-                  <div className="rounded-lg bg-inset px-2.5 py-1.5">
-                    <dt className="text-ink-3">{t("chat-sessioninsights.cache_read")}</dt>
-                    <dd className="font-medium text-ink" data-insights-cache-read>{compactTokens(tokens.cacheRead)}</dd>
-                  </div>
-                  <div className="rounded-lg bg-inset px-2.5 py-1.5">
-                    <dt className="text-ink-3">{t("chat-sessioninsights.cache_write")}</dt>
-                    <dd className="font-medium text-ink" data-insights-cache-write>{compactTokens(tokens.cacheWrite)}</dd>
-                  </div>
-                </>
-              )}
-            </dl>
-            {hitText && (
-              <div className="flex items-center justify-between rounded-lg bg-inset px-2.5 py-1.5 tabular-nums" data-insights-cache-hit>
-                <span className="text-ink-3">{t("chat-sessioninsights.cache_hit_rate")}</span>
-                <span className="font-medium text-ink">{hitText}</span>
-              </div>
-            )}
-            {tokens.models.length > 1 ? (
-              <div className="flex flex-col gap-1.5" data-insights-models>
-                <div className="text-ink-3">{t("chat-sessioninsights.by_model")}</div>
-                <ul className="flex flex-col gap-1 tabular-nums">
-                  {tokens.models.map((m) => {
-                    const modelHit = formatHitRate(m.cacheHitRate);
-                    const name = m.label || t("chat-sessioninsights.unknown_model");
-                    const label = m.fast ? `${name} · ${t("chat-sessiondialogs.speed_fast")}` : name;
-                    return (
-                      <li key={`${m.model || "__unknown__"}\n${m.fast ? 1 : 0}`} className="flex items-center justify-between gap-2 rounded-lg bg-inset px-2.5 py-1.5">
-                        <span className="min-w-0 truncate font-medium text-ink">{label}</span>
-                        <span className="shrink-0 text-ink-3">
-                          {compactTokens(m.total)}
-                          {modelHit ? ` · ${modelHit}` : ""}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ) : tokens.models.length === 1 && (tokens.models[0].label || tokens.models[0].fast) ? (
-              <div className="flex items-center justify-between gap-2 text-ink-3" data-insights-model-single>
-                <span>{t("chat-sessioninsights.model_single")}</span>
-                <span className="truncate font-medium text-ink">
-                  {tokens.models[0].fast
-                    ? `${tokens.models[0].label || t("chat-sessioninsights.unknown_model")} · ${t("chat-sessiondialogs.speed_fast")}`
-                    : tokens.models[0].label}
-                </span>
-              </div>
-            ) : null}
-          </section>
-        )}
-
-        {performance && (
-          <section className={cx("flex flex-col gap-2", (hasContextSection || tokens) && "border-t border-line pt-3")} data-insights-performance>
-            <span className="font-medium text-ink-2">{t("chat-sessioninsights.performance_section")}</span>
-            <dl className="grid grid-cols-2 gap-2 tabular-nums">
-              {performance.latestTurnDurationMs !== null && (
-                <div className="rounded-lg bg-inset px-2.5 py-1.5">
-                  <dt className="text-ink-3">{t("chat-sessioninsights.latest_turn")}</dt>
-                  <dd className="font-medium text-ink" data-insights-duration>{workDuration(performance.latestTurnDurationMs)}</dd>
-                </div>
-              )}
-              {performance.ttftMs != null && performance.ttftMs >= 0 && (
-                <div className="rounded-lg bg-inset px-2.5 py-1.5">
-                  <dt className="text-ink-3">{t("chat-sessioninsights.ttft")}</dt>
-                  <dd className="font-medium text-ink" data-insights-ttft>
-                    {formatLatencyMs(performance.ttftMs)}
-                  </dd>
-                </div>
-              )}
-              {performance.latestTokPerSec !== null && (
-                <div className="rounded-lg bg-inset px-2.5 py-1.5">
-                  <dt className="text-ink-3">{t("chat-sessioninsights.latest_speed")}</dt>
-                  <dd className="font-medium text-ink" data-insights-speed-latest>
-                    {t("chat-sessioninsights.tok_per_sec", { rate: formatRate(performance.latestTokPerSec) })}
-                  </dd>
-                </div>
-              )}
-              {performance.avgTokPerSec !== null && (
-                <div className="rounded-lg bg-inset px-2.5 py-1.5">
-                  <dt className="text-ink-3">{t("chat-sessioninsights.average_speed")}</dt>
-                  <dd className="font-medium text-ink" data-insights-speed-avg>
-                    {t("chat-sessioninsights.tok_per_sec", { rate: formatRate(performance.avgTokPerSec) })}
-                  </dd>
-                </div>
-              )}
-              {performance.peakTokPerSec !== null && (
-                <div className="rounded-lg bg-inset px-2.5 py-1.5">
-                  <dt className="text-ink-3">{t("chat-sessioninsights.peak_speed")}</dt>
-                  <dd className="font-medium text-ink" data-insights-speed-peak>
-                    {t("chat-sessioninsights.tok_per_sec", { rate: formatRate(performance.peakTokPerSec) })}
-                  </dd>
-                </div>
-              )}
-            </dl>
-          </section>
-        )}
-
-        {compact.supported && (
-          <div className={cx((hasContextSection || tokens || performance) && "border-t border-line pt-3")}>
-            <button
-              type="button"
-              onClick={() => void triggerCompact()}
-              disabled={compactBusy}
-              data-insights-compact
-              className="flex w-full items-center justify-between gap-2 rounded-lg border border-line bg-inset px-3 py-2 text-label font-medium text-ink transition-colors hover:bg-hover disabled:opacity-50"
-            >
-              <span className="flex items-center gap-1.5">
-                <Icon name="layers" size={14} className="shrink-0 text-ink-2" />
-                <span>{compactBusy ? t("chat-sessioninsights.compacting") : t("chat-sessioninsights.compact_action")}</span>
-              </span>
-              {compact.mode === "agent" && <span className="font-mono text-ink-3">/compact</span>}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>,
-    document.body,
+          )}
+        </div>
+      </UiPopoverContent>
+    </UiPopover>
   );
 }

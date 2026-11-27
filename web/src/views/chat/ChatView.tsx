@@ -50,12 +50,13 @@ import type { Interaction, Item, Session, Subagent } from "../../lib/types";
 import { REVIEW_FEATURE } from "../../lib/types";
 import { anchoredScroll, followsAgain, isScrollbarPress, jumpLabel, leavesOnKey, leavesOnScrollbarDrag, leavesOnTouch, leavesOnWheel, followsAfterUnfold, UNFOLD_PAUSE, type ScrollAnchor } from "../../lib/disclosure";
 import { Button, copyText, cx, Dialog, IconButton, Loading, Menu, toast, useMenu, useNow, type MenuItem } from "../../ui/atoms";
+import { ScrollFade } from "../../ui/ScrollFade";
 import { StatusMark } from "../../ui/StatusMark";
 import { Icon } from "../../ui/icons";
 import { StoppedAgentLine } from "./StoppedAgentLine";
 const TakeoverAction = lazy(() => import("./TakeoverAction"));
 import { prefersReducedMotion, scrollBehavior } from "../../ui/stream/motion";
-import { useFlash } from "../../ui/motion";
+import { useAnimatedPresence, useFlash } from "../../ui/motion";
 import { segmentChanges, shiftAbove } from "./offscreen";
 import { glide } from "./glide";
 import { AGENT_COMMANDS, Composer, type Outgoing } from "./Composer";
@@ -556,18 +557,16 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   const items = useRef(tr.items);
   items.current = tr.items;
   const draftKey = `${mid}/${sid}`;
-  const chatFlash = useFlash(draftKey, 200);
+  const chatFlash = useFlash(draftKey, 240);
   const [mountEnter, setMountEnter] = useState(
     () => typeof window !== "undefined" && Boolean(lastOpenedChat && lastOpenedChat !== draftKey && !prefersReducedMotion()),
   );
   useEffect(() => {
     lastOpenedChat = draftKey;
   }, [draftKey]);
-  const chatEnterStyle = chatFlash > 0
-    ? { animation: "view-enter 200ms var(--ease-out-strong) both" }
-    : mountEnter
-      ? { animation: "view-enter 200ms var(--ease-out-strong) backwards" }
-      : undefined;
+  const chatEnterStyle = chatFlash > 0 || mountEnter
+    ? { animation: "view-enter 240ms var(--ease-out-strong) both" }
+    : undefined;
   const canCompose = sessionCan(session, "send");
   // a stopped Agent (#4754): a read-only line with Terminal and Resume where the composer goes
   const stoppedLine = composerSlot(session, { assistant: Boolean(assistant), offline: Boolean(offlineLine) }) === "stopped";
@@ -2115,7 +2114,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   const pills = planPill ? (
     <div className="flex shrink-0 items-center justify-center gap-2" data-plan-pills>
       {planPill}
-      {away && <JumpPill label={jumpLabel(newSince)} onClick={toEnd} inline />}
+      <JumpPill open={away} label={jumpLabel(newSince)} onClick={toEnd} inline />
     </div>
   ) : null;
   // the header and the composer are memoized (a transcript push changes neither): what they get stays the same object
@@ -2353,7 +2352,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
         </Suspense>
       )}
       <div className="relative min-h-0 flex-1">
-        {(tr.notLive || refreshFailed) && <NotLivePill error={refreshFailed} onReload={() => { tr.reload(); onRefresh?.(); }} lower={Boolean(picked && !search.open)} />}
+        <NotLivePill open={Boolean(tr.notLive || refreshFailed)} error={refreshFailed} onReload={() => { tr.reload(); onRefresh?.(); }} lower={Boolean(picked && !search.open)} />
         <div ref={scrollRef} onScroll={onScroll} data-chat-scroll className="relative h-full overflow-y-auto [overflow-anchor:none]">
           <ChatActionsContext.Provider value={actions}>
           <div
@@ -2486,15 +2485,15 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
           <CommentMarks scroller={scroller} jump={landRow} />
           </ChatActionsContext.Provider>
         </div>
-        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-7 bg-linear-to-t from-page via-page/75 to-transparent" />
+        <ScrollFade surface="page" height="h-9" />
         {/* A transient edge overlay; native scrolling and the centered text column keep their existing layout. */}
         {railSource.ticks.length > 0 && (
           <Suspense fallback={null}>
             <NavRail ticks={railSource.ticks} total={railSource.total} scroller={scrollEl} onJump={railSource.select} reset={`${mid}/${sid}`} />
           </Suspense>
         )}
-        {away && !jumpInDock && <JumpPill label={jumpLabel(newSince)} onClick={toEnd} />}
-        {picked && !search.open && <ReturnPill onClick={backToOrigin} />}
+        <JumpPill open={away && !jumpInDock} label={jumpLabel(newSince)} onClick={toEnd} />
+        <ReturnPill open={picked && !search.open} onClick={backToOrigin} />
       </div>
 
       <div
@@ -2718,7 +2717,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
         }
       >
         <p className="text-[13px] leading-relaxed text-ink-2">{t("chat-chatview.draft_detail")}{draftRefusal?.clearable === undefined && t("chat-chatview.draft_multiline")}</p>
-        {draftRefusal?.draft && <pre className="mt-2.5 max-h-40 overflow-auto rounded-[8px] bg-inset px-2.5 py-2 font-mono text-[12px] whitespace-pre-wrap text-ink shadow-hairline">{draftRefusal.draft}</pre>}
+        {draftRefusal?.draft && <pre className="mt-2.5 max-h-40 overflow-auto rounded-[8px] bg-inset px-2.5 py-2 font-mono text-[12px] whitespace-pre-wrap text-ink">{draftRefusal.draft}</pre>}
       </Dialog>
     </div>
   );
@@ -2727,11 +2726,24 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
 }
 
 /** Over the chat's top edge when the page keeps getting its items by asking for them, not by push (lib/stale-page.ts). */
-function NotLivePill({ onReload, lower, error }: { onReload: () => void; /** The search's return pill is at the same edge: under it. */ lower?: boolean; error?: string }) {
+function NotLivePill({ open, onReload, lower, error }: { open: boolean; onReload: () => void; /** The search's return pill is at the same edge: under it. */ lower?: boolean; error?: string }) {
+  const { mounted, ref } = useAnimatedPresence<HTMLDivElement>(open);
+  const kept = useRef({ error, lower });
+  if (open) kept.current = { error, lower };
+  if (!mounted) return null;
+  const shownError = open ? error : kept.current.error;
+  const shownLower = open ? lower : kept.current.lower;
   return (
-    <div role="status" data-testid="chat-not-live" className={lower ? "absolute top-14 left-1/2 z-10 -translate-x-1/2" : "absolute top-3 left-1/2 z-10 -translate-x-1/2"} style={{ animation: "fade-up 150ms ease-out both" }}>
-      <div className="flex h-8 items-center gap-2 rounded-full border border-line bg-surface px-3 text-[12px] leading-none whitespace-nowrap text-ink-2 shadow-raised">
-        <span title={error}>{t(error ? "chat-chatview.refresh_failed" : "chat-chatview.not_live")}</span>
+    <div
+      role="status"
+      data-testid="chat-not-live"
+      className={cx(
+        "pointer-events-none absolute inset-x-0 z-10 flex justify-center transition-[top] duration-200 ease-(--ease-out-strong) motion-reduce:transition-none",
+        shownLower ? "top-14" : "top-3",
+      )}
+    >
+      <div ref={ref} data-presence-pill="" className="pointer-events-auto flex h-8 items-center gap-2 rounded-full bg-float px-3 text-[12px] leading-none whitespace-nowrap text-ink-2 shadow-float">
+        <span title={shownError}>{t(shownError ? "chat-chatview.refresh_failed" : "chat-chatview.not_live")}</span>
         <button type="button" onClick={onReload} className="touch-hit font-medium text-accent-ink hover:underline">
           {t("chat-chatview.not_live_reload")}
         </button>
@@ -2741,36 +2753,47 @@ function NotLivePill({ onReload, lower, error }: { onReload: () => void; /** The
 }
 
 /** After going to a search hit: back to where the reader was when the search opened (Android ReturnChip). */
-function ReturnPill({ onClick }: { onClick: () => void }) {
+function ReturnPill({ open, onClick }: { open: boolean; onClick: () => void }) {
+  const { mounted, ref } = useAnimatedPresence<HTMLDivElement>(open);
+  if (!mounted) return null;
   return (
-    <div className="absolute top-3 left-1/2 z-10 -translate-x-1/2" style={{ animation: "fade-up 150ms ease-out both" }}>
-      <button
-        type="button"
-        onClick={onClick}
-        data-search-return
-        className="touch-hit flex h-8 items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-[12px] leading-none font-medium whitespace-nowrap text-ink-2 shadow-raised transition-colors duration-150 hover:bg-hover active:scale-[0.98]"
-      >
-        <Icon name="arrowLeft" size={14} className="shrink-0" />
-        <span className="translate-y-[0.5px]">{t("chat-chatview.search_return")}</span>
-      </button>
+    <div className="pointer-events-none absolute inset-x-0 top-3 z-10 flex justify-center">
+      <div ref={ref} data-presence-pill="" className="pointer-events-auto">
+        <button
+          type="button"
+          onClick={onClick}
+          data-search-return
+          className="touch-hit flex h-8 items-center gap-1.5 rounded-full bg-float px-3 py-1.5 text-[12px] leading-none font-medium whitespace-nowrap text-ink shadow-float transition-[background-color,box-shadow,translate,scale,transform] duration-200 ease-(--ease-out-strong) hover:-translate-y-0.5 hover:bg-surface active:translate-y-0 active:scale-[0.97] motion-reduce:hover:translate-y-0"
+        >
+          <Icon name="arrowLeft" size={14} className="shrink-0" />
+          <span className="translate-y-[0.5px]">{t("chat-chatview.search_return")}</span>
+        </button>
+      </div>
     </div>
   );
 }
 
 /** Away from the end: "New messages" / "Jump to bottom" over the chat's bottom edge (the reference client's JumpToBottomChip). */
-function JumpPill({ label, onClick, inline }: { label: string; onClick: () => void; /** In a row (beside the plan's pill), not over the chat. */ inline?: boolean }) {
+function JumpPill({ open, label, onClick, inline }: { open: boolean; label: string; onClick: () => void; /** In a row (beside the plan's pill), not over the chat. */ inline?: boolean }) {
+  const { mounted, ref } = useAnimatedPresence<HTMLDivElement>(open);
+  const keptLabel = useRef(label);
+  if (open) keptLabel.current = label;
+  if (!mounted) return null;
+  const shownLabel = open ? label : keptLabel.current;
   return (
-    <div aria-live="polite" className={inline ? "shrink-0" : "absolute bottom-3 left-1/2 z-10 -translate-x-1/2"} style={{ animation: "fade-up 150ms ease-out both" }}>
-      <button
-        type="button"
-        onClick={onClick}
-        aria-label={label}
-        data-jump-pill
-        className="touch-hit flex h-8 items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-[12px] leading-none font-medium whitespace-nowrap text-ink-2 shadow-raised transition-colors duration-150 hover:bg-hover active:scale-[0.98]"
-      >
-        <Icon name="arrowDown" size={14} className="shrink-0" />
-        <span className="translate-y-[0.5px]">{label}</span>
-      </button>
+    <div aria-live="polite" className={inline ? "shrink-0" : "pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center"}>
+      <div ref={ref} data-presence-pill="" className={inline ? undefined : "pointer-events-auto"}>
+        <button
+          type="button"
+          onClick={onClick}
+          aria-label={shownLabel}
+          data-jump-pill
+          className="touch-hit flex h-8 items-center gap-1.5 rounded-full bg-float px-3 py-1.5 text-[12px] leading-none font-medium whitespace-nowrap text-ink shadow-float transition-[background-color,box-shadow,translate,scale,transform] duration-200 ease-(--ease-out-strong) hover:-translate-y-0.5 hover:bg-surface active:translate-y-0 active:scale-[0.97] motion-reduce:hover:translate-y-0"
+        >
+          <Icon name="arrowDown" size={14} className="shrink-0" />
+          <span className="translate-y-[0.5px]">{shownLabel}</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -2815,7 +2838,7 @@ function ConflictNote({ session }: { session: Session }) {
   const text = alsoOpenText(session);
   if (!text) return null;
   return (
-    <div role="status" data-testid="chat-also-open" className="flex items-start gap-2 rounded-[12px] bg-orange-tint px-3 py-2 text-[12.5px]" style={{ animation: "fade-up 200ms ease-out both" }}>
+    <div role="status" data-testid="chat-also-open" className="flex items-start gap-2 rounded-[12px] bg-orange-tint px-3 py-2 text-[12.5px]" style={{ animation: "fade-up 200ms var(--ease-out-strong) both" }}>
       <span className="flex h-[18px] shrink-0 items-center text-orange"><Icon name="warning" size={13} /></span>
       <span className="line-clamp-2 min-w-0 flex-1 text-ink-2">{text}</span>
     </div>
@@ -2829,7 +2852,7 @@ function AttentionNote({ session }: { session: Session }) {
   if (!reason) return null;
   const link = externalLink(session);
   return (
-    <div role="status" data-testid="chat-attention" className="flex items-start gap-2 rounded-[12px] border-l-2 border-attention bg-inset px-3 py-2 text-[12.5px]" style={{ animation: "fade-up 200ms ease-out both" }}>
+    <div role="status" data-testid="chat-attention" className="flex items-start gap-2 rounded-[12px] border-l-2 border-attention bg-inset px-3 py-2 text-[12.5px]" style={{ animation: "fade-up 200ms var(--ease-out-strong) both" }}>
       <span className="flex h-[18px] shrink-0 items-center"><StatusMark state="needs_you" /></span>
       <span className="line-clamp-3 min-w-0 flex-1 text-ink-2">{reason}</span>
       {link && (
@@ -3138,7 +3161,7 @@ export const Header = memo(function Header({
           <TitleEditor session={session} title={primaryTab ? session.title || baseTitle : title} onDone={() => setEditing(false)} />
         ) : assistant && main && items.length > 0 ? (
           <h1 className={titleClass}>
-            <button type="button" data-chat-title data-assistant-name-menu aria-haspopup="menu" aria-expanded={Boolean(menu.anchor)} onClick={menu.open} className="touch-hit relative flex max-w-full items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 hover:bg-hover focus-visible:bg-hover">
+            <button type="button" data-chat-title data-assistant-name-menu aria-haspopup="menu" aria-expanded={Boolean(menu.anchor)} onClick={menu.open} className="touch-hit relative flex max-w-full items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 transition-colors duration-150 hover:bg-hover focus-visible:bg-hover">
               <span className="truncate">{chrome?.title || title}</span>
               <Icon name="chevron" size={12} className="shrink-0 text-ink-3" />
             </button>
@@ -3174,7 +3197,7 @@ export const Header = memo(function Header({
           aria-controls={overview.open ? overview.id : undefined}
           title={t("chat-chatview.session_overview")}
           onClick={overview.toggle}
-          className={cx("touch-hit relative flex size-7 shrink-0 items-center justify-center rounded-control transition-colors hover:bg-hover hover:text-ink", overview.open ? "bg-hover text-ink" : "text-ink-3")}
+          className={cx("touch-hit relative flex size-7 shrink-0 items-center justify-center rounded-control transition-[background-color,color,scale,transform] duration-150 ease-(--ease-out-strong) active:scale-[0.94] motion-reduce:transition-none hover:bg-hover hover:text-ink", overview.open ? "bg-hover text-ink" : "text-ink-3")}
         >
           <Icon name="list" size={15} />
           {running > 0 && !overview.open && (

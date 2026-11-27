@@ -67,7 +67,8 @@ describe("the pinned Persona row", () => {
     act(() => root.render(<Sidebar route={{ name: "persona" }} onSearch={() => {}} onNewAgent={() => {}} />));
     await flush();
     expect(row().getAttribute("aria-current")).toBe("page");
-    expect(row().className).toContain("bg-hover-2");
+    expect(row().className).toContain("bg-float");
+    expect(row().className).toContain("shadow-float");
     act(() => root.render(<Sidebar route={{ name: "home" }} onSearch={() => {}} onNewAgent={() => {}} />));
     await flush();
     expect(row().getAttribute("aria-current")).toBeNull();

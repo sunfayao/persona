@@ -2,7 +2,9 @@
 // a chart's marks go to their new place, a new row fades in, a bar's fill moves. Nothing moves the first time something
 // is drawn, and nothing at all with reduced motion; at rest what is shown is exactly the value. Every duration here is
 // the one place it is set (the CSS that goes with one names it).
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefCallback } from "react";
+import { animateIn, animateOut } from "@ui-sdk/core";
+import { solveSpring } from "@ui-sdk/core/gesture";
 import { EASE } from "./atoms";
 import { prefersReducedMotion } from "./stream/motion";
 
@@ -343,4 +345,93 @@ export function presenceStyle(phase: Phase): React.CSSProperties | undefined {
   if (phase === "in") return { animation: `fade-up ${ENTER_MS}ms ${EASE} both` };
   if (phase === "out") return { animation: `fade-up ${ENTER_MS}ms ${EASE} reverse both`, pointerEvents: "none" };
   return undefined;
+}
+
+/**
+ * Normalized 0→1 easing curve backed by `@ui-sdk/core/gesture`'s damped spring solver, usable with `useTween`.
+ * `damping >= 1` settles monotonically without overshoot; values below `1` add a subtle tactile bounce.
+ */
+export function springCurve(response = 0.36, damping = 0.86): (p: number) => number {
+  const spring = solveSpring(response, damping, -1, 0);
+  const horizonMs = Math.max(1, response * 3.2 * 1000);
+  return (p: number) => {
+    if (p <= 0) return 0;
+    if (p >= 1) return 1;
+    return 1 + spring.position(p * horizonMs);
+  };
+}
+
+/**
+ * Manages mount/unmount lifecycle for an element using `@ui-sdk/core`'s `animateIn` and `animateOut`
+ * (`data-starting-style` / `data-ending-style`). Respects `prefers-reduced-motion`, cancels an in-flight exit
+ * cleanly if `present` flips back to `true`, and unmounts immediately when Web Animations are unavailable.
+ */
+export function useAnimatedPresence<T extends HTMLElement = HTMLDivElement>(
+  present: boolean,
+): { mounted: boolean; ref: RefCallback<T> } {
+  const [mounted, setMounted] = useState(present);
+  const nodeRef = useRef<T | null>(null);
+  const stopRef = useRef<(() => void) | null>(null);
+  const phaseRef = useRef<"idle" | "in" | "out">("idle");
+
+  if (present && !mounted) {
+    setMounted(true);
+  }
+
+  const ref = useCallback((el: T | null) => {
+    if (nodeRef.current && nodeRef.current !== el) {
+      stopRef.current?.();
+      stopRef.current = null;
+      phaseRef.current = "idle";
+    }
+    nodeRef.current = el;
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!mounted) {
+      stopRef.current?.();
+      stopRef.current = null;
+      phaseRef.current = "idle";
+      return;
+    }
+    const el = nodeRef.current;
+    if (present) {
+      if (phaseRef.current === "in") return;
+      stopRef.current?.();
+      stopRef.current = null;
+      if (!el) return;
+      phaseRef.current = "in";
+      if (!reducedMotion()) {
+        stopRef.current = animateIn(el);
+      }
+      return;
+    }
+    if (phaseRef.current === "out") return;
+    stopRef.current?.();
+    stopRef.current = null;
+    if (!el || reducedMotion() || typeof el.getAnimations !== "function") {
+      phaseRef.current = "idle";
+      setMounted(false);
+      return;
+    }
+    phaseRef.current = "out";
+    let exited = false;
+    const stop = animateOut(el, () => {
+      exited = true;
+      stopRef.current = null;
+      phaseRef.current = "idle";
+      setMounted(false);
+    });
+    if (!exited) {
+      stopRef.current = stop;
+    }
+  }, [present, mounted]);
+
+  useEffect(() => () => {
+    stopRef.current?.();
+    stopRef.current = null;
+    phaseRef.current = "idle";
+  }, []);
+
+  return { mounted, ref };
 }

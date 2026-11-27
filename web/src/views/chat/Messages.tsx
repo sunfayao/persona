@@ -8,7 +8,7 @@ import { taskOfInjected } from "../../lib/injected";
 import { getSession, useStore } from "../../lib/store";
 import type { Injected } from "../../lib/types";
 import type { UserMessage } from "../../lib/turns";
-import { cx } from "../../ui/atoms";
+import { cx, EASE } from "../../ui/atoms";
 import { Icon, type IconName } from "../../ui/icons";
 import { AttachedPhotos } from "./AttachedPhotos";
 import { FileCards } from "./FileCards";
@@ -34,7 +34,7 @@ export function MergedBubble({ msg, mid, sid }: { msg: UserMessage; mid: string;
       {msg.photos && <AttachedPhotos paths={msg.photos} mid={mid} sid={sid} />}
       {msg.files && <FileCards files={msg.files} mid={mid} />}
       <MessageActions text={parts.join("\n\n")} isUser ts={msg.ts} side className="max-w-full">
-        <div className="flex max-w-full flex-col gap-2 rounded-[18px] bg-user-bubble px-4 py-2.5 font-sans text-[length:var(--chat-secondary)] leading-[1.6] text-ink ring-1 ring-inset ring-line/55 dark:ring-line/80" title={clock(msg.ts)} aria-label={t("chat-messages.message_count", { count: parts.length })}>
+        <div className="flex max-w-full flex-col gap-2 rounded-[16px] bg-user-bubble px-4 py-2.5 font-sans text-[length:var(--chat-secondary)] leading-[1.6] text-ink" title={clock(msg.ts)} aria-label={t("chat-messages.message_count", { count: parts.length })}>
           {parts.map((part, i) => (
             <div key={i} className="flex flex-col gap-2">
               {i > 0 && <span aria-hidden className="mx-auto h-[2px] w-6 rounded-full bg-ink/20" />}
@@ -70,7 +70,7 @@ function MergedPart({ text, mid, sid }: { text: string; mid: string; sid: string
 export function PeerMessage({ msg }: { msg: UserMessage }) {
   const words = <Markdown text={keepLineBreaks(msg.text)} small />;
   return (
-    <div className="flex min-w-0 flex-col gap-1.5 rounded-card bg-inset px-3.5 py-2.5 shadow-hairline sm:mr-[12%]" title={clock(msg.ts)}>
+    <div className="flex min-w-0 flex-col gap-1.5 rounded-card bg-inset/80 px-3.5 py-2.5 sm:mr-[12%]" title={clock(msg.ts)}>
       <span className="flex items-center gap-1.5 text-[12px] font-medium whitespace-nowrap text-ink-3">
         <Icon name="loop" size={12} />
         {t("chat-messages.from", { name: msg.from ?? "" })}
@@ -95,7 +95,7 @@ export function LoopTick({ msg }: { msg: UserMessage }) {
   const rest = msg.text.slice(5).trim();
   return (
     <div className="flex justify-end">
-      <span className="flex max-w-full min-w-0 items-center gap-1.5 rounded-full bg-inset px-3 py-1 text-[12px] text-ink-2 shadow-hairline">
+      <span className="flex max-w-full min-w-0 items-center gap-1.5 rounded-full bg-inset/80 px-3 py-1 text-[12px] text-ink-2">
         <Icon name="loop" size={12} className="shrink-0" />
         <span className="shrink-0 font-medium whitespace-nowrap">{t("chat-messages.loop_tick")}</span>
         {msg.ts && <span className="shrink-0 tabular-nums">{clock(msg.ts)}</span>}
@@ -131,7 +131,7 @@ export function InjectedHint({ msg, sid }: { msg: UserMessage; sid: string }) {
       {(todo || n.detail) && <Icon name={todo ? "chevronRight" : open ? "up" : "chevron"} size={11} className="shrink-0 text-ink-3" />}
     </>
   );
-  const pill = "flex max-w-full min-w-0 items-center gap-1.5 rounded-full bg-inset px-3 py-1 text-[12px] text-ink-2 shadow-hairline";
+  const pill = "flex max-w-full min-w-0 items-center gap-1.5 rounded-full bg-inset/80 px-3 py-1 text-[12px] text-ink-2 transition-colors duration-150";
   return (
     <div className="flex flex-col items-center gap-2" data-injected={n.kind}>
       {todo ? (
@@ -146,7 +146,7 @@ export function InjectedHint({ msg, sid }: { msg: UserMessage; sid: string }) {
         <span className={pill}>{body}</span>
       )}
       {open && n.detail && (
-        <div className="w-full max-w-[560px] rounded-card bg-inset px-3 py-2 text-[12.5px] leading-relaxed text-ink-2 shadow-hairline">
+        <div className="w-full max-w-[560px] rounded-card bg-inset/75 px-3 py-2 text-[12.5px] leading-relaxed text-ink-2" style={{ animation: `fade-up 180ms ${EASE} both` }}>
           <Markdown text={keepLineBreaks(n.detail)} small />
         </div>
       )}

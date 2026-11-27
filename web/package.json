@@ -30,6 +30,8 @@
     "@jitl/quickjs-wasmfile-release-sync": "0.32.0",
     "@novnc/novnc": "1.7.0",
     "@tanstack/react-virtual": "^3.14.26",
+    "@ui-sdk/core": "^0.1.0-beta.17",
+    "@ui-sdk/react": "^0.1.0-beta.17",
     "@xterm/addon-clipboard": "0.2.0",
     "@xterm/addon-fit": "0.11.0",
     "@xterm/addon-search": "0.16.0",
@@ -59,7 +61,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "4.1.16",
     "@types/node": "22.20.5",
-    "@types/react": "19.2.2",
+    "@types/react": "^19.2.14",
     "@types/react-dom": "19.2.2",
     "@typescript-eslint/parser": "^8.72.1",
     "@vitejs/plugin-react": "5.1.0",
@@ -76,8 +78,14 @@
   },
   "overrides": {
     "katex": "$katex",
-    "eslint": { "minimatch": "11.0.1" },
-    "@eslint/config-array": { "minimatch": "11.0.1" },
-    "@typescript-eslint/typescript-estree": { "minimatch": "11.0.1" }
+    "eslint": {
+      "minimatch": "11.0.1"
+    },
+    "@eslint/config-array": {
+      "minimatch": "11.0.1"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.1"
+    }
   }
 }
