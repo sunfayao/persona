@@ -19,6 +19,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/host"
 	"github.com/sunfayao/persona/server/internal/lazyre"
 	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/node/traexbg"
 	"github.com/sunfayao/persona/server/internal/osproc"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/screen"
@@ -506,6 +507,15 @@ func (n *Node) traexStatus(ctx context.Context, p host.Agent) string {
 	traexCache.status[p.PaneID] = s
 	traexCache.Unlock()
 	return status
+}
+
+// traexBackground lists the commands TRAE CLI still runs in the background for thread id, from its rollout and the
+// task snapshots beside it (node/traexbg): its screen shows none of them once the turn is over, so without them a
+// conversation waiting on a background command read as finished. They make its row working (background) as a
+// Claude's background tasks do, and go when the CLI marks them ended.
+func (n *Node) traexBackground(id string) []proto.BackgroundTask {
+	n.traexBgOnce.Do(func() { n.traexBg = traexbg.New(traexbg.Dependencies{}) })
+	return n.traexBg.Running(n.traexRolloutPath(id))
 }
 
 func traexQueue(pane, session string) ([]string, bool) {
