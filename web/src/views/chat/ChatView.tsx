@@ -116,6 +116,7 @@ import { UltracodeLostNote } from "./Ultracode";
 import { isUltracodeQueued, ultracodeQueueDone } from "../../lib/ultracode";
 import { ChatActionsContext, liveValue, type ChatActions } from "./chat-actions";
 import { QueueStrip } from "./QueueStrip";
+import { TodoStrip } from "./TodoStrip";
 import type { LoadOutcome } from "./ChatSearch";
 import { forgetReveals, revealItem, undoReveals, clearReveal } from "./search-reveal";
 import { jumpWhenOpen, openForward, peekJump, takeJump, type ForwardChat, type ForwardPick } from "../../lib/forward";
@@ -2356,6 +2357,8 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
       {backPage && (cameFrom ? <Suspense fallback={null}><HandoffBack onDismiss={() => setCameFrom(null)} /></Suspense> : cameFrom === undefined ? <Suspense fallback={null}><InboxBack key={`${mid}/${sid}`} mid={mid} sid={sid} session={session} /></Suspense> : null)}
       {/* a known session keeps its chat: a failed background read is retried quietly (runtime-session.ts) */}
       {archivedHere ? <ArchivedNotice session={archivedHere} /> : notFound ? <Suspense fallback={null}><LazyNotFoundNotice assistant={Boolean(assistant)} retry={retryDetail} /></Suspense> : noDetails && <SessionDetailNotice error={detail.error} retry={retryDetail} />}
+      {/* the to-do this Agent's session is linked to: where it stands, and steering by it (TodoStrip.tsx) */}
+      {!embedded && !assistant && session && <TodoStrip session={session} canSteer={canCompose} />}
 
       <div className="session-workspace flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">

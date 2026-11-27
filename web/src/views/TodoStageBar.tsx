@@ -55,8 +55,35 @@ export function prLink(raw?: string): { url: string; text: string; label: string
   return { url, text, label: t("todos.stage_pr_label", { pr: text, host: u.host }) };
 }
 
-export function TodoStageBar({ stage, stageKind, prURL, done = false, className = "" }: { stage?: string; stageKind?: string; prURL?: string; done?: boolean; className?: string }) {
+const COMPACT_DOT: Record<TodoStageState, string> = {
+  done: "size-1.5 bg-green",
+  current: "size-2 bg-accent ring-2 ring-accent-tint",
+  ahead: "size-1.5 border border-line-strong",
+};
+
+/** The bar in one line (the to-do strip in an Agent's chat): a dot per step, the current one larger and ringed, done
+ *  ones filled, ones ahead hollow, then the current step's word. Spans only, so it may sit inside a button, which
+ *  reads it as "Progress Review". */
+function CompactStages({ current, className }: { current: number; className: string }) {
+  return (
+    <span data-stage-compact className={cx("inline-flex shrink-0 items-center gap-1.5", className)}>
+      <span aria-hidden className="flex items-center gap-1">
+        {TODO_STAGES.map((s, i) => {
+          const state = todoStageState(i, current);
+          return <span key={s} data-stage={s} data-state={state} className={cx("rounded-full", COMPACT_DOT[state])} />;
+        })}
+      </span>
+      <span className="text-label whitespace-nowrap text-ink-2">
+        <span className="sr-only">{t("todos.stage_label")} </span>
+        {STAGE_LABEL[TODO_STAGES[current]]}
+      </span>
+    </span>
+  );
+}
+
+export function TodoStageBar({ stage, stageKind, prURL, done = false, compact = false, className = "" }: { stage?: string; stageKind?: string; prURL?: string; done?: boolean; compact?: boolean; className?: string }) {
   const current = stageKind === "general" ? -1 : todoStageIndex(stage);
+  if (compact) return current >= 0 ? <CompactStages current={current} className={className} /> : null;
   const pr = prLink(prURL);
   if (current < 0 && !pr) return null;
   // Finished: the steps it went through, then Done, every one passed (none is the current step).

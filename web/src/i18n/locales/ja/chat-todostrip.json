@@ -1,0 +1,19 @@
+{
+  "region": "リンクされた ToDo：{title}",
+  "expand": "ToDo の詳細と操作を表示",
+  "collapse": "ToDo の詳細を隠す",
+  "open": "ToDo を開く",
+  "no_detail": "ここでは詳細を読めません",
+  "next_criterion": "次：{text}",
+  "all_met": "完了条件をすべて満たしています",
+  "in_progress": "進行中",
+  "unattended": "誰も作業していません",
+  "wait_review": "レビュー待ち",
+  "wait_merge": "マージ待ち",
+  "wait_deploy": "デプロイ確認待ち",
+  "owner_failed_start": "エージェントが起動しませんでした",
+  "owner_agent_asks": "エージェントが質問しています",
+  "owner_decides": "あなたの判断待ち",
+  "owner_decides_text": "判断待ち：{text}",
+  "owner_delivery_ok": "リリースの承認待ち"
+}

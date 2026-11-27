@@ -1,0 +1,17 @@
+{
+  "criteria": "Done when",
+  "do_next": "Do this next",
+  "do_next_label": "Do this next: {text}",
+  "continue": "Continue",
+  "continue_label": "Continue with the to-do",
+  "report": "Report status",
+  "report_label": "Report status against each criterion",
+  "ask_main": "Ask main chat",
+  "ask_main_label": "Ask main chat to supervise this to-do",
+  "main_prepared": "A draft is ready in the main chat",
+  "others": "Other agents on it",
+  "agent_untitled": "Agent",
+  "decisions": "Latest decisions",
+  "decisions_failed": "Couldn't read its decisions.",
+  "retry": "Retry"
+}

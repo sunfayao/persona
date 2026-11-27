@@ -102,7 +102,7 @@ import type { MenuItem } from "../ui/menu-model";
 import { useRestoredTodos } from "../lib/todo-restore";
 import { stepsWords } from "../lib/todo-steps";
 import { useOwnerNeeds, useTodoLookup, useTodoMinute } from "../lib/todo-owner-needs";
-import { autoReviewLine, checklist, latestReview, parkedLine, progressLine, type CheckMark, type Supervision } from "../lib/supervision";
+import { autoReviewLine, checklist, latestReview, parkedLine, progressLine, type Supervision } from "../lib/supervision";
 import { resultExtras } from "../lib/brief";
 import { prLink } from "./TodoStageBar";
 import { useFolded } from "../lib/use-folded";
@@ -114,6 +114,7 @@ import { dayKey, isCalendarMode, parseDayKey, startOfDay, type CalendarMode } fr
 import type { Route } from "../lib/router";
 import { LatestReport, ReviewBadge } from "./assistant/Supervision";
 import { TodoStageBar } from "./TodoStageBar";
+import { CriterionMark } from "./TodoCriterionMark";
 import { TodoAskLine, TodoAskPanel } from "./TodoAsk";
 import { TodoAgentPicker } from "./TodoAgentPicker";
 import { TaskCompletionCheck } from "./TaskCompletionCheck";
@@ -1973,15 +1974,6 @@ const BriefResultExtras = lazy(() => import("./assistant/TaskBrief").then((m) =>
 const ShellQuestion = lazy(() => import("./ShellQuestionCard"));
 const TodoImageViewer = lazyPage(() => import("./chat/ImageViewer").then((m) => m.ImageViewer));
 
-// The existing review UI lives with this lazy page, not the first screen's card badges.
-const MARK: Record<CheckMark, { icon: "check" | "x" | "clock" | "minus"; className: string; label: () => string }> = {
-  met: { icon: "check", className: "text-green", label: () => t("assistant-tasks.review_met") },
-  missing: { icon: "x", className: "text-red", label: () => t("assistant-tasks.review_missing") },
-  open: { icon: "clock", className: "text-ink-3", label: () => t("assistant-tasks.review_open") },
-  // added after the acceptance, which still stands (#3156): nothing waits on it
-  unchecked: { icon: "minus", className: "text-ink-3", label: () => t("assistant-tasks.review_unchecked") },
-};
-
 /** The task's criteria, each as its latest report or review found it, and what the supervisor said last. */
 export function ReviewChecklist({ todo, lookup }: { todo: Todo; lookup?: SessionLookup }) {
   const sup = todo.supervision;
@@ -2004,12 +1996,9 @@ export function ReviewChecklist({ todo, lookup }: { todo: Todo; lookup?: Session
       ) : (
         <ul className="mt-2 flex flex-col gap-1.5">
           {list.map((c) => {
-            const m = MARK[c.mark];
             return (
               <li key={c.criterion} className="flex items-start gap-2 text-[13px]">
-                <span role="img" aria-label={m.label()} title={m.label()} className={cx("mt-0.5 shrink-0", m.className)}>
-                  <Icon name={m.icon} size={13} stroke={2.4} />
-                </span>
+                <CriterionMark mark={c.mark} className="mt-0.5" />
                 <span className="flex min-w-0 flex-col">
                   <span className="text-ink">{c.criterion}</span>
                   {c.evidence && <span className="text-[12px] text-ink-3 select-text">{c.evidence}</span>}
