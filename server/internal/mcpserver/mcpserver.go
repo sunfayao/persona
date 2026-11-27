@@ -20,6 +20,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/identity"
 	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/prompts"
 
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -301,8 +302,7 @@ func handle(ctx context.Context, version string, req request) (any, *rpcError) {
 			"protocolVersion": p.ProtocolVersion,
 			"capabilities":    map[string]any{"tools": map[string]any{"listChanged": true}},
 			"serverInfo":      map[string]any{"name": "persona", "version": version},
-			"instructions": "Persona tools reach the user's email accounts (mail_* tools). " +
-				"mail_send asks the user to approve before sending." + assistantInstructions(),
+			"instructions":    prompts.RenderMCPInstructions(prompts.MCPInstructions{Assistant: isAssistant()}),
 		}, nil
 	case "ping":
 		return map[string]any{}, nil
@@ -549,15 +549,6 @@ func sessionID() string {
 		return id
 	}
 	return os.Getenv("CLAUDE_SESSION_ID")
-}
-
-func assistantInstructions() string {
-	if !isAssistant() {
-		return ""
-	}
-	return " As the Persona assistant you also have: ask_user (questions shown on the phone; AskUserQuestion does not work here), " +
-		"notify_user (push notification), schedule_followup / list_followups / cancel_followup (wake yourself up later), " +
-		"agents_* (the coding agents on the user's computers) and lark_* (Feishu chats, calendar, docs, search)."
 }
 
 func toolResult(r proto.ToolResult) map[string]any {

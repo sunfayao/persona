@@ -406,3 +406,37 @@ func TestToolsCallInvalidParamsOverServe(t *testing.T) {
 		t.Fatalf("answer %s after %d dials", out.String(), *n)
 	}
 }
+
+// The instructions every client reads when it connects hold for every runtime: an assistant conversation's say ask_user
+// is how a question reaches the user, not that a runtime's own way of asking fails, and name no Lark tool, which only
+// some installs have; an agent's say what they always said.
+func TestInitializeInstructionsHoldForEveryRuntime(t *testing.T) {
+	instructions := func() string {
+		t.Helper()
+		res, rerr := handle(context.Background(), "test", request{JSONRPC: "2.0", ID: json.RawMessage(`1`), Method: "initialize"})
+		if rerr != nil {
+			t.Fatal(rerr)
+		}
+		return res.(map[string]any)["instructions"].(string)
+	}
+	mail := "Persona tools reach the user's email accounts (mail_* tools). mail_send asks the user to approve before sending."
+	t.Setenv("PERSONA_ASSISTANT", "0")
+	if got := instructions(); got != mail {
+		t.Fatalf("an agent's instructions: %q", got)
+	}
+	t.Setenv("PERSONA_ASSISTANT", "1")
+	got := instructions()
+	if !strings.HasPrefix(got, mail+" ") {
+		t.Fatalf("an assistant's instructions lost the mail line: %q", got)
+	}
+	for _, want := range []string{"ask_user (how a question reaches the user", "notify_user", "schedule_followup", "agents_list"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("an assistant's instructions lack %q: %q", want, got)
+		}
+	}
+	for _, not := range []string{"AskUserQuestion", "lark", "Feishu"} {
+		if strings.Contains(got, not) {
+			t.Errorf("an assistant's instructions name %q: %q", not, got)
+		}
+	}
+}
