@@ -134,7 +134,8 @@ func TestInstructionsAreWordedForTheirRuntime(t *testing.T) {
 }
 
 // The prepare before every message gives the node AGENTS.md in the words of the main chat's launcher, beside
-// CLAUDE.md; a change of launcher rewrites AGENTS.md only.
+// CLAUDE.md, and for Antigravity how much of it that reads (agents_md_split); a change of launcher rewrites AGENTS.md
+// only.
 func TestPrepareWritesAgentsMDForTheMainChatsLauncher(t *testing.T) {
 	ctx := context.Background()
 	f := claudeMDHub(Device{ID: "server", Name: "Server", Kind: "local"})
@@ -158,6 +159,9 @@ func TestPrepareWritesAgentsMDForTheMainChatsLauncher(t *testing.T) {
 	if _, ok := p["agents_work_guide_md"]; ok {
 		t.Fatal("a work guide AGENTS.md while the guide is off")
 	}
+	if _, ok := p["agents_md_split"]; ok {
+		t.Fatal("Codex's AGENTS.md is split: it reads the file whole")
+	}
 
 	setSettings(t, s, func(v *Settings) { v.Launcher = "agy" })
 	if _, wrote, err := s.prepareSpaceIf(ctx, "server", "", true); err != nil || !wrote {
@@ -166,6 +170,10 @@ func TestPrepareWritesAgentsMDForTheMainChatsLauncher(t *testing.T) {
 	p = f.prepared[len(f.prepared)-1]
 	if p["claude_md"] != claude || !strings.Contains(p["agents_md"].(string), "persona_call") {
 		t.Fatalf("an Antigravity main chat: %v", p)
+	}
+	// Antigravity reads a rule file only so far: the node puts what follows in GEMINI.md (node splitRules).
+	if p["agents_md_split"] != float64(agyRuleFileMax) {
+		t.Fatalf("an Antigravity main chat's AGENTS.md split at %v, want %d", p["agents_md_split"], agyRuleFileMax)
 	}
 	if _, wrote, err := s.prepareSpaceIf(ctx, "server", "", true); err != nil || wrote {
 		t.Fatalf("unchanged, the refresh wrote %t: %v", wrote, err)

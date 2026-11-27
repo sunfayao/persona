@@ -82,6 +82,10 @@ func (s *Service) assistantPrompt(ctx context.Context, here string, larkCLI bool
 	return d
 }
 
+// agyRuleFileMax is how much of a rule file Antigravity reads: it cuts each one at 24,000 bytes, on a line boundary
+// (the rules docs in agy: "Per-File Limit"), and the user's About me and the extensions' instructions come last.
+const agyRuleFileMax = 24_000
+
 // agentsRuntime is the runtime the directory's AGENTS.md is written for: Antigravity when the main conversation's
 // launcher runs it, else Codex, whose wording holds for any agent but Claude (which reads CLAUDE.md). Resolved from
 // what the manager keeps (providers, hub.json, the machines' last lists), never by asking a node: it runs before every
@@ -159,12 +163,13 @@ func (s *Service) prepareSpaceIf(ctx context.Context, machine, space string, onl
 	pluginParams := map[string]any{"machine_id": machine}
 	// own and onDemand are CLAUDE.md's, the hub's part without and with the work guide; agentsOwn and agentsOnDemand
 	// the same for AGENTS.md, worded for the runtime that reads it (agentsRuntime).
-	var own, onDemand, agentsOwn, agentsOnDemand string
+	var own, onDemand, agentsOwn, agentsOnDemand, agentsRuntime string
 	if tmpl == trackTemplateAssistant {
 		settings := s.settings(ctx)
 		d := s.assistantPrompt(ctx, machine, conns.LarkCLI, settings)
 		agents := d
 		agents.Runtime = s.agentsRuntime(ctx, machine, settings)
+		agentsRuntime = agents.Runtime
 		own, agentsOwn = prompts.RenderAssistantClaudeMD(d), prompts.RenderAssistantClaudeMD(agents)
 		if settings.workGuideOn() {
 			d.WorkGuide, agents.WorkGuide = true, true
@@ -214,6 +219,11 @@ func (s *Service) prepareSpaceIf(ctx context.Context, machine, space string, onl
 	}
 	if agentsOnDemand != "" {
 		params["agents_work_guide_md"] = agentsOnDemand + plugins.Instructions
+	}
+	// What Antigravity would not read of AGENTS.md goes to GEMINI.md, which it reads as rules beside it; an older node
+	// writes AGENTS.md whole, as before.
+	if agentsRuntime == prompts.RuntimeAgy {
+		params["agents_md_split"] = agyRuleFileMax
 	}
 	if tmpl == trackTemplateSpace {
 		params["space"] = map[string]any{"slug": track.Slug, "initial_space_md": s.initialSpaceMD(ctx, track)}

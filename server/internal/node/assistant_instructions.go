@@ -3,9 +3,11 @@ package node
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // instructionsFile is the file agent reads its instructions from in its directory at start: CLAUDE.md for Claude,
@@ -16,6 +18,37 @@ func instructionsFile(agent string) string {
 		return "CLAUDE.md"
 	}
 	return "AGENTS.md"
+}
+
+// splitRules is AGENTS.md's text for an agent that reads a rule file only up to max bytes, cutting the rest (Antigravity,
+// 24,000): whole when it fits or max is 0; else cut before the last section ("## ") that would not fit whole, or after
+// the last line that fits when the first section alone does not, with the rest for GEMINI.md, which that agent reads
+// as rules beside it. The cut is at a line's end, so both are whole UTF-8 text.
+func splitRules(md string, max int) (agents, rest string) {
+	if max <= 0 || len(md) <= max {
+		return md, ""
+	}
+	head := md[:max]
+	cut := strings.LastIndex(head, "\n## ")
+	if cut <= 0 {
+		cut = strings.LastIndex(head, "\n")
+	}
+	if cut <= 0 {
+		return md, "" // a first line longer than max: nothing to cut on
+	}
+	return md[:cut+1], md[cut+1:]
+}
+
+// writeOrRemove writes md to path when it changed, or removes the file when md is empty (the instructions fit their
+// own file again).
+func writeOrRemove(path, md string) error {
+	if md == "" {
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		return nil
+	}
+	return writeIfChanged(path, []byte(md))
 }
 
 // instructionsDigest is a digest of the instructions agent reads in dir at start (instructionsFile), "" when there

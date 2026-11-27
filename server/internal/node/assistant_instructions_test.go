@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -78,6 +79,63 @@ func TestAssistantPrepareReplacesInstructionsWhole(t *testing.T) {
 	}
 	if changed := prepare("v2"); os.SameFile(first, changed) {
 		t.Fatal("changed instructions were written into the file a reader may have open, not replaced")
+	}
+}
+
+// Antigravity reads a rule file only up to 24,000 bytes, and About me and the extensions' instructions come last: with
+// agents_md_split the node keeps AGENTS.md within it, cut before the section that would not fit, and writes the rest
+// to GEMINI.md, which Antigravity reads beside it; once the text fits again, GEMINI.md goes. CLAUDE.md stays whole.
+func TestAssistantPrepareSplitsAgentsMDOverItsReadersLimit(t *testing.T) {
+	t.Setenv("PERSONA_SKILLS_DIR", t.TempDir())
+	t.Setenv("PERSONA_PLUGIN_SKILLS_DIR", t.TempDir())
+	n, _ := testNode(t)
+	n.dir, n.bin, n.logger = t.TempDir(), "/opt/example/personad", log.New(io.Discard, "", 0)
+	prepare := func(agents string, split int) (cwd string) {
+		t.Helper()
+		raw, _ := json.Marshal(map[string]any{"dir": ".persona/assistant", "claude_md": agents, "agents_md": agents, "agents_md_split": split})
+		out, err := n.handle(t.Context(), "assistant.prepare", raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out.(map[string]any)["cwd"].(string)
+	}
+	read := func(cwd, name string) (string, bool) {
+		b, err := os.ReadFile(filepath.Join(cwd, name))
+		return string(b), err == nil
+	}
+	section := func(title string, n int) string {
+		return "## " + title + "\n" + strings.Repeat("一条规则。\n", n) + "\n"
+	}
+	head, about, lark := "# Persona assistant\n\n"+section("Working with the user", 900), section("About the user", 700), section("Lark", 60)
+	long := head + about + lark // over 24,000 bytes, with About me across the limit
+	cwd := prepare(long, 24_000)
+	agents, _ := read(cwd, "AGENTS.md")
+	gemini, ok := read(cwd, "GEMINI.md")
+	if agents != head || !ok || gemini != about+lark {
+		t.Fatalf("AGENTS.md %d bytes, GEMINI.md %d bytes (%v): want the cut before About me", len(agents), len(gemini), ok)
+	}
+	if claude, _ := read(cwd, "CLAUDE.md"); claude != long {
+		t.Fatalf("CLAUDE.md is %d bytes, want it whole (%d)", len(claude), len(long))
+	}
+	if cwd = prepare(head+lark, 24_000); func() bool { _, ok := read(cwd, "GEMINI.md"); return ok }() {
+		t.Fatal("GEMINI.md stayed after the instructions fit AGENTS.md again")
+	}
+	if cwd = prepare(long, 0); func() bool { a, _ := read(cwd, "AGENTS.md"); _, ok := read(cwd, "GEMINI.md"); return a != long || ok }() {
+		t.Fatal("without agents_md_split (a runtime that reads AGENTS.md whole, an older manager) AGENTS.md was not written whole")
+	}
+	for _, tc := range []struct {
+		md           string
+		max          int
+		agents, rest string
+	}{
+		{"short", 100, "short", ""},
+		{"line one\nline two\n", 12, "line one\n", "line two\n"},   // no section fits: the last whole line
+		{"## a\nx\n## b\ny\n", 12, "## a\nx\n", "## b\ny\n"},       // before the section that would not fit
+		{strings.Repeat("x", 30), 10, strings.Repeat("x", 30), ""}, // nothing to cut on
+	} {
+		if agents, rest := splitRules(tc.md, tc.max); agents != tc.agents || rest != tc.rest {
+			t.Errorf("splitRules(%q, %d) = %q, %q; want %q, %q", tc.md, tc.max, agents, rest, tc.agents, tc.rest)
+		}
 	}
 }
 
