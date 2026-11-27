@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
@@ -14,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 	"github.com/sunfayao/persona/server/internal/streams"
 )
 
@@ -417,5 +420,43 @@ func TestTheSignedHelperCopy(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(copies, "."+screenHelperName+".new")); err == nil {
 		t.Fatal("a failed copy was left behind")
+	}
+}
+
+// "Allow again" (screen.permission): the user asks macOS once more for a helper version it was asked about already,
+// from the live screen. The helper's answer is read afresh: nothing is asked while the grant is there.
+func TestAllowAgainAsksMacOSOnceMore(t *testing.T) {
+	n, launched := askingFor(t, "missing")
+	ask(n, "K") // the first ask, when the live screen signed in
+	if got := launched(); len(got) != 1 {
+		t.Fatalf("the first ask: %v", got)
+	}
+	ctx := context.Background()
+	again := func() (*proto.ScreenVideo, error) {
+		out, err := n.handle(ctx, proto.MethodScreenPermission, json.RawMessage(`{}`))
+		if err != nil {
+			return nil, err
+		}
+		return out.(*proto.ScreenVideo), nil
+	}
+	v, err := again()
+	if err != nil || v.Permission != "missing" || !v.Asked {
+		t.Fatalf("after asking again = %+v, %v; want missing and asked", v, err)
+	}
+	if got := launched(); len(got) != 2 || strings.Join(got[1], " ") != screenHelperName+" --request-permission" {
+		t.Fatalf("launched %v, want the helper asked a second time", got)
+	}
+
+	// The user turned it on in System Settings within the minute the answer is kept: it is read afresh.
+	swap(t, &screenPreflight, func(context.Context, string) string { return "granted" })
+	if v, err := again(); err != nil || v.Permission != "granted" || len(launched()) != 2 {
+		t.Fatalf("granted = %+v, %v, launched %v; want granted and no ask", v, err, launched())
+	}
+
+	swap(t, &screenHelperSource, func() string { return "" })
+	swap(t, &screenHelpers, &helperResolver{})
+	var re *rpc.Error
+	if _, err := again(); !errors.As(err, &re) || re.Code != "video_unavailable" {
+		t.Fatalf("without the helper: %v", err)
 	}
 }

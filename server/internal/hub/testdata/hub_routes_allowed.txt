@@ -158,6 +158,7 @@ POST /api/v1/machines/{mid}/panes/split
 POST /api/v1/machines/{mid}/ports/{port}/open
 POST /api/v1/machines/{mid}/preview/start
 POST /api/v1/machines/{mid}/processes/{pid}/kill
+POST /api/v1/machines/{mid}/screen/permission # relay of the live screen's "Allow again" to its node (screen.go)
 POST /api/v1/machines/{mid}/services/action
 POST /api/v1/machines/{mid}/spaces/{wid}/rename
 POST /api/v1/machines/{mid}/storage/cleanup # machine storage relay (machine_storage.go)

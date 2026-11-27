@@ -83,6 +83,7 @@ func (h *Hub) portRoutes(api *http.ServeMux) {
 	api.HandleFunc("POST /api/v1/machines/{mid}/ports/{port}/open", h.withMachine(h.openPort))
 	api.HandleFunc("GET /api/v1/machines/{mid}/ports/{port}/connect", h.withMachine(h.connectPort))
 	api.HandleFunc("GET /api/v1/machines/{mid}/screen/video/connect", h.withMachine(h.screenVideoConnect)) // #3954
+	api.HandleFunc("POST /api/v1/machines/{mid}/screen/permission", h.withMachine(h.screenPermission))
 }
 
 func pathPort(r *http.Request) (int, error) {

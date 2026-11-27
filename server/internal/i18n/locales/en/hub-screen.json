@@ -1,0 +1,4 @@
+{
+  "no_helper": "{name} has no Persona Screen, the live screen's video helper that comes with Persona Link.",
+  "permission_outdated": "personad on {name} is too old to ask macOS again. Update it"
+}
