@@ -3867,6 +3867,19 @@ export interface ConnectorTool {
    * whatever a connector sent.
    */
   work_guide_tool?: boolean;
+  /**
+   * Set by Persona itself on an assistant conversation's tool list: the tool's place among the ones such
+   * conversations call most, from 1 for the most called; absent for any other. A runtime that can declare only so
+   * many tools (Antigravity's) declares these first, in this order. A connector does not need to send it; the manager
+   * sets it on every list whatever a connector sent.
+   */
+  core_rank?: number;
+  /**
+   * Set by Persona itself on an assistant conversation's tool list while assistant.load_all_tools is on, on every
+   * tool without a core_rank: a runtime that can declare only so many tools declares these after the core ones, while
+   * they fit. A connector does not need to send it; the manager sets it on every list whatever a connector sent.
+   */
+  fill?: boolean;
 }
 
 /**
