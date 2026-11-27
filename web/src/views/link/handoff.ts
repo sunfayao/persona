@@ -9,7 +9,7 @@ import { toast } from "../../ui/atoms";
 import { t } from "../../i18n";
 
 /** Persona's main conversation (its composer's draft key and route), else a new conversation. */
-function personaTarget(): { key: string; go: () => void } {
+export function personaTarget(): { key: string; go: () => void } {
   const a = getState().assistant;
   if (a?.main) return { key: `${a.machine_id}/${a.main}`, go: () => navigate({ name: "persona" }) };
   return { key: "persona-new", go: () => navigate({ name: "persona" }) };
