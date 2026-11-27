@@ -1,8 +1,6 @@
-// The chat thread a todo is bound to, as the todo page shows it (#5279). The web only shows
-// the binding and lets the user unbind it: binding needs a list of the bot's recent topics, which the hub has no
-// route for, so a binding is made by opening a topic in a registered group or by an Agent (`todo_bind_thread`).
+// The chat thread a todo is bound to, as the todo page marks it (#5279). The web only shows the binding: a binding is
+// made by opening a topic in a registered group or by an Agent (`todo_bind_thread`).
 import { t } from "../i18n";
-import { api, enc } from "./api";
 import { hubHas } from "./store";
 import type { Todo, TodoThread } from "./todos";
 
@@ -45,7 +43,3 @@ export function boundThread(todo: Pick<Todo, "thread">): TodoThread | undefined 
   return th && th.channel && th.chat_id && th.thread_id ? th : undefined;
 }
 
-/** Unbind the todo from its thread; the thread's messages are untouched. */
-export async function unbindTodoThread(todoId: string): Promise<void> {
-  await api(`/todos/${enc(todoId)}/thread`, { method: "DELETE" });
-}

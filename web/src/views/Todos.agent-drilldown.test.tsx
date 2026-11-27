@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-// An Agent opened from a to-do's page is a drill-down (#12055, the rule of #9971): its Agent rows and Hand to Agent's
-// existing Agent open the Agent's page on top of the to-do's, and the new entry names the to-do's address, so the page
-// offers "Came from … · click to return" and the sidebar keeps To-dos lit (lib/handoff.ts openFromPage). The hub is
-// faked; the data made up.
+// An Agent opened from a to-do's page is a drill-down (#12055, the rule of #9971): its Agent rows open the Agent's page
+// on top of the to-do's, and the new entry names the to-do's address, so the page offers "Came from … · click to
+// return" and the sidebar keeps To-dos lit (lib/handoff.ts openFromPage). The hub is faked; the data made up.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -39,13 +38,11 @@ let root: Root;
 const flush = async () => {
   for (let i = 0; i < 6; i++) await act(async () => { await Promise.resolve(); });
 };
-const button = (label: string) => [...document.querySelectorAll<HTMLElement>("button")].find((b) => b.textContent?.trim() === label);
 const click = async (el: Element | undefined | null) => {
   expect(el, "element").toBeTruthy();
   await act(async () => (el as HTMLElement).click());
   await flush();
 };
-const dialog = () => document.querySelector<HTMLElement>("[role=dialog]")!;
 
 const iso = (agoMs: number) => new Date(Date.now() - agoMs).toISOString();
 const todo: Todo = { id: "t1", title: "Tidy the release checklist", created_at: iso(7_200_000), updated_at: iso(3_600_000) };
@@ -56,8 +53,7 @@ const before = { ...getState() };
 
 beforeEach(() => {
   api.mockReset();
-  // the hub still lists the to-do after the hand-off (refreshTodos), so the page stays on it
-  api.mockImplementation(async (path: string) => (path.endsWith("/launchers") ? { launchers: [] } : path === "/todos" ? { todos: getState().todos } : {}));
+  api.mockImplementation(async (path: string) => (path === "/todos" ? { todos: getState().todos } : {}));
   seed({
     todos: [todo],
     todosLoaded: true,
@@ -88,18 +84,6 @@ describe("an Agent opened from a to-do's page (#12055)", () => {
     await click(row);
     expect(location.pathname).toBe("/s/m1/s1");
     expect(history.length).toBe(depth + 1);
-    expect(handoffFrom()).toEqual({ path: "/todos?id=t1" });
-  });
-
-  it("opens the existing Agent the to-do was handed to the same way", async () => {
-    await act(async () => root.render(<TodosView selectedId="t1" />));
-    await flush();
-    await click(button("交给 Agent"));
-    await click(button("交给已有的 Agent"));
-    const send = [...dialog().querySelectorAll<HTMLButtonElement>("button:not([role=radio])")].find((b) => b.textContent?.includes("发送") && !b.disabled);
-    await click(send);
-    expect(api).toHaveBeenCalledWith("/sessions/m1/s1/messages", expect.objectContaining({ method: "POST" }));
-    expect(location.pathname).toBe("/s/m1/s1");
     expect(handoffFrom()).toEqual({ path: "/todos?id=t1" });
   });
 });

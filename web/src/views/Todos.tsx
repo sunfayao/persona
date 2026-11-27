@@ -1,43 +1,30 @@
 import { decisionSourceLabel } from "../lib/todo-decision-label";
-import { NewTodoRepositoryBindings, TodoRepositoryBindings, useRepositoryRequestContext } from "../ui/TaskRepositoryBindingsEditor";
-import { cleanRepositoryDraft, createTodoWithRepositories, repositoryDuplicateLink, validRepositoryDraft, type CreateRepositoryBindings, type RepositoryCatalog } from "../lib/task-repositories";
+import { TodoRepositoryBindings } from "../ui/TaskRepositoryBindingsEditor";
 import { hasRequestPieces } from "../lib/request-pieces";
-import { defaultManager, MANAGER_HEADER, useShownManager } from "../lib/manager-choice";
-// Beautiful UI Todos View: left list (sorted by status & created_at), right detail, handover dialog.
-import { lazy, memo, Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type InputHTMLAttributes, type ReactNode, type RefObject } from "react";
-import { api, apiBlob, credentialOwner, enc, errorText, getToken, subscribeCredentialOwner } from "../lib/api";
-import { ago, backgroundWaiting, clock, sessionCan, shortPath, stateOf, tabLabel, uuid } from "../lib/format";
+import { defaultManager, MANAGER_HEADER } from "../lib/manager-choice";
+// The To-dos page: the list on the left (status sections, folders or requests), the open to-do on the right. The main
+// conversation and the agents write every to-do; the owner reads it here, and nothing on this page changes one.
+import { lazy, memo, Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
+import { apiBlob, credentialOwner, errorText, getToken, subscribeCredentialOwner } from "../lib/api";
+import { ago, backgroundWaiting, clock, shortPath, stateOf, tabLabel } from "../lib/format";
 import { foldedState } from "../lib/child-sessions";
 import { sessionCard } from "../lib/folded-rows";
-import { byTime } from "../lib/times";
 import { TaskWaitInfo } from "./assistant/TaskWaitInfo";
-import { launchAgent } from "../lib/new-agent";
-import { currentHosts } from "../lib/engines";
-import { initialLauncher, launcherBlock, usableFirst } from "../lib/launcher-health";
-import { defaultLabel, terminalTraeStart, machineLaunchers, type LauncherDefault } from "../lib/launcher-models";
-import { providerLabel } from "../lib/provider-names";
 import { navigate } from "../lib/router";
 import { openFromPage } from "../lib/handoff";
 import { ONE_PANE, useMedia } from "../lib/viewport";
-import { settingsHref } from "./settings/nav";
 import { interactionAsk } from "../lib/inbox";
 import { usageLimitLabel } from "../lib/usage-limit";
 import { plainMarkdown } from "../lib/plain-markdown";
-import { composing } from "../lib/send-history";
 import { useScrollMemory } from "../lib/scroll-memory";
-import { useAgentSessions, useFullAgentSessions } from "../lib/sessions";
+import { useAgentSessions } from "../lib/sessions";
 import { useScoped } from "../lib/current-assistant";
 import { lazyPage } from "../lib/lazy-page";
-import { dropTodo, refresh, refreshTodos, useStore } from "../lib/store";
+import { refreshTodos, useStore } from "../lib/store";
 import {
-  addTodoDecision,
-  createTodo,
   DECISIONS_FIRST,
   type DecisionsView,
-  deleteTodo,
   fetchTodoDecisions,
-  setDecisionSupersedes,
-  supersedeCandidates,
   shownDecisions,
   isLegacySpacesRouteError,
   makeSessionLookup,
@@ -49,101 +36,56 @@ import {
   TODO_TONE_CLASS,
   isAutoDone,
   isCancelled,
-  isOverdue,
-  todoDueDay,
-  todoDueText,
   shownStatus,
   strikesThrough,
   todoStatus,
-  unlinkAgentFromTodo,
-  unlinkSpaceFromTodo,
-  updateTodo,
   type Todo,
   type TodoAgent,
   type TodoImage,
-  type TodoPatch,
   type TodoDecision,
   type TodoStatus,
   type SessionLookup,
   taskNow,
 } from "../lib/todos";
 import { todoLook, waitOf, type WaitReason } from "../lib/todo-wait-reason";
-import type { AgentState, Interaction, Launcher, Machine } from "../lib/types";
-import { Button, cx, Dialog, IconButton, Loading, Menu, toast, useMenu } from "../ui/atoms";
-import { contextMenuProps } from "../ui/context-menu";
-import { SHEET_QUERY } from "../ui/overlay";
-import type { MenuAt } from "../ui/menu-model";
+import type { AgentState, Interaction, Machine } from "../lib/types";
+import { Button, cx, IconButton, Loading, toast } from "../ui/atoms";
 import { SearchField } from "../ui/SearchField";
 import { StateTally, StatusMark } from "../ui/StatusMark";
 import { type FoldedCounts } from "../lib/folded-counts";
 import { Icon } from "../ui/icons";
 import { FoldAllButton } from "../ui/FoldAllButton";
 import { SESSION_LIST_STYLE } from "../ui/list-metrics";
-import { formatDate, t } from "../i18n";
+import { Markdown } from "../ui/Markdown";
+import { t } from "../i18n";
 import { groupTodosByProject, treeStateLabel, type TodoProjectGroup, type TreeState } from "../lib/todo-tree";
-import { cancellationReason, formatAgentSource, formatTodoContext } from "../lib/todo-details";
+import { cancellationReason, formatAgentSource, seenCanFile } from "../lib/todo-details";
 import { TRIAGE_SECTIONS, checksAsOpen, countsAsOpen, lastActivity, openMergePRs, sectionStartsFolded, supersededFailedStarts, triage, triageTodos, type OwnerNeed, type TriageGroup, type TriageResult, type TriageRule, type TriageSection } from "../lib/todo-triage";
 import { orderWaitGroups } from "../lib/task-wait";
 import { viewDrawOn } from "../features/todos/model/view-gates";
 import { drawnFromView, openAsDrawn } from "../features/todos/model/view-triage";
-import {
-  TODO_LIST_FILTERS,
-  TODO_LIST_SORTS,
-  hiddenWaiting,
-  isTodoListFilter,
-  isTodoListSort,
-  listFilterCounts,
-  matchesListFilter,
-  sortTriageGroups,
-  type TodoListFilter,
-  type TodoListSort,
-} from "../lib/todo-list-filter";
-import type { MenuItem } from "../ui/menu-model";
 import { useRestoredTodos } from "../lib/todo-restore";
 import { stepsWords } from "../lib/todo-steps";
 import { useOwnerNeeds, useTodoLookup, useTodoMinute } from "../lib/todo-owner-needs";
 import { autoReviewLine, checklist, latestReview, parkedLine, progressLine, type Supervision } from "../lib/supervision";
-import { resultExtras } from "../lib/brief";
+import { briefCriteria, resultExtras } from "../lib/brief";
 import { prLink } from "./TodoStageBar";
 import { useFolded } from "../lib/use-folded";
 import { stateName } from "../lib/state-labels";
 import { Empty, Segmented, Tag } from "./assistant/parts";
 import { OfflineState, useShownOffline } from "./ManagerParts";
-import { TodoCalendar, type CalendarSlot } from "./TodoCalendar";
-import { dayKey, isCalendarMode, parseDayKey, startOfDay, type CalendarMode } from "../lib/todo-calendar";
-import type { Route } from "../lib/router";
 import { LatestReport, ReviewBadge } from "./assistant/Supervision";
 import { TodoStageBar } from "./TodoStageBar";
 import { CriterionMark } from "./TodoCriterionMark";
 import { TodoAskLine, TodoAskPanel } from "./TodoAsk";
-import { TodoAgentPicker } from "./TodoAgentPicker";
-import { TaskCompletionCheck } from "./TaskCompletionCheck";
-import { useTodoField } from "./use-todo-field";
 import { todoUltracode } from "../lib/ultracode";
 import { UltraMark } from "./chat/Ultracode";
-import { boundThread, threadLine, threadName, todoThreadsOn, unbindTodoThread } from "../lib/todo-thread";
+import { boundThread, threadLine, todoThreadsOn } from "../lib/todo-thread";
 import { setTodoSeen, todoSeenOn } from "../lib/todo-seen";
-import { seenCanFile } from "../lib/todo-details";
-import { retryKey, retryTask, useFeed } from "../lib/feed";
-import { planTaskOf, retryLauncher, retryOnLauncher } from "../lib/start-retry";
-import { dueOn, duePatch, todoRowMenu } from "./todo-row-menu";
-import { PageBoundary } from "./PageBoundary";
-import { imagePayload, pickAttachment, releaseAttachments, type LocalAttachment } from "../lib/attachments";
 import { AttachmentTray } from "../ui/AttachmentTray";
 
-/** What this browser was last on (#2029): the list or the calendar, the calendar's mode, and whether it shows done ones. */
-const VIEW_KEY = "persona.todos.view";
-const MODE_KEY = "persona.todos.calendar.mode";
-const DONE_KEY = "persona.todos.calendar.showDone";
 /** The list by status sections (default, #3156), by folder (#2526) or as a graph of requests. */
 const GROUPING_KEY = "persona.todos.grouping";
-/** The list's filter by due date and its order inside each section (#3740), kept per browser like the view. */
-const FILTER_KEY = "persona.todos.filter";
-const SORT_KEY = "persona.todos.sort";
-
-/** A filter's and a sort's name, as the menu and the chip say them. */
-const filterLabel = (f: TodoListFilter) => t(`todos.filter_${f}`);
-const sortLabel = (s: TodoListSort) => t(`todos.sort_${s}`);
 
 type TodoGrouping = "status" | "folder" | "request";
 
@@ -168,27 +110,14 @@ function setPref(key: string, value: string) {
   }
 }
 
-/** The calendar's address: its mode, the day it shows, the to-do open beside it. */
-function calendarRoute(mode: CalendarMode, day: number, id?: string): Route {
-  return { name: "todos", view: "calendar", mode, date: dayKey(day), ...(id ? { id } : {}) };
-}
-
 export function TodosView({
   selectedId,
-  view,
-  mode: routeMode,
-  date,
   onToggleSidebar,
 }: {
   selectedId?: string;
-  /** The calendar (#2029) rather than the list; its mode and day, from the address. */
-  view?: "calendar";
-  mode?: CalendarMode;
-  date?: string;
   onToggleSidebar?: () => void;
 }) {
   const owner = useSyncExternalStore(subscribeCredentialOwner, credentialOwner, credentialOwner);
-  const repositoryManager = useShownManager();
   // with several assistants, the current one's to-dos; a link to another assistant's
   // to-do still opens it, without switching
   const everyTodo = useStore((s) => s.todos);
@@ -206,50 +135,17 @@ export function TodosView({
   const machines = useStore((s) => s.machines);
   const interactions = useStore((s) => s.interactions);
   // its to-dos' Agents as the sidebar's badge reads them (lib/todo-owner-needs.ts): an open task's Agent outside the list's
-  // window too, and a card answered here stops its agent's "Needs you" at once, not at the hub's next push (#4186)
+  // window too, and a card answered elsewhere stops its agent's "Needs you" at once, not at the hub's next push (#4186)
   const lookup = useTodoLookup();
   // the to-dos the sidebar's badge counts, each with why (#11838): their rows carry its mark, from the badge's own hook
   const needs = useOwnerNeeds();
 
   const [activeId, setActiveId] = useState<string | undefined>(selectedId);
   const [search, setSearch] = useState("");
-  const [newOpen, setNewOpen] = useState(false);
-  const [handoverOpen, setHandoverOpen] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
-  // Which to-do the hand-over and delete dialogs are for: a row's whose menu chose them (#4429), or for hand-over
-  // none, the open one, which it follows. Each stays set after its dialog closes, so the dialog leaves with the to-do
-  // it showed.
-  const [handoverId, setHandoverId] = useState<string>();
-  const [deleteId, setDeleteId] = useState<string>();
-  // A row's menu (#4429), where it opens and whether the row's checkbox showed the to-do open; the day picker it opens
-  const [rowMenu, setRowMenu] = useState<{ id: string; at: MenuAt; open: boolean } | null>(null);
-  const [dueFor, setDueFor] = useState<string>();
-  const [deleting, setDeleting] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [showDone, setShowDone] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
   const [showReleased, setShowReleased] = useState(false);
-  // The calendar (#2029): the address says which mode and day; a click on its empty axis opens New To-Do due there.
-  const calendarOn = view === "calendar";
-  const storedMode = pref(MODE_KEY);
-  const calendarMode: CalendarMode = routeMode ?? (isCalendarMode(storedMode) ? storedMode : "week");
-  const anchor = parseDayKey(date) ?? startOfDay(Date.now());
-  const [calendarDone, setCalendarDone] = useState(() => pref(DONE_KEY) !== "0");
-  const [newSlot, setNewSlot] = useState<CalendarSlot | undefined>();
-  // /todos with no view: the one this browser was last on
-  useEffect(() => {
-    if (!view && !selectedId && pref(VIEW_KEY) === "calendar") navigate(calendarRoute(calendarMode, startOfDay(Date.now())), true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, selectedId]);
-  // on the calendar a new to-do is due on the day shown
-  const openNew = () => {
-    setNewSlot(calendarOn ? { day: anchor } : undefined);
-    setNewOpen(true);
-  };
-  const showView = (next: "list" | "calendar") => {
-    setPref(VIEW_KEY, next);
-    navigate(next === "calendar" ? calendarRoute(calendarMode, startOfDay(Date.now()), selectedId) : { name: "todos", ...(selectedId ? { id: selectedId } : {}) });
-  };
 
   // Sync selectedId from URL
   useEffect(() => {
@@ -262,7 +158,7 @@ export function TodosView({
   useEffect(() => {
     if (!linkGone) return;
     toast(t("not-found.todo_gone"));
-    navigate(calendarOn ? calendarRoute(calendarMode, anchor) : { name: "todos" }, true);
+    navigate({ name: "todos" }, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per link that is gone
   }, [linkGone]);
 
@@ -270,11 +166,11 @@ export function TodosView({
   // badge's clock, so the sections and the badge's marks move together
   const tick = useTodoMinute();
   const [restored, restoreTodo] = useRestoredTodos();
-  // whether a failed start was superseded by finished work (#3713) is decided on every to-do: a search or a filter that
-  // leaves the finished one out must not put it back in Needs you
+  // whether a failed start was superseded by finished work (#3713) is decided on every to-do: a search that leaves the
+  // finished one out must not put it back in Needs you
   const superseded = useMemo(() => supersededFailedStarts(todos), [todos]);
-  // Each to-do's own status section, whatever the list is grouped by: its checkbox
-  // and its page read a failed start waiting on the owner as open (audit item 13).
+  // Each to-do's own status section, whatever the list is grouped by: its status mark and its page read a failed start
+  // waiting on the owner as open (audit item 13).
   const sectionOf = useMemo(
     () => new Map(todos.map((td) => [td.id, triage(td, lookup, Date.now(), restored.get(td.id) ?? 0, superseded.has(td.id)).section])),
     [todos, lookup, restored, superseded, tick],
@@ -283,24 +179,6 @@ export function TodosView({
   // the same row views below), so the rows and sections it did not touch skip their render.
   const views = useSteady(useMemo(() => todoRowViews(todos, lookup, interactions, sectionOf, needs), [todos, lookup, interactions, sectionOf, needs]), steadyViews);
 
-  // The filter by due date and the order inside each section (#3740): this browser's, in both groupings
-  const [listFilter, setListFilter] = useState<TodoListFilter>(() => {
-    const v = pref(FILTER_KEY);
-    return isTodoListFilter(v) ? v : "all";
-  });
-  const [listSort, setListSort] = useState<TodoListSort>(() => {
-    const v = pref(SORT_KEY);
-    return isTodoListSort(v) ? v : "recent";
-  });
-  const chooseFilter = (f: TodoListFilter) => {
-    setPref(FILTER_KEY, f);
-    setListFilter(f);
-  };
-  const chooseSort = (s: TodoListSort) => {
-    setPref(SORT_KEY, s);
-    setListSort(s);
-  };
-  const inFilter = (td: Todo) => matchesListFilter(td, listFilter, tick);
   // Filter by search query
   const matchesSearch = (t: Todo) => {
     const q = search.trim().toLowerCase();
@@ -311,32 +189,31 @@ export function TodosView({
       (responsibleOf(t)?.name.toLowerCase().includes(q) ?? false)
     );
   };
-  // a search and the filter narrow the to-dos first; the sections (or the folders) place what is left
-  const filterTodo = (t: Todo) => matchesSearch(t) && inFilter(t);
 
   // Developing Persona's view switch: the sections from the hub's view, a row
   // without one placed as before
   const features = useStore((s) => s.features);
   const fromView = useMemo(() => viewDrawOn(features), [features]);
+  // a search narrows the to-dos first; the sections (or the folders) place what is left
   const triaged = useMemo(
     () => {
-      const r = orderWaitGroups(triageTodos(todos.filter(filterTodo), lookup, Date.now(), restored, { superseded }), Date.now());
+      const r = orderWaitGroups(triageTodos(todos.filter(matchesSearch), lookup, Date.now(), restored, { superseded }), Date.now());
       return fromView ? drawnFromView(r, Date.now()) : r;
     },
-    [todos, lookup, restored, search, listFilter, superseded, tick, fromView],
+    [todos, lookup, restored, search, superseded, tick, fromView],
   );
-  // the header's counts: what the filter shows, whatever is searched
+  // the header's counts: every to-do, whatever is searched
   const triageAll = useMemo(
     () => {
       if (!search.trim()) return triaged;
-      const r = orderWaitGroups(triageTodos(todos.filter(inFilter), lookup, Date.now(), restored, { superseded }), Date.now());
+      const r = orderWaitGroups(triageTodos(todos, lookup, Date.now(), restored, { superseded }), Date.now());
       return fromView ? drawnFromView(r, Date.now()) : r;
     },
-    [todos, lookup, restored, search, listFilter, superseded, triaged, tick, fromView],
+    [todos, lookup, restored, search, superseded, triaged, tick, fromView],
   );
-  // Where the status sections place each to-do the search and the filter leave: its row's section (a merged row takes
-  // its most urgent member's), and whether it counts as open (countsAsOpen, the header's Not done, its own reading).
-  // Folders and directions share this placement and one number for it; cancelled stays out of both open and Done (#5732).
+  // Where the status sections place each to-do the search leaves: its row's section (a merged row takes its most
+  // urgent member's), and whether it counts as open (countsAsOpen, the header's Not done, its own reading). Folders
+  // and directions share this placement and one number for it; cancelled stays out of both open and Done (#5732).
   const placed = useMemo(() => {
     const row = new Map<string, TriageSection>();
     const open = new Set<string>();
@@ -385,12 +262,6 @@ export function TodosView({
   const byStatus = grouping === "status";
   // "By request": the requests graph takes the page's width, and the detail opens beside it only once a piece is picked
   const requestMode = grouping === "request";
-  // what waits on the user that the filter leaves out: the line over the sections says how many (#3740)
-  const hiddenWaitingCount = useMemo(
-    () => (listFilter === "all" ? 0 : hiddenWaiting(todos.filter(matchesSearch), inFilter, lookup, Date.now(), restored, superseded)),
-    [todos, lookup, restored, search, listFilter, superseded, tick],
-  );
-  const filterCounts = useMemo(() => listFilterCounts(todos.filter(matchesSearch), tick), [todos, search, tick]);
   const onRestore = useCallback(
     (id: string) => {
       restoreTodo(id);
@@ -453,9 +324,6 @@ export function TodosView({
     }
     return filteredUncompleted[0] ?? filteredCompleted[0] ?? filteredCancelled[0];
   }, [activeId, selectedId, todos, filteredUncompleted, filteredCompleted, filteredCancelled, byStatus, requestMode, split, triaged]);
-
-  // The to-do open beside the calendar: the address's, while it is there.
-  const selectedTodo = calendarOn && selectedId ? todos.find((td) => td.id === selectedId) : undefined;
 
   // Active agents of current selected todo
   const activeAgents = useMemo(() => {
@@ -520,14 +388,13 @@ export function TodosView({
     if (from && listBox.current) listBox.current.scrollTop = from.top;
     if (id) [...list.querySelectorAll<HTMLElement>("[data-todo]")].find((el) => el.dataset.todo === id)?.focus();
   }, [detailOnNarrow, selectedId]);
-  // Esc on a phone's width goes back to the list, as Back does; a dialog or a menu over the page and a field being
-  // edited keep it.
+  // Esc on a phone's width goes back to the list, as Back does; a dialog or a menu over the page keeps it.
   useEffect(() => {
     if (!detailOnNarrow) return;
     const onKey = (e: KeyboardEvent) => {
       const list = listColumn.current;
       if (e.key !== "Escape" || e.defaultPrevented || e.isComposing || !list || list.getClientRects().length) return;
-      if (document.querySelector("[role=menu],[role=dialog]") || (e.target as Element | null)?.closest?.("input,textarea,select,[contenteditable=true]")) return;
+      if (document.querySelector("[role=menu],[role=dialog]")) return;
       e.preventDefault();
       back.current();
     };
@@ -541,64 +408,6 @@ export function TodosView({
     navigate("/todos", true);
   };
 
-  // `open`: the row's checkbox shows it open (`checksAsOpen`): a failed start waiting on the owner is ticked to close it
-  const toggleDone = useCallback(async (todo: Todo, open = !todo.done_at) => {
-    try {
-      await updateTodo(todo.id, { done: open });
-      await refreshTodos();
-      await refresh();
-      toast(open ? t("todos.completed") : t("todos.reopened"), "ok");
-    } catch (e) {
-      toast(t("todos.action_failed", { error: errorText(e) }), "error");
-    }
-  }, []);
-
-  // a to-do dragged to another time or day on the calendar (#2045): saved at once, said when it fails (it goes back)
-  const moveTodo = useCallback(async (id: string, patch: TodoPatch) => {
-    try {
-      await updateTodo(id, patch);
-      await refreshTodos();
-    } catch (e) {
-      toast(t("todos.calendar_move_failed", { error: errorText(e) }), "error");
-    }
-  }, []);
-
-  // a priority, due date or reminder chosen in a row's menu: saved at once, as the to-do's page saves its fields; false
-  // when it failed (said in a toast)
-  const savePlan = async (id: string, patch: TodoPatch): Promise<boolean> => {
-    try {
-      await updateTodo(id, patch);
-      await refreshTodos();
-      return true;
-    } catch (e) {
-      toast(t("todos.save_plan_failed", { error: errorText(e) }), "error");
-      return false;
-    }
-  };
-  // `id`: a row's to-do; none: the open one, as the page's Hand to agent
-  const openHandover = (id?: string) => {
-    setHandoverId(id);
-    setHandoverOpen(true);
-  };
-  const askDelete = (id: string) => {
-    setDeleteId(id);
-    setDeleteConfirm(true);
-  };
-  // stable, so the memoized rows keep the same props
-  const openRowMenu = useCallback((todo: Todo, at: MenuAt, open: boolean) => setRowMenu({ id: todo.id, at, open }), []);
-  const menuTodo = rowMenu ? todos.find((x) => x.id === rowMenu.id) : undefined;
-  const handoverTodo = handoverId ? todos.find((x) => x.id === handoverId) : activeTodo;
-  const deleteTodoShown = todos.find((x) => x.id === deleteId);
-  const dueTodo = todos.find((x) => x.id === dueFor);
-  // the to-do went (deleted elsewhere, another assistant): its menu and the dialogs opened for it go with it, and do
-  // not come back with it
-  useEffect(() => {
-    if (rowMenu && !menuTodo) setRowMenu(null);
-    if (handoverId && !handoverTodo) setHandoverOpen(false);
-    if (deleteId && !deleteTodoShown) setDeleteConfirm(false);
-    if (dueFor && !dueTodo) setDueFor(undefined);
-  }, [rowMenu, menuTodo, handoverId, handoverTodo, deleteId, deleteTodoShown, dueFor, dueTodo]);
-
   const retryTodos = async () => {
     if (retrying) return;
     setRetrying(true);
@@ -609,134 +418,28 @@ export function TodosView({
     }
   };
 
-  const handleDelete = async () => {
-    if (!deleteTodoShown || deleting) return;
-    const id = deleteTodoShown.id;
-    setDeleting(true);
-    try {
-      await deleteTodo(id);
-    } catch (e) {
-      toast(t("todos.delete_failed", { error: errorText(e) }), "error");
-      return;
-    } finally {
-      setDeleting(false);
-    }
-    // The todo is gone on the hub: close and drop it now, not after refresh() (seconds on a busy hub), so it cannot
-    // be deleted a second time (the hub answers 404 for it).
-    dropTodo(id);
-    setDeleteConfirm(false);
-    // a row's menu can delete another to-do than the one open: that one stays open
-    if (id === activeTodo?.id || id === selectedId) {
-      setActiveId(undefined);
-      pushedId.current = undefined;
-      // replace: Back must not land on ?id=<the deleted todo>
-      navigate(calendarOn ? calendarRoute(calendarMode, anchor) : { name: "todos" }, true);
-    }
-    toast(t("todos.deleted"), "ok");
-    // the rest of the page catches up in the background; a failed refresh leaves the list as dropped, the next push fixes it
-    void refreshTodos().then(() => refresh()).catch(() => {});
-  };
-
   return (
     <div className="flex h-full flex-col bg-surface">
       {/* Top Header */}
       <header className="flex h-13 shrink-0 items-center justify-between border-b border-line bg-surface px-4 sm:px-6">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           {onToggleSidebar && <IconButton icon="sidebar" label={t("agents-agentsview.sidebar")} onClick={onToggleSidebar} className="lg:hidden" />}
-          <div className="flex items-baseline gap-2">
+          <div className="flex min-w-0 items-baseline gap-2">
             <h1 className="text-[16px] font-semibold whitespace-nowrap text-ink">{t("todos.title")}</h1>
             {/* the counts once the list has its to-dos (audit item 83): not while it loads, nor after an empty failed read */}
             {(todosLoaded || todos.length > 0) && !(todos.length === 0 && todosError) && (
-              // a phone's header has the List | Calendar switch to fit (#2029): the counts stay on wider screens
-              <span className="text-[12px] whitespace-nowrap text-ink-3 max-sm:hidden" data-testid="todos-summary">
+              // a phone's header is too narrow for them beside the title: they stay on wider screens
+              <span className="truncate text-[12px] whitespace-nowrap text-ink-3 max-sm:hidden" data-testid="todos-summary">
                 {/* one count in every grouping (audit item 12): open as countsAsOpen counts it, section counts as their
                     titles do, with Cancelled always separate from Done (#11085, #5732) */}
-                {t(listFilter === "all" ? "todos.summary_triage" : "todos.summary_filtered", { filter: filterLabel(listFilter), open: triageAll.open, parked: sectionSize(triageAll, "parked"), shelved: sectionSize(triageAll, "shelved"), done: sectionSize(triageAll, "done"), cancelled: sectionSize(triageAll, "cancelled") })}
+                {t("todos.summary_triage", { open: triageAll.open, parked: sectionSize(triageAll, "parked"), shelved: sectionSize(triageAll, "shelved"), done: sectionSize(triageAll, "done"), cancelled: sectionSize(triageAll, "cancelled") })}
               </span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2.5">
-          <Segmented
-            label={t("todos.view_label")}
-            value={calendarOn ? "calendar" : "list"}
-            options={[
-              { v: "list", label: t("todos.view_list") },
-              { v: "calendar", label: t("todos.view_calendar") },
-            ]}
-            onChange={showView}
-            compact
-          />
-          {/* on a phone the plus alone, so the label never wraps beside the switch */}
-          <IconButton icon="plus" label={t("todos.new_todo")} onClick={openNew} className="sm:hidden" />
-          <Button tone="secondary" icon="plus" onClick={openNew} className="h-8 text-[12.5px] max-sm:hidden">
-            {t("todos.new_todo")}
-          </Button>
-        </div>
       </header>
 
-      {calendarOn && offline && todosLoaded && todos.length === 0 ? (
-        <div className="flex min-h-0 flex-1 items-start justify-center bg-page">
-          <OfflineState offline={offline} className="py-14" />
-        </div>
-      ) : calendarOn ? (
-        <div className="flex min-h-0 flex-1">
-          <div className={cx("flex min-h-0 min-w-0 flex-1 flex-col bg-page", selectedTodo && "max-md:hidden")}>
-            <TodoCalendar
-              todos={todos}
-              lookup={lookup}
-              mode={calendarMode}
-              anchor={anchor}
-              showDone={calendarDone}
-              selectedId={selectedId}
-              onMode={(m, day) => {
-                setPref(MODE_KEY, m);
-                navigate(calendarRoute(m, day ?? anchor, selectedId));
-              }}
-              onAnchor={(day) => navigate(calendarRoute(calendarMode, day, selectedId), true)}
-              onShowDone={(on) => {
-                setPref(DONE_KEY, on ? "1" : "0");
-                setCalendarDone(on);
-              }}
-              onOpen={(id) => navigate(calendarRoute(calendarMode, anchor, id))}
-              onAdd={(slot) => {
-                setNewSlot(slot);
-                setNewOpen(true);
-              }}
-              onShowList={() => showView("list")}
-              onMove={moveTodo}
-            />
-          </div>
-          {selectedTodo && (
-            <div data-testid="todo-calendar-detail" className="flex min-h-0 w-full flex-col overflow-y-auto border-line md:w-[440px] md:shrink-0 md:border-l">
-              <div className="flex shrink-0 items-center justify-between px-2 pt-2">
-                <Button tone="quiet" icon="chevronLeft" onClick={() => navigate(calendarRoute(calendarMode, anchor))} className="md:hidden">
-                  {t("todos.calendar_back")}
-                </Button>
-                <IconButton icon="x" label={t("todos.calendar_close")} onClick={() => navigate(calendarRoute(calendarMode, anchor))} className="ml-auto max-md:hidden" />
-              </div>
-              <TodoDetail
-                key={`${owner}/${selectedTodo.id}`}
-                owner={owner}
-                todo={selectedTodo}
-                activeAgents={(selectedTodo.agents ?? []).filter((a) => !a.released_at)}
-                releasedAgents={(selectedTodo.agents ?? []).filter((a) => a.released_at)}
-                lookup={lookup}
-                machines={machines}
-                interactions={interactions}
-                showReleased={showReleased}
-                onToggleReleased={() => setShowReleased((v) => !v)}
-                open={checksAsOpen(selectedTodo, sectionOf.get(selectedTodo.id))}
-                onToggleDone={(open) => toggleDone(selectedTodo, open)}
-                onOpenHandover={() => openHandover()}
-                onOpenTodo={(id) => navigate(calendarRoute(calendarMode, anchor, id))}
-                onDeleteClick={() => askDelete(selectedTodo.id)}
-              />
-            </div>
-          )}
-        </div>
-      ) : (
-      // Main Split Layout: Left List & Right Detail
+      {/* Main Split Layout: Left List & Right Detail */}
       <div className="flex min-h-0 flex-1">
         {/* Left Column: Todo List */}
         <div
@@ -748,14 +451,11 @@ export function TodosView({
         >
           {/* Search Bar */}
           <div className="flex items-center gap-2 p-3">
-            {/* the graph shows every request: a search or a due-date filter has nothing to narrow there */}
+            {/* the graph shows every request: a search has nothing to narrow there */}
             {!requestMode && (
-              <>
-                <div className="min-w-0 flex-1">
-                  <SearchField tone="inset" value={search} onChange={setSearch} placeholder={t("todos.search_placeholder")} />
-                </div>
-                <TodoListControls filter={listFilter} sort={listSort} counts={filterCounts} onFilter={chooseFilter} onSort={chooseSort} />
-              </>
+              <div className="min-w-0 flex-1">
+                <SearchField tone="inset" value={search} onChange={setSearch} placeholder={t("todos.search_placeholder")} />
+              </div>
             )}
             <Segmented
               label={t("todos.grouping_label")}
@@ -803,39 +503,14 @@ export function TodosView({
                 <Empty icon="search" title={t("todos.no_match_title")}>
                   {t("todos.no_match_body")}
                 </Empty>
-              ) : listFilter !== "all" ? (
-                // the filter left nothing (#3740): which, and the way back to every to-do
-                <>
-                  {hiddenWaitingCount > 0 && <HiddenWaitingLine count={hiddenWaitingCount} filter={listFilter} onShowAll={() => chooseFilter("all")} />}
-                  <Empty
-                    icon="calendar"
-                    title={t(`todos.filter_empty_${listFilter}`)}
-                    action={
-                      <Button tone="secondary" onClick={() => chooseFilter("all")}>
-                        {t("todos.filter_show_all")}
-                      </Button>
-                    }
-                  >
-                    {t("todos.filter_empty_body")}
-                  </Empty>
-                </>
               ) : (
-                <Empty
-                  icon="todo"
-                  title={t("todos.empty_title")}
-                  action={
-                    <Button tone="accent" icon="plus" onClick={() => setNewOpen(true)}>
-                      {t("todos.new_todo")}
-                    </Button>
-                  }
-                >
+                <Empty icon="todo" title={t("todos.empty_title")}>
                   {t("todos.empty_body")}
                 </Empty>
               )
             ) : (
               byStatus ? (
               <div className="flex flex-col gap-1" data-testid="todos-sections" data-todo-source={fromView ? "view" : undefined}>
-                {hiddenWaitingCount > 0 && <HiddenWaitingLine count={hiddenWaitingCount} filter={listFilter} onShowAll={() => chooseFilter("all")} />}
                 {TRIAGE_SECTIONS.map((sec) =>
                   triaged.sections[sec].length === 0 ? null : (
                     <TodoTriageSection
@@ -843,15 +518,13 @@ export function TodosView({
                       section={sec}
                       // Fresh accepted, ticked and cancelled outcomes stay visible; older history keeps the folded default.
                       folded={sectionStartsFolded(sec, triaged.sections[sec], tick)}
-                      groups={sortTriageGroups(triaged.sections[sec], listSort)}
+                      groups={triaged.sections[sec]}
                       count={sectionSize(triaged, sec)}
                       views={views}
                       selectedId={activeTodo?.id}
                       onSelect={openFromList}
-                      onToggleDone={toggleDone}
                       onRestore={onRestore}
                       onSeen={seenOn ? onSeen : undefined}
-                      onMenu={openRowMenu}
                     />
                   ),
                 )}
@@ -865,9 +538,7 @@ export function TodosView({
                     views={sectionViews.get(g.key)!}
                     selectedId={activeTodo?.id}
                     onSelect={openFromList}
-                    onToggleDone={toggleDone}
                     onSeen={seenOn ? onSeen : undefined}
-                    onMenu={openRowMenu}
                   />
                 ))}
 
@@ -895,8 +566,6 @@ export function TodosView({
                             view={views.get(todo.id)!}
                             selected={activeTodo?.id === todo.id}
                             onSelect={openFromList}
-                            onToggleDone={toggleDone}
-                            onMenu={openRowMenu}
                           />
                         ))}
                       </div>
@@ -917,7 +586,7 @@ export function TodosView({
                     {showCancelled && (
                       <div className="flex flex-col gap-1 pt-1">
                         {filteredCancelled.map((todo) => (
-                          <TodoListItem key={todo.id} todo={todo} view={views.get(todo.id)!} selected={activeTodo?.id === todo.id} onSelect={openFromList} onToggleDone={toggleDone} onMenu={openRowMenu} />
+                          <TodoListItem key={todo.id} todo={todo} view={views.get(todo.id)!} selected={activeTodo?.id === todo.id} onSelect={openFromList} />
                         ))}
                       </div>
                     )}
@@ -963,10 +632,7 @@ export function TodosView({
               showReleased={showReleased}
               onToggleReleased={() => setShowReleased((v) => !v)}
               open={checksAsOpen(activeTodo, sectionOf.get(activeTodo.id))}
-              onToggleDone={(open) => toggleDone(activeTodo, open)}
-              onOpenHandover={() => openHandover()}
               onOpenTodo={openFromList}
-              onDeleteClick={() => askDelete(activeTodo.id)}
             />
           ) : (
             <div className="flex flex-1 items-center justify-center text-[13px] text-ink-3">
@@ -975,64 +641,6 @@ export function TodosView({
           )}
         </div>
       </div>
-      )}
-
-      {/* Dialogs */}
-      <NewTodoDialog
-        key={`${owner}:${repositoryManager}:${newOpen}`}
-        manager={repositoryManager}
-        owner={owner}
-        open={newOpen}
-        slot={newSlot}
-        onClose={() => {
-          setNewOpen(false);
-          setNewSlot(undefined);
-        }}
-        onCreated={(id) => setActiveId(id)}
-      />
-
-      {rowMenu && menuTodo && (
-        <Menu
-          anchor={rowMenu.at.anchor ?? null}
-          point={rowMenu.at.point}
-          onClose={() => setRowMenu(null)}
-          items={todoRowMenu(menuTodo, rowMenu.open, Date.now(), {
-            toggleDone: () => void toggleDone(menuTodo, rowMenu.open),
-            save: (patch) => void savePlan(menuTodo.id, patch),
-            pickDue: () => setDueFor(menuTodo.id),
-            handOver: () => openHandover(menuTodo.id),
-            remove: () => askDelete(menuTodo.id),
-          })}
-        />
-      )}
-
-      {dueTodo && <TodoDueDialog key={dueTodo.id} todo={dueTodo} onClose={() => setDueFor(undefined)} onSave={(patch) => savePlan(dueTodo.id, patch)} />}
-
-      {handoverTodo && (
-        <HandoverDialog
-          key={handoverTodo.id}
-          open={handoverOpen}
-          todo={handoverTodo}
-          machines={machines}
-          onClose={() => setHandoverOpen(false)}
-        />
-      )}
-
-      {deleteTodoShown && (
-        <Dialog open={deleteConfirm} onClose={() => setDeleteConfirm(false)} title={t("todos.delete_title")}>
-          <div className="py-2 text-[13.5px] text-ink-2">
-            {t("todos.delete_confirm", { title: deleteTodoShown.title })}
-          </div>
-          <div className="mt-4 flex justify-end gap-2">
-            <Button tone="secondary" onClick={() => setDeleteConfirm(false)}>
-              {t("common.cancel")}
-            </Button>
-            <Button tone="danger" busy={deleting} onClick={handleDelete}>
-              {t("todos.delete")}
-            </Button>
-          </div>
-        </Dialog>
-      )}
     </div>
   );
 }
@@ -1121,19 +729,15 @@ const TodoProjectSection = memo(function TodoProjectSection({
   views,
   selectedId,
   onSelect,
-  onToggleDone,
   onSeen,
-  onMenu,
 }: {
   group: TodoProjectGroup;
   /** Its todos' row views, in the same order as group.todos. */
   views: readonly TodoRowView[];
   selectedId: string | undefined;
   onSelect: (id: string) => void;
-  onToggleDone: (todo: Todo, open?: boolean) => void;
   /** Got it on a row in Just finished (one closed in the last day stays in its folder until it is seen). */
   onSeen?: (id: string) => void;
-  onMenu: TodoRowMenuOpener;
 }) {
   const holds = group.todos.some((td) => td.id === selectedId);
   const [folded, toggle] = useFolded(group.key, group.folded, { follow: true, holds });
@@ -1158,9 +762,7 @@ const TodoProjectSection = memo(function TodoProjectSection({
               view={views[i]}
               selected={selectedId === todo.id}
               onSelect={onSelect}
-              onToggleDone={onToggleDone}
               onSeen={onSeen}
-              onMenu={onMenu}
             />
           ))}
         </div>
@@ -1168,69 +770,6 @@ const TodoProjectSection = memo(function TodoProjectSection({
     </div>
   );
 });
-
-// ── Filter and sort (#3740) ──────────────────────────────────
-
-/** Beside the search field: the filter as a chip that clears it, and one button whose menu picks the filter (with how
- *  many each shows) and the order inside the sections. Both start as All and Recent activity, the list as it was. */
-function TodoListControls({
-  filter,
-  sort,
-  counts,
-  onFilter,
-  onSort,
-}: {
-  filter: TodoListFilter;
-  sort: TodoListSort;
-  counts: Record<TodoListFilter, number>;
-  onFilter: (f: TodoListFilter) => void;
-  onSort: (s: TodoListSort) => void;
-}) {
-  const menu = useMenu();
-  const items: MenuItem[] = [
-    { key: "show", label: t("todos.filter_show"), heading: true, onSelect: () => {} },
-    ...TODO_LIST_FILTERS.map((f): MenuItem => ({ key: `filter-${f}`, label: filterLabel(f), hint: String(counts[f]), checked: f === filter, radio: true, onSelect: () => onFilter(f) })),
-    { key: "sort", label: t("todos.sort_by"), heading: true, divider: true, onSelect: () => {} },
-    ...TODO_LIST_SORTS.map((s): MenuItem => ({ key: `sort-${s}`, label: sortLabel(s), checked: s === sort, radio: true, onSelect: () => onSort(s) })),
-  ];
-  return (
-    <>
-      {filter !== "all" && (
-        <button
-          type="button"
-          data-testid="todos-filter-chip"
-          aria-label={t("todos.filter_clear", { filter: filterLabel(filter) })}
-          onClick={() => onFilter("all")}
-          className="touch-hit flex h-7 shrink-0 items-center gap-1 rounded-full bg-accent-tint px-2.5 text-[12px] font-medium whitespace-nowrap text-accent-ink hover:bg-accent-tint/70"
-        >
-          {filterLabel(filter)}
-          <Icon name="x" size={10} stroke={2.4} />
-        </button>
-      )}
-      {/* a dot while the filter or the order is not the default, as iOS fills its mark: the list is not as it was */}
-      <span data-testid="todos-filter" data-filter={filter} data-sort={sort} className="relative inline-flex shrink-0">
-        <IconButton icon="filter" label={t("todos.filter_label")} onClick={menu.open} active={Boolean(menu.anchor)} />
-        {(filter !== "all" || sort !== "recent") && (
-          <span data-testid="todos-filter-changed" aria-hidden className="pointer-events-none absolute top-0.5 right-0.5 size-1.5 rounded-full bg-accent" />
-        )}
-      </span>
-      {menu.anchor && <Menu anchor={menu.anchor} onClose={menu.close} align="right" width={224} items={items} />}
-    </>
-  );
-}
-
-/** What waits on the user outside the filter, over the sections: Needs you is filtered too, never silently. */
-function HiddenWaitingLine({ count, filter, onShowAll }: { count: number; filter: TodoListFilter; onShowAll: () => void }) {
-  return (
-    <div data-testid="todos-hidden-waiting" className="mx-1 mb-1 flex items-center gap-2 rounded-control bg-attention/10 px-2.5 py-2 text-[12px] text-ink-2">
-      <span className="size-1.5 shrink-0 rounded-full bg-attention" aria-hidden />
-      <span className="min-w-0 flex-1">{t("todos.filter_hidden_waiting", { count, filter: filterLabel(filter) })}</span>
-      <button type="button" onClick={onShowAll} className="shrink-0 font-medium whitespace-nowrap text-accent-ink hover:underline">
-        {t("todos.filter_show_all")}
-      </button>
-    </div>
-  );
-}
 
 // ── Status sections (#3156) ──────────────────────────────────
 
@@ -1267,10 +806,8 @@ const TodoTriageSection = memo(function TodoTriageSection({
   views,
   selectedId,
   onSelect,
-  onToggleDone,
   onRestore,
   onSeen,
-  onMenu,
 }: {
   section: TriageSection;
   /** Whether it starts folded: Shelved and Done. */
@@ -1281,11 +818,9 @@ const TodoTriageSection = memo(function TodoTriageSection({
   views: ReadonlyMap<string, TodoRowView>;
   selectedId: string | undefined;
   onSelect: (id: string) => void;
-  onToggleDone: (todo: Todo, open?: boolean) => void;
   onRestore: (id: string) => void;
   /** Got it on a Just finished row; unset while the hub keeps no seen marks. */
   onSeen?: (id: string) => void;
-  onMenu: TodoRowMenuOpener;
 }) {
   const holds = groups.some((g) => g.members.some((m) => m.id === selectedId));
   const [folded, toggle] = useFolded(`todos-section:${section}`, foldedFirst, { follow: true, holds });
@@ -1302,7 +837,7 @@ const TodoTriageSection = memo(function TodoTriageSection({
       {!folded && (
         <div className="flex flex-col gap-1 pt-0.5">
           {groups.map((g) => (
-            <TodoTriageRow key={g.key} group={g} views={views} selectedId={selectedId} onSelect={onSelect} onToggleDone={onToggleDone} onRestore={onRestore} onSeen={onSeen} onMenu={onMenu} />
+            <TodoTriageRow key={g.key} group={g} views={views} selectedId={selectedId} onSelect={onSelect} onRestore={onRestore} onSeen={onSeen} />
           ))}
         </div>
       )}
@@ -1325,19 +860,15 @@ function TodoTriageRow({
   views,
   selectedId,
   onSelect,
-  onToggleDone,
   onRestore,
   onSeen,
-  onMenu,
 }: {
   group: TriageGroup;
   views: ReadonlyMap<string, TodoRowView>;
   selectedId: string | undefined;
   onSelect: (id: string) => void;
-  onToggleDone: (todo: Todo, open?: boolean) => void;
   onRestore: (id: string) => void;
   onSeen?: (id: string) => void;
-  onMenu: TodoRowMenuOpener;
 }) {
   // When selection lands on a non-lead member (deep link, click, or a live tick demoting the selected lead),
   // latch the row open so it stays expanded even if that member later becomes lead again (#12417).
@@ -1395,11 +926,9 @@ function TodoTriageRow({
       view={views.get(td.id)!}
       selected={selectedId === td.id}
       onSelect={onSelect}
-      onToggleDone={onToggleDone}
       section={group.triage.get(td.id)?.section}
       onRestore={onRestore}
       onSeen={onSeen}
-      onMenu={onMenu}
     />
   );
   return (
@@ -1475,7 +1004,7 @@ export type TodoRowView = {
   orphaned: boolean;
   /** One of its agents runs with ultracode on (#12): the Agent list row's mark after its title. */
   ultracode: boolean;
-  /** Its status section (sectionOf), in every grouping: its checkbox reads open or done by it (checksAsOpen). */
+  /** Its status section (sectionOf), in every grouping: its done mark reads open or done by it (checksAsOpen). */
   section?: TriageSection;
   /** What it waits on while its status is Waiting (#11090, lib/todo-wait-reason.ts waitOf): its label says so. */
   wait?: WaitReason;
@@ -1558,31 +1087,24 @@ function todoRowViews(todos: Todo[], lookup: SessionLookup, interactions: Intera
 
 const TONE_CLASS = TODO_TONE_CLASS;
 
-/** Opens a row's menu (#4429) where `at` says, for the to-do the row's checkbox shows open (`open`) or done. */
-type TodoRowMenuOpener = (todo: Todo, at: MenuAt, open: boolean) => void;
-
 const TodoListItem = memo(function TodoListItem({
   todo,
   view,
   selected,
   onSelect,
-  onToggleDone,
   section,
   onRestore,
   onSeen,
-  onMenu,
 }: {
   todo: Todo;
   view: TodoRowView;
   selected: boolean;
   onSelect: (id: string) => void;
-  onToggleDone: (todo: Todo, open?: boolean) => void;
   /** Its status section (#3156): a PR to merge shows its link, a shelved one its Restore, a Just finished one Got it. */
   section?: TriageSection;
   onRestore?: (id: string) => void;
   /** Got it (#5707), on a row in Just finished (`section`, else the view's). */
   onSeen?: (id: string) => void;
-  onMenu?: TodoRowMenuOpener;
 }) {
   const { status, dotState, activeCount } = view;
   const showWait = (section ?? view.section) === "parked";
@@ -1598,8 +1120,6 @@ const TodoListItem = memo(function TodoListItem({
   // a failed start still waiting on the owner reads open, not done, with why it did not start (#3713), in every grouping
   const open = checksAsOpen(todo, section ?? view.section);
   const failedOpen = open && Boolean(todo.start_error);
-  // Its menu (#4429): a right click opens it at the pointer, the menu key and Shift+F10 on the row
-  const menu = onMenu ? contextMenuProps((at) => onMenu(todo, at, open)) : undefined;
 
   return (
     <div
@@ -1608,14 +1128,8 @@ const TodoListItem = memo(function TodoListItem({
       data-todo={todo.id}
       aria-current={selected || undefined}
       onClick={() => onSelect(todo.id)}
-      // a right click on its PR link keeps the browser's menu (Copy link, open in a new tab)
-      onContextMenu={menu && ((e) => {
-        if (!(e.target as HTMLElement).closest("a[href]")) menu.onContextMenu(e);
-      })}
       // Enter / Space on the row itself (not on its own buttons) opens it, as a click does
       onKeyDown={(e) => {
-        menu?.onKeyDown(e);
-        if (e.defaultPrevented) return;
         if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
         e.preventDefault();
         onSelect(todo.id);
@@ -1625,23 +1139,19 @@ const TodoListItem = memo(function TodoListItem({
         selected ? "border-accent/30 bg-accent-tint/70" : "border-transparent hover:bg-hover",
       )}
     >
-      {/* Checkbox button: touch-hit makes the 16px circle a 44px target on touch, its own (no row underneath) */}
-      <button
-        type="button"
-        aria-label={open ? t("todos.complete_todo") : t("todos.reopen_todo")}
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleDone(todo, open);
-        }}
+      {/* Done or open, as a mark of a fixed size, so every row's title starts in the same place. It changes nothing: the
+          agents close and reopen to-dos. The status line says the state in words. */}
+      <span
+        aria-hidden
+        data-testid="todo-done-mark"
+        data-done={!open || undefined}
         className={cx(
-          "touch-hit mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors",
-          !open
-            ? "border-accent bg-accent text-white"
-            : "border-line-strong hover:border-accent hover:text-accent text-transparent",
+          "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border",
+          !open ? "border-accent bg-accent text-white" : "border-line-strong text-transparent",
         )}
       >
         <Icon name="check" size={10} stroke={2.6} />
-      </button>
+      </span>
 
       {/* Body */}
       <div className="min-w-0 flex-1">
@@ -1714,11 +1224,9 @@ const TodoListItem = memo(function TodoListItem({
           )}
         </div>
 
-        {/* What it waits on from the user, with the one tap that answers it (#2056) */}
-        <TodoAskLine todo={todo} className="mt-1" />
+        {/* What it waits on from the user (#2056), to read: it is answered in the conversation it came from */}
+        <TodoAskLine todo={todo} readOnly className="mt-1" />
 
-        {/* Due date, a reminder still to push, high priority (#1683) */}
-        <TodoPlanLine todo={todo} />
         {showWait && <div className="mt-1" data-testid={openPR ? "todo-pr-line" : undefined}><TaskWaitInfo todo={todo} merges={openMergePRs(todo, Date.now())} /></div>}
 
         {/* Why its agent did not start, while it waits on the owner (DESIGN_SYSTEM 5.6: what failed, in red) */}
@@ -1748,7 +1256,6 @@ const TodoListItem = memo(function TodoListItem({
             {view.urgentText}
           </div>
         )}
-
 
         {/* Shelved: one tap brings it back (#3156); nothing is deleted */}
         {section === "shelved" && onRestore && (
@@ -1784,130 +1291,6 @@ function SeenButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-const PLAN_FIELD = "rounded-control border border-line bg-canvas px-2 py-1 text-[12.5px] text-ink outline-none focus:border-accent";
-
-/** "YYYY-MM-DD", "HH:MM" and "YYYY-MM-DDTHH:MM" of a moment in local time, as date / time inputs take them. */
-function localParts(ms: number): { day: string; time: string } {
-  const d = new Date(ms);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return { day: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`, time: `${p(d.getHours())}:${p(d.getMinutes())}` };
-}
-
-/**
- * A date or time field of the detail's plan (audit item 2): it saves when the editing is done, not on each typed
- * digit. A day typed segment by segment is a valid date after its first digit, so saving then stored a day the user
- * was still typing and, with the field disabled while it saved, took the focus away before the next digit. Typed
- * changes save when the field is left or on Enter; a change made without typing (a pick in the browser's picker) saves
- * at once. What was typed shows until the save is through.
- */
-function PlanField({ value, onCommit, ...field }: { value: string; onCommit: (value: string) => Promise<void> } & Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange">) {
-  const [draft, setDraft] = useState<string>();
-  // the change comes from the keyboard: it waits to be committed
-  const typed = useRef(false);
-  // the value on its way to the hub: Enter, then the field left before the save is through, sends it once
-  const saving = useRef<string | undefined>(undefined);
-  // a part left half-typed (badInput: the browser says "" for it) goes back to what is saved, it does not clear it
-  const commit = async (el: HTMLInputElement, next = draft) => {
-    typed.current = false;
-    if (next !== undefined && next === saving.current) return;
-    if (next === undefined || next === value || el.validity.badInput) return setDraft(undefined);
-    setDraft(next);
-    saving.current = next;
-    try {
-      await onCommit(next);
-    } finally {
-      if (saving.current === next) saving.current = undefined;
-    }
-    setDraft((d) => (d === next ? undefined : d));
-  };
-  return (
-    <input
-      {...field}
-      value={draft ?? value}
-      onPointerDown={() => (typed.current = false)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") void commit(e.currentTarget);
-        else if (e.key !== "Tab") typed.current = true;
-      }}
-      onChange={(e) => (typed.current ? setDraft(e.target.value) : void commit(e.target, e.target.value))}
-      onBlur={(e) => void commit(e.currentTarget)}
-      className={PLAN_FIELD}
-    />
-  );
-}
-
-/** The detail's due date (a day, with a time when one is set), reminder and priority. A pick from a menu is
- *  saved at once, a date or time once it is entered (PlanField); no field is disabled while it saves, so the focus stays. */
-function TodoPlanEditor({ todo }: { todo: Todo }) {
-  const [busy, setBusy] = useState(false);
-  const save = async (patch: TodoPatch) => {
-    setBusy(true);
-    try {
-      await updateTodo(todo.id, patch);
-      await refreshTodos();
-    } catch (e) {
-      toast(t("todos.save_plan_failed", { error: errorText(e) }), "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-  const at = todo.due_at ? Date.parse(todo.due_at) : NaN;
-  const due = Number.isNaN(at) ? { day: todoDueDay(todo) === undefined ? "" : (todo.due_date ?? ""), time: "" } : localParts(at);
-  const remindAt = todo.remind_at ? Date.parse(todo.remind_at) : NaN;
-  const remind = Number.isNaN(remindAt) ? "" : `${localParts(remindAt).day}T${localParts(remindAt).time}`;
-  const moment = (day: string, time: string) => new Date(`${day}T${time}`).toISOString();
-  return (
-    <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2.5 text-[12.5px] text-ink-2" data-testid="todo-plan" aria-busy={busy}>
-      <span className="inline-flex items-center gap-1.5">
-        <Icon name="calendar" size={13} stroke={2} />
-        <span className="whitespace-nowrap">{t("todos.due_label")}</span>
-        <PlanField
-          type="date"
-          aria-label={t("todos.due_label")}
-          value={due.day}
-          onCommit={(day) => save(!day ? { due_at: null } : due.time ? { due_at: moment(day, due.time) } : { due_date: day })}
-          data-testid="todo-plan-due"
-        />
-        {due.day && (
-          <PlanField
-            type="time"
-            aria-label={t("todos.due_time")}
-            value={due.time}
-            onCommit={(time) => save(time ? { due_at: moment(due.day, time) } : { due_date: due.day })}
-            data-testid="todo-plan-due-time"
-          />
-        )}
-      </span>
-      <span className="inline-flex items-center gap-1.5">
-        <Icon name="bell" size={13} stroke={2} />
-        <span className="whitespace-nowrap">{t("todos.remind_label")}</span>
-        <PlanField
-          type="datetime-local"
-          aria-label={t("todos.remind_label")}
-          value={remind}
-          onCommit={(v) => save({ remind_at: v ? new Date(v).toISOString() : null })}
-          data-testid="todo-plan-remind"
-        />
-      </span>
-      <span className="inline-flex items-center gap-1.5">
-        <Icon name="flag" size={13} stroke={2} />
-        <span className="whitespace-nowrap">{t("todos.priority_label")}</span>
-        <select
-          aria-label={t("todos.priority_label")}
-          value={todo.priority ?? ""}
-          onChange={(e) => void save({ priority: e.target.value })}
-          className={PLAN_FIELD}
-          data-testid="todo-plan-priority"
-        >
-          <option value="high">{t("todos.priority_option_high")}</option>
-          <option value="">{t("todos.priority_normal")}</option>
-          <option value="low">{t("todos.priority_low")}</option>
-        </select>
-      </span>
-    </div>
-  );
-}
-
 /** A to-do whose decision is held for the briefing (#4930, #5803):
  *  nothing was pushed for it, and it comes with the next briefing. The to-do's page writes out what that means under
  *  its ask; a row's ask line carries the quiet mark itself (views/TodoAsk AskLine), as the decision's card does
@@ -1927,51 +1310,19 @@ export function HeldForBriefing({ todo }: { todo: Pick<Todo, "ask"> }) {
   );
 }
 
-/** A to-do's due date, a reminder still to push and high priority under its status (#1683); nothing without them. */
-function TodoPlanLine({ todo }: { todo: Todo }) {
-  const due = todoDueText(todo);
-  const remind = Boolean(todo.remind_at && !todo.reminded_at && !todo.done_at);
-  const high = todo.priority === "high" && !todo.done_at;
-  if (!due && !remind && !high) return null;
-  const overdue = isOverdue(todo);
-  return (
-    <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[11.5px] text-ink-3" data-testid="todo-plan-line">
-      {high && (
-        <span role="img" aria-label={t("todos.priority_high")} title={t("todos.priority_high")} className="inline-flex text-orange">
-          <Icon name="flag" size={12} stroke={2} />
-        </span>
-      )}
-      {due && (
-        <span className={cx("inline-flex min-w-0 items-center gap-1", overdue && "text-red")}>
-          <Icon name="calendar" size={12} stroke={2} />
-          <span className="truncate">{t(overdue ? "todos.was_due" : "todos.due", { when: due })}</span>
-        </span>
-      )}
-      {remind && todo.remind_at && (
-        <span role="img" aria-label={t("todos.reminder_at", { when: formatDate(todo.remind_at, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) })} className="inline-flex">
-          <Icon name="bell" size={12} stroke={2} />
-        </span>
-      )}
-    </div>
-  );
-}
-
 /** What a waiting agent's card asks, as one line of plain text; empty for a plan (its kicker says it) or no card. */
 function askText(ix: Interaction | undefined): string {
   if (!ix || ix.kind === "plan") return "";
   return plainMarkdown(interactionAsk(ix)).replace(/\s+/g, " ").trim();
 }
 
-// ── Todo Detail ──────────────────────────────────────────────
+// ── Detail parts ─────────────────────────────────────────────
 
 // A task's brief (#3822) comes with the first to-do that has one, not with the page.
 const TodoRequestGraph = lazy(() => import("./TodoRequestGraph"));
 const TaskBriefPanel = lazy(() => import("./assistant/TaskBrief").then((m) => ({ default: m.TaskBriefPanel })));
-const WorkspaceNaming = lazyPage(() => import("../ui/WorkspaceNaming").then((m) => m.WorkspaceNaming));
 const TaskBriefHistory = lazy(() => import("./assistant/TaskBrief").then((m) => ({ default: m.TaskBriefHistory })));
 const BriefResultExtras = lazy(() => import("./assistant/TaskBrief").then((m) => ({ default: m.BriefResultExtras })));
-// the question a failed start's tab stopped on, answered on its page (#10365): only for such a failure
-const ShellQuestion = lazy(() => import("./ShellQuestionCard"));
 const TodoImageViewer = lazyPage(() => import("./chat/ImageViewer").then((m) => m.ImageViewer));
 
 /** The task's criteria, each as its latest report or review found it, and what the supervisor said last. */
@@ -2055,7 +1406,6 @@ function AutoReviewResult({ sup }: { sup: Supervision }) {
 }
 
 const TODO_IMAGE_LIMIT = 50;
-const TODO_IMAGE_MAX_BYTES = 1024 * 1024;
 const TODO_IMAGE_PARALLEL = 3;
 
 type TodoImageEntry = {
@@ -2203,7 +1553,72 @@ function TodoImages({ todo, owner }: { todo: Todo; owner: string }) {
     </section>
   );
 }
+// ── Detail sections ──────────────────────────────────────────
 
+/** One of the to-do page's sections: its heading, with a count or a tally beside it and its own view controls at the
+ *  right, over what the main conversation and the agents wrote there. */
+function DetailSection({ title, aside, right, testId, children }: { title: string; aside?: ReactNode; right?: ReactNode; testId: string; children: ReactNode }) {
+  const heading = useId();
+  return (
+    <section aria-labelledby={heading} data-testid={testId} data-todo-section className="mt-8">
+      <div className="flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1">
+        <h3 id={heading} className="text-sm font-semibold text-ink">{title}</h3>
+        {aside}
+        {right && <div className="ml-auto flex shrink-0 items-center gap-1">{right}</div>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** How many a section's heading counts, beside it. */
+function SectionCount({ count, testId }: { count: number; testId?: string }) {
+  return <span data-testid={testId} className="text-meta text-ink-3 tabular-nums">{count}</span>;
+}
+
+/** What a section says while nothing has been written into it yet. */
+function SectionEmpty({ children }: { children: ReactNode }) {
+  return (
+    <p data-testid="todo-section-empty" className="mt-2 rounded-control border border-dashed border-line px-3 py-3 text-meta leading-[1.6] text-ink-3">
+      {children}
+    </p>
+  );
+}
+
+/** The to-do's notes as its agents wrote them, Markdown rendered. Nothing while there are none. */
+function TodoNotes({ notes }: { notes: string }) {
+  if (!notes.trim()) return null;
+  return (
+    <section data-testid="todo-notes" className="mt-4 rounded-control bg-inset p-3.5 shadow-hairline">
+      <div className="flex items-center gap-2 text-[12.5px] text-ink-2">
+        <Icon name="file" size={12} className="shrink-0" />
+        <h4 className="min-w-0 flex-1 truncate font-semibold">{t("todos.notes_title")}</h4>
+      </div>
+      <div className="mt-2 min-w-0 select-text text-ink [overflow-wrap:anywhere]">
+        <Markdown text={notes} small lineBreaks />
+      </div>
+    </section>
+  );
+}
+
+/** A task's criteria while nobody reviews them yet: the brief's, none checked. A supervised task has its checklist. */
+function BriefCriteria({ criteria }: { criteria: string[] }) {
+  return (
+    <ul data-testid="todo-brief-criteria" className="mt-3 flex flex-col gap-1.5 rounded-control bg-inset p-3.5 shadow-hairline">
+      {criteria.map((c, i) => (
+        <li key={i} className="flex items-start gap-2 text-meta">
+          <CriterionMark mark="open" className="mt-0.5" />
+          <span className="min-w-0 text-ink select-text [overflow-wrap:anywhere]">{c}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// ── Todo Detail ──────────────────────────────────────────────
+
+/** The open to-do, to read: its header, then the brief, the acceptance criteria, its agent sessions, its repositories
+ *  and its decisions. The main conversation and the agents write all of it; nothing here changes the to-do. */
 function TodoDetail({
   todo,
   owner,
@@ -2215,10 +1630,7 @@ function TodoDetail({
   showReleased,
   onToggleReleased,
   open,
-  onToggleDone,
-  onOpenHandover,
   onOpenTodo,
-  onDeleteClick,
 }: {
   todo: Todo;
   owner: string;
@@ -2229,25 +1641,10 @@ function TodoDetail({
   interactions: Interaction[];
   showReleased: boolean;
   onToggleReleased: () => void;
-  /** Whether it reads open, as its row's checkbox does (checksAsOpen): a failed start waiting on the owner is (#3713). */
+  /** Whether it reads open, as its row's mark does (checksAsOpen): a failed start waiting on the owner is (#3713). */
   open: boolean;
-  /** Closes it when `open`, reopens it otherwise: the row's checkbox. */
-  onToggleDone: (open: boolean) => void;
-  onOpenHandover: () => void;
   onOpenTodo: (id: string) => void;
-  onDeleteClick: () => void;
 }) {
-  const title = useTodoField({
-    remote: todo.title, owner, allowEmpty: false,
-    write: async (value) => (await updateTodo(todo.id, { title: value })).title,
-    onError: (error) => toast(t("todos.save_title_failed", { error: errorText(error) }), "error"),
-  });
-  const notes = useTodoField({
-    remote: todo.notes ?? "", owner, allowEmpty: true,
-    write: async (value) => (await updateTodo(todo.id, { notes: value })).notes ?? "",
-    onError: (error) => toast(t("todos.save_notes_failed", { error: errorText(error) }), "error"),
-  });
-  const menu = useMenu();
   const allSessions = useAgentSessions();
   const spacesSupported = useStore((s) => s.spacesSupported);
 
@@ -2261,54 +1658,16 @@ function TodoDetail({
     );
   };
 
-  const removeSpace = async (mid: string, space: string) => {
-    try {
-      await unlinkSpaceFromTodo(todo.id, mid, space);
-      await refreshTodos();
-      await refresh();
-      toast(t("todos.space_removed"), "ok");
-    } catch (e) {
-      toast(t("todos.space_remove_failed", { error: errorText(e) }), "error");
-    }
-  };
-
-  // "Remove" for an agent that did not start, "Unlink" for the others (iOS: the row's swipe; Android: its ×).
-  const agentRosterHeading = useId();
-  const [agentPickerOpen, setAgentPickerOpen] = useState(false);
-  const unlinkAgent = async (agent: TodoAgent) => {
-    const failed = Boolean(agent.start_error);
-    try {
-      await unlinkAgentFromTodo(todo.id, agent.machine_id, agent.session_id);
-      await refreshTodos();
-      await refresh();
-      toast(failed ? t("todos.failed_agent_removed") : t("todos.agent_unlinked"), "ok");
-    } catch (e) {
-      toast(failed ? t("todos.remove_failed", { error: errorText(e) }) : t("todos.unlink_failed", { error: errorText(e) }), "error");
-    }
-  };
-
   // A task whose agent never started, waiting on the owner (#3713, audit item 13): open, as its row reads, with why it
-  // did not start; Retry for any a conversation handed out (POST …/retry: the hub finds the plan that binds it, one a
-  // plan took over through todo_id has no plan id of its own, #8770, and says when there is none), and Hand to agent.
-  // Its launcher could not start there: "Use … instead" on the computer's other launcher comes first (#10365). Its
-  // tab's shell stopped on a question: the answers are offered here too, and the task then starts in that tab.
+  // did not start.
   const failedStart = open && Boolean(todo.start_error);
-  const canRetry = failedStart && Boolean(todo.origin);
-  const features = useStore((s) => s.features);
-  const failedTask = useFeed((s) => (canRetry ? planTaskOf(todo, s.plans) : undefined));
-  const instead = retryLauncher(failedTask, features);
-  // the main chat's task card's Retry (lib/feed retryTask): one on its way at a time from either, and the to-do the hub
-  // reopens shows at once; its agent starts in the background and the list says how the start goes
-  const retrying = useFeed((s) => Boolean(s.busy[retryKey(todo.id)]));
-  const retry = (launcher?: string) =>
-    (launcher ? retryOnLauncher(todo, launcher) : retryTask(todo)).catch((e) => toast(t("todos.action_failed", { error: errorText(e) }), "error"));
   const status = todoStatus(todo, lookup);
   // its state word and tone; a waiting one's say what it waits on, attention only on the owner (#11090)
   const look = todoLook(todo, status, waitOf(todo, status, lookup));
   // its steps as the hub counts them (#11858), as its row says them
   const steps = stepsWords(todo, status);
   const responsible = responsibleOf(todo);
-  // The to-do's own PR, parsed once here (the list row and the repository section's fallback share it).
+  // The to-do's own PR, parsed once here (the repository section's fallback for a hub without the store).
   const legacyPR = prLink(todo.pr_url);
   const toneClass = {
     red: "bg-red-tint text-red",
@@ -2346,44 +1705,16 @@ function TodoDetail({
             ? "idle"
             : "offline";
 
+  const criteria = todo.brief ? briefCriteria(todo.brief) : [];
+  const spaces = spacesSupported !== false ? todo.spaces ?? [] : [];
+
   return (
     // a page's reading width (DESIGN_SYSTEM 2.5 "Widths", as the inbox's detail): a wide window centers it (audit item 75)
     <div className="mx-auto flex min-h-full w-full max-w-[760px] flex-col p-6 sm:p-8" data-testid="todo-detail">
-      {/* Title Row with ⋯ menu */}
-      <div className="flex items-center justify-between gap-3">
-        <input
-          type="text"
-          value={title.value}
-          aria-busy={title.saving}
-          onChange={(e) => title.edit(e.target.value)}
-          onBlur={title.save}
-          onKeyDown={(e) => {
-            if (composing(e.nativeEvent)) return;
-            if (e.key === "Enter") {
-              e.currentTarget.blur();
-            }
-          }}
-          placeholder={t("todos.title_placeholder")}
-          className="min-w-0 flex-1 bg-transparent text-[22px] font-bold text-ink outline-none transition-colors focus:border-b focus:border-accent"
-        />
-        <IconButton icon="more" label={t("todos.more_options")} onClick={menu.open} active={Boolean(menu.anchor)} />
-        {menu.anchor && (
-          <Menu
-            anchor={menu.anchor}
-            onClose={menu.close}
-            align="right"
-            items={[
-              {
-                key: "delete",
-                label: t("todos.delete_menu"),
-                icon: "x" as const,
-                danger: true,
-                onSelect: onDeleteClick,
-              },
-            ]}
-          />
-        )}
-      </div>
+      {/* Header: the title, its state and who has it, and what explains that state */}
+      <h2 data-testid="todo-detail-title" className="min-w-0 text-[22px] leading-snug font-bold text-ink select-text [overflow-wrap:anywhere]">
+        {todo.title}
+      </h2>
 
       {/* Meta Line */}
       <div className="mt-2.5 flex flex-wrap items-center gap-2.5 text-[12.5px] text-ink-2">
@@ -2430,210 +1761,171 @@ function TodoDetail({
           {t("todos.start_failed", { error: todo.start_error ?? "" })}
         </p>
       )}
-      {failedTask?.error_code === "shell_waiting" && <Suspense fallback={null}><ShellQuestion todo={todo} task={failedTask} className="mt-3" /></Suspense>}
       {isAutoDone(todo) && (
         <p className="mt-2 text-[12.5px] leading-[1.6] text-ink-3">
           {todo.done_reason ? t("todos.auto_done_reason", { reason: todo.done_reason }) : t("todos.auto_done")}
         </p>
       )}
 
-      {/* What it waits on from the user and how to answer it (#2056) */}
+      {/* Code task stages from the hub. Its PR link is not drawn again here: the repository section is the one place
+          a task's issues and PRs are shown (legacy ones included). */}
+      <TodoStageBar stage={todo.stage} stageKind={todo.stage_kind} done={todo.stage_done} className="mt-4" />
+
+      {/* What it waits on from the user (#2056), and where it is answered */}
       <TodoAskPanel todo={todo} />
       <HeldForBriefing todo={todo} />
 
-      <section aria-labelledby={agentRosterHeading} className="mt-5 rounded-control border border-line bg-canvas" data-testid="todo-agent-roster">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <h2 id={agentRosterHeading} className="text-sm font-semibold text-ink">
-              {t("todos.agents_section", { count: activeAgents.length })}
-            </h2>
-            <StateTally counts={counts} />
-          </div>
-          {!todo.done_at && (
-            <Button tone="secondary" size="sm" icon="link" onClick={() => setAgentPickerOpen(true)}>
-              {t("todos.link_existing_agents")}
-            </Button>
+      {/* 1. The brief its work is held to (#3822): who asked and in what words, the scope changes and who worked on it,
+          the notes its agents keep, their latest report, and the pictures it came with. */}
+      <DetailSection title={t("todos.detail_brief")} testId="todo-section-brief">
+        {todo.brief ? (
+          <Suspense fallback={null}>
+            <TaskBriefPanel todo={todo} />
+            <TaskBriefHistory todo={todo} onOpenTodo={onOpenTodo} />
+          </Suspense>
+        ) : (
+          <SectionEmpty>{t("todos.brief_empty")}</SectionEmpty>
+        )}
+        <TodoNotes notes={todo.notes ?? ""} />
+        <LatestReport todo={todo} />
+        <TodoImages todo={todo} owner={owner} />
+      </DetailSection>
+
+      {/* 2. What it is held to: the supervisor's checklist, else the brief's criteria, none checked yet */}
+      <DetailSection title={t("todos.detail_criteria")} testId="todo-section-criteria">
+        {todo.supervision ? (
+          <ReviewChecklist todo={todo} lookup={lookup} />
+        ) : criteria.length > 0 ? (
+          <BriefCriteria criteria={criteria} />
+        ) : (
+          <SectionEmpty>{t("todos.criteria_empty")}</SectionEmpty>
+        )}
+      </DetailSection>
+
+      {/* 3. The agent sessions on it, each opening its session, and those that took part */}
+      <DetailSection
+        title={t("todos.detail_sessions")}
+        aside={<><SectionCount count={activeAgents.length} testId="todo-agent-count" /><StateTally counts={counts} /></>}
+        testId="todo-section-sessions"
+      >
+        <div className="mt-3 divide-y divide-line rounded-control border border-line bg-canvas" data-testid="todo-agent-roster">
+          {attentionFirst.length === 0 ? (
+            <p className="px-3 py-3 text-meta text-ink-3">
+              {open ? (responsible ? t("todos.no_agents_responsible", { name: responsible.name }) : t("todos.no_agents")) : t("todos.no_agents_done")}
+            </p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {attentionFirst.map(({ agent, session, state, waiting }) => {
+                const now = taskNow(session, state === "working");
+                const displayTitle = session?.title || agent.title || t("lib-format.untitled_session");
+                const machineName = machines.find((m) => m.id === agent.machine_id)?.name;
+                const spaceTab = session ? [session.space_name, tabLabel(session)].filter(Boolean).join(" › ") : "";
+                const displaySub = [machineName, spaceTab || shortPath(session?.cwd || agent.cwd)].filter(Boolean).join(" · ");
+                const ix = sessionCard(interactions, agent.machine_id, agent.session_id);
+                const kicker = ix?.kind === "plan" ? t("todos.kicker_plan") : ix?.kind === "permission" ? t("todos.kicker_permission") : ix?.kind === "screen" ? t("todos.kicker_screen") : ix?.kind === "elicitation" ? t("todos.kicker_elicitation") : t("todos.kicker_question");
+                const sourceLabel = formatAgentSource(agent, todo.spaces, lookup);
+                const stateLabel = agent.start_error ? stateName("failed") : !session ? t("todos.ended") :
+                  waiting ? stateName("bg_waiting") : state === "idle" && session.work?.just_finished ? stateName("just_finished") : stateName(state);
+                const AgentRow = session ? "button" : "div";
+
+                return (
+                  <li key={JSON.stringify([agent.machine_id, agent.session_id])} className="flex items-center gap-2 px-2">
+                    <AgentRow
+                      type={session ? "button" : undefined}
+                      onClick={session ? () => openFromPage({ name: "session", mid: agent.machine_id, sid: agent.session_id }) : undefined}
+                      className={cx("my-1 flex min-w-0 flex-1 items-start gap-2 rounded-control px-1.5 py-2 text-left", session && "cursor-pointer hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent")}
+                    >
+                      <span className="mt-0.5"><StatusMark state={state} size="sm" label={false} waiting={waiting} /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex min-w-0 items-center gap-2">
+                          {sourceLabel && (
+                            <span data-testid="todo-agent-source" title={sourceLabel} className="max-w-[45%] shrink-0 truncate rounded bg-hover px-1.5 py-0.5 text-meta text-ink-3">
+                              {sourceLabel}
+                            </span>
+                          )}
+                          <span data-testid="todo-agent-title" title={displayTitle} className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
+                            {displayTitle}
+                          </span>
+                        </span>
+                        <span className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-meta text-ink-3">
+                          <span className={cx("shrink-0", state === "needs_you" && "font-medium text-attention")}>{stateLabel}</span>
+                          {displaySub && <span className="min-w-0 truncate">{displaySub}</span>}
+                          {!!session?.children?.total && <span>{t("todos.linked_subagents", { count: session.children.total })}</span>}
+                        </span>
+                        {agent.start_error ? (
+                          <span className="mt-1 block truncate text-meta text-red">{t("todos.start_failed", { error: agent.start_error })}</span>
+                        ) : now || (state === "needs_you" && askText(ix)) ? (
+                          <span className="mt-1 line-clamp-2 text-meta text-ink-2">
+                            {state === "needs_you" && <span className="font-medium text-attention">{t("todos.kicker_line", { kicker })}</span>}
+                            {(state === "needs_you" && askText(ix)) || (now && (now.kind === "words" ? plainMarkdown(now.text) : now.text))}
+                          </span>
+                        ) : null}
+                      </span>
+                    </AgentRow>
+                    <span data-testid="todo-agent-time" className="shrink-0 pr-1.5 whitespace-nowrap text-meta text-ink-3">
+                      {ago(session?.updated_at || agent.linked_at)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {/* Released Agents (Participated) */}
+          {releasedAgents.length > 0 && (
+            <div className="px-3 py-2.5">
+              <button
+                type="button"
+                onClick={onToggleReleased}
+                aria-expanded={showReleased}
+                className="flex items-center gap-1 text-[12px] text-ink-3 hover:text-ink-2"
+              >
+                <Icon
+                  name="chevron"
+                  size={11}
+                  className={cx("transition-transform duration-200", showReleased ? "rotate-180" : "")}
+                />
+                <span>{t("todos.released_section", { count: releasedAgents.length })}</span>
+              </button>
+              {showReleased && (
+                <div className="mt-2 flex flex-col gap-1.5">
+                  {releasedAgents.map((agent) => {
+                    const mName = machines.find((m) => m.id === agent.machine_id)?.name || agent.machine_id;
+                    const displaySub = `${mName} · ${shortPath(agent.cwd)}`;
+                    return (
+                      <div
+                        key={`${agent.machine_id}/${agent.session_id}`}
+                        className="flex items-center justify-between rounded-control border border-line/60 bg-hover/40 px-3 py-2 text-[12px] text-ink-3"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <span className="truncate font-medium text-ink-2">{agent.title || t("lib-format.untitled_session")}</span>
+                          <div className="text-[11px] text-ink-3">{displaySub}</div>
+                        </div>
+                        <span className="shrink-0 text-[11px]">{t("todos.left_at", { time: ago(agent.released_at ?? undefined) })}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
         </div>
-        {attentionFirst.length === 0 ? (
-          <p className="border-t border-line px-3 py-3 text-meta text-ink-3">
-            {open ? (responsible ? t("todos.no_agents_responsible", { name: responsible.name }) : t("todos.no_agents")) : t("todos.no_agents_done")}
-          </p>
-        ) : (
-          <ul className="divide-y divide-line border-t border-line">
-            {attentionFirst.map(({ agent, session, state, waiting }) => {
-              const now = taskNow(session, state === "working");
-              const displayTitle = session?.title || agent.title || t("lib-format.untitled_session");
-              const machineName = machines.find((m) => m.id === agent.machine_id)?.name;
-              const spaceTab = session ? [session.space_name, tabLabel(session)].filter(Boolean).join(" › ") : "";
-              const displaySub = [machineName, spaceTab || shortPath(session?.cwd || agent.cwd)].filter(Boolean).join(" · ");
-              const ix = sessionCard(interactions, agent.machine_id, agent.session_id);
-              const kicker = ix?.kind === "plan" ? t("todos.kicker_plan") : ix?.kind === "permission" ? t("todos.kicker_permission") : ix?.kind === "screen" ? t("todos.kicker_screen") : ix?.kind === "elicitation" ? t("todos.kicker_elicitation") : t("todos.kicker_question");
-              const sourceLabel = formatAgentSource(agent, todo.spaces, lookup);
-              const stateLabel = agent.start_error ? stateName("failed") : !session ? t("todos.ended") :
-                waiting ? stateName("bg_waiting") : state === "idle" && session.work?.just_finished ? stateName("just_finished") : stateName(state);
-              const AgentRow = session ? "button" : "div";
+      </DetailSection>
 
-              return (
-                <li key={JSON.stringify([agent.machine_id, agent.session_id])} className="flex items-center gap-2 px-2">
-                  <AgentRow
-                    type={session ? "button" : undefined}
-                    onClick={session ? () => openFromPage({ name: "session", mid: agent.machine_id, sid: agent.session_id }) : undefined}
-                    className={cx("my-1 flex min-w-0 flex-1 items-start gap-2 rounded-control px-1.5 py-2 text-left", session && "cursor-pointer hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent")}
-                  >
-                    <span className="mt-0.5"><StatusMark state={state} size="sm" label={false} waiting={waiting} /></span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex min-w-0 items-center gap-2">
-                        {sourceLabel && (
-                          <span data-testid="todo-agent-source" title={sourceLabel} className="max-w-[45%] shrink-0 truncate rounded bg-hover px-1.5 py-0.5 text-meta text-ink-3">
-                            {sourceLabel}
-                          </span>
-                        )}
-                        <span data-testid="todo-agent-title" title={displayTitle} className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
-                          {displayTitle}
-                        </span>
-                      </span>
-                      <span className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-meta text-ink-3">
-                        <span className={cx("shrink-0", state === "needs_you" && "font-medium text-attention")}>{stateLabel}</span>
-                        {displaySub && <span className="min-w-0 truncate">{displaySub}</span>}
-                        {!!session?.children?.total && <span>{t("todos.linked_subagents", { count: session.children.total })}</span>}
-                      </span>
-                      {agent.start_error ? (
-                        <span className="mt-1 block truncate text-meta text-red">{t("todos.start_failed", { error: agent.start_error })}</span>
-                      ) : now || (state === "needs_you" && askText(ix)) ? (
-                        <span className="mt-1 line-clamp-2 text-meta text-ink-2">
-                          {state === "needs_you" && <span className="font-medium text-attention">{t("todos.kicker_line", { kicker })}</span>}
-                          {(state === "needs_you" && askText(ix)) || (now && (now.kind === "words" ? plainMarkdown(now.text) : now.text))}
-                        </span>
-                      ) : null}
-                    </span>
-                  </AgentRow>
-                  <span data-testid="todo-agent-time" className="shrink-0 whitespace-nowrap text-meta text-ink-3">
-                    {ago(session?.updated_at || agent.linked_at)}
-                  </span>
-                  {agent.start_error ? (
-                    <button type="button" className="shrink-0 text-meta font-medium text-red hover:underline" onClick={() => void unlinkAgent(agent)}>
-                      {t("todos.remove")}
-                    </button>
-                  ) : (
-                    <IconButton icon="x" label={t("todos.unlink_agent", { name: displayTitle })} size={28} iconSize={12} onClick={() => void unlinkAgent(agent)} />
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {/* Released Agents (Participated) */}
-        {releasedAgents.length > 0 && (
-          <div className="border-t border-line px-3 py-2.5">
-            <button
-              type="button"
-              onClick={onToggleReleased}
-              aria-expanded={showReleased}
-              className="flex items-center gap-1 text-[12px] text-ink-3 hover:text-ink-2"
-            >
-              <Icon
-                name="chevron"
-                size={11}
-                className={cx("transition-transform duration-200", showReleased ? "rotate-180" : "")}
-              />
-              <span>{t("todos.released_section", { count: releasedAgents.length })}</span>
-            </button>
-            {showReleased && (
-              <div className="mt-2 flex flex-col gap-1.5">
-                {releasedAgents.map((agent) => {
-                  const mName = machines.find((m) => m.id === agent.machine_id)?.name || agent.machine_id;
-                  const displaySub = `${mName} · ${shortPath(agent.cwd)}`;
-                  return (
-                    <div
-                      key={`${agent.machine_id}/${agent.session_id}`}
-                      className="flex items-center justify-between rounded-control border border-line/60 bg-hover/40 px-3 py-2 text-[12px] text-ink-3"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <span className="truncate font-medium text-ink-2">{agent.title || t("lib-format.untitled_session")}</span>
-                        <div className="text-[11px] text-ink-3">{displaySub}</div>
-                      </div>
-                      <span className="shrink-0 text-[11px]">{t("todos.left_at", { time: ago(agent.released_at ?? undefined) })}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-      </section>
-      {agentPickerOpen && <TodoAgentPicker todo={todo} machines={machines} onClose={() => setAgentPickerOpen(false)} />}
-
-      {/* Due date, reminder, priority (#1683) */}
-      <TodoPlanEditor todo={todo} />
-      {/* The brief its work is held to (#3822): who asked and in what words above the criteria; the scope changes
-          and who worked on it under them. */}
-      {todo.brief && (
-        <Suspense fallback={null}>
-          <TaskBriefPanel todo={todo} />
-        </Suspense>
-      )}
-      <ReviewChecklist todo={todo} lookup={lookup} />
-      {todo.brief && (
-        <Suspense fallback={null}>
-          <TaskBriefHistory todo={todo} onOpenTodo={onOpenTodo} />
-        </Suspense>
-      )}
-      <LatestReport todo={todo} />
-
-      {/* Code task stages from the hub. Its PR link is not drawn again here: the repository links below are the one
-          place a task's issues and PRs are shown (legacy ones included). */}
-      <TodoStageBar stage={todo.stage} stageKind={todo.stage_kind} done={todo.stage_done} className="mt-4" />
-
-      {todo.origin && <TaskCompletionCheck todo={todo} />}
-
-      {/* Notes / Description */}
-      <div className="mt-4">
-        <div className="relative rounded-control bg-inset p-3.5 shadow-hairline">
-          <textarea
-            rows={3}
-            value={notes.value}
-            aria-busy={notes.saving}
-            onChange={(e) => notes.edit(e.target.value)}
-            onBlur={notes.save}
-            placeholder={t("todos.notes_placeholder")}
-            className="w-full resize-none bg-transparent text-[13.5px] leading-[1.65] text-ink outline-none placeholder:text-ink-3"
-          />
-        </div>
-      </div>
-
-      <TodoImages todo={todo} owner={owner} />
-
-      <TodoRepositoryBindings key={`${owner}:${todo.manager ?? defaultManager()}:${todo.id}`} manager={todo.manager ?? defaultManager()} owner={owner} todoId={todo.id}
-        legacyPRs={legacyPR ? [legacyPR] : []} version={todo.updated_at} />
-      <PageBoundary page="workspace-naming">
-        <Suspense fallback={<Loading />}>
-          <WorkspaceNaming manager={todo.manager ?? defaultManager()} owner={owner} todoId={todo.id} />
-        </Suspense>
-      </PageBoundary>
-
-      <ResponsibleSection todo={todo} machines={machines} />
-
-      <ThreadSection todo={todo} />
-
-      <DecisionsSection todo={todo} lookup={lookup} />
-
-      {/* Spaces Section */}
-      {spacesSupported !== false && todo.spaces && todo.spaces.length > 0 && (
-        <div className="mt-6">
-          <div className="mb-2 text-[11.5px] font-medium tracking-[0.04em] text-ink-3 uppercase">
-            {t("todos.spaces_section", { count: todo.spaces.length })}
-          </div>
-          <div className="flex flex-col gap-2">
-            {todo.spaces.map((sp) => {
-              const mName = machines.find((m) => m.id === sp.machine_id)?.name || sp.machine_id;
-              const live = hasLiveAgent(sp.machine_id, sp.space);
-              return (
-                <div
-                  key={`${sp.machine_id}/${sp.space}`}
-                  className="flex items-center justify-between gap-3 rounded-control border border-line bg-canvas p-3"
-                >
-                  <div className="flex min-w-0 items-center gap-2">
+      {/* 4. The repositories its agents bound, with their issues and PRs, and the projects it is linked to */}
+      <DetailSection title={t("todos.detail_repositories")} testId="todo-section-repositories">
+        <TodoRepositoryBindings key={`${owner}:${todo.manager ?? defaultManager()}:${todo.id}`} manager={todo.manager ?? defaultManager()} owner={owner} todoId={todo.id}
+          legacyPRs={legacyPR ? [legacyPR] : []} version={todo.updated_at} />
+        {spaces.length > 0 && (
+          <div className="mt-4" data-testid="todo-spaces">
+            <div className="mb-2 text-[11.5px] font-medium tracking-[0.04em] text-ink-3 uppercase">
+              {t("todos.spaces_section", { count: spaces.length })}
+            </div>
+            <div className="flex flex-col gap-2">
+              {spaces.map((sp) => {
+                const mName = machines.find((m) => m.id === sp.machine_id)?.name || sp.machine_id;
+                const live = hasLiveAgent(sp.machine_id, sp.space);
+                return (
+                  <div key={`${sp.machine_id}/${sp.space}`} className="flex min-w-0 items-center gap-2 rounded-control border border-line bg-canvas p-3">
                     <span className="truncate text-[13px] font-semibold text-ink">
                       {sp.space} · {mName}
                     </span>
@@ -2643,220 +1935,15 @@ function TodoDetail({
                       </span>
                     )}
                   </div>
-                  <Button
-                    tone="quiet"
-                    className="shrink-0 text-ink-3 hover:bg-red-tint/50 hover:text-red whitespace-nowrap px-2 py-1 text-[12px]"
-                    onClick={() => void removeSpace(sp.machine_id, sp.space)}
-                  >
-                    {t("todos.space_remove")}
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Bottom Action Bar. A done to-do can't be handed over (the hub refuses, #1856): Reopen next to it comes first. A
-          failed start is open: Retry (or Hand to agent, which reopens it first) and Complete, which closes it for good as
-          its row's checkbox does. */}
-      <div className="mt-8 flex flex-wrap items-center gap-2.5 border-t border-line pt-4">
-        {instead && (
-          <Button
-            tone="accent"
-            icon="retry"
-            busy={retrying}
-            disabled={retrying}
-            onClick={() => void retry(instead)}
-            testId="todo-retry-launcher"
-            className="h-8.5 px-3.5 text-meta whitespace-nowrap"
-          >
-            {t("assistant-task-actions.use_launcher_instead", { launcher: instead })}
-          </Button>
-        )}
-        {canRetry && (
-          <Button
-            tone={instead ? "secondary" : "accent"}
-            icon="retry"
-            busy={retrying}
-            disabled={retrying}
-            onClick={() => void retry()}
-            className="h-8.5 px-3.5 text-meta whitespace-nowrap"
-          >
-            {t("todos.retry")}
-          </Button>
-        )}
-        {open && (
-          <Button tone={canRetry ? "secondary" : "accent"} icon="hand" onClick={onOpenHandover} className="h-8.5 px-3.5 text-[13px] whitespace-nowrap">
-            {t("todos.hand_over")}
-          </Button>
-        )}
-        <Button tone="secondary" icon="check" onClick={() => onToggleDone(open)} className="h-8.5 px-3 text-[13px] whitespace-nowrap">
-          {open ? t("todos.complete") : t("todos.reopen")}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ── Responsible party (#12712) ───────────────────────────────
-
-/**
- * The external responsible party (long-running session or person) when one is recorded on the to-do (#12712).
- * Renders nothing when unset so to-dos without a responsible party stay unchanged.
- */
-function ResponsibleSection({ todo, machines }: { todo: Todo; machines: Machine[] }) {
-  const responsible = responsibleOf(todo);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    setBusy(false);
-  }, [todo.id]);
-
-  if (!responsible) return null;
-
-  const machineName = responsible.machine_id
-    ? machines.find((m) => m.id === responsible.machine_id)?.name || responsible.machine_id
-    : undefined;
-  const hint = [machineName, responsible.session_id].filter(Boolean).join(" · ");
-
-  const clear = async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      await updateTodo(todo.id, { responsible: null });
-      await refreshTodos();
-      toast(t("todos.responsible_cleared"), "ok");
-    } catch (e) {
-      toast(t("todos.responsible_clear_failed", { error: errorText(e) }), "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="mt-6" data-testid="todo-responsible-section">
-      <div className="mb-2 text-xs font-medium tracking-[0.04em] text-ink-3 uppercase">
-        {t("todos.responsible_section")}
-      </div>
-      <div className="flex items-center justify-between gap-3 rounded-control border border-line bg-canvas p-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
-            <span className="shrink-0 text-ink-3">
-              <Icon name={responsible.kind === "person" ? "person" : "terminal"} size={14} />
-            </span>
-            <span data-testid="todo-responsible-name" className="truncate">
-              {responsible.name}
-            </span>
-            <span
-              data-testid="todo-responsible-kind"
-              className="shrink-0 whitespace-nowrap rounded bg-hover px-1.5 py-0.5 text-xs font-normal text-ink-3"
-            >
-              {t(`todos.responsible_kind_${responsible.kind}`)}
-            </span>
-          </div>
-          {hint && (
-            <div data-testid="todo-responsible-hint" className="mt-0.5 truncate pl-5.5 text-xs text-ink-3">
-              {hint}
+                );
+              })}
             </div>
-          )}
-        </div>
-        <Button
-          tone="quiet"
-          busy={busy}
-          disabled={busy}
-          title={t("todos.responsible_clear_label", { name: responsible.name })}
-          className="shrink-0 whitespace-nowrap px-2 py-1 text-xs text-ink-3 hover:bg-red-tint/50 hover:text-red"
-          onClick={() => void clear()}
-        >
-          {t("todos.responsible_clear")}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ── Chat thread (#5279) ──────────────────────────────────────
-
-/**
- * The chat thread the todo is bound to, with Unbind. Binding is not done here: it needs the bot's recent topics, which the
- * hub has no route for, so an unbound todo says how a binding comes about. A hub from before threads answers the unbind
- * with a route-level 404: the section then goes away without a word, as the decisions do. It shows only when the hub says it
- * has to-do threads (feature `todo_threads`): an older hub never sends a thread, so an "unbound" note there would be false.
- */
-function ThreadSection({ todo }: { todo: Todo }) {
-  const thread = boundThread(todo);
-  const threadsOn = useStore((s) => todoThreadsOn(s.features));
-  const [confirm, setConfirm] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [unsupported, setUnsupported] = useState(false);
-
-  useEffect(() => {
-    setConfirm(false);
-    setBusy(false);
-  }, [todo.id]);
-
-  const unbind = async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      await unbindTodoThread(todo.id);
-      setConfirm(false);
-      await refreshTodos();
-      toast(t("todos.thread_unbound"), "ok");
-    } catch (e) {
-      if (isLegacySpacesRouteError(e)) {
-        setConfirm(false);
-        setUnsupported(true);
-      } else {
-        toast(t("todos.thread_unbind_failed", { error: errorText(e) }), "error");
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (!threadsOn || unsupported) return null;
-  return (
-    <div className="mt-6" data-testid="todo-thread">
-      <div className="mb-2 text-[11.5px] font-medium tracking-[0.04em] text-ink-3 uppercase">{t("todos.thread_section")}</div>
-      {thread ? (
-        <div className="flex items-center justify-between gap-3 rounded-control border border-line bg-canvas p-3">
-          <div className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-ink">
-            <span className="shrink-0 text-ink-3">
-              <Icon name="chat" size={14} />
-            </span>
-            <span data-testid="todo-thread-line" title={threadLine(thread)} className="truncate">
-              {threadLine(thread)}
-            </span>
           </div>
-          <Button
-            tone="quiet"
-            title={t("todos.thread_unbind_label", { name: threadName(thread) })}
-            className="shrink-0 whitespace-nowrap px-2 py-1 text-[12px] text-ink-3 hover:bg-red-tint/50 hover:text-red"
-            onClick={() => setConfirm(true)}
-          >
-            {t("todos.thread_unbind")}
-          </Button>
-        </div>
-      ) : (
-        <div className="rounded-control border border-dashed border-line p-4 text-[12.5px] leading-[1.6] text-ink-3">
-          {t("todos.thread_empty")}
-        </div>
-      )}
-      {thread && (
-        <Dialog open={confirm} onClose={() => !busy && setConfirm(false)} title={t("todos.thread_unbind_title")}>
-          <div className="py-2 text-[13.5px] text-ink-2">{t("todos.thread_unbind_confirm", { name: threadName(thread) })}</div>
-          <div className="mt-4 flex justify-end gap-2">
-            <Button tone="secondary" disabled={busy} onClick={() => setConfirm(false)}>
-              {t("common.cancel")}
-            </Button>
-            <Button tone="danger" busy={busy} onClick={() => void unbind()}>
-              {t("todos.thread_unbind")}
-            </Button>
-          </div>
-        </Dialog>
-      )}
+        )}
+      </DetailSection>
+
+      {/* 5. The calls made on it */}
+      <DecisionsSection todo={todo} lookup={lookup} />
     </div>
   );
 }
@@ -2864,12 +1951,11 @@ function ThreadSection({ todo }: { todo: Todo }) {
 // ── Decisions (#1618) ────────────────────────────────────────
 
 /**
- * Decisions: the calls made on this todo, in effect first-to-last; "Revise" writes a new one that replaces it, "full history" shows
- * the replaced ones struck through. Refetched whenever the todo changes (the hub bumps it when a decision is written,
- * also from an answered card). Hidden on a hub without decisions (404 on the route).
- * Only the first five show at first, with Show all under them; the header's fold-all button folds the list away and
- * opens it whole (#6447, `shownDecisions`). Nothing is stored: each to-do opens with the first five, and one just
- * recorded or revised shows the whole list so it is in view.
+ * Decisions: the calls made on this todo, in effect first-to-last; "full history" shows the replaced ones struck
+ * through. Refetched whenever the todo changes (the hub bumps it when a decision is written, also from an answered
+ * card). A hub without decisions (404 on the route) has none to show.
+ * Only the first five show at first, with Show all under them; the heading's fold-all button folds the list away and
+ * opens it whole (#6447, `shownDecisions`). Nothing is stored: each to-do opens with the first five.
  */
 function DecisionsSection({ todo, lookup }: { todo: Todo; lookup: ReturnType<typeof makeSessionLookup> }) {
   const [all, setAll] = useState<TodoDecision[] | null>(null);
@@ -2877,9 +1963,6 @@ function DecisionsSection({ todo, lookup }: { todo: Todo; lookup: ReturnType<typ
   const [unsupported, setUnsupported] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [view, setView] = useState<DecisionsView>("first");
-  const [form, setForm] = useState<{ supersedes?: TodoDecision } | null>(null);
-  const [linking, setLinking] = useState<TodoDecision | null>(null);
-  const menu = useMenu();
   // Only the newest load lands: a slow earlier one must not put back an older list.
   const loads = useRef(0);
 
@@ -2907,10 +1990,8 @@ function DecisionsSection({ todo, lookup }: { todo: Todo; lookup: ReturnType<typ
     setFailed("");
     setShowAll(false);
     setView("first");
-    setForm(null);
   }, [todo.id]);
 
-  if (unsupported) return null;
   const effective = (all ?? []).filter((d) => !d.superseded_by);
   const replaced = (all ?? []).length - effective.length;
   const listed = showAll ? (all ?? []) : effective;
@@ -2918,29 +1999,17 @@ function DecisionsSection({ todo, lookup }: { todo: Todo; lookup: ReturnType<typ
   const folded = view === "folded" && listed.length > 0;
   const byId = new Map((all ?? []).map((d) => [d.id, d]));
 
-  const markSupersedes = async (d: TodoDecision, old: string) => {
-    try {
-      await setDecisionSupersedes(todo.id, d.id, old);
-      await load();
-      toast(old ? t("todos.marked_superseded") : t("todos.unmarked_superseded"), "ok");
-    } catch (e) {
-      toast(t("todos.action_failed", { error: errorText(e) }), "error");
-    }
-  };
-
   return (
-    <div className="mt-6" data-testid="todo-decisions">
-      <div className="relative mb-2 flex items-center justify-between gap-3">
-        <span className="text-[11.5px] font-medium tracking-[0.04em] text-ink-3 uppercase">{t("todos.decisions_section", { count: effective.length })}</span>
-        <div className="flex shrink-0 items-center gap-1">
+    <DetailSection
+      title={t("todos.detail_decisions")}
+      aside={all !== null && <SectionCount count={effective.length} testId="todo-decisions-count" />}
+      right={!unsupported && (
+        <>
           {replaced > 0 && !folded && (
             <Button tone="quiet" className="whitespace-nowrap px-2 py-1 text-[12px]" onClick={() => setShowAll((v) => !v)}>
               {showAll ? t("todos.show_effective") : t("todos.show_history", { count: replaced })}
             </Button>
           )}
-          <Button tone="quiet" icon="plus" className="whitespace-nowrap px-2 py-1 text-[12px]" onClick={() => setForm({})}>
-            {t("todos.add_decision")}
-          </Button>
           {/* the Agents title row's fold-all button and meaning: Collapse all while any is shown, Expand all once folded */}
           {all !== null && listed.length > 0 && (
             <FoldAllButton
@@ -2951,80 +2020,57 @@ function DecisionsSection({ todo, lookup }: { todo: Todo; lookup: ReturnType<typ
               testId="todo-decisions-fold"
             />
           )}
-        </div>
-      </div>
-
-      {failed && all === null ? (
-        <div className="flex items-center justify-between gap-3 rounded-control border border-dashed border-line p-4 text-[12.5px] text-ink-3">
+        </>
+      )}
+      testId="todo-decisions"
+    >
+      {unsupported ? (
+        <SectionEmpty>{t("todos.decisions_empty")}</SectionEmpty>
+      ) : failed && all === null ? (
+        <div className="mt-2 flex items-center justify-between gap-3 rounded-control border border-dashed border-line p-4 text-[12.5px] text-ink-3">
           <span className="min-w-0 truncate">{t("todos.decisions_failed", { error: failed })}</span>
           <Button tone="quiet" className="shrink-0 whitespace-nowrap px-2 py-1 text-[12px]" onClick={() => void load()}>
             {t("todos.retry")}
           </Button>
         </div>
       ) : all === null || folded ? null : shown.length === 0 ? (
-        <div className="rounded-control border border-dashed border-line p-4 text-[12.5px] leading-[1.6] text-ink-3">
-          {t("todos.decisions_empty")}
-        </div>
+        <SectionEmpty>{t("todos.decisions_empty")}</SectionEmpty>
       ) : (
-        <ol className="flex flex-col gap-2">
+        <ol className="mt-2 flex flex-col gap-2">
           {shown.map((d) => {
             const off = Boolean(d.superseded_by);
             const replaces = d.supersedes_id ? byId.get(d.supersedes_id) : undefined;
-            const candidates = supersedeCandidates(d, all ?? []);
             return (
               <li
                 key={d.id}
                 className={cx("rounded-control border border-line p-3", off ? "bg-hover/40" : "bg-canvas")}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className={cx("text-[13.5px] font-semibold", off ? "text-ink-3 line-through" : "text-ink")}>{d.question}</div>
-                    <div className={cx("mt-1 text-[13px] whitespace-pre-wrap", off ? "text-ink-3 line-through" : "text-ink")}>
-                      <span className="text-ink-3">{t("todos.chose")}</span>
-                      {d.choice}
-                    </div>
-                    {d.reason && (
-                      <div className={cx("mt-0.5 text-[12.5px] whitespace-pre-wrap text-ink-2", off && "line-through")}>
-                        <span className="text-ink-3">{t("todos.reason")}</span>
-                        {d.reason}
-                      </div>
-                    )}
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-[11.5px] text-ink-3">
-                      <span>{clock(d.phase_completed_at ?? d.created_at)}</span>
-                      <span>·</span>
-                      <span>{decisionSourceLabel(d, todo, lookup)}</span>
-                      {off && (
-                        <>
-                          <span>·</span>
-                          <span>{t("todos.superseded")}</span>
-                        </>
-                      )}
-                      {!off && replaces && (
-                        <>
-                          <span>·</span>
-                          <span className="truncate">{t("todos.supersedes", { choice: replaces.choice })}</span>
-                        </>
-                      )}
-                    </div>
+                <div className={cx("text-[13.5px] font-semibold select-text", off ? "text-ink-3 line-through" : "text-ink")}>{d.question}</div>
+                <div className={cx("mt-1 text-[13px] whitespace-pre-wrap select-text", off ? "text-ink-3 line-through" : "text-ink")}>
+                  <span className="text-ink-3">{t("todos.chose")}</span>
+                  {d.choice}
+                </div>
+                {d.reason && (
+                  <div className={cx("mt-0.5 text-[12.5px] whitespace-pre-wrap text-ink-2 select-text", off && "line-through")}>
+                    <span className="text-ink-3">{t("todos.reason")}</span>
+                    {d.reason}
                   </div>
-                  {!off && (
-                    <div className="flex shrink-0 items-center gap-0.5">
-                      <Button tone="quiet" className="whitespace-nowrap px-2 py-1 text-[12px]" onClick={() => setForm({ supersedes: d })}>
-                        {t("todos.supersede")}
-                      </Button>
-                      {(candidates.length > 0 || d.supersedes_id) && (
-                        <IconButton
-                          icon="more"
-                          label={t("todos.more")}
-                          size={26}
-                          active={linking?.id === d.id && Boolean(menu.anchor)}
-                          onClick={(e) => {
-                            setLinking(d);
-                            menu.open(e);
-                          }}
-                        />
-                      )}
-                    </div>
+                )}
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-[11.5px] text-ink-3">
+                  <span>{clock(d.phase_completed_at ?? d.created_at)}</span>
+                  <span>·</span>
+                  <span>{decisionSourceLabel(d, todo, lookup)}</span>
+                  {off && (
+                    <>
+                      <span>·</span>
+                      <span>{t("todos.superseded")}</span>
+                    </>
+                  )}
+                  {!off && replaces && (
+                    <>
+                      <span>·</span>
+                      <span className="truncate">{t("todos.supersedes", { choice: replaces.choice })}</span>
+                    </>
                   )}
                 </div>
               </li>
@@ -3032,829 +2078,11 @@ function DecisionsSection({ todo, lookup }: { todo: Todo; lookup: ReturnType<typ
           })}
         </ol>
       )}
-      {!folded && listed.length > DECISIONS_FIRST && (
+      {!unsupported && !folded && listed.length > DECISIONS_FIRST && (
         <Button tone="quiet" testId="todo-decisions-more" expanded={view === "all"} className="mt-1.5 whitespace-nowrap px-2 py-1 text-xs" onClick={() => setView(view === "first" ? "all" : "first")}>
           {view === "first" ? t("todos.decisions_show_all", { count: listed.length }) : t("todos.decisions_show_first", { count: DECISIONS_FIRST })}
         </Button>
       )}
-
-      {menu.anchor && linking && (
-        <Menu
-          anchor={menu.anchor}
-          onClose={menu.close}
-          align="right"
-          width={260}
-          items={[
-            ...supersedeCandidates(linking, all ?? []).map((c) => ({
-              key: c.id,
-              label: t("todos.supersedes_pair", { question: c.question, choice: c.choice }),
-              onSelect: () => void markSupersedes(linking, c.id),
-            })),
-            ...(linking.supersedes_id
-              ? [{ key: "undo", label: t("todos.undo_supersede"), divider: true, onSelect: () => void markSupersedes(linking, "") }]
-              : []),
-          ]}
-        />
-      )}
-
-      <DecisionDialog
-        open={form !== null}
-        todoId={todo.id}
-        supersedes={form?.supersedes}
-        onClose={() => setForm(null)}
-        onSaved={async () => {
-          // the one just recorded or revised is last: show them all so it is in view
-          setView("all");
-          await load();
-        }}
-      />
-    </div>
-  );
-}
-
-/** ⌘↩ / Ctrl+↩ anywhere in a dialog's form submits it (audit item 70), as New Agent, Compose and the inbox's hand-off do
- *  (lib/shortcuts.ts keeps Mod+Enter for dialogs); a multi-line field keeps Enter for its new lines. The form's own
- *  submit decides, so one busy or incomplete stays as it is. */
-function submitOnModEnter(e: React.KeyboardEvent<HTMLFormElement>) {
-  if (e.defaultPrevented || e.key !== "Enter" || !(e.metaKey || e.ctrlKey) || composing(e.nativeEvent)) return;
-  e.preventDefault();
-  e.currentTarget.requestSubmit();
-}
-
-function DecisionDialog({
-  open,
-  todoId,
-  supersedes,
-  onClose,
-  onSaved,
-}: {
-  open: boolean;
-  todoId: string;
-  supersedes?: TodoDecision;
-  onClose: () => void;
-  onSaved: () => Promise<void>;
-}) {
-  const [question, setQuestion] = useState("");
-  const [choice, setChoice] = useState("");
-  const [reason, setReason] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setQuestion(supersedes?.question ?? "");
-      setChoice("");
-      setReason("");
-    }
-  }, [open, supersedes]);
-
-  const submit = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!question.trim() || !choice.trim() || busy) return;
-    setBusy(true);
-    try {
-      await addTodoDecision(todoId, { question, choice, reason, supersedes_id: supersedes?.id });
-      await onSaved();
-      toast(supersedes ? t("todos.superseded_toast") : t("todos.recorded"), "ok");
-      onClose();
-    } catch (err) {
-      toast(t("todos.save_failed", { error: errorText(err) }), "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const field = "w-full rounded-control border border-line bg-canvas px-3 py-1.5 text-[13.5px] text-ink outline-none focus:border-accent";
-  return (
-    <Dialog open={open} onClose={onClose} title={supersedes ? t("todos.supersede") : t("todos.decision_title")}>
-      <form onSubmit={submit} onKeyDown={submitOnModEnter} className="flex flex-col gap-3.5">
-        {supersedes && (
-          <p className="text-[12.5px] leading-[1.6] text-ink-3">
-            {t("todos.supersede_hint", { choice: supersedes.choice })}
-          </p>
-        )}
-        <div>
-          <label htmlFor="decision-question" className="mb-1 block text-[12px] font-medium text-ink-2">{t("todos.question")}</label>
-          <input id="decision-question" type="text" required autoFocus={!supersedes} value={question}
-            onChange={(e) => setQuestion(e.target.value)} placeholder={t("todos.question_placeholder")} className={field} />
-        </div>
-        <div>
-          <label htmlFor="decision-choice" className="mb-1 block text-[12px] font-medium text-ink-2">{t("todos.choice")}</label>
-          <input id="decision-choice" type="text" required autoFocus={Boolean(supersedes)} value={choice}
-            onChange={(e) => setChoice(e.target.value)} placeholder={t("todos.choice_placeholder")} className={field} />
-        </div>
-        <div>
-          <label htmlFor="decision-reason" className="mb-1 block text-[12px] font-medium text-ink-2">{t("todos.reason_optional")}</label>
-          <textarea id="decision-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)}
-            placeholder={t("todos.reason_placeholder")} className={cx(field, "resize-y text-[13px]")} />
-        </div>
-        <div className="mt-2 flex justify-end gap-2">
-          <Button tone="secondary" onClick={onClose}>
-            {t("common.cancel")}
-          </Button>
-          <Button tone="accent" type="submit" disabled={!question.trim() || !choice.trim() || busy} busy={busy}>
-            {supersedes ? t("todos.supersede") : t("todos.record")}
-          </Button>
-        </div>
-      </form>
-    </Dialog>
-  );
-}
-
-// ── New Todo Dialog ──────────────────────────────────────────
-
-function NewTodoDialog({
-  open,
-  manager,
-  owner,
-  slot,
-  onClose,
-  onCreated,
-}: {
-  open: boolean;
-  manager: string;
-  owner: string;
-  /** Made on the calendar (#2029): due there, a moment or a whole day; the calendar stays in front once it is saved. */
-  slot?: CalendarSlot;
-  onClose: () => void;
-  onCreated: (id: string) => void;
-}) {
-  const repositoryContext = useRepositoryRequestContext(manager, owner);
-  const [repositoryBindings, setRepositoryBindings] = useState<CreateRepositoryBindings>();
-  const [repositoryCatalog, setRepositoryCatalog] = useState<RepositoryCatalog>();
-  const creating = useRef(false);
-  const [title, setTitle] = useState("");
-  const [notes, setNotes] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState("");
-  const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
-  const imagesSupported = useStore((s) => s.features.includes("todo_images"));
-  const keptAttachments = useRef<LocalAttachment[]>([]);
-  const operationId = useRef(uuid());
-  const operationKey = useRef("");
-  const imageInput = useRef<HTMLInputElement>(null);
-  const [dueDay, setDueDay] = useState("");
-  const [dueTime, setDueTime] = useState("");
-  const [allDay, setAllDay] = useState(true);
-  const repositoryIdentities = useMemo(() => new Map((repositoryCatalog?.repositories ?? []).map((entry) => [entry.id, entry] as const)), [repositoryCatalog]);
-  const cleanBindings = repositoryBindings ? cleanRepositoryDraft(repositoryBindings.repositories) : [];
-  const duplicateLinks = repositoryBindings ? repositoryDuplicateLink(cleanBindings, repositoryIdentities) : false;
-  const bindingsValid = !repositoryBindings || validRepositoryDraft(cleanBindings, repositoryIdentities);
-
-  useEffect(() => () => releaseAttachments(keptAttachments.current), []);
-  useEffect(() => {
-    if (!open) return;
-    operationId.current = uuid();
-    operationKey.current = "";
-    setFailure("");
-    releaseAttachments(keptAttachments.current);
-    keptAttachments.current = [];
-    setAttachments([]);
-  }, [open]);
-
-  useEffect(() => {
-    if (open) {
-      setTitle("");
-      setNotes("");
-      if (slot) {
-        setDueDay(dayKey(slot.at ?? slot.day));
-        setDueTime(slot.at !== undefined ? localParts(slot.at).time : "09:00");
-        setAllDay(slot.at === undefined);
-      }
-    }
-  }, [open, slot]);
-
-  const discardImages = () => {
-    releaseAttachments(keptAttachments.current);
-    keptAttachments.current = [];
-    setAttachments([]);
-  };
-  const cancel = () => {
-    if (creating.current) return;
-    discardImages();
-    onClose();
-  };
-  const addImages = (files: FileList | File[]) => {
-    if (creating.current) return;
-    const picked: LocalAttachment[] = [];
-    let problem = "";
-    for (const file of Array.from(files)) {
-      if (keptAttachments.current.length + picked.length >= TODO_IMAGE_LIMIT) {
-        problem = t("todos.images_limit", { max: TODO_IMAGE_LIMIT });
-        break;
-      }
-      if (file.type !== "image/png" && file.type !== "image/jpeg") {
-        problem = t("todos.image_type", { name: file.name });
-        continue;
-      }
-      if (file.size > TODO_IMAGE_MAX_BYTES) {
-        problem = t("todos.image_too_big", { name: file.name });
-        continue;
-      }
-      try {
-        picked.push(pickAttachment(file));
-      } catch (error) {
-        problem = errorText(error);
-      }
-    }
-    if (picked.length) {
-      const next = [...keptAttachments.current, ...picked];
-      keptAttachments.current = next;
-      setAttachments(next);
-    }
-    setFailure(problem);
-  };
-  const removeImage = (id: string) => {
-    if (creating.current) return;
-    releaseAttachments(keptAttachments.current.filter((image) => image.id === id));
-    const next = keptAttachments.current.filter((image) => image.id !== id);
-    keptAttachments.current = next;
-    setAttachments(next);
-    setFailure("");
-  };
-
-  /** What the slot's row now says: due on the day, or at the day's time. */
-  const due = (): { due_at?: string; due_date?: string } | undefined => {
-    if (!slot || !parseDayKey(dueDay)) return undefined;
-    if (allDay || !/^\d{2}:\d{2}$/.test(dueTime)) return { due_date: dueDay };
-    const [h, m] = dueTime.split(":").map(Number);
-    const at = new Date(parseDayKey(dueDay)!);
-    at.setHours(h, m, 0, 0);
-    return { due_at: at.toISOString() };
-  };
-
-  const submit = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!title.trim() || creating.current || !bindingsValid || !repositoryContext.isCurrent()) return;
-    if (keptAttachments.current.length > 0 && !imagesSupported) {
-      setFailure(t("lib-todos.images_unsupported"));
-      return;
-    }
-    const nextOperationKey = JSON.stringify({
-      title: title.trim(), notes: notes.trim(), due: due(), repositoryBindings,
-      images: keptAttachments.current.map((image) => image.id),
-    });
-    if (nextOperationKey !== operationKey.current) {
-      operationKey.current = nextOperationKey;
-      operationId.current = uuid();
-    }
-    creating.current = true;
-    setBusy(true);
-    setFailure("");
-    try {
-      const creation = keptAttachments.current.length ? {
-        operationId: operationId.current,
-        images: await Promise.all(keptAttachments.current.map(async (image) => ({
-          id: image.id,
-          name: image.name,
-          ...await imagePayload(image.file),
-        }))),
-      } : undefined;
-      const todo = repositoryBindings
-        ? await createTodoWithRepositories(repositoryContext, title, notes, due(), repositoryBindings, repositoryIdentities, creation)
-        : await createTodo(title, notes, due(), creation);
-      if (!repositoryContext.isCurrent()) return;
-      await refreshTodos();
-      await refresh();
-      toast(t("todos.created"), "ok");
-      discardImages();
-      onClose();
-      if (slot) return; // the calendar stays, the new one on it
-      onCreated(todo.id);
-      navigate(`/todos?id=${encodeURIComponent(todo.id)}`);
-    } catch (err) {
-      if (repositoryContext.isCurrent()) {
-        const message = t("todos.create_failed", { error: errorText(err) });
-        setFailure(message);
-        toast(message, "error");
-      }
-    } finally {
-      creating.current = false;
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onClose={cancel} title={t("todos.new_todo")}>
-      <form onSubmit={submit} onKeyDown={submitOnModEnter} className="flex flex-col gap-3.5">
-        <div>
-          <label className="mb-1 block text-[12px] font-medium text-ink-2">{t("todos.title_label")}</label>
-          <input
-            type="text"
-            required
-            autoFocus
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={t("todos.new_title_placeholder")}
-            className="w-full rounded-control border border-line bg-canvas px-3 py-1.5 text-[13.5px] text-ink outline-none focus:border-accent"
-          />
-        </div>
-
-        {slot && (
-          <div data-testid="todo-new-due">
-            <label className="mb-1 block text-[12px] font-medium text-ink-2">{t("todos.due_label")}</label>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="date"
-                data-testid="todo-new-due-day"
-                value={dueDay}
-                onChange={(e) => setDueDay(e.target.value)}
-                className="rounded-control border border-line bg-canvas px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-accent"
-              />
-              {!allDay && (
-                <input
-                  type="time"
-                  data-testid="todo-new-due-time"
-                  value={dueTime}
-                  onChange={(e) => setDueTime(e.target.value)}
-                  className="rounded-control border border-line bg-canvas px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-accent"
-                />
-              )}
-              <label className="flex cursor-pointer items-center gap-1.5 text-[12.5px] text-ink-2">
-                <input type="checkbox" data-testid="todo-new-all-day" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} className="accent-accent" />
-                {t("todos.calendar_all_day")}
-              </label>
-            </div>
-          </div>
-        )}
-
-        <div>
-          <label className="mb-1 block text-[12px] font-medium text-ink-2">{t("todos.notes_optional")}</label>
-          <textarea
-            rows={3}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder={t("todos.new_notes_placeholder")}
-            className="w-full resize-y rounded-control border border-line bg-canvas px-3 py-1.5 text-[13px] text-ink outline-none focus:border-accent"
-          />
-        </div>
-
-        {imagesSupported && (
-        <div>
-          <input
-            ref={imageInput}
-            type="file"
-            accept="image/jpeg,image/png"
-            multiple
-            hidden
-            disabled={busy}
-            aria-label={t("todos.add_images")}
-            onChange={(e) => {
-              if (e.currentTarget.files) addImages(e.currentTarget.files);
-              e.currentTarget.value = "";
-            }}
-          />
-          <Button tone="quiet" icon="plus" className="touch-hit whitespace-nowrap" disabled={busy || attachments.length >= TODO_IMAGE_LIMIT} onClick={() => imageInput.current?.click()}>
-            {t("todos.add_images")}
-          </Button>
-          <p className="mt-1 text-submeta text-ink-3">{t("todos.images_hint", { max: TODO_IMAGE_LIMIT })}</p>
-          {attachments.length > 0 && (
-            <div className="mt-2">
-              <AttachmentTray attachments={attachments} onRemove={busy ? undefined : removeImage} />
-            </div>
-          )}
-        </div>
-        )}
-
-        <NewTodoRepositoryBindings context={repositoryContext} value={repositoryBindings} onChange={setRepositoryBindings} pending={busy} onCatalog={setRepositoryCatalog} />
-        {!bindingsValid && <p role="alert" className="text-submeta text-red">{t(duplicateLinks ? "task-repositories.duplicate_link" : "task-repositories.draft_invalid")}</p>}
-        {failure && <p role="alert" className="text-meta text-red">{failure}</p>}
-
-        <div className="mt-2 flex justify-end gap-2">
-          <Button tone="secondary" disabled={busy} onClick={cancel}>
-            {t("common.cancel")}
-          </Button>
-          <Button tone="accent" type="submit" disabled={!title.trim() || busy || !bindingsValid} busy={busy}>
-            {busy && attachments.length > 0 ? t("todos.images_uploading") : t("todos.create")}
-          </Button>
-        </div>
-      </form>
-    </Dialog>
-  );
-}
-
-// ── Due Date Dialog ──────────────────────────────────────────
-
-/** A row menu's Due date › Pick a date… (#4429): any day, starting from the one it is due on (else today). A to-do due
- *  at a time keeps the time (`duePatch`). It stays open, with the toast, when the save fails. */
-function TodoDueDialog({ todo, onClose, onSave }: { todo: Todo; onClose: () => void; onSave: (patch: TodoPatch) => Promise<boolean> }) {
-  const [day, setDay] = useState(() => dayKey(dueOn(todo) ?? Date.now()));
-  const [busy, setBusy] = useState(false);
-  const picked = parseDayKey(day);
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (picked === undefined || busy) return;
-    setBusy(true);
-    if (await onSave(duePatch(todo, picked))) onClose();
-    else setBusy(false);
-  };
-  return (
-    <Dialog open onClose={onClose} title={t("todos-menu.due")}>
-      <form onSubmit={submit} className="flex flex-col gap-3.5">
-        <div>
-          <label htmlFor="todo-due-pick" className="mb-1 block text-[12px] font-medium text-ink-2">{t("todos.due_label")}</label>
-          <input
-            id="todo-due-pick"
-            type="date"
-            required
-            autoFocus
-            data-testid="todo-due-pick"
-            value={day}
-            onChange={(e) => setDay(e.target.value)}
-            className="rounded-control border border-line bg-canvas px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-accent"
-          />
-        </div>
-        <div className="mt-2 flex justify-end gap-2">
-          <Button tone="secondary" onClick={onClose}>
-            {t("common.cancel")}
-          </Button>
-          <Button tone="accent" type="submit" disabled={picked === undefined || busy} busy={busy}>
-            {t("common.save")}
-          </Button>
-        </div>
-      </form>
-    </Dialog>
-  );
-}
-
-// ── Handover to Agent Dialog ─────────────────────────────────
-
-export function HandoverDialog({
-  open,
-  todo,
-  machines,
-  onClose,
-}: {
-  open: boolean;
-  todo: Todo;
-  machines: Machine[];
-  onClose: () => void;
-}) {
-  const [tab, setTab] = useState<"new" | "existing">("new");
-  const [prompt, setPrompt] = useState("");
-  const [busy, setBusy] = useState(false);
-  const phone = useMedia(SHEET_QUERY);
-  const pickLabel = useId();
-
-  // For "new":
-  const onlineMachines = useMemo(() => machines.filter((m) => m.online), [machines]);
-  const [mid, setMid] = useState(() => onlineMachines[0]?.id ?? "");
-  const machine = onlineMachines.find((m) => m.id === mid);
-  const [cwd, setCwd] = useState("");
-  const [launchers, setLaunchers] = useState<Launcher[]>([]);
-  const [launchersOf, setLaunchersOf] = useState("");
-  // What Model settings › Agents runs on this computer, as the hub says (null: no launcher default); undefined until the list
-  // is in, and from an older hub, which has no default to follow.
-  const [hubDefault, setHubDefault] = useState<LauncherDefault | null | undefined>(undefined);
-  // "": the default (the hub resolves it at the start, as New Agent's "Default: …")
-  const [launcher, setLauncher] = useState("");
-
-  // For "existing":
-  const { sessions: allSessions } = useFullAgentSessions(open);
-  const eligibleSessions = useMemo(() => {
-    const online = new Set(onlineMachines.map((m) => m.id));
-    const linked = new Set((todo.agents ?? []).filter((a) => !a.released_at).map((a) => `${a.machine_id}/${a.session_id}`));
-    return allSessions.filter((s) => !s.assistant && online.has(s.machine_id) && sessionCan(s, "send")).sort((a, b) =>
-      Number(linked.has(`${b.machine_id}/${b.session_id}`)) - Number(linked.has(`${a.machine_id}/${a.session_id}`))
-      || byTime(b.updated_at, a.updated_at)
-      || a.machine_id.localeCompare(b.machine_id) || a.session_id.localeCompare(b.session_id));
-  }, [allSessions, onlineMachines, todo.agents]);
-  const [selectedKey, setSelectedKey] = useState("");
-
-  // The form starts over when the dialog opens. While it is open the lists change with every push of a session or a
-  // machine: what is typed stays, and the picked agent / computer changes only once it is gone from its list.
-  const wasOpen = useRef(false);
-  useEffect(() => {
-    const opening = open && !wasOpen.current;
-    wasOpen.current = open;
-    if (!open) return;
-    if (opening) setPrompt("");
-    if (!mid || !onlineMachines.some((m) => m.id === mid)) {
-      setMid(onlineMachines[0]?.id ?? "");
-    }
-    const first = eligibleSessions[0];
-    setSelectedKey((key) => opening || !eligibleSessions.some((s) => `${s.machine_id}/${s.session_id}` === key)
-      ? first ? `${first.machine_id}/${first.session_id}` : ""
-      : key);
-  }, [open, onlineMachines, eligibleSessions]);
-
-  useEffect(() => {
-    if (!open) return;
-    // another computer's list is not this one's; an empty computer selection clears it
-    setLaunchers([]);
-    setLaunchersOf("");
-    setHubDefault(undefined);
-    setLauncher("");
-    if (!mid) return;
-    const controller = new AbortController();
-    const owner = credentialOwner();
-    machineLaunchers(mid, { signal: controller.signal })
-      .then((r) => {
-        if (controller.signal.aborted || owner !== credentialOwner()) return;
-        setLaunchersOf(JSON.stringify([mid, owner]));
-        const ls = r.launchers ?? [];
-        setLaunchers(ls);
-        setHubDefault(r.default);
-        // the default the user configured, as New Agent starts from it (#4384); an older hub has none: the first this computer
-        // can start now, not one its terminal can't run (#1643)
-        setLauncher(r.default !== undefined ? "" : initialLauncher(null, ls));
-      })
-      .catch((e) => { if (!controller.signal.aborted) toast(errorText(e), "error"); });
-    return () => controller.abort();
-  }, [open, mid]);
-
-  const previewCard = useMemo(() => {
-    return formatTodoContext(todo.title, todo.notes);
-  }, [todo]);
-  // the default is held to what it runs here
-  const pickedBlock = launcherBlock(launchers.find((l) => l.name === (launcher || hubDefault?.provider)));
-  const defaultChoice = hubDefault ? defaultLabel(hubDefault, "", launchers) : t("newagent.follow_model_settings");
-
-  // A failed start (#3713) is closed on the hub, which refuses a hand-over to a done to-do (#1856): handing it over reopens
-  // it first, only then, so a dialog closed without a choice leaves it as it was.
-  const reopenFailed = async () => {
-    if (todo.done_at && todo.start_error) await updateTodo(todo.id, { done: false });
-  };
-
-  const submitNew = async () => {
-    if (!machine) return;
-    setBusy(true);
-    try {
-      await reopenFailed();
-      const fullText = [previewCard, prompt.trim()].filter(Boolean).join("\n\n");
-      // It only queues the start and opens the new agent's page, which says how it went: no success toast before the hub
-      // has answered (#1856).
-      const inline = launchersOf === JSON.stringify([mid, credentialOwner()])
-        ? terminalTraeStart(launchers.find((l) => l.name === (launcher || hubDefault?.provider)), currentHosts(machine).default)
-        : undefined;
-      launchAgent({
-        machineId: mid,
-        cwd: cwd.trim(),
-        launcher,
-        text: fullText,
-        attachments: [],
-        todoId: todo.id,
-        ...inline,
-      });
-      onClose();
-    } catch (e) {
-      toast(t("todos.launch_failed", { error: errorText(e) }), "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const submitExisting = async () => {
-    const s = eligibleSessions.find((x) => `${x.machine_id}/${x.session_id}` === selectedKey);
-    if (!s) return;
-    setBusy(true);
-    try {
-      await reopenFailed();
-      const fullText = [previewCard, prompt.trim()].filter(Boolean).join("\n\n");
-      const clientMsgId = uuid();
-      await api(`/sessions/${enc(s.machine_id)}/${enc(s.session_id)}/messages`, {
-        method: "POST",
-        json: {
-          text: fullText,
-          client_msg_id: clientMsgId,
-          todo_id: todo.id,
-        },
-      });
-      await refreshTodos();
-      await refresh();
-      toast(t("todos.sent"), "ok");
-      onClose();
-      openFromPage({ name: "session", mid: s.machine_id, sid: s.session_id });
-    } catch (e) {
-      toast(t("todos.send_failed", { error: errorText(e) }), "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const actions = (
-    <>
-      <Button tone="secondary" onClick={onClose}>
-        {t("common.cancel")}
-      </Button>
-      {tab === "new" ? (
-        <Button tone="accent" onClick={submitNew} disabled={!machine || busy} busy={busy}>
-          {t("todos.launch_and_hand")}
-        </Button>
-      ) : (
-        <Button
-          tone="accent"
-          onClick={submitExisting}
-          disabled={!selectedKey || busy || eligibleSessions.length === 0}
-          busy={busy}
-        >
-          {t("todos.send_and_hand")}
-        </Button>
-      )}
-    </>
-  );
-
-  // The arrows move the pick through the Existing agent rows, and the focus with it, round from the last to the first.
-  const pickByArrow = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    const step = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
-    if (!step) return;
-    e.preventDefault();
-    const n = eligibleSessions.length;
-    const at = eligibleSessions.findIndex((s) => `${s.machine_id}/${s.session_id}` === selectedKey);
-    const i = at < 0 ? (step > 0 ? 0 : n - 1) : (at + step + n) % n;
-    setSelectedKey(`${eligibleSessions[i].machine_id}/${eligibleSessions[i].session_id}`);
-    e.currentTarget.querySelector<HTMLElement>(`[data-choice="${i}"]`)?.focus();
-  };
-
-  // On a phone the buttons are the sheet's footer, above the keyboard as in the other sheets; wide, they end the form.
-  return (
-    <Dialog open={open} onClose={onClose} title={t("todos.hand_over")} width={520} footer={phone ? actions : undefined}>
-      <div className="flex flex-col gap-4">
-        {/* Tab Switcher: a finger's height on a touch screen, not touch-hit, whose reach would cover the title's ✕ */}
-        <div className="flex rounded-control bg-field p-0.5">
-          <button
-            type="button"
-            onClick={() => setTab("new")}
-            className={cx(
-              "flex-1 rounded-[6px] py-1 text-[13px] font-medium transition-colors pointer-coarse:min-h-11",
-              tab === "new" ? "bg-surface text-ink shadow-hairline" : "text-ink-3 hover:text-ink-2",
-            )}
-          >
-            {t("todos.tab_new")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("existing")}
-            className={cx(
-              "flex-1 rounded-[6px] py-1 text-[13px] font-medium transition-colors pointer-coarse:min-h-11",
-              tab === "existing" ? "bg-surface text-ink shadow-hairline" : "text-ink-3 hover:text-ink-2",
-            )}
-          >
-            {t("todos.tab_existing")}
-          </button>
-        </div>
-
-        {/* Tab 1: New Agent */}
-        {tab === "new" && (
-          <div className="flex flex-col gap-3">
-            <div>
-              <label className="mb-1 block text-[12px] font-medium text-ink-2">{t("todos.computer")}</label>
-              <select
-                value={mid}
-                onChange={(e) => setMid(e.target.value)}
-                className="w-full rounded-control border border-line bg-canvas px-2.5 py-1.5 text-[13px] text-ink outline-none"
-              >
-                {onlineMachines.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-[12px] font-medium text-ink-2">{t("todos.cwd_optional")}</label>
-              <input
-                type="text"
-                placeholder={t("todos.cwd_placeholder")}
-                value={cwd}
-                onChange={(e) => setCwd(e.target.value)}
-                className="w-full rounded-control border border-line bg-canvas px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-accent"
-              />
-            </div>
-
-            {(launchers.length > 0 || hubDefault !== undefined) && (
-              <div>
-                <label className="mb-1 block text-[12px] font-medium text-ink-2">{t("todos.launcher")}</label>
-                <select
-                  data-testid="todo-handoff-launcher"
-                  value={launcher}
-                  onChange={(e) => setLauncher(e.target.value)}
-                  className="w-full rounded-control border border-line bg-canvas px-2.5 py-1.5 text-[13px] text-ink outline-none"
-                >
-                  {hubDefault !== undefined && <option value="">{defaultChoice}</option>}
-                  {usableFirst(launchers).map((l) => {
-                    const block = launcherBlock(l);
-                    // still a choice (a start that works clears it), with why, after the ones that can start (#1643)
-                    return (
-                      <option key={l.name} value={l.name}>
-                        {block ? `${providerLabel(l)} · ${block.reason}` : providerLabel(l)}
-                      </option>
-                    );
-                  })}
-                </select>
-                {pickedBlock && (
-                  <p data-testid="todo-handoff-blocked" className="mt-1.5 flex min-w-0 items-start gap-1.5 text-[11.5px] leading-snug text-ink-3">
-                    <Icon name="warning" size={12} className="mt-px shrink-0 text-orange" />
-                    <span className="min-w-0">{pickedBlock.reason}</span>
-                  </p>
-                )}
-                {/* add, hide or restore launchers (#4384): Settings › Model providers, as New Agent's entry */}
-                <button
-                  type="button"
-                  data-testid="todo-handoff-manage-launchers"
-                  onClick={() => {
-                    onClose();
-                    navigate(settingsHref("models", null, false, null, "providers"));
-                  }}
-                  className="mt-1.5 inline-flex items-center gap-1 text-[11.5px] font-medium whitespace-nowrap text-accent-ink hover:underline"
-                >
-                  <Icon name="gear" size={11} />
-                  {t("newagent.manage_launchers")}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Tab 2: Existing Agent */}
-        {tab === "existing" && (
-          <div>
-            <label id={pickLabel} className="mb-1 block text-[12px] font-medium text-ink-2">{t("todos.pick_agent")}</label>
-            {eligibleSessions.length === 0 ? (
-              <div className="py-6 text-center text-[12.5px] text-ink-3">{t("todos.no_live_agents")}</div>
-            ) : (
-              // one radio group: Tab reaches the picked agent, the arrows move the pick
-              <div role="radiogroup" aria-labelledby={pickLabel} onKeyDown={pickByArrow} className="max-h-44 overflow-y-auto rounded-control border border-line p-1">
-                {eligibleSessions.map((s, i) => {
-                  const key = `${s.machine_id}/${s.session_id}`;
-                  const isSel = key === selectedKey;
-                  const st = stateOf(s);
-                  return (
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={isSel}
-                      tabIndex={isSel || (!selectedKey && i === 0) ? 0 : -1}
-                      data-choice={i}
-                      key={key}
-                      onClick={() => setSelectedKey(key)}
-                      className={cx(
-                        "flex w-full cursor-pointer items-center justify-between gap-2 rounded px-2.5 py-1.5 text-left text-[12.5px] transition-colors pointer-coarse:min-h-11",
-                        isSel ? "bg-accent text-white" : "hover:bg-hover text-ink",
-                      )}
-                      // the page's text rendering, which a browser resets on a button: the rows look as they did as divs
-                      // (inline, so the first screen's stylesheet gets no rule for one dialog)
-                      style={{ textRendering: "inherit" }}
-                    >
-                      <span className="block min-w-0">
-                        <span className="flex min-w-0 items-center gap-2">
-                          <StatusMark state={st} size="sm" />
-                          <span className="truncate font-medium">{s.title || s.cwd || t("todos.unnamed")}</span>
-                          <span className={cx("text-[11px]", isSel ? "text-white/80" : "text-ink-3")}>
-                            {s.space_name || s.machine_id}
-                          </span>
-                        </span>
-                        {st === "offline" && (
-                          <span className={cx("block text-[11px]", isSel ? "text-white/80" : "text-ink-3")}>
-                            {t("todos.closed_resume")}
-                          </span>
-                        )}
-                      </span>
-                      {isSel && <Icon name="check" size={13} stroke={2.5} />}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Prompt Input */}
-        <div>
-          <label className="mb-1 block text-[12px] font-medium text-ink-2">{t("todos.prompt_label")}</label>
-          <textarea
-            rows={2}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            // ⌘↩ / Ctrl+↩ hands it over, as the dialog's button (submitOnModEnter)
-            onKeyDown={(e) => {
-              if (e.key !== "Enter" || !(e.metaKey || e.ctrlKey) || composing(e.nativeEvent)) return;
-              e.preventDefault();
-              if (busy) return;
-              if (tab === "new") void (machine && submitNew());
-              else void submitExisting();
-            }}
-            placeholder={t("todos.prompt_placeholder")}
-            className="w-full resize-none rounded-control border border-line bg-canvas px-3 py-1.5 text-[13px] text-ink outline-none focus:border-accent"
-          />
-        </div>
-
-        {/* Context Preview Card */}
-        <div>
-          <label className="mb-1 block text-[11px] font-medium text-ink-3">{t("todos.preview")}</label>
-          <div className="flex flex-col gap-1 rounded-control bg-field p-2.5 shadow-hairline">
-            <div className="rounded border-l-2 border-accent bg-surface px-2.5 py-1.5 text-left shadow-hairline">
-              <div className="text-[11.5px] font-medium text-ink-2">{t("todos.preview_todo", { title: todo.title })}</div>
-              {todo.notes && <div className="mt-0.5 line-clamp-2 text-[12px] text-ink-3">{todo.notes}</div>}
-            </div>
-            {prompt.trim() && (
-              <div className="mt-1 px-1 text-[13px] whitespace-pre-wrap text-ink">{prompt.trim()}</div>
-            )}
-          </div>
-        </div>
-
-        {!phone && <div className="mt-2 flex justify-end gap-2">{actions}</div>}
-      </div>
-    </Dialog>
+    </DetailSection>
   );
 }

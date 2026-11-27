@@ -1,8 +1,9 @@
 // What a to-do waits on from the user (#2056), where the to-do is shown:
-// the verdict line its Lark card says, the option a decision recommends, and one button that answers it through
-// POST /todos/{id}/accept, the route the briefing's Accept takes (Brief.tsx) — OK takes a decision's recommendation, Got it
-// acknowledges a conclusion, Accept verifies a deployed to-do. A decision that recommends nothing has no button: it is
-// answered in the conversation the task came from.
+// the verdict line its Lark card says, the option a decision recommends, and, on a task's card, one button that answers
+// it through POST /todos/{id}/accept, the route the briefing's Accept takes (Brief.tsx) — OK takes a decision's
+// recommendation, Got it acknowledges a conclusion, Accept verifies a deployed to-do. A decision that recommends nothing
+// has no button: it is answered in the conversation the task came from. The To-dos page only reads it: its rows show the
+// line without the button, and the to-do's page names the conversation where it is answered.
 import { useState } from "react";
 import { t } from "../i18n";
 import { errorText } from "../lib/api";
@@ -20,11 +21,11 @@ type AskTaking = "idle" | "busy" | "taken" | "recorded" | "handled";
 const TONE: Record<ReturnType<typeof askTone>, string> = { attention: "text-attention", red: "text-red", green: "text-green" };
 const ICON: Record<ReturnType<typeof askTone>, IconName> = { attention: "hand", red: "info", green: "check" };
 
-/** The button's word: short on a row or a card, the whole action on the to-do's page. */
-function takeLabel(what: AskTake, short: boolean): string {
+/** The button's word, short, as on a card. */
+function takeLabel(what: AskTake): string {
   switch (what) {
     case "take":
-      return short ? t("todos.ask_ok") : t("assistant-brief.take");
+      return t("todos.ask_ok");
     case "ack":
       return t("assistant-brief.got_it");
     case "accept":
@@ -73,16 +74,16 @@ function useTakeAsk(todo: Pick<Todo, "id">, ask: TodoAsk): { taking: AskTaking; 
 }
 
 /** The ask on a to-do's row, a task's card or the task panel's banner: its verdict, the recommendation, the mark of a
- *  decision held for the briefing (#5803), and the button as a link. Its clicks never open the row. Nothing when the
- *  to-do waits on nothing. */
-export function TodoAskLine({ todo, className }: { todo: Todo; className?: string }) {
+ *  decision held for the briefing (#5803), and the button as a link. Its clicks never open the row. `readOnly`: without
+ *  the button, as the To-dos page's rows show it. Nothing when the to-do waits on nothing. */
+export function TodoAskLine({ todo, className, readOnly }: { todo: Todo; className?: string; readOnly?: boolean }) {
   const ask = openAsk(todo);
-  return ask ? <AskLine todo={todo} ask={ask} className={className} /> : null;
+  return ask ? <AskLine todo={todo} ask={ask} className={className} readOnly={readOnly} /> : null;
 }
 
-function AskLine({ todo, ask, className }: { todo: Todo; ask: TodoAsk; className?: string }) {
+function AskLine({ todo, ask, className, readOnly }: { todo: Todo; ask: TodoAsk; className?: string; readOnly?: boolean }) {
   const { taking, take } = useTakeAsk(todo, ask);
-  const what = askTake(ask);
+  const what = readOnly ? undefined : askTake(ask);
   const tone = askTone(ask);
   const recommend = ask.recommend ? t("assistant-brief.recommend", { option: ask.recommend }) : "";
   return (
@@ -124,23 +125,21 @@ function AskLine({ todo, ask, className }: { todo: Todo; ask: TodoAsk; className
             className="touch-hit inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-accent hover:underline disabled:opacity-50 disabled:hover:no-underline"
           >
             <Icon name="check" size={11} stroke={2.4} />
-            {takeLabel(what, true)}
+            {takeLabel(what)}
           </button>
         ))}
     </div>
   );
 }
 
-/** The ask on a to-do's page: what it waits on in full and how to answer it — the button, and for a decision the
- *  conversation it came from, where it can be answered another way. */
+/** The ask on a to-do's page, to read: what it waits on in full, and the conversation it came from, where it is
+ *  answered. */
 export function TodoAskPanel({ todo }: { todo: Todo }) {
   const ask = openAsk(todo);
   return ask ? <AskPanel todo={todo} ask={ask} /> : null;
 }
 
 function AskPanel({ todo, ask }: { todo: Todo; ask: TodoAsk }) {
-  const { taking, take } = useTakeAsk(todo, ask);
-  const what = askTake(ask);
   const tone = askTone(ask);
   const decide = ask.outcome === "decide";
   return (
@@ -156,28 +155,15 @@ function AskPanel({ todo, ask }: { todo: Todo; ask: TodoAsk }) {
       </div>
       <p className={cx("mt-2 text-[13.5px] font-medium leading-[1.55] select-text [overflow-wrap:anywhere]", TONE[tone])}>{ask.verdict}</p>
       {ask.recommend && <p className="mt-1 text-[13px] leading-[1.55] text-ink select-text [overflow-wrap:anywhere]">{t("assistant-brief.recommend", { option: ask.recommend })}</p>}
-      {!what && <p className="mt-1 text-[12.5px] leading-[1.6] text-ink-3">{t("todos.ask_answer_hint")}</p>}
-      {(what || (decide && todo.origin)) && (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {what &&
-            (taking === "taken" || taking === "recorded" || taking === "handled" ? (
-              <span data-ask-done={taking} className="text-[12.5px] text-ink-2">
-                {takenText(what, taking)}
-              </span>
-            ) : (
-              <Button tone="primary" icon="check" busy={taking === "busy"} title={takeTitle(what, todo.title)} onClick={take}>
-                {takeLabel(what, false)}
-              </Button>
-            ))}
-          {decide && todo.origin && (
-            // the conversation the task came from: the to-do's manager's, whichever assistant is current
-            <Button icon="chat" onClick={() => {
-              setRoute(todo.origin!, todo.id, ask.asked_at);
-              navigate({ name: "persona" });
-            }}>
-              {t("todos.ask_answer")}
-            </Button>
-          )}
+      {todo.origin && (
+        <div className="mt-3">
+          {/* the conversation the task came from: the to-do's manager's, whichever assistant is current */}
+          <Button icon="chat" onClick={() => {
+            setRoute(todo.origin!, todo.id, ask.asked_at);
+            navigate({ name: "persona" });
+          }}>
+            {t("todos.ask_answer")}
+          </Button>
         </div>
       )}
     </section>

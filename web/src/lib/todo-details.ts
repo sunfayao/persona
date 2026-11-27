@@ -1,7 +1,6 @@
 // Presentation helpers used only by the lazily loaded to-do detail and link views. Keeping them out of the shared
 // first-screen to-do module avoids sending their XML, source-label and link-resolution code before a view needs it.
 import { t } from "../i18n";
-import { contextBody } from "./context-body";
 import { findTodoForSpace, isCancelled, type SessionLookup, type Todo, type TodoAgent, type TodoSpace } from "./todos";
 import { reviewState } from "./supervision";
 import type { Session } from "./types";
@@ -15,17 +14,6 @@ export function seenCanFile(todo: Todo): boolean {
 /** Why the to-do was cancelled; older hubs carry it in done_reason. */
 export function cancellationReason(todo: Todo): string {
   return isCancelled(todo) ? (todo.cancelled_reason || todo.done_reason || "") : "";
-}
-
-/**
- * The format when handing it to an agent (the same as the inbox's)
- * `<persona-context kind="context" title="To-do · <title>" url="">notes</persona-context>`
- */
-export function formatTodoContext(title: string, notes?: string): string {
-  const escape = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  // a closing tag in the notes would end the block early (either name, #3182)
-  const body = contextBody(notes ?? "").trim();
-  return `<persona-context kind="context" title="${escape(t("lib-todos.context_title", { title }))}" url="">${body}</persona-context>`;
 }
 
 /**

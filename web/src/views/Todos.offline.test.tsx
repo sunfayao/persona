@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // An offline current assistant's to-dos: the hub's merged list leaves out a manager
-// that doesn't answer, so the page says it is offline instead of "No to-dos" with New To-Do, in the list and the
-// calendar; with one assistant, or an online one, the empty page is as before.
+// that doesn't answer, so the page says it is offline instead of "No to-dos"; with one assistant, or an online one, the
+// empty page is as before.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -36,7 +36,7 @@ const ROSTER = {
 };
 const mine: Todo = { id: "t-default", title: "Release checklist", manager: "assistant", created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" } as Todo;
 let host: HTMLDivElement, root: Root;
-const render = async (view?: "calendar") => { await act(async () => root.render(<TodosView view={view} />)); };
+const render = async () => { await act(async () => root.render(<TodosView />)); };
 const offlineState = () => host.querySelector<HTMLElement>("[data-assistant-offline]");
 
 beforeEach(async () => {
@@ -64,12 +64,6 @@ it("says the current assistant is offline in place of the empty list", async () 
   expect(offlineState()?.textContent).toContain("家里 离线");
   expect(offlineState()?.textContent).toContain("它上线后这里会更新。");
   expect(host.textContent).not.toContain(t("todos.empty_title"));
-});
-
-it("says so in place of the calendar too", async () => {
-  act(() => chooseManager("m-home"));
-  await render("calendar");
-  expect(offlineState()?.dataset.assistantOffline).toBe("m-home");
 });
 
 it("shows an online assistant's empty list as before", async () => {

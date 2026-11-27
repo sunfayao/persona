@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // #11442: at a phone's width the list and a to-do's page take turns, and nothing is open until a row is. No row is marked
 // current and no to-do's page loads unseen behind the list (its repositories and decisions are read only for one opened),
-// also while a search changes the first row. A link, a row and the page's Hand to agent still reach their to-do; side by
-// side the first row still stands in. The hub is faked; the data made up.
+// also while a search changes the first row. A link and a row still reach their to-do; side by side the first row still
+// stands in. The hub is faked; the data made up.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -37,7 +37,6 @@ const { getState } = await import("../lib/store");
 const { navigate, useRoute } = await import("../lib/router");
 const { afterBack, onOverlayEntry } = await import("../lib/back-close");
 const { TodosView } = await import("./Todos");
-const { t } = await import("../i18n");
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -78,7 +77,6 @@ const search = async (text: string) => {
   }
   await settle();
 };
-const button = (label: string) => [...document.querySelectorAll<HTMLElement>("button")].find((b) => b.textContent?.trim() === label);
 
 beforeEach(() => {
   screen.width = 390;
@@ -128,7 +126,7 @@ describe("the to-do list at a phone's width", () => {
     await act(async () => row("c").click());
     await settle();
     expect(location.search).toBe("?id=c");
-    expect(detail().querySelector<HTMLInputElement>("input[type=text]")?.value).toBe("Water the plants");
+    expect(detail().querySelector("[data-testid=todo-detail-title]")?.textContent).toBe("Water the plants");
     expect(loaded()).toEqual(["c"]);
     await act(async () => host.querySelector<HTMLElement>("[data-testid=todos-back] button")!.click());
     await settle();
@@ -148,17 +146,15 @@ describe("the to-do list at a phone's width", () => {
     const before = readsOfA();
     await act(async () => navigate("/todos?id=b"));
     await settle();
-    expect(detail().querySelector<HTMLInputElement>("input[type=text]")?.value).toBe("Renew the passport");
+    expect(detail().querySelector("[data-testid=todo-detail-title]")?.textContent).toBe("Renew the passport");
     expect(loaded()).toEqual(["a", "b"]);
     expect(readsOfA()).toBe(before);
   });
 
-  it("opens a link's to-do, and its Hand to agent is for that one", async () => {
+  it("opens a link's to-do, loading only its page", async () => {
     await mount("/todos?id=b");
     expect(loaded()).toEqual(["b"]);
-    await act(async () => button(t("todos.hand_over"))!.click());
-    await settle();
-    expect(document.querySelector("[role=dialog]")?.textContent).toContain("Renew the passport");
+    expect(detail().querySelector("[data-testid=todo-detail-title]")?.textContent).toBe("Renew the passport");
   });
 });
 

@@ -53,7 +53,6 @@ async function run(browser, size, theme, language, textSize = "standard") {
     localStorage.setItem("persona.language", language);
     localStorage.setItem("persona.theme", theme);
     localStorage.setItem("persona.text-size", textSize);
-    localStorage.setItem("persona.todos.view", "list");
     localStorage.setItem("persona.todos.grouping", "status");
   }, { theme, language, textSize });
   const at = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();

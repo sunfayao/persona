@@ -11,7 +11,6 @@ import { ownerBadge, triage } from "./todo-triage";
 import { statusWord, todoLook, waitOf, waitReason, waitTone, type WaitReason } from "./todo-wait-reason";
 import { agentRowLabel, agentRowTone } from "./task-row-status";
 import { stateName, waitName } from "./state-labels";
-import { todoEntry } from "./todo-calendar";
 
 const NOW = Date.parse("2026-11-10T12:00:00Z");
 const minutesAgo = (m: number) => new Date(NOW - m * 60_000).toISOString();
@@ -145,15 +144,6 @@ describe("its words and color", () => {
     expect([agentRowLabel("waiting", "delivery"), agentRowTone("waiting", "delivery")]).toEqual(["等合入 / 部署", "text-ink-2"]);
     expect([agentRowLabel("waiting"), agentRowTone("waiting")]).toEqual(["暂停中（不需要你）", "text-ink-2"]);
     expect(agentRowTone("needs_you")).toBe("text-attention");
-  });
-});
-
-describe("the calendar's entries (#2029)", () => {
-  it("a waiting to-do's entry is named and colored by what it waits on", () => {
-    const due = { due_date: "2026-11-10" };
-    expect(todoEntry(todo("pr", "ci", { ...due, delivery: { state: "pr", unblock: "other" } }), lookup, NOW)).toMatchObject({ statusLabel: "等合入 / 部署", tone: "idle" });
-    expect(todoEntry(todo("held", "ci", { ...due, delivery: { state: "merged", unblock: "user" } }), lookup, NOW)).toMatchObject({ statusLabel: "等你", tone: "attention" });
-    expect(todoEntry(todo("run", "run", due), lookup, NOW)).toMatchObject({ statusLabel: stateName("working"), tone: "amber" });
   });
 });
 

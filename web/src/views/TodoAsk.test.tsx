@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 // What a to-do waits on from the user (#2056, TodoAsk.tsx): the to-do's row, its page and the main chat's task card show
-// the ask the hub put on it (GET /todos `ask`), and one tap answers it with the round it was made for.
+// the ask the hub put on it (GET /todos `ask`). On a task's card one tap answers it with the round it was made for; the
+// To-dos page only reads it, and its page names the conversation where it is answered.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../lib/api";
-import { getState } from "../lib/store";
+import { getState, useStore } from "../lib/store";
 import { boardSectionOf } from "../lib/task-board";
 import { askTake, askTone, awaitsReview, openAsk, sortTodos, type Todo, type TodoAsk } from "../lib/todos";
 import { getFeedState, setRoute } from "../lib/feed";
@@ -25,6 +26,7 @@ const toast = vi.hoisted(() => vi.fn());
 vi.mock("../ui/atoms", async (orig) => ({ ...(await orig<typeof import("../ui/atoms")>()), toast }));
 
 const { TodosView } = await import("./Todos");
+const { TodoAskLine } = await import("./TodoAsk");
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -64,6 +66,16 @@ const drawList = async (todos: Todo[], selectedId?: string) => {
   act(() => root.render(<TodosView selectedId={selectedId} />));
   await flush();
 };
+/** The ask line with its button, as a task's card draws it, of the to-do the store has now. */
+function Line({ id }: { id: string }) {
+  const td = useStore((s) => s.todos.find((x) => x.id === id));
+  return td ? <TodoAskLine todo={td} /> : null;
+}
+const drawLines = async (todos: Todo[]) => {
+  seed({ todos, todosLoaded: true, sessions: {}, interactions: [] });
+  act(() => root.render(<>{todos.map((td) => <Line key={td.id} id={td.id} />)}</>));
+  await flush();
+};
 const askRow = () => host.querySelector<HTMLElement>("[data-testid=todo-ask]");
 const askButton = (within: ParentNode = host) => within.querySelector<HTMLButtonElement>("[data-testid=todo-ask] button");
 const accepts = () => api.mock.calls.filter(([path]) => String(path).endsWith("/accept"));
@@ -101,9 +113,9 @@ describe("an ask, as the hub sends it", () => {
   });
 });
 
-describe("a to-do's row", () => {
+describe("an ask line with its button (a task's card, the task panel's banner)", () => {
   it("says what it waits on and the recommendation, with OK", async () => {
-    await drawList([todo()]);
+    await drawLines([todo()]);
     const row = askRow()!;
     expect(row.dataset.ask).toBe("decide");
     expect(row.textContent).toContain("需要你决定：两个方案各有取舍");
@@ -112,12 +124,11 @@ describe("a to-do's row", () => {
     expect(askButton()!.getAttribute("aria-label")).toContain("上线新登录页");
   });
 
-  it("OK takes it with its round, without opening the to-do", async () => {
-    await drawList([todo()]);
+  it("OK takes it with its round", async () => {
+    await drawLines([todo()]);
     act(() => askButton()!.click());
     await flush();
     expect(accepts()).toEqual([["/todos/t1/accept", { method: "POST", json: { asked_at: ASKED } }]]);
-    expect(host.querySelector("[data-testid=todo-ask-panel]")).toBeNull();
     expect(api.mock.calls.some(([path]) => path === "/todos")).toBe(true); // read again: the ask is gone
     expect(askRow()).toBeNull();
     expect(toast).toHaveBeenCalledWith("已按推荐来", "ok");
@@ -126,7 +137,7 @@ describe("a to-do's row", () => {
   it("settles a recorded decision whose Agent is unavailable", async () => {
     listed = [todo()]; // keep the settled row visible after refresh
     api.mockImplementation(async (path: string) => path.endsWith("/accept") ? { ok: true, delivered: "none" } : path === "/todos" ? { todos: listed } : {});
-    await drawList([todo()]);
+    await drawLines([todo()]);
     act(() => askButton()!.click());
     await flush();
     expect(host.querySelector("[data-ask-done=recorded]")?.textContent).toBe("已记下，Agent 已停，督办会接手");
@@ -139,7 +150,7 @@ describe("a to-do's row", () => {
       if (path.endsWith("/accept")) throw new ApiError(409, "already handled", {});
       return path === "/todos" ? { todos: listed } : {};
     });
-    await drawList([todo()]);
+    await drawLines([todo()]);
     act(() => askButton()!.click());
     await flush();
     expect(host.querySelector("[data-ask-done=handled]")?.textContent).toBe("已经处理过了");
@@ -151,7 +162,7 @@ describe("a to-do's row", () => {
       if (path.endsWith("/accept")) throw new ApiError(502, "推荐的方案没送到 Agent：电脑离线", {});
       return {};
     });
-    await drawList([todo()]);
+    await drawLines([todo()]);
     act(() => askButton()!.click());
     await flush();
     expect(askButton()!.disabled).toBe(false);
@@ -163,20 +174,17 @@ describe("a to-do's row", () => {
       if (path.endsWith("/accept")) throw new ApiError(409, "already handled", {});
       return path === "/todos" ? { todos: [todo()] } : {};
     });
-    await drawList([todo()]);
+    await drawLines([todo()]);
     act(() => askButton()!.click());
     await flush();
     expect(askButton()).toBeNull();
-    seed({ todos: [todo({ ask: { ...decide, asked_at: "2026-11-09T09:00:00Z", recommend: "直接上线" } })] });
-    act(() => root.render(<TodosView />));
-    await flush();
+    await drawLines([todo({ ask: { ...decide, asked_at: "2026-11-09T09:00:00Z", recommend: "直接上线" } })]);
     expect(askButton()?.textContent).toBe("就这样");
     expect(askRow()!.textContent).toContain("推荐：直接上线");
   });
 
   it("a decision with nothing recommended has no button; a conclusion has Got it, a deployed to-do Accept", async () => {
-    await drawList([
-      // distinct titles: to-dos with the same title share one row (#3156)
+    await drawLines([
       todo({ ask: { ...decide, recommend: undefined } }),
       todo({ id: "t2", title: "接入开放接口", ask: { outcome: "cannot", verdict: "❌ 做不了：接口不开放", asked_at: ASKED } }),
       todo({ id: "t3", title: "上线新版本", ask: { verdict: "✅ 做完了，已上线", asked_at: ASKED } }),
@@ -185,6 +193,23 @@ describe("a to-do's row", () => {
     expect(askButton(byOutcome.decide)).toBeNull();
     expect(askButton(byOutcome.cannot)!.textContent).toBe("知道了");
     expect(askButton(byOutcome.deployed)!.textContent).toBe("通过");
+  });
+});
+
+describe("a to-do's row on the To-dos page", () => {
+  it("says what it waits on and the recommendation, with nothing to tap", async () => {
+    await drawList([
+      // distinct titles: to-dos with the same title share one row (#3156)
+      todo(),
+      todo({ id: "t2", title: "接入开放接口", ask: { outcome: "cannot", verdict: "❌ 做不了：接口不开放", asked_at: ASKED } }),
+      todo({ id: "t3", title: "上线新版本", ask: { verdict: "✅ 做完了，已上线", asked_at: ASKED } }),
+    ]);
+    const rows = [...host.querySelectorAll<HTMLElement>("[data-testid=todo-ask]")];
+    expect(rows.map((r) => r.dataset.ask).sort()).toEqual(["cannot", "decide", "deployed"]);
+    expect(askRow()!.textContent).toContain("需要你决定：两个方案各有取舍");
+    expect(askRow()!.textContent).toContain("推荐：先发预发环境");
+    for (const r of rows) expect(askButton(r)).toBeNull();
+    expect(accepts()).toEqual([]);
   });
 });
 
@@ -204,24 +229,27 @@ describe("a to-do's page", () => {
     expect(host.querySelector("header")?.textContent).toContain("暂无进展 0");
   });
 
-  it("shows the ask in full with its button and the conversation to answer it in", async () => {
+  it("shows the ask in full, to read, with the one link to the conversation where it is answered", async () => {
     await drawList([todo()], "t1");
     const panel = host.querySelector<HTMLElement>("[data-testid=todo-ask-panel]")!;
     expect(panel.textContent).toContain("需要你"); // the state name (lib/state-labels.ts)
     expect(panel.textContent).toContain("推荐：先发预发环境");
     const buttons = [...panel.querySelectorAll("button")].map((b) => b.textContent);
-    expect(buttons).toEqual(["按推荐来", "去对话里回答"]);
-    act(() => [...panel.querySelectorAll("button")][1].click());
+    expect(buttons).toEqual(["去对话里回答"]);
+    act(() => [...panel.querySelectorAll("button")][0].click());
     expect(navigate).toHaveBeenCalledWith({ name: "persona" });
     expect(getFeedState().routes.conv1).toEqual({ todoId: "t1", askedAt: ASKED });
+    expect(accepts()).toEqual([]);
     setRoute("conv1", null);
   });
 
-  it("a decision with nothing recommended says where to answer it", async () => {
-    await drawList([todo({ ask: { ...decide, recommend: undefined } })], "t1");
-    const panel = host.querySelector<HTMLElement>("[data-testid=todo-ask-panel]")!;
-    expect(panel.textContent).toContain("没有推荐方案");
-    expect([...panel.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["去对话里回答"]);
+  it("names the conversation for a conclusion too, and offers nothing without one", async () => {
+    await drawList([todo({ ask: { outcome: "cannot", verdict: "❌ 做不了：接口不开放", asked_at: ASKED } })], "t1");
+    const panel = () => host.querySelector<HTMLElement>("[data-testid=todo-ask-panel]")!;
+    expect([...panel().querySelectorAll("button")].map((b) => b.textContent)).toEqual(["去对话里回答"]);
+    await drawList([todo({ origin: undefined })], "t1");
+    expect(panel().textContent).toContain("需要你决定：两个方案各有取舍");
+    expect(panel().querySelectorAll("button")).toHaveLength(0);
   });
 
   it("shows nothing while the to-do waits on nothing", async () => {

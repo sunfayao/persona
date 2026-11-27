@@ -1,7 +1,7 @@
 import { decisionSourceLabel } from "./todo-decision-label";
 import { describe, expect, it } from "vitest";
 import type { Session } from "./types";
-import { makeSessionLookup, supersedeCandidates, type Todo, type TodoDecision } from "./todos";
+import { makeSessionLookup, type Todo, type TodoDecision } from "./todos";
 
 const dec = (id: string, patch: Partial<TodoDecision> = {}): TodoDecision => ({
   id, todo_id: "todo_1", question: `q-${id}`, choice: `c-${id}`, reason: "", source: "manual", source_machine: "",
@@ -34,15 +34,5 @@ describe("decisionSourceLabel", () => {
     expect(decisionSourceLabel(dec("a", { source: "card", source_machine: "mac", source_session: "nobody" }), todo, lookup)).toBe("在 Agent 的提问里答的");
     const long = makeSessionLookup([{ machine_id: "mac", session_id: "s2", title: "请立刻用 AskUserQuestion 工具问我一个问题（只问一个）" }] as Session[]);
     expect(decisionSourceLabel(dec("a", { source: "card", source_machine: "mac", source_session: "s2" }), todo, long)).toBe("在「请立刻用 AskUserQuestion 工具问…」的提问里答的");
-  });
-});
-
-describe("supersedeCandidates", () => {
-  it("offers the earlier decisions in effect, not the later ones, itself or one it already replaces", () => {
-    const all = [dec("a", { superseded_by: "c" }), dec("b"), dec("c", { supersedes_id: "a" }), dec("d")];
-    expect(supersedeCandidates(all[2], all).map((d) => d.id)).toEqual(["b"]);
-    expect(supersedeCandidates(all[3], all).map((d) => d.id)).toEqual(["b", "c"]);
-    expect(supersedeCandidates(all[1], all)).toEqual([]);
-    expect(supersedeCandidates(dec("x"), all)).toEqual([]);
   });
 });

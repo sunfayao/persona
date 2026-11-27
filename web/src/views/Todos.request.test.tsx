@@ -69,7 +69,7 @@ describe("To-dos grouped by request", () => {
     expect(detail().className).toContain("md:hidden");
     await act(async () => host.querySelector<HTMLButtonElement>('[data-node="todo:ui"]')!.click());
     expect(detail().className).not.toContain("md:hidden");
-    expect(detail().querySelector<HTMLInputElement>("input[type=text]")?.value).toBe("Front end");
+    expect(detail().querySelector("[data-testid=todo-detail-title]")?.textContent).toBe("Front end");
     expect(host.querySelector('[data-node="todo:ui"]')!.getAttribute("aria-current")).toBe("true");
     await act(async () => detail().querySelector<HTMLButtonElement>('button[aria-label="Close"]')!.click());
     expect(detail().className).toContain("md:hidden");

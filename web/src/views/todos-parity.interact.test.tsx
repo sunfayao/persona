@@ -212,11 +212,11 @@ describe("the plan card's 改一下", () => {
 });
 
 describe("a todo's sections", () => {
-  it("names its agents in the page's language, like 决策 and 项目 (#4039)", async () => {
+  it("are the five the agents fill, in order, named in the page's language (#4039)", async () => {
     seed({ todos: [todo()], todosLoaded: true, sessions: {} });
     await render(<TodosView selectedId="t1" />);
-    const heads = [...document.querySelectorAll("div, span")].map((e) => e.textContent?.trim()).filter((s) => s && /^[^·]+ · \d+$/.test(s));
-    expect(heads).toContain("Agent · 0");
+    const heads = [...document.querySelectorAll("[data-todo-section] h3")].filter((h) => h.parentElement?.parentElement?.hasAttribute("data-todo-section")).map((h) => h.textContent);
+    expect(heads).toEqual(["任务简报", "验收标准", "关联的 Agent 会话", "仓库与关联事项", "决策"]);
     expect(document.body.textContent).not.toContain("AGENTS");
   });
 });

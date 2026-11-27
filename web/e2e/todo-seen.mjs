@@ -54,7 +54,6 @@ async function open(browser, theme, width) {
   await page.evaluate((t) => {
     localStorage.setItem("persona.theme", t);
     localStorage.setItem("persona.language", "zh-Hans");
-    localStorage.setItem("persona.todos.view", "list");
   }, theme);
   await page.goto(`${base}/todos`);
   await page.waitForSelector('[data-testid="todos-sections"] [data-testid="todo-section"]', { timeout: 15000 });

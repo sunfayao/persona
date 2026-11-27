@@ -284,7 +284,6 @@ describe("the page after a switch", () => {
     expect(routeAfterSwitch({ name: "machine", mid: "mac" })).toEqual({ name: "machines" });
     expect(routeAfterSwitch({ name: "inbox", id: "i1", manager: "m-1" })).toEqual({ name: "inbox" });
     expect(routeAfterSwitch({ name: "inbox" })).toBeNull();
-    expect(routeAfterSwitch({ name: "todos", id: "t1", view: "calendar", mode: "week" })).toEqual({ name: "todos", view: "calendar", mode: "week" });
     for (const name of ["settings", "machines", "routines", "home", "agent-list"] as const) expect(routeAfterSwitch({ name })).toBeNull();
   });
 

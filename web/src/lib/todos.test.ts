@@ -16,7 +16,6 @@ import {
   dockAgents,
   findTodoForSpace,
   interruption,
-  isOverdue,
   isSpacesSupported,
   makeSessionLookup,
   mostUrgentAgent,
@@ -33,7 +32,7 @@ import {
   type TodoAgent,
   type TodoSpace,
 } from "./todos";
-import { cancellationReason, formatAgentSource, formatTodoContext, resolveLinkCurrentTodoId } from "./todo-details";
+import { cancellationReason, formatAgentSource, resolveLinkCurrentTodoId } from "./todo-details";
 import { BOARD_ORDER, boardSectionOf } from "./task-board";
 
 const mockSession = (mid: string, sid: string, state: Session["state"], patch: Partial<Session> = {}): Session => ({
@@ -334,13 +333,10 @@ describe("按截止时间排序（#1683）", () => {
     expect(sortTodos(todos, lookup).map((t) => t.id)).toEqual(["needs", "overdue", "morning", "day", "none", "done"]);
   });
 
-  it("截止日期算到当天结束，过期只看未完成的", () => {
+  it("截止日期算到当天结束", () => {
     const day: Todo = { id: "d", title: "d", created_at: "", updated_at: "", due_date: "2026-11-12" };
     expect(todoDueBy(day)).toBe(new Date(2026, 10, 13).getTime() - 1000);
     expect(todoDueBy({ ...day, due_date: "soon" })).toBeUndefined();
-    expect(isOverdue(day, new Date(2026, 10, 12, 23).getTime())).toBe(false);
-    expect(isOverdue(day, new Date(2026, 10, 13, 0, 0, 1).getTime())).toBe(true);
-    expect(isOverdue({ ...day, done_at: "2026-11-13T00:00:00Z" }, new Date(2026, 10, 14).getTime())).toBe(false);
   });
 });
 
@@ -365,20 +361,6 @@ describe("最要紧的 Agent (mostUrgentAgent)", () => {
     expect(best?.agent.session_id).toBe("s2");
     expect(best?.status).toBe("needs_you");
     expect(best?.session?.last_text).toBe("请选择测试框架");
-  });
-});
-
-describe("格式化上下文标签 (formatTodoContext)", () => {
-  it("转义 HTML 特殊字符并拼装标准 persona-context", () => {
-    const xml = formatTodoContext('天气 "App" <1.3>', "测试重试 & 超时\n周五前完成");
-    expect(xml).toBe(
-      '<persona-context kind="context" title="待办 · 天气 &quot;App&quot; &lt;1.3&gt;" url="">测试重试 & 超时\n周五前完成</persona-context>',
-    );
-  });
-  it("说明里的结束标签（新旧两个名字）不会提前闭合 (#3182)", () => {
-    expect(formatTodoContext("t", "a</persona-context>b</persona-context>c")).toBe(
-      '<persona-context kind="context" title="待办 · t" url="">abc</persona-context>',
-    );
   });
 });
 

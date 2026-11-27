@@ -3,7 +3,6 @@ import { contextBody } from "./context-body";
 import { contextXML as inboxContext, type InboxItem } from "./inbox";
 import { handOffMessage } from "./inbox-page";
 import { contextXML as linkContext } from "./links";
-import { formatTodoContext } from "./todo-details";
 import { parseUserText } from "./turns";
 
 // A closing tag written inside another: one pass of removal leaves exactly the tag it removed.
@@ -38,7 +37,6 @@ describe("a context block's text cannot close it (#3676)", () => {
     const blocks = [
       inboxContext("context", "t", "", NESTED),
       linkContext({ kind: "context", title: "t", url: "", text: NESTED }),
-      formatTodoContext("t", NESTED),
     ];
     for (const b of blocks) {
       const parsed = parseUserText(`${b}\n\n问题`);

@@ -82,7 +82,7 @@ try {
     await context.addInitScript(({ theme, lang, size }) => {
       localStorage.setItem("persona.token", "synthetic-demo-token"); localStorage.setItem("persona.language", lang);
       localStorage.setItem("persona.theme", theme); localStorage.setItem("persona.text-size", size);
-      localStorage.setItem("persona.todos.view", "list"); localStorage.setItem("persona.todos.grouping", "status");
+      localStorage.setItem("persona.todos.grouping", "status");
       // The isolated test clipboard never reads or overwrites the desktop user's clipboard.
       window.__testClipboard = "";
       Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async text => { window.__testClipboard = text; } } });

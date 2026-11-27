@@ -41,7 +41,7 @@ const gone = () => toast.mock.calls.filter((c) => c[0] === t("not-found.todo_gon
 // as App draws it: the page follows the address
 function Page() {
   const route = useRoute();
-  return route.name === "todos" ? <TodosView selectedId={route.id} view={route.view} /> : null;
+  return route.name === "todos" ? <TodosView selectedId={route.id} /> : null;
 }
 
 beforeEach(() => {
@@ -119,23 +119,6 @@ describe("a link to a to-do that isn't there", () => {
     await flush();
     expect(gone()).toHaveLength(1);
     expect(location.search).toBe("");
-  });
-
-  it("is not what deleting the open to-do here says", async () => {
-    const button = (label: string, scope: ParentNode = document) => [...scope.querySelectorAll<HTMLElement>("button")].find((b) => b.textContent?.trim() === label || b.getAttribute("aria-label") === label);
-    const click = async (el: Element | undefined | null) => {
-      await act(async () => (el as HTMLElement).click());
-      await flush();
-    };
-    history.replaceState(null, "", "/todos?id=t1");
-    await act(async () => root.render(<Page />));
-    await flush();
-    await click(button("更多选项"));
-    await click(document.querySelector("[role=menuitem]"));
-    await click(button("删除", document.querySelector("[role=dialog]")!));
-    expect(api.mock.calls.some(([, init]) => (init as { method?: string } | undefined)?.method === "DELETE")).toBe(true);
-    expect(toast.mock.calls.map((c) => c[0])).toContain(t("todos.deleted"));
-    expect(gone()).toHaveLength(0);
   });
 
   it("opens one that is there as before", async () => {
