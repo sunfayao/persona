@@ -271,7 +271,15 @@ export function ReplyBar({ text, ts, itemId, more: actions, pinned, usage, usage
           {(state) => (typeof state.payload === "string" ? state.payload : null)}
         </UiTooltipContent>
       </TooltipRoot>
-      <div className={cx("flex items-center gap-0.5", pinned && cx(REVEAL, fade))} style={pinned ? fadeStyle : undefined}>
+      {/* the time first, at the reply's left edge, where it stays whether the buttons show or not; the buttons come in
+          after it with the pointer */}
+      {time && (
+        <time dateTime={ts} title={exactTime(ts)} className="flex h-6 cursor-default items-center text-[12px] whitespace-nowrap text-ink-3">
+          {time}
+        </time>
+      )}
+      {usageMs !== undefined && <WorkTime ms={usageMs} className="ml-1.5" />}
+      <div className={cx("flex items-center gap-0.5", (time || usageMs !== undefined) && "ml-1", pinned && cx(REVEAL, fade))} style={pinned ? fadeStyle : undefined}>
         <TooltipTrigger
           controller={tooltip}
           payload={copyLabel}
@@ -342,12 +350,6 @@ export function ReplyBar({ text, ts, itemId, more: actions, pinned, usage, usage
           </TooltipTrigger>
         )}
       </div>
-      {time && (
-        <time dateTime={ts} title={exactTime(ts)} className="flex h-6 cursor-default items-center text-[12px] whitespace-nowrap text-ink-3">
-          {time}
-        </time>
-      )}
-      {usageMs !== undefined && <WorkTime ms={usageMs} className="ml-1.5" />}
       {usage &&
         (pinned ? (
           // a pinned reply's time stays; what it cost comes with the pointer, as the buttons do

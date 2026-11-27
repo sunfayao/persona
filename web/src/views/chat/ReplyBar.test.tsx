@@ -81,10 +81,10 @@ const leave = () => act(() => void bar().parentElement!.dispatchEvent(new MouseE
 const wait = (ms: number) => act(() => void vi.advanceTimersByTime(ms));
 
 describe("the reply bar", () => {
-  it("keeps the reply actions together: Copy, Start a new session, Translate, More, then the time", async () => {
+  it("puts the time first, at the left edge, then the reply actions together: Copy, Start a new session, Translate, More", async () => {
     await draw();
     expect(labels()).toEqual(["复制消息", "开启一个新会话", "翻译", "更多消息操作"]);
-    expect(bar().lastElementChild?.tagName).toBe("TIME");
+    expect(bar().querySelector("time")?.nextElementSibling?.querySelector("button")).not.toBeNull(); // the buttons follow the time
   });
 
   it("says chat, not session, in a Persona conversation", async () => {
@@ -199,9 +199,9 @@ describe("what the exchange cost, after the time", () => {
     await draw({ usage: OPUS_TURN, usageMs: 65_000 });
     expect(catalog).toHaveBeenCalledExactlyOnceWith("/launchers/catalog", expect.objectContaining({ method: "POST", json: { ids: ["claude-opus-5-5"] } }));
     expect(bar().lastElementChild).toBe(usageText());
-    // the time, how long the turn worked (said once, here), then what it was worth
-    expect(usageText()?.previousElementSibling?.textContent).toBe("已工作 1m 5s");
-    expect(usageText()?.previousElementSibling?.previousElementSibling?.tagName).toBe("TIME");
+    // the time at the left edge, how long the turn worked (said once, here), the buttons, then what it was worth
+    expect(bar().querySelector("time")?.nextElementSibling?.textContent).toBe("已工作 1m 5s");
+    expect(bar().querySelector("time")?.previousElementSibling?.tagName).not.toBe("DIV"); // no button group before it
     expect(usageText()?.textContent).toBe("价值 $0.35");
     expect(usageText()?.className).toContain("ml-1.5");
     enter();
@@ -229,7 +229,7 @@ describe("what the exchange cost, after the time", () => {
     await act(async () => void (await vi.advanceTimersByTimeAsync(0)));
     const fade = () => host.querySelector<HTMLElement>("[data-usage-fade]")!;
     expect(usageText()?.textContent).toBe("价值 $0.35");
-    expect(fade().previousElementSibling?.tagName).toBe("TIME");
+    expect(fade().previousElementSibling?.querySelector("button")).not.toBeNull(); // after the buttons, which come after the time
     expect(fade().className).toContain("opacity-0");
     expect(bar().className).not.toContain("opacity-0"); // the time stays
     enter();
