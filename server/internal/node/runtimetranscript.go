@@ -350,6 +350,9 @@ func (n *Node) mergeRuntimeAgy(s *proto.Session, ref agy.Ref) {
 	}
 	if h, err := n.agyReader().Read(ref); err == nil {
 		h.Apply(s, false)
+		if h.Kind() == agy.Subagent {
+			s.IsSubagent = true
+		}
 	}
 }
 

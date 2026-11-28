@@ -14,6 +14,7 @@ import { loadPages } from "../lib/lazy-page";
 import { onOpenNewAgent, type NewAgentPreset } from "../lib/new-agent";
 import { connect, reset } from "../lib/store";
 import { SESSIONS_AGENTS_ONLY_FEATURE } from "../lib/runtime-list";
+import { SESSIONS_HIERARCHY_FEATURE } from "../lib/child-sessions";
 import { SESSION_DIRECTORY_GROUPS_FEATURE, SESSIONS_CATALOG_FEATURE } from "../lib/session-groups";
 import { listPair } from "../lib/session-list";
 import type { Session } from "../lib/types";
@@ -55,7 +56,8 @@ function answer(url: URL, sessions: Session[]) {
   const spaces = q.getAll("space");
   const directory = q.get("directory");
   const folder = (s: Session) => s.workspace_cwd || s.cwd;
-  const rows = sessions.filter((s) => (!spaces.length || spaces.includes(listPair(s.machine_id, s.space_id ?? ""))) &&
+  const rows = sessions.filter((s) => (!q.has("roots") || !s.folded_under) &&
+    (!spaces.length || spaces.includes(listPair(s.machine_id, s.space_id ?? ""))) &&
     (!directory || s.machine_id === q.get("machine_id") && folder(s) === directory));
   const tally = (key: (s: Session) => string) => rows.reduce<Record<string, number>>((out, s) => ({ ...out, [key(s)]: (out[key(s)] ?? 0) + 1 }), {});
   if (q.has("catalog")) {
@@ -149,16 +151,19 @@ it("opens a single directory section with live and retained agents from differen
   const physical = "/data00/home/example/work";
   const rows: Session[] = [
     { ...agent("agy", "laptop", alias, { id: alias, name: "work" }), workspace_cwd: physical, source_kind: "runtime", agent: "agy" },
+    { ...agent("worker", "laptop", alias, { id: alias, name: "work" }), workspace_cwd: physical,
+      title: "Swarm Worker (reviewer)", is_subagent: true, parent_session_id: "agy", folded_under: "agy" },
     { ...agent("codex", "laptop", alias, { id: "old-codex", name: "work" }), workspace_cwd: physical, state: "offline", status: "offline", agent: "codex" },
     { ...agent("claude", "laptop", physical, { id: "w1", name: "work" }), agent: "claude" },
     agent("other", "server", physical, { id: "w1", name: "work" }),
   ];
-  const fetch = await render(rows, [SESSION_DIRECTORY_GROUPS_FEATURE]);
+  const fetch = await render(rows, [SESSION_DIRECTORY_GROUPS_FEATURE, SESSIONS_HIERARCHY_FEATURE]);
   const local = host.querySelector('[data-session-computer="laptop"]')!;
   const groups = local.querySelectorAll("[data-session-group]");
   expect(groups).toHaveLength(1);
   expect(groups[0].querySelector("button[aria-expanded]")?.textContent).toBe("work · ~");
   expect(groups[0].querySelectorAll("[data-session-row]")).toHaveLength(3);
+  expect(groups[0].textContent).not.toContain("Swarm Worker");
   for (const id of ["agy", "codex", "claude"]) expect(groups[0].textContent).toContain(`Agent ${id}`);
   const other = host.querySelector('[data-session-computer="server"]')!;
   await act(async () => other.querySelector<HTMLButtonElement>("button[aria-expanded]")!.click());
@@ -166,10 +171,10 @@ it("opens a single directory section with live and retained agents from differen
   expect(other.querySelectorAll("[data-session-group]")).toHaveLength(1);
   expect(fetch.mock.calls.some(([input]) => {
     const query = new URL(input, "http://hub.example.com").searchParams;
-    return query.has("catalog") && query.get("directory_groups") === "1";
+    return query.has("catalog") && query.get("directory_groups") === "1" && query.get("roots") === "1";
   })).toBe(true);
   expect(fetch.mock.calls.some(([input]) => {
     const query = new URL(input, "http://hub.example.com").searchParams;
-    return query.get("machine_id") === "laptop" && query.get("directory") === physical;
+    return query.get("machine_id") === "laptop" && query.get("directory") === physical && query.get("roots") === "1";
   })).toBe(true);
 });

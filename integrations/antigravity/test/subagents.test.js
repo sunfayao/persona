@@ -12,6 +12,7 @@ const CHILD = '22222222-3333-4444-5555-666666666666'
 const GRANDCHILD = '33333333-4444-5555-6666-777777777777'
 const DONE_SUB = '44444444-5555-6666-7777-888888888888'
 const INTERNAL_HELPER = '55555555-6666-7777-8888-999999999999'
+const ORPHAN = '66666666-7777-8888-9999-aaaaaaaaaaaa'
 const running = 'CASCADE_RUN_STATUS_RUNNING'
 const idle = 'CASCADE_RUN_STATUS_IDLE'
 
@@ -28,8 +29,9 @@ test('subagent conversations name their parent, root, and role while keeping anc
     [PARENT, '', idle, '', old],
     [CHILD, PARENT, idle, 'self', old],
     [GRANDCHILD, CHILD, running, 'visual-auditor', now],
-    [DONE_SUB, PARENT, idle, 'self', now],
+    [DONE_SUB, '', idle, 'self', now],
     [INTERNAL_HELPER, '', idle, '', now],
+    [ORPHAN, '', idle, 'Swarm Worker (orphan)', now],
   ]
   for (const [id, , , , stamp] of conversations) {
     const logs = join(agyDir, 'brain', id, '.system_generated', 'logs')
@@ -76,7 +78,7 @@ createInterface({ input: process.stdin }).on('line', (line) => {
   })
   runtime.start()
   await node.ready
-  await until('parent and all three subagents listed', () => node.last('runtime.sessions')?.sessions.length === 4)
+  await until('parent and all four subagents listed', () => node.last('runtime.sessions')?.sessions.length === 5)
   const rows = Object.fromEntries(node.last('runtime.sessions').sessions.map((row) => [row.session_id, row]))
   for (const row of Object.values(rows)) {
     assert.equal(row.agy_conversation, row.session_id.slice(4))
@@ -91,4 +93,5 @@ createInterface({ input: process.stdin }).on('line', (line) => {
   assert.deepEqual(view(CHILD), { title: 'Code reviewer', is_subagent: true, parent_session_id: `agy-${PARENT}`, root_session_id: `agy-${PARENT}` })
   assert.deepEqual(view(GRANDCHILD), { title: 'visual-auditor', is_subagent: true, parent_session_id: `agy-${CHILD}`, root_session_id: `agy-${PARENT}` })
   assert.deepEqual(view(DONE_SUB), { title: 'Swarm Worker (api)', is_subagent: true, parent_session_id: `agy-${PARENT}`, root_session_id: `agy-${PARENT}` })
+  assert.deepEqual(view(ORPHAN), { title: 'Swarm Worker (orphan)', is_subagent: true, parent_session_id: undefined, root_session_id: undefined })
 })

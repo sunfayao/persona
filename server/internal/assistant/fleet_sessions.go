@@ -547,6 +547,9 @@ func (s *Service) decorateInventory(machine string, list []proto.Session, comple
 	bgMatch := s.backgroundMatcher(context.Background(), machine)
 	for i := range list {
 		list[i].MachineID = machine
+		if list[i].IsAgyRuntimeChild() {
+			list[i].IsSubagent = true
+		}
 		list[i].PendingInteractions = counts[list[i].SessionID]
 		list[i].Assistant = isAssistantSession(&list[i], dir, m.manager)
 		if !list[i].Assistant && bgMatch.matches(&list[i]) {

@@ -2,6 +2,7 @@ package hub
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http/httptest"
 	neturl "net/url"
 	"slices"
@@ -13,6 +14,43 @@ import (
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/sessionlist"
 )
+
+func TestAgySwarmWorkersStayOutOfRootPagesAndCounts(t *testing.T) {
+	h, m := hierarchyHub(t)
+	root := proto.Session{MachineID: "demo", SessionID: "coordinator", Title: "Coordinate work", Agent: "agy",
+		SourceKind: proto.SourceRuntime, SourceInstanceID: "agy", Cwd: "/demo/app", SpaceID: "/demo/app", State: proto.StateIdle}
+	m.sessions = []proto.Session{root}
+	for i := range 26 {
+		worker := root
+		worker.SessionID, worker.Title = fmt.Sprintf("agy-worker-%d", i), "Swarm Worker (reviewer)"
+		worker.State = proto.StateOffline
+		if i == 0 {
+			worker.ParentSessionID = root.SessionID // known native lineage, but no stored fold
+		}
+		m.sessions = append(m.sessions, worker)
+	}
+	control := root
+	control.SessionID, control.Title, control.SourceInstanceID = "other-runtime", "Swarm Worker (reviewer)", "another-runtime"
+	m.sessions = append(m.sessions, control)
+
+	base := "machine_id=demo&summary=1&limit=50"
+	for _, filter := range []string{"&roots=1", "&agents_only=1", "&roots=1&agents_only=1&directory_groups=1"} {
+		page := runtimePage(t, h, base+filter)
+		ids := pageIDs(page)
+		slices.Sort(ids)
+		c := hierarchyCounts(t, h, base+filter)
+		if !slices.Equal(ids, []string{"demo/coordinator", "demo/other-runtime"}) || page.Total != 2 ||
+			c.Total != 2 || c.State[proto.StateOffline] != 0 || c.Group["/demo/app"] != 2 {
+			t.Fatalf("%s: got %v, total %d, counts %+v", filter, ids, page.Total, c)
+		}
+	}
+	if page := runtimePage(t, h, base+"&agents_only=1&parent_session_id=coordinator"); !slices.Equal(pageIDs(page), []string{"demo/agy-worker-0"}) {
+		t.Fatalf("coordinator's children: %v", pageIDs(page))
+	}
+	if page := runtimePage(t, h, base+"&session_id=agy-worker-1"); !slices.Equal(pageIDs(page), []string{"demo/agy-worker-1"}) {
+		t.Fatalf("direct lookup of a retained worker: %v", pageIDs(page))
+	}
+}
 
 // hierarchyHub is a hub whose machine "demo" lists a parent with three children folded under it (two levels), a row
 // on its own and a child folded under a session the hub does not list; machine "other" lists a child of a session of

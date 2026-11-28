@@ -9,6 +9,33 @@ import (
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
+func TestAgentListsHideLegacyAgySwarmWorkers(t *testing.T) {
+	f := newFakeHub()
+	root := proto.Session{SessionID: "coordinator", Title: "Coordinate work", State: proto.StateWorking,
+		Agent: "agy", SourceKind: proto.SourceRuntime, SourceInstanceID: "agy"}
+	orphan := root
+	orphan.SessionID, orphan.Title = "orphan", "Swarm Worker (api)"
+	linked := orphan
+	linked.SessionID, linked.ParentSessionID = "linked", root.SessionID
+	f.setSessions("box", root, orphan, linked)
+	s := newStorelessService(t, f)
+	ctx := context.Background()
+	for _, filter := range []string{"active", "all", "working"} {
+		got := s.describeAgents(ctx, filter, "", "")
+		if strings.Count(got, "session_id=") != 1 || !strings.Contains(got, "session_id=coordinator ") {
+			t.Fatalf("%s: only the coordinator belongs in agents_list:\n%s", filter, got)
+		}
+	}
+	_, _, _, _, _, _, working := s.snapshotAgents(ctx, s.devices(ctx), "")
+	if len(working) != 1 || working[0].Label != "Coordinate work" {
+		t.Fatalf("only the coordinator belongs in the working count: %+v", working)
+	}
+	fold := foldSessions([]proto.Session{root, linked, orphan}, nil)
+	if fold.under[linked.SessionID] != root.SessionID || fold.children[root.SessionID].Total != 1 || fold.under[orphan.SessionID] != "" {
+		t.Fatalf("only native lineage makes a fold: %+v", fold)
+	}
+}
+
 func TestAgentListsFoldOnlyHelpersWithListedParents(t *testing.T) {
 	for _, source := range []string{"codex_history", "codex_app_server"} {
 		for _, state := range []string{proto.StateWorking, proto.StateUnread, proto.StateNeedsYou, "done"} {

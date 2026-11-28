@@ -16,6 +16,19 @@ func (s Session) IsCodexSubagent() bool {
 		(s.RootSessionID != "" && s.RootSessionID != s.SessionID)
 }
 
+// IsAgyRuntimeChild also recognizes the native title on older companion rows that lack lineage.
+// The runtime instance scopes that fallback so a user chat with the same title stays independent.
+func (s *Session) IsAgyRuntimeChild() bool {
+	if s.SourceKind != SourceRuntime || s.SourceInstanceID != "agy" {
+		return false
+	}
+	role, named := strings.CutPrefix(strings.TrimSpace(s.Title), "Swarm Worker (")
+	role, closed := strings.CutSuffix(role, ")")
+	return s.IsSubagent || (s.ParentSessionID != "" && s.ParentSessionID != s.SessionID) ||
+		(s.RootSessionID != "" && s.RootSessionID != s.SessionID) ||
+		(named && closed && strings.TrimSpace(role) != "")
+}
+
 // IsSubtask says whether a session is listed and counted under the session that started it rather than on its own:
 // a Codex subagent, or a runtime's own session that names its parent, whichever agent it runs (SourceRuntime: an
 // agent another Paseo agent created, #4494). Unlike a Codex subagent, which its parent drives, such a runtime session

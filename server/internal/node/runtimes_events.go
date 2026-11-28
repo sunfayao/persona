@@ -190,6 +190,10 @@ func normalizeRuntimeSessions(h *runtimeConn, list []proto.Session) []proto.Sess
 		// What a runtime declared, never more: no terminal, no attach, cards always answerable (they are its own asks).
 		s.SourceKind, s.SourceInstanceID, s.SourceThreadID, s.ParentThreadID = proto.SourceRuntime, rt, "", ""
 		s.Host = ""
+		agyChild := agy && s.IsAgyRuntimeChild()
+		if agyChild {
+			s.IsSubagent = true
+		}
 		// Rename and rewind (#6294) are for the runtime's own top-level sessions, not a sub-Agent's row: a "<session>@<id>"
 		// is an agent inside a session, not one the runtime lists, and a session another one started folds under it.
 		sub := s.IsSubagent || strings.Contains(s.SessionID, subagentSep)
@@ -241,6 +245,9 @@ func normalizeRuntimeSessions(h *runtimeConn, list []proto.Session) []proto.Sess
 		switch s.Status {
 		case proto.StatusWorking, proto.StatusDone, proto.StatusIdle, proto.StatusOffline:
 		case proto.StatusBlocked:
+			if agyChild {
+				break // The Swarm coordinator owns the worker's interactions.
+			}
 			// A session another one started (is_subagent, parent_session_id) that waits for the user is a row of its
 			// own while it does (#4494): the apps that fold every child away (iOS, Android, older web) leave out no
 			// session that needs the user, whichever rows they count. Its parent is named again once it was answered.

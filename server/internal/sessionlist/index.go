@@ -45,6 +45,8 @@ type Item struct {
 	HiddenByDirectory bool
 	// Assistant marks a Persona conversation, excluded from the Agents list and active Agent aggregate.
 	Assistant bool
+	// ChildOnly remains readable by ID or parent, even when the adapter has no listed parent for it.
+	ChildOnly bool
 	// Fold is the item's optional per-row metadata: its place in the session hierarchy (#5120) and its open to-do
 	// (#6662). Nil for an item with neither, which shows its own State and BackgroundWaiting. It sits behind a pointer
 	// to keep Item in its allocation size class: an adapter builds a whole batch as one []Item, as the hub does on every

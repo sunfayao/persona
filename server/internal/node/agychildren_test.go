@@ -3,8 +3,30 @@ package node
 import (
 	"testing"
 
+	"github.com/sunfayao/persona/server/internal/node/harness/agy"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
+
+func TestAgyRuntimeKeepsSwarmWorkersAsChildren(t *testing.T) {
+	n, _, _ := herdrNode(t)
+	t.Setenv("ANTIGRAVITY_CLI_CONFIG_DIR", "")
+	agyTestFile(t, n.agyDataRoot(), agyTestID, `{"step_index":0,"type":"SYSTEM_MESSAGE","content":"Task from coordinator"}`+"\n")
+	runtime := newRuntimeRegistry().add(nil)
+	runtime.hello.Runtime, runtime.hello.Agent = agyRuntimeID, agyAgent
+	rows := normalizeRuntimeSessions(runtime, []proto.Session{
+		{SessionID: "agy-" + agyTestID, Title: "Review code", Status: proto.StatusIdle},
+		{SessionID: "agy-" + agyOtherTestID, Title: "Swarm Worker (api)", Status: proto.StatusBlocked, ParentSessionID: "coordinator"},
+		{SessionID: "agy-33333333-4444-4555-8666-777777777777", Title: "Normal chat", Status: proto.StatusIdle},
+	})
+	if len(rows) != 3 || !rows[1].IsSubagent || rows[1].ParentSessionID != "coordinator" || rows[2].IsSubagent {
+		t.Fatalf("runtime normalization did not preserve Swarm ownership: %+v", rows)
+	}
+	ref := agy.Ref{Root: n.agyDataRoot(), Conversation: agyTestID}
+	n.mergeRuntimeAgy(&rows[0], ref)
+	if !rows[0].IsSubagent || rows[0].ParentSessionID != "" {
+		t.Fatalf("the transcript proves child status without naming a parent: %+v", rows[0])
+	}
+}
 
 // An agy subagent names its parent and root by the companion's ids (#14817). While a live herdr pane lists the parent
 // conversation, those ids name the pane's row; while the companion's own row lists it (the pane stopped), they stay.

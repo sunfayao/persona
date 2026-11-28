@@ -183,7 +183,19 @@ func (h *Hub) indexStampedLocked(mid string, list []proto.Session, stamp bool, m
 	for k, i := range rows {
 		row := &list[i]
 		root := row.FoldedUnder()
-		if !seen[root] {
+		if row.IsAgyRuntimeChild() && !seen[root] {
+			// A retained row can predate the manager's fold. Keep known lineage for child lookups.
+			root = ""
+			for _, parent := range [...]string{row.RootSessionID, row.ParentSessionID, row.AskingParentSessionID(), row.FoldedUnder()} {
+				if parent != "" && parent != row.SessionID {
+					if seen[parent] {
+						root = parent
+						break
+					}
+					root = cmp.Or(root, parent)
+				}
+			}
+		} else if !seen[root] {
 			root = ""
 			if inactiveCodexDesktopSubagent(row) {
 				// A desktop worker can outlive its parent's catalog entry. Keep its native
@@ -239,6 +251,7 @@ func indexedRow(mid, id string, row *proto.Session, stamp bool, manager, root st
 		State: row.State, BackgroundWaiting: row.BackgroundWaiting, JustFinished: row.Work != nil && row.Work.JustFinished,
 		Source: row.SourceKind, Provider: row.Agent, UpdatedAt: row.UpdatedAt,
 		Fold: indexedFold(mid, row, root, todo, indexed.Fold), Private: spaceSession(row), Assistant: row.Assistant,
+		ChildOnly: row.IsAgyRuntimeChild(),
 	}
 	// What q finds a row by: the fields the apps' own searches read, the branch too (#4770).
 	text := [...]string{row.Title, row.Cwd, row.RepoRoot, row.Branch, row.SpaceName, row.SlotName, row.AgentName, row.LastText}

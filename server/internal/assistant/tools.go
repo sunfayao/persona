@@ -1945,7 +1945,7 @@ func (s *Service) describeAgentsFor(ctx context.Context, forOwner bool, state, m
 					folded[source] = true
 				}
 			}
-			if c.Assistant || c.FoldedUnder() != "" || s.isBackgroundSession(ctx, c.SessionID) {
+			if c.Assistant || c.FoldedUnder() != "" || c.IsAgyRuntimeChild() || s.isBackgroundSession(ctx, c.SessionID) {
 				continue
 			}
 			c.State = c.FoldedState()
