@@ -37,19 +37,22 @@ func spaceFolder(s *proto.Session) string {
 		return ""
 	}
 	dir, project := strings.CutPrefix(s.SpaceID, projectSpace)
-	if !project && s.SourceKind != proto.SourceRuntime {
+	if !project && (s.SourceKind != proto.SourceRuntime || spaceHostKind(s.SpaceKind) != "") {
 		return ""
 	}
-	if !filepath.IsAbs(dir) {
-		return ""
+	if filepath.IsAbs(dir) || dir == "~" || strings.HasPrefix(dir, "~/") {
+		return dir
 	}
-	return dir
+	if s.SourceKind == proto.SourceRuntime && s.SourceInstanceID == agyRuntimeID {
+		return s.WorkspaceCwd
+	}
+	return ""
 }
 
 // restFolder is the folder a session in no space ran in, "" for a session in a space, the assistant's, one in the health
 // space, one listed under the session that started it, and one with no absolute folder.
 func restFolder(s *proto.Session) string {
-	if s.Assistant || s.SpaceID != "" || s.Space != "" || s.ParentSessionID != "" || !filepath.IsAbs(s.Cwd) {
+	if s.Assistant || s.SpaceID != "" || s.Space != "" || s.ParentSessionID != "" || !(filepath.IsAbs(s.Cwd) || s.Cwd == "~" || strings.HasPrefix(s.Cwd, "~/")) {
 		return ""
 	}
 	return s.Cwd

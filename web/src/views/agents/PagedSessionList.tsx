@@ -80,6 +80,7 @@ export interface PagedSessionListProps<T> {
 interface PagedGrouping<T> {
   dimension: GroupDimension; quick?: PagedQuickFilters;
   /** The sections follow this scope's fold-all (useFolded). */ foldScope?: string;
+  /** Combine directory-backed runtime spaces on a single machine. */ directoryGroups?: boolean;
   /** Stable structural placement. The transport still uses `compare`, whose newest-first order binds the hub's cursors. */
   rowOrder?: StableRowOrder<T>;
   /** The words ⌘K's "Filter Agents list" put on the list (#6589), sent as the search: the sidebar's list has no field of
@@ -271,7 +272,7 @@ export function PagedSessionList<T>({ root, path, identity, compare, removeIdent
     if (facetScoped) setFacetAttempt((n) => n + 1);
     else void root.retry().catch(() => {});
   }, [facetScoped, root]);
-  const grouped = useSessionGroups({ dimension, catalog: cataloged, countsPath, scope: groupScope, facets, facetQuery, facetsError: facetsFailure, retryFacets, waiting: sections ? scopeNeeds : 0, event, machineOrder });
+  const grouped = useSessionGroups({ dimension, catalog: cataloged, directoryGroups: grouping?.directoryGroups, countsPath, scope: groupScope, facets, facetQuery, facetsError: facetsFailure, retryFacets, waiting: sections ? scopeNeeds : 0, event, machineOrder });
   // The scope's counts as the page shows them (holdCounts): only against the rows the same answer brought (the root's,
   // or the filtered list's own page, on a hub that sends a page's counts with it), so a newer count is never taken for
   // an older row's or the other way round. Counts read on their own (a scope only the hub can count, such as hidden

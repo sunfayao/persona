@@ -1,5 +1,5 @@
 import { t } from "../i18n";
-import { byAttention, stateOf } from "./format";
+import { baseName, byAttention, stateOf } from "./format";
 import { hubWaits } from "./work";
 import type { Machine, Session } from "./types";
 import { byTime } from "./times";
@@ -78,6 +78,28 @@ export function buildSpaces(live: Session[], machines: Machine[]): { spaces: Spa
     const key = `${s.machine_id}/${s.space_id}`;
     if (!map.has(key)) map.set(key, { key, machineId: s.machine_id, name: s.space_name || s.space_id, sessions: [] });
     map.get(key)!.sessions.push(s);
+  }
+  // The full list is also used by the sidebar when agents are pinned. Use the
+  // verified cwd to recognize directory-named spaces without changing custom spaces.
+  const physical = new Map<string, Map<string, string>>();
+  for (const s of live) {
+    if (!s.workspace_cwd || !s.cwd) continue;
+    let known = physical.get(s.machine_id);
+    if (!known) physical.set(s.machine_id, known = new Map());
+    const before = known.get(s.cwd);
+    known.set(s.cwd, before !== undefined && before !== s.workspace_cwd ? "" : s.workspace_cwd);
+  }
+  const folders = new Map<string, Space>();
+  for (const sp of map.values()) {
+    const aliases = physical.get(sp.machineId);
+    const paths = new Set(sp.sessions.map((s) => s.workspace_cwd || aliases?.get(s.cwd) || s.cwd).filter((p) => baseName(p) === sp.name));
+    if (paths.size !== 1) continue;
+    const key = JSON.stringify([sp.machineId, ...paths]);
+    const first = folders.get(key);
+    if (first) {
+      first.sessions.push(...sp.sessions);
+      map.delete(sp.key);
+    } else folders.set(key, sp);
   }
   const order = (m: string) => machines.findIndex((x) => x.id === m);
   const bySlot = (a: Session, b: Session) => (a.slot_index ?? 0) - (b.slot_index ?? 0) || a.session_id.localeCompare(b.session_id);

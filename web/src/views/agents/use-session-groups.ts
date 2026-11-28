@@ -62,6 +62,7 @@ export interface SessionGroupsQuery {
   dimension: GroupDimension | "";
   /** The hub names this collection's projects and spaces (`sessions_catalog`). */
   catalog: boolean;
+  directoryGroups?: boolean;
   /** The collection's path up to its query: `/sessions?` or `/sessions?roots=1&`. */
   countsPath: string;
   /** The search, the provider, the state and, on a hub without the catalog, a space's computer: all but the group. */
@@ -89,12 +90,12 @@ export interface SessionGroups {
   retry: () => void;
 }
 
-export function useSessionGroups({ dimension, catalog, countsPath, scope, facets, facetQuery, facetsError = "", retryFacets, waiting, event, machineOrder }: SessionGroupsQuery): SessionGroups {
+export function useSessionGroups({ dimension, catalog, directoryGroups, countsPath, scope, facets, facetQuery, facetsError = "", retryFacets, waiting, event, machineOrder }: SessionGroupsQuery): SessionGroups {
   const fromCatalog = catalog && (dimension === "project" || dimension === "group");
   const query = useMemo(() => filterQuery(scope), [scope]);
   // the groups' own counts are the parent's facets when no state narrows them: one read serves both
   const shared = !fromCatalog && query === facetQuery;
-  const groupsPath = !dimension ? null : fromCatalog ? `${countsPath}${filterQuery(scope, { catalog: "1" })}` : shared ? null : `${countsPath}${query}`;
+  const groupsPath = !dimension ? null : fromCatalog ? `${countsPath}${filterQuery(scope, { catalog: "1", ...(directoryGroups && dimension === "group" ? { directory_groups: "1" } : {}) })}` : shared ? null : `${countsPath}${query}`;
   // Which of them need the user. Narrowed to a state, a group's count already is of that state: no second number
   // beside it. The catalog says it with the groups; the count maps take a second read, made only while some do.
   const badge = Boolean(dimension) && !scope.state;
@@ -109,7 +110,7 @@ export function useSessionGroups({ dimension, catalog, countsPath, scope, facets
     if (!dimension) return { groups: null, total: null, error: "", retry: () => {} };
     if (fromCatalog) {
       const c = catalogRead.value;
-      const groups = c ? catalogGroups(c, dimension as "project" | "group").map((g) => (badge ? g : { ...g, needs: 0 })) : null;
+      const groups = c ? catalogGroups(c, dimension as "project" | "group", directoryGroups).map((g) => (badge ? g : { ...g, needs: 0 })) : null;
       return { groups, total: c ? c.total : null, error: catalogRead.error ?? "", retry: catalogRead.retry };
     }
     const counts = shared ? facets : countsRead.value ?? null;
@@ -119,5 +120,5 @@ export function useSessionGroups({ dimension, catalog, countsPath, scope, facets
     return { groups, total: counts ? counts.total : null, error: countsRead.error ?? "", retry: countsRead.retry };
     // the retry functions are new on each render and do the same thing
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dimension, fromCatalog, shared, badge, facets, facetsError, scope, catalogRead.value, catalogRead.error, countsRead.value, countsRead.error, countsNeeds.value, machineOrder]);
+  }, [dimension, fromCatalog, directoryGroups, shared, badge, facets, facetsError, scope, catalogRead.value, catalogRead.error, countsRead.value, countsRead.error, countsNeeds.value, machineOrder]);
 }

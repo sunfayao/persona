@@ -337,7 +337,7 @@ func TestSessionCatalogFollowsTheFiltersAndPlaces(t *testing.T) {
 // A manager-limited view has only its own computers' projects, spaces and total.
 func TestSessionCatalogOfOwnMachinesOnly(t *testing.T) {
 	h, mac, pc := threeComputers(t)
-	got, err := h.sessionCatalogOf(context.Background(), h.sessionListIndex(), sessionlist.Options{}, []string{"pc"}, true, true)
+	got, err := h.sessionCatalogOf(context.Background(), h.sessionListIndex(), sessionlist.Options{}, []string{"pc"}, true, true, false)
 	if err != nil || got.Total != 3 || len(got.Projects) != 2 || len(got.Spaces) != 2 {
 		t.Fatalf("own: %+v %v", got, err)
 	}
@@ -523,6 +523,55 @@ func TestProjectOfAndFolderName(t *testing.T) {
 	} {
 		if id, name := projectOf(c.path, c.origin); id != c.id || name != c.name {
 			t.Errorf("projectOf(%q, %q) = %q, %q", c.path, c.origin, id, name)
+		}
+	}
+}
+
+func TestSessionDirectoryPageIncludesRetainedSpacesOnOneMachine(t *testing.T) {
+	h := newTestHub(t)
+	const logical, physical = "/home/example/work", "/data00/home/example/work"
+	m := catalogMachine(h, "box", nil,
+		proto.Session{SessionID: "agy", Agent: "agy", SourceKind: proto.SourceRuntime, Cwd: "~/work", SpaceID: "runtime-space", SpaceName: "work"},
+		proto.Session{SessionID: "codex", Agent: "codex", Cwd: logical, SpaceID: "old-codex", SpaceName: "work", State: "offline"},
+		proto.Session{SessionID: "claude", Agent: "claude", Cwd: physical, SpaceID: "w1", SpaceName: "work", State: "needs_you"},
+		proto.Session{SessionID: "different", Cwd: "/srv/work", SpaceID: "w2", SpaceName: "work"},
+	)
+	catalogMachine(h, "another", nil,
+		proto.Session{SessionID: "other-machine", Cwd: physical, SpaceID: "w1", SpaceName: "work"})
+	m.info = proto.NodeInfo{Home: "/home/example", HomeReal: "/data00/home/example"}
+	if m.online {
+		t.Fatal("expected a retained inventory from an offline machine")
+	}
+	found := 0
+	for _, space := range readCatalog(t, h, "&directory_groups=1").Spaces {
+		if space.MachineID == "box" && space.Path == physical {
+			found += space.Total
+		}
+	}
+	if found != 3 {
+		t.Fatalf("the directory contains %d sessions, want 3", found)
+	}
+	for _, tc := range []struct {
+		filter string
+		want   []string
+	}{
+		{"directory=" + neturl.QueryEscape(physical), []string{"claude", "codex", "agy"}},
+		{"directory=" + neturl.QueryEscape(physical) + "&state=offline", []string{"codex"}},
+		{"space=" + neturl.QueryEscape(`["box","old-codex"]`), []string{"codex"}},
+		{"directory=" + neturl.QueryEscape("/missing"), []string{}},
+	} {
+		w := httptest.NewRecorder()
+		h.listSessions(w, httptest.NewRequest("GET", "/api/v1/sessions?limit=20&machine_id=box&"+tc.filter, nil))
+		var page struct{ Sessions []proto.Session }
+		if err := json.Unmarshal(w.Body.Bytes(), &page); w.Code != 200 || err != nil {
+			t.Fatalf("%s: %d %s (%v)", tc.filter, w.Code, w.Body, err)
+		}
+		got := make([]string, 0, len(page.Sessions))
+		for _, s := range page.Sessions {
+			got = append(got, s.SessionID)
+		}
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("%s: rows %v, want %v", tc.filter, got, tc.want)
 		}
 	}
 }

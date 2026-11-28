@@ -25,7 +25,7 @@ const validCounts = (counts: ListCounts | undefined): counts is ListCounts => !!
 // todo: `sessions_todo` (#6662), a to-do's id or "none"; waiting, pane_source and exclude_pane_source: the sidebar's
 // quick filters (`sessions_quick_filters`, #6662); just_finished: the Just finished rows or the other seen ones
 // (`sessions_just_finished`, #9751)
-const FILTER_KEYS = ["state", "machine_id", "project", "group", "source", "provider", "q", "parent_session_id", "todo", "waiting", "pane_source", "exclude_pane_source", "just_finished"] as const;
+const FILTER_KEYS = ["state", "machine_id", "project", "group", "source", "provider", "q", "parent_session_id", "todo", "waiting", "pane_source", "exclude_pane_source", "just_finished", "directory"] as const;
 /** The filters that take several values, each a machine and value pair spelled as a JSON array (`sessions_catalog`,
  * docs/protocol/protocol.md "Projects and spaces"): the rows at any of the places, in any of the spaces. */
 const PAIR_KEYS = ["place", "space"] as const;

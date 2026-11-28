@@ -2606,6 +2606,11 @@ Older hubs ignore both keys and answer with every row, so clients send them only
 
 #### Projects and spaces (`sessions_catalog`)
 
+A hub advertising `session_directory_groups` accepts `directory_groups=1` on catalog reads. In this view space
+paths use the node-verified directory and known aliases on the space's computer. Space IDs keep their runtime
+meanings. The sidebar joins spaces in the same directory on one computer and selects their rows with
+`directory=<absolute path>` and `machine_id`. This includes retained sessions and composes with regular list filters.
+
 The `project` filter and the `project` count map go by a directory's path, so one repository checked out on two computers is two projects, and a path means nothing without its computer. The `group` map has the same limit: space ids are machine-local and say nothing a person reads. When `hello.features` advertises **`sessions_catalog`**, the runtime collection answers both:
 
 ```http

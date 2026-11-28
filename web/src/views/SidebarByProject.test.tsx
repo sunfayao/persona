@@ -14,7 +14,7 @@ import { loadPages } from "../lib/lazy-page";
 import { onOpenNewAgent, type NewAgentPreset } from "../lib/new-agent";
 import { connect, reset } from "../lib/store";
 import { SESSIONS_AGENTS_ONLY_FEATURE } from "../lib/runtime-list";
-import { SESSIONS_CATALOG_FEATURE } from "../lib/session-groups";
+import { SESSION_DIRECTORY_GROUPS_FEATURE, SESSIONS_CATALOG_FEATURE } from "../lib/session-groups";
 import { listPair } from "../lib/session-list";
 import type { Session } from "../lib/types";
 import { Sidebar } from "./Sidebar";
@@ -50,16 +50,19 @@ const flush = async () => { for (let i = 0; i < 10; i++) await act(async () => {
 let host: HTMLDivElement, root: Root;
 
 /** The rows a read selects by its space pairs, and the hub's answers: a page, the counts, the catalog with each space's folder. */
-function answer(url: URL) {
+function answer(url: URL, sessions: Session[]) {
   const q = url.searchParams;
   const spaces = q.getAll("space");
-  const rows = ROWS.filter((s) => !spaces.length || spaces.includes(listPair(s.machine_id, s.space_id ?? "")));
+  const directory = q.get("directory");
+  const folder = (s: Session) => s.workspace_cwd || s.cwd;
+  const rows = sessions.filter((s) => (!spaces.length || spaces.includes(listPair(s.machine_id, s.space_id ?? ""))) &&
+    (!directory || s.machine_id === q.get("machine_id") && folder(s) === directory));
   const tally = (key: (s: Session) => string) => rows.reduce<Record<string, number>>((out, s) => ({ ...out, [key(s)]: (out[key(s)] ?? 0) + 1 }), {});
   if (q.has("catalog")) {
     const spaced = new Map<string, { machine_id: string; id: string; name: string; path?: string; total: number }>();
     for (const s of rows) {
       const pair = listPair(s.machine_id, s.space_id ?? "");
-      const at = spaced.get(pair) ?? { machine_id: s.machine_id, id: s.space_id ?? "", name: s.space_name ?? "", ...(s.space_id ? { path: s.cwd } : {}), total: 0 };
+      const at = spaced.get(pair) ?? { machine_id: s.machine_id, id: s.space_id ?? "", name: s.space_name ?? "", ...(s.space_id ? { path: q.has("directory_groups") ? folder(s) : s.cwd } : {}), total: 0 };
       at.total++;
       spaced.set(pair, at);
     }
@@ -69,10 +72,10 @@ function answer(url: URL) {
   return json({ sessions: rows, remove: [], has_more: false, revision: "r1", total: rows.length });
 }
 
-async function render() {
+async function render(sessions = ROWS, extraFeatures: string[] = []) {
   const fetch = vi.fn((input: string) => {
     const url = new URL(input, "http://hub.example.com");
-    if (url.pathname.endsWith("/sessions")) return answer(url);
+    if (url.pathname.endsWith("/sessions")) return answer(url, sessions);
     if (url.pathname.endsWith("/pins")) return json({ sessions: [], spaces: [] });
     if (url.pathname.endsWith("/machines")) return json({ machines: MACHINES });
     if (url.pathname.endsWith("/todos")) return json({ todos: [] });
@@ -83,7 +86,7 @@ async function render() {
     connect();
     const socket = FakeSocket.all.at(-1)!;
     socket.open();
-    socket.push({ type: "hello", features: ["sessions_list", "sessions_lookup", SESSIONS_AGENTS_ONLY_FEATURE, SESSIONS_CATALOG_FEATURE] });
+    socket.push({ type: "hello", features: ["sessions_list", "sessions_lookup", SESSIONS_AGENTS_ONLY_FEATURE, SESSIONS_CATALOG_FEATURE, ...extraFeatures] });
   });
   await flush();
   act(() => root.render(<Sidebar route={{ name: "home" }} onSearch={() => {}} onNewAgent={() => {}} />));
@@ -139,4 +142,34 @@ describe("By project on two computers (#13522)", () => {
       off();
     }
   });
+});
+
+it("opens a single directory section with live and retained agents from different runtimes", async () => {
+  const alias = "/home/example/work";
+  const physical = "/data00/home/example/work";
+  const rows: Session[] = [
+    { ...agent("agy", "laptop", alias, { id: alias, name: "work" }), workspace_cwd: physical, source_kind: "runtime", agent: "agy" },
+    { ...agent("codex", "laptop", alias, { id: "old-codex", name: "work" }), workspace_cwd: physical, state: "offline", status: "offline", agent: "codex" },
+    { ...agent("claude", "laptop", physical, { id: "w1", name: "work" }), agent: "claude" },
+    agent("other", "server", physical, { id: "w1", name: "work" }),
+  ];
+  const fetch = await render(rows, [SESSION_DIRECTORY_GROUPS_FEATURE]);
+  const local = host.querySelector('[data-session-computer="laptop"]')!;
+  const groups = local.querySelectorAll("[data-session-group]");
+  expect(groups).toHaveLength(1);
+  expect(groups[0].querySelector("button[aria-expanded]")?.textContent).toBe("work · ~");
+  expect(groups[0].querySelectorAll("[data-session-row]")).toHaveLength(3);
+  for (const id of ["agy", "codex", "claude"]) expect(groups[0].textContent).toContain(`Agent ${id}`);
+  const other = host.querySelector('[data-session-computer="server"]')!;
+  await act(async () => other.querySelector<HTMLButtonElement>("button[aria-expanded]")!.click());
+  await flush();
+  expect(other.querySelectorAll("[data-session-group]")).toHaveLength(1);
+  expect(fetch.mock.calls.some(([input]) => {
+    const query = new URL(input, "http://hub.example.com").searchParams;
+    return query.has("catalog") && query.get("directory_groups") === "1";
+  })).toBe(true);
+  expect(fetch.mock.calls.some(([input]) => {
+    const query = new URL(input, "http://hub.example.com").searchParams;
+    return query.get("machine_id") === "laptop" && query.get("directory") === physical;
+  })).toBe(true);
 });

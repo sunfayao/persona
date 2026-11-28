@@ -49,7 +49,7 @@ import { PagedSessionList, type PagedQuickFilters } from "./agents/PagedSessionL
 import { ListError } from "../ui/ListError";
 import { SESSION_LIST_STYLE } from "../ui/list-metrics";
 import { RUNTIME_AGENTS_PATH, supportsPagedAgents, runtimeActiveAt, runtimeAgents, runtimeIdentity, runtimeNeedsYou, runtimeOrder, runtimeParentIdentity, runtimePlace, runtimeRemoval } from "../lib/runtime-list";
-import { SESSIONS_CATALOG_FEATURE, SESSIONS_QUICK_FILTERS_FEATURE } from "../lib/session-groups";
+import { SESSION_DIRECTORY_GROUPS_FEATURE, SESSIONS_CATALOG_FEATURE, SESSIONS_QUICK_FILTERS_FEATURE } from "../lib/session-groups";
 import { SESSIONS_LIST_FEATURE, type ListCounts, type ListFilters } from "../lib/session-list";
 import { heldCounts } from "../lib/seen-outbox";
 import { NoComputers, useAddComputer } from "./machines/AddComputerEntry";
@@ -534,6 +534,7 @@ const NO_COUNTS: FilterCounts = { needs: 0, unread: 0, working: 0, bg_waiting: 0
 function BoundedAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, add = true }: AgentsBlockProps) {
   const machines = useStore(selectSidebarMachines);
   const catalog = useStore((s) => s.features.includes(SESSIONS_CATALOG_FEATURE));
+  const directoryGroups = useStore((s) => s.features.includes(SESSION_DIRECTORY_GROUPS_FEATURE));
   // a hub that folds side sessions (#7944) leaves them out of the list: nothing to nest under a parent
   const sideFold = useStore((s) => s.features.includes(SESSIONS_SIDE_FOLD_FEATURE));
   const archives = useStore((s) => s.features.includes(AGENT_ARCHIVES_FEATURE));
@@ -578,13 +579,14 @@ function BoundedAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate,
   const listItems = agentListItems({ archives, hover, onNavigate });
   const pagedGrouping = useMemo(() => ({
     dimension: "group" as const,
+    directoryGroups,
     quick,
     // its sections follow the title row's fold-all, as the complete list's groups do
     foldScope: AGENTS_FOLD,
     rowOrder,
     query: listQuery,
     chips: <AgentFilterChips filters={queryOnly} onChange={setQuery} facets={NO_FACETS} />,
-  }), [quick, rowOrder, listQuery, queryOnly, setQuery]);
+  }), [directoryGroups, quick, rowOrder, listQuery, queryOnly, setQuery]);
   return <div data-sidebar-agents ref={groupsRef}>
     {/* the complete list's title row (#6662): fold all, the ⋯ with its sorts and the archived Agents, and "+" */}
     <div className={cx(SESSION_LIST_STYLE.heading, TITLE_ROW_TOUCH)}>
