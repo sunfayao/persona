@@ -31,6 +31,7 @@ func agyBackgroundNotice(text string) string {
 type launch struct {
 	facet proto.TaskFacet
 	call  string
+	ended bool // its end or a restart notice was seen
 }
 
 func backgroundLaunch(h *Projection, s agyStep, call *mappedCall) *proto.TaskFacet {
@@ -108,7 +109,25 @@ type systemEvent struct {
 	canWake              bool
 }
 
-func systemEvents(content string, at time.Time, tasks map[string]launch) []systemEvent {
+// stoppedByRestart ends every launch in tasks and says whether one of them, or a subagent invoked since the last
+// restart notice, was still going: the runtime's restart notice is routine when none was.
+func stoppedByRestart(tasks map[string]launch, subagents *bool) bool {
+	stopped := *subagents
+	*subagents = false
+	for id, l := range tasks {
+		if !l.ended && (l.facet.Status == proto.TaskStatusRunning || l.facet.Status == proto.TaskStatusScheduled) {
+			stopped = true
+		}
+		l.ended = true
+		tasks[id] = l
+	}
+	return stopped
+}
+
+// systemEvents maps the runtime's system messages. The restart notice ("All your subagents and background tasks
+// have been stopped due to server restart") is the closed-source runtime's own text, kept in its conversation where
+// the model reads it: here it is a warning only when something was running, else an info notice.
+func systemEvents(content string, at time.Time, tasks map[string]launch, subagents *bool) []systemEvent {
 	matches := messageHeader.FindAllStringSubmatchIndex(content, -1)
 	var out []systemEvent
 	for i, m := range matches {
@@ -121,12 +140,17 @@ func systemEvents(content string, at time.Time, tasks map[string]launch) []syste
 		e := systemEvent{text: transcript.BackgroundTaskUpdate, severity: proto.NoticeSeverityInfo}
 		switch {
 		case sender == "system" && strings.Contains(body, serverRestart):
-			e.code, e.severity = proto.NoticeCodeServerRestart, proto.NoticeSeverityWarning
+			e.code = proto.NoticeCodeServerRestart
+			if stoppedByRestart(tasks, subagents) {
+				e.severity = proto.NoticeSeverityWarning
+			}
 		case taskStillRuns.MatchString(body):
 			continue
 		default:
 			if end := taskEnd.FindStringSubmatch(body); end != nil && taskHandle.MatchString(end[1]) {
 				known := tasks[end[1]]
+				known.ended = true
+				tasks[end[1]] = known
 				status := proto.TaskStatusCancelled
 				legacy := "killed"
 				code := commandExit(body)

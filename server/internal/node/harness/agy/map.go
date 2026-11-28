@@ -37,6 +37,7 @@ func (h *Projection) mapSteps(steps []agyStep, fallback time.Time) {
 	var calls []*mappedCall
 	var plannerSeq, foreignSlots int
 	tasks := make(map[string]launch)
+	var subagents bool // a subagent was invoked since the last restart notice
 	for _, step := range steps {
 		h.seq = max(h.seq, step.seq)
 		at, err := time.Parse(time.RFC3339Nano, step.CreatedAt)
@@ -142,7 +143,7 @@ func (h *Projection) mapSteps(steps []agyStep, fallback time.Time) {
 				afterWork = true
 				switch call.Name {
 				case "invoke_subagent":
-					h.invokesChild = true
+					h.invokesChild, subagents = true, true
 				case "send_message":
 					h.addChild(args.text("Recipient"))
 				case "manage_subagents":
@@ -236,7 +237,7 @@ func (h *Projection) mapSteps(steps []agyStep, fallback time.Time) {
 			if len(calls) > 0 {
 				foreignSlots++
 			}
-			for i, event := range systemEvents(step.Content, at, tasks) {
+			for i, event := range systemEvents(step.Content, at, tasks, &subagents) {
 				it := add(strconv.Itoa(i), "system", proto.KindNotice, event.text)
 				it.Task, it.Facets.Task, it.Facets.ParentID = event.note, event.task, event.parent
 				addNotice(it, event.code, event.severity, event.args)
