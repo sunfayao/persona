@@ -301,6 +301,9 @@ func (l assistantLink) deviceCallFrom(ctx context.Context, from string, p assist
 			return nil, &rpc.Error{Code: "invalid_params", Message: "workspace routing identity mismatch"}
 		}
 	}
+	if p.Method == proto.MethodMachineExec {
+		return h.machineExecAudited(ctx, from, m, p.Params) // machine_trust.go
+	}
 	var out json.RawMessage
 	if err := m.call(ctx, p.Method, p.Params, &out); err != nil {
 		return nil, err
