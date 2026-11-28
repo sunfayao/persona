@@ -528,6 +528,9 @@ it("personaToolVerb names Persona's own tools by what they do, and nothing else"
   expect(personaToolVerb("mcp__persona__view", { action: "update" })).toEqual({ verb: "更新卡片" });
   expect(personaToolVerb("mcp__persona__view")).toBeNull();
   expect(personaToolVerb("mcp__persona__view", { action: "constructor" })).toBeNull();
+  expect(personaToolVerb("mcp__persona__agent_read", { conversation: "c1" })).toEqual(personaToolVerb("mcp__persona__conversation_read"));
+  expect(personaToolVerb("mcp__persona__agents_list", { kind: "conversations" })).toEqual(personaToolVerb("mcp__persona__conversations_list"));
+  expect(personaToolVerb("mcp__persona__agents_list", { kind: "agents" })).toEqual(personaToolVerb("mcp__persona__agents_list"));
   // no verb of its own: keeps "Called Persona · …"
   expect(personaToolVerb("mcp__persona__something_new")).toBeNull();
   // other servers, and the bare server

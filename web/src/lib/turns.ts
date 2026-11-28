@@ -700,6 +700,15 @@ const PERSONA_MERGED: Record<string, Record<string, string>> = {
   view: { show: "view_show", get: "view_get", update: "view_update" },
 };
 
+/** The older Persona tool a merged call stands for (the hub's unmergeTool), for its words; else base. */
+function olderPersonaTool(base: string, input?: Record<string, unknown>): string {
+  const actions = ownEntry(PERSONA_MERGED, base);
+  if (actions) return (typeof input?.action === "string" && ownEntry(actions, input.action)) || base;
+  if (base === "agents_list" && input?.kind === "conversations") return "conversations_list";
+  if (base === "agent_read" && typeof input?.conversation === "string") return "conversation_read";
+  return base;
+}
+
 /** How one of Persona's own tools reads in a step: a verb ("Read agent chat"), or for the phone and mail families the
  *  family and what it did ("iPhone" + "contacts search"); null for every other tool and the Persona tools without one
  *  (they keep "Persona · agent read"). A merged tool reads as the older tool its input's action names. Display only:
@@ -708,9 +717,7 @@ export function personaToolVerb(rawName?: string, input?: Record<string, unknown
   const name = canonicalMcpToolName(rawName);
   if (!isPersonaTool(name)) return null;
   const base = name!.slice(name!.lastIndexOf("__") + 2);
-  const actions = ownEntry(PERSONA_MERGED, base);
-  const older = actions && typeof input?.action === "string" ? ownEntry(actions, input.action) : undefined;
-  const key = ownEntry(PERSONA_VERB_KEY, canonicalTool(older ?? base));
+  const key = ownEntry(PERSONA_VERB_KEY, canonicalTool(olderPersonaTool(base, input)));
   if (key) return { verb: t(`lib-turns.${key}`) };
   const family = /^(phone|mail)_(.+)$/.exec(base);
   if (family) return { verb: t(family[1] === "phone" ? "lib-turns.persona_phone" : "lib-turns.persona_mail"), what: family[2].replace(/_/g, " ") };
