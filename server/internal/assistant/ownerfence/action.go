@@ -3,8 +3,10 @@ package ownerfence
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/textfmt"
@@ -40,6 +42,10 @@ func (b *Book) CheckContext(ctx context.Context) error {
 	return nil
 }
 
+// ShownMax is how many characters of an owner input agents_list and agent_read show.
+const ShownMax = 200
+
+// ShowObserved shows the latest input the owner gave target themselves (typed there, or an answer on its card), clipped.
 func (b *Book) ShowObserved(ctx context.Context, target Ref) string {
 	observer, ok := ObserverOf(ctx)
 	if !ok || observer.Session == "" {
@@ -49,8 +55,25 @@ func (b *Book) ShowObserved(ctx context.Context, target Ref) string {
 	if input.Seq == 0 {
 		return ""
 	}
-	b.Observe(observer, target, input)
-	return "\n" + prompts.RenderOwnerInputFence(prompts.OwnerInputFence{Text: input.Text, Owner: input.ByOwner}) + "\n"
+	b.Observe(observer, target, input) // a relayed input still counts as read: it is no news to the reader
+	text := shown(input.Text)
+	if input.RelayOf != 0 || text == "" { // the main conversation's own words, relayed, are not what the owner said here
+		return ""
+	}
+	return "\n" + prompts.RenderOwnerInputFence(prompts.OwnerInputFence{Text: text, Owner: input.ByOwner}) + "\n"
+}
+
+var (
+	contextBlock = lazyre.New(`(?is)<\s*(?:jarvis|persona)-context\b[^>]*>.*?<\s*/\s*(?:jarvis|persona)-context\s*>`)
+	contextOpen  = lazyre.New(`(?i)<(\s*(?:jarvis|persona)-context\b)`)
+)
+
+// shown is an owner input as the tools show it: the context blocks a client wrapped round the words are dropped (they
+// are not the owner's), an opening tag left over is written with &lt; so none stays unclosed, and the rest is clipped.
+// The template's ctx removes the closing tags.
+func shown(text string) string {
+	text = strings.TrimSpace(contextBlock.ReplaceAllString(text, ""))
+	return textfmt.Clip(contextOpen.ReplaceAllString(text, "&lt;$1"), ShownMax)
 }
 
 func Refusal(input Input) error {

@@ -144,7 +144,7 @@ func (s *Service) planBriefs(ctx context.Context, machine, conversation string, 
 			o := s.briefOrigin(ctx, machine, conversation)
 			origin = &o
 		}
-		rec := *origin
+		rec := declaredOrigin(*origin, t.UserRequested)
 		if t.EstimateCalibration {
 			s.estimateNewPlanTask(ctx, conversation, t)
 		} else {

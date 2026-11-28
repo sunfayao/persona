@@ -45,7 +45,7 @@ func briefTask(over map[string]any) map[string]any {
 	task := map[string]any{"title": "fix the login crash", "prompt": "the login page crashes in landscape: fix it and add a test",
 		"role": "worker", "machine": "box", "cwd": "/code/app", "readonly": true, "permission": "bypassPermissions", "why": "the repository is on box",
 		"goal": "the login page no longer crashes in landscape", "done_when": []string{"PR merged to main", "a test covers landscape"},
-		"expect_minutes": 30}
+		"expect_minutes": 30, "user_requested": true}
 	for k, v := range over {
 		if v == nil {
 			delete(task, k)
@@ -117,6 +117,7 @@ func TestTaskPlanRequiresABrief(t *testing.T) {
 // time; a brief the tool call supplies itself is dropped.
 func TestPlanCardCarriesTheBrief(t *testing.T) {
 	s, _, asked := briefService(t, "please fix the login crash before Friday")
+	setSettings(t, s, func(v *Settings) { off := false; v.StartRequestedTasks = &off }) // the plan waits on its card
 	args := briefTask(map[string]any{"readonly": false, "out_of_bounds": []string{"do not merge"},
 		"brief": map[string]any{"request": map[string]any{"text": "made up by the model"}}})
 	if got, isErr := tool(t, s, "task_plan", args); isErr || !strings.Contains(got, "nothing has started") {
