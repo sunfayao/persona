@@ -101,11 +101,22 @@ what the recipient can do (it has the Persona tools, it has only a terminal, or 
 A tool name is a wire name: other versions, stored transcripts and extensions know it. You do not rename a tool; you
 add one and keep the old name working, or remove a tool whose feature is gone together with every mention of it.
 
+- A tool whose feature can be off or unused on an install (mail without an account, the Inbox's AI twin, shared
+  runners, a chat channel) is listed only while it is on: a connector reports `not_configured`, or the assistant's
+  `toolGates` (`assistant/fleet_tools.go`) leave the group out. Gates are part of the tool-list revision.
+- A tool that leaves every list but may still be called by a running conversation stays routed in
+  `retiredToolNames` (`assistant/tools.go`) with its description, instead of answering "unknown tool".
+
 ## Size is a cost
 
 Every always-loaded instruction and tool description is paid for in every turn of every conversation. Put what only
 some turns need behind a skill (`server/internal/assistantskills/builtin/`) or a tool the model can call, state a
 rule once, and delete a sentence before you add one.
+
+`TestLeanBudgets` (`assistant/lean_budget_test.go`) holds shrink-only ceilings for what every request carries: the
+static supervision instructions, the tool counts, the core tools' bytes and the rules an Agent gets with a task. A
+signal's handling rule travels with the supervision message that carries the signal (`assistant/supervise_signal.md`),
+never in the static instructions.
 
 A tool description keeps what a call needs: what the tool does, when to use it, its required fields and the mistakes
 calls make. Its long tail goes into a reference of `persona-work`, which every Assistant directory has under
