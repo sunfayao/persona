@@ -61,6 +61,8 @@
   "modes_not_running": "This agent isn’t running. Resume it from its terminal page, then change this.",
   "modes_unsupported": "This agent runs in a terminal (Cursor CLI or Antigravity CLI): its permission mode, effort and model are set when it starts and can’t be changed from here. Start a new agent with the mode you want.",
   "effort_change_pending": "The message was not sent because the thinking effort change has not been confirmed. If the change failed, choose a thinking effort again.",
+  "modes_effort_busy": "The agent is working. Change thinking effort after this turn finishes.",
+  "modes_model_busy": "The agent is working. Switch models after this turn finishes.",
   "agent_stopped": "This agent has stopped. Its conversation and terminal stay; it doesn’t take messages, and nothing was sent. To run it again, use Resume on its terminal page.",
   "resume_not_allowed": "This agent cannot be resumed automatically. Use Resume on its terminal page.",
   "stop_not_saved": "The stop state could not be saved. Nothing was started, stopped or closed; try again.",

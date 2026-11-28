@@ -324,10 +324,11 @@ func TestHerdrSetModelRefusals(t *testing.T) {
 		}
 	}
 
-	// Working: not switched, no herdr call at all.
+	// Working: not switched, coded refusal (409), no herdr call at all.
 	f.reset()
-	if err := setModel(t, n, sidB, "opus"); err == nil || !strings.Contains(err.Error(), "正在工作") {
-		t.Fatalf("while working: %v", err)
+	err = setModel(t, n, sidB, "opus")
+	if code, data := refusalOf(t, err); code != proto.CodeModesModelBusy || data["delivered"] != deliveredNone || !strings.Contains(err.Error(), "正在工作") {
+		t.Fatalf("while working: %v (code=%q data=%v)", err, code, data)
 	}
 	assertTrace(t, f.trace(), nil)
 

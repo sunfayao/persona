@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -279,11 +280,11 @@ func (n *Node) setModel(ctx context.Context, id, model string) error {
 			return fmt.Errorf("这个 Agent 不支持在手机上切换模型")
 		}
 		if a.AgentStatus == proto.StatusWorking || a.AgentStatus == proto.StatusBlocked {
-			return fmt.Errorf("Agent 正在工作，这一轮结束后再切换模型")
+			return refusal(proto.CodeModesModelBusy, i18n.T(i18n.Default, "rpc-errors.modes_model_busy"), nil)
 		}
 	}
 	if c, ok := n.outsideClaude(id); ok && (c.Status == "busy" || c.Status == "waiting") {
-		return fmt.Errorf("Agent 正在工作，这一轮结束后再切换模型")
+		return refusal(proto.CodeModesModelBusy, i18n.T(i18n.Default, "rpc-errors.modes_model_busy"), nil)
 	}
 	// The same checks as a message: a dialog with the keyboard or a draft in the box refuses, nothing typed.
 	if err := n.checkPane(ctx, pane, "claude", ""); err != nil {

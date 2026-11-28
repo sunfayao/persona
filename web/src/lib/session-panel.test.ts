@@ -195,6 +195,29 @@ describe("a switch that waits for the next message", () => {
     expect(pendingView(session(), listOf)).toBeNull();
     expect(pendingView(session({ pending_switch: { launcher: "claude" } }), listOf)).toBeNull();
   });
+
+  it("shows queued and failed Claude terminal effort notes and allows cancel or retry", () => {
+    const busy = session({ pane_id: "w1:p1", status: "working", state: "working", effort: "max" });
+    const busyPanel = sessionPanel(busy, launchers, listOf, on);
+    const busyRow = busyPanel.providers.find((p) => p.id === "claude")!.models!.find((m) => m.id === "opus")!;
+    expect(busyRow.effortNote).toBe(t("chat-modelpanel.effort_next_turn"));
+    expect(busyPanel.state.current?.effort).toBe("max");
+
+    const queued = session({ pane_id: "w1:p1", status: "working", state: "working", effort: "max", pending_effort: "high" });
+    const queuedPanel = sessionPanel(queued, launchers, listOf, on);
+    const queuedRow = queuedPanel.providers.find((p) => p.id === "claude")!.models!.find((m) => m.id === "opus")!;
+    expect(queuedRow.effortNote).toBe(t("chat-modelpanel.effort_pending_turn", { effort: "高" }));
+    expect(queuedPanel.state.current?.effort).toBe("high");
+    expect(pickPlan(queued, { provider: "claude", model: "opus", effort: "high" }, raw, on)).toEqual([]);
+    expect(pickPlan(queued, { provider: "claude", model: "opus", effort: "max" }, raw, on)).toEqual([{ effort: "max" }]);
+
+    const failed = session({ pane_id: "w1:p1", status: "idle", state: "idle", effort: "max", pending_effort: "high", effort_change_failed: true });
+    const failedPanel = sessionPanel(failed, launchers, listOf, on);
+    const failedRow = failedPanel.providers.find((p) => p.id === "claude")!.models!.find((m) => m.id === "opus")!;
+    expect(failedRow.effortNote).toBe(t("chat-modelpanel.effort_change_failed", { effort: "高" }));
+    expect(failedPanel.state.current?.effort).toBe("max");
+    expect(pickPlan(failed, { provider: "claude", model: "opus", effort: "high" }, raw, on)).toEqual([{ effort: "high" }]);
+  });
 });
 
 describe("what a pick on another launcher sends", () => {

@@ -62,6 +62,7 @@ export function pillShortName(name: string): string {
 export function ModelPill({
   current,
   pending,
+  pendingEffort,
   loading,
   failed,
   disabled,
@@ -75,6 +76,8 @@ export function ModelPill({
   /** A switch accepted for the next message (#5035): a clock first, the launcher it moves to named (the engine, when
    *  that changes, #5054: Cindy's "clock · agent · model") and drawn, the tooltip both setups. */
   pending?: PillSetup | null;
+  /** A thinking effort change queued for after the current turn on this session's own model. */
+  pendingEffort?: string;
   /** The model list is read for the first time. */
   loading?: boolean;
   /** Reading the model list failed. */
@@ -90,6 +93,7 @@ export function ModelPill({
   unknownModel?: boolean;
 }) {
   const shown = pending ?? current;
+  const queuedEffort = !pending && pendingEffort ? pendingEffort : undefined;
   const launcher = shown.launcherName;
   const unknown = !shown.model;
   const name = shown.model ?? (loading ? t("chat-modelpill.loading") : failed ? t("chat-modelpill.failed") : unknownModel ? t("chat-modelpill.unknown_model") : t("chat-modelpill.default_model"));
@@ -97,9 +101,12 @@ export function ModelPill({
     [agentName(x.engine, x.engineLabel), x.model ?? name, x.launcherName || x.provider, x.effort && effortTitle(x.effort), x.fast && t("chat-sessiondialogs.speed_fast")].filter(Boolean).join(" · ");
   const title = pending
     ? t("chat-modelpill.current_and_next", { current: describe(current), next: describe(pending) })
-    : [describe(current), failed && !unknown ? t("chat-modelpill.failed") : ""].filter(Boolean).join(" · ");
+    : queuedEffort
+      ? t("chat-modelpill.current_and_next", { current: describe(current), next: describe({ ...current, effort: queuedEffort }) })
+      : [describe(current), failed && !unknown ? t("chat-modelpill.failed") : ""].filter(Boolean).join(" · ");
   const short = pillShortName(name);
-  const effort = shown.effort ? effortTitle(shown.effort) : "";
+  const shownEffortId = queuedEffort ?? shown.effort;
+  const effort = shownEffortId ? effortTitle(shownEffortId) : "";
   // An explicit Agent launcher matches the panel even across engines; other pills keep the existing pending label.
   const target = launcher || (pending ? (pending.engine !== current.engine ? agentName(pending.engine, pending.engineLabel) : pending.provider) : "");
   const repeatsEngine = !pending && Boolean(launcher) &&
@@ -135,9 +142,10 @@ export function ModelPill({
       {short !== name && (
         <span title={name} data-pill-short className={cx("hidden shrink-[1000] truncate @max-[600px]/composer:block @max-[600px]/composer:max-w-[108px]", launcher ? "min-w-[3ch]" : "min-w-0", !launcher && ULTRA_HIDDEN)}>{short}</span>
       )}
-      {shown.effort && (
-        <span title={effort} data-pill-effort className={cx("ml-1 shrink-0 whitespace-nowrap @max-[600px]/composer:min-w-0 @max-[600px]/composer:shrink @max-[600px]/composer:truncate", ULTRA_HIDDEN)}>
-          {pillEffort(shown.effort)}
+      {shownEffortId && (
+        <span title={effort} data-pill-effort data-pill-effort-pending={queuedEffort ? "true" : undefined} className={cx("ml-1 inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap @max-[600px]/composer:min-w-0 @max-[600px]/composer:shrink @max-[600px]/composer:truncate", ULTRA_HIDDEN)}>
+          {queuedEffort && <Icon name="clock" stroke={2} className="size-[11px] shrink-0 text-ink-3" />}
+          {pillEffort(shownEffortId)}
         </span>
       )}
       {shown.fast && <Icon name="bolt" stroke={2} className={cx("ml-0.5 size-[13px] shrink-0 fill-current text-ink-2 @max-[520px]/composer:size-[12px]", ULTRA_HIDDEN)} />}
@@ -245,6 +253,7 @@ export const AgentModelPill = memo(function AgentModelPill({ session }: { sessio
       <ModelPill
         current={{ ...view, launcherName: session.launcher ? launcherTitle(session.launcher, launchers) : undefined }}
         pending={pending}
+        pendingEffort={!pending && session.pending_effort && !session.effort_change_failed ? session.pending_effort : undefined}
         loading={view.loading}
         failed={view.failed}
         open={Boolean(anchor)}

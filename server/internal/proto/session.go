@@ -588,6 +588,10 @@ const (
 	// CodeModesUnsupported: an agent in a terminal whose mode, effort and model are its start's (cursor, agy).
 	CodeModesUnsupported    = "modes_unsupported"
 	CodeEffortChangePending = "effort_change_pending"
+	// CodeModesEffortBusy: a session's thinking effort cannot change immediately while a turn or dialog is active.
+	CodeModesEffortBusy = "modes_effort_busy"
+	// CodeModesModelBusy: a session's model cannot switch while a turn or dialog is active.
+	CodeModesModelBusy = "modes_model_busy"
 )
 
 // CodeNotLoaded is what session.items and session.item refuse with when reading the session would start its agent: an

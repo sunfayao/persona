@@ -403,7 +403,10 @@ func (n *Node) agyPaneModesCall(ctx context.Context, id string, a host.Agent, ra
 	}
 	status := n.workAgentStatus(live, time.Now())
 	if status == proto.StatusWorking || status == proto.StatusBlocked {
-		return nil, fmt.Errorf("Agent 正在工作，这一轮结束后再切换模型")
+		if model != "" {
+			return nil, refusal(proto.CodeModesModelBusy, i18n.T(i18n.Default, "rpc-errors.modes_model_busy"), nil)
+		}
+		return nil, refusal(proto.CodeModesEffortBusy, i18n.T(i18n.Default, "rpc-errors.modes_effort_busy"), nil)
 	}
 	if err := n.checkPane(ctx, live.PaneID, agyAgent, ""); err != nil {
 		return nil, err

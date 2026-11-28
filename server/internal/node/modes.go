@@ -425,7 +425,7 @@ func (n *Node) updateModes(ctx context.Context, id, mode, effort string, pending
 	}
 	if effort != "" {
 		if c, ok := n.outsideClaude(id); ok && (c.Status == "busy" || c.Status == "waiting") {
-			return fmt.Errorf("Agent 正在工作，这一轮结束后再改思考强度")
+			return refusal(proto.CodeModesEffortBusy, i18n.T(i18n.Default, "rpc-errors.modes_effort_busy"), nil)
 		}
 		if err := n.setTerminalEffort(ctx, id, pane, effort, pending); err != nil {
 			return err

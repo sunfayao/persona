@@ -13,8 +13,9 @@ import type { PanelConfig } from "../../lib/model-panel";
 import { usePanelQuotas } from "../../lib/panel-quotas";
 import { sessionLauncher } from "../../lib/model-switch";
 import { LAUNCHER_SWITCH_FEATURE, launcherEngine, pickPlan, sessionPanel, speedStep, type ModeStep, type PanelOptions } from "../../lib/session-panel";
+import { effortTitle } from "../../lib/session-actions";
 import { ENGINE_SWITCH_FEATURE, forgetModel, machineLauncherList, modelList, pendingView, readModels, sessionEngine, sessionModelHost, useModelLists } from "../../lib/session-models";
-import { hubHas, useStore } from "../../lib/store";
+import { getSession, hubHas, useStore } from "../../lib/store";
 import type { Session } from "../../lib/types";
 import { ultracodeOffered } from "../../lib/ultracode";
 import { toast } from "../../ui/atoms";
@@ -108,10 +109,16 @@ export function SessionModelPanel({ session, displayModel, anchor, onClose }: { 
   const onApplyCurrent = async (patch: { effort?: string; fast?: boolean }) => {
     const s = latest.current;
     const steps: ModeStep[] = [];
-    if (patch.effort && patch.effort !== s.effort) steps.push({ effort: patch.effort });
+    const effortChanged = Boolean(patch.effort) && (s.pending_effort ? (patch.effort !== s.pending_effort || Boolean(s.effort_change_failed)) : patch.effort !== s.effort);
+    if (effortChanged && patch.effort) steps.push({ effort: patch.effort });
     const speed = speedStep(s, patch.fast, true);
     if (speed) steps.push(speed);
-    return apply(steps);
+    if (!(await apply(steps))) return false;
+    const queued = getSession(s.machine_id, s.session_id)?.pending_effort;
+    if (effortChanged && queued && queued === patch.effort) {
+      toast(t("chat-modelpanel.effort_queued", { effort: effortTitle(queued) }), "ok");
+    }
+    return true;
   };
   const onReload = (provider: string) => void readModels(mid, provider, { again: true, first: provider === own, host: provider === own ? ownHost : undefined });
   const onForget = (provider: string, model: string) => {

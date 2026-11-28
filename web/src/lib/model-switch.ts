@@ -29,6 +29,11 @@ export function modelBusy(s: Session): string {
   return (st === "working" && (isTraeCli(s.agent) || !s.background_working)) || st === "needs_you" ? t("composer.busy") : "";
 }
 
+/** Whether a thinking effort pick on `s` opts into node-side queuing while the Claude Code terminal turn runs. */
+export function canQueueTerminalEffort(s: Session): boolean {
+  return !s.assistant && !s.source_kind && (!s.agent || s.agent === "claude") && Boolean(s.pane_id);
+}
+
 /** The node's name for the Codex App's launcher (#5726, server/internal/node/codexapp_new.go). */
 const CODEX_APP_LAUNCHER = "codex-app";
 

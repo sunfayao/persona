@@ -105,7 +105,7 @@ import { useEarlierStretches } from "./useEarlierStretches";
 import { dayRowKey, withDayDividers } from "./day-dividers";
 import type { ChatRowWithModes, ModeChanges } from "./mode-changes";
 import { useFoldSearch } from "./useFoldSearch";
-import { DeleteSessionDialog, preloadSessionDialogs, RenameDialog, RenameSpaceDialog, renameTitle, SessionInfoDialog } from "./SessionDialogs";
+import { DeleteSessionDialog, effortQueueDone, isEffortQueued, preloadSessionDialogs, RenameDialog, RenameSpaceDialog, renameTitle, SessionInfoDialog } from "./SessionDialogs";
 import { PermissionLabel, PermissionPicker, usePlanMode } from "./PermissionPicker";
 import { permissionsCommand } from "../../lib/permissions-command";
 import { archiveItems } from "../AgentMenus";
@@ -241,6 +241,8 @@ interface Pending {
   acceptedAt?: number;
   /** The node held it back until an ultracode change waiting for the turn is through (#3428): it goes again then. */
   waits?: boolean;
+  /** The node held it back until a queued thinking effort change applies after the turn: it goes again then. */
+  waitsEffort?: boolean;
   /** Its POST has not been answered yet (it may be behind earlier ones): the bubble does not time out. */
   posting?: boolean;
 }
@@ -726,7 +728,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
     const drop = new Set([...shown].map((p) => p.id));
     const now = Date.now();
     for (const p of pending) {
-      if (drop.has(p.id) || (!p.waits && !p.posting && state !== "working" && now - (p.acceptedAt ?? p.at) >= SENT_GRACE_MS)) {
+      if (drop.has(p.id) || (!p.waits && !p.waitsEffort && !p.posting && state !== "working" && now - (p.acceptedAt ?? p.at) >= SENT_GRACE_MS)) {
         forgetOutgoing(outboxKey(mid, sid), p.id);
         if (drop.has(p.id)) settleMessageEcho(mid, sid, p.id);
       }
@@ -735,7 +737,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
       // a sent one waits for its copy while the agent works and SENT_GRACE_MS after, as the outbox and the apps do: the
       // transcript can write it late (a long context compacted first, #1119); one held back for an ultracode change
       // waits as long as the turn does
-      return ps.filter((p) => !drop.has(p.id) && (p.waits || p.posting || state === "working" || now - (p.acceptedAt ?? p.at) < SENT_GRACE_MS));
+      return ps.filter((p) => !drop.has(p.id) && (p.waits || p.waitsEffort || p.posting || state === "working" || now - (p.acceptedAt ?? p.at) < SENT_GRACE_MS));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [segs, tr.firstRead, refusedNoRow]);
@@ -743,7 +745,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   // A quiet transcript must not leave accepted bubbles forever. Reloads use the same stored deadline; local
   // composer bubbles retain their existing grace while the agent works. Never expire a POST still in flight.
   useEffect(() => {
-    const expiring = state === "working" ? [] : pending.filter((p) => !p.posting && !p.waits);
+    const expiring = state === "working" ? [] : pending.filter((p) => !p.posting && !p.waits && !p.waitsEffort);
     const deadlines = [...expiring, ...outbox.filter((e) => e.state === "sent")].map((e) => (e.acceptedAt ?? e.at) + SENT_GRACE_MS);
     if (!deadlines.length) return;
     const timer = setTimeout(() => {
@@ -1253,7 +1255,8 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
           // a switch to another launcher the user picked for this Agent goes with their own message from here, and only
           // with it (#5035): the agent restarts there first
           json: { text: out.text, images: out.images.length ? out.images : undefined, client_msg_id: id, clear_draft: clearDraft, launcher, model,
-            queue_next_turn: out.queueNextTurn, apply_switch: !assistant && row?.pending_switch ? true : undefined },
+            queue_next_turn: out.queueNextTurn, apply_switch: !assistant && row?.pending_switch ? true : undefined,
+            wait_for_effort: !assistant && row?.pending_effort ? true : undefined },
         }));
         if (!flight.current()) return true;
         assertDelivered(reply); // a bare operation receipt is no delivery: in doubt, with Check (#10194)
@@ -1292,6 +1295,17 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
         if (!assistant && isUltracodeQueued(e) && attempt < ULTRACODE_SEND_TRIES) {
           setPending((ps) => ps.map((x) => (x.id === id ? { ...x, waits: true } : x)));
           void ultracodeQueueDone(mid, sid).then((through) => {
+            setPending((ps) => ps.filter((x) => x.id !== id));
+            if (through) {
+              forgetOutgoing(key, id);
+              void deliver(out, uuid(), clearDraft, attempt + 1);
+            } else failed(e, out, p);
+          });
+          return true;
+        }
+        if (!assistant && isEffortQueued(e) && !getSession(mid, sid)?.effort_change_failed && attempt < ULTRACODE_SEND_TRIES) {
+          setPending((ps) => ps.map((x) => (x.id === id ? { ...x, waitsEffort: true } : x)));
+          void effortQueueDone(mid, sid).then((through) => {
             setPending((ps) => ps.filter((x) => x.id !== id));
             if (through) {
               forgetOutgoing(key, id);
@@ -2467,7 +2481,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
               .map((x) => x.el)}
             {showMessageFeedback && (
               <div className="flex items-center gap-2.5" data-message-feedback={sendFeedback || (processing ? "processing" : "sending")}>
-                {sendFeedback === "unknown" ? <span role="status" className="text-ink-3">{t("lib-outbox.delivery_unknown")}</span> : <Loading label={shownPending.some((p) => p.waits) ? t("ultracode.send_waits") : sendFeedback === "processing" || processing ? t("chat-segmentview.processing") : starting ? t("chat-chatview.preparing") : online ? t("chat-segmentview.sending") : t("chat-chatview.waiting_for_hub")} />}
+                {sendFeedback === "unknown" ? <span role="status" className="text-ink-3">{t("lib-outbox.delivery_unknown")}</span> : <Loading label={shownPending.some((p) => p.waits) ? t("ultracode.send_waits") : shownPending.some((p) => p.waitsEffort) ? t("chat-chatview.effort_send_waits") : sendFeedback === "processing" || processing ? t("chat-segmentview.processing") : starting ? t("chat-chatview.preparing") : online ? t("chat-segmentview.sending") : t("chat-chatview.waiting_for_hub")} />}
               </div>
             )}
             {voiceState && <VoiceTail owner={voiceOwner} persona={persona.name} />}

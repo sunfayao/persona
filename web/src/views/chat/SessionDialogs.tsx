@@ -2,11 +2,11 @@
 // Session info and Rename / Rename space / Delete load as chunks of their own, with their worktree cleanup beside them;
 // what stays here is what the first screen uses.
 import { useRef } from "react";
-import { api, errorText, HubTimeoutError, pastHub, sessionPath } from "../../lib/api";
+import { api, ApiError, errorText, HubTimeoutError, pastHub, sessionPath } from "../../lib/api";
 import { isTraeCli } from "../../lib/agent-kind";
 import { BYPASS_MODE, renameBody } from "../../lib/session-actions";
 import { bypassRestarts } from "../../lib/header-mode";
-import { sessionLauncher } from "../../lib/model-switch";
+import { canQueueTerminalEffort, modelBusy, sessionLauncher } from "../../lib/model-switch";
 import { getSession, refreshAssistant, upsertSession } from "../../lib/store";
 import type { Session } from "../../lib/types";
 import { toast } from "../../ui/atoms";
@@ -62,21 +62,60 @@ function modeChangeError(e: unknown) {
  *  a pick applies the model and then the effort, and the second must build on the session the first changed. */
 export async function applyModes(latest: () => Session, patch: { permission_mode?: string; effort?: string; model?: string }): Promise<boolean> {
   const base = latest();
-  const before = { permission_mode: base.permission_mode, effort: base.effort, model: base.model, bypass_pending: base.bypass_pending };
+  const before = {
+    permission_mode: base.permission_mode,
+    effort: base.effort,
+    model: base.model,
+    bypass_pending: base.bypass_pending,
+    pending_effort: base.pending_effort,
+    effort_change_failed: base.effort_change_failed,
+  };
+  const queueEffort = Boolean(patch.effort) && canQueueTerminalEffort(base);
+  const body = queueEffort ? { ...patch, queue_effort: true } : patch;
   // Full access the agent reaches only by a restart (#6476): drawn as waiting for it, in the mode it still runs in;
   // any other mode drops a restart that waits
   const restart = patch.permission_mode === BYPASS_MODE && bypassRestarts(base);
-  const drawn: Partial<Session> = restart ? { ...patch, permission_mode: base.permission_mode, bypass_pending: true } : patch.permission_mode ? { ...patch, bypass_pending: undefined } : patch;
+  const drawn: Partial<Session> = restart ? { ...patch, permission_mode: base.permission_mode, bypass_pending: true } : patch.permission_mode ? { ...patch, bypass_pending: undefined } : { ...patch };
+  if (queueEffort && patch.effort) {
+    if (patch.effort === base.effort && base.pending_effort) {
+      drawn.effort = base.effort;
+      drawn.pending_effort = undefined;
+      drawn.effort_change_failed = undefined;
+    } else if (modelBusy(base)) {
+      drawn.effort = base.effort;
+      drawn.pending_effort = patch.effort;
+      drawn.effort_change_failed = undefined;
+    } else {
+      drawn.pending_effort = undefined;
+      drawn.effort_change_failed = undefined;
+    }
+  }
   // TRAE publishes its native settings after readback. Leave the prior model visible while the request is pending.
   const optimistic = !(patch.model && isTraeCli(base.agent));
   if (optimistic) upsertSession({ ...base, ...drawn });
   try {
-    await api(`${sessionPath(base.machine_id, base.session_id)}/modes`, { method: "POST", json: patch, timeout: MODE_CONFIRM_MS });
-    const current = latest();
-    if (!optimistic && current.model === before.model) upsertSession({ ...current, model: patch.model });
+    const reply = await api<{ pending_effort?: string } | undefined>(`${sessionPath(base.machine_id, base.session_id)}/modes`, { method: "POST", json: body, timeout: MODE_CONFIRM_MS });
+    const current = getSession(base.machine_id, base.session_id) ?? latest();
+    if (!optimistic && current.model === before.model) {
+      upsertSession({ ...current, model: patch.model });
+    } else if (queueEffort && patch.effort) {
+      if (typeof reply?.pending_effort === "string" && reply.pending_effort) {
+        upsertSession({
+          ...current,
+          effort: current.effort === patch.effort ? before.effort : current.effort,
+          pending_effort: reply.pending_effort,
+          effort_change_failed: undefined,
+        });
+      } else {
+        upsertSession({ ...current, effort: patch.effort, pending_effort: undefined, effort_change_failed: undefined });
+      }
+    }
     return true;
   } catch (e) {
-    if (optimistic && !(e instanceof HubTimeoutError)) upsertSession({ ...latest(), ...Object.fromEntries(Object.keys(drawn).map((k) => [k, before[k as keyof typeof before]])) });
+    if (optimistic && !(e instanceof HubTimeoutError)) {
+      const current = getSession(base.machine_id, base.session_id) ?? latest();
+      upsertSession({ ...current, ...Object.fromEntries(Object.keys(drawn).map((k) => [k, before[k as keyof typeof before]])) });
+    }
     modeChangeError(e);
     return false;
   }
@@ -121,4 +160,26 @@ export async function setServiceTier(s: Session, tier: string): Promise<boolean>
     modeChangeError(e);
     return false;
   }
+}
+
+const EFFORT_PENDING_CODE = "effort_change_pending";
+
+/** Whether the node refused a send because a queued Claude Code thinking effort change is still pending. */
+export function isEffortQueued(e: unknown): boolean {
+  return e instanceof ApiError && e.code === EFFORT_PENDING_CODE;
+}
+
+/** Resolves true once the session's queued thinking effort is confirmed and cleared; false if it fails, times out, or the session disappears. */
+export function effortQueueDone(mid: string, sid: string, { minMs = 1500, maxMs = 30 * 60_000, every = 1000 }: { minMs?: number; maxMs?: number; every?: number } = {}): Promise<boolean> {
+  const start = Date.now();
+  return new Promise((resolve) => {
+    const tick = setInterval(() => {
+      const s = getSession(mid, sid);
+      const waited = Date.now() - start;
+      const done = !s || s.effort_change_failed || waited >= maxMs ? false : waited >= minMs && !s.pending_effort ? true : undefined;
+      if (done === undefined) return;
+      clearInterval(tick);
+      resolve(done);
+    }, every);
+  });
 }

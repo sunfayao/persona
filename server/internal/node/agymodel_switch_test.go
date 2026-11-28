@@ -165,8 +165,15 @@ func TestAgyPaneSwitchRefusesWorkingAndOpenDialog(t *testing.T) {
 	busy := agyTestAgent(agyTestPane, home, agyTestID)
 	busy["agent_status"] = proto.StatusWorking
 	seedAgents(t, n, f, busy)
-	if _, err := request(t, n, "session.modes", map[string]any{"session_id": agyTestRow, "model": "gemini-4-carbon-high"}); err == nil || !strings.Contains(err.Error(), "正在工作") {
-		t.Fatalf("expected busy refusal, got %v", err)
+	if _, err := request(t, n, "session.modes", map[string]any{"session_id": agyTestRow, "model": "gemini-4-carbon-high"}); err == nil {
+		t.Fatalf("expected busy model refusal, got nil")
+	} else if code, data := refusalOf(t, err); code != proto.CodeModesModelBusy || data["delivered"] != deliveredNone || !strings.Contains(err.Error(), "正在工作") {
+		t.Fatalf("expected coded busy model refusal, got %v (code=%q data=%v)", err, code, data)
+	}
+	if _, err := request(t, n, "session.modes", map[string]any{"session_id": agyTestRow, "effort": "high"}); err == nil {
+		t.Fatalf("expected busy effort refusal, got nil")
+	} else if code, data := refusalOf(t, err); code != proto.CodeModesEffortBusy || data["delivered"] != deliveredNone || !strings.Contains(err.Error(), "正在工作") {
+		t.Fatalf("expected coded busy effort refusal, got %v (code=%q data=%v)", err, code, data)
 	}
 
 	idle := agyTestAgent(agyTestPane, home, agyTestID)

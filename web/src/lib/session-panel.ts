@@ -14,8 +14,9 @@ import { ALL_EFFORTS, defaultModel, launcherAgent, modelName, typedModelOffered,
 import { launcherBlock } from "./launcher-health";
 import { validModelId } from "./model-id";
 import { cleanSetup, type PanelConfig, type PanelModel, type PanelProvider, type PanelState } from "./model-panel";
-import { canSwitchModel, isCurrentModel, modelBusy, sessionLauncher } from "./model-switch";
+import { canQueueTerminalEffort, canSwitchModel, isCurrentModel, modelBusy, sessionLauncher } from "./model-switch";
 import { launcherTitle } from "./provider-names";
+import { effortTitle } from "./session-actions";
 import { currentModelRow, engineSwitchable, modelLabel, pendingEngine, sessionEngine, sessionSwitches, type ModelList } from "./session-models";
 import type { Launcher, Session } from "./types";
 
@@ -54,6 +55,10 @@ function panelModel(m: AgentModel, engine: string, current: boolean, s: Session,
     if (s.state === "offline" || s.status === "offline") out.effortUnavailable = t("chat-modelpanel.effort_offline");
     else if (s.capabilities?.send === false) out.effortUnavailable = t("chat-modelpanel.effort_read_only");
     else out.effortUnavailable = t("chat-modelpanel.effort_traex_terminal");
+  } else if (current && engine === "claude" && canQueueTerminalEffort(s) && sessionSwitches(s).effort) {
+    if (s.pending_effort && s.effort_change_failed) out.effortNote = t("chat-modelpanel.effort_change_failed", { effort: effortTitle(s.pending_effort) });
+    else if (s.pending_effort) out.effortNote = t("chat-modelpanel.effort_pending_turn", { effort: effortTitle(s.pending_effort) });
+    else if (modelBusy(s)) out.effortNote = t("chat-modelpanel.effort_next_turn");
   }
   return out;
 }
@@ -145,8 +150,9 @@ export function sessionPanel(s: Session, launchers: Launcher[] | undefined, list
   });
 
   const model = row?.id ?? shownModel;
+  const shownEffort = s.pending_effort && !s.effort_change_failed ? s.pending_effort : s.effort;
   const state: PanelState = {
-    current: model ? cleanSetup({ provider: own, model, effort: s.effort, fast: s.service_tier === "priority" }) : null,
+    current: model ? cleanSetup({ provider: own, model, effort: shownEffort, fast: s.service_tier === "priority" }) : null,
     // the models that switch at once: the session's own launcher's
     recommended: modelSwitch ? [own] : [],
   };
@@ -186,7 +192,8 @@ export function pickPlan(s: Session, config: PanelConfig, listOf: (launcher: str
   if (s.pending_switch?.launcher && s.pending_switch.launcher !== own) steps.push({ launcher: own, from: own });
   if (!same) steps.push({ model: config.model });
   const effort = config.effort || (sessionEngine(s) === "agy" ? row?.default_effort : undefined);
-  if (effort && effort !== s.effort) steps.push({ effort });
+  const effortChanged = Boolean(effort) && (s.pending_effort ? (effort !== s.pending_effort || Boolean(s.effort_change_failed)) : effort !== s.effort);
+  if (effortChanged && effort) steps.push({ effort });
   // a saved setup without Fast is Standard (cleanSetup drops `fast: false`)
   const speed = speedStep(s, Boolean(config.fast));
   if (speed) steps.push(speed);

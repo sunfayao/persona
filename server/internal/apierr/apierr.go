@@ -362,6 +362,8 @@ var rpcFailureKeys = map[string]string{
 	proto.CodeModesNotRunning:     "rpc-errors.modes_not_running",
 	proto.CodeModesUnsupported:    "rpc-errors.modes_unsupported",
 	proto.CodeEffortChangePending: "rpc-errors.effort_change_pending",
+	proto.CodeModesEffortBusy:     "rpc-errors.modes_effort_busy",
+	proto.CodeModesModelBusy:      "rpc-errors.modes_model_busy",
 	// a message to a stopped agent: read-only, its terminal page's Resume brings it back (node stopped.go, #4754)
 	"agent_stopped":      "rpc-errors.agent_stopped",
 	"resume_not_allowed": "rpc-errors.resume_not_allowed",

@@ -300,6 +300,10 @@ export interface Session {
   model?: string;
   permission_mode?: string;
   effort?: string;
+  /** A thinking effort change waiting for this Claude Code turn to end (node/effort_change.go). */
+  pending_effort?: string;
+  /** The queued thinking effort change failed when the turn ended; choose a level again or keep the current one. */
+  effort_change_failed?: boolean;
   /** This Claude Code may switch to Allow All while it runs: it was started with a flag that allows it (#1379). */
   bypass_available?: boolean;
   /** Full access was picked while this Claude Code cannot reach it with shift+tab: the node restarts the session in it

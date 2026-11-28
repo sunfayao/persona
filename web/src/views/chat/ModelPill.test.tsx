@@ -406,7 +406,7 @@ describe("an Agent's pill", () => {
     await show(agent());
     await open();
     expect(await act(() => panel.props!.onPick({ provider: "gateway", model: "haiku", effort: "low" }))).toBe(true);
-    expect(modes()).toEqual([{ model: "haiku" }, { effort: "low" }]);
+    expect(modes()).toEqual([{ model: "haiku" }, { effort: "low", queue_effort: true }]);
     calls.length = 0;
     modesAnswer = () => json({ error: "dialog_open" }, 409);
     expect(await act(() => panel.props!.onPick({ provider: "gateway", model: "haiku", effort: "max" }))).toBe(false);
@@ -577,7 +577,7 @@ describe("an Agent's pill", () => {
 
     // Updating effort on the real session does not persist the display-only model into the store.
     expect(await act(() => panel.props!.onApplyCurrent!({ effort: "low" }))).toBe(true);
-    expect(modes()).toEqual([{ effort: "low" }]);
+    expect(modes()).toEqual([{ effort: "low", queue_effort: true }]);
     expect(getSession(s.machine_id, "s1")?.model).toBeUndefined();
 
     // Selecting the advertised model before the session reports a real model still clears pending_switch and sends the model request.
@@ -623,6 +623,37 @@ describe("an Agent's pill", () => {
     expect(await act(() => panel.props!.onPick({ provider: "gateway", model: "opus", effort: "high" }))).toBe(false);
     expect(modes()).toEqual([{ model: "opus" }]);
     expect(getSession(s.machine_id, "s1")?.model).toBeUndefined();
+  });
+
+  it("queues effort while a Claude terminal session is working, shows it on the pill, and supports cancel or retry", async () => {
+    const busy = agent({ status: "working", state: "working", effort: "max" });
+    modesAnswer = (body) => {
+      const p = body as { effort?: string };
+      return p.effort === "max" ? json({}) : json({ pending_effort: p.effort });
+    };
+    await show(busy);
+    await open();
+    expect(await act(() => panel.props!.onApplyCurrent!({ effort: "high" }))).toBe(true);
+    expect(modes()).toEqual([{ effort: "high", queue_effort: true }]);
+    expect(getSession(busy.machine_id, "s1")).toMatchObject({ effort: "max", pending_effort: "high" });
+    expect(toast).toHaveBeenCalledWith(t("chat-modelpanel.effort_queued", { effort: "高" }), "ok");
+    act(() => root.render(<AgentModelPill session={getSession(busy.machine_id, "s1")!} />));
+    await flush();
+    expect(pill()!.querySelector("[data-pill-effort-pending]")?.textContent).toBe("高");
+    expect(pill()!.title).toBe(t("chat-modelpill.current_and_next", { current: "Claude Code · Opus 5.5 · gateway · 最高", next: "Claude Code · Opus 5.5 · gateway · 高" }));
+
+    // Picking the confirmed effort clears the queued effort.
+    calls.length = 0;
+    expect(await act(() => panel.props!.onApplyCurrent!({ effort: "max" }))).toBe(true);
+    expect(modes()).toEqual([{ effort: "max", queue_effort: true }]);
+    expect(getSession(busy.machine_id, "s1")).toMatchObject({ effort: "max", pending_effort: undefined });
+
+    // A failed queued effort can be retried with the same level.
+    calls.length = 0;
+    const failed = agent({ status: "idle", state: "idle", effort: "max", pending_effort: "high", effort_change_failed: true });
+    await show(failed);
+    expect(await act(() => panel.props!.onApplyCurrent!({ effort: "high" }))).toBe(true);
+    expect(modes()).toEqual([{ effort: "high", queue_effort: true }]);
   });
 
   it("is a label where nothing switches (offline), and nothing at all without a model", async () => {

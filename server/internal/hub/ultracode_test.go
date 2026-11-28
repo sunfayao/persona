@@ -3,6 +3,8 @@ package hub
 import (
 	"errors"
 	"net/http"
+	"net/http/httptest"
+	"net/netip"
 	"reflect"
 	"strings"
 	"testing"
@@ -127,4 +129,56 @@ func TestSessionSpeedValidation(t *testing.T) {
 	if w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "node_outdated") {
 		t.Fatalf("%d %s", w.Code, w.Body)
 	}
+}
+
+func TestSessionModesBusyReturnsConflictAndForwardsQueueEffort(t *testing.T) {
+	t.Run("busy effort and model refusals map to 409 instead of 502", func(t *testing.T) {
+		for _, tc := range []struct {
+			name, body, code, lang, wantText string
+		}{
+			{"effort busy zh", `{"effort":"high"}`, proto.CodeModesEffortBusy, "zh-Hans", "这一轮结束后再改思考强度"},
+			{"effort busy en", `{"effort":"high"}`, proto.CodeModesEffortBusy, "en", "Change thinking effort after this turn finishes"},
+			{"model busy zh", `{"model":"opus"}`, proto.CodeModesModelBusy, "zh-Hans", "这一轮结束后再切换模型"},
+			{"model busy ja", `{"model":"opus"}`, proto.CodeModesModelBusy, "ja", "モデルを切り替えてください"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				h := newTestHub(t)
+				modelsNode(t, h, MachineConfig{ID: "box"}, func(method string, _ map[string]any) (any, error) {
+					if method != "session.modes" {
+						t.Fatalf("unexpected method %s", method)
+					}
+					return nil, &rpc.Error{Code: tc.code, Message: "busy", Data: []byte(`{"delivered":"none"}`)}
+				})
+				req := httptest.NewRequest("POST", "https://example.com/api/v1/sessions/box/s1/modes", strings.NewReader(tc.body))
+				req.RemoteAddr = netip.AddrFrom4([4]byte{127, 0, 0, 1}).String() + ":1234"
+				req.Header.Set("Authorization", "Bearer "+h.cfg.Token)
+				req.Header.Set("Accept-Language", tc.lang)
+				w := httptest.NewRecorder()
+				h.routes().ServeHTTP(w, req)
+				if w.Code != http.StatusConflict {
+					t.Fatalf("status = %d, want 409: %s", w.Code, w.Body)
+				}
+				body := errorResponse(t, w)
+				if body["code"] != tc.code || body["delivered"] != "none" || !strings.Contains(body["error"].(string), tc.wantText) {
+					t.Fatalf("unexpected 409 body: %v", body)
+				}
+			})
+		}
+	})
+
+	t.Run("queue_effort passes through and returns pending_effort", func(t *testing.T) {
+		h := newTestHub(t)
+		var got map[string]any
+		modelsNode(t, h, MachineConfig{ID: "box"}, func(method string, p map[string]any) (any, error) {
+			if method != "session.modes" {
+				t.Fatalf("unexpected method %s", method)
+			}
+			got = p
+			return map[string]any{"pending_effort": p["effort"]}, nil
+		})
+		w := modelsRequest(h, "POST", "/api/v1/sessions/box/s1/modes", `{"effort":"high","queue_effort":true}`)
+		if w.Code != http.StatusOK || got["queue_effort"] != true || !strings.Contains(w.Body.String(), `"pending_effort":"high"`) {
+			t.Fatalf("%d %s; node got %v", w.Code, w.Body, got)
+		}
+	})
 }

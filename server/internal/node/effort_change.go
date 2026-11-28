@@ -92,7 +92,7 @@ func (n *Node) setTerminalEffort(ctx context.Context, id, pane, effort string, p
 			return nil
 		}
 	} else if live && (a.AgentStatus == proto.StatusWorking || a.AgentStatus == proto.StatusBlocked) {
-		return fmt.Errorf("Agent 正在工作，这一轮结束后再改思考强度")
+		return refusal(proto.CodeModesEffortBusy, i18n.T(i18n.Default, "rpc-errors.modes_effort_busy"), nil)
 	}
 
 	if err := n.driveTerminalEffort(ctx, id, pane, effort); err != nil {

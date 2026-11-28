@@ -23,6 +23,7 @@
   "loading_chat": "正在读取对话",
   "retry": "重试",
   "waiting_for_hub": "等待 hub 恢复连接",
+  "effort_send_waits": "等思考强度在这一轮结束后切换，再发这条",
   "view_only": "此会话仅可查看",
   "ask_placeholder": "今天想让 {name} 帮你做点什么呢~",
   "resume_placeholder": "发消息会在电脑上恢复这个会话…",
