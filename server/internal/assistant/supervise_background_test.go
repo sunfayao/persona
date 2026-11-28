@@ -671,8 +671,8 @@ func TestNoBackgroundSupervisorIsAnnounced(t *testing.T) {
 	}
 }
 
-// The compatibility setting must describe the route ownSupervisor really selects: main for new work, with only
-// previously assigned notices left to an already configured background conversation (#5732).
+// ownSupervisor selects main for new work, with only previously assigned notices left to an already configured
+// background conversation (#5732); persona_settings no longer offers the retired switch.
 func TestMainSupervisesOwnTasksDescriptionMatchesCompatibilityRoute(t *testing.T) {
 	s, f, todo := newBackgroundService(t)
 	cfg := s.settings(context.Background())
@@ -682,24 +682,13 @@ func TestMainSupervisesOwnTasksDescriptionMatchesCompatibilityRoute(t *testing.T
 	if got := s.ownSupervisor(cfg); got != cfg.Main {
 		t.Fatalf("ownSupervisor() = %q, want main %q", got, cfg.Main)
 	}
-	about := ""
 	for _, setting := range s.ownSettings() {
 		if setting.Key == "assistant.main_supervises_own_tasks" {
-			about = setting.About
-		}
-	}
-	for _, stale := range []string{"one built-in Persona conversation made on first use", "follows up every supervised task"} {
-		if strings.Contains(about, stale) {
-			t.Fatalf("setting still promises a route that does not exist: %q", about)
-		}
-	}
-	for _, want := range []string{"main conversation supervises every new task", "previously assigned supervision notices", "no background conversation is created"} {
-		if !strings.Contains(about, want) {
-			t.Fatalf("setting description lacks %q: %q", want, about)
+			t.Fatal("persona_settings still offers the retired main_supervises_own_tasks")
 		}
 	}
 
-	// The compatibility description must not erase the old closeout path: a real previously assigned notice still drains.
+	// The old closeout path stays: a real previously assigned notice still drains.
 	f.known["legacy-background"] = true
 	f.setSessions("server",
 		proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},

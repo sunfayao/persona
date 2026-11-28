@@ -37,13 +37,18 @@ import (
 // inbox_draft is not offered any more: inbox_suggest's reply does what it did. Its handler stays (runTool) so a call
 // from an older conversation or a stored suggestion still works.
 var toolNames = []string{"resource_status", "ask_user", "notify_user", "supervision_finish", "schedule_followup", "schedule_routine", "schedule_state_set", "delete_routine", "list_followups",
-	"cancel_followup", "machines_list", "machine_redeploy", "machine_exec", "agents_list", "agent_read", "agent_send", "agent_switch", "agents_switch", "agent_interrupt", "agent_start", "agent_supervise", "agent_archive", "agent_unarchive", "agent_autoname", "agent_autoname_receipt", "interaction_answer", "ask_escalate", "inbox_suggest",
+	"cancel_followup", "machines_list", "machine_redeploy", "machine_exec", "agents_list", "agent_read", "agent_send", "agent_switch", "agents_switch", "agent_interrupt", "agent_start", "agent_supervise", "agent_archive", "agent_unarchive", "interaction_answer", "ask_escalate", "inbox_suggest",
 	"inbox_folders", "inbox_move", "inbox_post", "persona_settings", "secret_run", "skill_import", "skill_save",
 	"model_profiles_list", "model_profile_get", "model_profile_switch", "model_profile_rollback",
 	"repositories_list", "repository_get", "repository_add", "view_show", "view_update", "view_get",
 	"conversations_list", "conversation_read", "conversation_send", "task_plan", "task_plan_withdraw", "task_review", "task_scope", "task_decided", "task_start_screen", "task_start_keys", "task_retry",
-	"todo_workspace", "todo_repositories_get", "todo_repositories_set", "todo_repository_links_set", "todo_repository_links_add", "todo_list", "todo_get", "todo_create", "todo_update", "todo_complete", "todo_reopen", "todo_delete", "concern_report",
+	"todo_repositories_get", "todo_repositories_set", "todo_repository_links_set", "todo_repository_links_add", "todo_list", "todo_get", "todo_create", "todo_update", "todo_complete", "todo_reopen", "todo_delete", "concern_report",
 	"decision_record", "decisions_query", "tool_note"}
+
+// retiredToolNames are tools no list offers any more whose calls still route through runTool, so a conversation that
+// saw one before it went is answered as before: agent_autoname and its receipt (an Agent's tab is named by itself,
+// assistant.agent_auto_naming), and todo_workspace (the legacy Engine workspace). Each still has its description.
+var retiredToolNames = []string{"agent_autoname", "agent_autoname_receipt", "todo_workspace"}
 
 // Tools are the assistant's tools (assistant.tools).
 func (s *Service) Tools(ctx context.Context) []proto.Tool {

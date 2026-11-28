@@ -50,7 +50,7 @@ var coreTools = []string{
 // extension sharing a prefix must keep its own loading policy.
 var workGuideTools = []string{
 	"machines_list", "agents_list", "agent_read", "agent_send", "agent_start", "agent_interrupt",
-	"agent_switch", "agents_switch", "agent_archive", "agent_unarchive", "agent_autoname", "agent_autoname_receipt",
+	"agent_switch", "agents_switch", "agent_archive", "agent_unarchive",
 	"agent_supervise", "task_plan", "task_plan_withdraw", "task_scope", "task_retry",
 	"task_start_screen", "task_start_keys", "task_review", "task_decided",
 	"todo_list", "todo_get", "todo_create", "todo_update", "todo_complete", "todo_reopen", "todo_delete", "concern_report",

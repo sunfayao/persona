@@ -727,8 +727,8 @@ func TestDeliveryGateChecksLinkedRepositoryIssuesAndPRs(t *testing.T) {
 	})
 }
 
-// Three-tier delivery_gate setting works via HTTP PUT/GET and persona_settings while staying backward-compatible
-// with legacy done_needs_delivery boolean configs.
+// Three-tier delivery_gate setting works via HTTP PUT/GET and persona_settings, and a stored legacy
+// done_needs_delivery boolean still reads as its tier.
 func TestDeliveryGateSettingsAndBackwardCompat(t *testing.T) {
 	ctx := context.Background()
 	s := newTestService(t, newFakeHub().withMachine())
@@ -788,57 +788,11 @@ func TestDeliveryGateSettingsAndBackwardCompat(t *testing.T) {
 		t.Fatalf("after set, get = %q, want merged", out)
 	}
 
-	// Regression: passing JSON null to legacy assistant.done_needs_delivery must be rejected, create no approval card,
-	// and keep the default merged gate unchanged.
-	if out, isErr := tool(`{"action":"set","key":"assistant.done_needs_delivery","value":null}`); !isErr || !strings.Contains(out, "value must be true or false") {
-		t.Fatalf("legacy done_needs_delivery=null not refused: %v %q", isErr, out)
-	}
-	if len(s.pendingQuestions()) != 0 {
-		t.Fatalf("legacy done_needs_delivery=null created approval card(s): %d", len(s.pendingQuestions()))
-	}
-	if v := s.view(ctx, false); v.DeliveryGate != deliveryGateMerged || v.DoneNeedsDelivery {
-		t.Fatalf("after legacy null, view = %q / %v, want merged / false", v.DeliveryGate, v.DoneNeedsDelivery)
-	}
-
-	// Regression: setting legacy assistant.done_needs_delivery=false from default merged must disable the gate (off),
-	// not return "unchanged", and clearing DeliveryGate persists the off tier.
-	approveNext := func(wantSummary string) {
-		go func() {
-			q, ok := awaitCard(s)
-			if !ok {
-				t.Error("no approval card")
-				return
-			}
-			if wantSummary != "" && q.Summary != wantSummary {
-				t.Errorf("card %q, want %q", q.Summary, wantSummary)
-			}
-			allow := true
-			raw, _ := json.Marshal(proto.Resolution{Allow: &allow})
-			_, _ = s.Action(ctx, Action{Op: "answer", InteractionID: q.ID, Answer: raw})
-		}()
-	}
-	wantMergedToOff := i18n.T(i18n.Default, "assistant-settings_tool.change_delivery_gate", i18n.Args{
-		"before": i18n.T(i18n.Default, "assistant-settings_tool.delivery_gate_merged"),
-		"after":  i18n.T(i18n.Default, "assistant-settings_tool.delivery_gate_off"),
-	})
-	approveNext(wantMergedToOff)
-	if out, isErr := tool(`{"action":"set","key":"assistant.done_needs_delivery","value":false}`); isErr || !strings.Contains(out, "assistant.done_needs_delivery is false") {
-		t.Fatalf("legacy done_needs_delivery=false from merged failed: %v %s", isErr, out)
-	}
-	if v := s.view(ctx, false); v.DeliveryGate != deliveryGateOff || v.DoneNeedsDelivery {
-		t.Fatalf("after legacy false, view = %q / %v, want off / false", v.DeliveryGate, v.DoneNeedsDelivery)
-	}
-	// Repeating false when already off reports unchanged without asking again.
-	if out, isErr := tool(`{"action":"set","key":"assistant.done_needs_delivery","value":false}`); isErr || !strings.Contains(out, "没有变化") {
-		t.Fatalf("repeat legacy false = %v %q, want unchanged", isErr, out)
-	}
-	// Legacy true transitions off -> live.
-	approveNext("")
-	if out, isErr := tool(`{"action":"set","key":"assistant.done_needs_delivery","value":true}`); isErr || !strings.Contains(out, "assistant.done_needs_delivery is true") {
-		t.Fatalf("legacy done_needs_delivery=true failed: %v %s", isErr, out)
-	}
-	if v := s.view(ctx, false); v.DeliveryGate != deliveryGateLive || !v.DoneNeedsDelivery {
-		t.Fatalf("after legacy true, view = %q / %v, want live / true", v.DeliveryGate, v.DoneNeedsDelivery)
+	// The legacy boolean is read from stored settings (above) but no longer offered: delivery_gate is the one switch.
+	for _, o := range s.ownSettings() {
+		if o.Key == "assistant.done_needs_delivery" {
+			t.Fatal("persona_settings still offers the legacy done_needs_delivery")
+		}
 	}
 
 	// Repository provider non-GitHub issue check does not block when host is unknown.

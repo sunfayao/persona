@@ -26,8 +26,6 @@ agent_start
 agent_supervise
 agent_archive
 agent_unarchive
-agent_autoname
-agent_autoname_receipt
 interaction_answer
 ask_escalate
 inbox_suggest
@@ -59,7 +57,6 @@ task_decided
 task_start_screen
 task_start_keys
 task_retry
-todo_workspace
 todo_repositories_get
 todo_repositories_set
 todo_repository_links_set

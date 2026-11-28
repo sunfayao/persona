@@ -322,8 +322,11 @@ func (s *Service) mailAttachment(ctx context.Context, machine string, req proto.
 	return s.ext.MailAttachment(ctx, req)
 }
 
-// isOwnTool: name is one of the assistant's own tools.
+// isOwnTool: name is one of the assistant's own tools, a retired one too (retiredToolNames).
 func (s *Service) isOwnTool(ctx context.Context, name string) bool {
+	if slices.Contains(retiredToolNames, name) {
+		return true
+	}
 	for _, t := range s.Tools(ctx) {
 		if t.Name == name {
 			return true

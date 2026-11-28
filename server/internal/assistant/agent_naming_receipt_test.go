@@ -628,8 +628,7 @@ func TestAgentAutonameReceiptLedgerReadFailureAndCorruption(t *testing.T) {
 }
 
 func TestAgentAutonameReceiptCatalogHasOnlyNarrowReadArguments(t *testing.T) {
-	s := newFleetTest(t).s
-	for _, tool := range s.Tools(t.Context()) {
+	for _, tool := range toolsNamed(retiredToolNames) {
 		if tool.Name != "agent_autoname_receipt" {
 			continue
 		}
@@ -651,5 +650,5 @@ func TestAgentAutonameReceiptCatalogHasOnlyNarrowReadArguments(t *testing.T) {
 		}
 		return
 	}
-	t.Fatal("assistant catalog lacks the receipt")
+	t.Fatal("the retired tools lack the receipt")
 }
