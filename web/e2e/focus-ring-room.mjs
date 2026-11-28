@@ -6,6 +6,8 @@
 //   - pixels: the ring's band is sampled on its four sides in a screenshot, which finds what geometry cannot: a later
 //     positioned box painted over it (the chat's bottom fade over the dock's first row).
 // A finding names the control and the clipping box with the React components around them, so it leads to the source.
+// Not judged: a side of a control that, ring included, is larger than a scroller's clear region (its size less its
+// scroll padding) on that axis: Chrome centres a focused control in that region, so no scroll position shows it whole.
 //
 //   PORT=18760 MOCK_GOAL=1 MOCK_TASKS=1 python3 -I scripts/mock/mock_hub.py
 //   cd web && PERSONA_HUB_URL=http://127.0.0.1:18760 npx vite --port 5173 --strictPort
@@ -91,7 +93,7 @@ try {
           const shot = {};
           const pixels = await ringPixels(page, m, shot);
           const hidden = pixels && !(await page.evaluate((s) => window.__ring.tooltipOver(s), m.shape))
-            ? Object.entries(pixels).filter(([, v]) => v !== null && v < 60).map(([k, v]) => `${k} ${v}%`) : [];
+            ? Object.entries(pixels).filter(([k, v]) => v !== null && v < 60 && !(m.unfit[k === "top" || k === "bottom" ? "y" : "x"])).map(([k, v]) => `${k} ${v}%`) : [];
           if (m.cuts.length || hidden.length) {
             const id = `${where}-${findings.length}`;
             if (shot.png && (hidden.length || m.cuts.length)) await writeFile(join(output, `${id}.png`), shot.png);

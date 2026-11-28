@@ -46,7 +46,11 @@ window.__ring = (() => {
       const r = a.getBoundingClientRect();
       const margin = (cs.overflowX === "clip" || cs.overflowY === "clip" || paint) ? px(cs.overflowClipMargin) : 0;
       const left = r.left + px(cs.borderLeftWidth), top = r.top + px(cs.borderTopWidth);
-      boxes.push({ el: a, x: x || paint, y: y || paint, left: left - margin, top: top - margin, right: left + a.clientWidth + margin, bottom: top + a.clientHeight + margin, scrolls: /auto|scroll/.test(cs.overflowX + cs.overflowY) });
+      const scrolls = /auto|scroll/.test(cs.overflowX + cs.overflowY);
+      // a scroller centres a focused control in what its scroll padding leaves (Chrome): the clear region it can show
+      const clearW = a.clientWidth - (scrolls ? px(cs.scrollPaddingLeft) + px(cs.scrollPaddingRight) : 0);
+      const clearH = a.clientHeight - (scrolls ? px(cs.scrollPaddingTop) + px(cs.scrollPaddingBottom) : 0);
+      boxes.push({ el: a, x: x || paint, y: y || paint, left: left - margin, top: top - margin, right: left + a.clientWidth + margin, bottom: top + a.clientHeight + margin, scrolls, clearW, clearH });
     }
     boxes.push({ el: null, x: true, y: true, left: 0, top: 0, right: innerWidth, bottom: innerHeight, scrolls: false });
     return boxes;
@@ -77,21 +81,25 @@ window.__ring = (() => {
       const r = el.getBoundingClientRect();
       const outer = Math.max(0, ring.reach);
       const shape = { left: r.left - outer, top: r.top - outer, right: r.right + outer, bottom: r.bottom + outer };
-      const cuts = [];
+      const cuts = [], unfit = { x: false, y: false };
       for (const box of clipBoxes(el)) {
         // a control scrolled mostly out of its box is not the box's fault: it is off screen
         const shownW = Math.min(r.right, box.right) - Math.max(r.left, box.left), shownH = Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top);
         if (shownW < r.width * 0.5 || shownH < r.height * 0.5) continue;
+        // a control that, ring included, is larger than a scroller's clear region cannot be shown whole on that axis
+        const fitsX = !box.scrolls || shape.right - shape.left <= box.clearW, fitsY = !box.scrolls || shape.bottom - shape.top <= box.clearH;
+        if (!fitsX) unfit.x = true;
+        if (!fitsY) unfit.y = true;
         const cut = {
-          left: box.x ? Math.max(0, box.left - shape.left) : 0, right: box.x ? Math.max(0, shape.right - box.right) : 0,
-          top: box.y ? Math.max(0, box.top - shape.top) : 0, bottom: box.y ? Math.max(0, shape.bottom - box.bottom) : 0,
+          left: box.x && fitsX ? Math.max(0, box.left - shape.left) : 0, right: box.x && fitsX ? Math.max(0, shape.right - box.right) : 0,
+          top: box.y && fitsY ? Math.max(0, box.top - shape.top) : 0, bottom: box.y && fitsY ? Math.max(0, shape.bottom - box.bottom) : 0,
         };
         const sides = Object.entries(cut).filter(([, v]) => v > 0.5).map(([k, v]) => k + " " + v.toFixed(1));
         if (sides.length) cuts.push({ sides, box: box.el ? describe(box.el) : { tag: "window" }, scrolls: box.scrolls });
       }
       const cs = getComputedStyle(el);
       const radius = ["borderTopLeftRadius", "borderTopRightRadius", "borderBottomRightRadius", "borderBottomLeftRadius"].map((k) => px(cs[k]));
-      return { control: describe(el), ring, rect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom }, shape, radius, cuts, inline: cs.display === "inline" };
+      return { control: describe(el), ring, rect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom }, shape, radius, cuts, unfit, inline: cs.display === "inline" };
     },
     tooltipOver(shape) {
       return [...document.querySelectorAll("[role=tooltip]")].some((t) => {
