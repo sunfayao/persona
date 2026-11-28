@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -8,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/autosupervise"
+	"github.com/sunfayao/persona/server/internal/assistant/taskleader"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -47,6 +50,9 @@ func (s *Service) planTaskSupervisor(ctx context.Context, conversation string, t
 		if task.Parent != "" {
 			return conversation, nil
 		}
+		if ref := s.requestSupervisor(ctx, task.PartOf); ref != "" && task.ReuseTodo == "" {
+			return ref, nil // a piece of a request its supervisor Agent runs is that Agent's worker
+		}
 		supervisor, _ = s.defaultPlanSupervisor(ctx, conversation, "")
 		if conversation != cfg.Main {
 			if c, ok := s.session(ctx, cfg.MachineID, conversation); ok && c.Assistant && runtimeSessionSupportsSupervisionPolicy(c) && !s.isBackground(ctx, conversation) {
@@ -79,6 +85,18 @@ func (s *Service) effectiveSupervisor(ctx context.Context, cfg Settings, t Todo)
 		return cfg.Main
 	}
 	return t.Supervision.Supervisor
+}
+
+// requestSupervisor is the reference of the supervisor Agent of the open request id (a piece's part_of) while it has room
+// for another worker, else "".
+func (s *Service) requestSupervisor(ctx context.Context, id string) string {
+	root, ok := s.todoNow(id)
+	lead, has := root.supervisorAgent()
+	if !ok || !has || root.DoneAt != nil || !autosupervise.On(s.settings(ctx).TodoSupervisor) ||
+		s.checkLeaderRoom(ctx, &leaderScope{task: root, agent: lead}, 1) != nil {
+		return ""
+	}
+	return leaderRef(lead.MachineID, lead.SessionID)
 }
 
 // rehomeSupervisedTodos brings open legacy side-supervised tasks under main without rewriting their review state or
@@ -259,7 +277,12 @@ func (s *Service) digestTo(ctx context.Context, cfg Settings, g superviseSignal)
 	// Explicit escalations keep their destination; needs_user alone is not an escalation.
 	if t, ok := s.todoNow(g.Todo); ok && t.Supervision != nil && t.Supervision.assigned() &&
 		g.Kind != sigAsk && g.Kind != sigEscalated {
-		return s.effectiveSupervisor(ctx, cfg, t)
+		if t.memberSupervised() {
+			return s.conversationAbove(ctx, t) // what its supervisor Agent does not judge
+		}
+		if !s.agentSupervised(t) {
+			return s.effectiveSupervisor(ctx, cfg, t)
+		}
 	}
 	own := s.ownSupervisor(cfg)
 	if g.Kind == sigTodoReady || g.Kind == sigParentCloseout {
@@ -498,4 +521,211 @@ func (s *Service) endSessionCards(machine, session string) {
 		s.recordEnd(id, "cancelled", nil)
 		s.finishInteraction(id)
 	}
+}
+
+// ---- the supervisor Agent the hub attaches ----
+
+// superviseAuto: signal g, which would go to the main conversation, is one a supervisor Agent judges
+// (taskleader.NeedsJudgment) about an open to-do that conversation dispatched and supervises. The hub then attaches the
+// supervisor Agent of its request (attachSupervisor), one start per request (autosupervise.Gate), and the signal waits
+// for it: true. False: nothing is attached (the setting is explicit, the to-do is no such to-do, the last attempt failed
+// less than autosupervise.Cooldown ago) and the signal goes to the main conversation as before.
+func (s *Service) superviseAuto(ctx context.Context, here Settings, g superviseSignal) bool {
+	t, ok := s.todoNow(g.Todo)
+	if !ok || !autosupervise.On(here.TodoSupervisor) || !taskleader.NeedsJudgment(g.Kind, g.Report) || t.DoneAt != nil || t.Cancelled() ||
+		t.Supervision == nil || t.Supervision.Supervisor != here.Main || t.Origin != here.Main {
+		return false
+	}
+	if _, leads := t.supervisorAgent(); leads {
+		return false // a supervisor's own to-do (role leader): what reaches main from it is its completion or its question
+	}
+	root := t
+	if p, ok := s.todoNow(t.PartOf); ok && t.PartOf != "" && p.DoneAt == nil && !p.Cancelled() && p.Origin == here.Main {
+		root = p
+	}
+	gate := s.autoGate()
+	switch gate.Begin(root.ID) {
+	case autosupervise.Fallback:
+		return false
+	case autosupervise.Wait:
+		return true
+	}
+	s.taskStarting.Add(1)
+	go func() {
+		defer s.taskStarting.Add(-1)
+		err := s.attachSupervisor(root.ID, t.ID, here.Main)
+		gate.End(root.ID, err == nil)
+		if err != nil {
+			s.logf("supervise: request %s: no supervisor Agent for %s (its signals go to the main conversation for %s): %v", root.ID, t.ID, autosupervise.Cooldown, err)
+		}
+		s.supervise.mu.Lock()
+		s.scheduleDigestLocked(time.Now())
+		s.supervise.mu.Unlock()
+	}()
+	return true
+}
+
+// autoGate is the book of the supervisors the hub attaches by itself.
+func (s *Service) autoGate() *autosupervise.Gate {
+	b := &s.supervise
+	b.autoOnce.Do(func() {
+		b.auto = autosupervise.New(autosupervise.ClockFunc(func() time.Time {
+			if b.autoNow != nil {
+				return b.autoNow()
+			}
+			return time.Now()
+		}))
+	})
+	return b.auto
+}
+
+// attachSupervisor gives the request root a supervisor Agent (the one it has, else a new one) and moves the ledgers of
+// the to-dos it takes over to it (adoptUnder). It fails when trigger, the to-do whose signal asked, stays with above.
+func (s *Service) attachSupervisor(rootID, triggerID, above string) error {
+	ctx := context.Background()
+	root, ok := s.todoNow(rootID)
+	if !ok || root.DoneAt != nil {
+		return nil // closed meanwhile: nothing to supervise
+	}
+	lead, has := root.supervisorAgent()
+	var err error
+	if !has {
+		lead, err = s.startSupervisorAgent(ctx, root, above)
+	} else if _, listed := s.session(ctx, lead.MachineID, lead.SessionID); !listed {
+		err = fmt.Errorf("its supervisor Agent %s is not listed", short(lead.SessionID))
+	}
+	if err != nil {
+		return err
+	}
+	s.adoptUnder(ctx, root, lead, above, triggerID)
+	if t, ok := s.todoNow(triggerID); ok && t.DoneAt == nil && (t.Supervision == nil || t.Supervision.Supervisor != leaderRef(lead.MachineID, lead.SessionID)) {
+		return fmt.Errorf("its supervisor Agent %s has no room for it", short(lead.SessionID))
+	}
+	return nil
+}
+
+// adoptable are the to-dos the supervisor Agent of request root takes over from conversation above: root itself when
+// above supervises it and Agents of its own work on it, and each open dispatched piece above supervises, trigger first,
+// as many as fit under the supervisor's bound given open workers; left are the pieces that do not.
+func (s *Service) adoptable(root Todo, above, trigger string, open int) (take, left []Todo) {
+	mine := func(t Todo) bool {
+		return t.DoneAt == nil && !t.Cancelled() && t.Supervision != nil && t.Supervision.Supervisor == above
+	}
+	if mine(root) && slices.ContainsFunc(root.Agents, func(a TodoAgent) bool { return a.active() && a.Source != sourceLeader }) {
+		take = append(take, root)
+	}
+	s.todos.mu.RLock()
+	var pieces []Todo
+	for _, t := range s.todos.todos {
+		if t.PartOf == root.ID && t.ID != root.ID && mine(*t) {
+			pieces = append(pieces, copyTodoLocked(t))
+		}
+	}
+	s.todos.mu.RUnlock()
+	slices.SortFunc(pieces, func(a, b Todo) int {
+		return cmp.Or(-cmp.Compare(btoi(a.ID == trigger), btoi(b.ID == trigger)), a.CreatedAt.Compare(b.CreatedAt), cmp.Compare(a.ID, b.ID))
+	})
+	ids := make([]string, len(pieces))
+	for i, p := range pieces {
+		ids[i] = p.ID
+	}
+	fit, _ := autosupervise.Fit(open, ids, leaderWorkersMost)
+	take = append(take, pieces[:len(fit)]...)
+	return take, pieces[len(fit):]
+}
+
+func btoi(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// adoptUnder moves the ledger supervisor of what adoptable names to supervisor Agent lead (SupervisorSource auto, Above
+// the conversation it came from) and has what waited in that conversation's queue gathered again. Agent rows stay as
+// they are. What does not fit under the supervisor's bound stays with above.
+func (s *Service) adoptUnder(ctx context.Context, root Todo, lead TodoAgent, above, trigger string) {
+	ref := leaderRef(lead.MachineID, lead.SessionID)
+	take, left := s.adoptable(root, above, trigger, len(s.openLeaderWorkers(root)))
+	moved := map[string]bool{}
+	for _, t := range take {
+		if s.giveToSupervisor(ctx, t.ID, ref, above) {
+			moved[t.ID] = true
+		}
+	}
+	if len(left) > 0 {
+		s.logf("supervise: supervisor Agent %s of %s has room for no more workers: %d piece(s) stay with %s", short(lead.SessionID), root.ID, len(left), short(above))
+	}
+	if len(moved) > 0 {
+		s.logf("supervise: supervisor Agent %s of %s took over %d to-do(s)", short(lead.SessionID), root.ID, len(moved))
+		s.rehomeQueuedSupervision(ctx, above, moved, s.todosOf(ctx, "*"), s.webBase(ctx))
+	}
+}
+
+// giveToSupervisor makes supervisor Agent ref the ledger supervisor of to-do id, which above supervised or ref already
+// does, and records above as the conversation above it. False when the ledger names another supervisor.
+func (s *Service) giveToSupervisor(ctx context.Context, id, ref, above string) bool {
+	_, changed, err := s.updateSupervision(ctx, id, func(v *Supervision) bool {
+		if v.Supervisor != ref && v.Supervisor != above {
+			return false
+		}
+		v.Supervisor, v.SupervisorSource, v.Above = ref, autosupervise.Auto, above
+		return true
+	})
+	if err != nil {
+		s.logf("task %s: supervisor Agent: %v", id, err)
+	}
+	return err == nil && changed
+}
+
+// startSupervisorAgent starts the supervisor Agent of request root with the leader defaults (leaderDefaults), linked
+// to it as a task leader's Agent is. It goes around takeTodoForTask: the Agents already working on root are not stopped,
+// released or briefed again, no to-do or plan card is made, and the owner is asked nothing. The to-do's one start on its
+// way (claimTaskStart) keeps a second supervisor from starting beside it.
+func (s *Service) startSupervisorAgent(ctx context.Context, root Todo, above string) (TodoAgent, error) {
+	st, claimed := s.claimTaskStart(root.ID)
+	if !claimed {
+		return TodoAgent{}, errors.New(errStartingAgain)
+	}
+	defer s.endTaskStart(root.ID, st, proto.Session{})
+	s.leaderStarts.Add(1) // legacy one-shot tool discovery may wait for this link (task_leader.go)
+	defer s.leaderStarts.Add(-1)
+	take, _ := s.adoptable(root, above, root.ID, 0)
+	note := prompts.TaskSupervisorAttached{}
+	for _, t := range take {
+		e := prompts.SupervisedTodo{ID: t.ID, Title: t.Title, Criteria: t.Supervision.DoneWhen}
+		if a, ok := workerAgent(t); ok {
+			e.Machine = a.MachineID
+			if d, ok := s.device(ctx, a.MachineID); ok {
+				e.Machine = d.Name
+			}
+		}
+		note.Todos = append(note.Todos, e)
+	}
+	t := PlanTask{Title: root.Title, Role: roleLeader, TodoID: root.ID, supervising: true, Prompt: prompts.RenderTaskSupervisorAttached(note)}
+	s.leaderDefaults(ctx, &t)
+	if !s.placeTask(ctx, &t) {
+		return TodoAgent{}, fmt.Errorf("no computer to start it on (%q)", t.Machine)
+	}
+	sctx, cancel := context.WithTimeout(ctx, taskStartTimeout)
+	defer cancel()
+	mid, sid, err := s.startTaskAgent(sctx, &t, false)
+	if t.admissionRelease != nil {
+		defer func() { t.admissionRelease() }()
+	}
+	if err != nil {
+		return TodoAgent{}, err
+	}
+	lctx, lcancel := context.WithTimeout(context.WithoutCancel(ctx), taskFailTimeout)
+	defer lcancel()
+	if err := s.linkPlanAgent(lctx, t, mid, sid, false); err != nil {
+		go s.stopCancelledAgent(context.WithoutCancel(ctx), root.ID, mid, sid) // started, but the request closed meanwhile
+		return TodoAgent{}, fmt.Errorf("link its supervisor Agent: %w", err)
+	}
+	cur, _ := s.todoNow(root.ID)
+	lead, ok := cur.supervisorAgent()
+	if !ok {
+		return TodoAgent{}, errors.New("its supervisor Agent was not linked")
+	}
+	return lead, nil
 }

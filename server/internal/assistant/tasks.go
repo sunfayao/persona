@@ -203,6 +203,8 @@ type PlanTask struct {
 	// planFirst: start defaults asked for the self-planning constraint in the prompt (start_defaults.go); never
 	// serialized, this try only.
 	planFirst bool
+	// supervising: a supervisor Agent the hub attached to a request under way: its first message names what it supervises.
+	supervising bool
 	// callerPick: the launcher, model, effort, tier, permission mode and ultracode the task named itself, kept from its
 	// first start try in this process, so every try starts from them again whichever start-defaults rule fits it.
 	// Never serialized: the task as stored keeps its own launch, not what a tier, Model configuration › Agents or a

@@ -60,6 +60,8 @@ type Settings struct {
 	// Notes, once edited in the app, replace manager.json's assistant.notes.
 	Notes         *string `json:"notes,omitempty"`
 	ReplyLanguage string  `json:"reply_language,omitempty"` // what models answer in (replylang.Choices); "" the interface's
+	// TodoSupervisor: auto ("" too) attaches a supervisor Agent to a dispatched request by itself; explicit only for role "leader".
+	TodoSupervisor string `json:"todo_supervisor,omitempty"`
 	// Main is the main conversation (the Persona tab opens it): one long-running conversation, the others are side ones.
 	Main          string `json:"main,omitempty"`
 	MainMachineID string `json:"main_machine_id,omitempty"` // confirmed routing device of Main

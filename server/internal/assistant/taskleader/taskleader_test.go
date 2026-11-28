@@ -59,7 +59,7 @@ func TestEverySignalKindOfASupervisedTodoHasItsRoute(t *testing.T) {
 		if !ok {
 			t.Fatalf("kind %q has no row in this table", kind)
 		}
-		if got := Route(kind, ""); got != w {
+		if got := Route(kind, "", SubjectRoot); got != w {
 			t.Errorf("%s goes to %s, want %s", kind, got, w)
 		}
 	}
@@ -75,15 +75,110 @@ func TestEverySignalKindOfASupervisedTodoHasItsRoute(t *testing.T) {
 		{KindCheck, CheckDecided, ToMain},
 	}
 	for _, r := range reports {
-		if got := Route(r.kind, r.report); got != r.want {
+		if got := Route(r.kind, r.report, SubjectRoot); got != r.want {
 			t.Errorf("%s/%s goes to %s, want %s", r.kind, r.report, got, r.want)
 		}
 	}
 	// None of the routine signals the main conversation used to get reaches it.
 	for _, routine := range []string{KindEstimateDue, KindOverdue, KindIdle, KindStalled, KindNoProgress, KindOrphaned, KindStarted,
 		KindParentCloseout, KindTodoReady, KindAllStopped, KindTimedOut, KindPRConflict, KindPRMerged} {
-		if Route(routine, "") == ToMain {
+		if Route(routine, "", SubjectRoot) == ToMain {
 			t.Errorf("routine signal %s reaches the main conversation", routine)
+		}
+	}
+}
+
+// Every signal kind about a member-supervised to-do (its own Agents do the work, its supervisor Agent supervises them)
+// has one route: the supervisor judges everything but what only the owner or the conversation above can decide.
+func TestEverySignalKindOfAMemberSupervisedTodoHasItsRoute(t *testing.T) {
+	t.Parallel()
+	want := map[string]Destination{
+		KindReview: ToSupervisor, KindOwnerChoice: ToMain, KindIdle: ToSupervisor, KindUnjudged: ToSupervisor,
+		KindNeedsYou: ToSupervisor, KindTimedOut: ToSupervisor, KindStalled: ToSupervisor, KindNoProgress: ToSupervisor,
+		KindAllStopped: ToSupervisor, KindInterrupted: ToSupervisor, KindFailed: ToMain, KindStarted: ToMain,
+		KindPRConflict: ToSupervisor, KindDraftPR: ToSupervisor, KindPREvent: ToSupervisor, KindReport: ToSupervisor,
+		KindEscalated: ToMain, KindOrphaned: ToSupervisor, KindAsk: AsBefore, KindDecide: ToMain, KindDecisionReply: ToMain,
+		KindCheck: ToSupervisor, KindTodoReady: ToSupervisor, KindPRMerged: ToSupervisor, KindParentCloseout: ToSupervisor,
+		KindRecheck: ToMain, KindUndecidable: ToMain, KindOwnerCannotAnswer: ToMain, KindParkedDue: ToSupervisor,
+		KindParkDecided: ToMain, KindParkedSummary: Absorbed, KindNeedsUserExternalInfo: ToMain, KindInbox: AsBefore,
+		KindDeliveryHold: ToMain, KindCardlessWait: ToSupervisor, KindOverdue: ToSupervisor, KindEstimateDue: ToSupervisor,
+		KindHandoffResult: ToMain,
+	}
+	if len(want) != len(Kinds) {
+		t.Fatalf("%d kinds listed, %d routed in this table", len(Kinds), len(want))
+	}
+	for _, kind := range Kinds {
+		w, ok := want[kind]
+		if !ok {
+			t.Fatalf("kind %q has no row in this table", kind)
+		}
+		if got := Route(kind, "", SubjectMember); got != w {
+			t.Errorf("%s goes to %s, want %s", kind, got, w)
+		}
+		if NeedsJudgment(kind, "") != (w == ToSupervisor) {
+			t.Errorf("NeedsJudgment(%s) = %v, but it goes to %s", kind, NeedsJudgment(kind, ""), w)
+		}
+	}
+	reports := []struct {
+		kind, report string
+		want         Destination
+	}{
+		{KindReview, ReportCompletion, ToSupervisor},
+		{KindReport, ReportProgress, Absorbed},
+		{KindReport, ReportQuestion, ToSupervisor},
+		{KindReport, ReportBlocked, ToSupervisor},
+		{KindReport, ReportDone, ToSupervisor},
+		{KindCheck, CheckDecided, ToMain},
+	}
+	for _, r := range reports {
+		if got := Route(r.kind, r.report, SubjectMember); got != r.want {
+			t.Errorf("%s/%s goes to %s, want %s", r.kind, r.report, got, r.want)
+		}
+		if NeedsJudgment(r.kind, r.report) != (r.want == ToSupervisor) {
+			t.Errorf("NeedsJudgment(%s/%s) disagrees with its route %s", r.kind, r.report, r.want)
+		}
+	}
+}
+
+// The 29 supervision signals of one evening, by kind and report (the to-dos' names are invented): with a supervisor
+// Agent available none of them reaches the main conversation. The to-dos with their own Agents are members; a request
+// container (parent_closeout) is a root.
+func TestTheReplayOfOneEveningNeverReachesTheMainConversation(t *testing.T) {
+	t.Parallel()
+	replay := []struct {
+		label, kind, report string
+		root                bool
+	}{
+		{"A estimate_due", KindEstimateDue, "", false},
+		{"B report", KindReport, ReportBlocked, false}, {"B report again", KindReport, ReportQuestion, false},
+		{"C report done", KindReport, ReportDone, false},
+		{"B report later", KindReport, ReportProgress, false},
+		{"D question", KindReport, ReportQuestion, false},
+		{"A estimate_due again", KindEstimateDue, "", false},
+		{"D report done", KindReport, ReportDone, false}, {"D review", KindReview, "", false},
+		{"E all_stopped", KindAllStopped, "", false}, {"F parent_closeout", KindParentCloseout, "", true},
+		{"G estimate_due", KindEstimateDue, "", false}, {"G estimate_due again", KindEstimateDue, "", false},
+		{"H parent_closeout premature", KindParentCloseout, "", true},
+		{"I review", KindReview, "", false}, {"I report done", KindReport, ReportDone, false}, {"G review", KindReview, "", false},
+		{"G cardless_wait", KindCardlessWait, "", false},
+		{"H parent_closeout", KindParentCloseout, "", true},
+		{"J report progress", KindReport, ReportProgress, false},
+		{"K estimate_due", KindEstimateDue, "", false}, {"J estimate_due", KindEstimateDue, "", false},
+		{"L review", KindReview, "", false}, {"L report done", KindReport, ReportDone, false}, {"M review", KindReview, "", false},
+		{"J report", KindReport, ReportDone, false}, {"E all_stopped again", KindAllStopped, "", false},
+		{"G estimate_due last", KindEstimateDue, "", false},
+		{"N report done", KindReport, ReportDone, false},
+	}
+	if len(replay) != 29 {
+		t.Fatalf("the evening had 29 signals: %d listed", len(replay))
+	}
+	for _, e := range replay {
+		subject := SubjectMember
+		if e.root {
+			subject = SubjectRoot
+		}
+		if got := Route(e.kind, e.report, subject); got == ToMain {
+			t.Errorf("%s (%s %s) reaches the main conversation", e.label, e.kind, e.report)
 		}
 	}
 }

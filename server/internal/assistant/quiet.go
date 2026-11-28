@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"fmt"
+	"github.com/sunfayao/persona/server/internal/assistant/mdtext"
 	"slices"
 	"strings"
 	"sync"
@@ -375,7 +376,7 @@ func noticeAsk(ix proto.Interaction) string {
 		}
 		b.WriteString(terminalQuestionText(ix))
 	case ix.Kind == proto.IxPlan:
-		b.WriteString("批准它的计划：\n" + clipMarkdown(ix.Plan, 1200))
+		b.WriteString("批准它的计划：\n" + mdtext.Clip(ix.Plan, 1200))
 	default:
 		b.WriteString(interactionQuestion(i18n.Default, ix)) // for the model: Chinese as the rest of the notice
 		if ix.Reason != "" {

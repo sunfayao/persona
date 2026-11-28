@@ -240,12 +240,16 @@ func (s *Service) startPlan(ctx context.Context, id string, edits []PlanTask, re
 		// The planning lead owns its task from the first dispatch; main owns its own plans. A task leader's worker
 		// keeps its leader Agent through supervisors[i].
 		if sup := supervisors[i]; sup != "" {
-			if t.Parent == "" && t.ReuseTodo == "" && sup != p.Conversation {
+			piece := t.Parent == "" && s.isLeaderRef(sup) // a piece of a request its supervisor Agent runs
+			if t.Parent == "" && t.ReuseTodo == "" && sup != p.Conversation && !piece {
 				s.taskCard(ctx, sup, todo.ID, "")
 			}
 			if err := s.supervisePlanTask(ctx, todo.ID, sup, t); err != nil {
 				s.failPlanSupervision(ctx, todo, t, err)
 				continue
+			}
+			if piece {
+				s.giveToSupervisor(ctx, todo.ID, sup, p.Conversation)
 			}
 		}
 		if t.Parent != "" { // a task leader's worker: supervised by its leader's agent, with no conversation to show a card in

@@ -136,7 +136,7 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 	// background with durable evidence, or the explicit capable-runtime side topology introduced with policy support.
 	isMain := s.isMain(ctx, self)
 	background := s.backgroundSupervises(ctx, self, t)
-	capableRuntime := t.Supervision != nil && t.Supervision.Supervisor == self && t.Origin == self && s.runtimeWithSupervisionPolicy(ctx, s.settings(ctx).MachineID, self)
+	capableRuntime := t.Supervision != nil && (t.Supervision.Supervisor == self || t.Supervision.Above == self) && t.Origin == self && s.runtimeWithSupervisionPolicy(ctx, s.settings(ctx).MachineID, self)
 	allowed := isMain || background || capableRuntime || s.mayReviewForLeader(ctx, self, t)
 	if t.Origin == "" || !allowed {
 		return "", fmt.Errorf("task %s was not handed out from this conversation", t.ID)

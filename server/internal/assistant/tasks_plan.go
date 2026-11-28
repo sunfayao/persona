@@ -105,7 +105,7 @@ func (s *Service) taskPlanFrom(ctx context.Context, machine, sessionID string, a
 			return "", fmt.Errorf("task %d: %w", i+1, err)
 		}
 		if scope == nil {
-			if err := s.supervisedWorkRefusal(*t); err != nil { // the work of a supervised to-do is its supervisor's (task_leader.go)
+			if err := s.supervisedWorkRefusal(ctx, *t); err != nil { // the work of a supervised to-do is its supervisor's (task_leader.go)
 				return "", fmt.Errorf("task %d: %w", i+1, err)
 			}
 			if t.Role == roleLeader {

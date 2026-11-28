@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"errors"
+	"github.com/sunfayao/persona/server/internal/assistant/mdtext"
 	"slices"
 	"strings"
 	"time"
@@ -226,7 +227,7 @@ func receiptOutcome(agents []outcomeAgent) string {
 	if len(agents) == 0 {
 		return ""
 	}
-	return clip(oneLine(clipMarkdown(agents[0].Text, 600)), outcomeTextMax)
+	return clip(oneLine(mdtext.Clip(agents[0].Text, 600)), outcomeTextMax)
 }
 
 // replyLinks are the pull requests the replies name, the newest last (as the receipt picks its PR).

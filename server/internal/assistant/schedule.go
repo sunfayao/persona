@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sunfayao/persona/server/internal/assistant/cronrule"
 	"math"
 	"net/http"
 	"slices"
@@ -193,7 +194,7 @@ const (
 func (t Task) calendar() bool { return t.Repeat == repeatDaily || t.Repeat == repeatCron }
 
 // minEvery: an interval task runs at most this often (each run is a whole claude turn).
-const minEvery = 5
+const minEvery = cronrule.MinEvery
 
 // maxEvery: the longest interval, 7 days in minutes (checkTask); anything rarer is a one-off or a daily task.
 const maxEvery = 7 * 24 * 60
@@ -271,7 +272,7 @@ func (t Task) next(after time.Time, loc *time.Location) time.Time {
 	case repeatDaily:
 		return nextRun(t, after, loc)
 	case repeatCron:
-		return cronNext(t.Cron, after, loc)
+		return cronrule.Next(t.Cron, after, loc)
 	}
 	return t.At
 }
@@ -633,7 +634,7 @@ func nextRun(t Task, after time.Time, loc *time.Location) time.Time {
 	at := after.In(loc)
 	for i := 0; i < 8; i++ {
 		wall := time.Date(at.Year(), at.Month(), at.Day()+i, hh, mm, 0, 0, time.UTC)
-		d := wallInstant(wall, loc)
+		d := cronrule.WallInstant(wall, loc)
 		if !d.After(after) {
 			continue
 		}
@@ -774,7 +775,7 @@ func ruleText(t Task, loc *time.Location) string {
 	case repeatInterval:
 		return "every " + everyText(t.EveryMinutes)
 	case repeatCron:
-		if text := cronText(t.Cron, i18n.En); text != "" {
+		if text := cronrule.Text(t.Cron, i18n.En); text != "" {
 			return "cron `" + t.Cron + "` (" + text + ")"
 		}
 		return "cron `" + t.Cron + "`"
@@ -831,13 +832,13 @@ func (s *Service) toolScheduleFollowup(ctx context.Context, machine, sessionID s
 		return "", errors.New("prompt is required")
 	}
 	loc, now := s.location(ctx), time.Now()
-	var rule cronRule
+	var rule cronrule.Rule
 	if strings.TrimSpace(a.Cron) != "" {
 		if a.At != "" || a.Every != "" {
 			return "", errors.New("cron replaces at and every: give only one of them")
 		}
 		var err error
-		if rule, err = parseCron(a.Cron); err != nil {
+		if rule, err = cronrule.Parse(a.Cron); err != nil {
 			return "", err
 		}
 	}
@@ -852,8 +853,8 @@ func (s *Service) toolScheduleFollowup(ctx context.Context, machine, sessionID s
 	}
 	var at time.Time
 	switch {
-	case rule.spec != nil:
-		at = rule.next(now, loc)
+	case rule.Set():
+		at = rule.Next(now, loc)
 	case a.At != "":
 		var err error
 		if at, err = parseWhen(a.At, now, loc); err != nil {
@@ -879,9 +880,9 @@ func (s *Service) toolScheduleFollowup(ctx context.Context, machine, sessionID s
 	space, _ := s.selfSpace(ctx, sessionID) // not listed: the assistant's own, as before the health space
 	t := Task{ID: "fu_" + randomHex(4), Title: strings.TrimSpace(a.Title), Prompt: prompt, Repeat: repeatOnce, At: at.UTC(), Enabled: true,
 		MachineID: machine, Space: space, CreatedBy: "assistant", CreatedAt: now.UTC()}
-	if every > 0 || rule.spec != nil {
-		if rule.spec != nil {
-			t.Repeat, t.Cron, t.At = repeatCron, rule.expr, time.Time{}
+	if every > 0 || rule.Set() {
+		if rule.Set() {
+			t.Repeat, t.Cron, t.At = repeatCron, rule.Expr(), time.Time{}
 			rearm(Task{}, &t, now)
 		} else {
 			t.Repeat, t.EveryMinutes = repeatInterval, every
@@ -934,9 +935,9 @@ func (s *Service) toolScheduleFollowup(ctx context.Context, machine, sessionID s
 		return "", err
 	}
 	s.broadcastSchedule()
-	if rule.spec != nil {
+	if rule.Set() {
 		return fmt.Sprintf("Scheduled %s on %s, the first %s; %s. It repeats by itself: don't schedule the next run from a run.",
-			t.ID, cronReply(rule, loc, now), until(at), pushText(t)) + stopsAt(t, loc), nil
+			t.ID, cronrule.Reply(rule, loc, now), until(at), pushText(t)) + stopsAt(t, loc), nil
 	}
 	if every > 0 {
 		first := t.next(now, loc)
@@ -952,7 +953,7 @@ func (s *Service) toolScheduleFollowup(ctx context.Context, machine, sessionID s
 // repeats stays as it is (a changed prompt is taken). A task deleted while its run was going stays deleted: the run is
 // told so, nothing is scheduled (#4792), unless this conversation deleted it itself (#9090). A one-off given a cron rule (`cron`, zero spec for none) runs on it from now on. ok is false when this conversation's latest run isn't one of the task's
 // (rawPrompt is what was asked, before stripScheduleHeader), or the title and prompt are another task's.
-func (s *Service) scheduleOwn(ctx context.Context, sessionID, title, rawPrompt, prompt, atArg string, at time.Time, every int, cron cronRule, push, inbox *string, freshEachRun *bool, untilRaw json.RawMessage, launcher, model, effort, todoID *string) (string, string, bool, error) {
+func (s *Service) scheduleOwn(ctx context.Context, sessionID, title, rawPrompt, prompt, atArg string, at time.Time, every int, cron cronrule.Rule, push, inbox *string, freshEachRun *bool, untilRaw json.RawMessage, launcher, model, effort, todoID *string) (string, string, bool, error) {
 	if sessionID == "" {
 		return "", "", false, nil
 	}
@@ -1031,16 +1032,16 @@ func (s *Service) scheduleOwn(ctx context.Context, sessionID, title, rawPrompt, 
 			t.ID, t.label(), ruleText(*t, loc), next.In(loc).Format("01-02 15:04 Mon"), until(next))
 	default:
 		// Only within the app's range (checkTask); a longer one stays a one-off.
-		if d, ok := relative(atArg); every == 0 && cron.spec == nil && ok && d >= minEvery*time.Minute && d <= maxEvery*time.Minute {
+		if d, ok := relative(atArg); every == 0 && !cron.Set() && ok && d >= minEvery*time.Minute && d <= maxEvery*time.Minute {
 			every = int(d.Minutes())
 		}
 		t.At, t.Enabled = at.UTC(), true
 		switch {
-		case cron.spec != nil:
-			t.Repeat, t.Cron, t.At = repeatCron, cron.expr, time.Time{}
+		case cron.Set():
+			t.Repeat, t.Cron, t.At = repeatCron, cron.Expr(), time.Time{}
 			rearm(Task{}, t, time.Now())
 			out = fmt.Sprintf("%s「%s」 now runs by itself on %s; the user sees it in Persona › 定时任务. "+ // i18n-ignore: model-facing, names the app's page as the replies beside it do
-				"Don't schedule its next run from now on.", t.ID, t.label(), cronReply(cron, loc, time.Now()))
+				"Don't schedule its next run from now on.", t.ID, t.label(), cronrule.Reply(cron, loc, time.Now()))
 		case every > 0:
 			t.Repeat, t.EveryMinutes = repeatInterval, every
 			next := t.next(time.Now(), loc)
@@ -1429,8 +1430,8 @@ func (s *Service) toolScheduleRoutine(ctx context.Context, machine, self string,
 	}
 	rule := ruleText(t, loc)
 	if t.Repeat == repeatCron && t.Enabled {
-		if r, err := parseCron(t.Cron); err == nil {
-			rule = cronReply(r, loc, time.Now()) // its next runs, to check against what was asked
+		if r, err := cronrule.Parse(t.Cron); err == nil {
+			rule = cronrule.Reply(r, loc, time.Now()) // its next runs, to check against what was asked
 		}
 	}
 	return fmt.Sprintf("Saved %s「%s」: %s, %s; %s. The user sees and edits it in the app (Persona › 定时任务).",
@@ -1488,11 +1489,11 @@ func checkTask(t *Task, now time.Time) error {
 		}
 		t.Time, t.Weekdays, t.EveryMinutes = "", nil, 0
 	case repeatCron:
-		r, err := parseCron(t.Cron)
+		r, err := cronrule.Parse(t.Cron)
 		if err != nil {
 			return err
 		}
-		t.Cron, t.Time, t.Weekdays, t.At, t.EveryMinutes = r.expr, "", nil, time.Time{}, 0
+		t.Cron, t.Time, t.Weekdays, t.At, t.EveryMinutes = r.Expr(), "", nil, time.Time{}, 0
 	default:
 		return fmt.Errorf("unknown repeat %q (once / daily / interval / cron)", t.Repeat)
 	}
@@ -1764,7 +1765,7 @@ func (s *Service) runDue(ctx context.Context, now time.Time) {
 					Status: runSkipped, Error: t.LastError, of: now.UTC()})
 			}
 		case repeatCron:
-			rule, err := parseCron(t.Cron)
+			rule, err := cronrule.Parse(t.Cron)
 			if err != nil {
 				continue // checkTask refuses it; one stored before a stricter check never runs
 			}
@@ -1778,7 +1779,7 @@ func (s *Service) runDue(ctx context.Context, now time.Time) {
 			if t.ArmedAt.After(last) {
 				last = t.ArmedAt // switched on or given another expression since: a time before that was not missed
 			}
-			next := rule.next(last, loc)
+			next := rule.Next(last, loc)
 			if next.IsZero() || next.After(now) {
 				continue
 			}
@@ -1787,7 +1788,7 @@ func (s *Service) runDue(ctx context.Context, now time.Time) {
 			}
 			// The times missed while the hub was down count once, as the latest of them: a run every 30 minutes
 			// back after an hour runs once now rather than skip.
-			for n := rule.next(next, loc); !n.IsZero() && !n.After(now); n = rule.next(n, loc) {
+			for n := rule.Next(next, loc); !n.IsZero() && !n.After(now); n = rule.Next(n, loc) {
 				next = n
 			}
 			t.started(now) // saved before it starts, as a daily one
@@ -2946,10 +2947,10 @@ func (s *Service) tasksView(ctx context.Context) []Task {
 		}
 		t.SkipNextZone = "" // only the scheduler needs the zone in which the owner marked the skip
 		if t.Repeat == repeatCron {
-			if r, err := parseCron(t.Cron); err == nil {
-				t.CronText = r.text(lang)
+			if r, err := cronrule.Parse(t.Cron); err == nil {
+				t.CronText = r.Text(lang)
 				if t.Enabled {
-					t.NextRuns = r.nextRuns(now, loc, cronRuns)
+					t.NextRuns = r.NextRuns(now, loc, cronrule.Runs)
 				}
 			}
 		}
@@ -3068,14 +3069,14 @@ func (s *Service) scheduleRoutes() {
 	// A cron expression checked before it is saved: what it is in words and when it runs next, in the user's time zone;
 	// 400 with what is wrong.
 	s.handle("GET /api/v1/assistant/tasks/cron", func(w http.ResponseWriter, r *http.Request) {
-		rule, err := parseCron(r.URL.Query().Get("cron"))
+		rule, err := cronrule.Parse(r.URL.Query().Get("cron"))
 		if err != nil {
 			apierr.Write(w, http.StatusBadRequest, err)
 			return
 		}
 		loc := s.location(r.Context())
-		apierr.WriteJSON(w, map[string]any{"cron": rule.expr, "text": rule.text(s.requestLang(r)), "timezone": loc.String(),
-			"next_runs": rule.nextRuns(time.Now(), loc, cronRuns)})
+		apierr.WriteJSON(w, map[string]any{"cron": rule.Expr(), "text": rule.Text(s.requestLang(r)), "timezone": loc.String(),
+			"next_runs": rule.NextRuns(time.Now(), loc, cronrule.Runs)})
 	})
 	s.handle("POST /api/v1/assistant/tasks", func(w http.ResponseWriter, r *http.Request) {
 		var raw map[string]json.RawMessage

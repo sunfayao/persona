@@ -73,7 +73,7 @@ func isStalledReworkKind(kind string) bool {
 // Supervision is a supervised task's ledger, as the apps get it on the todo (supervision).
 type Supervision struct {
 	Supervisor       string             `json:"supervisor"`                  // the conversation currently supervising it
-	SupervisorSource string             `json:"supervisor_source,omitempty"` // "plan" for a planned leader assignment; "explicit" after a move
+	SupervisorSource string             `json:"supervisor_source,omitempty"` // "plan" for a planned leader assignment; "explicit" after a move; "auto" for a supervisor Agent the hub attached
 	DoneWhen         []string           `json:"done_when"`
 	Criteria         []db.TodoCriterion `json:"criteria"`
 	ExpectMinutes    int                `json:"expect_minutes,omitempty"`
@@ -104,6 +104,9 @@ type Supervision struct {
 	// reading kept in memory only (the next report brings it back after a restart), and apart from UpdatedAt, which
 	// names the review a task waits for.
 	Progress *TaskProgress `json:"progress,omitempty"`
+	// Above is the conversation that supervised the to-do before a supervisor Agent took it over: where that Agent's
+	// decisions go (conversationAbove). Omitted when no Agent took it.
+	Above string `json:"above,omitempty"`
 }
 
 // assigned records a current ownership decision, rather than a pre-policy legacy ledger.
@@ -316,7 +319,7 @@ func (s *Service) supervisionDB() supervisionStore {
 }
 
 func supervisionFromRow(r db.TodoSupervisionRow) *Supervision {
-	v := &Supervision{Supervisor: r.Supervisor, SupervisorSource: r.SupervisorSource, DoneWhen: r.DoneWhen, Criteria: r.Criteria, ExpectMinutes: r.ExpectMinutes, State: r.State, Round: r.Round,
+	v := &Supervision{Supervisor: r.Supervisor, SupervisorSource: r.SupervisorSource, Above: r.Above, DoneWhen: r.DoneWhen, Criteria: r.Criteria, ExpectMinutes: r.ExpectMinutes, State: r.State, Round: r.Round,
 		PendingSince: r.PendingSince, CardlessToldAt: r.CardlessToldAt, UpdatedAt: r.UpdatedAt}
 	_ = json.Unmarshal(r.Reviews, &v.Reviews)
 	v.StalledReworkRounds = v.stalledReworkRounds()
@@ -407,7 +410,7 @@ func (v *Supervision) row(todoID string) db.TodoSupervisionRow {
 	if v.Waits != nil {
 		waits, _ = json.Marshal(v.Waits)
 	}
-	return db.TodoSupervisionRow{TodoID: todoID, Supervisor: v.Supervisor, SupervisorSource: v.SupervisorSource, DoneWhen: v.DoneWhen, Criteria: v.Criteria, ExpectMinutes: v.ExpectMinutes,
+	return db.TodoSupervisionRow{TodoID: todoID, Supervisor: v.Supervisor, SupervisorSource: v.SupervisorSource, Above: v.Above, DoneWhen: v.DoneWhen, Criteria: v.Criteria, ExpectMinutes: v.ExpectMinutes,
 		State: v.State, Round: v.Round, Reviews: raw, AutoReview: auto, Waits: waits, PendingSince: v.PendingSince, CardlessToldAt: v.CardlessToldAt, UpdatedAt: v.UpdatedAt}
 }
 

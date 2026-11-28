@@ -203,3 +203,26 @@ func TestReviewDoneTodoDoesNotReplaceAnOrdinaryClose(t *testing.T) {
 		t.Fatalf("late reviews replaced the first close: %+v, %v", stored, err)
 	}
 }
+
+// The conversation above a supervisor Agent is kept with the ledger; a ledger written without one reads back empty.
+func TestTodoSupervisionKeepsTheConversationAbove(t *testing.T) {
+	d, ctx := open(t), context.Background()
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	if err := d.CreateTodo(ctx, TodoRow{ID: "t1", Title: "部署", CreatedAt: now, UpdatedAt: now, Origin: "main"}); err != nil {
+		t.Fatal(err)
+	}
+	r := TodoSupervisionRow{TodoID: "t1", Supervisor: "main", UpdatedAt: now}
+	if err := d.PutTodoSupervision(ctx, r); err != nil {
+		t.Fatal(err)
+	}
+	if list, err := d.ListTodoSupervision(ctx); err != nil || len(list) != 1 || list[0].Above != "" {
+		t.Fatalf("a ledger with no supervisor Agent: %+v, %v", list, err)
+	}
+	r.Supervisor, r.SupervisorSource, r.Above = "box/s2", "auto", "main"
+	if err := d.PutTodoSupervision(ctx, r); err != nil {
+		t.Fatal(err)
+	}
+	if list, err := d.ListTodoSupervision(ctx); err != nil || len(list) != 1 || list[0].Above != "main" || list[0].Supervisor != "box/s2" {
+		t.Fatalf("round trip: %+v, %v", list, err)
+	}
+}

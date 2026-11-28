@@ -415,7 +415,7 @@ func (s *Service) startTaskAgent(ctx context.Context, t *PlanTask, retry bool) (
 		}
 	}
 	switch {
-	case t.Role == roleLeader: // what it may hand out, and how its workers reach it (task_leader.go)
+	case t.Role == roleLeader && !t.supervising: // what it may hand out, and how its workers reach it (task_leader.go)
 		// Through the terminal entry the handoff note above names, for an Agent without the Persona MCP (#12136).
 		rules = append(rules, prompts.RenderTaskLeader(prompts.TaskLeader{Terminal: entry.Terminal()}))
 	case t.Parent != "":

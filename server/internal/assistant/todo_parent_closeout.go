@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -54,9 +55,11 @@ func closeoutPieceOf(t Todo) parentcloseout.Piece {
 }
 
 func closeoutParentOf(t Todo) parentcloseout.Parent {
+	own := t // a supervisor Agent attached to the request is no work of its own: the container still closes itself
+	own.Agents = slices.DeleteFunc(slices.Clone(t.Agents), func(a TodoAgent) bool { return a.Source == sourceLeader })
 	p := parentcloseout.Parent{Open: t.DoneAt == nil && !t.Cancelled() && t.StartError == "",
-		Excluded: t.isConcern() || isAskTodo(t.ID) || isOutsideDecisionTodo(t.ID), HasAgent: todoHasActiveAgent(t),
-		OwnAgent: todoHasAgents(t), HasLedger: t.Supervision != nil, Updated: t.UpdatedAt}
+		Excluded: t.isConcern() || isAskTodo(t.ID) || isOutsideDecisionTodo(t.ID), HasAgent: todoHasActiveAgent(own),
+		OwnAgent: todoHasAgents(own), HasLedger: t.Supervision != nil, Updated: t.UpdatedAt}
 	if t.ReopenedAt != nil {
 		p.Reopened = *t.ReopenedAt
 	}
