@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end check of child sessions folded into their parent on the web (#5120, after cindy). On the Paseo computer of
+"""End-to-end check of child sessions folded into their parent on the web (#5120, after cindy). On the server of
 `MOCK_CHILD_SESSIONS=1`, the lead "Rework the login flow" created four Agents (one waits for you, one works with a Codex
 subagent of its own, one is done, one failed): none of them is a sidebar row; the lead's row needs you (its waiting
 child), says what that child waits for and how many subagents run; an Agent whose creator is not listed stays a row.
@@ -22,18 +22,18 @@ import sys
 from playwright.sync_api import Error as PlaywrightError, expect, sync_playwright
 
 MID = "server"
-LEAD = "9a5e0000-0000-4000-8000-000000000002"
+LEAD = "c5120000-0000-4000-8000-000000000002"
 CHILDREN = {  # session id: the status its card shows
-    "paseo-9a5e0000-0000-4000-8000-000000000003": "running",  # waits for you
-    "paseo-9a5e0000-0000-4000-8000-000000000004": "running",  # Codex, working
-    "019a5e00-0000-7000-8000-000000000005": "running",  # its Codex subagent
-    "paseo-9a5e0000-0000-4000-8000-000000000007": "completed",
-    "paseo-9a5e0000-0000-4000-8000-000000000008": "failed",
+    "c5120000-0000-4000-8000-000000000003": "running",  # waits for you
+    "019c5120-0000-7000-8000-000000000004": "running",  # Codex, working
+    "019c5120-0000-7000-8000-000000000005": "running",  # its Codex subagent
+    "c5120000-0000-4000-8000-000000000007": "completed",
+    "019c5120-0000-7000-8000-000000000008": "failed",
 }
-ORPHAN = "paseo-9a5e0000-0000-4000-8000-000000000009"
-DONE = "paseo-9a5e0000-0000-4000-8000-000000000007"
-FAILED = "paseo-9a5e0000-0000-4000-8000-000000000008"
-GRANDCHILD = "019a5e00-0000-7000-8000-000000000005"
+ORPHAN = "c5120000-0000-4000-8000-000000000009"
+DONE = "c5120000-0000-4000-8000-000000000007"
+FAILED = "019c5120-0000-7000-8000-000000000008"
+GRANDCHILD = "019c5120-0000-7000-8000-000000000005"
 SIZES = {"wide": {"width": 1280, "height": 860}, "narrow": {"width": 390, "height": 844}}
 OVERFLOW = "() => document.documentElement.scrollWidth - document.documentElement.clientWidth"
 

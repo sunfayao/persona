@@ -17,15 +17,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from persona_identity import CONTEXT_TAG_PATTERN, FILE_TAG_PATTERN
 
 PORT = int(os.environ.get("PORT", "18760"))
-# MOCK_CHILD_SESSIONS=1 (#5120) builds on the Paseo computer: its agent's created agents are its children.
-if os.environ.get("MOCK_CHILD_SESSIONS"):
-    os.environ.setdefault("MOCK_PASEO", "1")
-# MOCK_PASEO_PROVIDERS=1 (#8142) builds on it too: two of its providers the apps have no id for (Grok, Cursor).
-if os.environ.get("MOCK_PASEO_PROVIDERS"):
-    os.environ.setdefault("MOCK_PASEO", "1")
-# MOCK_PASEO_NOT_LOADED=1 (#8321) as well: a Grok agent Paseo let go, read only once its chat is watched.
-if os.environ.get("MOCK_PASEO_NOT_LOADED"):
-    os.environ.setdefault("MOCK_PASEO", "1")
 # MOCK_TEAM=1 (#5180) builds on MOCK_TAB_PANES's tab of three: it adds a worker's request, a third worker and a stopped pane.
 MOCK_TEAM = bool(os.environ.get("MOCK_TEAM"))
 if MOCK_TEAM:
@@ -332,7 +323,7 @@ MACHINES = [
 ]
 if os.environ.get("MOCK_NODE_MISMATCH"):  # a machine whose personad is another build than the hub's
     MACHINES[2]["node_mismatch"] = True
-# MOCK_RESUME_TERMINAL=1 (#5521): Resume in Terminal's cases (the sessions below); a Mac mini that enables no terminal engine.
+# MOCK_RESUME_TERMINAL=1 (#5521): Resume in Terminal's cases (the sessions below); a Mac mini without herdr.
 RESUME_TERMINAL = bool(os.environ.get("MOCK_RESUME_TERMINAL"))
 if RESUME_TERMINAL:
     MACHINES.append({"id": "mini", "name": "Mac mini", "kind": "ssh", "icon": "desktop", "ssh_host": "mini", "online": True,
@@ -347,33 +338,6 @@ def mock_workspaces():
     result = [{"id": f"{m}:{src}:{i}", "machine_id": m, "source": src, "source_id": str(i), "title": t, "cwd": cwd,
              **({"branch": br} if br else {}), "online": True, "available": True, "last_seen": ago()}
             for i, (m, src, t, cwd, br) in enumerate(rows)]
-    if os.environ.get("MOCK_ORCA_CHILDREN"):
-        result.append({"id": "orca-collection", "machine_id": "macbook", "source": "orca", "source_id": "orca:collection",
-                       "title": "Workspace collection", "cwd": "/Users/me/code", "index": 1, "online": True, "available": True})
-        result.append({"id": "orca-archived", "machine_id": "macbook", "source": "orca", "source_id": "orca:archived",
-                       "title": "Archived workspace", "cwd": "/Users/me/code/archived", "index": 8, "parent_source_id": "orca:collection",
-                       "online": True, "available": True})
-        for s in SESSIONS:
-            if s.get("space_kind") == "orca":
-                result.append({"id": "catalog-" + s["space_id"], "machine_id": s["machine_id"], "source": "orca",
-                               "source_id": s["space_id"], "title": s["space_name"], "cwd": s["cwd"],
-                               "parent_source_id": s.get("parent_space_id") or "orca:collection",
-                               "index": s.get("space_index", 1), "online": True, "available": True})
-        for mid, rows in WORKTREES.items():
-            for wid, label, path, branch in rows:
-                if (mid, wid) in WORKSPACE_LINEAGE:
-                    result.append({"id": "catalog-" + wid, "machine_id": mid, "source": "orca", "source_id": wid,
-                                   "title": branch, "cwd": path, "index": 20, "parent_source_id": WORKSPACE_LINEAGE[mid, wid],
-                                   "online": True, "available": True})
-    if os.environ.get("MOCK_PASEO"):
-        for wid, title, path, branch in [(w, t, PASEO_ROOT if tree is None else PASEO_TREES + tree, b)
-                                         for w, t, tree, b in PASEO_WORKSPACES] + PASEO_MADE:
-            # every worktree here is one Paseo made (owned): the ones Delete worktree is offered for (#6297)
-            result.append({"id": "catalog-" + wid, "machine_id": "server", "source": "paseo", "source_id": wid, "title": title,
-                           "cwd": path, "branch": branch, "workspace_kind": "git", "is_main": path == PASEO_ROOT,
-                           **({} if path == PASEO_ROOT else {"owned": True}),
-                           "project_id": PASEO_PROJECT["id"], "project_name": PASEO_PROJECT["name"], "project_path": PASEO_ROOT,
-                           "online": True, "available": True, "last_seen": ago()})
     return list({(w["machine_id"], w["source"], w["source_id"]): w for w in result}.values())
 
 
@@ -1309,128 +1273,49 @@ if os.environ.get("MOCK_ROW_EDGES"):
         sess("server", ROW_NOSOURCE, "核对看板的筛选条件", "/home/me/code/report", "working", "working", "edges", 8, "nosource", 3, 6,
              "条件都对上了。", pane_id=None),
     ]
-# MOCK_PASEO=1: a computer whose engine is Paseo, as its bridge lists it: one project, its
-# main checkout and two worktree workspaces in one space, each agent a row of its own that names its workspace
-# (slot_name without a slot_id). One agent created two others: the one that works names it as its parent (is_subagent,
-# parent_session_id), the one that waits for the user is listed without a parent while it waits, and both are its
-# background work. Its Codex agent's thread has a subagent of its own under it.
-PASEO_LEAD = "9a5e0000-0000-4000-8000-000000000002"
-PASEO_ASKS = "paseo-9a5e0000-0000-4000-8000-000000000003"
-PASEO_CODEX = "paseo-9a5e0000-0000-4000-8000-000000000004"
-# Paseo's workspaces (#6295), as the node lists them in the catalog: the main checkout, the two worktrees its agents work
-# in and one it made with no agent yet: (workspace id, title, folder under its worktrees root or None, branch).
-PASEO_ROOT, PASEO_TREES = "/home/me/code/app", "/home/me/.paseo/worktrees/1a2b3c4d/"
-PASEO_WORKSPACES = [("wks_5a1e000000000001", "Triage", None, "main"),
-                    ("wks_5a1e000000000002", "Fix the login flow", "brave-fox", "fix/login"),
-                    ("wks_5a1e000000000003", "Speed up the importer", "calm-owl", "perf/importer"),
-                    ("wks_5a1e000000000004", "Try the new parser", "quiet-elk", "spike/parser")]
-if os.environ.get("MOCK_PASEO"):
-    _paseo_root = PASEO_ROOT
-    def _paseo(sid, title, workspace, tree, branch, status, state, minutes, last, agent="claude", **kw):
-        cwd = _paseo_root if tree is None else PASEO_TREES + tree
-        # each agent names its workspace (workspace_id, #6295); a Paseo workspace is still no terminal slot (slot_name only)
-        wid = next((w for w, t, _, _ in PASEO_WORKSPACES if t == workspace), None)
-        row = dict(space_kind="paseo", space_id="prj_app", space_name="app", space_index=None, slot_id=None, slot_name=workspace,
-                   slot_index=None, pane_id=None, tab_id=None, workspace_id=wid, host="paseo",
-                   source_kind="runtime", source_instance_id="paseo", repo_root=_paseo_root, worktree=cwd, workspace_cwd=cwd,
-                   branch=branch, launcher="claude" if agent == "claude" else "codex", started_by_persona=False,
-                   # Paseo declares rename and close: the node lists both, rename not on an agent another one started (#6294),
-                   # one that waits for the user included (listed without its parent meanwhile)
-                   capabilities={"read": True, "send": True, "interrupt": True, "approve": True, "terminal": False, "attach": False,
-                                 "close": True, "rename": not (kw.get("is_subagent") or kw.get("asking_parent_session_id"))})
-        row.update(kw)
-        return sess("server", sid, title, cwd, status, state, "", 0, "", 0, minutes, last, agent=agent, **row)
-    SESSIONS += [
-        _paseo("9a5e0000-0000-4000-8000-000000000001", "Sort the new bug reports", "Triage", None, "main", "done", "idle", 50,
-               "Sorted into three groups; two look like duplicates."),
-        _paseo(PASEO_LEAD, "Rework the login flow", "Fix the login flow", "brave-fox", "fix/login", "done", "working", 4,
-               "Two agents are checking the change.", background_working=True,
-               background=[{"id": PASEO_ASKS, "kind": "agent", "description": "Add a remember-me option", "started_at": ago(minutes=5)},
-                           {"id": PASEO_CODEX, "kind": "agent", "description": "Review the session handling", "started_at": ago(minutes=3)}]),
-        _paseo(PASEO_ASKS, "Add a remember-me option", "Fix the login flow", "brave-fox", "fix/login", "blocked", "needs_you", 1,
-               "May I run the migration on the test database?", pending_interactions=1, asking_parent_session_id=PASEO_LEAD,
-               started_at=ago(minutes=5)),
-        _paseo(PASEO_CODEX, "Review the session handling", "Fix the login flow", "brave-fox", "fix/login", "working", "working", 0,
-               "Reading how the token is refreshed.", agent="codex", is_subagent=True, parent_session_id=PASEO_LEAD, root_session_id=PASEO_LEAD,
-               started_at=ago(minutes=3), effort="high"),
-        _paseo("019a5e00-0000-7000-8000-000000000005", "Trace the refresh failure", "Fix the login flow", "brave-fox", "fix/login",
-               "working", "working", 0, "Following the 401 through the retry.", agent="codex", agent_name="Codex CLI",
-               source_kind="codex_history", source_thread_id="019a5e00-0000-7000-8000-000000000005", source_instance_id=None, host=None,
-               slot_name=None, is_subagent=True, parent_session_id=PASEO_CODEX, root_session_id=PASEO_LEAD,
-               read_only_reason="View only: its parent Agent drives this sub-Agent", capabilities={"read": True},
-               started_at=ago(minutes=2), model="gpt-5.4-mini"),
-        _paseo("9a5e0000-0000-4000-8000-000000000006", "Profile the CSV parser", "Speed up the importer", "calm-owl", "perf/importer",
-               "done", "unread", 12, "The parser is three times faster on the sample files."),
-    ]
-# MOCK_PASEO_PROVIDERS=1 (#8142, on the Paseo computer): two of Paseo's providers the apps have no id for, as its bridge
-# lists them: under Paseo's own id (agent "paseo"), each with its provider as launcher and the provider's label
-# (agent_label). Grok waits for an approval (its card names Grok); Cursor, whose mark the web has, is idle. The model
-# capability is the node's for a runtime that switches models (Paseo); their launchers are on the server's list
-# (machine_launchers). Both have Auto Accept, so they list the two modes they take (#8261, capabilities.permission_modes)
-# beside modes false: Grok runs on its own approval (no mode reported) at its model's high effort, Cursor in Full access.
-PASEO_GROK, PASEO_CURSOR = "paseo-9a5e0000-0000-4000-8000-000000000010", "paseo-9a5e0000-0000-4000-8000-000000000011"
-PASEO_PROVIDERS = bool(os.environ.get("MOCK_PASEO_PROVIDERS"))
-if PASEO_PROVIDERS:
-    _provider_caps = {"read": True, "send": True, "interrupt": True, "approve": True, "terminal": False, "attach": False,
-                      "close": True, "rename": True, "model": True, "modes": False, "permission_modes": ["default", "bypassPermissions"]}
-    SESSIONS += [
-        _paseo(PASEO_GROK, "Check the release notes", "Triage", None, "main", "blocked", "needs_you", 1,
-               "May I run the release script?", agent="paseo", agent_label="Grok", launcher="grok", model="grok-4",
-               pending_interactions=1, capabilities=_provider_caps, efforts=["low", "high"], effort="high"),
-        _paseo(PASEO_CURSOR, "Tidy the settings page", "Triage", None, "main", "idle", "idle", 20,
-               "Moved the toggles into one group.", agent="paseo", agent_label="Cursor", launcher="cursor", model="auto",
-               capabilities=dict(_provider_caps), permission_mode="bypassPermissions"),
-    ]
-# MOCK_PASEO_NOT_LOADED=1 (#8321, on the Paseo computer): a Grok agent Paseo let go (closed after an hour idle, listed
-# offline). As its bridge does since #8132, every read of its chat is refused as not_loaded until a subscribe watches
-# it: then "Paseo" loads it, which takes MOCK_PASEO_LOAD_SECONDS (default 3), and the backlog brings its history.
-# GET /mock/paseo-unload lets it go again.
-PASEO_CLOSED = "paseo-9a5e0000-0000-4000-8000-000000000012"
-PASEO_LOADED = {"on": False}
-if os.environ.get("MOCK_PASEO_NOT_LOADED"):
-    SESSIONS.append(_paseo(PASEO_CLOSED, "Sort the holiday photos", "Triage", None, "main", "offline", "offline", 90,
-                           "Done: 212 photos in 9 albums, one per town.", agent="paseo", agent_label="Grok", launcher="grok",
-                           model="grok-4", capabilities={"read": True, "send": True, "interrupt": True, "approve": True,
-                                                         "terminal": False, "attach": False, "close": True, "rename": True,
-                                                         "model": True}))
-# MOCK_CHILD_SESSIONS=1 (#5120): the Paseo agent that created two agents created two more, both finished (one of them
-# failed), and an agent whose creator is not listed stays a row of its own. With the hub's folding (fold_hierarchy) the
-# web lists none of the children: the lead's row needs you (its waiting child) and its chat draws a card for each.
-PASEO_DONE = "paseo-9a5e0000-0000-4000-8000-000000000007"
-PASEO_FAILED = "paseo-9a5e0000-0000-4000-8000-000000000008"
-PASEO_ORPHAN = "paseo-9a5e0000-0000-4000-8000-000000000009"
-PASEO_GRANDCHILD = "019a5e00-0000-7000-8000-000000000005"
+# MOCK_CHILD_SESSIONS=1 (#5120): a Claude Code agent on the server that created four agents. The one that works (a Codex
+# agent with a Codex subagent of its own under it) names it as its parent (is_subagent, parent_session_id); the one that
+# waits for the user is listed without a parent while it waits (asking_parent_session_id); one is done and one failed.
+# The working and the waiting one are its background work. An agent whose creator is not listed stays a row of its own.
+# With the hub's folding (fold_hierarchy) the web lists none of the children: the lead's row needs you (its waiting
+# child) and its chat draws a card for each.
+CHILD_LEAD = "c5120000-0000-4000-8000-000000000002"
+CHILD_ASKS = "c5120000-0000-4000-8000-000000000003"
+CHILD_CODEX = "019c5120-0000-7000-8000-000000000004"
+CHILD_GRANDCHILD = "019c5120-0000-7000-8000-000000000005"
+CHILD_DONE = "c5120000-0000-4000-8000-000000000007"
+CHILD_FAILED = "019c5120-0000-7000-8000-000000000008"
+CHILD_ORPHAN = "c5120000-0000-4000-8000-000000000009"
+CHILD_CWD = "/home/me/code/auth-service"
 if os.environ.get("MOCK_CHILD_SESSIONS"):
+    def _child(sid, title, tab, status, state, minutes, last, agent="claude", **kw):
+        return sess("server", sid, title, CHILD_CWD, status, state, "auth-service", 14, agent, tab, minutes, last, agent=agent,
+                    launcher=agent, started_by_persona=False, branch="fix/login", **kw)
     SESSIONS += [
-        _paseo(PASEO_DONE, "Write the regression tests", "Fix the login flow", "brave-fox", "fix/login", "done", "idle", 6,
-               "Added three regression tests for the refresh path; all pass.", is_subagent=True, parent_session_id=PASEO_LEAD,
+        _child(CHILD_LEAD, "Rework the login flow", 1, "done", "working", 4,
+               "Two agents are checking the change.", background_working=True,
+               background=[{"id": CHILD_ASKS, "kind": "agent", "description": "Add a remember-me option", "started_at": ago(minutes=5)},
+                           {"id": CHILD_CODEX, "kind": "agent", "description": "Review the session handling", "started_at": ago(minutes=3)}]),
+        _child(CHILD_ASKS, "Add a remember-me option", 2, "blocked", "needs_you", 1,
+               "May I run the migration on the test database?", pending_interactions=1, asking_parent_session_id=CHILD_LEAD,
+               started_at=ago(minutes=5)),
+        _child(CHILD_CODEX, "Review the session handling", 3, "working", "working", 0,
+               "Reading how the token is refreshed.", agent="codex", is_subagent=True, parent_session_id=CHILD_LEAD,
+               root_session_id=CHILD_LEAD, started_at=ago(minutes=3), effort="high"),
+        _child(CHILD_GRANDCHILD, "Trace the refresh failure", 3, "working", "working", 0, "Following the 401 through the retry.",
+               agent="codex", agent_name="Codex CLI", source_kind="codex_history", source_thread_id=CHILD_GRANDCHILD,
+               slot_id=None, slot_name=None, pane_id=None, tab_id=None, is_subagent=True, parent_session_id=CHILD_CODEX,
+               root_session_id=CHILD_LEAD, read_only_reason="View only: its parent Agent drives this sub-Agent",
+               capabilities={"read": True}, started_at=ago(minutes=2), model="gpt-5.4-mini"),
+        _child(CHILD_DONE, "Write the regression tests", 4, "done", "idle", 6,
+               "Added three regression tests for the refresh path; all pass.", is_subagent=True, parent_session_id=CHILD_LEAD,
                started_at=ago(minutes=8.8), model="claude-sonnet-4-5", effort="medium", seen_at=ago(minutes=5)),
-        _paseo(PASEO_FAILED, "Check the CI config", "Fix the login flow", "brave-fox", "fix/login", "idle", "idle", 7,
-               "The model service timed out.", agent="codex", is_subagent=True, parent_session_id=PASEO_LEAD,
+        _child(CHILD_FAILED, "Check the CI config", 5, "idle", "idle", 7,
+               "The model service timed out.", agent="codex", is_subagent=True, parent_session_id=CHILD_LEAD,
                started_at=ago(minutes=8.5), effort="low", turn_error="The model service timed out.", seen_at=ago(minutes=6)),
-        _paseo(PASEO_ORPHAN, "Update the changelog", "Fix the login flow", "brave-fox", "fix/login", "working", "working", 0,
+        _child(CHILD_ORPHAN, "Update the changelog", 6, "working", "working", 0,
                "Adding the login change to the changelog.", is_subagent=True,
-               parent_session_id="9a5e0000-0000-4000-8000-0000000000ff", started_at=ago(minutes=1)),
-    ]
-# MOCK_ORCA_CHILDREN=1: an Orca worktree with three child worktrees (#2073, parent_space_id), one of them with a child of
-# its own: the web folds them under the parent and sums their states on its row.
-if os.environ.get("MOCK_ORCA_CHILDREN"):
-    def _orca(sid, title, wt, idx, status, state, minutes, last, parent=None):
-        wid = "app::/Users/me/code/app" + ("" if wt == "main" else "/.worktrees/" + wt)
-        kw = dict(space_kind="orca", space_id=wid, space_name=wt, space_index=idx, slot_id="tab-" + wt, slot_name="claude",
-                  slot_index=1, tab_id="tab-" + wt, workspace_id=wid, pane_id="orca:tab-" + wt + ":leaf1")
-        if parent:
-            kw["parent_space_id"] = "app::/Users/me/code/app" + ("" if parent == "main" else "/.worktrees/" + parent)
-        return sess("macbook", sid, title, wid.split("::", 1)[1], status, state, wt, idx, "claude", 1, minutes, last, **kw)
-    SESSIONS += [
-        _orca("c2073000-0000-4000-8000-000000000001", "拆分登录流程", "main", 1, "done", "idle", 20, "拆成三个子任务，各开了一个工作区。"),
-        _orca("c2073000-0000-4000-8000-000000000002", "登录页表单", "login-form", 2, "blocked", "needs_you", 1, "要不要保留旧的记住我选项？", parent="main"),
-        _orca("c2073000-0000-4000-8000-000000000003", "会话续期", "session-refresh", 3, "working", "working", 0, "在补续期失败的测试。", parent="main"),
-        _orca("c2073000-0000-4000-8000-000000000004", "续期的文档", "refresh-docs", 4, "done", "unread", 3, "文档写好了。", parent="session-refresh"),
-        _orca("c2073000-0000-4000-8000-000000000005", "登录埋点", "login-metrics", 5, "done", "unread", 6, "埋点加好了，等你看。", parent="main"),
-        sess("macbook", "c2073000-0000-4000-8000-000000000006", "Earlier workspace notes", "/Users/me/code/archived", "offline", "offline",
-             "legacy-provider", 8, "codex", 1, 60, "Saved workspace history", space_kind="codex_app", space_id="provider-project",
-             pane_id=None, workspace_id=None, capabilities={"read": True, "send": False}),
+               parent_session_id="c5120000-0000-4000-8000-0000000000ff", started_at=ago(minutes=1)),
     ]
 # MOCK_STOPPED_AGENTS=1 (with MOCK_TERMINAL_PANES): a stopped Agent (#4754: read-only, its terminal stays) on the server,
 # whose tab is still open in the notes workspace (agent_session on its pane), and the plain panes name what runs in front.
@@ -1573,12 +1458,12 @@ NO_SPACE = dict(space_kind=None, space_id=None, space_name=None, space_index=Non
 # MOCK_RESUME_TERMINAL=1 (#5521): Agents started outside Persona's
 # terminals, as the node lists them. On the MacBook (herdr): a Claude Code typed into a terminal of its own that has been
 # closed since, and a Codex thread nothing has open, both stopped (read and terminal: Resume in Terminal); a claude still
-# running in a terminal of its own (claude_cli: no terminal, no resume). On the Mac mini, which enables no terminal engine,
+# running in a terminal of its own (claude_cli: no terminal, no resume). On the Mac mini, which has no herdr,
 # a Claude Code whose terminal was closed: no capabilities, as the node lists it there (Resume in Terminal disabled).
 RT_STOPPED = "5e000000-0000-4000-8000-000000005521"
 RT_CODEX = "019a5521-0000-7000-8000-000000000001"
 RT_LIVE = "5e000000-0000-4000-8000-000000005522"
-RT_NO_ENGINE = "5e000000-0000-4000-8000-000000005523"
+RT_NO_HERDR = "5e000000-0000-4000-8000-000000005523"
 if RESUME_TERMINAL:
     _rt_stopped = dict(capabilities={"read": True, "terminal": True}, started_by_persona=False, agent_surface="cli",
                        read_only_reason="Agent 已停止：对话和终端可以看，它不再收消息；要它接着做，在终端页点「恢复」")
@@ -1591,11 +1476,11 @@ if RESUME_TERMINAL:
         sess("macbook", RT_LIVE, "排查登录超时", "/Users/me/code/weather", "idle", "idle", "", 0, "", 0, 4,
              "超时是重试间隔太短，改成指数退避了。", agent="claude", source_kind="claude_cli", agent_surface="cli",
              started_by_persona=False, capabilities={"read": True, "send": True}, **NO_SPACE),
-        sess("mini", RT_NO_ENGINE, "备份照片库", "/Users/me/Pictures", "offline", "offline", "", 0, "", 0, 70,
+        sess("mini", RT_NO_HERDR, "备份照片库", "/Users/me/Pictures", "offline", "offline", "", 0, "", 0, 70,
              "照片库备份到外接硬盘了，校验也跑完了。", agent_surface="cli", started_by_persona=False,
              **dict(NO_SPACE, launcher="claude")),
     ]
-RT_START = {x["session_id"]: copy.deepcopy(x) for x in SESSIONS if x["session_id"] in (RT_STOPPED, RT_CODEX, RT_LIVE, RT_NO_ENGINE)}
+RT_START = {x["session_id"]: copy.deepcopy(x) for x in SESSIONS if x["session_id"] in (RT_STOPPED, RT_CODEX, RT_LIVE, RT_NO_HERDR)}
 _desktop_caps = {"read": True, "send": True}
 # MOCK_CODEX_WAITING=1 (#4961): the Codex launchers say the
 # computer opens Codex with no first message (prompt_optional), a Codex start without one answers with a waiting row,
@@ -3924,7 +3809,7 @@ EDIT_NEW = """    func makeEntry(for date: Date) -> WeatherEntry {
 
 ITEMS = {}
 if os.environ.get("MOCK_CHILD_SESSIONS"):  # #5120: the lead's two exchanges, and what each child was asked and did
-    ITEMS[PASEO_LEAD] = (
+    ITEMS[CHILD_LEAD] = (
         [it("user", "text", 14, text="Rework the login flow: move the token refresh into the middleware.")]
         + tool("Read", {"file_path": "src/auth/session.ts"}, "export function refresh(token) { … }", 13)
         + tool("Edit", {"file_path": "src/auth/middleware.ts", "old_string": "next()", "new_string": "await refresh(req); next()"}, "ok", 12)
@@ -3932,36 +3817,26 @@ if os.environ.get("MOCK_CHILD_SESSIONS"):  # #5120: the lead's two exchanges, an
         + [it("user", "text", 9, text="Have agents add the tests and a remember-me option, check CI, and review the session handling.")]
         + [it("assistant", "thinking", 8.9, text="Four parts that can run side by side: I'll start one agent for each.")]
         + [it("assistant", "text", 4, text="Two agents are checking the change.")])
-    ITEMS[PASEO_DONE] = (
+    ITEMS[CHILD_DONE] = (
         [it("user", "text", 8.8, text="Write regression tests for the token refresh now that it runs in the middleware: an expired token, a revoked one, and two requests at once.")]
         + tool("Write", {"file_path": "src/auth/middleware.test.ts", "content": "describe(\"refresh\", () => { … })"}, "ok", 8)
         + tool("Bash", {"command": "npm test -- src/auth"}, "3 passed", 7)
         + [it("assistant", "text", 6, text="Added three regression tests for the refresh path (expired, revoked, concurrent); all pass.")])
-    ITEMS[PASEO_FAILED] = (
+    ITEMS[CHILD_FAILED] = (
         [it("user", "text", 8.5, text="Check that the CI config runs the auth tests on every pull request.")]
         + tool("Read", {"file_path": "scripts/test/check-fast.sh"}, "#!/bin/bash …", 8)
         + [it("system", "notice", 7, text="The model service timed out.")])
-    ITEMS[PASEO_ASKS] = (
+    ITEMS[CHILD_ASKS] = (
         [it("user", "text", 5, text="Add a remember-me option to the login form and keep it in the sessions table.")]
         + tool("Edit", {"file_path": "src/auth/LoginForm.tsx", "old_string": "</form>", "new_string": "<RememberMe />\n</form>"}, "ok", 3)
         + [it("assistant", "tool_use", 1, tool_use_id="toolu_migrate_test", tool_name="Bash", tool_input={"command": "npm run migrate -- --env test"})])
-    ITEMS[PASEO_CODEX] = (
+    ITEMS[CHILD_CODEX] = (
         [it("user", "text", 3, text="Review the session handling after the refresh moved into the middleware. Report anything that can leak a token.")]
         + tool("Bash", {"command": "rg -n refresh src/auth"}, "src/auth/middleware.ts:12: await refresh(req)", 2)
         + [it("assistant", "text", 0.5, text="Reading how the token is refreshed.")])
-    ITEMS[PASEO_GRANDCHILD] = (
+    ITEMS[CHILD_GRANDCHILD] = (
         [it("user", "text", 2, text="Trace why a refresh after a retry returns 401.")]
         + [it("assistant", "text", 0.2, text="Following the 401 through the retry.")])
-if os.environ.get("MOCK_PASEO_NOT_LOADED"):  # #8321: what the closed Grok agent did before Paseo let it go
-    ITEMS[PASEO_CLOSED] = (
-        [it("user", "text", 95, text="Sort the holiday photos by place, one album per town.")]
-        + tool("Bash", {"command": "exiftool -GPSPosition -csv ~/Pictures/Holiday"}, "212 photos, 9 places", 94)
-        + [it("assistant", "text", 90, text="Done: 212 photos in 9 albums, one per town.")])
-if os.environ.get("MOCK_ORCA_CHILDREN"):
-    ITEMS["c2073000-0000-4000-8000-000000000006"] = [
-        it("user", "text", 61, text="Review the prior work in this workspace."),
-        it("assistant", "text", 60, text="Saved workspace history. You can start a new session here."),
-    ]
 for _a, _label, _phase, _run, _text in MOCK_WORKFLOW_AGENTS:  # MOCK_WORKFLOWS: each workflow agent's conversation
     ITEMS[f"{WIDGET}@{_a}"] = [it("user", "text", 13, text=f"{_label}：审计小组件的这一块，列出问题")] + (
         [it("assistant", "text", 1, text=_text)] if _text else [])
@@ -4260,7 +4135,7 @@ if RESUME_TERMINAL:  # #5521
         it("assistant", "text", 90, text="脚本写好了：`compress.sh` 批量压缩，原图放进 originals/ 保留。")]
     ITEMS[RT_LIVE] = [it("user", "text", 10, text="登录偶尔超时，查一下")] + [
         it("assistant", "text", 4, text="超时是重试间隔太短，改成指数退避了。")]
-    ITEMS[RT_NO_ENGINE] = [it("user", "text", 80, text="把照片库备份到外接硬盘，备份完校验一遍")] + [
+    ITEMS[RT_NO_HERDR] = [it("user", "text", 80, text="把照片库备份到外接硬盘，备份完校验一遍")] + [
         it("assistant", "text", 70, text="照片库备份到外接硬盘了，校验也跑完了，没有出错的文件。")]
 ITEMS[DSH_SESSION] = [it("user", "text", 5, text="用 finance 目录里的表格生成第三季度报表")] + [
     it("assistant", "text", 2, text="要读取 finance 目录里的表格，等你授权。")]
@@ -6691,21 +6566,13 @@ if os.environ.get("MOCK_OPENCODE"):
          "created_at": ago(minutes=3), "expires_at": later(minutes=27), "tool_name": "Bash", "tool_use_id": "call_rm_build",
          "summary": "rm -rf build", "tool_input": {"command": "rm -rf build"}, "always_label": "总是允许 rm *"})
 
-# MOCK_PASEO=1: the agent that waits for the user asks before it runs a command.
-if os.environ.get("MOCK_PASEO"):
+# MOCK_CHILD_SESSIONS=1: the agent that waits for the user asks before it runs a command.
+if os.environ.get("MOCK_CHILD_SESSIONS"):
     INTERACTIONS.append(
-        {"id": "paseo_migrate_test", "machine_id": "server", "session_id": PASEO_ASKS, "session_title": "Add a remember-me option",
-         "folded_under": PASEO_LEAD, "tool_use_id": "toolu_migrate_test",
-         "cwd": "/home/me/.paseo/worktrees/1a2b3c4d/brave-fox", "kind": "permission", "agent": "claude",
+        {"id": "child_migrate_test", "machine_id": "server", "session_id": CHILD_ASKS, "session_title": "Add a remember-me option",
+         "folded_under": CHILD_LEAD, "tool_use_id": "toolu_migrate_test", "cwd": CHILD_CWD, "kind": "permission", "agent": "claude",
          "created_at": ago(minutes=1), "expires_at": later(minutes=29), "tool_name": "Bash",
          "summary": "npm run migrate -- --env test", "tool_input": {"command": "npm run migrate -- --env test"}})
-# MOCK_PASEO_PROVIDERS=1: Grok's card, named by the row's label as the node names it (#8142).
-if PASEO_PROVIDERS:
-    INTERACTIONS.append(
-        {"id": "paseo_grok_release", "machine_id": "server", "session_id": PASEO_GROK, "session_title": "Check the release notes",
-         "cwd": PASEO_ROOT, "kind": "permission", "agent": "paseo", "agent_label": "Grok",
-         "created_at": ago(minutes=1), "expires_at": later(minutes=29), "tool_name": "Bash",
-         "summary": "./scripts/release.sh --dry-run", "tool_input": {"command": "./scripts/release.sh --dry-run"}})
 
 # Keep the exported demo fixtures unchanged; only the HTTP mock serves the expanded request inbox.
 # A conversation permission and remembered grants for scope/revocation UI checks (#5867).
@@ -7044,7 +6911,6 @@ CLOSED_PANES, CLOSED_TABS, TAB_NAMES, SPLIT_PANES = set(), set(), {}, {}
 # #2431 "New worktree…": worktree/create adds a workspace (with one shell pane) next to the persona one; a branch or a path
 # containing "taken" is refused the way git refuses a branch checked out elsewhere / a directory with files in it.
 WORKTREES = {}  # machine id -> [(workspace id, label, path, branch)]
-WORKSPACE_LINEAGE = {}  # (machine, workspace) -> parent source id for Orca-created children
 
 
 def mock_panes(mid):
@@ -7122,23 +6988,12 @@ def mock_panes_many(mid):
     return {"hosts": [host, twin]}
 
 
-PASEO_MADE = []  # worktrees made on Paseo's workspaces from the web (#6295), in the catalog after PASEO_WORKSPACES
-
-
 def worktree_route(h, p, body):
     """POST /api/v1/machines/{mid}/worktree/{prepare,create} (#2431)."""
     mid, verb = p.split("/")[4], p.split("/")[6]
     NODE_ACTIONS.append({"machine": mid, "route": "worktree/" + verb, **body})
-    if body.get("kind") == "paseo":  # Paseo makes it, in its own worktrees folder of the repository (#6295)
-        if verb == "prepare":
-            return h.send_json({"root": PASEO_ROOT, "repoName": "app", "branch": "main", "path": PASEO_TREES.rstrip("/"), "automatic_name": True})
-        branch, path = str(body.get("branch", "")), str(body.get("path", ""))
-        wid = "wks_5a1e00000000%04d" % (100 + len(PASEO_MADE))
-        PASEO_MADE.append((wid, branch, path, branch))
-        return h.send_json({"workspace_id": wid, "path": path, "branch": branch})
     if verb == "prepare":
-        return h.send_json({"root": "/home/me/persona", "repoName": "persona", "branch": "main", "path": "/home/me/.herdr/worktrees/persona",
-                            "choose_parent": body.get("kind") == "orca"})
+        return h.send_json({"root": "/home/me/persona", "repoName": "persona", "branch": "main", "path": "/home/me/.herdr/worktrees/persona"})
     branch, path = str(body.get("branch", "")), str(body.get("path", ""))
     if "taken" in branch:
         return h.send_json({"error": "'%s' is already used by worktree at '/home/me/persona'" % branch, "code": "internal"}, 502)
@@ -7146,83 +7001,7 @@ def worktree_route(h, p, body):
         return h.send_json({"error": "检出路径已存在且不是空目录"}, 502)
     wid = "w%d" % (3 + len(WORKTREES.setdefault(mid, [])))
     WORKTREES[mid].append((wid, "persona", path, branch))
-    parent = body.get("parent_workspace_id") or body.get("workspace_id", "")
-    if body.get("kind") == "orca": WORKSPACE_LINEAGE[mid, wid] = parent
-    return h.send_json({"workspace_id": wid, "parent_workspace_id": parent, "tab_id": wid + ":t1", "pane": wid + ":p1", "terminal": "pane:" + wid + ":p1", "path": path, "branch": branch})
-
-
-# MOCK_PASEO=1 (#6297): Rename and Delete worktree on Paseo's rows, and Rename space on its project, answered as the node
-# answers them (node/runtimeworkspaces_manage.go): a title, the project's name (its agents' space_name, the catalog's
-# project_name), and a deletion previewed, then confirmed with the preview's token, only of a worktree Paseo made (the
-# main checkout is refused); the login flow's worktree has two uncommitted changes, which the dialog asks to confirm.
-# Recorded at GET /mock/node_actions.
-PASEO_PROJECT = {"id": "prj_app", "name": "app"}
-PASEO_PREVIEWS, PASEO_DIRTY = {}, {"wks_5a1e000000000002": 2}
-
-
-def _paseo_path(row):
-    """A Paseo workspace row's folder: PASEO_WORKSPACES name a folder under its worktrees root (None: the main checkout),
-    PASEO_MADE the whole path."""
-    return row[2] if row in PASEO_MADE else PASEO_ROOT if row[2] is None else PASEO_TREES + row[2]
-
-
-def _paseo_failed(h, detail):
-    """A node's refusal as the hub writes it (docs/protocol/protocol.md "Error body"): the node's words in detail."""
-    return h.send_json({"error": "The request could not be completed. Open details for the diagnostic.", "code": "internal", "detail": detail}, 502)
-
-
-def paseo_worktree_route(h, p, body):
-    """POST /api/v1/machines/{mid}/worktree/{rename,delete} of a Paseo row (#6297)."""
-    mid, verb = p.split("/")[4], p.split("/")[6]
-    NODE_ACTIONS.append({"machine": mid, "route": "worktree/" + verb, **body})
-    wid = str(body.get("workspace_id", ""))
-    found = next(((rows, i) for rows in (PASEO_WORKSPACES, PASEO_MADE) for i, row in enumerate(rows) if row[0] == wid), None)
-    if verb == "rename":
-        if not found:
-            return _paseo_failed(h, "Paseo no longer lists this workspace; refresh and try again")
-        rows, i = found
-        rows[i] = (wid, str(body.get("name", "")).strip()) + tuple(rows[i][2:])
-        return h.send_json({"ok": True})
-    token = str(body.get("preview_token", ""))
-    if body.get("preview"):
-        if not found:
-            return _paseo_failed(h, "The workspace or its changes differ from the preview; review a new preview")
-        rows, i = found
-        path = _paseo_path(rows[i])
-        if path == PASEO_ROOT:
-            return _paseo_failed(h, "The repository's main checkout cannot be deleted")
-        token = "paseo-preview-%d" % (len(PASEO_PREVIEWS) + 1)
-        PASEO_PREVIEWS[token] = wid
-        return h.send_json({"workspace_id": wid, "kind": "paseo", "host_id": "local", "instance_id": "paseo-mock", "path": path,
-                            "branch": rows[i][3], "dirty": PASEO_DIRTY.get(wid, 0), "folder": False, "preview_token": token})
-    if PASEO_PREVIEWS.get(token) != wid:
-        return _paseo_failed(h, "Preview this exact workspace again before deleting it")
-    if body.get("reconcile"):
-        return h.send_json({"workspace_id": wid, "removed": not found, "state": "present" if found else "removed"})
-    if not found:
-        return _paseo_failed(h, "Deletion was already sent; reconcile its status before any further action")
-    if PASEO_DIRTY.get(wid) and not body.get("force"):
-        return _paseo_failed(h, "The worktree has uncommitted changes")
-    rows, i = found
-    del rows[i]
-    SESSIONS[:] = [s for s in SESSIONS if not (s.get("space_kind") == "paseo" and s.get("workspace_id") == wid)]  # archived with it
-    return h.send_json({"workspace_id": wid, "removed": True, "state": "removed", **({"branch_deleted": True} if body.get("delete_branch") else {})})
-
-
-def paseo_space_route(h, p, body):
-    """POST /api/v1/machines/{mid}/spaces/{id}/rename of Paseo's project, by its id or one of its workspaces' (#6297): its
-    agents and the catalog show the new name; the hub answers it as pins.go does. False when the id is no Paseo one."""
-    sid = p.split("/")[6]
-    if sid != PASEO_PROJECT["id"] and not any(row[0] == sid for row in PASEO_WORKSPACES + PASEO_MADE):
-        return False
-    NODE_ACTIONS.append({"machine": p.split("/")[4], "route": "spaces/rename", "workspace_id": sid, **body})
-    name = str(body.get("name", "")).strip()
-    PASEO_PROJECT["name"] = name
-    for s in SESSIONS:
-        if s.get("space_kind") == "paseo" and s.get("space_id") == PASEO_PROJECT["id"]:
-            s["space_name"] = name
-    h.send_json({"ok": True, "name": name})
-    return True
+    return h.send_json({"workspace_id": wid, "tab_id": wid + ":t1", "pane": wid + ":p1", "terminal": "pane:" + wid + ":p1", "path": path, "branch": branch})
 
 
 # MOCK_AGENT_WORKTREE=1 (#6115): a new agent in a worktree of its own. worktree/status says a folder under
@@ -7275,12 +7054,12 @@ def node_action(h, p, body):
         CLOSED_TABS.add(body.get("tab_id"))
     elif area == "tabs" and verb == "rename":
         # A name that is a refusal's word is refused as the hub relays it (#6996; as "taken" refuses a worktree): "offline"
-        # (503 node_unreachable), "unsupported" (an engine without rename) and "closed" (the tab gone), the node's words as 502
+        # (503 node_unreachable), "unsupported" (a host without rename) and "closed" (the tab gone), the node's words as 502
         label = str(body.get("label", ""))
         if label == "offline":
             return h.send_json({"error": "machine %s is offline" % mid, "code": "node_unreachable", "retryable": True, "delivered": "none"}, 503)
         if label in ("unsupported", "closed"):
-            words = "unsupported: orca cannot do this" if label == "unsupported" else "tab %s is not running" % body.get("tab_id")
+            words = "unsupported" if label == "unsupported" else "tab %s is not running" % body.get("tab_id")
             return h.send_json({"error": words, "code": "internal"}, 502)
         TAB_NAMES[body.get("tab_id")] = label
     elif area == "panes" and verb == "split":
@@ -10560,14 +10339,6 @@ LAUNCHER_MODELS["sonnetcc"] = dict(LAUNCHER_MODELS["claude"], locked="启动器�
 LAUNCHER_MODELS["codex-app"] = {"agent": "codex", "models": [], "locked": "Codex App 用它自己选的模型运行这个对话。"}
 LAUNCHER_MODELS["omp"] = {"agent": "omp", "models": []}  # MOCK_OMP: omp has no list to ask for (node launcherModels)
 LAUNCHER_MODELS["claude-desktop"] = {"agent": "claude", "models": [], "locked": "Claude 桌面版用它自己选的模型运行这个会话。"}
-# MOCK_PASEO_PROVIDERS=1 (#8142): Paseo's Grok and Cursor providers, as the node lists a runtime's launcher models (agent
-# "paseo": the runtime's own id, for an agent the apps have no id for).
-if PASEO_PROVIDERS:
-    # Grok 4's thinking options among Persona's levels (#8261): New Agent offers those alone for it, none for Grok 4 Fast
-    LAUNCHER_MODELS["grok"] = {"agent": "paseo", "models": [{"id": "grok-4", "name": "Grok 4", "default": True, "efforts": ["low", "high"]},
-                                                            {"id": "grok-4-fast", "name": "Grok 4 Fast"}]}
-    LAUNCHER_MODELS["cursor"] = {"agent": "paseo", "models": [{"id": "auto", "name": "Auto", "default": True},
-                                                              {"id": "grok-4", "name": "Grok 4"}]}
 # MOCK_NEW_AGENT_PANEL=1 (#5104, web/e2e/new-agent-model.mjs): the gateway behind claude's glm-5.3 also serves Codex, so
 # codex lists the same model ID and New Agent's flyout offers that model under both engines; and the Mac Studio has no
 # codex launcher, so a Codex pick made on another computer falls back to the default there.
@@ -10864,11 +10635,6 @@ def machine_launchers(mid=""):
         out.append({"name": "claude-desktop", "model": "", "source": "claude_desktop", "agent": "claude", "agent_type": "claude"})
         # Its Codex App runs: its launcher starts a chat there (#5726).
         out.append({"name": "codex-app", "model": "", "source": "codex_app", "agent": "codex", "agent_type": "codex"})
-    if PASEO_PROVIDERS and mid == "server":
-        # Paseo's providers the apps have no id for (#8142): the runtime's own id as their agent, the runtime as source,
-        # named as in Paseo and saying the modes a start takes (#8261)
-        out += [{"name": n, "display_name": d, "model": m, "source": "paseo", "agent": "paseo", "agent_type": "paseo",
-                 "permission_modes": ["default", "bypassPermissions"]} for n, d, m in (("grok", "Grok", "Grok 4"), ("cursor", "Cursor", "Auto"))]
     if machine_alerts.ON:
         return machine_alerts.with_health(mid, out)
     return launcher_health_list(out)
@@ -14516,7 +14282,7 @@ def summary_row(s):
 
 def pane_origin(s):
     """Where a session was opened, as the hub's sessionorigin.Of says it (the paged list's pane_source)."""
-    if s.get("space_kind") == "codex_app" or s.get("host") in ("paseo", "cindy", "t3code") or (s.get("source_kind") == "runtime" and s.get("source_instance_id") == "orca"):
+    if s.get("space_kind") == "codex_app":
         return "desktop"
     pane = s.get("pane_id") or ""
     if not pane:
@@ -18913,55 +18679,13 @@ if MOCK_BROWSER:
         if _m.get("os") == "darwin":
             _m["browser"] = browser_of(_m["id"], _m["id"] == "macbook")
 
-# Every fixture, including machines added by optional modes, follows the engine contract.
+# Every fixture, including machines added by optional modes, lists herdr, the node's one engine, while online.
 for _m in MACHINES:
-    _m["engine"] = "herdr"
-    _m["engines"] = ([{"id": "herdr", "name": "herdr", "available": True, "version": "0.9.5"},
-                       {"id": "herdr-core", "name": "Herdr App", "available": _m["id"] == "macbook"},
-                       {"id": "herdr-both", "name": "herdr + Herdr App", "available": _m["id"] == "macbook"},
-                       {"id": "orca", "name": "Orca", "available": _m["id"] == "studio", "version": "1.0",
-                        **({"note": "Orca 协议版本不兼容，请先更新 Orca。"} if _m["id"] == "server" else {})}]
-                      if _m.get("online") else [])
-
-# MOCK_ENGINE_SETS=1 (#2576): a hub that takes sets of engine hosts. Every machine lists
-# engine_hosts / engine_default; the MacBook enables herdr + Herdr App, the Mac Studio herdr + Orca (Tern, Rex, Paseo, Cindy and T3 Code found
-# there too); the widget session on the MacBook is live in Herdr App as well (also_open_in). PUT …/engine takes {hosts, default}.
-ENGINE_SETS = os.environ.get("MOCK_ENGINE_SETS") == "1"
-ENGINE_HOST_IDS = ["herdr", "herdr-core", "orca", "tern", "rex", "paseo", "cindy", "t3code"]
-
-
-def legacy_engine(hosts, default):
-    if len(hosts) == 1: return hosts[0]
-    if hosts == ["herdr", "herdr-core"]: return "herdr-both"
-    return default or "herdr"
-
-
-if ENGINE_SETS:
-    for _m in MACHINES:
-        _m["engine_hosts"], _m["engine_default"] = {"macbook": (["herdr", "herdr-core"], "herdr"),
-                                                     "studio": (["herdr", "orca"], "herdr")}.get(_m["id"], (["herdr"], "herdr"))
-        _m["engine"] = legacy_engine(_m["engine_hosts"], _m["engine_default"])
-        if _m.get("online"):
-            _m["engines"].append({"id": "tern", "name": "Tern", "available": _m["id"] == "studio", "version": "0.9.13"})
-            _m["engines"].append({"id": "rex", "name": "Rex", "available": _m["id"] == "studio", "version": "0.1.0"})
-            _m["engines"].append({"id": "paseo", "name": "Paseo", "available": _m["id"] == "studio", "version": "0.9"})
-            _m["engines"].append({"id": "cindy", "name": "Cindy", "available": _m["id"] == "studio", "version": "0.1.128"})
-            _m["engines"].append({"id": "t3code", "name": "T3 Code", "available": _m["id"] == "studio", "version": "0.1.11"})
-            found = [h for h in ENGINE_HOST_IDS if any(e["id"] == h and e["available"] for e in _m["engines"])] or ["herdr"]
-            _m["engine_suggested"] = {"hosts": found, "default": found[0]}
-    for _s in SESSIONS:
-        if _s.get("session_id") == WIDGET:
-            _s["host"], _s["also_open_in"] = "herdr", ["herdr-core"]
-if os.environ.get("MOCK_PASEO"):  # the server enables Paseo beside herdr: its workspaces are the catalog's (#6295)
-    for _m in MACHINES:
-        if _m["id"] == "server" and _m.get("online"):
-            _m["engines"] = [e for e in _m["engines"] if e["id"] != "paseo"] + [{"id": "paseo", "name": "Paseo", "available": True, "version": "0.14"}]
-            _m["engine_hosts"], _m["engine_default"] = ["herdr", "paseo"], "herdr"
-            _m["engine"] = legacy_engine(_m["engine_hosts"], _m["engine_default"])
-if RESUME_TERMINAL:  # the Mac mini enables no terminal engine: the empty set (#3302), herdr still named for older clients
+    _m["engines"] = [{"id": "herdr", "name": "herdr", "available": True, "version": "0.9.5"}] if _m.get("online") else []
+if RESUME_TERMINAL:  # the Mac mini has no herdr
     for _m in MACHINES:
         if _m["id"] == "mini":
-            _m["engine_hosts"], _m["engine_default"] = [], ""
+            _m["engines"] = [{"id": "herdr", "name": "herdr", "available": False}]
 
 # ---------- MOCK_NEEDS / MOCK_HISTORY: the Persona page ----------
 # By default five agent requests and several inbox items in "Needs you" wait: the Persona home's "Things that need you now" shows three
@@ -20462,9 +20186,7 @@ MOCK_HELP = [
     "MOCK_SIDE_SESSIONS=1  Three Claude desktop side sessions of the PR review (parent_agent_id, #5935): one waiting for you with its card, one a stopped side of a side; the hub folds them into the review's chat (sessions_side_fold, #7944) unless MOCK_SIDE_FOLD=0",
     "MOCK_SESSIONS_CATALOG=1  With MOCK_SESSIONS_LIST=1: catalog=1, place= and space= on the paged list, a Windows PC, one repository on two computers and a plain notes folder on two",
     "MOCK_MANUAL_HERDR=1  没挂待办的 herdr Agent 算手动开的（started_by_persona 为假），Agents「按待办」里出「手动开的」一段（#2917）",
-    "MOCK_ORCA_CHILDREN=1  MacBook 上一个 Orca 工作区带三个子工作区（其中一个还有子项，parent_space_id，#2073）",
-    "MOCK_CHILD_SESSIONS=1  The Paseo computer (MOCK_PASEO) with its agent's four created agents (one waiting for you, one working with a Codex subagent of its own, one done, one failed) and an agent whose creator is not listed: the hub folds them (folded_under / children) and the lead's chat draws a card for each (#5120)",
-    "MOCK_PASEO=1  A computer that enables Paseo beside herdr: a project with its main checkout, two titled worktree workspaces and one with no agent, all in the workspace catalog (New worktree… makes one in Paseo's folder, #6295; Rename, Delete worktree and Rename space as the node answers them, the login flow's worktree with two uncommitted changes, #6297), an agent with the two agents it created (one waiting for you), and a Codex agent whose thread has a subagent",
+    "MOCK_CHILD_SESSIONS=1  A Claude Code agent on the server with the four agents it created (one waiting for you, one working with a Codex subagent of its own, one done, one failed) and an agent whose creator is not listed: the hub folds them (folded_under / children) and the lead's chat draws a card for each (#5120)",
     "MOCK_LIVE_STEP=bash|command|reads|parallel|thinking|thinking-folded  The widget chat a minute into a turn whose newest step is still going: the running work line names it (#2987)",
     "MOCK_TOOL_OUTCOMES=1  A turn whose tool results carry outcomes: a failed test run (exit code, the cut output's end), a denied edit, a refused write, an interrupted and a timed-out command; only the failure is red (#4303)",
     "MOCK_PERMISSION_DIFF=1  Two chats wait on a Claude Code permission card for an Edit (longer than the card's preview) and a Write; the card shows the change (#4621)",
@@ -21287,7 +21009,6 @@ class H(BaseHTTPRequestHandler):
             PLUGINS.pop("example-gateway-next", None); _UPGRADE_WHILE_ON.pop("example-gateway", None)
             PLUGINS["example-gateway"] = copy.deepcopy(_GATEWAY_START)
             for m in MACHINES:
-                m["engine"] = "herdr"
                 if m["id"] == "lab":
                     for k in ("hostname", "os", "arch", "home", "herdr_version", "claude_version"): m.pop(k, None)
                     m.update(online=False, error="ssh: connect to host lab port 22: Connection refused")
@@ -21810,10 +21531,6 @@ class H(BaseHTTPRequestHandler):
             return self.send_json({"settings": AGY_SETTINGS.setdefault(p.split("/")[4], _agy_settings())})
         if p.startswith("/api/v1/sessions/") and p.endswith("/items"):
             sid = unquote(p.split("/")[5])  # a subagent's is "<session>@<agent>" (the web app sends %40)
-            if sid == PASEO_CLOSED and not PASEO_LOADED["on"]:  # MOCK_PASEO_NOT_LOADED: no watch has loaded it yet
-                LOG.write("  items %s refused: not_loaded\n" % sid); LOG.flush()
-                return self.send_json({"error": "This agent isn’t running in Paseo. Its conversation loads while its chat is open.",
-                                       "code": "not_loaded"}, 409)
             items = find_items(sid)
             last = items[-1]["seq"] if items else 0
             if "after_seq" in q:
@@ -21837,9 +21554,6 @@ class H(BaseHTTPRequestHandler):
             served(sid, "page", out)
             live_step_page_sent(sid)
             return self.send_json(out)
-        if p == "/mock/paseo-unload":  # MOCK_PASEO_NOT_LOADED: Paseo lets the Grok agent go again
-            PASEO_LOADED["on"] = False
-            return self.send_json({"ok": True})
         if p == "/mock/images":  # MOCK_IMAGES_FAIL: ?ok=1 lets lazy images through, ?asked=1 reads, anything else fails them again
             q = parse_qs(urlparse(self.path).query)
             if q.get("asked") != ["1"]: IMAGES_FAIL["on"] = q.get("ok", [""])[0] != "1"
@@ -21866,13 +21580,6 @@ class H(BaseHTTPRequestHandler):
         if p.startswith("/api/v1/sessions/") and p.endswith("/info"):  # the chat's "Developer info" card
             s = next((s for s in all_sessions() if s["session_id"] == p.split("/")[5]), {})
             codex = s.get("agent") == "codex"
-            if s.get("agent") == "paseo":
-                # a Paseo provider's session has no transcript here: the node says nobody gives its counts (#8261), and
-                # keeps zeros for older apps
-                return self.send_json({"session_id": s["session_id"], "cwd": s.get("cwd"), "model": s.get("model"), "agent": "paseo",
-                                       "launcher": s.get("launcher"), "permission_mode": s.get("permission_mode"), "effort": s.get("effort"),
-                                       "context_tokens": 0, "output_tokens": 0, "compactions": 0, "turns": 0, "usage_unknown": True,
-                                       "last_activity": ago()})
             return self.send_json({"session_id": s.get("session_id", ""), "cwd": s.get("cwd"),
                                    "model": "gpt-5.5" if codex else "claude-opus-5",
                                    "launcher": s.get("launcher"), "git_branch": "main", "version": "0.153.0" if codex else "2.1.320",
@@ -22067,14 +21774,8 @@ class H(BaseHTTPRequestHandler):
         if plugins_route(self, p, self.last_body): return
         if os.environ.get("MOCK_TERMINAL_PANES") and re.fullmatch(r"/api/v1/machines/[^/]+/(panes/(close|close_finished|split|agent|git)|tabs/(close|rename))", p):
             return node_action(self, p, json.loads(self.last_body or b"{}"))
-        if (os.environ.get("MOCK_TERMINAL_PANES") or os.environ.get("MOCK_PASEO")) and re.fullmatch(r"/api/v1/machines/[^/]+/worktree/(prepare|create)", p):
+        if os.environ.get("MOCK_TERMINAL_PANES") and re.fullmatch(r"/api/v1/machines/[^/]+/worktree/(prepare|create)", p):
             return worktree_route(self, p, json.loads(self.last_body or b"{}"))
-        if os.environ.get("MOCK_PASEO") and re.fullmatch(r"/api/v1/machines/[^/]+/worktree/(rename|delete)", p) \
-                and json.loads(self.last_body or b"{}").get("kind") == "paseo":
-            return paseo_worktree_route(self, p, json.loads(self.last_body or b"{}"))
-        if os.environ.get("MOCK_PASEO") and re.fullmatch(r"/api/v1/machines/[^/]+/spaces/[^/]+/rename", p) \
-                and paseo_space_route(self, p, json.loads(self.last_body or b"{}")):
-            return
         if AGENT_WORKTREE and re.fullmatch(r"/api/v1/machines/[^/]+/worktree/(status|add|remove)", p):
             return agent_worktree_route(self, p, json.loads(self.last_body or b"{}"))
         if os.environ.get("MOCK_TERMINAL_PANES") and re.fullmatch(r"/api/v1/machines/[^/]+/spaces/[^/]+/rename", p):
@@ -22574,33 +22275,6 @@ class H(BaseHTTPRequestHandler):
             if not isinstance(body.get("on"), bool): return self.send_json({"error": "需要 on"}, 400)
             BOTMUX_ON[p.split("/")[4]] = body["on"]
             return self.send_json({"on": body["on"]})
-        if self.command == "PUT" and p.startswith("/api/v1/machines/") and p.endswith("/engine"):
-            mid = p.split("/")[4]
-            machine = next((m for m in MACHINES if m["id"] == mid), None)
-            if machine is None: return self.send_json({"error": "找不到机器"}, 404)
-            body = json.loads(self.last_body or b"{}")
-            if ENGINE_SETS and isinstance(body.get("hosts"), list):
-                hosts = [h for h in ENGINE_HOST_IDS if h in body["hosts"]]
-                default = body.get("default") or (hosts[0] if hosts else "")
-                if len(hosts) != len(set(body["hosts"])) or (default and default not in hosts) or (not hosts and default):
-                    return self.send_json({"error": "宿主集合不对"}, 400)
-                if os.environ.get("MOCK_ENGINE_ERROR"): return self.send_json({"error": "暂时无法保存"}, 503)
-                machine["engine_hosts"], machine["engine_default"] = hosts, default
-                machine["engine"] = legacy_engine(hosts, default)
-                for send, _ in list(LIVE):
-                    try: send({"type": "machines", "machines": out_machines()})
-                    except Exception: pass
-                return self.send_json(out_machine(machine))
-            engine = body.get("engine")
-            if engine not in ("herdr", "herdr-core", "herdr-both", "orca", "tern", "rex", "paseo", "cindy", "t3code") and not any(
-                    e["id"] == engine and e["available"] for e in machine["engines"]):
-                return self.send_json({"error": "未知引擎"}, 400)
-            if os.environ.get("MOCK_ENGINE_ERROR"): return self.send_json({"error": "暂时无法保存"}, 503)
-            machine["engine"] = engine
-            for send, _ in list(LIVE):
-                try: send({"type": "machines", "machines": out_machines()})
-                except Exception: pass
-            return self.send_json(out_machine(machine))
         if os.environ.get("MOCK_LARK_NATIVE_OLK") and (p == "/test/lark-encryption/reset" or p == "/api/v1/lark/encryption/unlock" or p.endswith(("/encryption/covers", "/encryption/prepare", "/encrypted-messages"))):
             body = json.loads(self.last_body or b"{}")
             if p == "/test/lark-encryption/reset":
@@ -23325,11 +22999,6 @@ class H(BaseHTTPRequestHandler):
                      "working", "working", body.get("cwd", "").rsplit("/", 1)[-1] or "new", 9, body.get("tab_name") or "agent-%d" % n, n, 0, "",
                      agent="codex" if codex else "omp" if omp else "claude")
             s["launcher"] = body.get("launcher") or "claude"
-            if os.environ.get("MOCK_ORCA_CHILDREN") and body.get("workspace_id"):
-                w = next((w for w in mock_workspaces() if w["machine_id"] == s["machine_id"] and w["source_id"] == body["workspace_id"] and w["source"] == "orca"), None)
-                if w:
-                    s.update(space_kind="orca", space_id=w["source_id"], workspace_id=w["source_id"], space_name=w["title"], space_index=w["index"])
-                    if w.get("parent_source_id"): s["parent_space_id"] = w["parent_source_id"]
             if body.get("model"): s["model"] = body["model"]  # picked in "New Agent"
             if codex:  # the node answers once the first message is in the thread's rollout
                 ITEMS[s["session_id"]] = [it("user", "text", 0, text=body["prompt"])]
@@ -23999,17 +23668,7 @@ class H(BaseHTTPRequestHandler):
                                         except Exception:
                                             pass
                         threading.Thread(target=stream, daemon=True).start()
-                    if sid == PASEO_CLOSED and not PASEO_LOADED["on"]:
-                        # MOCK_PASEO_NOT_LOADED: the watch loads the agent, and the hub's backlog read waits for it
-                        def load(sid=sid, mid=mid, fold=bool(msg.get("fold_work"))):
-                            time.sleep(float(os.environ.get("MOCK_PASEO_LOAD_SECONDS", "3")))
-                            PASEO_LOADED["on"] = True
-                            history = find_items(sid)
-                            page, more = last_turns(history, 2) if PAGING["on"] else (history, False)
-                            send({"type": "items", "machine_id": mid, "session_id": sid, "backlog": True, "has_more": more, **span(history),
-                                  "items": lazy_images(fold_work(page) if fold else page)})
-                        threading.Thread(target=load, daemon=True).start()
-                    elif since:
+                    if since:
                         newer = [x for x in items if x["seq"] > since]
                         send({"type": "items", "machine_id": mid, "session_id": sid, "items": lazy_images(newer), "backlog": True,
                               **span(items, since, max(since, items[-1]["seq"] if items else 0))})
