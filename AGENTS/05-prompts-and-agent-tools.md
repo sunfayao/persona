@@ -105,7 +105,12 @@ add one and keep the old name working, or remove a tool whose feature is gone to
   runners, a chat channel) is listed only while it is on: a connector reports `not_configured`, or the assistant's
   `toolGates` (`assistant/fleet_tools.go`) leave the group out. Gates are part of the tool-list revision.
 - A tool that leaves every list but may still be called by a running conversation stays routed in
-  `retiredToolNames` (`assistant/tools.go`) with its description, instead of answering "unknown tool".
+  `retiredToolNames` (`assistant/tools.go`), instead of answering "unknown tool".
+- A family of tools becomes one with an `action` (`mergedTools`) or a parameter (`unmergeTool`, both in
+  `assistant/tools.go`). A call runs the older tool it stands for, which stays routed, so every check that goes by a
+  tool's name sees the older one: the guards, the Inbox's and a grant's read-only lists, a card's title, and the usage
+  ranking (`mergedName`). A shape that could mean two older tools is refused, never guessed. A new action or tool is
+  welcome only by retiring at least as many, and a merged tool joins the declared core only on its own use.
 
 ## Size is a cost
 
