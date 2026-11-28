@@ -173,7 +173,7 @@ function PurposeRow({ purpose: p, providers, sourceName, category, onOpen }: { p
           </div>}
         </>} />
       </div>
-      <button type="button" className="flex size-11 shrink-0 items-center justify-center rounded-control text-ink-3 hover:bg-hover focus-visible:outline-accent"
+      <button type="button" className="flex size-11 shrink-0 items-center justify-center rounded-control text-ink-3 hover:bg-hover"
         aria-label={t("settings-modelconfiguration.execution_help", { name: p.name })} aria-expanded={help} aria-controls={helpID}
         onMouseEnter={() => setHelp(true)} onFocus={() => setHelp(true)}
         onBlur={(event) => { if (!pinned && !row.current?.contains(event.relatedTarget as Node)) setHelp(false); }}

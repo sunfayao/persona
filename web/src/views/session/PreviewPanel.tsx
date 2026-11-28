@@ -334,7 +334,7 @@ function Choose({ servers, options, canStart, onShow, onStart, onOther }: {
           </div>
         ))}
       </div>
-      <button type="button" onClick={onOther} className="mt-2 self-start rounded-[8px] px-2 py-1.5 text-[12.5px] font-medium whitespace-nowrap text-accent-ink transition-colors hover:bg-hover">
+      <button type="button" onClick={onOther} className="mt-2 self-start rounded-[8px] px-2 py-1.5 text-[12.5px] font-medium whitespace-nowrap text-accent-ink focus-ring-inset transition-colors hover:bg-hover">
         {t("preview.other_port")}
       </button>
       <Problems problems={problems} className="" />
@@ -838,7 +838,7 @@ function PreviewView({ mid, sid, cwd, port, path, machineName, onPath, onGone }:
           onPointerCancel={() => (pointer.current = null)}
           onContextMenu={(e) => e.preventDefault()}
           className={cx(
-            "block touch-none bg-white transition-opacity duration-200 select-none",
+            "block touch-none bg-white focus-ring focus-ring-inset transition-opacity duration-200 select-none",
             phone && "rounded-[18px] shadow-overlay",
             picking ? "cursor-crosshair" : "cursor-default",
             (lost || stopped) && drawn && "opacity-40",

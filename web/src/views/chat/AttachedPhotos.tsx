@@ -27,7 +27,7 @@ export function AttachedPhotos({ paths, mid, sid }: { paths: string[]; mid: stri
           onClick={() => setOpen(i)}
           title={path}
           aria-label={t("chat-attachedphotos.photo", { n: i + 1 })}
-          className="block shrink-0 overflow-hidden rounded-[10px] bg-field shadow-hairline outline-none transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.98] motion-reduce:transition-none"
+          className="block shrink-0 overflow-hidden rounded-[10px] bg-field shadow-hairline transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none"
           style={{ width: SIDE, height: SIDE }}
         >
           {(failed[path] ?? 0) >= 2 ? (

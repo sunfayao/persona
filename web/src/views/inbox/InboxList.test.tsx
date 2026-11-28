@@ -70,10 +70,11 @@ describe("收件箱：列表不会横向滚动", () => {
     const scroller = host.querySelector(".overflow-x-clip");
     expect(scroller).not.toBeNull();
     expect(scroller?.className).toContain("overflow-y-auto");
-    const chip = host.querySelector("button[aria-pressed]");
-    expect(chip?.className).toContain("text-ellipsis");
+    const chip = host.querySelector("button[aria-pressed][title]");
     expect(chip?.className).toContain("min-w-0");
     expect(chip?.className).toContain("max-w-full");
+    expect(chip?.classList.contains("overflow-hidden")).toBe(false);
+    expect(chip?.firstElementChild?.classList.contains("truncate")).toBe(true);
   });
 });
 

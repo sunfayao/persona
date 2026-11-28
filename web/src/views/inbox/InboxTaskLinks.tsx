@@ -33,7 +33,7 @@ export function InboxTaskLinks({ item }: { item: InboxItem }) {
   if (id && !tasks.some((x) => x.id === id)) tasks.push({ id });
   if (fwd?.todo_id && !tasks.some((x) => x.id === fwd.todo_id)) tasks.push({ id: fwd.todo_id });
   if (!tasks.length && !fwd) return null;
-  const link = "flex min-w-0 max-w-full items-center gap-1.5 rounded-control text-xs text-accent hover:underline focus-visible:outline-2 focus-visible:outline-accent";
+  const link = "flex min-w-0 max-w-full items-center gap-1.5 rounded-control text-xs text-accent hover:underline";
   const warn = fwd?.status === "fallback" || fwd?.status === "failed";
   return (
     <div className="mt-3 flex flex-col items-start gap-1.5" data-inbox-task-links>

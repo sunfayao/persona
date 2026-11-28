@@ -787,7 +787,7 @@ export function ImageView({ file, src: original, fallback }: { file: FileContent
         className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-6"
         style={{ backgroundImage: "conic-gradient(var(--field) 25%, var(--inset) 0 50%, var(--field) 0 75%, var(--inset) 0)", backgroundSize: "20px 20px" }}
       >
-        <button type="button" onClick={() => setBig(true)} aria-label={t("session-files-fileview.view_large")} className="max-h-full max-w-full cursor-zoom-in">
+        <button type="button" onClick={() => setBig(true)} aria-label={t("session-files-fileview.view_large")} className="max-h-full max-w-full cursor-zoom-in focus-ring-inset">
           <img
             src={src}
             alt={file.name}
@@ -857,7 +857,7 @@ function FolderList({ file, onOpen }: { file: FileContent; onOpen: (p: string) =
   const entries = file.entries ?? [];
   if (!entries.length) return <Empty icon="folder" title={t("session-files-fileview.empty_folder")} />;
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto py-1">
+    <div className="min-h-0 flex-1 overflow-y-auto py-1 focus-ring-inset">
       {entries.map((e) => {
         const dir = e.endsWith("/");
         const n = e.replace(/\/$/, "");

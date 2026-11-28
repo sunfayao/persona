@@ -30,8 +30,7 @@ describe("a message card", () => {
   it("draws a token focus ring on the draft's editor, since the global ring covers only buttons and links", () => {
     const html = renderToStaticMarkup(<MessageDraft tasks={draftTasks} item={card()} />);
     const cls = html.match(/<textarea[^>]*class="([^"]+)"/)?.[1] ?? "";
-    expect(cls).toContain("focus-visible:ring-2");
-    expect(cls).toContain("focus-visible:ring-accent");
+    expect(cls.split(" ")).toContain("focus-ring");
   });
 
   it("shows what went out, and no 发送, once the hub says it was sent", () => {

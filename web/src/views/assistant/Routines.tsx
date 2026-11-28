@@ -435,7 +435,7 @@ function TaskRow({ task, launchers, now, chats, onOpen, onMenu, onToggle }: { ta
         }
       }}
       aria-label={t("assistant-routines.row_label", { title: taskTitle(task), rule: ruleText(task), next })}
-      className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 focus-visible:outline-none"
+      className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 focus-ring focus-ring-inset focus-visible:rounded-control"
     >
       <span className={cx("mt-0.5", !task.enabled && "opacity-60")}>
         <IconTile icon={taskIcon(task)} tone={with_?.danger ? "red" : task.enabled ? "accent" : "muted"} />

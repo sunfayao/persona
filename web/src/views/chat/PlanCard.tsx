@@ -111,7 +111,7 @@ export function PlanCard({ id, todos, live }: { id?: string; todos: Todo[]; live
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((o) => !o)}
-          className="group/plan flex w-full min-w-0 cursor-pointer items-center gap-2 px-3.5 py-2.5 text-left transition-colors duration-150 ease-(--ease-out-strong) select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset motion-reduce:transition-none [@media(pointer:coarse)]:min-h-10"
+          className="group/plan flex w-full min-w-0 cursor-pointer items-center gap-2 px-3.5 py-2.5 text-left transition-colors duration-150 ease-(--ease-out-strong) select-none focus-ring-inset motion-reduce:transition-none [@media(pointer:coarse)]:min-h-10"
         >
           <Icon name="chevronRight" size={14} stroke={2} className="shrink-0 text-tool-ink transition-[transform,color] duration-200 ease-(--ease-out-strong) group-hover/plan:text-ink motion-reduce:transition-none" style={{ transform: open ? "rotate(90deg)" : "none" }} />
           <Icon name="todo" size={16} stroke={2} className="shrink-0 text-ink-2 transition-colors duration-150 ease-(--ease-out-strong) group-hover/plan:text-ink motion-reduce:transition-none" />
@@ -302,7 +302,7 @@ export function PlanPill({ todos, live, onClose }: { todos: Todo[]; live?: boole
                       onKeyDown={tabOut}
                       aria-label={t("chat-plancard.close")}
                       title={t("chat-plancard.close")}
-                      className="absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-full text-tool-ink transition-[color,transform] duration-150 ease-(--ease-out-strong) hover:text-ink active:scale-[0.95] motion-reduce:transition-none"
+                      className="absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-full text-tool-ink focus-ring-inset transition-[color,transform] duration-150 ease-(--ease-out-strong) hover:text-ink active:scale-[0.95] motion-reduce:transition-none"
                       data-plan-close
                     >
                       <Icon name="x" size={14} stroke={2} />

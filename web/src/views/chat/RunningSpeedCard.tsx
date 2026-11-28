@@ -131,7 +131,7 @@ export function RunningSpeedCard({ id, anchor, closeRef, open, pinned, data, onC
           }}
           aria-label={t("chat-runningspeed.close")}
           title={t("chat-runningspeed.close")}
-          className="absolute top-2 right-2 inline-flex size-6 cursor-pointer items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-hover hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-['']"
+          className="absolute top-2 right-2 inline-flex size-6 cursor-pointer items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-hover hover:text-ink pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-['']"
           data-speed-close
         >
           <Icon name="x" size={12} stroke={2} />
@@ -252,7 +252,7 @@ function SpeedButton({ elapsed, card, onPinned, onEngaged, children }: { elapsed
         aria-label={label}
         aria-expanded={revealed}
         aria-controls={revealed ? id : undefined}
-        className="touch-hit inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-1 tabular-nums transition-colors hover:bg-hover hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="touch-hit inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-1 tabular-nums transition-colors hover:bg-hover hover:text-ink"
         data-running-speed={mode}
       >
         {children}

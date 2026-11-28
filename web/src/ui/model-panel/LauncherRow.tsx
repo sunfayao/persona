@@ -65,7 +65,7 @@ export function LauncherRow({
         disabled={frozen}
         onClick={onToggle}
         className={cx(
-          "relative z-[1] flex min-h-11 w-full items-center gap-2 rounded-control px-3 py-2 text-left outline-none transition-colors duration-150 hover:bg-hover-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent",
+          "relative z-[1] flex min-h-11 w-full items-center gap-2 rounded-control px-3 py-2 text-left transition-colors duration-150 hover:bg-hover-2 focus-ring-inset",
           why && "text-ink-3",
           frozen && "cursor-not-allowed opacity-50",
         )}

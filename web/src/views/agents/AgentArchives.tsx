@@ -147,7 +147,7 @@ function ArchivedRow({ s, now, machine, busy, onRestore }: { s: Session; now: nu
   const where = [machine, baseName(s.cwd), agentName(sessionAgent(s).agent, s.agent_label)].filter(Boolean).join(" · ");
   return (
     <div className="group relative flex items-center gap-2 pr-3 transition-colors hover:bg-hover">
-      <a href={href(route)} onClick={(e) => onLinkClick(e, route)} title={[title, s.cwd].filter(Boolean).join("\n")} className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-4 focus-visible:outline-none">
+      <a href={href(route)} onClick={(e) => onLinkClick(e, route)} title={[title, s.cwd].filter(Boolean).join("\n")} className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-4 focus-ring-inset">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-field">
           <SessionMark s={s} size={16} />
         </span>

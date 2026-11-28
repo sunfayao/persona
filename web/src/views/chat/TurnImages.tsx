@@ -86,7 +86,7 @@ function Tile({ img, mid, sid, cwd, h, onOpen }: { img: TurnImage; mid: string; 
       onClick={onOpen}
       title={[img.label, meta(img)].filter(Boolean).join(" · ")}
       aria-label={img.label}
-      className="group relative shrink-0 overflow-hidden rounded-[10px] bg-field shadow-hairline outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      className="group relative shrink-0 overflow-hidden rounded-[10px] bg-field shadow-hairline"
       style={{ width: w, height: h, animation: "fade-in 220ms ease-out both" }}
     >
       {failed ? (

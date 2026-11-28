@@ -562,7 +562,7 @@ export function RunLine({ run, now, onOpen, showTitle }: { run: Run; now: Date; 
     </>
   );
   return <div>{onOpen ? (
-    <button type="button" onClick={onOpen} title={t("assistant-taskeditor.open_run")} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left transition-colors hover:bg-hover">
+    <button type="button" onClick={onOpen} title={t("assistant-taskeditor.open_run")} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left focus-ring-inset transition-colors hover:bg-hover">
       {body}
     </button>
   ) : (

@@ -95,7 +95,7 @@ export function TaskCard({ icon, label, title, status, meta, extra, onClick, ari
           onClick={onClick}
           aria-expanded={expanded}
           aria-label={ariaLabel}
-          className="group/task flex w-full min-w-0 cursor-pointer items-start gap-2 rounded-lg text-left select-none transition-colors duration-150 ease-(--ease-out-strong) motion-reduce:transition-none [@media(pointer:coarse)]:min-h-10"
+          className="group/task flex w-full min-w-0 cursor-pointer items-start gap-2 rounded-lg text-left focus-ring-inset select-none transition-colors duration-150 ease-(--ease-out-strong) motion-reduce:transition-none [@media(pointer:coarse)]:min-h-10"
         >
           <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-field text-ink-2 transition-colors duration-150 ease-(--ease-out-strong) group-hover/task:text-ink motion-reduce:transition-none">
             <Icon name={icon} size={14} />

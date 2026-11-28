@@ -270,7 +270,7 @@ function VoiceOrb({ call, phase, onInterrupt }: { call: VoiceConversation; phase
       aria-label={t("voice.interrupt")}
       title={t("voice.interrupt")}
       onClick={onInterrupt}
-      className="touch-hit shrink-0 rounded-full transition-transform duration-150 hover:scale-[1.04] focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none active:scale-[0.94]"
+      className="touch-hit shrink-0 rounded-full transition-transform duration-150 hover:scale-[1.04] active:scale-[0.94]"
     >
       {body}
     </button>

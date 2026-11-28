@@ -80,7 +80,7 @@ export function CloseoutCard({ session, segment, expandFold }: { session: Sessio
           disabled={!hasBody}
           aria-expanded={hasBody ? open : undefined}
           onClick={() => setOpen((o) => !o)}
-          className={cx("flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left pointer-coarse:min-h-11", hasBody && "cursor-pointer hover:bg-hover")}
+          className={cx("flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left focus-ring-inset pointer-coarse:min-h-11", hasBody && "cursor-pointer hover:bg-hover")}
         >
           <span className={cx("flex shrink-0 items-center", contradicted ? "text-orange" : c.status === "done" ? "text-green" : "text-ink-2")}>
             <Icon name={contradicted ? "warning" : c.status === "done" ? "check" : c.status === "blocked" ? "clock" : "info"} size={14} stroke={2.2} />

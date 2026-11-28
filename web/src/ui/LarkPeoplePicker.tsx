@@ -135,7 +135,7 @@ export function LarkPeopleMenu({ picker, manager, account, label = t("ui-larkpeo
   if (!token) return null;
   return (
     <div className="absolute inset-x-0 bottom-full z-10 mb-2 rounded-[10px] bg-surface p-1 shadow-raised" style={{ animation: `pop-in 180ms ${EASE} both`, transformOrigin: "bottom center" }} role="listbox" aria-label={label}>
-      <div className="relative max-h-[min(40vh,240px)] overflow-y-auto">
+      <div className="relative max-h-[min(40vh,240px)] overflow-y-auto focus-ring-inset">
         <span aria-hidden className="pointer-events-none absolute inset-x-0 rounded-[6px] bg-hover" style={{ top: box?.top ?? 0, height: box?.height ?? 0, opacity: box && rows.length ? 1 : 0, transition: `top 200ms ${EASE}, height 200ms ${EASE}` }} />
         {rows.map((p, i) => (
           <button

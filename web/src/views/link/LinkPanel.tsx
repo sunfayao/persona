@@ -240,7 +240,7 @@ function DocPanel({ url, title, onClose }: { url: string; title?: string; onClos
       </div>
       <EditDialog editing={editing} onClose={() => setEditing(null)} />
       <Dialog open={showOutline} onClose={() => setShowOutline(false)} title={t("link-linkpanel.outline")} width={380}>
-        <nav aria-label={t("link-linkpanel.outline")} className="-mx-2 max-h-[min(60vh,480px)] overflow-y-auto">
+        <nav aria-label={t("link-linkpanel.outline")} className="-mx-2 max-h-[min(60vh,480px)] overflow-y-auto focus-ring-inset">
           {outline.map((o) => (
             <button
               key={o.index}

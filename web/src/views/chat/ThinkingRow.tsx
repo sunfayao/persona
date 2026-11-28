@@ -77,7 +77,7 @@ export function ThinkingRow({ item, scope = "" }: { item: Item; scope?: string }
         className={cx(
           "flex w-full min-w-0 gap-2 rounded-[10px] min-h-[38px] px-3.5 py-2 [@media(pointer:coarse)]:min-h-10 text-left",
           open ? "items-start" : "items-center",
-          opens ? cx(ROW_HOVER, "cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent") : "cursor-default",
+          opens ? cx(ROW_HOVER, "cursor-pointer focus-ring-inset") : "cursor-default",
         )}
       >
         <span aria-hidden className={cx(STATUS_SLOT, open && "mt-[1px]", opens && "transition-colors duration-150 group-hover:text-ink motion-reduce:transition-none")}>

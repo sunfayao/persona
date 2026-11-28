@@ -85,7 +85,7 @@ export function TaskBoard({ open, conversation, onClose }: { open: boolean; conv
               <h3 className="mb-1 px-1 text-[12px] font-medium text-ink-3">
                 {t("assistant-task-actions.board_section", { title: BOARD_TITLE[sec.key], count: sec.rows.length + sec.agents.length })}
               </h3>
-              <div className="divide-y divide-line overflow-hidden rounded-card bg-field">
+              <div className="divide-y divide-line overflow-hidden rounded-card bg-field focus-ring-inset">
                 {sec.rows.map(({ todo, status }) => (
                   <div key={todo.id} className="min-w-0 hover:bg-hover">
                     <div className="flex items-center">

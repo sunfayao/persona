@@ -9,7 +9,7 @@ import { isMachineRef, isWindowsDrivePath, linkLine, resolveRef } from "../lib/f
 import { useLinkManager } from "../lib/manager-choice";
 import { openPanel } from "../lib/panel";
 import remarkMath from "remark-math";
-import { copyText, toast } from "./atoms";
+import { copyText, cx, toast } from "./atoms";
 import { tableHtml, tableToTsv, writeTableClipboard } from "./tableCopy";
 import { t } from "../i18n";
 import { Icon } from "./icons";
@@ -398,7 +398,7 @@ export const markdownComponents: Components = {
           {children}
         </code>
       ) : (
-        <code className={className} {...rest} role="button" tabIndex={0} title={t("ui-markdown.copy")} onClick={copyInlineCode} onKeyDown={copyInlineCode} data-copy-code>
+        <code {...rest} className={cx(className, "focus-ring")} role="button" tabIndex={0} title={t("ui-markdown.copy")} onClick={copyInlineCode} onKeyDown={copyInlineCode} data-copy-code>
           {children}
         </code>
       )

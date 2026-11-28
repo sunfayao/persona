@@ -108,7 +108,7 @@ export const HandoffCard = memo(function HandoffCard({ item: feed }: { item: Fee
   const icon = st.state === "sent" || st.state === "self" ? "check" : st.state === "failed" || st.state === "uncertain" ? "alertCircle" : st.state === "sending" ? "clock" : resolved ? "archive" : reply ? "pencil" : "flag";
   const hasNewer = !!item?.suggestion && (item.suggestion.version !== card.version || item.suggestion.conversation?.session_id !== feed.conversation);
   return (
-    <div className="flex flex-col gap-2.5 rounded-card bg-surface p-4 shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+    <div className="flex flex-col gap-2.5 rounded-card bg-surface p-4 shadow-card focus-ring"
       tabIndex={-1} role="group" aria-labelledby={headingId} data-testid="handoff-card" data-state={st.state}
       data-inbox-ref={id} data-suggestion-version={card.version} data-conversation={feed.conversation} data-manager={item?.manager ?? ""}>
       <div className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-ink-2">
@@ -138,7 +138,7 @@ export const HandoffCard = memo(function HandoffCard({ item: feed }: { item: Fee
             onChange={(e) => setText(e.target.value)}
             aria-labelledby={headingId}
             rows={Math.min(6, Math.max(2, draft.split("\n").length))}
-            className="-mx-1.5 resize-none rounded-control bg-transparent px-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="-mx-1.5 resize-none rounded-control bg-transparent px-1.5 text-sm focus-ring"
           />
         ) : (
           <div className="whitespace-pre-line text-sm [overflow-wrap:anywhere]">{st.state === "sent" ? st.text : attempt?.text ?? card.text}</div>

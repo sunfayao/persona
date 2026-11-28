@@ -119,7 +119,6 @@ describe("连接器会话页", () => {
     const row = host.querySelector('[data-mid="demo-own"]')!;
     expect(row.querySelector(".bg-user-bubble")).not.toBeNull();
     expect(row.querySelector("button.border-l-2")?.className).toContain("text-ink-3");
-    expect(row.querySelector("button.border-l-2")?.className).toContain("focus-visible:outline-accent");
     expect(row.querySelector("button.border-l-2")?.className).toContain("hover:text-ink");
     expect(row.querySelector("button.border-l-2")?.className).not.toContain("opacity-80");
     expect(row.querySelector("p.text-ink-2")?.textContent).toContain("demo.txt");

@@ -16,7 +16,7 @@ import { ProviderMark } from "./ProviderMark";
 export const SAVED_SIDE = "\nsaved";
 
 const ENTRY =
-  "flex min-h-8 w-full min-w-0 items-center gap-2 rounded-control px-2.5 py-1 text-left text-meta outline-none transition-[background-color,box-shadow,color] duration-150 enabled:hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed";
+  "flex min-h-8 w-full min-w-0 items-center gap-2 rounded-control px-2.5 py-1 text-left text-meta transition-[background-color,box-shadow,color] duration-150 enabled:hover:bg-hover disabled:cursor-not-allowed";
 const ENTRY_SELECTED = "bg-float font-medium text-ink shadow-float-sm enabled:hover:bg-float";
 
 export function LauncherColumn({ providers, state, quotas, side, saved, frozen, onSide }: {
@@ -31,7 +31,7 @@ export function LauncherColumn({ providers, state, quotas, side, saved, frozen, 
   onSide: (side: string) => void;
 }) {
   return (
-    <div role="group" aria-label={t("ui-modelpanel.launchers")} data-panel-launchers className="flex w-[180px] min-[900px]:w-[200px] shrink-0 flex-col gap-px overflow-y-auto overscroll-contain border-r border-line p-1.5">
+    <div role="group" aria-label={t("ui-modelpanel.launchers")} data-panel-launchers className="flex w-[180px] min-[900px]:w-[200px] shrink-0 flex-col gap-px overflow-y-auto overscroll-contain border-r border-line p-1.5 focus-ring-inset">
       {saved && (
         <button type="button" data-panel-side={SAVED_SIDE} aria-pressed={side === SAVED_SIDE} disabled={frozen} onClick={() => onSide(SAVED_SIDE)} className={cx(ENTRY, side === SAVED_SIDE && ENTRY_SELECTED)}>
           <span className="flex size-4 shrink-0 items-center justify-center text-favorite-star">
@@ -82,7 +82,7 @@ export function LevelColumn({ row, disabled, onLevel }: {
   const now = row && model ? shownEffort(row.setup, model) : "";
   const note = model?.effortUnavailable || model?.effortNote;
   return (
-    <div role="group" aria-label={t("ui-modelpanel.effort")} data-panel-levels className="flex w-[176px] min-[900px]:w-[196px] shrink-0 flex-col gap-px overflow-y-auto overscroll-contain border-l border-line p-1.5">
+    <div role="group" aria-label={t("ui-modelpanel.effort")} data-panel-levels className="flex w-[176px] min-[900px]:w-[196px] shrink-0 flex-col gap-px overflow-y-auto overscroll-contain border-l border-line p-1.5 focus-ring-inset">
       <div className="flex min-w-0 flex-col gap-0.5 px-2.5 pt-1 pb-1.5 text-submeta text-ink-3">
         <span className="shrink-0">{t("ui-modelpanel.effort")}</span>
         {model && <span data-panel-level-model title={model.name} className="line-clamp-2 min-w-0 leading-[1.35] break-words text-ink-2">{model.name}</span>}

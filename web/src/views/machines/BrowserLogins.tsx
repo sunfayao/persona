@@ -203,7 +203,7 @@ export function BrowserLogins({ mid, online }: { mid: string; online: boolean })
               aria-expanded={open}
               aria-controls={`browser-logins-${mid}`}
               onClick={() => setOpen((v) => !v)}
-              className="flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-hover"
+              className="flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left focus-ring-inset transition-colors hover:bg-hover"
             >
               <Icon name="lock" size={14} className="shrink-0 text-ink-3" />
               <span className="min-w-0 flex-1">

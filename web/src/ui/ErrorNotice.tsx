@@ -64,7 +64,7 @@ export function ErrorNotice({
           aria-label={close}
           title={close}
           data-error-dismiss
-          className="touch-hit -mt-1 -mr-1 flex size-7 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+          className="touch-hit -mt-1 -mr-1 flex size-7 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-hover hover:text-ink"
         >
           <Icon name="x" size={14} />
         </button>

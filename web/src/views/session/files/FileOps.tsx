@@ -951,7 +951,7 @@ function MoveDialog({
           {shortPath(at) || "/"}
         </span>
       </div>
-      <div aria-label={t("files-ops.folders")} role="group" className="h-56 overflow-y-auto rounded-[10px] border border-line">
+      <div aria-label={t("files-ops.folders")} role="group" className="h-56 overflow-y-auto rounded-[10px] border border-line focus-ring-inset">
         {!listing || listing.at !== at ? (
           <div className="flex h-full items-center justify-center">
             <Loading label={t("files-ops.reading")} />

@@ -118,7 +118,7 @@ export function EffortSlider({ stops, value, recommended, labelOf, unsetLabel, o
         data-dragging={dragging || undefined}
         onPointerDown={down}
         onKeyDown={key}
-        className={cx("relative flex h-[38px] touch-none items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent", disabled ? "cursor-not-allowed" : "cursor-ew-resize")}
+        className={cx("relative flex h-[38px] touch-none items-center rounded-full focus-ring", disabled ? "cursor-not-allowed" : "cursor-ew-resize")}
       >
         <div className="absolute inset-x-0 h-3 rounded-full bg-line-strong" />
         <div data-effort-fill className="absolute left-0 z-[1] h-3 rounded-full" style={{ width: `${percent}%`, backgroundColor: color, transition: live ? "none" : `width ${RESIZE}, background-color ${MOVE}` }} />

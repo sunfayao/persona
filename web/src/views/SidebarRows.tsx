@@ -66,7 +66,7 @@ function SidebarTitleDisclosure({ title, expanded, onToggle }: { title: string; 
     return () => observer.disconnect();
   }, [title]);
   return (
-    <button ref={button} type="button" hidden={!overflows} aria-expanded={expanded} onClick={onToggle} className="sidebar-title-disclosure touch-hit relative z-10 items-center gap-1 rounded-control text-submeta font-medium text-accent-ink focus-visible:outline-auto">
+    <button ref={button} type="button" hidden={!overflows} aria-expanded={expanded} onClick={onToggle} className="sidebar-title-disclosure touch-hit relative z-10 items-center gap-1 rounded-control text-submeta font-medium text-accent-ink">
       {expanded ? t("sidebar.collapse_title") : t("sidebar.expand_title")}
       <Icon name="chevron" size={10} className={cx("motion-safe:transition-transform", expanded && "rotate-180")} />
     </button>
@@ -98,7 +98,7 @@ export const PersonaRow = memo(function PersonaRow({ reg, hover, active, go, mai
       aria-keyshortcuts={chord ? ariaKeyshortcuts(chord) : undefined}
       title={t("sidebar.persona_main")}
       // pinned over the list (#5581), its own hover fill: the gliding highlight passes under the pinned box
-      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-[background-color,box-shadow,color] duration-150 ease-out [@media(pointer:coarse)]:min-h-11", active ? CURRENT_ROW : "hover:bg-hover focus-visible:bg-hover")}
+      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row focus-ring-inset transition-[background-color,box-shadow,color] duration-150 ease-out [@media(pointer:coarse)]:min-h-11", active ? CURRENT_ROW : "hover:bg-hover focus-visible:bg-hover")}
     >
       <Icon name="home" size={14} stroke={1.8} className="shrink-0 text-ink" />
       <span className="flex min-w-0 flex-1 flex-col">
@@ -139,7 +139,7 @@ export const NavRow = memo(function NavRow({ k, reg, hover, active, to, go, icon
       onFocus={() => hover(k)}
       onBlur={() => hover(null)}
       aria-current={active ? "page" : undefined}
-      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-[background-color,box-shadow,color] duration-150 ease-out [@media(pointer:coarse)]:min-h-11", active && CURRENT_ROW)}
+      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row focus-ring-inset transition-[background-color,box-shadow,color] duration-150 ease-out [@media(pointer:coarse)]:min-h-11", active && CURRENT_ROW)}
     >
       <span className={active ? "text-ink" : "text-ink-3"}>
         {agent ? <AgentMark agent={agent} size={14} decorative /> : <Icon name={icon} size={14} stroke={1.8} />}
@@ -171,7 +171,7 @@ export const NavRow = memo(function NavRow({ k, reg, hover, active, to, go, icon
           const box = e.currentTarget.parentElement ?? e.currentTarget;
           onMenu({ anchor: box }, box, true);
         }}
-        className="pointer-events-none absolute top-1/2 right-1 z-20 flex size-6 -translate-y-1/2 items-center justify-center rounded-[6px] text-ink-3 opacity-0 transition-[opacity,background-color,color] duration-150 hover:bg-hover-2 hover:text-ink group-hover/row:pointer-events-auto group-hover/row:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:right-0 [@media(hover:none)]:size-11 [@media(hover:none)]:bg-transparent [@media(hover:none)]:opacity-100"
+        className="pointer-events-none absolute top-1/2 right-1 z-20 flex size-6 -translate-y-1/2 items-center justify-center rounded-[6px] text-ink-3 focus-ring-inset opacity-0 transition-[opacity,background-color,color] duration-150 hover:bg-hover-2 hover:text-ink group-hover/row:pointer-events-auto group-hover/row:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:right-0 [@media(hover:none)]:size-11 [@media(hover:none)]:bg-transparent [@media(hover:none)]:opacity-100"
       >
         <Icon name="more" size={14} />
       </button>}
@@ -344,7 +344,7 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
       data-sidebar-context={tailShown || undefined}
       // a touch screen: rows a finger can hit (44), and room at the end for the ⋯ that is always there; every hoverable
       // row keeps the ⋯'s slot consistently so selecting a row never changes horizontal padding or wraps titles.
-      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-[background-color,box-shadow,color] duration-150 ease-out [@media(pointer:coarse)]:min-h-11", rowTone, // room for "N agents" and the ⋯ beside it (instead of the ⋯'s own)
+      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row focus-ring-inset transition-[background-color,box-shadow,color] duration-150 ease-out [@media(pointer:coarse)]:min-h-11", rowTone, // room for "N agents" and the ⋯ beside it (instead of the ⋯'s own)
         endRoom ? "lg:pointer-fine:pr-[108px]" : onMenu && "pr-8 lg:[@media(hover:hover)]:pr-8", onMenu && "[@media(hover:none)]:pr-11")}
     >
       {/* Clean borderless harness icon + inline status indicator (no overlapping cutout ring) */}
@@ -444,7 +444,7 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
         tabIndex={-1}
         onClick={(e) => onMenu(s, e.currentTarget.parentElement ?? e.currentTarget)}
         className={cx(
-          "absolute top-1/2 right-1 z-20 flex size-6 -translate-y-1/2 items-center justify-center rounded-[6px] text-ink-3 transition-[opacity,background-color,color] duration-150 hover:text-ink focus-visible:pointer-events-auto focus-visible:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:right-0 [@media(hover:none)]:size-11 [@media(hover:none)]:bg-transparent [@media(hover:none)]:opacity-100",
+          "absolute top-1/2 right-1 z-20 flex size-6 -translate-y-1/2 items-center justify-center rounded-[6px] text-ink-3 focus-ring-inset transition-[opacity,background-color,color] duration-150 hover:text-ink focus-visible:pointer-events-auto focus-visible:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:right-0 [@media(hover:none)]:size-11 [@media(hover:none)]:bg-transparent [@media(hover:none)]:opacity-100",
           active ? "opacity-100 hover:bg-hover-2/75" : "pointer-events-none opacity-0 group-hover/row:pointer-events-auto group-hover/row:opacity-100 hover:bg-hover-2",
         )}
       >
@@ -672,7 +672,7 @@ export const AgentRow = memo(function AgentRow({ s, reg, hover, active, go, pinn
         aria-current={active ? "page" : undefined}
         title={`${s.title || t("lib-format.untitled_session")} · ${providerLabel(s.provider)}`}
         // the wide layout keeps the hover pin's slot at the row's end, so its unread count or age stays in sight under the pointer
-        className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-[background-color,box-shadow,color] duration-150 ease-out pr-7 lg:[@media(hover:hover)]:pr-7 [@media(hover:none)]:pr-11 [@media(pointer:coarse)]:min-h-11", active && CURRENT_ROW)}
+        className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row focus-ring-inset transition-[background-color,box-shadow,color] duration-150 ease-out pr-7 lg:[@media(hover:hover)]:pr-7 [@media(hover:none)]:pr-11 [@media(pointer:coarse)]:min-h-11", active && CURRENT_ROW)}
       >
         <AgentAvatar s={s} size={16} />
         <span className={cx("sidebar-session-copy sidebar-session-title min-w-0 flex-1 truncate text-[13px]", unread ? "font-medium text-ink" : active ? "font-normal text-ink" : "font-normal text-ink-2")}>{s.title || t("lib-format.untitled_session")}</span>

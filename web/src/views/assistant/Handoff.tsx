@@ -219,7 +219,7 @@ export function HandoffCard({ handoff }: { handoff: Handoff }) {
       {...data}
       title={agent ? `${title} · ${shortSessionId(agent.sid)}` : title}
       onClick={open}
-      className={cx(look, "group transition-colors duration-150 hover:border-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-canvas")}
+      className={cx(look, "group transition-colors duration-150 hover:border-ink")}
     >
       {body}
     </button>

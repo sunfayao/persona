@@ -206,7 +206,7 @@ const GraphNode = memo(function GraphNode({ node: n, parentTitle, id, x, y, w, h
           role="group"
           tabIndex={still ? -1 : 0}
           onFocus={() => onReveal(id)}
-          className="flex h-full w-full items-center overflow-hidden rounded-card border border-line bg-surface pl-2.5 pr-2 shadow-card transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-accent"
+          className="flex h-full w-full items-center overflow-hidden rounded-card border border-line bg-surface pl-2.5 pr-2 shadow-card transition-colors duration-300 focus-ring"
           style={anim}
         >
           {body}
@@ -831,7 +831,7 @@ export function GraphCanvas({ item, compact, busy, onPress, canPress }: {
       tabIndex={still ? -1 : 0}
       data-graph-stage=""
       className={cx(
-        "relative h-full w-full touch-none overflow-hidden overscroll-none select-none rounded-card focus-visible:outline-2 focus-visible:outline-accent",
+        "relative h-full w-full touch-none overflow-hidden overscroll-none select-none rounded-card focus-ring focus-ring-inset",
         !still && "cursor-grab active:cursor-grabbing",
       )}
     >
@@ -944,7 +944,7 @@ export function GraphCanvas({ item, compact, busy, onPress, canPress }: {
           <Icon name="chevronLeft" size={13} />
         </button>
       </div>
-      <div ref={outlineRef} data-graph-outline="" tabIndex={0} onKeyDown={outlineKey} className="min-h-0 flex-1 overflow-y-auto py-1 outline-none focus-visible:outline-2 focus-visible:outline-accent">
+      <div ref={outlineRef} data-graph-outline="" tabIndex={0} onKeyDown={outlineKey} className="min-h-0 flex-1 overflow-y-auto py-1 focus-ring focus-ring-inset">
         {laid.order.map((id, i) => {
           const n = byId[id] as UIGraphNode;
           const previous = i > 0 ? byId[laid.order[i - 1]] : undefined;
@@ -1111,7 +1111,7 @@ export function GraphCanvas({ item, compact, busy, onPress, canPress }: {
         <span className="ml-auto text-submeta text-ink-3 tabular-nums">{`${timedNodes.length} · ${formatDuration(span)}`}</span>
       </button>
       {timelineOpen && (
-        <div className="max-h-40 overflow-y-auto pb-1">
+        <div className="max-h-40 overflow-y-auto pb-1 focus-ring-inset">
           <div className="flex items-end gap-1.5 px-3">
             <span className="w-[148px] shrink-0" />
             <div ref={trackRef} className="relative h-5 flex-1">

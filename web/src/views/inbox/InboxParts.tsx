@@ -220,9 +220,9 @@ export function Chip({ on, onClick, children, title }: { on: boolean; onClick: (
       title={title}
       aria-pressed={on}
       onClick={onClick}
-      className={cx("h-7 min-w-0 max-w-full overflow-hidden text-ellipsis rounded-control px-2.5 text-[12px] whitespace-nowrap transition-colors duration-150", on ? "bg-ink font-medium text-surface" : "bg-surface text-ink-2 shadow-btn hover:bg-hover hover:text-ink")}
+      className={cx("h-7 min-w-0 max-w-full rounded-control px-2.5 text-[12px] whitespace-nowrap transition-colors duration-150", on ? "bg-ink font-medium text-surface" : "bg-surface text-ink-2 shadow-btn hover:bg-hover hover:text-ink")}
     >
-      {children}
+      <span className="block truncate">{children}</span>
     </button>
   );
 }

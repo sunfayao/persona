@@ -354,7 +354,7 @@ function Checks({ ctl, field, chosen, editable, titleId, descId }: { ctl: Config
     : undefined;
   return (
     <div role={single ? "radiogroup" : "group"} aria-labelledby={titleId} aria-describedby={descId} onKeyDown={onKeyDown}
-      className="divide-y divide-line overflow-hidden rounded-card bg-inset shadow-hairline">
+      className="divide-y divide-line overflow-hidden rounded-card bg-inset shadow-hairline focus-ring-inset">
       {options.map((o, i) => {
         const on = chosen.includes(o.value);
         return (

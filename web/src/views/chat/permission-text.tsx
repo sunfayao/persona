@@ -41,7 +41,7 @@ export function usePermissionText(ix: Interaction) {
             onChange={(e) => setText(e.target.value)}
             rows={4}
             aria-label={t("chat-interactions.edit_text_label")}
-            className="min-h-24 resize-y rounded-control bg-field px-2.5 py-2 text-sm leading-relaxed text-ink outline-none placeholder:text-ink-3 focus:ring-2 focus:ring-accent"
+            className="min-h-24 resize-y rounded-control bg-field px-2.5 py-2 text-sm leading-relaxed text-ink placeholder:text-ink-3 focus-ring"
           />
         </label>
       )}
@@ -53,7 +53,7 @@ export function usePermissionText(ix: Interaction) {
             onChange={(e) => setNote(e.target.value)}
             placeholder={t("chat-interactions.deny_note_placeholder")}
             aria-label={t("chat-interactions.deny_note_label")}
-            className="h-8 rounded-control bg-field px-2.5 text-sm text-ink outline-none placeholder:text-ink-3 focus:ring-2 focus:ring-accent"
+            className="h-8 rounded-control bg-field px-2.5 text-sm text-ink placeholder:text-ink-3 focus-ring"
           />
         </label>
       )}

@@ -176,7 +176,7 @@ export function arrowKeys(count: number, at: number, attr: string, pick: (i: num
 export function ChoiceRows({ label, options, at, onPick }: { label: string; options: { label: string; hint: string }[]; at: number; onPick: (i: number) => void }) {
   return (
     <div role="radiogroup" aria-label={label} onKeyDown={arrowKeys(options.length, at, "data-choice", onPick)}
-      className="divide-y divide-line overflow-hidden rounded-card bg-inset shadow-hairline">
+      className="divide-y divide-line overflow-hidden rounded-card bg-inset shadow-hairline focus-ring-inset">
       {options.map((o, i) => {
         const checked = i === at;
         return (

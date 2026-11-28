@@ -60,7 +60,7 @@ export function MainRuntimeBadge({ sid, starting }: { sid?: string; starting?: b
   if (!summary) return null;
   return (
     <div className="flex shrink-0 justify-end px-3 pb-1 sm:px-4">
-      <button type="button" data-main-runtime className="group relative min-w-0 max-w-full rounded-control px-2 py-1 text-xs text-ink-2 hover:bg-hover focus-visible:outline focus-visible:outline-accent"
+      <button type="button" data-main-runtime className="group relative min-w-0 max-w-full rounded-control px-2 py-1 text-xs text-ink-2 hover:bg-hover"
         aria-label={summary} aria-expanded={expanded}
         onClick={() => setExpanded((open) => !open)} onBlur={() => setExpanded(false)}
         onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setExpanded(false); } }}>

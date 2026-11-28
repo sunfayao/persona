@@ -47,7 +47,7 @@ export function FileTiles({ draftKey, files }: { draftKey: string; files: Compos
             style={{ animation: `pop-in 200ms ${EASE} both` }}
           >
             {failed ? (
-              <button type="button" onClick={() => retryFile(draftKey, f.id)} aria-label={t("chat-composer.file_retry", { name: f.name })} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left">
+              <button type="button" onClick={() => retryFile(draftKey, f.id)} aria-label={t("chat-composer.file_retry", { name: f.name })} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left focus-ring-inset">
                 {body}
               </button>
             ) : body}
@@ -65,7 +65,7 @@ export function FileTiles({ draftKey, files }: { draftKey: string; files: Compos
                 aria-label={busy ? t("chat-composer.file_cancel", { name: f.name }) : t("ui-attachmenttray.remove", { name: f.name })}
                 onClick={() => removeFile(draftKey, f.id)}
                 data-remove
-                className="touch-hit-corner flex size-4.5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 [--hit-in-x:8px] [--hit-in-y:24px] transition-opacity group-hover/att:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+                className="touch-hit-corner flex size-4.5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 [--hit-in-x:8px] [--hit-in-y:24px] focus-ring-inset transition-opacity group-hover/att:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
               >
                 <Icon name="x" size={10} stroke={2.6} />
               </button>

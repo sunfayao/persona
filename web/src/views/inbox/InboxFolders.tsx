@@ -38,7 +38,7 @@ export function FolderBar({ items, folder, onPick }: { items: InboxItem[]; folde
         {crumbs.map((c, i) => <Crumb key={c.path} name={c.name} current={i === crumbs.length - 1} onPick={() => onPick(c.path)} />)}
       </ol>
       {(children.length > 0 || (!folder && none.count > 0)) && (
-        <div role="toolbar" aria-label={t("inbox-folders.subfolders")} className="mt-1.5 flex flex-wrap items-center gap-1.5 max-sm:-my-1 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:py-1 max-sm:scrollbar-none max-sm:[&>*]:shrink-0">
+        <div role="toolbar" aria-label={t("inbox-folders.subfolders")} className="mt-1.5 flex flex-wrap items-center gap-1.5 max-sm:-mx-ring max-sm:-my-ring max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:p-ring max-sm:scroll-p-ring max-sm:scrollbar-none max-sm:[&>*]:shrink-0">
           {children.map((c) => (
             <Chip key={c.path} on={false} onClick={() => onPick(c.path)} title={c.path}>
               <span className="inline-flex items-center gap-1.5">

@@ -125,7 +125,7 @@ function DocumentCard({ f, mid, cwd }: { f: AttachedFile; mid: string; cwd?: str
       type="button"
       onClick={() => openPanel({ kind: "file", mid, path: f.path })}
       title={f.path}
-      className="flex h-16 w-60 max-w-full shrink-0 items-center gap-3 rounded-[14px] bg-inset px-2 text-left shadow-hairline outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent"
+      className="flex h-16 w-60 max-w-full shrink-0 items-center gap-3 rounded-[14px] bg-inset px-2 text-left shadow-hairline hover:bg-hover"
       style={{ animation: "fade-in 220ms ease-out both" }}
       data-testid="document-card"
     >

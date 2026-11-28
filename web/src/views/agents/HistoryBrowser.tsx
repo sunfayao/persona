@@ -21,7 +21,7 @@ import { WindowedRows } from "../WindowedRows";
 import { WorkSessionRow } from "./WorkSessionRow";
 
 const copy = (key: string) => t(`session-history.${key}`);
-const selectClass = "min-h-8 min-w-0 flex-1 rounded-control bg-inset px-2 py-1 text-xs text-ink shadow-hairline focus-visible:outline-accent [@media(pointer:coarse)]:min-h-11";
+const selectClass = "min-h-8 min-w-0 flex-1 rounded-control bg-inset px-2 py-1 text-xs text-ink shadow-hairline focus-ring [@media(pointer:coarse)]:min-h-11";
 
 function HistoryRow({ session, machines, active, now }: { session: Session; machines: Machine[]; active: boolean; now: number }) {
   const machine = machines.find(m => m.id === session.machine_id);

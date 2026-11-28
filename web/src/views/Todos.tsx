@@ -776,7 +776,7 @@ const TodoTriageSection = memo(function TodoTriageSection({
   const title = sectionTitle(section, groups.flatMap((g) => [...g.triage.values()].map((t) => t.rule)));
   return (
     <section className="mt-1 first:mt-0" data-testid="todo-section" data-section={section} data-count={groups.length} data-todos={count}>
-      <button type="button" aria-expanded={!folded} onClick={toggle} className="flex h-8 w-full min-w-0 items-center gap-1.5 rounded-control px-2 text-left text-[12px] hover:bg-hover">
+      <button type="button" aria-expanded={!folded} onClick={toggle} className="flex h-8 w-full min-w-0 items-center gap-1.5 rounded-control px-2 text-left text-[12px] focus-ring-inset hover:bg-hover">
         <Icon name="chevron" size={10} stroke={2.4} className="shrink-0 text-ink-3 opacity-60 transition-transform" style={{ transform: folded ? "rotate(-90deg)" : "none" }} />
         <span className={cx("min-w-0 flex-1 truncate font-semibold whitespace-nowrap", SECTION_TONE[section])}>{title}</span>
         {folded && <OwnerMarkCount count={ownerCount(groups.flatMap((g) => g.members), views)} />}
@@ -1073,7 +1073,7 @@ const TodoListItem = memo(function TodoListItem({
         onSelect(todo.id);
       }}
       className={cx(
-        "group/item flex cursor-pointer gap-2.5 rounded-control border p-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-accent",
+        "group/item flex cursor-pointer gap-2.5 rounded-control border p-2.5 transition-colors focus-ring focus-ring-inset",
         selected ? "border-accent/30 bg-accent-tint/70" : "border-transparent hover:bg-hover",
       )}
     >
@@ -1732,11 +1732,11 @@ function TodoDetail({
         testId="todo-section-sessions"
       >
         {workerRoot && (
-          <p data-testid="todo-supervised-by" className="mt-1 min-w-0 truncate text-label text-ink-3">
+          <p data-testid="todo-supervised-by" className="mt-1 flex min-w-0 items-baseline text-label whitespace-pre text-ink-3">
             {tRich("todos.supervised_by", {
               title: (
-                <button type="button" data-open-todo={workerRoot.id} onClick={() => onOpenTodo(workerRoot.id)} className="touch-hit text-accent-ink hover:underline">
-                  {workerRoot.title}
+                <button type="button" data-open-todo={workerRoot.id} onClick={() => onOpenTodo(workerRoot.id)} className="touch-hit min-w-0 text-left text-accent-ink hover:underline">
+                  <span className="block truncate">{workerRoot.title}</span>
                 </button>
               ),
             })}
@@ -1770,7 +1770,7 @@ function TodoDetail({
                     <AgentRow
                       type={canOpen ? "button" : undefined}
                       onClick={canOpen ? () => openFromPage({ name: "session", mid: agent.machine_id, sid: agent.session_id }) : undefined}
-                      className={cx("my-1 flex min-w-0 flex-1 items-start gap-2 rounded-control px-1.5 py-2 text-left", canOpen && "cursor-pointer hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent")}
+                      className={cx("my-1 flex min-w-0 flex-1 items-start gap-2 rounded-control px-1.5 py-2 text-left", canOpen && "cursor-pointer hover:bg-hover")}
                     >
                       <span className="mt-0.5"><StatusMark state={state} size="sm" label={false} waiting={waiting} /></span>
                       <span className="min-w-0 flex-1">
@@ -1914,7 +1914,7 @@ function SupervisorWorkers({ workers, lookup, machines, onOpenTodo }: { workers:
           data-open-todo={w.id}
           data-worker-step={step}
           onClick={() => onOpenTodo(w.id)}
-          className="flex min-h-9 min-w-0 flex-1 items-start gap-2 rounded-control px-1.5 py-2 text-left hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent [@media(pointer:coarse)]:min-h-11"
+          className="flex min-h-9 min-w-0 flex-1 items-start gap-2 rounded-control px-1.5 py-2 text-left hover:bg-hover [@media(pointer:coarse)]:min-h-11"
         >
           <span className="mt-px flex size-4 shrink-0 items-center justify-center">
             {w.done_at ? (
@@ -2051,13 +2051,13 @@ function SupervisionLine({ entry: e, page, onOpenTodo }: { entry: SupervisionEnt
       <Icon name={entryIcon(e)} size={13} className="mt-0.5 shrink-0 text-ink-3" />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex min-w-0 items-baseline gap-2 text-meta">
-          <span className="min-w-0 truncate select-text">
-            <span className="text-ink">{label}</span>
+          <span className="flex min-w-0 items-baseline select-text">
+            <span className="min-w-0 truncate text-ink">{label}</span>
             {e.todo.id !== page && (
               <>
-                <span className="text-ink-3"> · </span>
-                <button type="button" data-open-todo={e.todo.id} onClick={() => onOpenTodo(e.todo.id)} className="text-left text-accent-ink hover:underline">
-                  {e.todo.title}
+                <span className="shrink-0 whitespace-pre text-ink-3"> · </span>
+                <button type="button" data-open-todo={e.todo.id} onClick={() => onOpenTodo(e.todo.id)} className="min-w-0 text-left text-accent-ink hover:underline">
+                  <span className="block truncate">{e.todo.title}</span>
                 </button>
               </>
             )}

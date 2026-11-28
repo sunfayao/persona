@@ -148,7 +148,7 @@ export function SidebarRail({ route, onSearch, onNewAgent }: { route: Route; onS
         <Icon name="search" size={15} stroke={1.8} />
       </button>
       <span aria-hidden className="my-2 h-px w-6 shrink-0 bg-line/70" />
-      <nav aria-label={t("sidebar.pages")} className="flex min-h-0 w-full flex-1 flex-col items-center gap-1 overflow-y-auto overscroll-contain py-1">
+      <nav aria-label={t("sidebar.pages")} className="flex min-h-0 w-full flex-1 flex-col items-center gap-1 overflow-y-auto overscroll-contain py-1 focus-ring-inset">
         {link(
           "persona",
           { name: "persona" },

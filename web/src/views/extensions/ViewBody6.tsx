@@ -288,7 +288,7 @@ export function ImageItem({ item, compact, onImageFailed }: { item: UIItem; comp
             <span className="line-clamp-2 text-[11.5px]">{alt}</span>
           </div>
         ) : zoom ? (
-          <button type="button" onClick={() => setOpen(true)} aria-label={t("extensions-viewbody.view_image", { alt })} className="block size-full cursor-zoom-in">
+          <button type="button" onClick={() => setOpen(true)} aria-label={t("extensions-viewbody.view_image", { alt })} className="block size-full cursor-zoom-in focus-ring-inset">
             {img}
           </button>
         ) : (
@@ -486,7 +486,7 @@ function TileView({ tile, compact, glyphs, busy, onPress, canPress, ...h }: Tile
           aria-label={label}
           disabled={!!busy || !pressable}
           onClick={() => onPress(tile.action!)}
-          className="flex h-full w-full flex-col text-left whitespace-nowrap transition-colors enabled:hover:bg-hover/60 disabled:cursor-default"
+          className="flex h-full w-full flex-col text-left whitespace-nowrap focus-ring-inset transition-colors enabled:hover:bg-hover/60 disabled:cursor-default"
         >
           {body}
         </button>
@@ -608,7 +608,7 @@ export function MultiChoice({ id, item, value, locked, onChange }: { id: string;
           }
         >
           <SearchField value={q} onChange={setQ} placeholder={t("extensions-viewbody.search_choices")} />
-          <div role="group" aria-label={item.label} className="mt-2 max-h-[50vh] overflow-y-auto">
+          <div role="group" aria-label={item.label} className="mt-2 max-h-[50vh] overflow-y-auto focus-ring-inset">
             {shown.map((c) => {
               const on = chosen.includes(c.value);
               return (

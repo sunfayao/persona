@@ -125,10 +125,10 @@ export function SavedSearchesDialog({ model, initialQuery, onReturn, onApply }: 
         }}>
           <p className="text-sm text-ink-2">{word("editor_hint")}</p>
           <div><label htmlFor={nameID} className="mb-1 block text-sm font-medium text-ink">{word("name")}</label>
-            <input id={nameID} autoFocus className="w-full rounded-control bg-field px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-accent" maxLength={SAVED_SEARCH_NAME_MAX * 2} value={editor.name} disabled={busy || !writable} onChange={(event) => setEditor({ ...editor, name: event.target.value })} aria-describedby={hintID} />
+            <input id={nameID} autoFocus className="w-full rounded-control bg-field px-3 py-2 text-sm text-ink focus-ring" maxLength={SAVED_SEARCH_NAME_MAX * 2} value={editor.name} disabled={busy || !writable} onChange={(event) => setEditor({ ...editor, name: event.target.value })} aria-describedby={hintID} />
           </div>
           <div><label htmlFor={queryID} className="mb-1 block text-sm font-medium text-ink">{word("query")}</label>
-            <textarea id={queryID} rows={3} spellCheck={false} className="w-full resize-y rounded-control bg-field px-3 py-2 font-mono text-sm text-ink outline-none focus:ring-2 focus:ring-accent" value={editor.query} disabled={busy || !writable} onChange={(event) => setEditor({ ...editor, query: event.target.value })} aria-describedby={hintID} />
+            <textarea id={queryID} rows={3} spellCheck={false} className="w-full resize-y rounded-control bg-field px-3 py-2 font-mono text-sm text-ink focus-ring" value={editor.query} disabled={busy || !writable} onChange={(event) => setEditor({ ...editor, query: event.target.value })} aria-describedby={hintID} />
           </div>
           <p id={hintID} className="text-xs text-ink-3">{word("query_hint")}</p>
           {(attempted || Boolean(editor.name.trim() && editor.query.trim())) && invalid && <p role="alert" className="text-sm text-red">{invalid}</p>}

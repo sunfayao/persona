@@ -165,7 +165,7 @@ export const WorkGroup = memo(function WorkGroup({ g, p, limit }: { g: WorkGroup
           p.nested ? "px-3.5 py-2" : g.live ? "pt-1 pb-1.5" : "py-1",
           g.live && "work-live-head",
           opens
-            ? "cursor-pointer text-tool-ink transition-colors duration-150 ease-(--ease-out-strong) hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:transition-none"
+            ? "cursor-pointer text-tool-ink transition-colors duration-150 ease-(--ease-out-strong) hover:text-ink motion-reduce:transition-none"
             : "cursor-default text-tool-ink",
         )}
       >

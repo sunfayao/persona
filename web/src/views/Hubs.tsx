@@ -48,7 +48,7 @@ export function OtherHubs() {
   return (
     <div className="mt-6">
       <div className="mb-1.5 px-1 text-[11.5px] font-medium text-ink-3">{t("hubs.other_hubs")}</div>
-      <div className="divide-y divide-line overflow-hidden rounded-card bg-surface shadow-card">
+      <div className="divide-y divide-line overflow-hidden rounded-card bg-surface shadow-card focus-ring-inset">
         {others.map((h) => (
           <button key={h.url} type="button" onClick={() => goToHub(h)} className="flex w-full items-center gap-2.5 whitespace-nowrap px-3 py-2.5 text-left transition-colors hover:bg-hover">
             <Icon name="hub" size={14} className="shrink-0 text-ink-3" />
