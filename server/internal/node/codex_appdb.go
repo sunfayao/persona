@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The Codex App keeps its threads in <CODEX_HOME>/state_<n>.sqlite (table threads). Since it moved their history into
@@ -130,6 +131,97 @@ func fileStamp(path string) string {
 		return "-;"
 	}
 	return fmt.Sprintf("%d.%d;", st.ModTime().UnixNano(), st.Size())
+}
+
+type codexGoalCache struct {
+	mu     sync.Mutex
+	byHome map[string]codexGoalDB
+}
+
+type codexGoalDB struct {
+	at    time.Time
+	stamp string
+	goals map[string]proto.GoalInfo
+}
+
+// The Codex CLI writes native goal-tool updates to goals_1.sqlite even when
+// the rollout still has only the original thread_goal_updated event.
+func (c *codexGoalCache) read(ctx context.Context, home string, now time.Time, query func(context.Context, string) (map[string]proto.GoalInfo, error)) map[string]proto.GoalInfo {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	cached := c.byHome[home]
+	if now.Sub(cached.at) < codexAppDBRefresh {
+		return cached.goals
+	}
+	db := filepath.Join(home, "goals_1.sqlite")
+	stamp := fileStamp(db)
+	if stamp == "-;" {
+		cached = codexGoalDB{at: now}
+	} else {
+		stamp += fileStamp(db + "-wal")
+		if stamp != cached.stamp {
+			if goals, err := query(ctx, db); err == nil {
+				cached.goals, cached.stamp = goals, stamp
+			}
+		}
+		cached.at = now
+	}
+	if c.byHome == nil {
+		c.byHome = map[string]codexGoalDB{}
+	}
+	c.byHome[home] = cached
+	return cached.goals
+}
+
+func readCodexGoals(ctx context.Context, db string) (map[string]proto.GoalInfo, error) {
+	const q = `SELECT thread_id, substr(objective, 1, 16384) AS objective, status, tokens_used,
+		token_budget, time_used_seconds, updated_at_ms FROM thread_goals`
+	var rows []struct {
+		Thread      string `json:"thread_id"`
+		Objective   string `json:"objective"`
+		Status      string `json:"status"`
+		TokensUsed  int    `json:"tokens_used"`
+		TokenBudget int    `json:"token_budget"`
+		Seconds     int    `json:"time_used_seconds"`
+		UpdatedMS   int64  `json:"updated_at_ms"`
+	}
+	if err := querySQLite(ctx, db, q, &rows); err != nil {
+		return nil, err
+	}
+	goals := make(map[string]proto.GoalInfo, len(rows))
+	for _, r := range rows {
+		goals[r.Thread] = proto.GoalInfo{Objective: r.Objective, Status: r.Status, TokensUsed: r.TokensUsed,
+			TokenBudget: r.TokenBudget, Seconds: r.Seconds, UpdatedAt: time.UnixMilli(r.UpdatedMS).UTC()}
+	}
+	return goals, nil
+}
+
+func (n *Node) applyCodexGoals(ctx context.Context, list []proto.Session, now time.Time, query func(context.Context, string) (map[string]proto.GoalInfo, error)) {
+	if n.codices == nil {
+		return
+	}
+	byHome := map[string]map[string]proto.GoalInfo{}
+	for i := range list {
+		s := &list[i]
+		if s.Agent != "codex" {
+			continue
+		}
+		src, known := n.codexSource(s.SessionID)
+		if !known {
+			if s.SourceKind != "" || !validID(s.SessionID) {
+				continue
+			}
+			src = codexSource{home: n.codexPaneHome(s.PaneID), thread: s.SessionID}
+		}
+		goals, read := byHome[src.home]
+		if !read {
+			goals = n.codices.goals.read(ctx, src.home, now, query)
+			byHome[src.home] = goals
+		}
+		if g, ok := goals[src.thread]; ok && (s.Goal == nil || !g.UpdatedAt.Before(s.Goal.UpdatedAt)) {
+			s.Goal = &g
+		}
+	}
 }
 
 // readCodexAppThreads reads the unarchived rows of ids (validID only: they are put in the query as they are), plus

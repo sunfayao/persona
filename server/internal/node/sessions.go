@@ -467,6 +467,7 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 		return nil
 	}
 	out = out[:j]
+	n.applyCodexGoals(ctx, out, now, readCodexGoals)
 	// The desktop app's sessions once each: a transcript one went on from folds into its current row (#14394).
 	if folds := n.offlineFolds(); len(folds.earlier) > 0 {
 		if out = foldDesktopEarlier(out, folds, n.alwaysListed()); len(out) == 0 {

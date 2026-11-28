@@ -27,6 +27,7 @@ type codexRegistry struct {
 	liveRollouts map[string]string // rollout id → what holds it open (codexHolder)
 	byPane       map[string]string
 	threads      map[string]codexSource
+	goals        codexGoalCache
 	remotes      map[string]*codexRemote
 	retries      map[string]codexRetry // server id -> attempts that did not connect (codex_backoff.go)
 	report       func(proto.CodexConfig)

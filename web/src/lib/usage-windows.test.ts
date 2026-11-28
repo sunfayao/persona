@@ -265,6 +265,25 @@ describe("pinned sidebar usage accounts (#12418)", () => {
 });
 
 describe("device-first grouping", () => {
+  it("counts one Antigravity account with model-scoped windows on each machine", () => {
+    const local = (id: string) => ({
+      ...account(id, 50, { provider: "agy", name: "Antigravity", machines: [id], local: true }),
+      windows: [
+        { label: "5h", window_minutes: 300, used_percent: 3, model: "Gemini Models" },
+        { label: "7d", window_minutes: 10080, used_percent: 50, model: "Claude and GPT models" },
+      ],
+    });
+    const groups = groupByDevice([local("workstation"), local("laptop")], [
+      { id: "workstation", name: "Workstation", online: true },
+      { id: "laptop", name: "Laptop", online: true },
+    ]);
+    expect(groups).toHaveLength(2);
+    for (const group of groups) {
+      expect(group.providers[0].accounts).toHaveLength(1);
+      expect(group.providers[0].accounts[0].windows.map((w) => w.model)).toEqual(["Gemini Models", "Claude and GPT models"]);
+    }
+  });
+
   it("merges parenthesized host hints into the matching machine bucket and separates distinct computers", () => {
     const accounts: UsageAccount[] = [
       account("devbox-claude", 72, {

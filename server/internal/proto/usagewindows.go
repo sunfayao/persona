@@ -101,6 +101,8 @@ type UsageAccount struct {
 	BalanceSkipped bool `json:"-"`
 	// CodexAccountKey is the node's digest of the upstream account ID, used only by the usage manager.
 	CodexAccountKey string `json:"-"`
+	// LegacyAgyHost identifies the local quota exporter whose account rows represented model groups.
+	LegacyAgyHost string `json:"-"`
 	// Pass: a usage extension's row (usagesource.FromExtension), drawn exactly as the extension sent it and never merged
 	// with the accounts the computers and the other gateways report. Hub-internal.
 	Pass bool `json:"-"`

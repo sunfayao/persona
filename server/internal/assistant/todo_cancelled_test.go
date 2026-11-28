@@ -7,7 +7,36 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
+
+func TestClosedTaskSettlesOnlyItsStoppedCodexGoal(t *testing.T) {
+	s, _, _ := newSupervisedService(t)
+	start := time.Unix(1_800_000_000, 0).UTC()
+	done := start.Add(time.Minute)
+	criteria := []string{"Run the regression tests"}
+	goal := &proto.GoalInfo{Objective: prompts.RenderTaskGoal(criteria), Status: proto.GoalActive, UpdatedAt: start}
+	for _, spec := range []struct{ id, verdict string }{{"accepted", db.DoneByReview}, {"cancelled", db.DoneByCancelled}, {"working", db.DoneByReview}, {"unrelated", db.DoneByReview}, {"new-goal", db.DoneByReview}} {
+		putTodo(s, Todo{ID: spec.id, CreatedAt: start, DoneAt: &done, DoneBy: spec.verdict,
+			Agents: []TodoAgent{{MachineID: "box", SessionID: spec.id}}, Supervision: &Supervision{DoneWhen: criteria}})
+	}
+	other, later := *goal, *goal
+	other.Objective = "My own goal"
+	later.UpdatedAt = done.Add(time.Second)
+	rows := []proto.Session{
+		{SessionID: "accepted", Agent: "codex", Status: proto.StatusIdle, Goal: goal},
+		{SessionID: "cancelled", Agent: "codex", Status: proto.StatusIdle, Goal: goal},
+		{SessionID: "working", Agent: "codex", Status: proto.StatusWorking, Goal: goal},
+		{SessionID: "unrelated", Agent: "codex", Status: proto.StatusIdle, Goal: &other},
+		{SessionID: "new-goal", Agent: "codex", Status: proto.StatusIdle, Goal: &later},
+	}
+	s.settleClosedTaskGoals("box", rows)
+	if rows[0].Goal.Status != proto.GoalComplete || !rows[0].Goal.UpdatedAt.Equal(done) || rows[1].Goal != nil ||
+		rows[2].Goal != goal || rows[3].Goal != &other || rows[4].Goal != &later || goal.Status != proto.GoalActive {
+		t.Fatalf("unexpected goal projections: %+v %+v %+v %+v %+v", rows[0].Goal, rows[1].Goal, rows[2].Goal, rows[3].Goal, rows[4].Goal)
+	}
+}
 
 // Cancellation is its own outcome in the API even though older rows store it as done_by=cancelled and newer clients
 // still need done_by=review for compatibility (#5732).

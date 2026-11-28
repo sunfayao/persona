@@ -364,6 +364,29 @@ func TestGenericSourceKeepsTheFirstAccountOfARepeatedID(t *testing.T) {
 	}
 }
 
+func TestGenericAgyExporterGroupsAreWindowsOfOneAccount(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"accounts":[
+		 {"id":"agy-workstation-gemini","provider":"antigravity","name":"Gemini","windows":[{"label":"5h","used_percent":3},{"label":"7d","used_percent":39}]},
+		 {"id":"agy-workstation-claude-and-gpt","provider":"antigravity","name":"Claude and GPT","windows":[{"label":"7d","used_percent":50}]},
+		 {"id":"team-seat","provider":"antigravity","name":"Gemini","windows":[{"label":"7d","used_percent":14}]}
+		]}`)
+	}))
+	defer srv.Close()
+	res, err := Fetch(t.Context(), Config{Type: TypeGeneric, URL: srv.URL + "/usage"}, now)
+	if err != nil || len(res.Accounts) != 2 {
+		t.Fatalf("%v %+v", err, res.Accounts)
+	}
+	agy := res.Accounts[0]
+	if agy.Provider != "agy" || agy.Name != "Antigravity" || agy.Ref != "agy-workstation" || agy.LegacyAgyHost != "workstation" ||
+		len(agy.Windows) != 3 || agy.Windows[0].Model != "Gemini Models" || agy.Windows[1].Model != "Claude and GPT models" {
+		t.Fatalf("legacy exporter sample: %+v", agy)
+	}
+	if res.Accounts[1].Ref != "team-seat" || res.Accounts[1].LegacyAgyHost != "" {
+		t.Fatalf("independent gateway seat changed: %+v", res.Accounts[1])
+	}
+}
+
 func TestUnknownTypeAndBadAddress(t *testing.T) {
 	if _, err := Fetch(context.Background(), Config{Type: "nope", URL: "https://gw.example.com"}, now); CodeOf(err) != CodeBadConfig {
 		t.Error(err)

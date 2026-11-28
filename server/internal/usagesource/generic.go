@@ -106,6 +106,7 @@ func fetchGeneric(ctx context.Context, c *client, now time.Time) (Result, error)
 		res.Seen.Windows += len(list)
 		res.Seen.Providers[provider]++
 	}
+	res.foldLegacyAgy(c.base)
 	return res, nil
 }
 

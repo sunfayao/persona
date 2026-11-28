@@ -14,6 +14,48 @@ import (
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
+func TestCodexGoalsReadNativeChangesThatAreMissingFromRollout(t *testing.T) {
+	n := remoteTestNode(t)
+	now := time.Unix(1_800_000_000, 0).UTC()
+	active := &proto.GoalInfo{Objective: "Run the regression tests", Status: proto.GoalActive, UpdatedAt: now}
+	rows := []proto.Session{
+		{SessionID: appChat, Agent: "codex", Goal: active},
+		{SessionID: "separate-session", Agent: "codex", Goal: active},
+	}
+	db := filepath.Join(n.codexHome(), "goals_1.sqlite")
+	if err := os.MkdirAll(filepath.Dir(db), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(db, []byte("test goal store"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	reads := 0
+	query := func(_ context.Context, path string) (map[string]proto.GoalInfo, error) {
+		t.Helper()
+		if path != db {
+			t.Fatalf("queried %s, want %s", path, db)
+		}
+		reads++
+		native := *active
+		if reads > 1 {
+			native.Status, native.UpdatedAt = proto.GoalComplete, now.Add(time.Second)
+		}
+		return map[string]proto.GoalInfo{appChat: native}, nil
+	}
+	n.applyCodexGoals(t.Context(), rows, now, query)
+	n.applyCodexGoals(t.Context(), rows, now.Add(time.Second), query)
+	if reads != 1 || rows[0].Goal.Status != proto.GoalActive {
+		t.Fatalf("the active snapshot was not reused: reads=%d goal=%+v", reads, rows[0].Goal)
+	}
+	if err := os.WriteFile(db+"-wal", []byte("goal update"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	n.applyCodexGoals(t.Context(), rows, now.Add(codexAppDBRefresh), query)
+	if reads != 2 || rows[0].Goal.Status != proto.GoalComplete || rows[1].Goal != active || active.Status != proto.GoalActive {
+		t.Fatalf("native completion did not replace only the matching rollout goal: reads=%d rows=%+v", reads, rows)
+	}
+}
+
 func TestCodexHistoryAsksAfterUserReply(test *testing.T) {
 	const question = "Where should updates go?"
 	turnEvent := func(second int, kind string) string {

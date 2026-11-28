@@ -616,6 +616,7 @@ func (s *Service) decorateInventory(machine string, list []proto.Session, comple
 		decorateSuggestion(&list[i], suggested)
 	}
 	s.decorateTodos(machine, list)
+	s.settleClosedTaskGoals(machine, list)
 	for i := range list {
 		// The todos' alone, stripped before push to client (#762).
 		list[i].SpawnFrom, list[i].Chat, list[i].Topic, list[i].Dispatched = "", "", "", nil

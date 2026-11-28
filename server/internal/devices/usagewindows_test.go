@@ -19,6 +19,42 @@ func uw(label string, minutes int, used float64, resets time.Time) proto.UsageWi
 	return proto.UsageWindow{Label: label, WindowMinutes: minutes, UsedPercent: used, ResetsAt: &resets}
 }
 
+func TestAgyUsagePrefersNativeForMatchingLocalLegacyQuota(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0).UTC()
+	win := uw("7d", 10080, 50, now.Add(time.Hour))
+	win.Model = "Claude and GPT models"
+	native := proto.UsageAccount{Provider: "agy", Name: "Antigravity", SampledAt: now, Windows: []proto.UsageWindow{win}}
+	makeSource := func(id, host string) usageSource {
+		return usageSource{id: id, hostname: host, online: true, ask: func(context.Context) (proto.UsageSnapshot, error) {
+			return proto.UsageSnapshot{Enabled: true, Accounts: []proto.UsageNodeAccount{{UsageAccount: native, SourceKey: "runtime:agy"}}}, nil
+		}}
+	}
+	legacy := native
+	legacy.LegacyAgyHost, legacy.Origin, legacy.Sources = "workstation", "legacy:agy-workstation", []string{"Usage exporter"}
+	legacy.SampledAt = now.Add(-time.Minute)
+	for _, tc := range []struct {
+		name   string
+		host   string
+		period time.Time
+		want   int
+	}{
+		{"same host and quota", "workstation.example.com", *win.ResetsAt, 2},
+		{"different host", "other.example.com", *win.ResetsAt, 3},
+		{"different quota", "workstation.example.com", now.Add(2 * time.Hour), 3},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			old := legacy
+			old.Windows = []proto.UsageWindow{win}
+			old.Windows[0].ResetsAt = &tc.period
+			u := usageWindowsHub{gateways: func(time.Time) []proto.UsageAccount { return []proto.UsageAccount{old} }}
+			got := u.poll(t.Context(), []usageSource{makeSource("cli-box", tc.host), makeSource("laptop", "laptop.example.com")}, now)
+			if len(got) != tc.want {
+				t.Fatalf("got %d accounts: %+v", len(got), got)
+			}
+		})
+	}
+}
+
 func TestMergeUsageAccountsStillDedupesClaudeByWindow(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
 	h5, d7 := now.Add(2*time.Hour), now.Add(3*24*time.Hour)

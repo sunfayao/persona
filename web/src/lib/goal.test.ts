@@ -4,6 +4,7 @@ import { goalHeadline, goalStatusLabel, goalUsage } from "./goal";
 describe("goal", () => {
   it("reads the status in words", () => {
     expect(goalStatusLabel({ objective: "x", status: "active" })).toBe("进行中");
+    expect(goalStatusLabel({ objective: "x", status: "complete" })).toBe("已达成");
     expect(goalStatusLabel({ objective: "x", status: "budget_limited" })).toBe("预算用完");
     expect(goalStatusLabel({ objective: "x", status: "something_new" })).toBe("something_new");
   });

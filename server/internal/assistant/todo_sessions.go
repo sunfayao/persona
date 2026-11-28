@@ -10,6 +10,7 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/host"
 	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -686,6 +687,61 @@ func cloneTokens(m map[string]map[string]string) map[string]map[string]string {
 }
 
 // ---- what the hub shows ----
+
+// Older nodes can still report the rollout's active copy of a task goal.
+// Settle only that task's generated objective after its Agent has stopped.
+func (s *Service) settleClosedTaskGoals(machine string, list []proto.Session) {
+	var candidates map[string]*proto.Session
+	for i := range list {
+		row := &list[i]
+		if row.Agent != "codex" || row.Goal == nil || row.Goal.Status != proto.GoalActive ||
+			row.Goal.UpdatedAt.IsZero() || row.Starting || row.Status == proto.StatusWorking {
+			continue
+		}
+		if candidates == nil {
+			candidates = map[string]*proto.Session{}
+		}
+		candidates[row.SessionID] = row
+	}
+	if len(candidates) == 0 {
+		return
+	}
+	s.todos.mu.RLock()
+	defer s.todos.mu.RUnlock()
+	outcomes := map[string]*Todo{}
+	for _, t := range s.todos.todos {
+		if t.DoneAt == nil || t.StartError != "" || t.Supervision == nil || len(t.Supervision.DoneWhen) == 0 {
+			continue
+		}
+		objective := ""
+		for _, a := range t.Agents {
+			row := candidates[a.SessionID]
+			if a.MachineID != machine || row == nil || row.Goal.UpdatedAt.After(*t.DoneAt) ||
+				row.Goal.UpdatedAt.Before(t.CreatedAt) || s.todos.activeBySession[[2]string{machine, a.SessionID}] != "" {
+				continue
+			}
+			if old := outcomes[a.SessionID]; old != nil && !t.DoneAt.After(*old.DoneAt) {
+				continue
+			}
+			if objective == "" {
+				objective = prompts.RenderTaskGoal(t.Supervision.DoneWhen)
+			}
+			if row.Goal.Objective == objective {
+				outcomes[a.SessionID] = t
+			}
+		}
+	}
+	for sid, t := range outcomes {
+		row := candidates[sid]
+		if t.Cancelled() {
+			row.Goal = nil
+		} else {
+			goal := *row.Goal
+			goal.Status, goal.UpdatedAt = proto.GoalComplete, *t.DoneAt
+			row.Goal = &goal
+		}
+	}
+}
 
 // quietKeep is how long after its task was done an agent of a quiet task stays quiet in the report (the hub's pushes
 // leave it out); older ones are dropped to keep the report small.

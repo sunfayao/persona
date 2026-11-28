@@ -33,10 +33,11 @@ const (
 
 // usageSource is a machine as the aggregator sees it.
 type usageSource struct {
-	id     string
-	name   string // what the computer is called now ("" for its id)
-	online bool
-	ask    func(ctx context.Context) (proto.UsageSnapshot, error)
+	id       string
+	name     string // what the computer is called now ("" for its id)
+	hostname string
+	online   bool
+	ask      func(ctx context.Context) (proto.UsageSnapshot, error)
 }
 
 type usageAnswer struct {
@@ -84,9 +85,9 @@ func (d *Devices) usageSources() []usageSource {
 			continue
 		}
 		m.mu.Lock()
-		online := m.online
+		online, hostname := m.online, m.info.Hostname
 		m.mu.Unlock()
-		out = append(out, usageSource{id: m.cfg.ID, name: m.name(), online: online, ask: func(ctx context.Context) (proto.UsageSnapshot, error) {
+		out = append(out, usageSource{id: m.cfg.ID, name: m.name(), hostname: hostname, online: online, ask: func(ctx context.Context) (proto.UsageSnapshot, error) {
 			var snap proto.UsageSnapshot
 			err := m.call(ctx, "usage.windows", map[string]any{}, &snap)
 			return snap, err
@@ -147,9 +148,9 @@ func (u *usageWindowsHub) poll(ctx context.Context, sources []usageSource, now t
 	if u.byMachine == nil {
 		u.byMachine = map[string]usageAnswer{}
 	}
-	known := map[string]string{} // id: name
+	known := map[string]usageSource{}
 	for i, s := range sources {
-		known[s.id] = cmp.Or(s.name, s.id)
+		known[s.id] = s
 		if a := answers[i]; a != nil {
 			if a.at.IsZero() {
 				delete(u.byMachine, s.id)
@@ -159,8 +160,9 @@ func (u *usageWindowsHub) poll(ctx context.Context, sources []usageSource, now t
 		}
 	}
 	var all []proto.UsageAccount
+	nativeAgy := map[string][]proto.UsageAccount{}
 	for id, a := range u.byMachine {
-		name, ok := known[id]
+		source, ok := known[id]
 		if !ok || now.Sub(a.at) > usageHubMaxAge { // a machine taken out of hub.json, or one gone for days
 			delete(u.byMachine, id)
 			continue
@@ -168,7 +170,7 @@ func (u *usageWindowsHub) poll(ctx context.Context, sources []usageSource, now t
 		for n, sample := range a.accounts { // legacy nodes answer in a fixed order, sorted by where they read the data
 			acct := sample.UsageAccount
 			// what a node says of where it came from is not taken: it is this machine, by the name it has now
-			acct.Local, acct.Machines, acct.Sources, acct.Problem, acct.Ref = true, []string{name}, nil, "", ""
+			acct.Local, acct.Machines, acct.Sources, acct.Problem, acct.Ref = true, []string{cmp.Or(source.name, id)}, nil, "", ""
 			acct.Origin = id + "/" + strconv.Itoa(n)
 			if acct.Provider == "codex" {
 				acct.CodexAccountKey = sample.AccountKey
@@ -176,11 +178,19 @@ func (u *usageWindowsHub) poll(ctx context.Context, sources []usageSource, now t
 					acct.Origin = id + "/source/" + sample.SourceKey
 				}
 			}
+			if acct.Provider == "agy" {
+				host, _, _ := strings.Cut(strings.ToLower(cmp.Or(source.hostname, id)), ".")
+				nativeAgy[host] = append(nativeAgy[host], acct)
+			}
 			all = append(all, acct)
 		}
 	}
 	if u.gateways != nil {
-		all = append(all, u.gateways(now)...)
+		for _, acct := range u.gateways(now) {
+			if !matchesNativeAgyQuota(acct, nativeAgy[acct.LegacyAgyHost], now) {
+				all = append(all, acct)
+			}
+		}
 	}
 	if u.balances != nil {
 		all = append(all, u.balances(now)...)
@@ -189,6 +199,35 @@ func (u *usageWindowsHub) poll(ctx context.Context, sources []usageSource, now t
 	u.loading = nil
 	close(done)
 	return u.merged
+}
+
+// The stopgap exporter and the companion can both run on a computer. Their
+// shared model windows must agree on reset times before the native quota takes over.
+func matchesNativeAgyQuota(legacy proto.UsageAccount, native []proto.UsageAccount, now time.Time) bool {
+nextAccount:
+	for _, a := range native {
+		if now.Sub(a.SampledAt) > usageHubMaxAge {
+			continue
+		}
+		matched := false
+		for _, old := range legacy.Windows {
+			if old.ResetsAt == nil || !old.ResetsAt.After(now) {
+				continue
+			}
+			for _, w := range a.Windows {
+				if w.ResetsAt != nil && w.ResetsAt.After(now) && w.WindowMinutes == old.WindowMinutes && strings.EqualFold(w.Model, old.Model) {
+					if w.ResetsAt.Unix() != old.ResetsAt.Unix() {
+						continue nextAccount
+					}
+					matched = true
+				}
+			}
+		}
+		if matched {
+			return true
+		}
+	}
+	return false
 }
 
 // mergeUsageAccounts makes one account of the samples that are the same account, drops what has run out and orders
