@@ -434,6 +434,11 @@ func (n *Node) handleHook(ctx context.Context, req sockRequest) (any, error) {
 		return hold, nil
 	}
 	stopSig := n.recordHookTurn(req, in, time.Now())
+	if n.lifecycle != nil && in.AgentID == "" && validID(in.SessionID) && !req.Resume {
+		if err := n.lifecycle.Hook(in.SessionID, in.HookEventName, req.Attempt, in.PromptID, req.AgentPID, req.AgentStart); err != nil {
+			n.logger.Printf("lifecycle hook: %v", err)
+		}
+	}
 	if !req.ReportOnly && !req.Resume {
 		n.liveTurnHook(in) // a prompt or a Stop ends the live text of the turn before (livereply.go)
 	}

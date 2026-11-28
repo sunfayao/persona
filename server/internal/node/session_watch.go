@@ -229,6 +229,13 @@ func (n *Node) refreshRead(id string, read func() ([]proto.Item, transcript.Span
 	if err != nil || span.To == span.From {
 		return err
 	}
+	if n.lifecycle != nil {
+		hooks, _ := n.hooks.get(id)
+		_, codex := n.codexSource(id)
+		if err := n.lifecycle.Transcript(id, fresh, span, hooks.seen(), codex); err != nil {
+			n.logger.Printf("lifecycle transcript: %v", err)
+		}
+	}
 	n.mu.Lock()
 	_, watched := n.watches[id]
 	n.mu.Unlock()

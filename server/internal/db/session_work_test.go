@@ -2,6 +2,10 @@ package db
 
 import (
 	"context"
+	"fmt"
+	"slices"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -132,5 +136,131 @@ func TestSessionWorkRestoresOldCI(t *testing.T) {
 	got, err = d.SessionWorks(ctx, now.Add(-48*time.Hour))
 	if err != nil || len(got) != 3 {
 		t.Fatalf("active CI watches and retirement not retained: %+v, %v", got, err)
+	}
+}
+
+func TestLifecycleCommitReplaysWithOneRevisionAndRecordsMissingRanges(t *testing.T) {
+	ctx, d := context.Background(), open(t)
+	at := time.Now().UTC().Truncate(time.Microsecond)
+	machine, session, todo := "lifecycle-machine", "lifecycle-session", "lifecycle-todo"
+	if err := d.CreateTodo(ctx, TodoRow{ID: todo, Title: "Trace lifecycle", CreatedAt: at, UpdatedAt: at}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.LinkTodoAgentWithSource(ctx, todo, machine, session, "", "", "", "", "spawned", "another/session", at); err != nil {
+		t.Fatal(err)
+	}
+	event := proto.LifecycleObservation{Session: session, Kind: proto.LifecycleTurnStarted, At: at,
+		Source: "hook", Ref: proto.LifecycleRef("attempt-1")}
+	reset := proto.LifecycleBatchRequest{}
+	batch := proto.LifecycleBatch{Stream: proto.LifecycleRef("stream-one"), First: 1, Events: []proto.LifecycleObservation{event}}
+	invalid := event
+	invalid.Session = "invalid\x00value"
+	bad := batch
+	bad.Events = []proto.LifecycleObservation{event, invalid}
+	if err := d.CommitLifecycle(ctx, machine, reset, bad, at); err == nil {
+		t.Fatal("invalid record committed")
+	}
+	if cursor, err := d.LifecycleCursor(ctx, machine); err != nil || cursor != reset {
+		t.Fatalf("failed batch changed cursor to %+v: %v", cursor, err)
+	}
+	page := func(after int64, limit int, forward bool) proto.LifecyclePage {
+		t.Helper()
+		got, err := d.LifecyclePage(ctx, "", "", todo, after, forward, limit, at.Add(-time.Second))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	if p := page(0, 10, true); len(p.Events) != 1 || p.Events[0].Kind != proto.LifecycleChildLinked {
+		t.Fatalf("business transition and lifecycle rows were changed by the failed batch: %+v", p)
+	}
+	if err := d.CommitLifecycle(ctx, machine, reset, batch, at); err != nil {
+		t.Fatal(err)
+	}
+	cursor := proto.LifecycleBatchRequest{Stream: batch.Stream, After: 1}
+	if err := d.CommitLifecycle(ctx, machine, cursor, batch, at); err != nil {
+		t.Fatal(err)
+	}
+	batch.First = 2 // the same source observation in a different delivery position
+	if err := d.CommitLifecycle(ctx, machine, cursor, batch, at); err != nil {
+		t.Fatal(err)
+	}
+	first := page(0, 2, true)
+	if len(first.Events) != 2 || first.Events[0].Kind != proto.LifecycleChildLinked || first.Events[1].Kind != proto.LifecycleTurnStarted {
+		t.Fatalf("expected one source observation after replay: %+v", first)
+	}
+	ended := event
+	ended.Kind, ended.Ref = proto.LifecycleTurnFinished, proto.LifecycleRef("stop-1")
+	batch.First, batch.Events = 5, []proto.LifecycleObservation{ended}
+	cursor.After = 2
+	if err := d.CommitLifecycle(ctx, machine, cursor, batch, at); err != nil {
+		t.Fatal(err)
+	}
+	got := page(first.Next, 2, true)
+	if len(got.Events) != 2 || got.Events[0].Kind != proto.LifecycleGap ||
+		got.Events[0].Outcome != "queue_overflow" || got.Events[1].Kind != proto.LifecycleTurnFinished ||
+		got.Events[1].Revision <= got.Events[0].Revision {
+		t.Fatalf("missing range or unstable order: %+v", got)
+	}
+	cursor.After = 5
+	batch.Stream, batch.First, batch.Events = proto.LifecycleRef("stream-two"), 1, nil
+	if err := d.CommitLifecycle(ctx, machine, cursor, batch, at); err != nil {
+		t.Fatal(err)
+	}
+	last := page(0, 2, false)
+	if len(last.Events) != 2 || last.Events[0].Outcome != "journal_reset" || last.Next != last.Events[1].Revision {
+		t.Fatalf("reset or backwards cursor missing: %+v", last)
+	}
+	sessionPage, err := d.LifecyclePage(ctx, machine, session, "", 0, true, 10, at.Add(-time.Second))
+	if err != nil || len(sessionPage.Events) != 5 {
+		t.Fatalf("session events: %+v: %v", sessionPage, err)
+	}
+}
+
+func TestLifecyclePersistsOnlyInteractionReferencesAndPrunesByOccurrence(t *testing.T) {
+	ctx, d := context.Background(), open(t)
+	at := time.Now().UTC().Truncate(time.Microsecond)
+	machine, session := "wait-machine", "wait-session"
+	ix := proto.Interaction{ID: "ix_wait_example", MachineID: machine, SessionID: session, Kind: "question", CreatedAt: at}
+	for range 2 {
+		if err := d.InsertInteraction(ctx, ix); err != nil {
+			t.Fatal(err)
+		}
+		if err := d.FinishInteraction(ctx, ix.ID, "answered", &proto.Resolution{Answers: map[string]string{"answer": "fixture-private-body"}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	old := proto.LifecycleObservation{Session: session, Kind: proto.LifecycleTurnStarted, At: at.Add(-31 * 24 * time.Hour),
+		Source: "hook", Ref: proto.LifecycleRef("old-attempt")}
+	if err := d.AppendLifecycle(ctx, machine, []proto.LifecycleObservation{old}); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.PruneLifecycle(ctx, at.Add(-30*24*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	page, err := d.LifecyclePage(ctx, machine, session, "", 0, true, 10, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := fmt.Sprint(page.Events); !slices.EqualFunc(page.Events, []string{proto.LifecycleWaitOpened, proto.LifecycleWaitResolved},
+		func(e proto.LifecycleEvent, kind string) bool { return e.Kind == kind && e.Ref == ix.ID }) ||
+		page.Events[1].Outcome != "answered" || strings.Contains(got, "fixture-private-body") {
+		t.Fatalf("unexpected wait metadata: %+v", page.Events)
+	}
+}
+
+func BenchmarkLifecycleBatch(b *testing.B) {
+	ctx, d := context.Background(), open(b)
+	at := time.Now().UTC()
+	events := make([]proto.LifecycleObservation, proto.LifecycleBatchSize)
+	b.ResetTimer()
+	for i := range b.N {
+		for j := range events {
+			events[j] = proto.LifecycleObservation{Session: "benchmark-session", Kind: proto.LifecycleTurnStarted, At: at,
+				Source: "hook", Ref: proto.LifecycleRef(strconv.Itoa(i), strconv.Itoa(j))}
+		}
+		if err := d.AppendLifecycle(ctx, "benchmark-machine", events); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

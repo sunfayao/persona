@@ -1,0 +1,5 @@
+{
+  "not_found": "此 Agent 或待办的活动记录不可用。",
+  "invalid_cursor": "无法读取此页活动，请重新打开活动记录。",
+  "unavailable": "无法加载活动记录。"
+}

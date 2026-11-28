@@ -35,6 +35,12 @@ func (s *Service) setSessions(machine string, list []proto.Session) {
 	// The first list of a new connection after one with a list: a node that started again (an ssh node whose link
 	// dropped) can list a turn still running as stopped. Its transcript says whether such a stop ended the turn.
 	reconnected := len(before) > 0 && !connected.Equal(beforeConn)
+	if s.lifecycle != nil && !s.lifecycleNode(machine) {
+		s.lifecycle.ObserveLegacy(machine, connected, !connected.Equal(beforeConn), list, func(id string) bool {
+			_, ok := before[id]
+			return ok
+		})
+	}
 	var unsure []proto.Session
 	var inlineUpdates []SessionRef
 	var inlineMain SessionRef

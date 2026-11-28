@@ -177,6 +177,7 @@ The authenticated WS `hello.features` always lists server capabilities; trusted 
 
 - Message receipt transport (`proto.Features`): `message_send_state` (hub-received message feedback, "Message feedback") and `todo_send_state` (the same for a to-do's message or answer sent with an op id, its "To-do writes"). Their feature strings are informational; the dedicated current-socket hello versions establish receipt authority.
 - Terminal Agent sends (`agent_terminal_send`) confirm the exact listed Agent before the terminal client uses the full-device message receipt route.
+- `agent_lifecycle_v1` enables the owner-only session and to-do lifecycle history routes.
 - `cli_slash_commands_v1` enables full-device command discovery through `GET /api/v1/sessions/{mid}/{sid}/slash-commands`
   or `GET /api/v1/machines/{mid}/slash-commands?launcher=…&cwd=…` for a new Agent. The session path uses the
   node's live session metadata. Both return `{"commands":[{"name":"/compact","description":"…","source":"builtin"}]}`.
@@ -2641,6 +2642,16 @@ GET /api/v1/sessions?counts=1&space=%5B%22mac%22%2C%22w1%22%5D
 - `catalog` takes the boolean values of `counts`; repeated or malformed values return **400 `invalid_query`**.
 
 Older hubs ignore these keys: `catalog=1` then answers an ordinary page, and `place` and `space` filter nothing. Clients send them only when `sessions_catalog` is advertised, and keep grouping by the `project` and `group` count maps otherwise. The personal-agent collection has none of them.
+
+#### Agent lifecycle history (`agent_lifecycle_v1`)
+
+The owner can read `GET /api/v1/sessions/{mid}/{sid}/lifecycle` or
+`GET /api/v1/todos/{id}/lifecycle`. Both return `{events, next?}`. The default is newest revision first.
+Use `?before=<next>` for earlier revisions or `?after=<revision>` to resume in ascending order. Revisions are decimal
+strings and a cursor is exclusive. Events carry the occurrence and receipt times, source and evidence level.
+A `coverage.gap` records incomplete observation. A runtime turn ending does not confirm that its to-do is complete.
+Events are retained for 30 days. The service stores runtime boundaries, opaque references and bounded classifications.
+Nodes that omit the capability continue to serve inventory and Manager-owned interaction records.
 
 #### Sessions by to-do (`sessions_todo`)
 

@@ -723,6 +723,19 @@ func (n *Node) closeWithCause(ctx context.Context, id string, cause proto.StopCa
 		}
 		return fmt.Errorf("这个 Agent 不在这台电脑的终端里运行，没法从手机关闭")
 	}
+	if n.lifecycle != nil && validID(id) {
+		defer func() {
+			if err != nil {
+				return
+			}
+			at := time.Now()
+			e := proto.LifecycleObservation{Session: id, Kind: proto.LifecycleSessionExited, At: at,
+				Source: "inventory", Ref: proto.LifecycleRef(at.UTC().Format(time.RFC3339Nano))}
+			if writeErr := n.lifecycle.Append(e); writeErr != nil {
+				n.logger.Printf("lifecycle session close: %v", writeErr)
+			}
+		}()
+	}
 	org, ref, err := paneCap[host.Organizer](n, a.PaneID) // a host that cannot close it is not interrupted first
 	if err != nil {
 		return err

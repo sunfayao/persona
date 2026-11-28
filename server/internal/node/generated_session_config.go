@@ -79,6 +79,7 @@ func hookSettingsForOS(goos, bin, dir string, assistant bool) map[string]any {
 		"Stop":              []any{notify},
 		"UserPromptSubmit":  []any{notify},
 		"SessionStart":      []any{notify},
+		"SessionEnd":        []any{notify},
 	}}
 }
 

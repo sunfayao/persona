@@ -1,6 +1,11 @@
 package proto
 
-import "time"
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"strings"
+	"time"
+)
 
 // Work phases (WorkState.Phase) and what a blocked session waits on (WorkState.On).
 const (
@@ -140,4 +145,94 @@ type WorkLink struct {
 type WorkArtifact struct {
 	Kind string `json:"kind"`
 	Ref  string `json:"ref"`
+}
+
+const (
+	LifecycleSessionStarted    = "session.started"
+	LifecycleSessionExited     = "session.exited"
+	LifecycleTurnStarted       = "turn.started"
+	LifecycleTurnFinished      = "turn.finished"
+	LifecycleTurnFailed        = "turn.failed"
+	LifecycleChildLinked       = "child.linked"
+	LifecycleWaitOpened        = "wait.opened"
+	LifecycleWaitResolved      = "wait.resolved"
+	LifecycleBackgroundStarted = "background.started"
+	LifecycleBackgroundEnded   = "background.ended"
+	LifecycleGap               = "coverage.gap"
+	LifecycleBatchSize         = 128
+)
+
+// LifecycleObservation carries references and classifications only. Ref identifies a boundary within its source.
+type LifecycleObservation struct {
+	Session     string    `json:"session_id"`
+	Incarnation string    `json:"incarnation,omitempty"`
+	SpaceRef    string    `json:"space_ref,omitempty"`
+	Kind        string    `json:"kind"`
+	At          time.Time `json:"occurred_at"`
+	Source      string    `json:"source"`
+	Ref         string    `json:"ref"`
+	Turn        string    `json:"turn_id,omitempty"`
+	Outcome     string    `json:"outcome,omitempty"`
+	DurationMS  int64     `json:"duration_ms,omitempty"`
+}
+
+type LifecycleBatchRequest struct {
+	Stream string `json:"stream,omitempty"`
+	After  int64  `json:"after,omitempty"`
+}
+
+type LifecycleBatch struct {
+	Stream string                 `json:"stream"`
+	First  int64                  `json:"first"`
+	Events []LifecycleObservation `json:"events"`
+}
+
+type LifecycleEvent struct {
+	LifecycleObservation
+	Revision   int64     `json:"revision,string"`
+	Machine    string    `json:"machine_id"`
+	Todo       string    `json:"todo_id,omitempty"`
+	Received   time.Time `json:"received_at"`
+	Confidence string    `json:"confidence"`
+}
+
+type LifecyclePage struct {
+	Events []LifecycleEvent `json:"events"`
+	Next   int64            `json:"next,string,omitempty"`
+}
+
+// LifecycleRef represents an opaque runtime identity without persisting the runtime's raw value.
+func LifecycleRef(parts ...string) string {
+	hash := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
+	return hex.EncodeToString(hash[:16])
+}
+
+// ValidLifecycleSession checks the shape of a public session reference.
+func ValidLifecycleSession(id string) bool {
+	return id != "" && len(id) <= 240 && !strings.ContainsFunc(id, func(r rune) bool {
+		return (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && !strings.ContainsRune("-_:@.", r)
+	})
+}
+
+// UnrecoverableTurnErrorCode identifies failures that retrying this conversation cannot repair.
+// Keep permanent causes ahead of a runtime's generic transient kind or an upstream HTTP status.
+func UnrecoverableTurnErrorCode(text string) string {
+	switch {
+	case containsErrorMarker(text, "compacted natively") && containsErrorMarker(text, "compaction is sealed") &&
+		containsErrorMarker(text, "to that account"):
+		return TurnErrorCompactionSealed
+	default:
+		return ""
+	}
+}
+
+// Markers are ASCII. Do not lowercase whole errors on the session-list hot path.
+func containsErrorMarker(text, marker string) bool {
+	for i := 0; i+len(marker) <= len(text); i++ {
+		if (text[i] == marker[0] || text[i] == marker[0]-('a'-'A')) &&
+			strings.EqualFold(text[i:i+len(marker)], marker) {
+			return true
+		}
+	}
+	return false
 }

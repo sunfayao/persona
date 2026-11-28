@@ -221,6 +221,15 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 	files["connection"][2].Derived = false
 	files["connection"][2].FromTest = "SyncEventTests.decodesRevs"
 
+	add("todos", "todo_agent_lifecycle", "Agent activity uses a string revision cursor and carries a coverage gap without a business outcome.", "todo_lifecycle",
+		httpJSON(proto.LifecyclePage{Events: []proto.LifecycleEvent{{
+			Revision: 42, Machine: "example-host", Todo: "example-todo", Received: now, Confidence: "observed",
+			LifecycleObservation: proto.LifecycleObservation{Kind: proto.LifecycleGap, At: now,
+				Source: "coverage", Ref: proto.LifecycleRef("example-stream"), Outcome: "queue_overflow"},
+		}}, Next: 42}),
+		map[string]any{"/events/0/revision": "42", "/events/0/kind": "coverage.gap", "/next": "42"},
+		"server/internal/proto/work.go: LifecyclePage", "server/internal/assistant/lifecycle/routes.go: Domain.serve")
+
 	firstPane := 0
 	sessions := []proto.Session{{MachineID: "m1", SessionID: "s1", Title: "示例任务", Cwd: "/home/user/project", Status: proto.StatusBlocked,
 		PaneID: "w1:p1", TabID: "w1:t1", WorkspaceID: "w1", Agent: "claude", Launcher: "example", Model: "example-model",

@@ -1,0 +1,38 @@
+[
+  {
+    "name": "todo_agent_lifecycle",
+    "description": "Agent activity uses a string revision cursor and carries a coverage gap without a business outcome.",
+    "source": [
+      "server/internal/proto/work.go: LifecyclePage",
+      "server/internal/assistant/lifecycle/routes.go: Domain.serve"
+    ],
+    "derived": true,
+    "decoder": "todo_lifecycle",
+    "input": {
+      "events": [
+        {
+          "session_id": "",
+          "kind": "coverage.gap",
+          "occurred_at": "2026-01-02T03:04:05Z",
+          "source": "coverage",
+          "ref": "bc89c547d2eeceafa9e4495f34866e98",
+          "outcome": "queue_overflow",
+          "revision": "42",
+          "machine_id": "example-host",
+          "todo_id": "example-todo",
+          "received_at": "2026-01-02T03:04:05Z",
+          "confidence": "observed"
+        }
+      ],
+      "next": "42"
+    },
+    "expected": {
+      "accepted": true,
+      "fields": {
+        "/events/0/kind": "coverage.gap",
+        "/events/0/revision": "42",
+        "/next": "42"
+      }
+    }
+  }
+]

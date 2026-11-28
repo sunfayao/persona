@@ -963,8 +963,14 @@ func (c *codexRemote) message(m codexMessage) {
 		}
 	}
 	t.revision++
+
 	c.threads[ev.ThreadID] = t
 	c.mu.Unlock()
+	if c.n.lifecycle != nil && (m.Method == "turn/started" || m.Method == "turn/completed") {
+		if err := c.n.lifecycle.CodexTurn(t.publicID, ev.Turn.ID, m.Method, ev.Turn.Status); err != nil {
+			c.n.logger.Printf("lifecycle Codex turn: %v", err)
+		}
+	}
 	if refresh {
 		go func() {
 			if m.Method == "thread/reverted" {

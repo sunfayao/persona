@@ -1,11 +1,12 @@
 import { decisionSourceLabel } from "../lib/todo-decision-label";
+import type { AgentLifecyclePage } from "../lib/types";
 import { TodoRepositoryBindings } from "../ui/TaskRepositoryBindingsEditor";
 import { hasRequestPieces } from "../lib/request-pieces";
 import { defaultManager, MANAGER_HEADER } from "../lib/manager-choice";
 // The To-dos page: the list on the left (status sections, folders or requests), the open to-do on the right. The main
 // conversation and the agents write every to-do; the owner reads it here, and nothing on this page changes one.
 import { lazy, memo, Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
-import { apiBlob, credentialOwner, errorText, getToken, subscribeCredentialOwner } from "../lib/api";
+import { ApiError, apiBlob, credentialOwner, errorText, getToken, subscribeCredentialOwner } from "../lib/api";
 import { ago, backgroundWaiting, clock, shortPath, stateOf, tabLabel } from "../lib/format";
 import { foldedState } from "../lib/child-sessions";
 import { sessionCard } from "../lib/folded-rows";
@@ -62,7 +63,7 @@ import { tRich } from "../i18n/rich";
 import { dayLabel } from "../lib/feed";
 import { entryWords, supervisionDays, supervisionLog, supervisionRole, supervisorOf, workerAgent, workerStep, workerStepLabel, type SupervisionDay, type SupervisionEntry, type SupervisionRole } from "../lib/todo-supervisor";
 import { groupTodosByProject, treeStateLabel, type TodoProjectGroup, type TreeState } from "../lib/todo-tree";
-import { cancellationReason, formatAgentSource, seenCanFile } from "../lib/todo-details";
+import { cancellationReason, fetchAgentLifecycle, formatAgentSource, seenCanFile } from "../lib/todo-details";
 import { TRIAGE_SECTIONS, checksAsOpen, countsAsOpen, lastActivity, openMergePRs, sectionStartsFolded, supersededFailedStarts, triage, triageTodos, type OwnerNeed, type TriageGroup, type TriageResult, type TriageRule, type TriageSection } from "../lib/todo-triage";
 import { orderWaitGroups } from "../lib/task-wait";
 import { viewDrawOn } from "../features/todos/model/view-gates";
@@ -1817,6 +1818,7 @@ function TodoDetail({
       {/* What its supervisor Agent did with the workers, and how the main conversation took the result; only on a
           to-do a supervisor runs and on its workers */}
       {role && <SupervisionSection todo={todo} role={role} onOpenTodo={onOpenTodo} />}
+      <AgentLifecycleTimeline key={todo.id} todo={todo} lookup={lookup} />
 
       {/* 3. The agent sessions on it, each opening its session, and those that took part; a supervisor first, with the
           workers it handed out beneath it; on a worker, the to-do it works for */}
@@ -2286,6 +2288,79 @@ function DecisionsSection({ todo, lookup }: { todo: Todo; lookup: ReturnType<typ
         <Button tone="quiet" testId="todo-decisions-more" expanded={view === "all"} className="mt-1.5 whitespace-nowrap px-2 py-1 text-xs" onClick={() => setView(view === "first" ? "all" : "first")}>
           {view === "first" ? t("todos.decisions_show_all", { count: listed.length }) : t("todos.decisions_show_first", { count: DECISIONS_FIRST })}
         </Button>
+      )}
+    </DetailSection>
+  );
+}
+
+function lifecycleLabel(kind: string): string {
+  switch (kind) {
+    case "session.started": return t("todos.lifecycle_session_started");
+    case "session.exited": return t("todos.lifecycle_session_exited");
+    case "turn.started": return t("todos.lifecycle_turn_started");
+    case "turn.finished": return t("todos.lifecycle_turn_finished");
+    case "turn.failed": return t("todos.lifecycle_turn_failed");
+    case "child.linked": return t("todos.lifecycle_child_linked");
+    case "wait.opened": return t("todos.lifecycle_wait_opened");
+    case "wait.resolved": return t("todos.lifecycle_wait_resolved");
+    case "background.started": return t("todos.lifecycle_background_started");
+    case "background.ended": return t("todos.lifecycle_background_ended");
+    case "coverage.gap": return t("todos.lifecycle_gap");
+    default: return t("todos.lifecycle_activity");
+  }
+}
+
+function AgentLifecycleTimeline({ todo, lookup }: { todo: Todo; lookup: SessionLookup }) {
+  const supported = useStore((s) => s.features.includes("agent_lifecycle_v1"));
+  const [pages, setPages] = useState<AgentLifecyclePage[]>([]);
+  const [failure, setFailure] = useState(false);
+  const [missing, setMissing] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [request, setRequest] = useState<{ before?: string }>({});
+  useEffect(() => {
+    if (!supported) return;
+    const controller = new AbortController();
+    setPending(true);
+    setFailure(false);
+    void fetchAgentLifecycle(todo.id, todo.manager, request.before, controller.signal).then((page) => {
+      if (!controller.signal.aborted) setPages((old) => request.before ? [...old, page] : [page]);
+    }).catch((err: unknown) => {
+      if (controller.signal.aborted) return;
+      if (err instanceof ApiError && err.status === 404) setMissing(true);
+      else setFailure(true);
+    }).finally(() => {
+      if (!controller.signal.aborted) setPending(false);
+    });
+    return () => controller.abort();
+  }, [supported, todo.id, todo.manager, request]);
+  if (!supported || missing) return null;
+  const events = pages.flatMap((p) => p.events).sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at));
+  const next = pages.at(-1)?.next;
+  return (
+    <DetailSection title={t("todos.lifecycle_title")} testId="todo-section-lifecycle">
+      <ol className="flex flex-col gap-2">
+        {events.map((e) => {
+          const actor = lookup(e.machine_id, e.session_id)?.title ||
+            todo.agents?.find((agent) => agent.machine_id === e.machine_id && agent.session_id === e.session_id)?.title;
+          return (
+          <li key={e.revision} className="flex flex-wrap items-baseline gap-x-2 text-label text-ink-2">
+            <span>{lifecycleLabel(e.kind)}</span>
+            {actor && <span className="text-ink-3">{actor}</span>}
+            <time dateTime={e.occurred_at} className="text-ink-3">{ago(e.occurred_at)}</time>
+            {e.confidence === "observed" && e.kind !== "coverage.gap" && (
+              <span className="text-ink-3">{t("todos.lifecycle_observed")}</span>
+            )}
+          </li>
+          );
+        })}
+      </ol>
+      {pending && <SectionEmpty>{t("todos.lifecycle_loading")}</SectionEmpty>}
+      {!pending && failure && (
+        <Button tone="quiet" onClick={() => setRequest({ ...request })}>{t("todos.lifecycle_retry")}</Button>
+      )}
+      {!pending && !failure && events.length === 0 && <SectionEmpty>{t("todos.lifecycle_empty")}</SectionEmpty>}
+      {!pending && !failure && next && (
+        <Button tone="quiet" onClick={() => setRequest({ before: next })}>{t("todos.lifecycle_more")}</Button>
       )}
     </DetailSection>
   );

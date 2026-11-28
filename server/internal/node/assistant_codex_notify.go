@@ -59,6 +59,12 @@ func (c *codexConn) notification(method string, params json.RawMessage) {
 	if ev.ThreadID != "" && thread != "" && ev.ThreadID != thread {
 		return // a subagent's thread: its items are in the main rollout's events anyway
 	}
+
+	if n.lifecycle != nil && (method == "turn/started" || method == "turn/completed") {
+		if err := n.lifecycle.CodexTurn(p.id, ev.Turn.ID, method, ev.Turn.Status); err != nil {
+			n.logger.Printf("lifecycle Codex turn: %v", err)
+		}
+	}
 	switch method {
 	case "thread/settings/updated":
 		c.mu.Lock()

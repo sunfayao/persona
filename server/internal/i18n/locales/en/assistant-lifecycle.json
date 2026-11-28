@@ -1,0 +1,5 @@
+{
+  "not_found": "Activity history for this Agent or to-do is unavailable.",
+  "invalid_cursor": "The activity page could not be read. Reopen the activity history.",
+  "unavailable": "Couldn't load the activity history."
+}

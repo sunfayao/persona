@@ -151,3 +151,29 @@ describe("a to-do a supervisor Agent runs", () => {
     expect(location.search).toBe("?id=root");
   });
 });
+
+
+it("shows persisted Agent activity and an explicit coverage gap across pages", async () => {
+  seed({ features: ["agent_lifecycle_v1"] });
+  api.mockImplementation(async (path: string) => {
+    if (path === "/todos/root/lifecycle") return {
+      events: [{ revision: "42", machine_id: "m1", session_id: "s-lead", kind: "turn.finished", confidence: "confirmed", occurred_at: iso(2000) }],
+      next: "42",
+    };
+    if (path === "/todos/root/lifecycle?before=42") return {
+      events: [{ revision: "40", machine_id: "m1", session_id: "", kind: "coverage.gap", confidence: "observed", occurred_at: iso(3000) }],
+    };
+    if (path.endsWith("/decisions?all=1")) return { decisions: [] };
+    return {};
+  });
+  await open("root");
+  const activity = document.querySelector("[data-testid=todo-section-lifecycle]")!;
+  expect(activity.textContent).toContain("轮次已结束");
+  expect(activity.textContent).toContain("Supervise the release");
+  const earlier = [...activity.querySelectorAll("button")].find((button) => button.textContent === "显示更早的活动")!;
+  await act(async () => earlier.click());
+  await flush();
+  expect(activity.textContent).toContain("部分活动记录缺失");
+  expect(activity.textContent).toContain("轮次已结束");
+  expect(api).toHaveBeenCalledWith("/todos/root/lifecycle?before=42", expect.anything());
+});

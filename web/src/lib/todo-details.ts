@@ -1,9 +1,11 @@
 // Presentation helpers used only by the lazily loaded to-do detail and link views. Keeping them out of the shared
 // first-screen to-do module avoids sending their XML, source-label and link-resolution code before a view needs it.
+import { api, enc } from "./api";
+import { MANAGER_HEADER } from "./manager-choice";
 import { t } from "../i18n";
 import { findTodoForSpace, isCancelled, type SessionLookup, type Todo, type TodoAgent, type TodoSpace } from "./todos";
 import { reviewState } from "./supervision";
-import type { Session } from "./types";
+import type { AgentLifecyclePage, Session } from "./types";
 
 /** Whether Got it can file a finished turn. An open concern moves to Other open after Seen and bypasses only the
  *  ordinary live-delivery restriction; review and supervision still block filing. Seen is never acceptance (#5732). */
@@ -88,4 +90,10 @@ export function formatAgentSource(
   if (agent.source === "review") return t("lib-todos.source_review");
 
   return undefined;
+}
+
+export function fetchAgentLifecycle(id: string, manager: string | undefined, before: string | undefined, signal: AbortSignal) {
+  const next = before ? `?before=${enc(before)}` : "";
+  const headers = manager ? { [MANAGER_HEADER]: manager } : undefined;
+  return api<AgentLifecyclePage>(`/todos/${enc(id)}/lifecycle${next}`, { headers, signal });
 }

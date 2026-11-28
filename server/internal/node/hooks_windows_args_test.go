@@ -16,8 +16,8 @@ func TestHookSettingsWindowsNativeArgs(t *testing.T) {
 			native := hookSettingsForOS("windows", bin, dir, assistant)
 			legacy := hookSettingsForOS("linux", bin, dir, assistant)
 			events := native["hooks"].(map[string]any)
-			if len(events) != 8 {
-				t.Fatalf("lost hook events: %v", events)
+			if len(events) != 9 || events["SessionEnd"] == nil {
+				t.Fatalf("unexpected hook events: %v", events)
 			}
 			expectedArgs := []string{"hook"}
 			if dir != "" {

@@ -931,6 +931,9 @@ func (s *Service) recoverTurn(ctx context.Context, t Todo, last proto.Session) (
 		return false
 	}
 	end, closed := turnEndOf(items)
+	if closed && s.lifecycle != nil && !s.lifecycle.MayUseClosingTranscript(ctx, last.MachineID, last.SessionID, end.At) {
+		return false
+	}
 	ref := SessionRef{MachineID: last.MachineID, SessionID: last.SessionID}
 	b := &s.tasks.turns
 	b.mu.Lock()
@@ -1096,4 +1099,41 @@ func (s *Service) taskStartMissed(ctx context.Context, id string) bool {
 	}
 	s.taskWorks(ctx, t)
 	return true
+}
+
+// lifecycleReady rechecks transcript evidence in the same bounded recovery pool as the periodic supervisor.
+func (s *Service) lifecycleReady(machine, session string) {
+	s.inOrder(func() {
+		ctx := context.Background()
+		todo, ok := s.taskOf(ctx, machine, session)
+		if !ok || todo.Supervision == nil {
+			return
+		}
+		row, ok := s.nodeSession(machine, session)
+		if !ok || !taskAgentSettled(row) {
+			return
+		}
+		b := &s.tasks.turns
+		b.mu.Lock()
+		if !s.turnsLocked(ctx) {
+			b.mu.Unlock()
+			return
+		}
+		delete(b.looked, turnRecoveryKey{Todo: todo.ID, Machine: machine, Session: session})
+		delete(b.closed, SessionRef{MachineID: machine, SessionID: session})
+		if b.recovering[todo.ID] || len(b.recovering) >= turnRecoverMost {
+			b.mu.Unlock()
+			return
+		}
+		b.recovering[todo.ID] = true
+		b.mu.Unlock()
+		go func() {
+			defer func() {
+				b.mu.Lock()
+				delete(b.recovering, todo.ID)
+				b.mu.Unlock()
+			}()
+			s.recoverTurn(ctx, todo, row)
+		}()
+	})
 }

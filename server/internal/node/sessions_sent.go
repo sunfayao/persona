@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 	"sync/atomic"
 
+	"github.com/sunfayao/persona/server/internal/nodeproto"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
 )
@@ -37,6 +39,11 @@ type sentList struct {
 // sendSessions writes list as sessions.changed unless the manager holds these very bytes already. The wire bytes are
 // the ones Notify always wrote for {"sessions": list}.
 func (n *Node) sendSessions(list []proto.Session) {
+	if n.lifecycle != nil {
+		if err := n.lifecycle.Inventory(list); err != nil {
+			n.logger.Printf("lifecycle inventory: %v", err)
+		}
+	}
 	peer := n.peer
 	if peer == nil {
 		return
@@ -114,4 +121,13 @@ func (s *sentList) answering(ctx context.Context) {
 		s.epoch.Add(1) // before the count drops: a list compared after it sees the new epoch
 		s.pending.Add(-1)
 	})
+}
+
+func init() { nodeRPC(nodeproto.LifecycleRead, (*Node).readLifecycle) }
+
+func (n *Node) readLifecycle(_ context.Context, req proto.LifecycleBatchRequest) (proto.LifecycleBatch, error) {
+	if n.lifecycle == nil {
+		return proto.LifecycleBatch{}, errors.New("lifecycle journal unavailable")
+	}
+	return n.lifecycle.Read(req)
 }

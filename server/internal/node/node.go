@@ -33,6 +33,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/node/doctor"
 	"github.com/sunfayao/persona/server/internal/node/files"
 	"github.com/sunfayao/persona/server/internal/node/harness/codex/appserver"
+	lifecyclejournal "github.com/sunfayao/persona/server/internal/node/lifecycle"
 	"github.com/sunfayao/persona/server/internal/node/machdiag"
 	"github.com/sunfayao/persona/server/internal/node/ports"
 	"github.com/sunfayao/persona/server/internal/node/preview"
@@ -52,6 +53,7 @@ import (
 )
 
 type Node struct {
+	lifecycle        *lifecyclejournal.Queue
 	codexClientOnce  sync.Once
 	codexAppServer   *appserver.Client
 	projectRootsOnce sync.Once
@@ -507,6 +509,10 @@ func New(version string) (*Node, error) {
 		screens:      newScreenLogins(),
 	}
 	n.sessionScope = scope
+	n.lifecycle, err = lifecyclejournal.New(filepath.Join(dir, "agent-lifecycle.json"), time.Now)
+	if err != nil {
+		n.logger.Printf("lifecycle journal: %v", err)
+	}
 	if n.external, err = loadExternalAdapterRegistry(); err != nil {
 		n.logger.Printf("external adapter: configuration unavailable")
 	}

@@ -1570,6 +1570,9 @@ func weekdayText(ds []int) string {
 func (s *Service) Run(ctx context.Context) {
 	s.running.Store(&ctx)
 	go s.agents.RunDelivery(ctx)
+	if s.lifecycle != nil {
+		go s.lifecycle.Run(ctx)
+	}
 	go s.resourceLoop(ctx)
 	go s.transcriptionReadyLoop(ctx)
 	recoverCtx, cancel := context.WithTimeout(ctx, taskFailTimeout)

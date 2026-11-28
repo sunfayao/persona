@@ -131,7 +131,7 @@ func ReportHook(ctx context.Context, input json.RawMessage, pane string) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, reportTimeout)
 	defer cancel()
-	req := Request{Kind: "hook", Input: input, Pane: pane, ReportOnly: true}
+	req := Request{Kind: "hook", Input: input, Pane: pane, ReportOnly: true, Attempt: NewAttempt()}
 	req.AgentPID, req.AgentStart = AgentOf(input) // the counters need it as much as a plugin hook's do
 	_, _ = Dial(ctx, req)
 }

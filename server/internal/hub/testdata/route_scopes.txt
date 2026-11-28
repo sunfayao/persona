@@ -237,6 +237,7 @@ agents.read          GET /api/v1/sessions/{mid}/{sid}/items
 agents.read          GET /api/v1/sessions/{mid}/{sid}/items/{iid}/full
 agents.read          GET /api/v1/sessions/{mid}/{sid}/items/{iid}/image
 agents.read          GET /api/v1/sessions/{mid}/{sid}/items/{iid}/visualization
+-                    GET /api/v1/sessions/{mid}/{sid}/lifecycle
 -                    GET /api/v1/sessions/{mid}/{sid}/mode-changes
 -                    GET /api/v1/sessions/{mid}/{sid}/review
 agents.read          GET /api/v1/sessions/{mid}/{sid}/screen
@@ -250,6 +251,7 @@ todos.read           GET /api/v1/todos
 todos.read           GET /api/v1/todos/{id}
 todos.read           GET /api/v1/todos/{id}/decisions
 -                    GET /api/v1/todos/{id}/images/{image}
+-                    GET /api/v1/todos/{id}/lifecycle
 todos.read           GET /api/v1/todos/{id}/repositories
 todos.read           GET /api/v1/todos/{id}/workspace-rules
 -                    GET /api/v1/usage/days

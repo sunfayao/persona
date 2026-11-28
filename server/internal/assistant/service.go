@@ -16,6 +16,7 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/assistant/agents"
 	"github.com/sunfayao/persona/server/internal/assistant/knowledge"
+	"github.com/sunfayao/persona/server/internal/assistant/lifecycle"
 	"github.com/sunfayao/persona/server/internal/assistant/repository"
 	"github.com/sunfayao/persona/server/internal/assistant/saved"
 	"github.com/sunfayao/persona/server/internal/assistant/toolnotes"
@@ -24,6 +25,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/devicewire"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/remoteimage"
@@ -63,6 +65,7 @@ type Options struct {
 
 // Service is the assistant. It implements Handler.
 type Service struct {
+	lifecycle        *lifecycle.Domain
 	compactRecovery  compactRecoveryCache
 	logical          logicalDeviceState
 	agents           *agents.Domain
@@ -359,6 +362,8 @@ func New(o Options) *Service {
 		knowledgeConfig = filepath.Join(filepath.Dir(o.RepositoryConfig), "engineering-knowledge.json")
 	}
 	s.knowledge = knowledge.New(knowledge.Dependencies{ConfigFile: knowledgeConfig, Authorize: s.knowledgeScope})
+	s.lifecycle = s.newLifecycleDomain()
+	s.lifecycle.Register(s.handle)
 	// The kept old keys too while a rotation keeps them (keyrotate.go).
 	s.models.secret = secretkey.NewWithFallback(o.SecretKey)
 	s.logicalSwitchRoutes()
@@ -1041,4 +1046,58 @@ func randomHex(n int) string {
 	b := make([]byte, n)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+func (s *Service) lifecycleNode(machine string) bool {
+	nodes, ok := s.physicalDevices().(nodeAnnouncer)
+	return ok && nodes.NodeAnnounced(machine, nodeproto.Lifecycle)
+}
+
+func (s *Service) newLifecycleDomain() *lifecycle.Domain {
+	return lifecycle.New(lifecycle.Dependencies{
+		Store: func() lifecycle.Store {
+			st, _ := s.store().(lifecycle.Store)
+			return st
+		},
+		Nodes: func() []string {
+			var nodes []string
+			for _, m := range s.fleetMachines() {
+				if s.lifecycleNode(m.ID) {
+					nodes = append(nodes, m.ID)
+				}
+			}
+			return nodes
+		},
+		Call: s.nodeCall,
+		Scope: func(ctx context.Context, machine, id string) (string, bool, error) {
+			if _, deleted, err := s.deletedConversation(ctx, machine, id); err != nil || deleted {
+				return "", false, err
+			}
+			if row, ok := s.nodeSession(machine, id); ok {
+				if space := spaceOf(row); space != "" {
+					return proto.LifecycleRef(space), true, nil
+				}
+			}
+			return "", true, nil
+		},
+		Ready: s.lifecycleReady,
+		AllowSession: func(ctx context.Context, machine, id string) bool {
+			m, ok := s.fleetMachine(machine)
+			return ok && m.ID == machine && s.conversationAvailable(ctx, machine, id) == nil
+		},
+		AllowTodo: func(ctx context.Context, id string) bool {
+			if s.ensureTodosLoaded(ctx) != nil {
+				return false
+			}
+			_, found := s.todoNow(id)
+			return found
+		},
+		UserOnly: userOnly,
+		Now:      time.Now,
+		Ticker: func(interval time.Duration) (<-chan time.Time, func()) {
+			t := time.NewTicker(interval)
+			return t.C, t.Stop
+		},
+		Logf: s.logf,
+	})
 }

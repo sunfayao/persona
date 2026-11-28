@@ -1114,3 +1114,18 @@ export interface UndeliveredMessage {
    *  show under the bubble, and Retry / Delete go to the session's held routes (lib/undelivered-actions.ts). */
   computer?: string;
 }
+
+export interface AgentLifecycleEvent {
+  revision: string;
+  machine_id: string;
+  session_id: string;
+  kind: string;
+  occurred_at: string;
+  confidence: "confirmed" | "observed" | (string & {});
+  outcome?: string;
+}
+
+export interface AgentLifecyclePage {
+  events: AgentLifecycleEvent[];
+  next?: string;
+}
