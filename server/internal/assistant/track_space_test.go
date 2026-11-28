@@ -96,9 +96,7 @@ func TestSpaceTrackPrepare(t *testing.T) {
 
 	// The refresh prepares the track too, and asks its node every time (its SPACE.md may have changed there).
 	f.prepared = nil
-	s.preparedMu.Lock()
-	s.prepared = nil
-	s.preparedMu.Unlock()
+	s.ruleFiles.ForgetAll()
 	s.refreshInstructions(ctx)
 	s.refreshInstructions(ctx)
 	var dirs []string

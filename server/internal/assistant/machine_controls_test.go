@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sunfayao/persona/server/internal/assistant/rulefiles"
 	"github.com/sunfayao/persona/server/internal/extmgr"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -178,8 +179,8 @@ func TestPrepareWritesAgentsMDForTheMainChatsLauncher(t *testing.T) {
 		t.Fatalf("an Antigravity main chat: %v", p)
 	}
 	// Antigravity reads a rule file only so far: the node puts what follows in GEMINI.md (node splitRules).
-	if p["agents_md_split"] != float64(agyRuleFileMax) {
-		t.Fatalf("an Antigravity main chat's AGENTS.md split at %v, want %d", p["agents_md_split"], agyRuleFileMax)
+	if p["agents_md_split"] != float64(rulefiles.AgyFileMax) {
+		t.Fatalf("an Antigravity main chat's AGENTS.md split at %v, want %d", p["agents_md_split"], rulefiles.AgyFileMax)
 	}
 	if _, wrote, err := s.prepareSpaceIf(ctx, "server", "", true); err != nil || wrote {
 		t.Fatalf("unchanged, the refresh wrote %t: %v", wrote, err)

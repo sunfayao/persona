@@ -167,3 +167,18 @@ func TestToolsChangedIsLogged(t *testing.T) {
 		t.Fatalf("logged %q", logs.String())
 	}
 }
+
+// The hub's one-off About me block rides in the message after the snapshot, and its receipt is acked with the others.
+func TestTurnContextCarriesTheRuleNotice(t *testing.T) {
+	n := assistantNode(t)
+	const id = "11111111-2222-3333-4444-555555555555"
+	notice := `<persona-context kind="about-me">` + "\nnew notes\n</persona-context>"
+	block, _ := n.turnContext(id, contextAnswer{Text: snapA, RuleNotice: notice})
+	snapshot := strings.Index(block, "Live snapshot")
+	if snapshot < 0 || !strings.HasSuffix(block, notice) || strings.Index(block, "kind=\"about-me\"") < snapshot {
+		t.Fatalf("block:\n%s", block)
+	}
+	if block, _ := n.turnContext(id, contextAnswer{}); strings.Contains(block, "about-me") {
+		t.Fatalf("no notice, no block: %q", block)
+	}
+}

@@ -262,6 +262,9 @@ func (n *Node) turnContext(id string, c contextAnswer) (block string, commit fun
 	if c.Recovery != "" {
 		block = strings.TrimSpace(block + "\n\n" + c.Recovery)
 	}
+	if c.RuleNotice != "" {
+		block = strings.TrimSpace(block + "\n" + c.RuleNotice) // its receipt is acked with the others below
+	}
 	if c.ViewErrors != "" {
 		block = strings.TrimSpace(block + "\n" + c.ViewErrors)
 	}
@@ -349,6 +352,7 @@ type contextAnswer struct {
 	RecoveryID          string          `json:"recovery_id,omitempty"`
 	Recovery            string          `json:"recovery,omitempty"`
 	CompactInstructions string          `json:"compact_instructions,omitempty"`
+	RuleNotice          string          `json:"rule_notice,omitempty"`
 	Text                string          `json:"text"`
 	ViewErrors          string          `json:"view_errors"`
 	Receipts            json.RawMessage `json:"view_error_receipts"`

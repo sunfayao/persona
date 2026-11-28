@@ -18,6 +18,7 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/apierr"
 	"github.com/sunfayao/persona/server/internal/assistant/replylang"
+	"github.com/sunfayao/persona/server/internal/assistant/rulefiles"
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/devicewire"
@@ -90,10 +91,6 @@ func (s *Service) assistantPrompt(ctx context.Context, here string, larkCLI bool
 	s.withControls(ctx, d.Machines)
 	return d
 }
-
-// agyRuleFileMax is how much of a rule file Antigravity reads: it cuts each one at 24,000 bytes, on a line boundary
-// (the rules docs in agy: "Per-File Limit"), and the user's About me and the extensions' instructions come last.
-const agyRuleFileMax = 24_000
 
 // agentsRuntime is the runtime the directory's AGENTS.md is written for: Antigravity when the main conversation's
 // launcher runs it, else Codex, whose wording holds for any agent but Claude (which reads CLAUDE.md). Resolved from
@@ -176,6 +173,8 @@ func (s *Service) prepareSpaceIf(ctx context.Context, machine, space string, onl
 	if tmpl == trackTemplateAssistant {
 		settings := s.settings(ctx)
 		d := s.assistantPrompt(ctx, machine, conns.LarkCLI, settings)
+		held := s.ruleFiles.Render(ctx, machine, dir, rulefiles.Values{Notes: d.Notes, Language: d.Language, Fixed: d.Fixed})
+		d.Notes, d.Language, d.Fixed = held.Notes, held.Language, held.Fixed
 		agents := d
 		agents.Runtime = s.agentsRuntime(ctx, machine, settings)
 		agentsRuntime = agents.Runtime
@@ -202,19 +201,14 @@ func (s *Service) prepareSpaceIf(ctx context.Context, machine, space string, onl
 	if agentsOwn != "" {
 		agentsMD = agentsOwn + plugins.Instructions
 	}
-	digests, files := skillDigests(plugins.Skills)
+	digests, files := rulefiles.SkillDigests(plugins.Skills)
 	deny := s.trackDenyDirs(ctx)
 	denyKey, _ := json.Marshal(deny)
-	given := preparedState{md: md, agentsMD: agentsMD, skills: digests, workGuide: onDemand != "", deny: string(denyKey)}
+	given := rulefiles.Given{MD: md, AgentsMD: agentsMD, Skills: digests, WorkGuide: onDemand != "", Deny: string(denyKey)}
 	// A track's instructions end with its SPACE.md, which the node reads (and the user edits there): the node is asked
 	// every time, and what it read is compared after (space_md_digest).
-	if onlyChanged && !files && tmpl != trackTemplateSpace {
-		s.preparedMu.Lock()
-		same := s.prepared[key] == given
-		s.preparedMu.Unlock()
-		if same {
-			return "", false, nil
-		}
+	if onlyChanged && !files && tmpl != trackTemplateSpace && s.ruleFiles.Given(key) == given {
+		return "", false, nil
 	}
 	params := map[string]any{"dir": dir, "claude_md": md,
 		"connectors": conns.Connectors, "clis": conns.CLIs, "plugin_skills": plugins.Skills, "deny_dirs": deny}
@@ -232,7 +226,7 @@ func (s *Service) prepareSpaceIf(ctx context.Context, machine, space string, onl
 	// What Antigravity would not read of AGENTS.md goes to GEMINI.md, which it reads as rules beside it; an older node
 	// writes AGENTS.md whole, as before.
 	if agentsRuntime == prompts.RuntimeAgy {
-		params["agents_md_split"] = agyRuleFileMax
+		params["agents_md_split"] = rulefiles.AgyFileMax
 	}
 	if tmpl == trackTemplateSpace {
 		params["space"] = map[string]any{"slug": track.Slug, "initial_space_md": s.initialSpaceMD(ctx, track)}
@@ -248,57 +242,24 @@ func (s *Service) prepareSpaceIf(ctx context.Context, machine, space string, onl
 	if err := s.call(ctx, machine, DeviceAssistantPrepare, params, &prep); err != nil {
 		return "", false, err
 	}
-	given.spaceMD = prep.SpaceMDDigest
-	s.preparedMu.Lock()
-	if s.prepared == nil {
-		s.prepared = map[string]preparedState{}
-	}
-	if onlyChanged && tmpl == trackTemplateSpace && len(prep.Need) == 0 && s.prepared[key] == given {
-		s.preparedMu.Unlock()
+	given.SpaceMD = prep.SpaceMDDigest
+	s.ruleFiles.Wrote(ctx, machine, dir)
+	if onlyChanged && tmpl == trackTemplateSpace && len(prep.Need) == 0 && s.ruleFiles.Given(key) == given {
 		return prep.Cwd, false, nil // the node had these instructions already
 	}
 	if len(prep.Need) > 0 {
 		// The node lacks some skills: their files come with the next plugins.assistant (plugins.skills_need below), and
 		// the next refresh prepares this directory again, so its copies are made from them.
-		delete(s.prepared, key)
+		s.ruleFiles.Forget(key)
 	} else {
-		s.prepared[key] = given
+		s.ruleFiles.Remember(key, given)
 	}
-	s.preparedMu.Unlock()
 	if len(prep.Need) > 0 {
 		if err := s.appCall(ctx, AppPlugins, PluginsSkillsNeed, map[string]any{"machine_id": machine, "names": prep.Need}, nil); err != nil {
 			s.logf("assistant: plugin skills %v: %v", prep.Need, err)
 		}
 	}
 	return prep.Cwd, true, nil
-}
-
-// preparedState is what prepareSpaceIf gave a node for a directory: the CLAUDE.md and AGENTS.md ("" when the node
-// writes the CLAUDE.md to both), the plugin skills (skillDigests) and the denied track directories (trackDenyDirs, as
-// JSON).
-type preparedState struct {
-	md, agentsMD, skills, deny string
-	workGuide                  bool
-	// spaceMD is the digest of the SPACE.md a track's instructions ended with, as the node read it.
-	spaceMD string
-}
-
-// skillDigests are the plugin skills of a plugins.assistant answer as prepareSpaceIf compares them, each one's plugin,
-// name and digest; files says whether any comes with its files.
-func skillDigests(raw json.RawMessage) (digests string, files bool) {
-	var skills []struct {
-		Name   string                     `json:"name"`
-		Plugin string                     `json:"plugin"`
-		Digest string                     `json:"digest"`
-		Files  map[string]json.RawMessage `json:"files"`
-	}
-	_ = json.Unmarshal(raw, &skills) // null from a manager without plugins: none
-	var b strings.Builder
-	for _, sk := range skills {
-		fmt.Fprintf(&b, "%s/%s %s\n", sk.Plugin, sk.Name, sk.Digest)
-		files = files || len(sk.Files) > 0
-	}
-	return b.String(), files
 }
 
 // instructionsEvery is how often refreshInstructions looks at the CLAUDE.md the assistant's machine should have.
