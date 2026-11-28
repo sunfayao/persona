@@ -10,7 +10,6 @@ import (
 	"github.com/sunfayao/persona/server/internal/connector"
 	"github.com/sunfayao/persona/server/internal/connector/github"
 	"github.com/sunfayao/persona/server/internal/connector/imessage"
-	"github.com/sunfayao/persona/server/internal/mail"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/subscriptions"
 )
@@ -62,9 +61,11 @@ func TestGoldenConnectorTools(t *testing.T) {
 		assertNoEmptyToolEnums(t, append(wire.Tools, wire.AssistantTools...))
 		return string(b) + "\n"
 	}
-	h.mail = (*mail.Service)(nil) // Tools() reads nothing from the service
-	// Subscriptions run in every manager: their tools are the assistant's (subscription_tools.go).
+	h.mail = oneAccountMail{} // Tools() reads nothing from the service; with an account, mail is configured
+	// Subscriptions run in every manager: their tools are the assistant's while in use (subscription_tools.go), here
+	// with the Inbox's AI twin on.
 	h.subs = subscriptions.New(subscriptions.Options{Store: subscriptions.NewMemStore(), Connectors: subscriptionConnectors{h}})
+	h.cfg.Inbox.Agent.Enabled = true
 	register := func() { // the connectors as the manager registers them (mail's and Feishu's tools come from them)
 		h.connectors = connector.NewRegistry(nil)
 		h.registerConnectors()

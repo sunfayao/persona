@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/mail"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -21,10 +22,23 @@ func (mailConnector) ID() string   { return "mail" }
 func (mailConnector) Name() string { return "邮件" }
 
 // Manifest: the coding agents get mail too. Its inbox is the mail rounds' (readMail), with the Add to Inbox switch (#5307).
+// It has a status: with no account added mail is not configured, so its tools are in no conversation's list.
 func (mailConnector) Manifest() connector.Manifest {
-	return connector.Manifest{Capabilities: []connector.Capability{connector.CapTools, connector.CapActions},
+	return connector.Manifest{Capabilities: []connector.Capability{connector.CapStatus, connector.CapTools, connector.CapActions},
 		AgentTools: []string{"mail_*"}, InboxSwitch: true}
 }
+
+// Status is connector.Accounts: not_configured while the user has added no mail account. Every list of tools leaves
+// out a connector that is not ok (connector.Registry.ToolsFor), so mail_* reach the assistant and the Agents only once
+// there is a mailbox to read; the accounts are in memory, so asking at every listing costs nothing.
+func (c mailConnector) Status(ctx context.Context) connector.Status {
+	if accounts, err := c.h.mail.ListAccounts(); err == nil && len(accounts) == 0 {
+		return connector.Status{State: connector.StateNotConfigured, Error: i18n.T(i18n.From(ctx), "mail-errors.no_account")}
+	}
+	return connector.Status{State: connector.StateOK}
+}
+
+var _ connector.Accounts = mailConnector{}
 
 // Tools are mail's (prompts/mcp/mail) without mail_send, which is an action: the user allows each mail on the phone
 // (the gate), the card as it always was.

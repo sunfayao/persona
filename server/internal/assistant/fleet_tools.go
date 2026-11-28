@@ -11,6 +11,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/assistant/agents"
 	"github.com/sunfayao/persona/server/internal/assistant/tooluse"
 	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/channel"
 	"github.com/sunfayao/persona/server/internal/compat"
 	"github.com/sunfayao/persona/server/internal/connector"
 	"github.com/sunfayao/persona/server/internal/i18n"
@@ -25,7 +26,7 @@ import (
 
 // mcpTools are the tools of an assistant conversation or an agent: those of the connectors that
 // are ok and give their tools to agents too (mail); for the assistant also its own, then Cua's, ego's and those of
-// the connectors only it gets (Feishu, GitHub…).
+// the connectors only it gets (Feishu, GitHub…). A group whose feature is off or unused is left out (toolGates).
 func (s *Service) mcpTools(ctx context.Context, assistant bool) []proto.Tool {
 	ctx = i18n.With(ctx, s.lang(ctx))
 	var agents, assistantOnly []proto.Tool
@@ -37,14 +38,95 @@ func (s *Service) mcpTools(ctx context.Context, assistant bool) []proto.Tool {
 		tools = append(tools, toolsNamed(resourceToolNames)...)
 	}
 	if !assistant {
-		tools = append(tools, s.AgentTools()...)       // report_to_supervisor, todo_decisions, todo_decision_add, todo_bind_thread (agentToolNames)
+		tools = append(tools, s.listedAgentTools()...) // report_to_supervisor, todo_decisions, todo_decision_add, todo_bind_thread
 		tools = append(tools, s.dispatchTools(ctx)...) // dispatch_start, dispatch_read, when agents.dispatch is on (dispatch.go)
 	}
 	if assistant {
 		tools = append(tools, s.Tools(ctx)...)
 		tools = append(tools, assistantOnly...)
 	}
-	return localizedMCPTools(tools, s.toolLanguage(ctx))
+	return localizedMCPTools(s.toolGatesNow(ctx).filter(tools), s.toolLanguage(ctx))
+}
+
+// agentRepositoryToolNames are the Agents' tools for their to-do's repository and issue/PR links. They still route
+// (agentToolNames) but no Agent lists them: the hub links the PRs an Agent's closeout names itself (closeoutPRLink).
+var agentRepositoryToolNames = []string{"todo_repositories_get", "todo_repositories_set", "todo_repository_links_set", "todo_repository_links_add"}
+
+// listedAgentTools are the Agents' own tools an Agent's list shows: agentToolNames but the repository ones.
+func (s *Service) listedAgentTools() []proto.Tool {
+	return slices.DeleteFunc(s.AgentTools(), func(t proto.Tool) bool { return slices.Contains(agentRepositoryToolNames, t.Name) })
+}
+
+// toolGates say which feature-bound groups of Persona tools are listed now: a group whose feature is off, or unused
+// on this install, is in no conversation's list (the slim-down of 2026-11-28). The calls still route, so a
+// conversation that saw a tool earlier is answered by what the feature says. Mail's connector leaves itself out while
+// no account is added (extmgr mailConnector.Status); dispatch is listed only with agents.dispatch on (dispatchTools).
+type toolGates struct {
+	bare       bool // a Service without settings (registry tests): everything listed, nothing in the revision
+	inboxTwin  bool // inbox_suggest, inbox_folders, inbox_move: the Inbox's AI twin is on (inbox.agent.enabled)
+	inboxPost  bool // inbox_post: assistant.inbox_post, on by default
+	resources  bool // resource_*: shared runners are registered (shared_resources)
+	chatThread bool // todo_bind_thread: a chat channel is on (a bot in a chat app, or /agent in someone's chat)
+}
+
+var (
+	inboxTwinToolNames = []string{"inbox_suggest", "inbox_folders", "inbox_move"}
+	chatThreadTool     = "todo_bind_thread"
+)
+
+// toolGatesNow are the gates as the settings, the hub's inbox and channels and the shared runners say now. What
+// cannot be read counts as off: a tool is listed only for a feature known to be on.
+func (s *Service) toolGatesNow(ctx context.Context) toolGates {
+	var g toolGates
+	if s.store == nil || s.store() == nil { // a bare Service (registry tests) has no settings: everything stays listed
+		return toolGates{bare: true, inboxTwin: true, inboxPost: true, resources: true, chatThread: true}
+	}
+	g.inboxTwin = s.inboxConfig(ctx).Agent.Enabled
+	g.inboxPost = s.inboxPostOn(ctx)
+	if defs, err := s.resourceDefinitions(ctx); err == nil {
+		g.resources = len(defs) > 0
+	}
+	if chans, err := s.channelsNow(ctx); err == nil {
+		g.chatThread = slices.ContainsFunc(chans, func(c channel.View) bool {
+			return c.Enabled && (c.Kind == channel.KindIM || c.Kind == channel.KindMention)
+		})
+	}
+	return g
+}
+
+// listed says whether gates g list the tool named name.
+func (g toolGates) listed(name string) bool {
+	switch {
+	case slices.Contains(inboxTwinToolNames, name):
+		return g.inboxTwin
+	case name == "inbox_post":
+		return g.inboxPost
+	case slices.Contains(resourceToolNames, name):
+		return g.resources
+	case name == chatThreadTool:
+		return g.chatThread
+	}
+	return true
+}
+
+// filter is tools without those g does not list, in their order. A copy: tools may be shared.
+func (g toolGates) filter(tools []proto.Tool) []proto.Tool {
+	return slices.DeleteFunc(slices.Clone(tools), func(t proto.Tool) bool { return !g.listed(t.Name) })
+}
+
+// revision is g as a part of the tool-list revision (toolsCursor), so a gate that opens or closes reaches running
+// conversations at their watch's next heartbeat.
+func (g toolGates) revision() string {
+	if g.bare {
+		return ""
+	}
+	bit := func(on bool) string {
+		if on {
+			return "1"
+		}
+		return "0"
+	}
+	return ":gates=" + bit(g.inboxTwin) + bit(g.inboxPost) + bit(g.resources) + bit(g.chatThread)
 }
 
 // sessionMCPTools are machine's conversation session's tools: a guest conversation's only its own (guest.go; the
@@ -79,7 +161,7 @@ func (s *Service) sessionMCPToolsChecked(ctx context.Context, machine, session s
 			return []proto.Tool{}, nil
 		}
 		if s.isWorkMachine(machine) {
-			return s.AgentTools(), nil
+			return s.toolGatesNow(ctx).filter(s.listedAgentTools()), nil
 		}
 		if !assistant && session != "" {
 			if err := s.ensureTodosLoaded(ctx); err != nil {
@@ -95,7 +177,9 @@ func (s *Service) sessionMCPToolsChecked(ctx context.Context, machine, session s
 			tools = append(tools, s.leaderTools(ctx, machine, session)...)
 			tools = append(tools, s.spawnTools(ctx, machine, session)...)
 		}
-		if s.agents.Discoverable(ctx, agents.Ref{Machine: s.canonical(machine), Session: session}) {
+		// A2A is the Agents' channel to each other. An assistant conversation reaches the same sessions with its own
+		// agents_list, agent_read and agent_send, and is answered without the tools (prompts/agents/a2a_message).
+		if !assistant && s.agents.Discoverable(ctx, agents.Ref{Machine: s.canonical(machine), Session: session}) {
 			tools = append(tools, toolsNamed(assistantwire.A2AToolNames)...)
 		}
 		if assistant && toolSetOf(ctx) == toolSetSupervise {

@@ -763,6 +763,11 @@ type replyMail struct {
 	sent []mail.SendRequest
 }
 
+// ListAccounts: the one account its mail comes from, so mail is configured and its tools are listed.
+func (*replyMail) ListAccounts() ([]mail.MailAccount, error) {
+	return []mail.MailAccount{{ID: "acc1", Email: "me@example.com"}}, nil
+}
+
 func (*replyMail) GetMessage(_ context.Context, account string, uid uint32, mailbox string) (*mail.MailMessage, error) {
 	return &mail.MailMessage{MailSummary: mail.MailSummary{AccountID: account, UID: uid, Mailbox: mailbox, Subject: "季度汇报",
 		MessageID: "<m9@example.com>", From: mail.Address{Email: "sender@example.com"}}, Text: "请周五前提交"}, nil

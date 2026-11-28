@@ -68,7 +68,7 @@ func TestToolLoadingMarksAssistantTools(t *testing.T) {
 	}
 	got := mcpToolList(t, s, "o1", true, false)
 	for name, deferred := range map[string]bool{"agent_read": false, "ask_user": false, "lark_chats": false, "task_plan": false,
-		"computer_run": false, "inbox_move": true, "view_show": true, "task_plan_withdraw": true, "lark_agent_reply": true,
+		"computer_run": false, "secret_run": true, "view_show": true, "task_plan_withdraw": true, "lark_agent_reply": true,
 		"conn_read": true} {
 		if tool, ok := got[name]; !ok || tool.DeferLoading != deferred {
 			t.Errorf("%s: listed %v, deferred %v; want deferred %v", name, ok, tool.DeferLoading, deferred)
