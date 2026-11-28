@@ -2,6 +2,7 @@ package turnmodel
 
 import (
 	"slices"
+	"time"
 
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -100,7 +101,14 @@ func (s Snapshot) Apply(row *proto.Session) {
 		row.Facets.Progress, row.Facets.Turn = s.Progress, s.Turn
 	}
 	if len(s.Background) != 0 || len(s.BackgroundEnded) != 0 {
-		row.Background = s.Background
+		// Background agents are projected onto row.Subagents, not row.Background.
+		var bg []proto.BackgroundTask
+		for _, task := range s.Background {
+			if task.Kind != proto.TaskKindAgent {
+				bg = append(bg, task)
+			}
+		}
+		row.Background = bg
 		row.SetBackgroundEnded(s.BackgroundEnded)
 	}
 	if len(s.Subagents) != 0 {
@@ -108,16 +116,32 @@ func (s Snapshot) Apply(row *proto.Session) {
 	}
 }
 
-// mergeSubagents keeps the file-backed details already on the row.
+// mergeSubagents keeps the file-backed details already on the row without resurrecting a finished
+// subagent back to running from an unclosed transcript snapshot.
 func mergeSubagents(existing, derived []proto.Subagent) []proto.Subagent {
 	out := slices.Clone(existing)
 	for _, agent := range derived {
 		i := slices.IndexFunc(out, func(a proto.Subagent) bool { return a.ID == agent.ID })
 		if i < 0 {
 			out = append(out, agent)
-		} else if agent.Status != "" {
-			out[i].Status, out[i].Running = agent.Status, agent.Running
+			continue
 		}
+		if agent.Status == "" {
+			continue
+		}
+		if !out[i].Running {
+			if !agent.Running {
+				out[i].Status = agent.Status
+			}
+			continue
+		}
+		if !agent.Running {
+			if agent.UpdatedAt.IsZero() || out[i].UpdatedAt.IsZero() || !out[i].UpdatedAt.After(agent.UpdatedAt.Add(time.Second)) {
+				out[i].Status, out[i].Running = agent.Status, false
+			}
+			continue
+		}
+		out[i].Status = agent.Status
 	}
 	return out
 }

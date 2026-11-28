@@ -100,6 +100,30 @@ func (m *Meta) projectItemFacets(item *proto.Item, plan *proto.PlanFacet) {
 			if tool.Kind == proto.ToolKindSchedule && !item.IsError {
 				f.Task = loopFacet(m.Loop, tool.Name)
 			}
+			if !item.IsError && tool.TaskID != "" && (tool.Name == "TaskStop" || tool.Name == "KillShell" || tool.Name == "KillBash") {
+				if call := m.taskCalls[tool.TaskID]; call != "" {
+					if agent, ok := m.agentCalls[call]; ok {
+						f.Task = &proto.TaskFacet{ID: tool.TaskID, Kind: proto.TaskKindAgent, Status: proto.TaskStatusCancelled, Title: agent.Title}
+						f.Subagent = &proto.SubagentFacet{ID: tool.TaskID, Name: agent.Title, Relation: proto.SubagentRelationCancel, Status: proto.SubagentStatusCancelled}
+					}
+				}
+				if f.Task == nil {
+					for i := len(m.BackgroundEnded) - 1; i >= 0; i-- {
+						if m.BackgroundEnded[i].ID == tool.TaskID {
+							f.Task = &proto.TaskFacet{ID: tool.TaskID, Kind: m.BackgroundEnded[i].Kind, Status: proto.TaskStatusCancelled, Title: m.BackgroundEnded[i].Description}
+							break
+						}
+					}
+				}
+				if f.Task == nil {
+					for i := len(m.Workflows) - 1; i >= 0; i-- {
+						if m.Workflows[i].TaskID == tool.TaskID {
+							f.Task = &proto.TaskFacet{ID: tool.TaskID, Kind: proto.TaskKindWorkflow, Status: proto.TaskStatusCancelled, Title: m.Workflows[i].Name}
+							break
+						}
+					}
+				}
+			}
 		}
 	case proto.KindNotice:
 		if f.Notice == nil {
@@ -122,6 +146,21 @@ func (m *Meta) projectItemFacets(item *proto.Item, plan *proto.PlanFacet) {
 		f.Task = taskFacet(task)
 		if task.Kind == proto.TaskKindAgent {
 			f.Subagent = subagentFacet(task)
+		} else if task.Kind == "task" {
+			if call := m.taskCalls[task.TaskID]; call != "" {
+				if agent, ok := m.agentCalls[call]; ok {
+					promoted := *task
+					promoted.Kind = proto.TaskKindAgent
+					if promoted.Title == "" {
+						promoted.Title = agent.Title
+					}
+					if promoted.Status == "" {
+						promoted.Status = "completed"
+					}
+					f.Task = taskFacet(&promoted)
+					f.Subagent = subagentFacet(&promoted)
+				}
+			}
 		}
 	}
 }
@@ -166,9 +205,13 @@ func describeTool(item *proto.Item) proto.ToolFacet {
 		Offset      int    `json:"offset"`
 		Limit       int    `json:"limit"`
 		TaskID      string `json:"task_id"`
+		ShellID     string `json:"shell_id"`
 	}
 	_ = json.Unmarshal(item.ToolInput, &input)
 	tool.Title, tool.TaskID = oneLine(input.Description, 120), input.TaskID
+	if tool.TaskID == "" {
+		tool.TaskID = input.ShellID
+	}
 	if input.FilePath != "" {
 		end := 0
 		if input.Offset > 0 && input.Limit > 0 {
@@ -273,10 +316,12 @@ func taskFacet(note *proto.TaskNote) *proto.TaskFacet {
 	}
 	status := note.Status
 	switch status {
-	case "stopped", "killed":
+	case "stopped", "killed", "cancelled", "canceled", "interrupted":
 		status = proto.TaskStatusCancelled
 	case "ended":
 		status = proto.TaskStatusCompleted
+	case "timed_out":
+		status = proto.TaskStatusFailed
 	}
 	return &proto.TaskFacet{ID: note.TaskID, Kind: note.Kind, Status: status, Title: note.Title, ExitCode: note.ExitCode, OutputFile: note.OutputFile}
 }
@@ -286,10 +331,12 @@ func subagentFacet(note *proto.TaskNote) *proto.SubagentFacet {
 	switch status {
 	case "running":
 		relation = proto.SubagentRelationSpawn
-	case "stopped", "killed":
+	case "stopped", "killed", "cancelled", "canceled", "interrupted":
 		relation, status = proto.SubagentRelationCancel, proto.SubagentStatusCancelled
 	case "ended":
 		status = proto.SubagentStatusCompleted
+	case "timed_out":
+		status = proto.SubagentStatusFailed
 	}
 	return &proto.SubagentFacet{ID: note.TaskID, Name: note.Title, Relation: relation, Status: status}
 }

@@ -13,15 +13,19 @@ import (
 // What a <task-notification> summary says, in the shapes Claude Code 2.1.3xx writes (the corpus):
 //
 //	Background command "<description or command>" completed (exit code 0) / failed with exit code 1 / was stopped
+//	Background agent "<description>" didn't finish before the previous session ended
+//	<N> background agents didn't finish before the previous session ended: "<description>" (<id>), …
 //	Monitor event: "<description>"            (the event itself in <event>)
 //	Monitor "<description>" stream ended / stopped
 //	Agent "<description>" finished / failed: … / is waiting on its own background work
 //	Dynamic workflow "<description>" completed / failed / was stopped
 var (
-	taskSummaryRe = lazyre.New(`(?s)^(Background command|Monitor event:|Monitor|Agent|Dynamic workflow)\s+"(.*)$`)
+	taskSummaryRe = lazyre.New(`(?s)^(Background command|Background agent|Monitor event:|Monitor|Agent|Dynamic workflow)\s+"(.*)$`)
 	// Where the quoted description ends: the last quote followed by how it went (descriptions may hold quotes).
-	taskOutcomeRe = lazyre.New(`"\s+(completed|failed|was stopped|was killed|stream ended|stopped|finished|is waiting|timed out)`)
-	exitCodeRe    = lazyre.New(`exit code (-?\d+)`)
+	taskOutcomeRe       = lazyre.New(`"\s+(completed|failed|was stopped|was killed|was interrupted|didn't finish|did not finish|stream ended|stopped|finished|is waiting|timed out)`)
+	batchAgentSummaryRe = lazyre.New(`(?i)^\d+\s+background agents?\b`)
+	batchAgentItemRe    = lazyre.New(`"([^"\n]+)"\s*\(([A-Za-z0-9_-]+)\)`)
+	exitCodeRe          = lazyre.New(`exit code (-?\d+)`)
 )
 
 // noteTitleLen: a title is one line of at most this many characters (the whole command is the detail).
@@ -54,16 +58,20 @@ func taskNote(xml string) (*proto.TaskNote, string) {
 			n.Kind, n.Status = "monitor", "event"
 		case "Monitor":
 			n.Kind = "monitor"
-		case "Agent":
+		case "Agent", "Background agent":
 			n.Kind = "agent"
 		case "Dynamic workflow":
 			n.Kind = "workflow"
 		}
+	} else if batchAgentSummaryRe.MatchString(summary) {
+		n.Kind = "agent"
 	}
 	switch {
 	case n.Kind == "monitor" && strings.HasPrefix(outcome, "stream ended"):
 		n.Status = "ended"
-	case strings.HasPrefix(outcome, "stopped") || strings.HasPrefix(outcome, "was stopped"):
+	case strings.HasPrefix(outcome, "stopped") || strings.HasPrefix(outcome, "was stopped") ||
+		strings.HasPrefix(outcome, "was interrupted") || strings.HasPrefix(outcome, "didn't finish") ||
+		strings.HasPrefix(outcome, "did not finish"):
 		if n.Status == "" {
 			n.Status = "stopped"
 		}
@@ -73,6 +81,12 @@ func taskNote(xml string) (*proto.TaskNote, string) {
 		n.Status = "failed"
 	case strings.HasPrefix(outcome, "is waiting"):
 		n.Status = "waiting"
+	}
+	if n.Status == "" {
+		lower := strings.ToLower(summary)
+		if strings.Contains(lower, "didn't finish") || strings.Contains(lower, "did not finish") {
+			n.Status = "stopped"
+		}
 	}
 	if m := exitCodeRe.FindStringSubmatch(outcome); m != nil {
 		if c, err := strconv.Atoi(m[1]); err == nil {
@@ -98,6 +112,48 @@ func taskNote(xml string) (*proto.TaskNote, string) {
 		*f = strings.Clone(*f)
 	}
 	return n, noteText(n)
+}
+
+// taskNotes parses a <task-notification> into one note per <task-id>. Claude Code batches multiple unfinished
+// background agents into a single notification after a session resumes; expanding each id lets every agent close cleanly.
+func taskNotes(xml string) ([]*proto.TaskNote, []string) {
+	base, text := taskNote(xml)
+	ids := allTags(xml, "task-id")
+	if len(ids) <= 1 {
+		return []*proto.TaskNote{base}, []string{text}
+	}
+	summary := html.UnescapeString(firstTag(xml, "summary"))
+	titles := make(map[string]string, len(ids))
+	for _, m := range batchAgentItemRe.FindAllStringSubmatch(summary, -1) {
+		titles[m[2]] = oneLine(m[1], noteTitleLen)
+	}
+	if base.Kind == "task" && (batchAgentSummaryRe.MatchString(summary) || len(titles) > 0) {
+		base.Kind = "agent"
+	}
+	toolIDs := allTags(xml, "tool-use-id")
+	outputs := allTags(xml, "output-file")
+	notes := make([]*proto.TaskNote, 0, len(ids))
+	texts := make([]string, 0, len(ids))
+	for i, id := range ids {
+		c := *base
+		c.TaskID = strings.Clone(id)
+		if len(toolIDs) == len(ids) {
+			c.ToolUseID = strings.Clone(toolIDs[i])
+		} else {
+			c.ToolUseID = ""
+		}
+		if len(outputs) == len(ids) {
+			c.OutputFile = strings.Clone(outputs[i])
+		} else if i > 0 {
+			c.OutputFile = ""
+		}
+		if title := titles[id]; title != "" {
+			c.Title = strings.Clone(title)
+		}
+		notes = append(notes, &c)
+		texts = append(texts, noteText(&c))
+	}
+	return notes, texts
 }
 
 // BackgroundTaskUpdate identifies the generic task notice on its way from a node or runtime to the hub.
@@ -132,7 +188,8 @@ func noteText(n *proto.TaskNote) string {
 		}
 	case "agent":
 		head = map[string]string{"completed": "子 Agent 完成", "failed": "子 Agent 失败", "waiting": "子 Agent 在等它的后台任务",
-			"killed": "子 Agent 已停止", "stopped": "子 Agent 已停止"}[n.Status]
+			"killed": "子 Agent 已停止", "stopped": "子 Agent 已停止", "cancelled": "子 Agent 已停止", "canceled": "子 Agent 已停止",
+			"interrupted": "子 Agent 已停止"}[n.Status]
 		if head == "" {
 			head = "子 Agent"
 		}

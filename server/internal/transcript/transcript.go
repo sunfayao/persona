@@ -1208,6 +1208,26 @@ func firstTag(s, tag string) string {
 	return strings.TrimSpace(rest[:j])
 }
 
+func allTags(s, tag string) []string {
+	open, close := "<"+tag+">", "</"+tag+">"
+	var out []string
+	for rest := s; ; {
+		i := strings.Index(rest, open)
+		if i < 0 {
+			return out
+		}
+		rest = rest[i+len(open):]
+		j := strings.Index(rest, close)
+		if j < 0 {
+			return out
+		}
+		if v := strings.TrimSpace(rest[:j]); v != "" {
+			out = append(out, v)
+		}
+		rest = rest[j+len(close):]
+	}
+}
+
 func toolResultContent(raw json.RawMessage) (string, []*proto.Image) {
 	var s string
 	if unmarshalLine(raw, &s) == nil {

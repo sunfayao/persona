@@ -2,6 +2,7 @@ package node
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -11,7 +12,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/node/harness/claude"
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // Nested subagents name their launcher (parentAgentId) and forks say so (isFork); one whose parent is past the
@@ -725,5 +728,111 @@ func TestSubagentHandbackIsNoStep(t *testing.T) {
 	}
 	if a.LastText != "Both ran: one, two." {
 		t.Fatalf("last text %q, want its report", a.LastText)
+	}
+}
+
+func TestSubagentsConvergeAcrossResumeOfflineAndStandaloneChildren(t *testing.T) {
+	const parent = "aaaaaaaa-0000-0000-0000-000000000099"
+	home := t.TempDir()
+	tp := filepath.Join(home, ".claude", "projects", "-src-app", parent+".jsonl")
+	dir := filepath.Join(strings.TrimSuffix(tp, ".jsonl"), "subagents")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	procStart := now.Add(-2 * time.Minute)
+
+	writeAgent := func(id, desc string, finished bool, mtime time.Time) {
+		jp := filepath.Join(dir, "agent-"+id+".jsonl")
+		mp := filepath.Join(dir, "agent-"+id+".meta.json")
+		ts := mtime.UTC().Format(time.RFC3339)
+		line := `{"type":"assistant","timestamp":"` + ts + `","isSidechain":true,"message":{"role":"assistant","content":[{"type":"text","text":"working"}]}}` + "\n"
+		meta := fmt.Sprintf(`{"agentType":"general-purpose","description":%q,"toolUseId":"toolu_%s","requestShape":"background","finished":%t}`, desc, id, finished)
+		if os.WriteFile(jp, []byte(line), 0o600) != nil || os.WriteFile(mp, []byte(meta), 0o600) != nil {
+			t.Fatalf("write subagent %s", id)
+		}
+		if err := os.Chtimes(jp, mtime, mtime); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Pre-resume unclosed subagent (<20m old, before procStart): must not be running after resume.
+	writeAgent("pre1", "Before resume", false, now.Add(-5*time.Minute))
+	// Post-resume active subagent: must remain running.
+	writeAgent("live1", "After resume", false, now.Add(-30*time.Second))
+	// Old unclosed subagent (>24h old, missing finished:true): omitted by subagentsSince and converged if derived.
+	writeAgent("old1", "Old crashed worker", false, now.Add(-28*time.Hour))
+
+	// Parent transcript has an unclosed async launch for old1 (simulating missed notice) and a live launch for live1.
+	parentLines := strings.Join([]string{
+		`{"type":"user","uuid":"u1","timestamp":"` + now.Add(-28*time.Hour).UTC().Format(time.RFC3339) + `","message":{"role":"user","content":"Audit"}}`,
+		`{"type":"assistant","uuid":"a1","timestamp":"` + now.Add(-28*time.Hour).UTC().Format(time.RFC3339) + `","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_old1","name":"Agent","input":{"description":"Old crashed worker","prompt":"check"}}]}}`,
+		`{"type":"user","uuid":"u2","timestamp":"` + now.Add(-28*time.Hour).UTC().Format(time.RFC3339) + `","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_old1","content":"Async agent launched.\nagentId: old1"}]},"toolUseResult":{"isAsync":true,"status":"async_launched","agentId":"old1"}}`,
+	}, "\n") + "\n"
+	if err := os.WriteFile(tp, []byte(parentLines), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	f := transcript.NewParsedFile(tp, transcript.Sources{Claude: claude.Reader{}, Agent: "claude"})
+	if _, _, err := f.RefreshSpan(); err != nil {
+		t.Fatal(err)
+	}
+	n := &Node{
+		home:  home,
+		paths: map[string]string{parent: tp},
+		files: map[string]*transcript.File{parent: f},
+	}
+
+	// 1. Direct subagentsSince respects procStart boundary.
+	subs := n.subagentsSince(parent, procStart)
+	if len(subs) != 2 {
+		t.Fatalf("subagentsSince = %+v, want 2 (live1, pre1)", subs)
+	}
+	if subs[0].ID != "live1" || !subs[0].Running {
+		t.Fatalf("post-resume subagent should stay running: %+v", subs[0])
+	}
+	if subs[1].ID != "pre1" || subs[1].Running || subs[1].Status != proto.SubagentStatusCancelled {
+		t.Fatalf("pre-resume subagent should be converged: %+v", subs[1])
+	}
+
+	// 2. Live Claude row after applyTurnSnapshots converges old1 (from TurnSnapshot) while keeping live1 running.
+	rows := []proto.Session{
+		{SessionID: parent, Agent: "claude", Status: proto.StatusIdle, Subagents: subs},
+		// Offline Claude session with cached transcript must have zero running subagents and no active background.
+		{SessionID: parent, Agent: "claude", Status: proto.StatusOffline, Subagents: subs, Background: []proto.BackgroundTask{{ID: "sh-1", Kind: proto.TaskKindShell}}},
+		// Antigravity parent + standalone child row: embedded duplicate is dropped.
+		{SessionID: "agy-parent", Agent: agyAgent, Status: proto.StatusIdle, Subagents: []proto.Subagent{
+			{ID: "child-uuid", Running: true, Status: proto.SubagentStatusRunning, UpdatedAt: now.Add(-30 * time.Minute)},
+			{ID: "orphan-uuid", Running: true, Status: proto.SubagentStatusRunning, UpdatedAt: now.Add(-30 * time.Minute)},
+		}},
+		{SessionID: agyAgent + "-child-uuid", Agent: agyAgent, ParentSessionID: "agy-parent", Status: proto.StatusDone},
+	}
+	n.applyTurnSnapshots(rows, map[string]time.Time{parent: procStart}, now)
+
+	liveByID := map[string]proto.Subagent{}
+	for _, a := range rows[0].Subagents {
+		liveByID[a.ID] = a
+	}
+	if !liveByID["live1"].Running {
+		t.Fatalf("live1 should remain running: %+v", liveByID["live1"])
+	}
+	if liveByID["pre1"].Running || liveByID["old1"].Running {
+		t.Fatalf("stale/pre-resume subagents should not be running: pre1=%+v old1=%+v", liveByID["pre1"], liveByID["old1"])
+	}
+	if len(rows[0].Background) != 0 {
+		t.Fatalf("Claude row.Background should not be polluted by TurnSnapshot agent task: %+v", rows[0].Background)
+	}
+
+	for _, a := range rows[1].Subagents {
+		if a.Running {
+			t.Fatalf("offline row still has running subagent: %+v", a)
+		}
+	}
+	if len(rows[1].Background) != 0 {
+		t.Fatalf("offline row still has active background: %+v", rows[1].Background)
+	}
+
+	if len(rows[2].Subagents) != 1 || rows[2].Subagents[0].ID != "orphan-uuid" || rows[2].Subagents[0].Running {
+		t.Fatalf("agy parent subagents should drop listed child and converge stale orphan: %+v", rows[2].Subagents)
 	}
 }

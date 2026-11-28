@@ -293,3 +293,146 @@ func TestSubagentStatusFromMessagesBeforeWindowSurvivesLiveMessage(t *testing.T)
 		})
 	}
 }
+
+type syntheticClaudeReader struct{}
+
+func (syntheticClaudeReader) DecodeLine(line []byte, dst *ClaudeLine) error {
+	if err := unmarshalLine(line, dst); err != nil {
+		return err
+	}
+	var raw struct {
+		ToolUseResult struct {
+			IsAsync        bool   `json:"isAsync"`
+			Status         string `json:"status"`
+			AgentID        string `json:"agentId"`
+			ResumedAgentID string `json:"resumedAgentId"`
+		} `json:"toolUseResult"`
+	}
+	if json.Unmarshal(line, &raw) == nil {
+		dst.TaskEvidence = ToolTaskEvidence{
+			AgentID:      raw.ToolUseResult.AgentID,
+			AgentAsync:   raw.ToolUseResult.IsAsync || raw.ToolUseResult.Status == "async_launched",
+			ResumedAgent: raw.ToolUseResult.ResumedAgentID,
+		}
+	}
+	return nil
+}
+
+func TestBackgroundAgentDidntFinishClosesSubagentAfterResume(t *testing.T) {
+	lines := []string{
+		`{"type":"user","uuid":"u1","timestamp":"2026-01-02T10:00:00Z","message":{"role":"user","content":"Check service roles."}}`,
+		`{"type":"assistant","uuid":"a1","timestamp":"2026-01-02T10:00:01Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_roles","name":"Agent","input":{"description":"Synthetic role audit","prompt":"Inspect roles."}}]}}`,
+		`{"type":"user","uuid":"u2","timestamp":"2026-01-02T10:00:02Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_roles","content":"Async agent launched.\nagentId: agent-roles"}]},"toolUseResult":{"isAsync":true,"status":"async_launched","agentId":"agent-roles"}}`,
+		`{"type":"user","uuid":"u3","timestamp":"2026-01-02T10:05:00Z","message":{"role":"user","content":"<task-notification><task-id>agent-roles</task-id><status>completed</status><summary>Agent \"Synthetic role audit\" finished</summary><result>Done.</result></task-notification>"}}`,
+		`{"type":"assistant","uuid":"a2","timestamp":"2026-01-02T10:10:00Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_msg","name":"SendMessage","input":{"to":"agent-roles","message":"Double check"}}]}}`,
+		`{"type":"user","uuid":"u4","timestamp":"2026-01-02T10:10:01Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_msg","content":"Message sent"}]},"toolUseResult":{"success":true,"resumedAgentId":"agent-roles"}}`,
+		`{"type":"user","uuid":"u5","timestamp":"2026-01-02T10:30:00Z","message":{"role":"user","content":"<task-notification><task-id>agent-roles</task-id><status>stopped</status><summary>Background agent \"Synthetic role audit\" didn't finish before the previous session ended</summary><note>No completion record was found after re-dispatch.</note></task-notification>"}}`,
+	}
+	path := filepath.Join(t.TempDir(), "resumed.jsonl")
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f := NewParsedFile(path, Sources{Claude: syntheticClaudeReader{}, Agent: "claude"})
+	if _, _, err := f.RefreshSpan(); err != nil {
+		t.Fatal(err)
+	}
+	snap := f.TurnSnapshot()
+	if len(snap.Subagents) != 1 {
+		t.Fatalf("subagents = %+v, want 1", snap.Subagents)
+	}
+	got := snap.Subagents[0]
+	if got.ID != "agent-roles" || got.Running || got.Status != proto.SubagentStatusCancelled {
+		t.Fatalf("resumed interrupted subagent = %+v, want Running=false Status=cancelled", got)
+	}
+	if len(f.Meta().Background) != 0 {
+		t.Fatalf("meta.Background = %+v, want empty", f.Meta().Background)
+	}
+}
+
+func TestBatchedBackgroundAgentsDidntFinishClosesAll(t *testing.T) {
+	lines := []string{
+		`{"type":"user","uuid":"u1","timestamp":"2026-01-02T10:00:00Z","message":{"role":"user","content":"Run three audits."}}`,
+		`{"type":"assistant","uuid":"a1","timestamp":"2026-01-02T10:00:01Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"Agent","input":{"description":"First audit","prompt":"a"}},{"type":"tool_use","id":"toolu_2","name":"Agent","input":{"description":"Second audit","prompt":"b"}},{"type":"tool_use","id":"toolu_3","name":"Agent","input":{"description":"Third audit","prompt":"c"}}]}}`,
+		`{"type":"user","uuid":"u2","timestamp":"2026-01-02T10:00:02Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"Async agent launched.\nagentId: agent-one"}]},"toolUseResult":{"isAsync":true,"status":"async_launched","agentId":"agent-one"}}`,
+		`{"type":"user","uuid":"u3","timestamp":"2026-01-02T10:00:03Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_2","content":"Async agent launched.\nagentId: agent-two"}]},"toolUseResult":{"isAsync":true,"status":"async_launched","agentId":"agent-two"}}`,
+		`{"type":"user","uuid":"u4","timestamp":"2026-01-02T10:00:04Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_3","content":"Async agent launched.\nagentId: agent-three"}]},"toolUseResult":{"isAsync":true,"status":"async_launched","agentId":"agent-three"}}`,
+		`{"type":"user","uuid":"u5","timestamp":"2026-01-02T10:20:00Z","message":{"role":"user","content":"<task-notification>\n<task-id>agent-one</task-id>\n<task-id>agent-two</task-id>\n<task-id>agent-three</task-id>\n<status>stopped</status>\n<summary>3 background agents didn't finish before the previous session ended: \"First audit\" (agent-one), \"Second audit\" (agent-two), \"Third audit\" (agent-three)</summary>\n</task-notification>"}}`,
+	}
+	path := filepath.Join(t.TempDir(), "batched.jsonl")
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f := NewParsedFile(path, Sources{Claude: syntheticClaudeReader{}, Agent: "claude"})
+	if _, _, err := f.RefreshSpan(); err != nil {
+		t.Fatal(err)
+	}
+	snap := f.TurnSnapshot()
+	if len(snap.Subagents) != 3 {
+		t.Fatalf("subagents = %+v, want 3", snap.Subagents)
+	}
+	for _, agent := range snap.Subagents {
+		if agent.Running || agent.Status != proto.SubagentStatusCancelled {
+			t.Fatalf("batched agent %s still active: %+v", agent.ID, agent)
+		}
+	}
+	if len(f.Meta().Background) != 0 {
+		t.Fatalf("meta.Background = %+v, want empty", f.Meta().Background)
+	}
+}
+
+func TestUnknownNotificationSummaryPromotesKnownAgentAndTaskStopCancels(t *testing.T) {
+	lines := []string{
+		`{"type":"user","uuid":"u1","timestamp":"2026-01-02T10:00:00Z","message":{"role":"user","content":"Start two agents."}}`,
+		`{"type":"assistant","uuid":"a1","timestamp":"2026-01-02T10:00:01Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_a","name":"Agent","input":{"description":"First helper","prompt":"a"}},{"type":"tool_use","id":"toolu_b","name":"Agent","input":{"description":"Second helper","prompt":"b"}}]}}`,
+		`{"type":"user","uuid":"u2","timestamp":"2026-01-02T10:00:02Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_a","content":"Async agent launched.\nagentId: agent-alpha"}]},"toolUseResult":{"isAsync":true,"status":"async_launched","agentId":"agent-alpha"}}`,
+		`{"type":"user","uuid":"u3","timestamp":"2026-01-02T10:00:03Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_b","content":"Async agent launched.\nagentId: agent-beta"}]},"toolUseResult":{"isAsync":true,"status":"async_launched","agentId":"agent-beta"}}`,
+		`{"type":"user","uuid":"u4","timestamp":"2026-01-02T10:05:00Z","message":{"role":"user","content":"<task-notification><task-id>agent-alpha</task-id><status>stopped</status><summary>Unrecognized future notice text</summary></task-notification>"}}`,
+		`{"type":"assistant","uuid":"a2","timestamp":"2026-01-02T10:06:00Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_stop","name":"TaskStop","input":{"task_id":"agent-beta"}}]}}`,
+		`{"type":"user","uuid":"u5","timestamp":"2026-01-02T10:06:01Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_stop","content":"Stopped task agent-beta"}]}}`,
+	}
+	path := filepath.Join(t.TempDir(), "fallback.jsonl")
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f := NewParsedFile(path, Sources{Claude: syntheticClaudeReader{}, Agent: "claude"})
+	if _, _, err := f.RefreshSpan(); err != nil {
+		t.Fatal(err)
+	}
+	snap := f.TurnSnapshot()
+	if len(snap.Subagents) != 2 {
+		t.Fatalf("subagents = %+v, want 2", snap.Subagents)
+	}
+	for _, agent := range snap.Subagents {
+		if agent.Running || agent.Status != proto.SubagentStatusCancelled {
+			t.Fatalf("agent %s not converged: %+v", agent.ID, agent)
+		}
+	}
+}
+
+func TestCodexSubagentActivityTerminalStatuses(t *testing.T) {
+	lines := []string{
+		`{"timestamp":"2026-01-02T10:00:00Z","type":"event_msg","payload":{"type":"task_started"}}`,
+		`{"timestamp":"2026-01-02T10:00:01Z","type":"event_msg","payload":{"type":"item_completed","item":{"type":"SubAgentActivity","id":"sa-1","kind":"started","agent_thread_id":"thread-fail","agent_path":"/root/worker_a"}}}`,
+		`{"timestamp":"2026-01-02T10:00:02Z","type":"event_msg","payload":{"type":"item_completed","item":{"type":"SubAgentActivity","id":"sa-2","kind":"failed","agent_thread_id":"thread-fail","agent_path":"/root/worker_a"}}}`,
+		`{"timestamp":"2026-01-02T10:00:03Z","type":"event_msg","payload":{"type":"item_completed","item":{"type":"SubAgentActivity","id":"sa-3","kind":"started","agent_thread_id":"thread-stop","agent_path":"/root/worker_b"}}}`,
+		`{"timestamp":"2026-01-02T10:00:04Z","type":"event_msg","payload":{"type":"item_completed","item":{"type":"SubAgentActivity","id":"sa-4","kind":"interrupted","agent_thread_id":"thread-stop","agent_path":"/root/worker_b"}}}`,
+	}
+	path := filepath.Join(t.TempDir(), "codex-subagents.jsonl")
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f := NewParsedFile(path, Sources{Agent: "codex"})
+	if _, _, err := f.RefreshSpan(); err != nil {
+		t.Fatal(err)
+	}
+	snap := f.TurnSnapshot()
+	if len(snap.Subagents) != 2 {
+		t.Fatalf("codex subagents = %+v, want 2", snap.Subagents)
+	}
+	if snap.Subagents[0].Running || snap.Subagents[0].Status != proto.SubagentStatusFailed {
+		t.Fatalf("failed codex subagent = %+v", snap.Subagents[0])
+	}
+	if snap.Subagents[1].Running || snap.Subagents[1].Status != proto.SubagentStatusCancelled {
+		t.Fatalf("interrupted codex subagent = %+v", snap.Subagents[1])
+	}
+}

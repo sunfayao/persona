@@ -96,6 +96,13 @@ func (r *Reducer) Observe(item proto.Item) {
 			task := proto.TaskFacet{ID: running.task.ID, Kind: running.task.Kind, Status: proto.TaskStatusCancelled}
 			out.BackgroundEnded = updateBackground(r.background, out.BackgroundEnded, r.order, item.TS, task)
 		}
+		for i := range out.Subagents {
+			if out.Subagents[i].Running {
+				out.Subagents[i].Running = false
+				out.Subagents[i].Status = proto.SubagentStatusCancelled
+				out.Subagents[i].UpdatedAt = item.TS
+			}
+		}
 	}
 
 	if task := item.Facets.Task; task != nil {

@@ -72,11 +72,12 @@ var (
 	seedTask         = []byte(`"Task"`)
 	seedAgentID      = []byte(`agentId:`)
 	seedAgentRecord  = []byte(`"agentId"`)
+	seedResumedAgent = []byte(`"resumedAgentId"`)
 	seedPeer         = []byte(`"peer"`)
 	seedBackgrounded = []byte(`"backgrounded"`)
 	// seedMarkers are what scanLines looks for; seedBackgrounded stays last (it is left out of a Claude transcript).
 	seedMarkers = [][]byte{seedNotification, seedBash, seedUltracode, seedStdout, seedHandback, seedAgent, seedTask, seedAgentID,
-		seedAgentRecord, seedPeer, seedBackgrounded}
+		seedAgentRecord, seedResumedAgent, seedPeer, seedBackgrounded}
 )
 
 // scanLines reads a file once without parsing it: where each complete line starts, which lines mention a seed marker,
@@ -131,11 +132,32 @@ func scanLines(fh *os.File, size int64) (starts []int64, notif []notifSeed, bash
 						h.id = string(near[:z])
 					}
 				} else if !h.bash && !h.ultracode && !h.background { // the task id follows the marker: "<task-notification>\n<task-id>…</task-id>"
-					near := data[i+j : min(len(data), i+j+300)]
-					if a := bytes.Index(near, []byte("<task-id>")); a >= 0 {
-						if z := bytes.Index(near[a:], []byte("</task-id>")); z > 0 {
-							h.id = string(near[a+len("<task-id>") : a+z])
+					near := data[i+j : min(len(data), i+j+4096)]
+					if end := bytes.Index(near, []byte("</task-notification>")); end >= 0 {
+						near = near[:end]
+					}
+					foundID := false
+					for rest := near; ; {
+						a := bytes.Index(rest, []byte("<task-id>"))
+						if a < 0 {
+							break
 						}
+						rest = rest[a+len("<task-id>"):]
+						z := bytes.Index(rest, []byte("</task-id>"))
+						if z < 0 {
+							break
+						}
+						if id := strings.TrimSpace(string(rest[:z])); id != "" {
+							hID := h
+							hID.id = id
+							hits = append(hits, hID)
+							foundID = true
+						}
+						rest = rest[z+len("</task-id>"):]
+					}
+					if foundID {
+						i += j + 1
+						continue
 					}
 				}
 				hits = append(hits, h)

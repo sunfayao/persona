@@ -86,6 +86,8 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 	seen := make(map[string]bool, size)
 	livePanes := map[string]bool{} // the resting Claudes' panes, whose screens are read for a dialog
 	liveBusyAgy := map[string]bool{}
+	liveClaudes := n.liveClaudes()
+	claudeStarts := claudeProcessStarts(liveClaudes)
 	now := time.Now()
 	// In id order, not the map's: the list is sorted by UpdatedAt with a stable sort, and rows that tie on it (live panes
 	// with no transcript yet all have none) came out in a new order on every pass, each one a whole new list for the hub.
@@ -210,7 +212,7 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 				n.setBackground(&s, m)
 				s.BackgroundWaiting = n.backgroundWaits(&s) // bgwait.go (#6045)
 				s.Loop, s.Goal, s.Plan = m.loop, m.goal, m.plan
-				s.Subagents = n.subagents(id)
+				s.Subagents = n.subagentsSince(id, claudeStarts[id])
 			}
 		}
 		if m, rev, ok := n.indexedHistoryMeta(id); ok {
@@ -404,7 +406,7 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 			seen[s.SessionID] = true
 		}
 	}
-	for _, s := range n.claudeSessions(n.liveClaudes(), seen, livePanes) { // claudes outside Persona's panes (claudebg.go)
+	for _, s := range n.claudeSessions(liveClaudes, seen, livePanes) { // claudes outside Persona's panes (claudebg.go)
 		out = append(out, s)
 		seen[s.SessionID] = true
 	}
@@ -485,12 +487,12 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 	linkAgyChildren(out, agyConversations)   // agy's subagents under the pane row that lists their parent (agychildren.go)
 	placeClaudeDesktop(out, origins, n.home) // and in their projects (#8521)
 	n.joinFolderSpaces(out)                  // one folder, one space, whichever app placed a session there (folderspace.go)
-	n.applyTurnSnapshots(out)
+	n.applyTurnSnapshots(out, claudeStarts, now)
 	sortNewestFirst(out)
 	return out
 }
 
-func (n *Node) applyTurnSnapshots(rows []proto.Session) {
+func (n *Node) applyTurnSnapshots(rows []proto.Session, claudeStarts map[string]time.Time, now time.Time) {
 	for i := range rows {
 		row := &rows[i]
 		n.mu.Lock()
@@ -498,7 +500,14 @@ func (n *Node) applyTurnSnapshots(rows []proto.Session) {
 		scan := n.bgScans[n.paths[row.SessionID]]
 		n.mu.Unlock()
 		if source != nil {
+			isClaude := row.Agent == "" || row.Agent == "claude"
+			prevBg, prevEnded := row.Background, row.BackgroundEnded()
 			source.TurnSnapshot().Apply(row)
+			if isClaude {
+				// setBackground already filtered Claude's background shells, monitors and workflows by age and disk liveness.
+				row.Background = prevBg
+				row.SetBackgroundEnded(prevEnded)
+			}
 		} else if scan != nil {
 			scan.mu.Lock()
 			if !scan.pending && scan.off == row.Rev {
@@ -507,8 +516,12 @@ func (n *Node) applyTurnSnapshots(rows []proto.Session) {
 			}
 			scan.mu.Unlock()
 		}
+		if row.Status == proto.StatusOffline || row.Status == proto.StatusInterrupted {
+			row.Background = nil
+		}
 		turnmodel.ApplyContext(row)
 	}
+	n.reconcileSessionSubagents(rows, claudeStarts, now)
 }
 
 // sortNewestFirst sorts list by UpdatedAt, newest first, rows that tie in the order they came (a stable sort): it sorts

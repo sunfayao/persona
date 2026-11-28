@@ -182,3 +182,20 @@ func TestCanonicalCallsAndAnswers(t *testing.T) {
 		}
 	}
 }
+
+func TestManageSubagentsKillCancelsRunningSubagent(t *testing.T) {
+	t.Parallel()
+	ref := Ref{t.TempDir(), agyTestID}
+	fixture := agyParseLine(0, "USER_INPUT", "DONE", stamp, "Spawn helper") +
+		`{"step_index":1,"type":"PLANNER_RESPONSE","created_at":"2026-01-01T00:00:00Z","tool_calls":[{"name":"invoke_subagent","args":{"Role":"Helper","TypeName":"research","Prompt":"Inspect"}}]}` + "\n" +
+		agyParseLine(2, "GENERIC", "DONE", stamp, "Launched subagent conversation "+otherID) +
+		`{"step_index":3,"type":"PLANNER_RESPONSE","created_at":"2026-01-01T00:01:00Z","tool_calls":[{"name":"manage_subagents","args":{"Action":"kill","ConversationIds":["` + otherID + `"]}}]}` + "\n" +
+		agyParseLine(4, "GENERIC", "DONE", stamp, "Killed")
+	agyTestFile(t, ref.Root, ref.Conversation, fixture)
+	h := readFixture(t, New(Dependencies{Clock: testClock{}}), ref)
+	var row proto.Session
+	h.Apply(&row, true)
+	if len(row.Subagents) != 1 || row.Subagents[0].ID != otherID || row.Subagents[0].Running || row.Subagents[0].Status != proto.SubagentStatusCancelled {
+		t.Fatalf("killed agy subagent = %+v, want cancelled", row.Subagents)
+	}
+}

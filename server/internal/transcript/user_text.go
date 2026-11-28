@@ -183,12 +183,17 @@ func userText(mk func(int, string, string) proto.Item, s string, meta *Meta) []p
 			meta.notified = map[noticeKey]bool{}
 		}
 		meta.notified[key] = true
-		it := mk(0, "system", proto.KindNotice)
-		it.Task, it.Text = taskNote(trimmed)
-		meta.noteCall(it.Task)
-		meta.reportFor(it.Task)
-		meta.agentNotification(&it)
-		return []proto.Item{it}
+		notes, texts := taskNotes(trimmed)
+		items := make([]proto.Item, 0, len(notes))
+		for idx, note := range notes {
+			it := mk(idx, "system", proto.KindNotice)
+			it.Task, it.Text = note, texts[idx]
+			meta.noteCall(it.Task)
+			meta.reportFor(it.Task)
+			meta.agentNotification(&it)
+			items = append(items, it)
+		}
+		return items
 	}
 	if trimmed == "[Request interrupted by user]" || trimmed == "[Request interrupted by user for tool use]" {
 		it := mk(0, "system", proto.KindNotice)

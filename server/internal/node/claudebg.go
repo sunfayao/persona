@@ -249,7 +249,11 @@ func (n *Node) claudeSessions(procs []claudeProc, seen map[string]bool, livePane
 		n.setBackground(&s, m) // as for a pane's session
 		s.BackgroundWaiting = n.backgroundWaits(&s)
 		s.Loop, s.Goal, s.Plan = m.loop, m.goal, m.plan
-		s.Subagents = n.subagents(id)
+		var procStart time.Time
+		if c.StartedAt > 0 {
+			procStart = time.UnixMilli(c.StartedAt)
+		}
+		s.Subagents = n.subagentsSince(id, procStart)
 		if source == proto.SourceClaudeDesktop {
 			n.decorateClaudeDesktop(&s, *desktop, projects)
 		}

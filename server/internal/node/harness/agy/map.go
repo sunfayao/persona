@@ -142,10 +142,20 @@ func (h *Projection) mapSteps(steps []agyStep, fallback time.Time) {
 				case "send_message":
 					h.addChild(args.text("Recipient"))
 				case "manage_subagents":
+					action := args.text("Action")
 					var children []string
 					_ = json.Unmarshal(args["ConversationIds"], &children)
 					for _, id := range children {
 						h.addChild(id)
+					}
+					if action == "kill" && len(children) > 0 {
+						if id := strings.ToLower(strings.TrimSpace(children[0])); conversationID.MatchString(id) {
+							it.Facets.Subagent = &proto.SubagentFacet{
+								ID:       id,
+								Relation: proto.SubagentRelationCancel,
+								Status:   proto.SubagentStatusCancelled,
+							}
+						}
 					}
 				case "manage_task":
 					if id := args.text("TaskId"); it.ToolName == "TaskStop" && taskHandle.MatchString(id) {

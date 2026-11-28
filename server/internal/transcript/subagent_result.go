@@ -17,7 +17,7 @@ func AgentTerminal(status string) bool { return agentTerminal(status) }
 
 func agentTerminal(status string) bool {
 	switch status {
-	case "completed", "failed", "killed", "stopped", "ended":
+	case "completed", "failed", "killed", "stopped", "ended", "cancelled", "canceled", "interrupted", "timed_out":
 		return true
 	}
 	return false

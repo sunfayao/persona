@@ -69,14 +69,26 @@ type subagentMeta struct {
 	TaskKind     string `json:"taskKind"`      // "in_process_teammate": a team's worker (agent_usage.go)
 }
 
+const (
+	subagentStaleAfter = 20 * time.Minute
+	subagentStartSkew  = 5 * time.Second
+)
+
 // subagents lists a session's subagents, newest first; finished ones older than a day are left out (each on its own:
 // a nested one stays listed when its parent is left out).
 func (n *Node) subagents(parent string) []proto.Subagent {
+	return n.subagentsSince(parent, time.Time{})
+}
+
+// subagentsSince is subagents bounded by the current host process start time procStart (when known): any subagent
+// whose transcript has not moved since procStart belonged to a previous process and cannot still be running.
+func (n *Node) subagentsSince(parent string, procStart time.Time) []proto.Subagent {
 	dir := n.subagentDir(parent)
 	if dir == "" {
 		return nil
 	}
 	metas, _ := filepath.Glob(filepath.Join(dir, "agent-*.meta.json"))
+	now := time.Now()
 	var out []proto.Subagent
 	for _, mp := range metas {
 		id := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(mp), "agent-"), ".meta.json")
@@ -87,34 +99,176 @@ func (n *Node) subagents(parent string) []proto.Subagent {
 		}
 		// Past a day the file has not moved for 20 minutes either, so it is not running whatever its meta says:
 		// left out before the meta is read.
-		if time.Since(st.ModTime()) > 24*time.Hour {
+		if now.Sub(st.ModTime()) > 24*time.Hour {
 			continue
 		}
 		m, ok := subagentMetaCached(mp)
 		if !ok {
 			continue
 		}
-		// A subagent whose file has not moved for 20 minutes is not running any more (its claude went away).
-		running := !m.Finished && time.Since(st.ModTime()) < 20*time.Minute
+		// A subagent whose file has not moved for 20 minutes, or predates the current claude process, is not running.
+		running := !m.Finished && now.Sub(st.ModTime()) < subagentStaleAfter &&
+			(procStart.IsZero() || !st.ModTime().Before(procStart.Add(-subagentStartSkew)))
 		edges := subagentEdgesCached(jp, st, false)
 		updated := edges.lastAt
 		if updated.IsZero() {
 			updated = st.ModTime()
 		}
+		status := ""
+		if !running && !m.Finished {
+			status = proto.SubagentStatusCancelled
+		}
 		out = append(out, proto.Subagent{
 			ID: id, SessionID: parent + subagentSep + id, Type: m.AgentType, Description: m.Description,
 			ToolUseID: m.ToolUseID, ParentID: m.ParentID, Fork: m.Fork, Running: running, Background: m.RequestShape == "background",
-			StartedAt: edges.started, UpdatedAt: updated, LastText: edges.last, Steps: edges.calls, LastTool: edges.latestTool,
-			Model: edges.model, Tokens: edges.tokens,
+			Status: status, StartedAt: edges.started, UpdatedAt: updated, LastText: edges.last, Steps: edges.calls,
+			LastTool: edges.latestTool, Model: edges.model, Tokens: edges.tokens,
 		})
 	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].Running != out[j].Running {
-			return out[i].Running
-		}
-		return out[i].StartedAt.After(out[j].StartedAt)
-	})
+	sortSubagents(out)
 	return out
+}
+
+func sortSubagents(list []proto.Subagent) {
+	sort.SliceStable(list, func(i, j int) bool {
+		if list[i].Running != list[j].Running {
+			return list[i].Running
+		}
+		return list[i].StartedAt.After(list[j].StartedAt)
+	})
+}
+
+func isRunningSubagentStatus(status string) bool {
+	return status == "" || status == proto.SubagentStatusStarting || status == proto.SubagentStatusRunning || status == proto.SubagentStatusWaiting
+}
+
+func claudeProcessStarts(procs []claudeProc) map[string]time.Time {
+	if len(procs) == 0 {
+		return nil
+	}
+	starts := make(map[string]time.Time, len(procs))
+	for _, c := range procs {
+		if c.Spare || c.SessionID == "" || c.StartedAt <= 0 {
+			continue
+		}
+		at := time.UnixMilli(c.StartedAt)
+		if prev, ok := starts[c.SessionID]; !ok || at.After(prev) {
+			starts[c.SessionID] = at
+		}
+	}
+	return starts
+}
+
+// reconcileSessionSubagents converges embedded subagent liveness across harnesses after TurnSnapshot merging:
+// offline/interrupted rows cannot have running subagents; live Claude rows are bounded by disk metadata, mtime
+// staleness, and the current claude process start time; standalone child rows (Antigravity/Codex) supersede
+// duplicate embedded entries on their parent.
+func (n *Node) reconcileSessionSubagents(rows []proto.Session, claudeStarts map[string]time.Time, now time.Time) {
+	childrenByParent := map[string]map[string]bool{}
+	registerChild := func(parent, childID string) {
+		if parent == "" || childID == "" {
+			return
+		}
+		set := childrenByParent[parent]
+		if set == nil {
+			set = map[string]bool{}
+			childrenByParent[parent] = set
+		}
+		set[childID] = true
+		if raw, ok := strings.CutPrefix(childID, agyAgent+"-"); ok && raw != "" {
+			set[raw] = true
+		}
+		if idx := strings.LastIndexByte(childID, ':'); idx >= 0 && idx+1 < len(childID) {
+			set[childID[idx+1:]] = true
+		}
+	}
+	for i := range rows {
+		c := &rows[i]
+		registerChild(c.ParentSessionID, c.SessionID)
+		if c.RootSessionID != "" && c.RootSessionID != c.ParentSessionID {
+			registerChild(c.RootSessionID, c.SessionID)
+		}
+	}
+	for i := range rows {
+		row := &rows[i]
+		if len(row.Subagents) == 0 {
+			continue
+		}
+		offline := row.Status == proto.StatusOffline || row.Status == proto.StatusInterrupted
+		isClaude := row.Agent == "" || row.Agent == "claude"
+		if !isClaude {
+			listedChildren := childrenByParent[row.SessionID]
+			kept := row.Subagents[:0]
+			for _, a := range row.Subagents {
+				if len(listedChildren) > 0 && (listedChildren[a.ID] || (a.SessionID != "" && listedChildren[a.SessionID])) {
+					continue
+				}
+				if a.Running && (offline || (row.Status != proto.StatusWorking && row.Status != proto.StatusBlocked && !a.UpdatedAt.IsZero() && now.Sub(a.UpdatedAt) >= subagentStaleAfter)) {
+					a.Running = false
+					if isRunningSubagentStatus(a.Status) {
+						a.Status = proto.SubagentStatusCancelled
+					}
+				}
+				kept = append(kept, a)
+			}
+			if len(kept) == 0 {
+				row.Subagents = nil
+			} else {
+				row.Subagents = kept
+				sortSubagents(row.Subagents)
+			}
+			continue
+		}
+		dir := n.subagentDir(row.SessionID)
+		procStart := claudeStarts[row.SessionID]
+		for j := range row.Subagents {
+			a := &row.Subagents[j]
+			if a.SessionID == "" && a.ID != "" {
+				a.SessionID = row.SessionID + subagentSep + a.ID
+			}
+			if !a.Running {
+				continue
+			}
+			if offline {
+				a.Running = false
+				if isRunningSubagentStatus(a.Status) {
+					a.Status = proto.SubagentStatusCancelled
+				}
+				continue
+			}
+			if dir != "" && a.ID != "" && !strings.ContainsAny(a.ID, "/.\\") {
+				mp := filepath.Join(dir, "agent-"+a.ID+".meta.json")
+				jp := filepath.Join(dir, "agent-"+a.ID+".jsonl")
+				if m, ok := subagentMetaCached(mp); ok && m.Finished {
+					a.Running = false
+					if isRunningSubagentStatus(a.Status) {
+						a.Status = proto.SubagentStatusCompleted
+					}
+					continue
+				}
+				if st, err := os.Stat(jp); err == nil {
+					if now.Sub(st.ModTime()) >= subagentStaleAfter || (!procStart.IsZero() && st.ModTime().Before(procStart.Add(-subagentStartSkew))) {
+						a.Running = false
+						if isRunningSubagentStatus(a.Status) {
+							a.Status = proto.SubagentStatusCancelled
+						}
+					}
+					continue
+				}
+			}
+			lastAt := a.UpdatedAt
+			if lastAt.IsZero() {
+				lastAt = a.StartedAt
+			}
+			if !lastAt.IsZero() && (now.Sub(lastAt) >= subagentStaleAfter || (!procStart.IsZero() && lastAt.Before(procStart.Add(-subagentStartSkew)))) {
+				a.Running = false
+				if isRunningSubagentStatus(a.Status) {
+					a.Status = proto.SubagentStatusCancelled
+				}
+			}
+		}
+		sortSubagents(row.Subagents)
+	}
 }
 
 // metaCache remembers parsed agent-*.meta.json files by size and mtime: the session list asks for every live

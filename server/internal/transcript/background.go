@@ -226,6 +226,12 @@ func (m *Meta) backgroundStarted(toolUseID, result string, isError bool, ts time
 		if !isError {
 			m.finishBackground(t.ID, "stopped", nil, "", ts)
 			m.workflowEnded(t.ID, proto.WorkflowKilled, ts)
+			if call := m.taskCalls[t.ID]; call != "" {
+				if agent, ok := m.agentCalls[call]; ok {
+					agent.Status = "stopped"
+					m.agentCalls[call] = agent
+				}
+			}
 		}
 		return
 	}
@@ -359,21 +365,23 @@ func outputFile(result string) string {
 }
 
 func (m *Meta) taskFinished(notification string, ts time.Time) {
-	n, _ := taskNote(notification)
-	if n.Kind == "agent" && !agentTerminal(n.Status) {
-		return
-	}
-	if n.Status == "event" {
-		for i := range m.Background {
-			if m.Background[i].ID == n.TaskID && n.OutputFile != "" {
-				m.Background[i].OutputFile = n.OutputFile
-			}
+	notes, _ := taskNotes(notification)
+	for _, n := range notes {
+		if n.Kind == "agent" && !agentTerminal(n.Status) {
+			continue
 		}
-		return
-	}
-	if id := firstTag(notification, "task-id"); id != "" {
-		m.finishBackground(id, n.Status, n.ExitCode, n.OutputFile, ts)
-		m.workflowEnded(id, n.Status, ts)
+		if n.Status == "event" {
+			for i := range m.Background {
+				if m.Background[i].ID == n.TaskID && n.OutputFile != "" {
+					m.Background[i].OutputFile = n.OutputFile
+				}
+			}
+			continue
+		}
+		if n.TaskID != "" {
+			m.finishBackground(n.TaskID, n.Status, n.ExitCode, n.OutputFile, ts)
+			m.workflowEnded(n.TaskID, n.Status, ts)
+		}
 	}
 }
 

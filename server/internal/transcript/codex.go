@@ -1021,11 +1021,15 @@ func codexSubagentActivity(meta *Meta, mk func(int, string, string, string) prot
 	items := codexTool(meta, mk, it.ID, "subagent", raw, "", false)
 	if meta.facetAgent != "" && it.AgentThreadID != "" {
 		relation, status := proto.SubagentRelationMessageFrom, ""
-		switch it.Kind {
+		switch strings.ToLower(strings.TrimSpace(it.Kind)) {
 		case "started":
 			relation, status = proto.SubagentRelationSpawn, proto.SubagentStatusRunning
-		case "completed":
+		case "completed", "finished", "done":
 			relation, status = proto.SubagentRelationResult, proto.SubagentStatusCompleted
+		case "failed", "errored", "error":
+			relation, status = proto.SubagentRelationResult, proto.SubagentStatusFailed
+		case "cancelled", "canceled", "interrupted", "stopped", "killed", "aborted", "closed", "shutdown":
+			relation, status = proto.SubagentRelationCancel, proto.SubagentStatusCancelled
 		}
 		itemFacets(&items[0]).Subagent = &proto.SubagentFacet{ID: it.AgentThreadID, Name: name, Model: derefString(it.Model),
 			Relation: relation, Status: status}

@@ -156,3 +156,57 @@ func TestReduceProjectsTheNewestActiveTimer(t *testing.T) {
 		})
 	}
 }
+
+func TestReduceServerRestartCancelsRunningSubagents(t *testing.T) {
+	t.Parallel()
+	items := []proto.Item{
+		{TS: at(10), Facets: &proto.ItemFacets{Subagent: &proto.SubagentFacet{ID: "a-run", Name: "Worker", Relation: proto.SubagentRelationSpawn, Status: proto.SubagentStatusRunning}}},
+		{TS: at(11), Facets: &proto.ItemFacets{Subagent: &proto.SubagentFacet{ID: "a-done", Name: "Done", Relation: proto.SubagentRelationResult, Status: proto.SubagentStatusCompleted}}},
+		{TS: at(20), Facets: &proto.ItemFacets{Notice: &proto.NoticeFacet{Code: proto.NoticeCodeServerRestart}}},
+	}
+	snap := Reduce(items)
+	if len(snap.Subagents) != 2 {
+		t.Fatalf("subagents = %+v, want 2", snap.Subagents)
+	}
+	if snap.Subagents[0].Running || snap.Subagents[0].Status != proto.SubagentStatusCancelled || !snap.Subagents[0].UpdatedAt.Equal(at(20)) {
+		t.Fatalf("running subagent after restart = %+v, want cancelled at t=20", snap.Subagents[0])
+	}
+	if snap.Subagents[1].Running || snap.Subagents[1].Status != proto.SubagentStatusCompleted {
+		t.Fatalf("completed subagent changed on restart = %+v", snap.Subagents[1])
+	}
+}
+
+func TestApplyMergeSubagentsProtectsDiskFinishedAndFiltersAgentBackground(t *testing.T) {
+	t.Parallel()
+	row := proto.Session{
+		Subagents: []proto.Subagent{
+			{ID: "disk-done", Running: false, UpdatedAt: at(100)},
+			{ID: "disk-stale", Running: true, UpdatedAt: at(100)},
+			{ID: "disk-resumed", Running: true, UpdatedAt: at(200)},
+		},
+	}
+	snap := Snapshot{
+		Background: []proto.BackgroundTask{
+			{ID: "sh-1", Kind: proto.TaskKindShell},
+			{ID: "disk-done", Kind: proto.TaskKindAgent},
+		},
+		Subagents: []proto.Subagent{
+			{ID: "disk-done", Running: true, Status: proto.SubagentStatusRunning, UpdatedAt: at(50)},
+			{ID: "disk-stale", Running: false, Status: proto.SubagentStatusCancelled, UpdatedAt: at(100)},
+			{ID: "disk-resumed", Running: false, Status: proto.SubagentStatusCompleted, UpdatedAt: at(120)},
+		},
+	}
+	snap.Apply(&row)
+	if len(row.Background) != 1 || row.Background[0].ID != "sh-1" {
+		t.Fatalf("row.Background = %+v, want only non-agent shell task", row.Background)
+	}
+	if row.Subagents[0].Running {
+		t.Fatalf("disk-done was resurrected to running: %+v", row.Subagents[0])
+	}
+	if row.Subagents[1].Running || row.Subagents[1].Status != proto.SubagentStatusCancelled {
+		t.Fatalf("disk-stale was not converged by terminal derived status: %+v", row.Subagents[1])
+	}
+	if !row.Subagents[2].Running {
+		t.Fatalf("disk-resumed with newer disk activity should stay running: %+v", row.Subagents[2])
+	}
+}
