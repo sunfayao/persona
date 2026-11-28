@@ -22,6 +22,7 @@ type File struct {
 
 	sources         Sources
 	indexed         *indexedHistory
+	migration       *indexedHistory
 	presentation    turnmodel.Snapshot
 	presentationKey [3]int
 	mu              sync.Mutex
@@ -106,6 +107,9 @@ func NewSubagentFile(path string) *File { return NewParsedFile(path, Sources{Sid
 func (f *File) history() string {
 	if f.lines == 0 {
 		return "" // nothing read yet: no identity to compare
+	}
+	if f.indexed != nil {
+		return f.indexed.token
 	}
 	version := ""
 	if !f.meta.Codex {

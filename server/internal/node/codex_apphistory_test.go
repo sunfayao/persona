@@ -242,7 +242,7 @@ func TestCodexAppChatHistoryComesFromTheAppsDatabase(t *testing.T) {
 
 	// Archived in the App: no transcript of its history any more.
 	writeCodexApp(t, home, project, "DELETE FROM threads;"+codexAppRow(appChat, "", project, "Alpha chat", updated.Add(2*time.Hour), 1))
-	if _, ok := n.indexedCodexFile(id); ok {
+	if file, err := n.indexedCodexFile(id); file != nil || err != nil {
 		t.Fatal("an archived chat remained visible in this history source")
 	}
 }

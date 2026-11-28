@@ -149,7 +149,7 @@ func TestReduceProjectsTheNewestActiveTimer(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
-			want := Snapshot{Timers: c.timers, Loop: c.loop}
+			want := Snapshot{Timers: c.timers, timersSeen: true, Loop: c.loop}
 			if got := Reduce(items[:c.through]); !reflect.DeepEqual(got, want) {
 				t.Errorf("Reduce() timers = %+v, loop = %+v; want %+v, %+v", got.Timers, got.Loop, c.timers, c.loop)
 			}

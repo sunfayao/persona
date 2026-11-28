@@ -338,6 +338,11 @@ export function segments(items: Item[], results?: ReadonlyMap<string, Item>): Se
     if (cur.ttftMs === undefined && typeof it.ttft_ms === "number" && Number.isFinite(it.ttft_ms) && it.ttft_ms >= 0) {
       cur.ttftMs = it.ttft_ms;
     }
+    const progress = it.facets?.progress;
+    if (it.kind !== "thinking" && progress?.phase === "thinking" && progress.redacted) {
+      const id = it.id + "@thinking";
+      cur.steps.push({ kind: "thinking", id, item: { ...it, id, kind: "thinking", text: undefined } });
+    }
     switch (it.kind) {
       case "tool_use": {
         const st: Extract<Step, { kind: "tool" }> = { kind: "tool", id: it.id, use: it, result: it.tool_use_id ? results?.get(it.tool_use_id) : undefined, images: [] };

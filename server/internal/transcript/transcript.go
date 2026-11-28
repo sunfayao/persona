@@ -140,14 +140,15 @@ type block struct {
 
 // Meta is session-level information collected while parsing.
 type Meta struct {
-	facetAgent      string
-	facetNative     string
-	facetTurn       string
-	facetTools      map[string]proto.ToolFacet
-	facetArtifacts  map[string]*proto.ArtifactFacet
-	facetPlanSeq    uint64
-	shareProjection bool // sanitize the complete bounded publication source before display clipping
-	ClaudeReader    ClaudeLineReader
+	facetAgent         string
+	facetNative        string
+	facetTurn          string
+	facetTools         map[string]proto.ToolFacet
+	facetArtifacts     map[string]*proto.ArtifactFacet
+	facetPlanSeq       uint64
+	redactedThinkingMS int64
+	shareProjection    bool // sanitize the complete bounded publication source before display clipping
+	ClaudeReader       ClaudeLineReader
 	// Developer info for the chat header (all from fields Claude Code writes on each line).
 	GitBranch string
 	Version   string
@@ -1067,7 +1068,10 @@ func parseLine(seq int, line []byte, meta *Meta) []proto.Item {
 				out = append(out, it)
 			case "thinking", "redacted_thinking":
 				redacted := strings.TrimSpace(b.Thinking) == ""
-				if redacted && (meta.facetAgent == "" || e.ThinkingDurationMs <= 0) {
+				if redacted {
+					if meta.facetAgent != "" && e.ThinkingDurationMs > 0 {
+						meta.redactedThinkingMS = e.ThinkingDurationMs
+					}
 					continue
 				}
 				meta.ContextStats.ConversationBytes += estimateWeightedBytes(b.Thinking)

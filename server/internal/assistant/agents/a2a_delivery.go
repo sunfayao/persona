@@ -130,7 +130,7 @@ func a2aReadTurn(items []proto.Item, current bool) a2aTurnView {
 	end, closed := transcript.TurnEnd(items)
 	out := a2aTurnView{echo: true, current: current, closed: closed}
 	for _, item := range items {
-		if item.Role == "assistant" && item.Kind == proto.KindText && !item.Narration && item.Text != "" {
+		if item.Role == "assistant" && item.Kind == proto.KindText && !turnmodel.IsCommentary(item) && item.Text != "" {
 			out.reply = a2aCleanText(item.Text)
 		}
 		if closed && item.ID == end.Key && turnmodel.IsInterruptedNotice(item) {

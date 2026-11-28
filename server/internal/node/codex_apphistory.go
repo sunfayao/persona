@@ -58,6 +58,10 @@ func withoutGoneRollout(src codexSource, pass *codexListPass) codexSource {
 
 // codexAppHistoryChat: session id is an App chat with no rollout, whose transcript comes from the App's database.
 func (n *Node) codexAppHistoryChat(id string) (codexSource, codex.AppThread, bool) {
+	if n.sessionScope != nil {
+		// Scoped nodes discover and validate the CWD of their own file-backed sessions.
+		return codexSource{}, codex.AppThread{}, false
+	}
 	if t, ok := n.traexThread(id); ok {
 		return codexSource{home: n.traexHome(), thread: id}, t, true
 	}
@@ -82,14 +86,14 @@ func (n *Node) codexAppHistoryChat(id string) (codexSource, codex.AppThread, boo
 }
 
 // indexedCodexFile keeps an in-memory paging cursor over a CLI's native SQLite history.
-func (n *Node) indexedCodexFile(id string) (*transcript.File, bool) {
+func (n *Node) indexedCodexFile(id string) (*transcript.File, error) {
 	src, thread, ok := n.codexAppHistoryChat(id)
 	if !ok {
-		return nil, false
+		return nil, nil
 	}
 	db := codexHistoryDBPath(src.home)
 	if db == "" {
-		return nil, false
+		return nil, nil
 	}
 	source := transcript.IndexedSource{
 		Revision: func() string {
@@ -108,26 +112,39 @@ func (n *Node) indexedCodexFile(id string) (*transcript.File, bool) {
 	identity := "history:" + codexHomeTag(db) + ":" + thread.ID
 	n.mu.Lock()
 	file := n.files[id]
+	n.mu.Unlock()
 	if file == nil {
 		agent := "codex"
 		if thread.IncludeRunning {
 			agent = traexAgent
 		}
-		file = transcript.NewIndexedFile(identity, source, transcript.Sources{RolloutTools: traex.RolloutTools{}, Agent: agent})
-		n.files[id] = file
+		candidate := transcript.NewIndexedFile(identity, source, transcript.Sources{RolloutTools: traex.RolloutTools{}, Agent: agent})
+		if err := candidate.PrefetchIndexed(); err != nil {
+			return nil, err
+		}
+		n.mu.Lock()
+		file = n.files[id]
+		if file == nil {
+			n.files[id] = candidate
+			n.used(id)
+			n.evictFiles()
+			n.mu.Unlock()
+			return candidate, nil
+		}
+		n.mu.Unlock()
 	}
+	if err := file.BindIndexed(identity, source); err != nil {
+		return nil, err
+	}
+	n.mu.Lock()
 	n.used(id)
-	n.evictFiles()
 	n.mu.Unlock()
-	file.BindIndexed(identity, source)
-	return file, true
+	return file, nil
 }
 
 func (n *Node) refreshCodexAppHistory(id string) error {
-	if f, ok := n.indexedCodexFile(id); ok {
-		return f.PrefetchIndexed()
-	}
-	return nil
+	_, err := n.indexedCodexFile(id)
+	return err
 }
 
 func (n *Node) indexedHistoryMeta(id string) (quickMeta, int64, bool) {

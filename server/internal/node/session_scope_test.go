@@ -177,6 +177,20 @@ func TestNodeSessionScopeRejectsExternalCodexDiscovery(t *testing.T) {
 	}
 }
 
+func TestNodeSessionScopeRejectsIndexedCodexHistory(t *testing.T) {
+	n := scopedTestNode(t)
+	home := n.sessionScope.codex
+	cwd := filepath.Join(n.home, "outside")
+	writeCodexApp(t, home, cwd, codexAppSchema+codexAppRow(appChat, "", cwd, "Example", time.Now(), 0))
+	writeCodexHistory(t, home, []historyTurn{{
+		thread: appChat, id: "turn", status: "completed",
+		items: [][2]string{userItem("u1", "outside the scoped working directory")},
+	}})
+	if f, err := n.file(appChat); err == nil || f != nil {
+		t.Fatalf("scoped node read indexed history: %p, %v", f, err)
+	}
+}
+
 func TestNodeSessionScopeNeverChangesGlobalHooks(t *testing.T) {
 	n := scopedTestNode(t)
 	for _, profile := range []string{filepath.Join(n.home, ".claude"), n.sessionScope.claude} {

@@ -329,10 +329,7 @@ func (n *Node) setPath(id, p string) {
 func validID(id string) bool { return nodeclient.ValidSessionID(id) }
 
 func (n *Node) file(id string) (*transcript.File, error) {
-	if f, ok := n.indexedCodexFile(id); ok {
-		if err := f.PrefetchIndexed(); err != nil {
-			return nil, noTranscript{id}
-		}
+	if f, _ := n.indexedCodexFile(id); f != nil {
 		return f, nil
 	}
 	return n.transcriptFile(id)

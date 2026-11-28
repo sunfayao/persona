@@ -2,6 +2,7 @@ package transcript
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"hash/crc32"
 	"slices"
@@ -17,6 +18,8 @@ type IndexedSource struct {
 }
 
 type indexedHistory struct {
+	identity  string
+	token     string
 	source    IndexedSource
 	revision  string
 	read      bool
@@ -47,7 +50,7 @@ func (h *indexedHistory) records(revision string) ([]CodexRecord, error) {
 func NewIndexedFile(identity string, source IndexedSource, sources Sources) *File {
 	return &File{
 		Path: identity, sources: sources, firstHash: crc32.ChecksumIEEE([]byte(identity)),
-		indexed: &indexedHistory{source: source}, meta: Meta{Codex: true, RolloutTools: sources.RolloutTools},
+		indexed: &indexedHistory{identity: identity, source: source}, meta: Meta{Codex: true, RolloutTools: sources.RolloutTools},
 	}
 }
 
@@ -59,29 +62,41 @@ func (f *File) Indexed() bool {
 }
 
 // BindIndexed moves an open rollout reader onto SQLite when the CLI migrates its history.
-func (f *File) BindIndexed(identity string, source IndexedSource) {
+func (f *File) BindIndexed(identity string, source IndexedSource) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.indexed != nil && f.Path == identity {
 		f.indexed.source = source
-		return
+		return f.indexed.prefetch(f.lines)
+	}
+	if f.migration == nil || f.migration.identity != identity {
+		f.migration = &indexedHistory{identity: identity}
+	}
+	next := f.migration
+	next.source = source
+	if err := next.prefetch(0); err != nil {
+		return err
 	}
 	f.Path, f.firstHash = identity, crc32.ChecksumIEEE([]byte(identity))
-	f.indexed = &indexedHistory{source: source}
+	f.indexed, f.migration = next, nil
 	f.gen++
 	f.offset, f.lines, f.items, f.refs, f.tree = 0, 0, nil, nil, nil
 	f.base, f.win, f.partial, f.partialMeta = 0, nil, nil, false
 	f.meta = Meta{Codex: true, RolloutTools: f.sources.RolloutTools}
+	return nil
 }
 
 // PrefetchIndexed validates and caches the next SQLite snapshot for RefreshSpan.
 func (f *File) PrefetchIndexed() error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	state := f.indexed
+	return f.indexed.prefetch(f.lines)
+}
+
+func (state *indexedHistory) prefetch(lines int) error {
 	revision := state.source.Revision()
 	if state.read && revision == state.revision {
-		if f.lines == 0 {
+		if lines == 0 {
 			return ErrEmptyIndexedHistory
 		}
 		return nil
@@ -116,7 +131,18 @@ func (f *File) refreshIndexed() ([]proto.Item, Span, error) {
 		_, _ = hash.Write(record.Payload)
 		copy(digests[i][:], hash.Sum(nil))
 	}
-	if len(digests) < len(state.digests) || !slices.Equal(digests[:len(state.digests)], state.digests) {
+	replaced := len(digests) < len(state.digests) || !slices.Equal(digests[:len(state.digests)], state.digests)
+	if !state.read || replaced {
+		// Derive a cold cursor from the whole snapshot. An unchanged reopened history keeps
+		// its cursor; an unknown revision forces a recent page instead of skipping a rewind.
+		hash := sha256.New()
+		_, _ = hash.Write([]byte(state.identity))
+		for _, digest := range digests {
+			_, _ = hash.Write(digest[:])
+		}
+		state.token = "indexed-" + hex.EncodeToString(hash.Sum(nil)[:16])
+	}
+	if replaced {
 		f.gen++
 		f.lines, f.items = 0, nil
 		f.meta = Meta{Codex: true, RolloutTools: f.sources.RolloutTools}

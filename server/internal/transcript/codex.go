@@ -13,6 +13,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/lazyre"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/tokenuse"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // Codex rollouts (~/.codex/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl) are a different JSONL: every line is
@@ -1076,6 +1077,9 @@ func jsonNonEmpty(raw json.RawMessage) bool {
 // outcome says ok or failed and has the output's tail; callers that know more (a status, an exit code) add it.
 func codexTool(meta *Meta, mk func(int, string, string, string) proto.Item, id, name string, input json.RawMessage, result string, isErr bool) []proto.Item {
 	meta.observeToolContext(name, input, result)
+	if meta.facetAgent != "" {
+		name = turnmodel.NameOf(name)
+	}
 	use := mk(0, id, "assistant", proto.KindToolUse)
 	use.ToolUseID, use.ToolName, use.ToolInput = id, name, meta.projectCodexInput(input)
 	res := mk(1, id, "user", proto.KindToolResult)

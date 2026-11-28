@@ -33,6 +33,9 @@ func (m *Meta) projectItemFacets(item *proto.Item, planChanged bool) {
 		m.facetTurn = item.TurnDuration.TurnID
 	}
 	if item.Role == "user" && (item.Kind == proto.KindText || item.Kind == proto.KindImage) && !m.localInput {
+		if !item.Queued {
+			m.redactedThinkingMS = 0
+		}
 		via := proto.InputViaTyped
 		switch {
 		case item.Queued:
@@ -107,6 +110,12 @@ func (m *Meta) projectItemFacets(item *proto.Item, planChanged bool) {
 			f.Artifact = &proto.ArtifactFacet{ID: item.ID, Kind: proto.ArtifactKindVisualization,
 				Op: proto.ArtifactOpCreated, Path: v.Path, Title: v.Title, Mode: v.Mode}
 		}
+	}
+	if item.Role == "assistant" && m.redactedThinkingMS > 0 {
+		if f.Progress == nil {
+			f.Progress = &proto.ProgressFacet{Phase: proto.ProgressPhaseThinking, Redacted: true, DurationMs: m.redactedThinkingMS}
+		}
+		m.redactedThinkingMS = 0
 	}
 	if planChanged {
 		entries := make([]proto.PlanEntry, 0, len(m.planItems))

@@ -132,3 +132,11 @@ func IsTranscriptUnlinked(it proto.Item) bool {
 	}
 	return it.Kind == proto.KindNotice && it.ID == "agy#0"
 }
+
+// IsCommentary identifies a progress message in typed or older transcripts.
+func IsCommentary(it proto.Item) bool {
+	if it.Facets != nil && it.Facets.Progress != nil {
+		return it.Facets.Progress.Phase == proto.ProgressPhaseCommentary
+	}
+	return it.Narration || it.CodexHeartbeatQuiet
+}
