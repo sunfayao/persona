@@ -1,6 +1,10 @@
 {{if .Session}}(Persona's convention for this session, not the user's words. No response needed; follow it.)
-{{end}}Closeout record (the hub uses it to see where this turn stands, so nobody has to ask again): end the final reply of any turn that changed files or ran commands with a block like the one below{{if .AfterDelivery}}, recording the delivery, what blocks it and who must act in its delivery / missing / unblock instead of a separate delivery line{{end}}. A turn that only answered a question without file changes or commands needs no record, except when it ends with an optional conversational question or offer that does not block work if unanswered: include status="done" and no missing so the hub does not mistake it for waiting on the user.
+{{end}}{{if .Readonly}}End your final reply with this record; it tells the hub where the task stands:
 
 {{.Form}}
 
-{{template "agents/closeout_rules" .}}
+{{if hasPrefix .Form "### Persona "}}Copy the heading and field names exactly, one "- " line each, ending with --- alone; no code fence. {{end}}Status: done, not_done or blocked. Did: what you found, in up to three sentences. Artifact: a file you made for the user as `file <absolute path>`; leave the line out otherwise. Verified: what you ran or read to check it. Write the content in {{lang .Language}}.{{else}}Closeout record: end the final reply of a turn that changed files or ran commands with this block{{if .AfterDelivery}}, with its delivery, blocker and who must act in it instead of a separate delivery line{{end}}. A turn that only answered needs none; one ending with an optional question or offer writes Status done with no Missing.
+
+{{.Form}}
+
+{{template "agents/closeout_rules" .}}{{end}}

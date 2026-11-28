@@ -49,7 +49,8 @@ func (s *Service) mcpTools(ctx context.Context, assistant bool) []proto.Tool {
 }
 
 // agentRepositoryToolNames are the Agents' tools for their to-do's repository and issue/PR links. They still route
-// (agentToolNames) but no Agent lists them: the hub links the PRs an Agent's closeout names itself (closeoutPRLink).
+// (agentToolNames) but no Agent lists them: the hub links every issue and PR an Agent's reply names, its closeout's
+// artifact lines included, by itself (advanceTaskReply).
 var agentRepositoryToolNames = []string{"todo_repositories_get", "todo_repositories_set", "todo_repository_links_set", "todo_repository_links_add"}
 
 // listedAgentTools are the Agents' own tools an Agent's list shows: agentToolNames but the repository ones.

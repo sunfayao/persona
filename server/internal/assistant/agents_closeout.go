@@ -29,7 +29,7 @@ func (s *Service) closeoutCheck(ctx context.Context, machine string, p assistant
 		return out
 	}
 	language := answerLanguage(s.hello(ctx).Locale)
-	out.Reason = renderCloseoutRequired(language, s.closeoutForm(machine, language))
+	out.Reason = renderCloseoutRequired(language, s.closeoutForm(machine, language, s.doneNeedsDelivery(ctx)))
 	s.workEvent(machine, p.SessionID, "closeout_asked", nil)
 	return out
 }

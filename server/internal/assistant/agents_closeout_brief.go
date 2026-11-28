@@ -17,9 +17,12 @@ import (
 // under the triage's main switch and its closeout switch.
 
 // closeoutForm returns the format the destination can read. A missing capability keeps the XML contract.
-func (s *Service) closeoutForm(machine, language string) string {
+func (s *Service) closeoutForm(machine, language string, delivery bool) string {
 	if nodes, ok := s.physicalDevices().(nodeAnnouncer); ok && nodes.NodeAnnounced(machine, nodeproto.MarkdownCloseout) {
-		return closeout.MarkdownExample(language)
+		if delivery {
+			return closeout.MarkdownExample(language)
+		}
+		return closeout.MarkdownWrite(language)
 	}
 	return closeout.Example
 }
@@ -27,12 +30,23 @@ func (s *Service) closeoutForm(machine, language string) string {
 // closeoutBrief is what follows a task's prompt: the closeout's form and when to write it; "" while the switches are
 // off. afterDelivery: the same block also carries delivery disposition and responsibility.
 func (s *Service) closeoutBrief(ctx context.Context, machine string, afterDelivery bool) string {
+	return s.closeoutBriefFor(ctx, machine, afterDelivery, false)
+}
+
+// closeoutBriefFor is closeoutBrief for a task that may be read-only: such a task gets the short form and the few
+// lines it needs (nothing it does is merged, deployed or delivered), on a node that reads the Markdown form.
+func (s *Service) closeoutBriefFor(ctx context.Context, machine string, afterDelivery, readonly bool) string {
 	if sw := s.triageSwitches(ctx); !sw.Enabled || !sw.Closeout {
 		return ""
 	}
 	language := answerLanguage(s.hello(ctx).Locale)
-	return prompts.RenderAgentCloseoutBrief(prompts.AgentCloseoutBrief{Form: s.closeoutForm(machine, language),
-		Language: language, AfterDelivery: afterDelivery})
+	form := s.closeoutForm(machine, language, afterDelivery)
+	readonly = readonly && form != closeout.Example
+	if readonly {
+		form = closeout.MarkdownReadonly(language)
+	}
+	return prompts.RenderAgentCloseoutBrief(prompts.AgentCloseoutBrief{Form: form, Language: language,
+		AfterDelivery: afterDelivery && !readonly, Readonly: readonly})
 }
 
 // withCloseoutBrief is prompt followed by the closeout's form, or prompt as it is while the switches are off.
@@ -56,7 +70,7 @@ func (s *Service) closeoutStart(ctx context.Context, machine string, p assistant
 		return out
 	}
 	language := answerLanguage(s.hello(ctx).Locale)
-	out.Context = prompts.RenderAgentCloseoutBrief(prompts.AgentCloseoutBrief{Form: s.closeoutForm(machine, language),
+	out.Context = prompts.RenderAgentCloseoutBrief(prompts.AgentCloseoutBrief{Form: s.closeoutForm(machine, language, false),
 		Language: language, Session: true})
 	return out
 }

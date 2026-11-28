@@ -29,7 +29,10 @@ func TestMachineRedeployThroughLogicalDevices(t *testing.T) {
 func TestNodeCapabilitiesThroughLogicalDevices(t *testing.T) {
 	s, _ := newTaskService(t)
 	s.devs = &logicalDevices{Devices: closeoutDevices{newFleetDevs()}, s: s}
-	if got := s.closeoutForm("box", "en"); got != closeout.MarkdownExample("en") {
+	if got := s.closeoutForm("box", "en", true); got != closeout.MarkdownExample("en") {
 		t.Fatalf("a node announcing markdown closeouts got the XML form through the logical devices: %q", got)
+	}
+	if got := s.closeoutForm("box", "en", false); got != closeout.MarkdownWrite("en") {
+		t.Fatalf("without a delivery standard the form keeps its delivery lines: %q", got)
 	}
 }

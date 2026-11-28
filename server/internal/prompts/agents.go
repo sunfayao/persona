@@ -347,6 +347,8 @@ type AgentCloseoutBrief struct {
 	AfterDelivery bool
 	// Session: it is a session's starting context, not part of a task's prompt: it says whose words these are.
 	Session bool
+	// Readonly: a read-only task's, with the short form (closeout.MarkdownReadonly) and the few lines it needs.
+	Readonly bool
 }
 
 func RenderAgentCloseoutBrief(c AgentCloseoutBrief) string {
