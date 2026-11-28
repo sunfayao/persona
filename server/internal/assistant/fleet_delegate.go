@@ -453,7 +453,7 @@ func (s *Service) reanswer(ctx context.Context, id string, answers map[string]st
 	if len(items) == 0 {
 		return http.StatusBadRequest, errNoAnswers
 	}
-	text := prompts.RenderAgentReanswer(prompts.AgentReanswer{Language: answerLanguage(s.hello(ctx).Locale), Items: items})
+	text := prompts.RenderAgentReanswer(prompts.AgentReanswer{Language: s.replyLang(ctx, s.hello(ctx).Locale), Items: items})
 	// Delivery language is not the identity of the user's answer. Keep the legacy
 	// key so a locale change or upgrade cannot redeliver an already-sent override.
 	sum := sha256.Sum256([]byte(prompts.RenderAgentReanswer(prompts.AgentReanswer{Items: items})))

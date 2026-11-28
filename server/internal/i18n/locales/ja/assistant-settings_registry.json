@@ -1,5 +1,6 @@
 {
   "change": "「{title}」：{before} → {after}",
+  "title_assistant_reply_language": "モデルの返答言語",
   "title_assistant_cache_keepalive": "プロンプトキャッシュを維持",
   "title_assistant_cache_keepalive_minutes": "キャッシュ維持の間隔（分）",
   "title_assistant_cache_keepalive_max": "キャッシュ維持リクエストの上限",

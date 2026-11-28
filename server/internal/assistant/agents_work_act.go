@@ -373,9 +373,9 @@ func (s *Service) workAnswer(ctx context.Context, id string, r proto.Resolution)
 			out = append(out, agentAnswerItem{it.question, it.answer})
 		}
 		if r.AnsweredBy == proto.AnsweredByAssistant {
-			return renderDelegatedAnswer(out, r.Reason, answerLanguage(s.hello(ctx).Locale))
+			return renderDelegatedAnswer(out, r.Reason, s.replyLang(ctx, s.hello(ctx).Locale))
 		}
-		return renderAnswer(out, answerLanguage(s.hello(ctx).Locale))
+		return renderAnswer(out, s.replyLang(ctx, s.hello(ctx).Locale))
 	}
 	if !only[answerGo] {
 		s.work.mu.Lock()

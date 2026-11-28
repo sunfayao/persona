@@ -39,14 +39,13 @@ func (s *Service) closeoutBriefFor(ctx context.Context, machine string, afterDel
 	if sw := s.triageSwitches(ctx); !sw.Enabled || !sw.Closeout {
 		return ""
 	}
-	language := answerLanguage(s.hello(ctx).Locale)
+	language := s.replyLang(ctx, s.hello(ctx).Locale)
 	form := s.closeoutForm(machine, language, afterDelivery)
 	readonly = readonly && form != closeout.Example
 	if readonly {
 		form = closeout.MarkdownReadonly(language)
 	}
-	return prompts.RenderAgentCloseoutBrief(prompts.AgentCloseoutBrief{Form: form, Language: language,
-		AfterDelivery: afterDelivery && !readonly, Readonly: readonly})
+	return prompts.RenderAgentCloseoutBrief(prompts.AgentCloseoutBrief{Form: form, Language: language, AfterDelivery: afterDelivery && !readonly, Readonly: readonly})
 }
 
 // withCloseoutBrief is prompt followed by the closeout's form, or prompt as it is while the switches are off.
@@ -69,9 +68,8 @@ func (s *Service) closeoutStart(ctx context.Context, machine string, p assistant
 	if p.SessionID == "" || s.isReviewer(machine, p.SessionID) || s.reviewWorktree(machine, p.Cwd) {
 		return out
 	}
-	language := answerLanguage(s.hello(ctx).Locale)
-	out.Context = prompts.RenderAgentCloseoutBrief(prompts.AgentCloseoutBrief{Form: s.closeoutForm(machine, language, false),
-		Language: language, Session: true})
+	language := s.replyLang(ctx, s.hello(ctx).Locale)
+	out.Context = prompts.RenderAgentCloseoutBrief(prompts.AgentCloseoutBrief{Form: s.closeoutForm(machine, language, false), Language: language, Session: true})
 	return out
 }
 

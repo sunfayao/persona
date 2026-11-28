@@ -257,7 +257,7 @@ func (s *Service) compactRecoveryContext(ctx context.Context, p ContextParams) C
 	} else if pins := s.compactRecoveryPins(ctx, p); len(pins) > 0 {
 		data.Pins = pins
 	}
-	return ContextResult{RecoveryID: p.RecoveryID, Recovery: assembleCompactRecovery(answerLanguage(s.hello(ctx).Locale), p.RecoveryID, data, budget)}
+	return ContextResult{RecoveryID: p.RecoveryID, Recovery: assembleCompactRecovery(s.replyLang(ctx, s.hello(ctx).Locale), p.RecoveryID, data, budget)}
 }
 
 func (s *Service) compactRecoveryPins(ctx context.Context, p ContextParams) []prompts.RecoveryEntry {

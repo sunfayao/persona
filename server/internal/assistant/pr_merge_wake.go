@@ -328,7 +328,7 @@ func (s *Service) prMergedDigestEntry(ctx context.Context, g superviseSignal, we
 		return prompts.SuperviseEntry{}, false, false
 	}
 	v := t.Supervision
-	lang := answerLanguage(string(s.botLang(ctx)))
+	lang := s.replyLang(ctx, string(s.botLang(ctx)))
 	if g.To == "" && s.isLeaderRef(v.Supervisor) {
 		lang = "English"
 	}

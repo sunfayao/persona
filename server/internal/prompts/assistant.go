@@ -77,6 +77,8 @@ type AssistantClaudeMD struct {
 	LarkCLI bool
 	// Language is the language the user reads, by its own name ("English", or Japanese written in Japanese); "" is Chinese, as before i18n.
 	Language string
+	// Fixed: Language is the owner's reply-language setting, not the interface's.
+	Fixed bool
 	// Mail: a mailbox is added, so mail_* are in the conversation's list. InboxTwin: the Inbox's AI twin is on
 	// (inbox_folders, inbox_move); InboxPost: assistant.inbox_post is (inbox_post). Subscriptions: subscription_* are
 	// listed. Each says what the instructions name, as the tool gates list it (fleet_tools.go toolGates).

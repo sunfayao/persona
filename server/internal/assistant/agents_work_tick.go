@@ -323,7 +323,7 @@ func (s *Service) workWake(ctx context.Context, v *workView, k [2]string, now ti
 			return
 		}
 		e.Retries++
-		text, kind = prompts.RenderAgentLimitContinue(answerLanguage(s.hello(ctx).Locale)), "limit_continued"
+		text, kind = prompts.RenderAgentLimitContinue(s.replyLang(ctx, s.hello(ctx).Locale)), "limit_continued"
 	case e.Work.On == proto.WaitTransient:
 		e.Retries = min(e.Retries+1, 1<<30)
 		text, kind = continueText, "continued"
@@ -331,7 +331,7 @@ func (s *Service) workWake(ctx context.Context, v *workView, k [2]string, now ti
 			e.Retries)
 	case e.Work.On == proto.WaitExternal || e.Work.On == proto.WaitAgent:
 		e.Wakes++
-		wk := agentWake{Language: answerLanguage(s.hello(ctx).Locale), Attempt: e.Wakes, Wait: e.Work.Wait, Then: e.Work.Then}
+		wk := agentWake{Language: s.replyLang(ctx, s.hello(ctx).Locale), Attempt: e.Wakes, Wait: e.Work.Wait, Then: e.Work.Then}
 		s.work.mu.Lock()
 		if a, ok := s.work.approved[k]; ok && risky(e.Work.Then) && a.covers(&e.Work) {
 			wk.Approved, wk.ApprovedByTask = a.then, a.task != "" // said yes to: the wake must not tell it to ask again

@@ -1,5 +1,6 @@
 {
   "change": "「{title}」：{before} → {after}",
+  "title_assistant_reply_language": "模型的回复语言",
   "title_assistant_cache_keepalive": "保持提示缓存不过期",
   "title_assistant_cache_keepalive_minutes": "缓存保活间隔（分钟）",
   "title_assistant_cache_keepalive_max": "缓存保活的最多次数",

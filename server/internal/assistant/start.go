@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistant/replylang"
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/devicewire"
@@ -64,7 +65,7 @@ func (s *Service) claudeMD(ctx context.Context, here string, larkCLI bool) strin
 
 func (s *Service) assistantPrompt(ctx context.Context, here string, larkCLI bool, settings Settings) prompts.AssistantClaudeMD {
 	hello := s.hello(ctx)
-	d := prompts.AssistantClaudeMD{Owner: strings.TrimSpace(hello.Owner), Notes: s.notes(ctx), LarkCLI: larkCLI, Language: answerLanguage(hello.Locale)}
+	d := prompts.AssistantClaudeMD{Owner: strings.TrimSpace(hello.Owner), Notes: s.notes(ctx), LarkCLI: larkCLI, Language: s.replyLang(ctx, hello.Locale), Fixed: replylang.Set(settings.ReplyLanguage)}
 	gates := s.toolGatesNow(ctx)
 	d.InboxTwin, d.InboxPost = gates.inboxTwin, gates.inboxPost
 	if s.ext != nil {
@@ -1694,13 +1695,9 @@ func (s *Service) Rename(ctx context.Context, p RenameParams) (json.RawMessage, 
 	return out, nil
 }
 
-// answerLanguage is what the CLAUDE.md asks the assistant to answer in, and the language the inbox's summaries and
-// the conversations' titles are written in: the user's language by its own name, "" for zh-Hans (the prompts then
-// say "use Chinese", as they did before i18n).
-func answerLanguage(locale string) string {
-	l := i18n.Lang(locale)
-	if !i18n.Valid(l) || l == i18n.ZhHans {
-		return ""
-	}
-	return l.Name()
+// answerLanguage is the interface language (inbox summaries, titles); replyLang is what models answer in: the setting, else that.
+var answerLanguage = replylang.Interface
+
+func (s *Service) replyLang(ctx context.Context, locale string) string {
+	return replylang.Resolve(s.settings(ctx).ReplyLanguage, locale)
 }

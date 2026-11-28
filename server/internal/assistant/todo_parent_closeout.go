@@ -418,7 +418,7 @@ func (s *Service) parentCloseoutDigestEntry(ctx context.Context, g superviseSign
 	if t.Supervision != nil {
 		doneWhen = t.Supervision.DoneWhen
 	}
-	lang := answerLanguage(string(s.botLang(ctx)))
+	lang := s.replyLang(ctx, string(s.botLang(ctx)))
 	if g.To == "" && t.Supervision != nil && s.isLeaderRef(t.Supervision.Supervisor) {
 		lang = "English"
 	}

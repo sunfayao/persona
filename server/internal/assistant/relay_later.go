@@ -70,7 +70,7 @@ func (s *Service) relayLaterFor(ctx context.Context, to string) (string, func(ta
 
 func (s *Service) relayLaterSendFor(ctx context.Context, to, once string) (string, func(bool), error) {
 	loc := s.location(ctx)
-	language := answerLanguage(s.hello(ctx).Locale)
+	language := s.replyLang(ctx, s.hello(ctx).Locale)
 	b := &s.relays
 	b.mu.Lock()
 	if !s.relayLocked(ctx) {

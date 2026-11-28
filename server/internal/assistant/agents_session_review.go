@@ -324,7 +324,7 @@ func (s *Service) startSessionReview(w http.ResponseWriter, r *http.Request) {
 		apierr.Write(w, http.StatusServiceUnavailable, sessionReviewErr(s.requestCtxLang(ctx), "store_failed"))
 		return
 	}
-	prompt := prompts.RenderAgentReview(prompts.AgentReview{Language: answerLanguage(string(lang)), Title: c.Title,
+	prompt := prompts.RenderAgentReview(prompts.AgentReview{Language: s.replyLang(ctx, string(lang)), Title: c.Title,
 		Ask: ask, Scope: scope, Diff: diff, Omitted: omitted})
 	params := map[string]any{"cwd": snap.Path, "launcher": e.Launcher, "permission_mode": "plan", "prompt": prompt,
 		"tab_name": "review-" + short(c.SessionID), "async": true, "session_id": e.ReviewerID}
