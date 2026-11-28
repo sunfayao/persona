@@ -1830,7 +1830,7 @@
     "agent": "agy",
     "model": "gemini-4-neon-high",
     "context_tokens": 282073,
-    "context_window": 512000,
+    "context_window": 1000000,
     "output_tokens": 14707,
     "state": "",
     "seen_at": "0001-01-01T00:00:00Z",
@@ -1922,7 +1922,8 @@
       ],
       "context": {
         "used": 282073,
-        "auto_compact_at": 512000,
+        "window": 1000000,
+        "auto_compact_at": 1000000,
         "source": "rule"
       },
       "progress": {
@@ -1956,8 +1957,8 @@
       "system_and_rules": 272915,
       "conversation": 4296,
       "tool_outputs": 4862,
-      "free": 229927,
-      "auto_compact_threshold": 512000
+      "free": 717927,
+      "auto_compact_threshold": 1000000
     },
     "started_by_jarvis": false
   }

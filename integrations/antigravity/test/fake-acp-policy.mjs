@@ -84,6 +84,16 @@ function onRequest(msg) {
           update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'ok' } },
         },
       })
+      if (text.includes('report-1m')) {
+        send({
+          jsonrpc: '2.0',
+          method: 'session/update',
+          params: {
+            sessionId,
+            update: { sessionUpdate: 'usage_update', used: 32000, size: 1048576 },
+          },
+        })
+      }
       record({ ended: sessionId })
       return answer({ stopReason: 'end_turn' })
     }
@@ -106,7 +116,11 @@ if (ignoreTerm) {
   process.on('SIGTERM', () => {})
   setInterval(() => {}, 60_000)
 }
-record({ started: process.pid })
+record({
+  started: process.pid,
+  argv: process.argv.slice(2),
+  autoCompactOverride: process.env.AGY_CLI_AUTO_COMPACT_OVERRIDE || '',
+})
 const rl = createInterface({ input: process.stdin, crlfDelay: Infinity })
 rl.on('line', (line) => {
   if (!line.trim()) return

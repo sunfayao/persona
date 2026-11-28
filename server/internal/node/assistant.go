@@ -560,8 +560,10 @@ func (n *Node) assistantSend(ctx context.Context, id, cwd, launcher, text string
 		if eff == "" {
 			eff = execution.Effort
 		}
+		execution.IsMain = isMain && guest == nil
+		execution.MainCompactWindow = n.mainWindowOn(rl, execution.IsMain, mainWindow)
 		superviseRoundFrom(ctx).set(roundKept, roundWhyUnsupported) // a runtime keeps its own context (assistant_round.go)
-		return n.assistantSendRuntime(ctx, onRuntime, id, cwd, rl, text, images, mode, execution.Public, execution.Strict, selected, execution.Model, eff, policy)
+		return n.assistantSendRuntime(ctx, onRuntime, id, cwd, rl, text, images, mode, execution.Public, execution.Strict, execution.IsMain, execution.MainCompactWindow, selected, execution.Model, eff, policy)
 	}
 	if len(options) == 0 || (execution.Fingerprint == "" && execution.Model == "") {
 		if launcher == "" || launcher == st.Launcher {

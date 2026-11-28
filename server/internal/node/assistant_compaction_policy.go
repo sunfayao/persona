@@ -298,11 +298,17 @@ func (c *assistantCompaction) capMain(execution modelExecution) {
 }
 
 // mainWindowOn is the window the manager sent with a main conversation's start (window) as that start on launcher
-// carries it (modelExecution.MainCompactWindow): only a managed launcher applies it (capMain), so anywhere else it is
-// 0, or it would change the fingerprint and restart the conversation, or miss the spare warmed for it, for nothing.
-// assistantSend and assistantWarm both read it, so the main chat's spare matches its next start.
+// carries it (modelExecution.MainCompactWindow): managed launchers and the Antigravity runtime apply it, so anywhere
+// else it is 0, or it would change the fingerprint and restart the conversation, or miss the spare warmed for it, for
+// nothing. assistantSend and assistantWarm both read it, so the main chat's spare matches its next start.
 func (n *Node) mainWindowOn(launcher string, isMain bool, window int) int {
-	if _, managed := n.managedLauncher(launcher); isMain && window > 0 && managed {
+	if !isMain || window <= 0 {
+		return 0
+	}
+	if _, managed := n.managedLauncher(launcher); managed {
+		return window
+	}
+	if h := n.assistantRuntime(launcher); h != nil && h.agent() == agyAgent {
 		return window
 	}
 	return 0

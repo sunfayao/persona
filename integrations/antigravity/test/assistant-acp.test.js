@@ -189,3 +189,25 @@ test('a send during idle retirement waits for the old worker to exit before star
   assert.deepEqual(calls().filter((entry) => entry.started).map((entry) => entry.started), [oldPID, resumed.worker])
   process.kill(resumed.worker, 'SIGKILL')
 })
+
+test('main Assistant sessions pass 1M auto-compact override, recycle on change, and surface ACP usage_update window', async (t) => {
+  const { node, pids, start, call, calls } = await fixture(t)
+  const session = await start({ assistant: true, is_main: true, main_compact_window: 1_000_000, permission_mode: 'bypassPermissions' })
+  const firstPID = await until('main assistant worker reported', () => pids()[session])
+  const firstStart = calls().find((entry) => entry.started === firstPID)
+  assert.equal(firstStart.autoCompactOverride, '1000000')
+  const settingsIdx = firstStart.argv.indexOf('--settings')
+  assert.ok(settingsIdx >= 0, 'bypass main assistant passes --settings')
+  assert.equal(JSON.parse(firstStart.argv[settingsIdx + 1]).contextWindow, '900K')
+
+  await call('send', session, { assistant: true, is_main: true, main_compact_window: 1_000_000, text: 'report-1m' })
+  await until('usage_update window reaches session row', () => node.last('runtime.sessions')?.sessions.find((row) => row.session_id === session)?.context_window === 1_048_576)
+
+  // Updating main_compact_window while idle retires the old worker and starts a new one with the new override.
+  await call('send', session, { assistant: true, is_main: true, main_compact_window: 600_000, text: 'after change' })
+  const nextPID = await until('replacement worker reported', () => pids()[session] && pids()[session] !== firstPID ? pids()[session] : 0)
+  const nextStart = calls().find((entry) => entry.started === nextPID)
+  assert.equal(nextStart.autoCompactOverride, '600000')
+  const nextSettingsIdx = nextStart.argv.indexOf('--settings')
+  assert.equal(JSON.parse(nextStart.argv[nextSettingsIdx + 1]).contextWindow, '512K')
+})

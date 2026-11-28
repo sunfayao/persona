@@ -101,7 +101,7 @@ func (n *Node) runtimeAssistantCwd(id, cwd string, st sessionState) string {
 // instructions only a runtime needs (memory, Feishu). Runtimes that advertise caps.supervision_policy receive manager-owned
 // supervision_instructions as an explicit protocol field on session.start and session.send; non-capable runtimes keep
 // the runtimePolicyDropped boundary (refusing supervision deliveries, dropping policy for owner messages).
-func (n *Node) assistantSendRuntime(ctx context.Context, h *runtimeConn, id, cwd, launcher, text string, images []proto.Image, mode string, public, strict bool, selected []assistantskills.Entry, modelEffortPolicy ...string) (string, error) {
+func (n *Node) assistantSendRuntime(ctx context.Context, h *runtimeConn, id, cwd, launcher, text string, images []proto.Image, mode string, public, strict, isMain bool, mainCompactWindow int, selected []assistantskills.Entry, modelEffortPolicy ...string) (string, error) {
 	hasInput := strings.TrimSpace(text) != "" || len(images) != 0
 	if id != "" && hasInput && n.runtimes.compacting(id) {
 		return "", runtimeCompactingRefusal(ctx)
@@ -159,6 +159,12 @@ func (n *Node) assistantSendRuntime(ctx context.Context, h *runtimeConn, id, cwd
 	if pickedEffort != "" {
 		turn["effort"] = pickedEffort
 	}
+	if isMain {
+		turn["is_main"] = true
+	}
+	if mainCompactWindow > 0 {
+		turn["main_compact_window"] = mainCompactWindow
+	}
 	startedNew := id == ""
 	if startedNew {
 		startParams := map[string]any{"cwd": cwd, "assistant": true}
@@ -170,6 +176,12 @@ func (n *Node) assistantSendRuntime(ctx context.Context, h *runtimeConn, id, cwd
 		}
 		if mode != "" {
 			startParams["permission_mode"] = mode
+		}
+		if isMain {
+			startParams["is_main"] = true
+		}
+		if mainCompactWindow > 0 {
+			startParams["main_compact_window"] = mainCompactWindow
 		}
 		if supportsPolicy && policy != "" {
 			startParams["supervision_instructions"] = policy
@@ -188,11 +200,12 @@ func (n *Node) assistantSendRuntime(ctx context.Context, h *runtimeConn, id, cwd
 	if m := n.assistantModeOf(id); m != "" {
 		turn["mode"] = m
 	}
-	if !known || st.Launcher != launcher || st.Cwd != cwd || hasInput && st.TaskExecution != strict || (startedNew && supportsPolicy && policy != "") {
+	if !known || st.Launcher != launcher || st.Cwd != cwd || st.IsMain != isMain || st.MainCompactWindow != mainCompactWindow || hasInput && st.TaskExecution != strict || (startedNew && supportsPolicy && policy != "") {
 		if st.StartedAt.IsZero() {
 			st.StartedAt = time.Now().UTC()
 		}
 		st.Launcher, st.Cwd = launcher, cwd
+		st.IsMain, st.MainCompactWindow = isMain, mainCompactWindow
 		if hasInput {
 			st.TaskExecution = strict
 		}

@@ -19,6 +19,7 @@ type agyStepUsage struct {
 	CacheWriteTokens         int64 `json:"cache_write_tokens"`
 	CacheCreationInputTokens int64 `json:"cache_creation_input_tokens"`
 	CacheWrite1hTokens       int64 `json:"cache_write_1h_tokens"`
+	ModelContextWindow       int64 `json:"model_context_window"`
 }
 
 type agyStep struct {
@@ -40,6 +41,7 @@ type agyStep struct {
 	CacheWriteTokens         int64           `json:"cache_write_tokens"`
 	CacheCreationInputTokens int64           `json:"cache_creation_input_tokens"`
 	CacheWrite1hTokens       int64           `json:"cache_write_1h_tokens"`
+	ModelContextWindow       int64           `json:"model_context_window"`
 	Usage                    *agyStepUsage   `json:"usage"`
 	Media                    json.RawMessage `json:"media"`
 	ToolCalls                []*nativeCall   `json:"tool_calls"`

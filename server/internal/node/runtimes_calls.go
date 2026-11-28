@@ -391,10 +391,13 @@ func (n *Node) runtimeHandle(ctx context.Context, h *runtimeConn, method string,
 		// numbers and read them as "none yet".
 		info := map[string]any{"session_id": p.SessionID, "agent": h.agent(), "context_tokens": 0, "output_tokens": 0,
 			"compactions": 0, "turns": 0, "usage_unknown": true}
+		var runtimeLauncher, runtimeModel string
+		var runtimeWindow int
 		for _, s := range h.sessionsCopy() {
 			if s.SessionID == p.SessionID {
 				info["cwd"], info["model"], info["agent"], info["last_activity"] = s.Cwd, s.Model, s.Agent, s.UpdatedAt
 				info["permission_mode"], info["effort"] = s.PermissionMode, s.Effort
+				runtimeLauncher, runtimeModel, runtimeWindow = s.Launcher, s.Model, int(s.ContextWindow)
 				if h.agent() == agyAgent && (s.ContextTokens > 0 || s.OutputTokens > 0) {
 					info["context_tokens"] = int(s.ContextTokens)
 					info["output_tokens"] = s.OutputTokens
@@ -407,7 +410,10 @@ func (n *Node) runtimeHandle(ctx context.Context, h *runtimeConn, method string,
 			if err != nil {
 				return nil, err, true
 			}
-			history.FillInfo(info)
+			if runtimeModel == "" {
+				runtimeModel, _ = history.Model()
+			}
+			history.FillInfoWithPolicy(info, n.agyContextPolicy(p.SessionID, runtimeLauncher, runtimeModel, runtimeWindow))
 		}
 		// Not in its list (an older session it still has): what the node knows without the list.
 		return info, nil, true

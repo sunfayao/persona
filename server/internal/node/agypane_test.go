@@ -1172,7 +1172,7 @@ func TestAgyPaneAndRuntimeServeIdenticalCorpusPages(t *testing.T) {
 			}
 			pane := agyTestCall(t, n, "session.info", agyTestRow, nil).(map[string]any)
 			runtime := agyTestCall(t, n, "session.info", sid, nil).(map[string]any)
-			if runtime["model"] != "runtime-model" || runtime["context_tokens"] != pane["context_tokens"] || runtime["context_window"] != 512_000 || runtime["output_tokens"] != pane["output_tokens"] {
+			if runtime["model"] != "runtime-model" || runtime["context_tokens"] != pane["context_tokens"] || runtime["context_window"] != 1_000_000 || runtime["output_tokens"] != pane["output_tokens"] {
 				t.Fatalf("runtime info = %+v, pane info = %+v", runtime, pane)
 			}
 			row, _ := h.row(sid)

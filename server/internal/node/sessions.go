@@ -310,8 +310,12 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 			if a.Agent == agyAgent {
 				var transcriptModelAt time.Time
 				if h, ok := n.agyTranscript(agyConversations[id]); ok {
-					h.Apply(&s, true)
-					_, transcriptModelAt = h.Model()
+					model, at := h.Model()
+					if model == "" {
+						model = s.Model
+					}
+					h.ApplyWithPolicy(&s, true, n.agyContextPolicy(id, s.Launcher, model, 0))
+					transcriptModelAt = at
 				}
 				n.applyAgyPaneModes(&s, transcriptModelAt)
 				n.agyPaneTitle(&s, agyConversations[id]) // its conversation's title, not the terminal's (agytitle.go)

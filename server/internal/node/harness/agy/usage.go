@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"math"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -11,16 +12,89 @@ import (
 	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
-// ContextWindow is the native compaction threshold measured in the full export.
-const ContextWindow = 512_000
+// ContextWindow is the default 1M context window for Antigravity models when neither the
+// transcript nor the runtime reports a model-specific window.
+const (
+	ContextWindow       = 1_000_000
+	gptOSSContextWindow = 131_072
+)
+
+// ContextPolicy overrides how ApplyWithPolicy and FillInfoWithPolicy resolve the model's
+// context window and auto-compaction threshold for an Antigravity session.
+type ContextPolicy struct {
+	Window        int  // explicit model window (from ACP usage_update or managed launcher), 0 to infer
+	WindowNative  bool // true when Window came directly from runtime telemetry (ACP usage_update)
+	AutoCompactAt int  // explicit auto-compaction threshold (from main_compact_window, env, or settings), 0 to follow Window
+}
 
 type agyTranscriptUsage struct {
 	model, first                string
 	modelAt                     time.Time
 	contextTokens, outputTokens int
+	contextWindow               int
 	compactions, turns          int
 	hasUsage                    bool
 	contextStats                transcript.ContextStats
+}
+
+// WindowForModel returns the context window for an Antigravity model when recorded > 0 is not provided.
+func WindowForModel(model string, recorded int) int {
+	if recorded > 0 {
+		return recorded
+	}
+	id := strings.ToLower(strings.TrimSpace(model))
+	if strings.HasPrefix(id, "gpt-oss-120b") {
+		return gptOSSContextWindow
+	}
+	return ContextWindow
+}
+
+// ParseAutoCompactOverride parses agy's AGY_CLI_AUTO_COMPACT_OVERRIDE format:
+// exact tokens ("1000000"), K/M shorthand ("900K", "1M", "0.5M"), or percentage ("80%").
+// When maxWindow > 0, values above maxWindow are ignored (matching agy's store.AutoCompactOverride).
+func ParseAutoCompactOverride(raw string, maxWindow int) int {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return 0
+	}
+	if strings.HasSuffix(s, "%") {
+		if maxWindow <= 0 {
+			return 0
+		}
+		pct, err := strconv.ParseFloat(strings.TrimSpace(strings.TrimSuffix(s, "%")), 64)
+		if err != nil || math.IsNaN(pct) || math.IsInf(pct, 0) || pct <= 0 || pct > 100 {
+			return 0
+		}
+		return int(math.Floor(float64(maxWindow) * pct / 100))
+	}
+	upper := strings.ToUpper(s)
+	mult := 1.0
+	switch {
+	case strings.HasSuffix(upper, "K"):
+		upper = strings.TrimSpace(strings.TrimSuffix(upper, "K"))
+		mult = 1_000
+	case strings.HasSuffix(upper, "M"):
+		upper = strings.TrimSpace(strings.TrimSuffix(upper, "M"))
+		mult = 1_000_000
+	}
+	val, err := strconv.ParseFloat(upper, 64)
+	if err != nil || math.IsNaN(val) || math.IsInf(val, 0) || val <= 0 {
+		return 0
+	}
+	tokens := int(math.Floor(val * mult))
+	if tokens <= 0 || (maxWindow > 0 && tokens > maxWindow) {
+		return 0
+	}
+	return tokens
+}
+
+// ParseContextWindowPreset parses agy settings.json's contextWindow preset ("256K", "512K", "900K", "1M", or tokens).
+func ParseContextWindowPreset(raw string) int {
+	s := strings.TrimSpace(raw)
+	if s == "" || strings.HasSuffix(s, "%") {
+		return 0
+	}
+	return ParseAutoCompactOverride(s, 0)
 }
 
 func firstPositive(vals ...int64) int64 {
@@ -81,6 +155,13 @@ func (u *agyTranscriptUsage) observePlanner(step agyStep) (proto.TokenUsage, boo
 			u.modelAt = at
 		}
 	}
+	var nestedWindow int64
+	if step.Usage != nil {
+		nestedWindow = step.Usage.ModelContextWindow
+	}
+	if w := firstPositive(step.ModelContextWindow, nestedWindow); w > 0 {
+		u.contextWindow = addSaturatingInt(0, w)
+	}
 	usage, tokens, ok := step.tokenUsage()
 	if ok {
 		u.hasUsage = true
@@ -122,10 +203,46 @@ func (u *agyTranscriptUsage) observeBytes(step agyStep) {
 
 func (h *Projection) Model() (string, time.Time) { return h.usage.model, h.usage.modelAt }
 
+// ContextWindow returns the model context window recorded in the transcript, or 0 if none was recorded.
+func (h *Projection) ContextWindow() int { return h.usage.contextWindow }
+
 // Apply fills the transcript-owned state, without overwriting the runtime's controls or turn error.
 func (h *Projection) Apply(s *proto.Session, pane bool) {
+	h.ApplyWithPolicy(s, pane, ContextPolicy{})
+}
+
+// ApplyWithPolicy fills the transcript-owned state using policy for the model's context window
+// and auto-compaction threshold when supplied.
+func (h *Projection) ApplyWithPolicy(s *proto.Session, pane bool, policy ContextPolicy) {
 	u := &h.usage
-	s.ContextTokens, s.ContextWindow = proto.Tokens32(u.contextTokens), ContextWindow
+	model := u.model
+	if !pane && s.Model != "" {
+		model = s.Model
+	} else if model == "" {
+		model = s.Model
+	}
+	window := 0
+	source := proto.ContextSourceRule
+	switch {
+	case policy.Window > 0:
+		window = policy.Window
+		if policy.WindowNative {
+			source = proto.ContextSourceReported
+		}
+	case !pane && s.ContextWindow > 0:
+		window = int(s.ContextWindow)
+		source = proto.ContextSourceReported
+	case u.contextWindow > 0:
+		window = u.contextWindow
+		source = proto.ContextSourceReported
+	default:
+		window = WindowForModel(model, 0)
+	}
+	autoCompact := window
+	if policy.AutoCompactAt > 0 && policy.AutoCompactAt < autoCompact {
+		autoCompact = policy.AutoCompactAt
+	}
+	s.ContextTokens, s.ContextWindow = proto.Tokens32(u.contextTokens), proto.Tokens32(window)
 	s.OutputTokens, s.Rev = u.outputTokens, h.rev
 	h.row.Apply(s)
 	ended := h.row.BackgroundEnded
@@ -142,9 +259,12 @@ func (h *Projection) Apply(s *proto.Session, pane bool) {
 		s.Facets = &proto.SessionFacets{}
 	}
 	s.Facets.Context = &proto.ContextMeter{
-		Used: int64(u.contextTokens), AutoCompactAt: ContextWindow, Source: proto.ContextSourceRule,
+		Used:          int64(u.contextTokens),
+		Window:        int64(window),
+		AutoCompactAt: int64(autoCompact),
+		Source:        source,
 	}
-	s.SetContextBreakdown(transcript.BuildContextBreakdown(u.contextStats, u.contextTokens, ContextWindow, ContextWindow, true))
+	s.SetContextBreakdown(transcript.BuildContextBreakdown(u.contextStats, u.contextTokens, window, autoCompact, true))
 	if s.UpdatedAt.IsZero() {
 		s.UpdatedAt = h.ModTime().UTC()
 	}
@@ -158,9 +278,16 @@ func (h *Projection) Apply(s *proto.Session, pane bool) {
 }
 
 func (h *Projection) FillInfo(info map[string]any) {
+	h.FillInfoWithPolicy(info, ContextPolicy{})
+}
+
+func (h *Projection) FillInfoWithPolicy(info map[string]any, policy ContextPolicy) {
 	var s proto.Session
-	h.Apply(&s, false)
-	info["context_tokens"], info["context_window"], info["output_tokens"] = h.usage.contextTokens, ContextWindow, h.usage.outputTokens
+	if model, _ := info["model"].(string); model != "" {
+		s.Model = model
+	}
+	h.ApplyWithPolicy(&s, false, policy)
+	info["context_tokens"], info["context_window"], info["output_tokens"] = h.usage.contextTokens, int(s.ContextWindow), h.usage.outputTokens
 	info["compactions"], info["turns"] = h.usage.compactions, h.usage.turns
 	if h.usage.hasUsage {
 		delete(info, "usage_unknown")

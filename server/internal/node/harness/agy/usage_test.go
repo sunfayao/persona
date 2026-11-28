@@ -146,3 +146,57 @@ func TestAgyTranscriptCheckpointResetsContextAndRewindExcludesAbandoned(t *testi
 		}
 	}
 }
+
+func TestAgyContextWindowAndPolicyParsing(t *testing.T) {
+	t.Parallel()
+	// Transcript with explicit model_context_window uses it as native window.
+	const withWindow = "" +
+		`{"step_index":0,"type":"USER_INPUT","created_at":"2026-11-28T10:00:00Z","content":"hi"}` + "\n" +
+		`{"step_index":1,"type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-11-28T10:00:01Z","model":"gemini-4-neon-xhigh","content":"ok","usage":{"input_tokens":50000,"cache_read_input_tokens":150000,"output_tokens":200,"model_context_window":1048576}}` + "\n"
+	steps, _ := parseAgySteps([]byte(withWindow), agyTestID)
+	h := mapAgySteps(steps, time.Time{}, nil)
+	if h.ContextWindow() != 1_048_576 {
+		t.Fatalf("ContextWindow() = %d, want 1048576", h.ContextWindow())
+	}
+	var s proto.Session
+	h.ApplyWithPolicy(&s, false, ContextPolicy{AutoCompactAt: 1_000_000})
+	if s.ContextWindow != 1_048_576 || s.Facets.Context.Window != 1_048_576 || s.Facets.Context.AutoCompactAt != 1_000_000 || s.Facets.Context.Source != proto.ContextSourceReported {
+		t.Fatalf("ApplyWithPolicy native = window:%d facets:%+v", s.ContextWindow, s.Facets.Context)
+	}
+	if bd := s.ContextBreakdown(); bd == nil || bd.AutoCompactThreshold == nil || *bd.AutoCompactThreshold != 1_000_000 {
+		t.Fatalf("breakdown = %+v", bd)
+	}
+
+	// Without recorded window, Gemini 4 defaults to 1M and GPT-OSS 120B defaults to 131072.
+	if got := WindowForModel("gemini-4-carbon-high", 0); got != 1_000_000 {
+		t.Fatalf("WindowForModel(gemini-4-carbon-high) = %d, want 1000000", got)
+	}
+	if got := WindowForModel("gpt-oss-120b-medium", 0); got != 131_072 {
+		t.Fatalf("WindowForModel(gpt-oss-120b-medium) = %d, want 131072", got)
+	}
+
+	for _, tc := range []struct {
+		raw  string
+		max  int
+		want int
+	}{
+		{"1000000", 1_048_576, 1_000_000},
+		{"1M", 1_048_576, 1_000_000},
+		{"900K", 1_048_576, 900_000},
+		{"0.5M", 1_048_576, 500_000},
+		{"80%", 1_000_000, 800_000},
+		{"2M", 1_048_576, 0},
+		{"101%", 1_000_000, 0},
+		{"bad", 1_000_000, 0},
+	} {
+		if got := ParseAutoCompactOverride(tc.raw, tc.max); got != tc.want {
+			t.Errorf("ParseAutoCompactOverride(%q, %d) = %d, want %d", tc.raw, tc.max, got, tc.want)
+		}
+	}
+	if got := ParseContextWindowPreset("900K"); got != 900_000 {
+		t.Errorf("ParseContextWindowPreset(900K) = %d, want 900000", got)
+	}
+	if got := ParseContextWindowPreset("80%"); got != 0 {
+		t.Errorf("ParseContextWindowPreset(80%%) = %d, want 0", got)
+	}
+}

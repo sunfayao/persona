@@ -312,9 +312,15 @@ func (n *Node) agyPaneSessionInfo(id, pane string) map[string]any {
 			}
 		}
 		if h, ok := n.agyTranscript(conversation); ok {
-			h.FillInfo(info)
-			if model, _ := h.Model(); info["model"] == nil && model != "" {
-				info["model"] = model
+			launcher, _ := info["launcher"].(string)
+			model, _ := info["model"].(string)
+			hModel, _ := h.Model()
+			if model == "" {
+				model = hModel
+			}
+			h.FillInfoWithPolicy(info, n.agyContextPolicy(id, launcher, model, 0))
+			if info["model"] == nil && hModel != "" {
+				info["model"] = hModel
 			}
 		}
 	}

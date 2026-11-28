@@ -341,15 +341,68 @@ func (h *runtimeConn) setAgyRefLocked(id string, ref agy.Ref) {
 	h.agys[id] = ref
 }
 
+func (n *Node) agySettingsContextWindow() int {
+	b, err := os.ReadFile(filepath.Join(n.agyDataRoot(), "settings.json"))
+	if err != nil {
+		return 0
+	}
+	var s struct {
+		ContextWindow string `json:"contextWindow"`
+	}
+	if json.Unmarshal(b, &s) != nil {
+		return 0
+	}
+	return agy.ParseContextWindowPreset(s.ContextWindow)
+}
+
+func (n *Node) agyContextPolicy(id, explicitLauncher, model string, runtimeWindow int) agy.ContextPolicy {
+	var policy agy.ContextPolicy
+	if runtimeWindow > 0 {
+		policy.Window, policy.WindowNative = runtimeWindow, true
+	} else if l, ok := n.sessionManagedLauncher(id, explicitLauncher); ok {
+		if w := launcherContextWindow(l, model); w > 0 {
+			policy.Window = w
+		}
+	}
+	autoCompact := 0
+	if id != "" && n.state != nil {
+		if st, ok := n.state.get(id); ok && st.IsMain && st.MainCompactWindow > 0 {
+			autoCompact = st.MainCompactWindow
+		}
+	}
+	if l, ok := n.sessionManagedLauncher(id, explicitLauncher); ok && l.CompactWindow > 0 {
+		autoCompact = smallerCapacity(autoCompact, l.CompactWindow)
+	}
+	if autoCompact == 0 {
+		baseWindow := policy.Window
+		if baseWindow == 0 {
+			baseWindow = agy.WindowForModel(model, 0)
+		}
+		if v := agy.ParseAutoCompactOverride(os.Getenv("AGY_CLI_AUTO_COMPACT_OVERRIDE"), baseWindow); v > 0 {
+			autoCompact = v
+		} else if v := n.agySettingsContextWindow(); v > 0 {
+			autoCompact = v
+		}
+	}
+	policy.AutoCompactAt = autoCompact
+	return policy
+}
+
 func (n *Node) mergeRuntimeAgy(s *proto.Session, ref agy.Ref) {
 	if ref.Conversation == "" {
-		if s.Agent == agyAgent {
-			s.ContextWindow = agy.ContextWindow
+		if s.Agent == agyAgent && s.ContextWindow == 0 {
+			policy := n.agyContextPolicy(s.SessionID, s.Launcher, s.Model, 0)
+			s.ContextWindow = proto.Tokens32(agy.WindowForModel(s.Model, policy.Window))
 		}
 		return
 	}
 	if h, err := n.agyReader().Read(ref); err == nil {
-		h.Apply(s, false)
+		model := s.Model
+		if model == "" {
+			model, _ = h.Model()
+		}
+		policy := n.agyContextPolicy(s.SessionID, s.Launcher, model, int(s.ContextWindow))
+		h.ApplyWithPolicy(s, false, policy)
 		if h.Kind() == agy.Subagent {
 			s.IsSubagent = true
 		}
