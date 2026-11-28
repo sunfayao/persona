@@ -44,9 +44,11 @@ func (s *Service) newToolUse() *tooluse.Book {
 // toolUseFlushEvery is how often what the record gained is stored.
 const toolUseFlushEvery = 5 * time.Minute
 
-// toolUseLoop loads the record, stores what it gains every toolUseFlushEvery, and once more when the manager stops.
+// toolUseLoop loads the record, stores what it gains every toolUseFlushEvery, and once more when the manager stops;
+// after loading and at every tick it runs adaptToolUse (tool_use_adapt.go).
 func (s *Service) toolUseLoop(ctx context.Context) {
 	s.toolUse.Load(ctx)
+	s.adaptToolUse(ctx, true)
 	ticker := time.NewTicker(toolUseFlushEvery)
 	defer ticker.Stop()
 	for {
@@ -62,6 +64,7 @@ func (s *Service) toolUseLoop(ctx context.Context) {
 			if err := s.toolUse.Flush(ctx); err != nil {
 				s.logf("tool use: save: %v", err)
 			}
+			s.adaptToolUse(ctx, false)
 		}
 	}
 }

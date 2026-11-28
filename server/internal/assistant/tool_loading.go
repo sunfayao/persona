@@ -25,6 +25,11 @@ import (
 // are here under both of their names, the Lark extension's and the lark-cli connector's (connector/larkcli). Any other
 // tool, a new one too, is deferred until it is added here. The order is each tool's CoreRank, the order in which a
 // runtime that declares only what fits its budget (Antigravity's MCP proxy) takes them.
+//
+// This is the default: once the main chat's runtime has enough use, its own ranking by calls replaces it, cut to the
+// runtime's budget (coreRanks, assistant/tooluse core.go), and a tool added here keeps at least its place for 30 days.
+// tool_note and skill_save are deliberate tools, called now and then, and are not here on purpose: they join the core
+// tools only by use.
 var coreTools = []string{
 	// 30 days of the main conversation on Antigravity to 2026-11-27, every tool called at least 4 times, by calls.
 	"agent_read", "agents_list", "todo_get", "persona_settings", "task_review", "supervision_finish", "task_plan",
@@ -53,10 +58,10 @@ var workGuideTools = []string{
 
 // withToolLoading is a conversation's tools with DeferLoading, CoreRank and Fill set by the manager alone, whatever the
 // list came with (a connector program's tools are decoded as it sent them): when deferring (an assistant conversation
-// that has ToolSearch) all but coreTools are deferred, unless assistant.load_all_tools is on; otherwise (a guest, an
-// agent) none is. The core tools of such a conversation are ranked whatever that setting says, and with it on the
-// others are marked to fill: a runtime with no ToolSearch whose conversation gets this list (Antigravity's) has only
-// these marks to choose what to declare. A copy: the list it is given may be shared.
+// that has ToolSearch) all but the core tools (coreRanks) are deferred, unless assistant.load_all_tools is on;
+// otherwise (a guest, an agent) none is. The core tools of such a conversation are ranked whatever that setting says,
+// and with it on the others are marked to fill: a runtime with no ToolSearch whose conversation gets this list
+// (Antigravity's) has only these marks to choose what to declare. A copy: the list it is given may be shared.
 func (s *Service) withToolLoading(ctx context.Context, self string, tools []proto.Tool, deferring bool) []proto.Tool {
 	settings := s.settings(ctx)
 	guide := deferring && settings.workGuideOn() && toolSetOf(ctx) == ""
@@ -64,12 +69,16 @@ func (s *Service) withToolLoading(ctx context.Context, self string, tools []prot
 	ranking, loadAll := deferring, settings.LoadAllTools != nil && *settings.LoadAllTools
 	deferring = deferring && !loadAll
 	out := slices.Clone(tools)
+	var ranks map[string]int
+	if ranking {
+		ranks = s.coreRanks(ctx, out)
+	}
 	for i := range out {
 		// Keep planning and its allowed preflight reads directly available in a granted round.
 		// Discovery would add a separate tool call to the grant's transcript check.
 		out[i].WorkGuideTool = guide && slices.Contains(workGuideTools, out[i].Name) &&
 			!(cleanRound && (out[i].Name == "task_plan" || grantSafeTools[out[i].Name]))
-		rank := slices.Index(coreTools, out[i].Name) + 1
+		rank := ranks[out[i].Name]
 		out[i].DeferLoading = deferring && rank == 0
 		out[i].CoreRank, out[i].Fill = 0, false
 		if ranking {

@@ -112,8 +112,10 @@ type Book struct {
 	changes int64 // increases with every change; Flush compares it with what it wrote
 	written int64
 
-	// draftsMu orders the read-modify-writes of the stored drafts (drafts.go).
+	// draftsMu orders the read-modify-writes of the stored drafts (drafts.go), the friction dream's too (dream.go).
 	draftsMu sync.Mutex
+	dream    dreamState // guarded by draftsMu
+	core     coreState  // the adaptive core tools (core.go)
 }
 
 // New makes a book; Load reads what was stored before.
@@ -134,8 +136,8 @@ func (b *Book) logf(format string, args ...any) {
 	}
 }
 
-// Load reads the stored usage and friction once, adding what was recorded before it; later calls do nothing. A value
-// that cannot be read is logged and left out.
+// Load reads the stored usage, friction and core tools once, adding what was recorded before it; later calls do
+// nothing. A value that cannot be read is logged and left out.
 func (b *Book) Load(ctx context.Context) {
 	b.mu.Lock()
 	done := b.loaded
@@ -152,6 +154,7 @@ func (b *Book) Load(ctx context.Context) {
 	if _, err := b.h.Load(ctx, FrictionKey, &friction); err != nil {
 		b.logf("tool use: read friction: %v", err)
 	}
+	b.loadCore(ctx)
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	for day, runtimes := range usage.Days {
