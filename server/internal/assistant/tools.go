@@ -67,13 +67,19 @@ func toolsNamed(names []string) []proto.Tool {
 }
 
 // Tool runs one of the assistant's MCP tools for the conversation call.SessionID on machine call.MachineID.
+// failedCall answers a tool call that failed with err, keeping err's code for the call's record (tool_use.go).
+func failedCall(ctx context.Context, err error) proto.ToolResult {
+	noteCallError(ctx, err)
+	return proto.TextResult(err.Error(), true)
+}
+
 func (s *Service) tool(ctx context.Context, call ToolCall) proto.ToolResult {
 	if err := s.conversationAvailable(ctx, call.MachineID, call.SessionID); err != nil {
-		return proto.TextResult(err.Error(), true)
+		return failedCall(ctx, err)
 	}
 	call.Name = compat.Tool(call.Name)
 	if err := s.guardRefusal(ctx, call.MachineID, call.SessionID, call.Name); err != nil {
-		return proto.TextResult(err.Error(), true)
+		return failedCall(ctx, err)
 	}
 	if res, refused := s.inboxModelRefusal(ctx, call.MachineID, call.SessionID, "", call.Name); refused {
 		return res
@@ -92,7 +98,7 @@ func (s *Service) tool(ctx context.Context, call ToolCall) proto.ToolResult {
 		// below still lets a scheduled conversation through. The hub's own starts (an inbox hand-off) come through
 		// runTool and never reach Tool, so they are not limited here.
 		if err := s.dispatchToolGuard(ctx, call.MachineID, call.SessionID, call.Name); err != nil {
-			return proto.TextResult(err.Error(), true)
+			return failedCall(ctx, err)
 		}
 	}
 	switch call.Name {
@@ -100,7 +106,7 @@ func (s *Service) tool(ctx context.Context, call ToolCall) proto.ToolResult {
 		// A task's agent does the work itself (supervise_leader.go); the hub's own starts (an inbox hand-off) are not
 		// a model's call and come through runTool.
 		if err := s.workerRefusal(ctx, call.MachineID, call.SessionID); err != nil {
-			return proto.TextResult(err.Error(), true)
+			return failedCall(ctx, err)
 		}
 	}
 	// A model's call says which conversation asked (task_brief.go callerOrigin); the hub's own runTool calls do not.
@@ -110,7 +116,7 @@ func (s *Service) tool(ctx context.Context, call ToolCall) proto.ToolResult {
 	}
 	res, err := s.runTool(ctx, call.MachineID, call.SessionID, call.Name, args)
 	if err != nil {
-		return proto.TextResult(err.Error(), true)
+		return failedCall(ctx, err)
 	}
 	s.noteBackgroundToolProgress(ctx, call.SessionID, call.Name, args)
 	return proto.TextResult(res, false)

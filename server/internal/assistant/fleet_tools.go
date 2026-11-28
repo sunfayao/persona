@@ -10,6 +10,7 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/assistant/agents"
 	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/compat"
 	"github.com/sunfayao/persona/server/internal/connector"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/prompts"
@@ -130,16 +131,29 @@ func (s *Service) mcpCall(ctx context.Context, machine, session, name string, ar
 }
 
 // mcpCallWithOrigin also takes the node's attested conversation origin. It is needed before assistant.send returns:
-// the manager's origin book is written from the returned session afterwards.
+// the manager's origin book is written from the returned session afterwards. An assistant conversation's call is
+// recorded (tool_use.go).
 func (s *Service) mcpCallWithOrigin(ctx context.Context, machine, session, name string, args json.RawMessage, assistant bool, origin string) proto.ToolResult {
+	if !assistant {
+		return s.mcpCallRun(ctx, machine, session, name, args, assistant, origin)
+	}
+	r := &callRecord{}
+	res := s.mcpCallRun(withCallRecord(ctx, r), machine, session, name, args, assistant, origin)
+	s.recordToolCall(ctx, machine, session, compat.Tool(name), args, r, res)
+	return res
+}
+
+func (s *Service) mcpCallRun(ctx context.Context, machine, session, name string, args json.RawMessage, assistant bool, origin string) proto.ToolResult {
 	if s.isWorkMachine(machine) {
 		if isAgentTool(name) {
 			return s.agentTool(ctx, machine, session, name, args)
 		}
+		noteCallCode(ctx, "tool_denied")
 		return proto.TextResult(i18n.T(s.lang(ctx), "assistant-privacy.tool_denied"), true)
 	}
 	if assistant && !s.assistantCaller(ctx, machine, session) {
 		s.noteAssistantDenied(ctx, machine, session, name)
+		noteCallCode(ctx, "assistant_denied")
 		return proto.TextResult(i18n.T(s.lang(ctx), "assistant-privacy.assistant_denied"), true)
 	}
 	if res, refused := s.inboxModelRefusal(ctx, machine, session, origin, name); refused {

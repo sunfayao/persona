@@ -16,6 +16,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/assistant/agents"
 	"github.com/sunfayao/persona/server/internal/assistant/repository"
 	"github.com/sunfayao/persona/server/internal/assistant/saved"
+	"github.com/sunfayao/persona/server/internal/assistant/tooluse"
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/devicewire"
 	"github.com/sunfayao/persona/server/internal/i18n"
@@ -322,6 +323,10 @@ type Service struct {
 	navMu sync.Mutex
 	// savedPrompts: the saved prompts persona_settings reads and changes (saved/prompts_api.go)
 	savedPrompts *saved.Prompts
+	// toolUse records the assistant's conversations' tool calls: usage per runtime and friction (tool_use.go).
+	toolUse *tooluse.Book
+	// runtimeOfCalls caches callerRuntime.
+	runtimeOfCalls runtimeCache
 }
 
 var _ Handler = (*Service)(nil)
@@ -359,6 +364,7 @@ func New(o Options) *Service {
 	s.scheduleGrantRoutes()
 	savedHost := saved.Host{Store: func() any { return s.store() }, Event: s.event, Handle: s.handle, Full: fullRole, BodyErr: writeBodyErr}
 	s.savedPrompts = saved.NewPrompts(savedHost)
+	s.toolUse = s.newToolUse()
 	saved.Register(savedHost)
 	s.resourceRoutes()
 	s.repositoryRoutes()
