@@ -27,6 +27,34 @@ class TranscriptStatsTests(unittest.TestCase):
         self.assertRegex(result.stdout, re.compile(r"^\s*1  claude user\s+.*:1$", re.MULTILINE))
         self.assertRegex(result.stdout, re.compile(r"^\s*2  claude assistant\s+.*:1$", re.MULTILINE))
 
+    def test_default_scan_counts_full_antigravity_steps_and_tools_without_content(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            logs = root / ".gemini/antigravity-cli/brain/sample/.system_generated/logs"
+            logs.mkdir(parents=True)
+            (logs / "transcript_full.jsonl").write_text(
+                '{"type":"PLANNER_RESPONSE","step_index":1,"tool_calls":['
+                '{"name":"run_command","args":{"CommandLine":"private text"}},'
+                '{"name":"mcp_persona_deadbeef_agent_read"},{"name":"mcp_persona_feedface_agent_read"}]}\n'
+                '{"type":"GENERIC","step_index":2,"content":"private output"}\n'
+                'private invalid line\n'
+            )
+            (logs / "transcript.jsonl").write_text('{"type":"PLANNER_RESPONSE","step_index":1}\n')
+            env = dict(os.environ, HOME=str(root), CLAUDE_CONFIG_DIR=str(root / "empty-profile"))
+            cmd = [sys.executable, "-B", str(SCRIPT)]
+            result = subprocess.check_output(cmd + ["--json"], text=True, env=env, timeout=10)
+            summary = subprocess.check_output(cmd, text=True, env=env, timeout=10)
+        self.assertIn("2  agy tool:mcp_persona_agent_read", summary)
+        self.assertNotIn(directory, summary)
+        self.assertNotIn("private", result)
+        self.assertNotIn("deadbeef", result)
+        self.assertNotIn(directory, result)
+        self.assertEqual(json.loads(result), {
+            "schema_version": 1, "files": 1, "lines": 3, "versions": {},
+            "kinds": {"agy PLANNER_RESPONSE": 1, "agy GENERIC": 1, "(bad json)": 1,
+                      "agy tool:run_command": 1, "agy tool:mcp_persona_agent_read": 2},
+        })
+
     def test_export_and_compare_around_runtime_upgrade(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -1,5 +1,5 @@
 {
- "files": 24,
+ "files": 26,
  "meter": [
   {
    "minute": 1767225600,
@@ -72,6 +72,16 @@
    "cache_read": 138880,
    "out": 1218,
    "req": 5
+  },
+  {
+   "minute": 1767225600,
+   "model": "gpt-5-codex",
+   "launcher": "launcher-of-0199a213-81c0-7800-8aa1-000000000016",
+   "agent": "codex",
+   "in": 19890,
+   "cache_read": 13696,
+   "out": 225,
+   "req": 1
   },
   {
    "minute": 1767225660,
@@ -376,10 +386,10 @@
    "minute": 1767225600,
    "model": "gpt-5-codex",
    "agent": "codex",
-   "in": 52973,
-   "cache_read": 190592,
-   "out": 2222,
-   "req": 6
+   "in": 72863,
+   "cache_read": 204288,
+   "out": 2447,
+   "req": 7
   },
   {
    "minute": 1767236400,

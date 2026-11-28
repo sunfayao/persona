@@ -69,6 +69,92 @@ class KeptAsIsTests(unittest.TestCase):
                 self.assertNotIn(word, r.text(f"see {word} here"))
 
 
+class AntigravityTests(unittest.TestCase):
+    def test_native_arguments_keep_their_types_and_tool_names(self):
+        r = redact.Redactor()
+        calls = [
+            {"name": "run_command", "args": {"CommandLine": "cat /sample/private.txt", "WaitMsBeforeAsync": 20,
+                                             "toolSummary": "Private summary", "IsDaemon": False,
+                                             "NotificationTimeoutSeconds": 5}},
+            {"name": "read_file", "args": {"Path": "/sample/private.txt", "StartLine": 4, "EndLine": 7}},
+            {"name": "write_file", "args": {"Path": "relative.txt", "Content": "q" * 6500, "Overwrite": True}},
+            {"name": "edit_file", "args": {"Path": "file:///sample/private.txt", "Target": "secret", "Replacement": "value"}},
+            {"name": "update_steps", "args": {"steps": [{"title": "Secret step", "status": "in_progress"}]}},
+            {"name": "manage_task", "args": {"Action": "kill"}},
+            {"name": "schedule", "args": {"Prompt": "Do something", "CronExpression": "1 */2 * * *", "MaxIterations": 3}},
+            {"name": "search_web", "args": {"query": "private", "domain": "private.example.invalid"}},
+            {"name": "ask_question", "args": {"questions": [{"question": "What?", "options": ["One", "Two"],
+                                                            "is_multi_select": False}]}},
+            {"name": "mcp_persona_deadbeef_agent_read", "args": {}},
+            {"name": "mcp_persona_deadbeef_persona_call", "args": {"name": "agent_read", "arguments": {"limit": 4}}},
+        ]
+        out = r.obj({"type": "PLANNER_RESPONSE", "source": "MODEL", "step_index": 18, "status": "DONE",
+                     "model": "gemini-2.5-pro", "tool_calls": calls})
+        self.assertEqual((out["type"], out["source"], out["status"], out["step_index"], out["model"]),
+                         ("PLANNER_RESPONSE", "MODEL", "DONE", 18, "gemini-2.5-pro"))
+        actual = out["tool_calls"]
+        self.assertEqual([c["name"] for c in actual[:9]], [c["name"] for c in calls[:9]])
+        self.assertEqual([c["args"].keys() for c in actual], [c["args"].keys() for c in calls])
+        command, read, write, edit, plan, manage, schedule, search, ask, _, wrapper = [c["args"] for c in actual]
+        self.assertEqual(command["CommandLine"], "cat /work/project/f1.txt")
+        self.assertEqual(command["WaitMsBeforeAsync"], 20)
+        self.assertEqual(command["NotificationTimeoutSeconds"], 5)
+        self.assertIs(command["IsDaemon"], False)
+        self.assertEqual(read, {"Path": "/work/project/f1.txt", "StartLine": 4, "EndLine": 7})
+        self.assertEqual(edit["Path"], "file:///work/project/f1.txt")
+        self.assertIs(write["Overwrite"], True)
+        self.assertEqual(len(write["Content"]), 6500)
+        self.assertEqual(plan["steps"][0]["status"], "in_progress")
+        self.assertEqual(manage["Action"], "kill")
+        self.assertEqual(schedule["CronExpression"], "1 */2 * * *")
+        self.assertNotIn("private", search["domain"])
+        self.assertIs(ask["questions"][0]["is_multi_select"], False)
+        self.assertEqual(wrapper, {"name": "agent_read", "arguments": {"limit": 4}})
+        self.assertRegex(actual[9]["name"], r"^mcp_persona_[0-9a-f]{8}_agent_read$")
+        self.assertEqual(actual[10]["name"], actual[9]["name"].removesuffix("agent_read") + "persona_call")
+        self.assertNotIn("deadbeef", json.dumps(actual))
+        self.assertIn("CommandLine", r.kept["key"])
+        self.assertIn("agent_read", r.kept["tool"])
+
+    def test_step_text_keeps_markers_and_joins_the_remapped_task_handle(self):
+        r = redact.Redactor()
+        task = "01234567-89ab-cdef-0123-456789abcdef/task-71"
+        running = r.obj({"type": "GENERIC", "step_index": 71, "source": "MODEL", "status": "RUNNING",
+                         "created_at": "2026-03-03T02:05:02Z", "content":
+                         f"Created At: 2026-03-03T02:05:02Z\nTool is running as a background task with task id: {task}"
+                         "\nTask Description: private summary\nTask logs are available at: file:///sample/private.log"})
+        handle = running["content"].splitlines()[1].split(": ", 1)[1]
+        self.assertNotEqual(handle, task)
+        self.assertRegex(handle, r"^[a-f0-9-]{36}/task-71$")
+        self.assertEqual(running["created_at"], "2026-01-01T00:00:00.000Z")
+        self.assertTrue(running["content"].startswith("Created At: 2026-01-01T00:00:00.000Z\n"))
+        self.assertIn("Task Description:", running["content"])
+        self.assertIn("Task logs are available at: file:///work/project/f1.log", running["content"])
+        end = r.obj({"type": "SYSTEM_MESSAGE", "step_index": 72, "source": "SYSTEM", "status": "DONE", "content":
+                     f'<SYSTEM_MESSAGE>\n[Message] timestamp=2026-03-03T10:05:04+08:00 sender={task} '
+                     f'priority=MESSAGE_PRIORITY_HIGH content=Task id "{task}" finished with result:\n'
+                     "Completed At: 2026-03-03T02:05:04Z\nCommand exited with code 123.\n</SYSTEM_MESSAGE>"})
+        self.assertIn(f"[Message] timestamp=2026-01-01T00:00:02.000Z sender={handle}", end["content"])
+        self.assertIn(f'content=Task id "{handle}" finished with result:', end["content"])
+        self.assertIn("Completed At: 2026-01-01T00:00:02.000Z\nCommand exited with code 123.", end["content"])
+        for typ, marker in [("USER_INPUT", "<USER_REQUEST>"), ("USER_INPUT", "<ADDITIONAL_METADATA>"),
+                            ("USER_INPUT", "<USER_SETTINGS_CHANGE>"), ("CHECKPOINT", "# Resuming from a compaction"),
+                            ("GENERIC", "A1:")]:
+            with self.subTest(marker=marker):
+                self.assertEqual(r.obj({"type": typ, "step_index": 1, "content": marker})["content"], marker)
+        for model, expected in [("gpt-oss-120b", "gpt-oss-120b"), ("private.name", "model-placeholder")]:
+            self.assertEqual(r.obj({"type": "PLANNER_RESPONSE", "step_index": 1, "model": model})["model"], expected)
+        self.assertEqual(r.obj({"type": "GENERIC", "step_index": 1, "status": "INVALID"})["status"], "INVALID")
+        self.assertEqual(r.obj({"type": "GENERIC", "step_index": 1, "status": "ERROR"})["status"], "ERROR")
+
+    def test_nested_codex_exec_id_keeps_its_prefix_and_joins_the_uuid(self):
+        r = redact.Redactor()
+        original = "01234567-89ab-cdef-0123-456789abcdef"
+        remapped = "exec-" + r.new_id(original)
+        self.assertEqual(r.obj({"id": "exec-" + original})["id"], remapped)
+        self.assertEqual(r.text(f"result {original} exec-{original}"), f"result {remapped[5:]} {remapped}")
+
+
 class RangeTests(unittest.TestCase):
     def test_parse_keeps_sorted_intervals(self):
         path, ranges = redact.parse_spec("fixture.jsonl:8000,1-5000,2-7")
