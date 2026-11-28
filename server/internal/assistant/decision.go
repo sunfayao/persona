@@ -322,8 +322,15 @@ func (s *Service) askRound(id, asked string) (*acceptAsk, error) {
 func (s *Service) chooseOption(ctx context.Context, id, asked, label string) (acceptResult, error) {
 	s.reviewDismissals.actions.acquire(id)
 	defer s.reviewDismissals.actions.release(id)
+	return s.chooseOptionLocked(ctx, id, asked, label)
+}
+
+func (s *Service) chooseOptionLocked(ctx context.Context, id, asked, label string) (acceptResult, error) {
 	a, err := s.askRound(id, asked)
 	if err != nil || a == nil {
+		return acceptResult{}, err
+	}
+	if err := s.ownerInputs.CheckContext(ctx); err != nil {
 		return acceptResult{}, err
 	}
 	label = strings.TrimSpace(label)

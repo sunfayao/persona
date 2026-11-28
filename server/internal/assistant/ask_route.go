@@ -13,6 +13,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/screen"
@@ -139,7 +140,7 @@ func terminalQuestionText(ix proto.Interaction) string {
 // routable: ix is a card a supervisor can decide on or pass up. Unparsed
 // terminal screens, forms, secrets and the assistant's own questions stay with the user.
 func routable(ix proto.Interaction) bool {
-	if len(ix.Fields) > 0 {
+	if ix.Secret || len(ix.Fields) > 0 {
 		return false
 	}
 	switch ix.Kind {
@@ -153,56 +154,42 @@ func routable(ix proto.Interaction) bool {
 	return false
 }
 
-// askLadder is where a card of machine/sid's goes first: the conversations supervising its task, nearest first, the
-// task, and the machine those conversations are on (the assistant's: its leaders and its main conversation). None when
-// the agent is no supervised task's, the task already waits for the user, or the agent is a supervising conversation.
-// Only parsed terminal questions go to a supervisor even when no leader is configured.
-//
-// A task no leader supervises has one rung: the background supervisor, then the user, as a leader's card goes to the
-// leader, then the main conversation; the main conversation while the background supervisor is off or not made yet
-// (ownSupervisor, supervise_background.go).
+// askLadder routes ordinary worker questions to the assigned supervisor. An unattended leader's card moves to
+// the main conversation for review; only an explicit escalation addresses the owner.
 func (s *Service) askLadder(ctx context.Context, ix proto.Interaction) (ladder []string, todo, home string, ok bool) {
-	machine, sid := ix.MachineID, ix.SessionID
 	cfg := s.settings(ctx)
-	if ix.Kind != proto.IxScreen || cfg.Main == "" || sid == cfg.Main || sid == cfg.BackgroundSupervisor {
+	if ix.Kind != proto.IxScreen && ix.Kind != proto.IxQuestion || cfg.Main == "" ||
+		ix.SessionID == cfg.Main || ix.SessionID == cfg.BackgroundSupervisor {
 		return nil, "", "", false
 	}
-	home = cfg.MachineID
-	if s.devs != nil {
-		machine = s.devs.Canonical(machine) // as the task's agents are kept
-		home = s.devs.Canonical(home)       // and as the session lists the apps see are (busyLocked reads stateSince)
-	}
-	t, found := s.taskOf(ctx, machine, sid)
-	if !found || t.Supervision == nil {
+	t, found := s.taskOf(ctx, s.canonical(ix.MachineID), ix.SessionID)
+	if !found || t.Supervision == nil || t.DoneAt != nil {
 		return nil, "", "", false
 	}
-	switch t.Supervision.state(t) {
-	case reviewAccepted, reviewCancelled:
-		return nil, "", "", false
+	home = s.canonical(cfg.MachineID)
+	top := s.ownSupervisor(cfg)
+	if ix.Kind == proto.IxQuestion {
+		if leader, _, reachable := s.leaderSupervisor(t); reachable {
+			return []string{leaderRef(leader.MachineID, leader.SessionID), cfg.Main}, t.ID, home, true
+		}
+		if top != "" && top != cfg.Main {
+			return []string{top, cfg.Main}, t.ID, home, true
+		}
+		return []string{cfg.Main}, t.ID, home, true
 	}
-	if t.Supervision.state(t) == reviewNeedsUser && !t.Supervision.assigned() {
+	if s.ixPolicy(ctx, ix).ConfirmOutbound || s.todoPolicy(ctx, t).ConfirmOutbound ||
+		t.Supervision.state(t) == reviewNeedsUser && !t.Supervision.assigned() {
 		return nil, "", "", false
 	}
 	lead := s.effectiveSupervisor(ctx, cfg, t)
 	if s.agentSupervised(t) {
-		if ix.Kind != proto.IxScreen {
-			return nil, "", "", false
-		}
 		lead, _ = s.supervisorAboveTask(ctx, t)
 	}
-	if ix.Kind == proto.IxScreen {
-		if s.ixPolicy(ctx, ix).ConfirmOutbound || s.todoPolicy(ctx, t).ConfirmOutbound {
-			return nil, "", "", false
-		}
-		if lead == "" || lead == cfg.Main {
-			lead = s.ownSupervisor(cfg)
-		}
-		// Side conversations supervise their own work too. Resolve the same
-		// destination as a supervision message when a runtime cannot receive it.
-		to := s.digestTarget(ctx, cfg, superviseSignal{Todo: t.ID, Kind: sigAsk, To: lead})
-		return []string{to}, t.ID, home, to != ""
+	if lead == "" || lead == cfg.Main {
+		lead = top
 	}
-	return []string{s.ownSupervisor(cfg)}, t.ID, home, true
+	to := s.digestTarget(ctx, cfg, superviseSignal{Todo: t.ID, Kind: sigAsk, To: lead})
+	return []string{to}, t.ID, home, to != ""
 }
 
 // routeAsk sends new card ix to its supervisor instead of the user (announce); false when it is not one to route.
@@ -227,9 +214,9 @@ func (s *Service) routeAsk(ix proto.Interaction) bool {
 	now := time.Now()
 	p.route = &askRoute{todo: todo, machine: home, ladder: ladder, routedAt: now, since: now, held: now}
 	p.ix.Delegating = true
+	p.ix.SupervisorPending = ix.Kind == proto.IxQuestion
+	shown := p.ix
 	s.fleet.mu.Unlock()
-	shown := ix
-	shown.Delegating = true
 	s.show(shown)
 	s.workEvent(ix.MachineID, ix.SessionID, "ask_routed", map[string]any{"to": ladder[0], "kind": ix.Kind, "todo": todo, "id": ix.ID})
 	s.signalAsk(todo, ladder[0], ix, 0)
@@ -349,7 +336,7 @@ func (s *Service) askTick(now time.Time) {
 			continue
 		}
 		release := ownerOnly && r.needsYouLocked(s)
-		if r.parked && quiet && !release {
+		if r.parked && (quiet || p.ix.Kind == proto.IxQuestion) && !release {
 			continue
 		}
 		if !release {
@@ -364,6 +351,14 @@ func (s *Service) askTick(now time.Time) {
 		if quiet && r.reminded && !release {
 			r.parked, r.since = true, now // reminded once already: it stays with the task's supervisor
 			s.logf("ask %s: not handled after its reminder; push tiering on: kept with %s, not pushed to the user", id, r.at())
+			continue
+		}
+		if p.ix.Kind == proto.IxQuestion && r.step+1 >= len(r.ladder) {
+			if !r.reminded {
+				r.reminded = true
+				reminds = append(reminds, up{r.todo, r.at(), p.ix, r.step, ""})
+			}
+			r.parked = true
 			continue
 		}
 		r.step++
@@ -432,6 +427,8 @@ func (r *askRoute) busyLocked(s *Service) bool {
 func (s *Service) ringAsks(todo string, ids []string, d *proto.Delegate, esc escalation) []proto.Interaction {
 	var list []proto.Interaction
 	maybeTold := map[string]bool{}
+	cfg := s.settings(context.Background())
+	main := SessionRef{MachineID: s.canonical(cfg.mainRouteMachine()), SessionID: cfg.Main}
 	s.fleet.mu.Lock()
 	for _, id := range ids {
 		p := s.fleet.interactions[id]
@@ -441,8 +438,11 @@ func (s *Service) ringAsks(todo string, ids []string, d *proto.Delegate, esc esc
 		if p.route != nil && p.route.maybeTold {
 			maybeTold[id] = true
 		}
+		if p.ix.Kind == proto.IxQuestion && p.route != nil && d != nil && !p.ix.Private && identity.SpaceOf(p.ix.Cwd) == "" {
+			p.ownerMain = main
+		}
 		p.route = nil
-		p.ix.Delegating = false
+		p.ix.Delegating, p.ix.SupervisorPending = false, false
 		if esc.level != "" {
 			p.ix.PushLevel = esc.level
 		}
@@ -471,7 +471,10 @@ func (s *Service) ringAsks(todo string, ids []string, d *proto.Delegate, esc esc
 		if d != nil {
 			ix = s.suggestOnCard(ix) // a card a supervisor passed up may offer a standing rule (rule_suggest.go)
 		}
-		ix = s.tellApps(ix)
+		ix = s.ownerCard(s.tellApps(ix))
+		if ix.SessionID == main.SessionID && main.MachineID != "" {
+			s.publishSessions(main.MachineID)
+		}
 		if d == nil && (maybeTold[ix.ID] || s.quietSession(ix.MachineID, ix.SessionID)) {
 			continue // a question that may have rung before, or a quiet task's: the apps, no second push
 		}
@@ -510,7 +513,8 @@ func (s *Service) waitingCards(t Todo, terminalOnly bool) []string {
 	s.fleet.mu.Lock()
 	defer s.fleet.mu.Unlock()
 	for id, p := range s.fleet.interactions {
-		if terminalOnly && p.ix.Kind != proto.IxScreen || p.ix.Kind == proto.IxScreen && p.route == nil {
+		if terminalOnly && p.ix.Kind != proto.IxScreen && !(p.ix.Kind == proto.IxQuestion && p.route != nil) ||
+			p.ix.Kind == proto.IxScreen && p.route == nil {
 			continue
 		}
 		if p.claimed || p.told || !routable(p.ix) || p.route == nil && p.ix.Delegating {
@@ -668,7 +672,14 @@ func (s *Service) escalatedResolved(ctx context.Context, ix proto.Interaction, r
 	s.fleet.mu.Unlock()
 	todo := card.todo
 	st := s.todoDB()
-	if !ok || st == nil || status != "resolved" || r.Dismiss || ix.Kind == proto.IxQuestion {
+	if !ok || status != "resolved" || r.Dismiss {
+		return
+	}
+	if ix.Kind == proto.IxQuestion {
+		s.userDecidedRound(ctx, todo, card.at)
+		return
+	}
+	if st == nil {
 		return
 	}
 	l := s.lang(ctx)

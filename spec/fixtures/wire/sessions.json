@@ -85,6 +85,22 @@
           "updated_at": "2026-01-02T03:04:05Z",
           "pending_interactions": 0,
           "started_by_jarvis": false
+        },
+        {
+          "machine_id": "m1",
+          "session_id": "main",
+          "started_by_persona": false,
+          "assistant": true,
+          "title": "Persona",
+          "cwd": "",
+          "status": "",
+          "owner_needs_you": true,
+          "state": "needs_you",
+          "seen_at": "0001-01-01T00:00:00Z",
+          "state_since": "0001-01-01T00:00:00Z",
+          "updated_at": "2026-01-02T03:04:05Z",
+          "pending_interactions": 0,
+          "started_by_jarvis": false
         }
       ]
     },
@@ -95,7 +111,8 @@
         "/sessions/0/permission_mode": "plan",
         "/sessions/0/rev": 120,
         "/sessions/0/state": "needs_you",
-        "/sessions/1/state": "offline"
+        "/sessions/1/state": "offline",
+        "/sessions/2/owner_needs_you": true
       }
     }
   },
@@ -182,6 +199,22 @@
           "state": "offline",
           "seen_at": "0001-01-01T00:00:00Z",
           "state_since": "2026-01-02T03:04:05Z",
+          "updated_at": "2026-01-02T03:04:05Z",
+          "pending_interactions": 0,
+          "started_by_jarvis": false
+        },
+        {
+          "machine_id": "m1",
+          "session_id": "main",
+          "started_by_persona": false,
+          "assistant": true,
+          "title": "Persona",
+          "cwd": "",
+          "status": "",
+          "owner_needs_you": true,
+          "state": "needs_you",
+          "seen_at": "0001-01-01T00:00:00Z",
+          "state_since": "0001-01-01T00:00:00Z",
           "updated_at": "2026-01-02T03:04:05Z",
           "pending_interactions": 0,
           "started_by_jarvis": false

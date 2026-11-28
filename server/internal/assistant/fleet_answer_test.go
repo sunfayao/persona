@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/devicewire"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -17,8 +18,10 @@ import (
 func answerFleet(t *testing.T) (*fleetTest, proto.Interaction, chan proto.Resolution) {
 	t.Helper()
 	ft := newFleetTest(t)
-	ft.d.setSessions("mac", []proto.Session{{SessionID: "abcdef12-agent", Title: "修登录", Cwd: "/code/app", Status: proto.StatusWorking,
-		UpdatedAt: time.Now().UTC()}})
+	rows := []proto.Session{{SessionID: "abcdef12-agent", MachineID: "mac", Title: "修登录", Cwd: "/code/app",
+		Status: proto.StatusWorking, UpdatedAt: time.Now().UTC()}}
+	ft.d.setSessions("mac", rows)
+	ft.f.setSessions("mac", rows...)
 	ix := proto.Interaction{
 		ID: "ix_ask1", MachineID: "mac", SessionID: "abcdef12-agent", Kind: proto.IxQuestion,
 		Questions: []proto.Question{{Question: "发吗？", Options: []proto.QuestionOption{{Label: "发"}, {Label: "不发"}}}},
@@ -293,5 +296,76 @@ func TestElicitationNeedsAnApp(t *testing.T) {
 	// Its push goes only to what can show it (the hub picks): the kind says it is an elicitation.
 	if got := ft.pushesOf(assistantwire.NotifyInput, 4, time.Second); len(got) != 4 || got[0].Interaction.Kind != proto.IxElicitation {
 		t.Fatalf("pushes %+v", got)
+	}
+}
+
+func TestOwnerCardAnswerFencesPreparedSupervisorSend(t *testing.T) {
+	ft, ix, done := answerFleet(t)
+	ctx := t.Context()
+	deliveryCtx, err := ft.s.supervisoryAction(ctx, "mac", "leader", ix.MachineID, ix.SessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reply := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/api/v1/interactions/"+ix.ID+"/resolve", strings.NewReader(`{"answers":{"发吗？":"不发"}}`))
+	ft.s.fleetHandler(http.NotFoundHandler()).ServeHTTP(reply, req.WithContext(devicewire.WithOwnerAnswer(ctx)))
+	if reply.Code != http.StatusOK || (<-done).Answers["发吗？"] != "不发" {
+		t.Fatalf("owner's card reply did not land: %d %s", reply.Code, reply.Body)
+	}
+	params := sendParams(ix.SessionID, "发", false)
+	if err := ft.s.admitSupervisedWrite(deliveryCtx, ix.MachineID, DeviceSessionSend, params); err == nil || !strings.Contains(err.Error(), "不发") {
+		t.Fatalf("prepared supervisor send: %v", err)
+	}
+	if err := ft.s.admitSupervisedWrite(deliveryCtx, ix.MachineID, "session.interrupt", params); err == nil {
+		t.Fatal("prepared interrupt was admitted")
+	}
+	args, _ := json.Marshal(map[string]any{
+		"machine": ix.MachineID, "session_id": ix.SessionID, "interaction_id": ix.ID,
+		"answers": map[string]string{"发吗？": "发"},
+	})
+	for range 2 {
+		if _, err := ft.s.toolInteractionAnswer(ctx, "main", args); err == nil ||
+			!strings.Contains(err.Error(), "already answered by the owner") || !strings.Contains(err.Error(), "不发") {
+			t.Fatalf("second answer did not echo the original result: %v", err)
+		}
+	}
+	scope, err := queueCall(t, ft.s, assistantwire.InteractionsGet, map[string]any{
+		"machine_id": ix.MachineID, "session_id": "other-worker", "interaction_id": ix.ID,
+	})
+	if err != nil || scope["answer"] != nil {
+		t.Fatalf("the answer escaped its worker: %v (%v)", scope, err)
+	}
+}
+
+func TestNativeQuestionConcurrentAnswersShareOneClaim(t *testing.T) {
+	ft, ix, _ := answerFleet(t)
+	started, release := make(chan struct{}), make(chan struct{})
+	ft.s.fleet.mu.Lock()
+	ft.s.fleet.interactions[ix.ID].local = func(context.Context, proto.Resolution) error {
+		close(started)
+		<-release
+		return nil
+	}
+	ft.s.fleet.mu.Unlock()
+	ownerDone, assistantDone := make(chan error, 1), make(chan error, 1)
+	go func() {
+		ownerDone <- ft.s.resolveAnswer(devicewire.WithOwnerAnswer(t.Context()), ix.ID,
+			proto.Resolution{Answers: map[string]string{"发吗？": "不发"}}, true, nil, nil)
+	}()
+	<-started
+	go func() {
+		_, err := ft.s.answerQuestion(t.Context(), ix.MachineID, ix.SessionID, ix.ID, map[string]string{"发吗？": "发"}, "")
+		if err == nil {
+			status := ft.s.questionOutcome(t.Context(), ix.MachineID, ix.SessionID, ix.ID, nil)
+			err = status.ToolError(ix.ID)
+		}
+		assistantDone <- err
+	}()
+	close(release)
+	if err := <-ownerDone; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-assistantDone; err == nil || !strings.Contains(err.Error(), "不发") {
+		t.Fatalf("losing answer did not get the winner's choice: %v", err)
 	}
 }

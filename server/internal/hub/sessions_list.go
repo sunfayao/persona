@@ -250,7 +250,7 @@ func indexedRow(mid, id string, row *proto.Session, stamp bool, manager, root st
 		ID: id, Machine: mid, Project: project, Group: group, PaneSource: pane, HiddenByDirectory: row.HiddenByDirectory(),
 		State: row.State, BackgroundWaiting: row.BackgroundWaiting, JustFinished: row.Work != nil && row.Work.JustFinished,
 		Source: row.SourceKind, Provider: row.Agent, UpdatedAt: row.UpdatedAt,
-		Fold: indexedFold(mid, row, root, todo, indexed.Fold), Private: spaceSession(row), Assistant: row.Assistant,
+		Fold: indexedFold(mid, row, root, todo, indexed.Fold), Private: spaceSession(row), Assistant: row.Assistant && !row.OwnerNeedsYou,
 		ChildOnly: row.IsAgyRuntimeChild(),
 	}
 	// What q finds a row by: the fields the apps' own searches read, the branch too (#4770).
@@ -474,7 +474,7 @@ func runtimeSummary(s proto.Session) runtimeRowSummary {
 		Title: rowText(s.Title, 256), Cwd: s.Cwd, WorkspaceCwd: s.WorkspaceCwd, RepoRoot: s.RepoRoot, Worktree: s.Worktree, Branch: s.Branch,
 		Status: s.Status, State: s.State, UpdatedAt: s.UpdatedAt, StateSince: s.StateSince, SeenAt: s.SeenAt,
 		LastText: rowText(s.LastText, 180), Activity: rowText(s.Activity, 120), ActivityAt: s.ActivityAt,
-		AwaitsReply: s.AwaitsReply, BackgroundWorking: s.BackgroundWorking, BackgroundWaiting: s.BackgroundWaiting,
+		AwaitsReply: s.AwaitsReply, OwnerNeedsYou: s.OwnerNeedsYou, BackgroundWorking: s.BackgroundWorking, BackgroundWaiting: s.BackgroundWaiting,
 		Agent: s.Agent, AgentLabel: s.AgentLabel, AgentName: s.AgentName, AgentSurface: s.AgentSurface,
 		SourceKind: s.SourceKind, SourceThreadID: s.SourceThreadID, SourceInstanceID: s.SourceInstanceID,
 		ParentThreadID: s.ParentThreadID, ParentSessionID: s.ParentSessionID, RootSessionID: s.RootSessionID, IsSubagent: s.IsSubagent,

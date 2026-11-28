@@ -16,7 +16,7 @@ func foldRow(id, state string, set func(*proto.Session)) proto.Session {
 
 func foldOf(list []proto.Session) map[string]string {
 	f := foldSessions(list, nil)
-	f.apply(list)
+	f.Apply(list)
 	out := map[string]string{}
 	for i := range list {
 		if u := list[i].FoldedUnder(); u != "" {
@@ -154,9 +154,9 @@ func TestFoldSessionsStable(t *testing.T) {
 		foldRow("lead", proto.StateIdle, nil),
 		foldRow("kid", proto.StateWorking, func(s *proto.Session) { s.IsSubagent, s.ParentSessionID = true, "lead" }),
 	}
-	foldSessions(list, nil).apply(list)
+	foldSessions(list, nil).Apply(list)
 	lead, kid := list[0].Hierarchy, list[1].Hierarchy
-	foldSessions(list, nil).apply(list)
+	foldSessions(list, nil).Apply(list)
 	if list[0].Hierarchy != lead || list[1].Hierarchy != kid {
 		t.Fatal("an unchanged fold made new hierarchies")
 	}
@@ -199,7 +199,7 @@ func TestFoldLeavesReviewersOut(t *testing.T) {
 		foldRow("under-reviewer", proto.StateWorking, func(s *proto.Session) { s.IsSubagent, s.ParentSessionID = true, "reviewer" }),
 	}
 	f := foldSessions(list, map[string]bool{"reviewer": true})
-	f.apply(list)
+	f.Apply(list)
 	if got := rowNamed(list, "lead").Children(); got != (proto.SessionChildren{Total: 1, Working: 1}) {
 		t.Fatalf("rollup %+v", got)
 	}
@@ -304,7 +304,7 @@ func TestFoldSessionsTabWithoutLead(t *testing.T) {
 			foldRow("b", proto.StateNeedsYou, inTab("w1", "t1", 2)),
 		)
 		f := foldSessions(list, map[string]bool{"reviewer": true})
-		f.apply(list)
+		f.Apply(list)
 		for i := range list {
 			if list[i].Hierarchy != nil {
 				t.Fatalf("%s: %s folds %+v", name, list[i].SessionID, list[i].Hierarchy)

@@ -204,6 +204,9 @@ func (s *Service) replyWaits(machine string, sess proto.Session, now time.Time) 
 		spaceOf(sess) != "" { // a space's questions are not for the lock screen (doneAlert); no ctx here, so any space
 		return false
 	}
+	if t, ok := s.taskOf(context.Background(), machine, sess.SessionID); ok && t.Supervision != nil && t.DoneAt == nil {
+		return false
+	}
 	return !s.mutedAs(machine, sess.SessionID, sess.SpaceName) && !s.isInboxAgent(sess.SessionID) &&
 		!s.channelAnsweredPush(sess.SessionID) && !s.quietSession(machine, sess.SessionID)
 }

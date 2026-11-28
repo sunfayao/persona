@@ -129,7 +129,7 @@ func (s *Service) taskNeedsRecheck(ctx context.Context, t Todo) (waits, known bo
 		return false, false
 	}
 	for _, c := range agents {
-		if c.State == proto.StateNeedsYou || c.PendingInteractions > 0 {
+		if c.State == proto.StateNeedsYou || c.PendingInteractions > 0 || c.AwaitsReply {
 			return true, true
 		}
 	}

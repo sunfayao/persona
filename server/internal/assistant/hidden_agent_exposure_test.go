@@ -75,7 +75,7 @@ func TestHiddenDirectoryFoldDoesNotCountChildren(t *testing.T) {
 		{SessionID: "hidden-child", ParentSessionID: "parent", IsSubagent: true, State: proto.StateNeedsYou, Hierarchy: &proto.SessionHierarchy{HiddenByDirectory: true}},
 		{SessionID: "visible-child", ParentSessionID: "parent", IsSubagent: true, State: proto.StateWorking},
 	}
-	foldSessions(list, nil).apply(list)
+	foldSessions(list, nil).Apply(list)
 	if got := list[0].Children(); got.Total != 1 || got.Working != 1 || got.NeedsYou != 0 {
 		t.Fatalf("hidden child's state leaked into parent: %+v", got)
 	}

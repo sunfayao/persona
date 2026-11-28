@@ -31,7 +31,7 @@ func TestAgentListsHideLegacyAgySwarmWorkers(t *testing.T) {
 		t.Fatalf("only the coordinator belongs in the working count: %+v", working)
 	}
 	fold := foldSessions([]proto.Session{root, linked, orphan}, nil)
-	if fold.under[linked.SessionID] != root.SessionID || fold.children[root.SessionID].Total != 1 || fold.under[orphan.SessionID] != "" {
+	if fold.Under[linked.SessionID] != root.SessionID || fold.Children[root.SessionID].Total != 1 || fold.Under[orphan.SessionID] != "" {
 		t.Fatalf("only native lineage makes a fold: %+v", fold)
 	}
 }

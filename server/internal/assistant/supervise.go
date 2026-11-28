@@ -588,6 +588,11 @@ func (s *Service) updateSupervisionGuardedLockedAt(ctx context.Context, id strin
 	}
 	s.todos.mu.Unlock()
 	s.todosChanged(ctx)
+	if (before == reviewNeedsUser) != (v.State == reviewNeedsUser) && s.fleetOn() {
+		if cfg := s.settings(ctx); cfg.Main != "" {
+			go s.publishSessions(s.canonical(cfg.mainRouteMachine()))
+		}
+	}
 	return *v, true, nil
 }
 

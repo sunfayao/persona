@@ -68,7 +68,9 @@ export function Home({ onNewAgent, onToggleSidebar }: { onNewAgent: () => void; 
   const outbox = useStore((s) => s.outbox);
   const roster = useRoster();
   const actionable = useMemo(() => overviewActions({ outbox, sessions: agentSessions, machines, roster }), [outbox, agentSessions, machines, roster]);
-  const needsCount = interactions.length + actionable.count;
+  const mainDecision = sessions.find((row) => row.owner_needs_you && stateOf(row) === "needs_you" &&
+    !interactions.some((ix) => ix.machine_id === row.machine_id && ix.session_id === row.session_id));
+  const needsCount = interactions.length + actionable.count + Number(Boolean(mainDecision));
   const loaded = useStore((s) => s.loaded);
   // connected, the hub's first answers are still on their way: "Loading", not "Connecting to the hub"
   const online = useStore((s) => s.conn === "online");
@@ -93,7 +95,7 @@ export function Home({ onNewAgent, onToggleSidebar }: { onNewAgent: () => void; 
 
   // the agents of one herdr tab are one row (#2320), filed under the most urgent of them; a card waiting counts as
   // something to do, and "Mark all as seen" marks every unread agent, wherever its tab is filed
-  const { groups, unread, markAllAt, quiet } = useMemo(() => homeOverview(sessions, interactions), [sessions, interactions]);
+  const { groups, unread, markAllAt, quiet } = useMemo(() => homeOverview(sessions.filter((row) => !row.owner_needs_you), interactions), [sessions, interactions]);
   // the list's read failed: the line under the greeting says so, with Retry (with no computer, adding one comes first)
   const failed = loaded && list === "failed" && !(quiet && noMachines);
   // what the line under the greeting says while the agents are not known: connecting, loading, or the failure ("" once
@@ -168,6 +170,10 @@ export function Home({ onNewAgent, onToggleSidebar }: { onNewAgent: () => void; 
             </Collapse>
           );
         })}
+        {mainDecision && <TaskRow i={interactions.length} state="needs_you"
+          to={{ name: "session", mid: mainDecision.machine_id, sid: mainDecision.session_id }}
+          title={sessionTitle(mainDecision)} tags={[name(mainDecision.machine_id)]}
+          detail={mainDecision.attention_reason} pill={<Pill>{stateName("needs_you")}</Pill>} />}
         {actionable.outbox.map((item, i) => <FailedOutboxRow key={item.key} item={item} i={interactions.length + i} machine={name(item.mid)} />)}
         {actionable.computers.map((item, i) => <ComputerActionRow key={item.key} item={item} i={interactions.length + actionable.outbox.length + i} machines={machines} />)}
       </Group>

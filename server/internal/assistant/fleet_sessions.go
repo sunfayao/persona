@@ -48,7 +48,7 @@ func (s *Service) setSessions(machine string, list []proto.Session) {
 	_, hasInlineStore := s.store().(inlineViewStore)
 	now := time.Now()
 	for i := range list {
-		list[i].MachineID = machine
+		list[i].MachineID, list[i].OwnerNeedsYou = machine, false
 		// A node from before titles were stripped first sends a clipped injected tag as the title.
 		list[i].Title = transcript.Title(list[i].Title)
 	}
@@ -289,6 +289,7 @@ func (s *Service) publishListAtArchiveMark(machine string, fixed ...uint64) []pr
 	}
 	// A deleted conversation's row is the assistant's, never an archived one: it goes with the rows the apps see.
 	list = s.deletionRows(context.Background(), machine, list, true)
+	s.projectOwnerAttention(machine, list, true)
 	// A review's reviewer is no agent of the user's (supervise_autoreview.go): its result is on the task it reviewed.
 	// Forked background supervisor round branches are also internal and must not flood the ordinary Agents list (#12650).
 	hide := s.reviewerSessions()
@@ -546,7 +547,7 @@ func (s *Service) decorateInventory(machine string, list []proto.Session, comple
 	upstream := s.upstreamMarks(machine) // consecutive no-work upstream 5xx turns (fleet_upstream.go)
 	bgMatch := s.backgroundMatcher(context.Background(), machine)
 	for i := range list {
-		list[i].MachineID = machine
+		list[i].MachineID, list[i].OwnerNeedsYou = machine, false
 		if list[i].IsAgyRuntimeChild() {
 			list[i].IsSubagent = true
 		}

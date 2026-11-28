@@ -6,6 +6,8 @@
 - `cardless_wait`: review it now with task_review; needs_user only for a decision that is not yours.
 {{- else if or (eq .Kind "idle") (eq .Kind "unjudged")}}
 - `idle` / `unjudged`: read its last turns with agent_read; nudge it with agent_send when it can go on, rework what is missing, or accept what is done.
+{{- else if eq .Kind "ask"}}
+- `ask`: answer a worker card with `agent_send` using the exact option label, or a JSON question-to-option object for multiple questions. If only the owner can decide, use `task_review needs_user` with the reason and recommendation.
 {{- else if eq .Kind "needs_you"}}
 - `needs_you`: answer it with agent_send when the answer is yours to give; a decision that is not yours goes up with task_review needs_user (reason, recommend).
 {{- else if or (eq .Kind "stalled") (eq .Kind "no_progress") (eq .Kind "timed_out")}}

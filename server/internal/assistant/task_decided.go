@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
 	"slices"
 	"strings"
 
@@ -52,20 +53,29 @@ func (s *Service) toolTaskDecided(ctx context.Context, machine, self string, arg
 	if supervisor != self && !s.isMain(ctx, self) && !s.backgroundSupervises(ctx, self, t) {
 		return "", fmt.Errorf("task %s is supervised by another conversation: record the owner's answer from the main conversation or its supervisor", t.ID)
 	}
+	s.reviewDismissals.actions.acquire(t.ID)
+	defer s.reviewDismissals.actions.release(t.ID)
 	// The decision it answers: a recurring check's goes to the supervisor, not the Agent (checkDecided), and the reply
 	// says so, so neither conversation takes the choice for one the Agent has.
 	asked, ok := s.askCopy(t.ID)
 	if ok && asked.OutsideID != "" {
 		return "", fmt.Errorf("task %s is an outside decision: only its owner's Needs-you answer may settle it, not task_decided", t.ID)
 	}
+	if agent, ok := workerAgent(t); ok {
+		var err error
+		ctx, err = s.supervisoryAction(ctx, machine, self, agent.MachineID, agent.SessionID)
+		if err != nil {
+			return "", err
+		}
+	}
 	var result acceptResult
 	var err error
 	if a.ToldAgent {
 		var taken bool
-		taken, err = s.decisionTold(ctx, t.ID, a.Option, machine, self, a.Said)
+		taken, err = s.decisionToldLocked(ctx, t.ID, a.Option, machine, self, a.Said)
 		result.taken = taken
 	} else {
-		result, err = s.chooseOption(ctx, t.ID, "", a.Option)
+		result, err = s.chooseOptionLocked(ctx, t.ID, "", a.Option)
 	}
 	if ask, ok := s.askCopy(t.ID); errors.Is(err, errDecisionOption) && ok {
 		labels := make([]string, 0, len(ask.Options))
@@ -81,6 +91,7 @@ func (s *Service) toolTaskDecided(ctx context.Context, machine, self string, arg
 	if !result.taken {
 		return "", fmt.Errorf("task %s has no decision waiting for the owner (answered, re-asked or closed meanwhile): nothing recorded", t.ID)
 	}
+	s.recordTaskOwnerDecision(t, a.Said, s.ownerInputRef(machine, self))
 	if result.undelivered != nil {
 		return fmt.Sprintf("Recorded: the owner chose %q for task %s's decision. The ask is answered and the supervisor was told to pass the choice on; no running Agent received it.", a.Option, t.ID), nil
 	}
@@ -110,6 +121,9 @@ func (s *Service) decisionTold(ctx context.Context, id, label, machine, session,
 func (s *Service) decisionToldLocked(ctx context.Context, id, label, machine, session, said string) (bool, error) {
 	a, err := s.askRound(id, "")
 	if err != nil || a == nil {
+		return false, err
+	}
+	if err := s.ownerInputs.CheckContext(ctx); err != nil {
 		return false, err
 	}
 	label = strings.TrimSpace(label)
@@ -154,4 +168,53 @@ func (s *Service) recordToldDecision(ctx context.Context, id string, a *acceptAs
 		}
 	}
 	return nil
+}
+
+// relayedOwnerDecision settles the decision when a write from the owner's current main turn has reached the worker.
+func (s *Service) relayedOwnerDecision(ctx context.Context, id, sent string, action ownerfence.Action) {
+	s.reviewDismissals.actions.acquire(id)
+	defer s.reviewDismissals.actions.release(id)
+	if s.ownerInputs.Latest(action.Target).RelayOf != action.Owner.Seq {
+		return // a different owner's input superseded this relay while the node took it
+	}
+	t, ok := s.todoNow(id)
+	if !ok || t.DoneAt != nil || t.Supervision == nil || t.Supervision.State != reviewNeedsUser {
+		return
+	}
+	ask, err := s.askRound(id, "")
+	if err != nil {
+		s.logf("task %s: read relayed owner decision: %v", id, err)
+		return
+	}
+	if ask != nil {
+		label := exactDecisionOption(action.Owner.Text, ask.Options)
+		if ask.OutsideID != "" || !action.Owner.At.After(ask.AskedAt) ||
+			label == "" || label != matchDecisionOption(sent, ask.Options, true) {
+			return
+		}
+		if _, err := s.decisionToldLocked(ctx, id, label, action.Supervisor.Machine, action.Supervisor.Session, action.Owner.Text); err != nil {
+			s.logf("task %s: record relayed owner decision: %v", id, err)
+		}
+		return
+	}
+	// A leader's needs_user review is an escalation without an options card. Its upper conversation's reply is the
+	// decision. Record what it told the worker with the original owner's words, and retire only the review it answered.
+	review := triageLatestReview(t.Supervision)
+	if review == nil || review.Verdict != reviewNeedsUser || !action.Owner.At.After(review.At) {
+		return
+	}
+	if st := s.todoDB(); st != nil {
+		at := decisionNow()
+		if ok, err := s.insertDecision(ctx, st, db.TodoDecisionRow{
+			ID: "dec_" + randomHex(8), TodoID: id, Question: cmp.Or(review.Note, t.Title), Choice: decisionText(sent),
+			Reason: decisionText(action.Owner.Text), Source: db.DecisionManual,
+			SourceMachine: action.Supervisor.Machine, SourceSession: action.Supervisor.Session, CreatedAt: at,
+		}); err != nil {
+			s.logf("task %s: record relayed owner decision: %v", id, err)
+			return
+		} else if ok {
+			s.decisionsChanged(ctx, id, at)
+		}
+	}
+	s.userDecidedRound(ctx, id, review.At)
 }

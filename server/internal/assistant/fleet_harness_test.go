@@ -386,6 +386,20 @@ func (m *fleetMem) InteractionOutcome(_ context.Context, id string) (string, *pr
 	return m.status[id], m.res[id], nil
 }
 
+func (m *fleetMem) QuestionOutcome(_ context.Context, id, machine, session string) (string, *proto.Resolution, error) {
+	m.fmu.Lock()
+	defer m.fmu.Unlock()
+	for _, r := range m.recs {
+		if ix := r.Interaction; ix.ID == id && ix.MachineID == machine && ix.SessionID == session && ix.Kind == proto.IxQuestion {
+			if ix.Secret {
+				return m.status[id], nil, nil
+			}
+			return m.status[id], m.res[id], nil
+		}
+	}
+	return "", nil, nil
+}
+
 func (m *fleetMem) Interactions(_ context.Context, machine, session string, _ int) ([]db.InteractionRecord, error) {
 	m.fmu.Lock()
 	defer m.fmu.Unlock()

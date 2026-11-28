@@ -310,9 +310,19 @@ func (d *DB) ExpireStaleInteractions(ctx context.Context) (kept []proto.Interact
 
 // InteractionOutcome returns an interaction's status and resolution; an empty status when there is no such row.
 func (d *DB) InteractionOutcome(ctx context.Context, id string) (string, *proto.Resolution, error) {
+	return scanInteractionOutcome(d.pool.QueryRow(ctx, `SELECT status, resolution FROM interactions WHERE id = $1`, id))
+}
+
+// QuestionOutcome scopes answer readback to the addressed Agent.
+func (d *DB) QuestionOutcome(ctx context.Context, id, machine, session string) (string, *proto.Resolution, error) {
+	return scanInteractionOutcome(d.pool.QueryRow(ctx, `SELECT status, CASE WHEN NOT (payload @> '{"secret":true}') THEN resolution END
+		FROM interactions WHERE id = $1 AND machine_id = $2 AND session_id = $3 AND kind = 'question'`, id, machine, session))
+}
+
+func scanInteractionOutcome(row pgx.Row) (string, *proto.Resolution, error) {
 	var status string
 	var raw []byte
-	err := d.pool.QueryRow(ctx, `SELECT status, resolution FROM interactions WHERE id = $1`, id).Scan(&status, &raw)
+	err := row.Scan(&status, &raw)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", nil, nil
 	}

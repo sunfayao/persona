@@ -17,6 +17,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/assistant/agents"
 	"github.com/sunfayao/persona/server/internal/assistant/knowledge"
 	"github.com/sunfayao/persona/server/internal/assistant/lifecycle"
+	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
 	"github.com/sunfayao/persona/server/internal/assistant/repository"
 	"github.com/sunfayao/persona/server/internal/assistant/saved"
 	"github.com/sunfayao/persona/server/internal/assistant/toolnotes"
@@ -29,6 +30,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/remoteimage"
+	"github.com/sunfayao/persona/server/internal/rpc"
 	"github.com/sunfayao/persona/server/internal/secretkey"
 )
 
@@ -65,6 +67,7 @@ type Options struct {
 
 // Service is the assistant. It implements Handler.
 type Service struct {
+	ownerInputs      ownerfence.Book
 	lifecycle        *lifecycle.Domain
 	compactRecovery  compactRecoveryCache
 	logical          logicalDeviceState
@@ -657,6 +660,10 @@ func (s *Service) call(ctx context.Context, device, method string, params, out a
 	}
 	p := DeviceCall{Device: device, Method: nodeMethod(method, params), Params: raw}
 	cctx, cancel, bounded := toolNodeContext(ctx, method) // a model's tool waits for a silent node only so long (tool_node_wait.go)
+	if err := s.admitSupervisedWrite(ctx, device, method, params); err != nil {
+		cancel()
+		return rpc.NotSent(err)
+	}
 	res, err := s.callDevice(cctx, p)
 	if bounded && err != nil && ctx.Err() == nil && errors.Is(context.Cause(cctx), errNodeSilent) {
 		err = s.nodeSilent(device, method, err)
@@ -669,6 +676,7 @@ func (s *Service) call(ctx context.Context, device, method string, params, out a
 		err = afterNodeWrite(method, s.conversationParamsAvailable(ctx, device, params))
 	}
 	if err == nil {
+		s.supervisedWriteDelivered(ctx, device, method, params)
 		round.sent(s, res) // whose round it is, for the owner's next message (owner_preempt.go)
 	}
 	laterTaken(err == nil)

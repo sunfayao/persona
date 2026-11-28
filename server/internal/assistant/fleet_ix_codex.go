@@ -69,7 +69,7 @@ func (s *Service) syncCodexInteractions(machine string, params json.RawMessage) 
 	}
 	var added []proto.Interaction
 	for _, ix := range listed {
-		if m[ix.ID] != nil {
+		if m[ix.ID] != nil || s.fleet.localQuestionAnswers[ix.ID] != nil {
 			continue
 		}
 		pd := s.codexPending(machine, ix)

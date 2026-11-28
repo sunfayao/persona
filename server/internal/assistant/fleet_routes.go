@@ -12,6 +12,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/apierr"
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/devicewire"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/identity"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -262,17 +263,17 @@ func (s *Service) localFleetAppCall(ctx context.Context, p AppCall) (json.RawMes
 		if ix, ok := s.pendingIx(a.InteractionID); ok {
 			out = map[string]any{"interaction": ix, "ok": true}
 		} else {
-			out = map[string]any{"ok": false, "status": s.interactionOutcome(ctx, a.InteractionID)}
+			out = s.questionOutcome(ctx, a.MachineID, a.SessionID, a.InteractionID, nil)
 		}
 	case assistantwire.InteractionsAnswer:
-		ok, err := s.answerQuestion(a.MachineID, a.SessionID, a.InteractionID, a.Answers, a.Reason)
-		if err != nil {
+		ok, err := s.answerQuestion(ctx, a.MachineID, a.SessionID, a.InteractionID, a.Answers, a.Reason)
+		if err != nil && !errors.Is(err, errNotPending) {
 			return nil, true, err
 		}
 		if ok {
 			out = map[string]any{"ok": true}
 		} else {
-			out = map[string]any{"ok": false, "status": s.interactionOutcome(ctx, a.InteractionID)}
+			out = s.questionOutcome(ctx, a.MachineID, a.SessionID, a.InteractionID, err)
 		}
 	case InteractionsResolve:
 		r, err := s.channelResolve(ctx, a.Channel, a.InteractionID, a.Resolution, a.Action)
@@ -329,7 +330,7 @@ func (s *Service) channelResolve(ctx context.Context, ch, id string, r proto.Res
 		}
 		return map[string]any{"ok": true}, nil
 	}
-	if err := s.resolve(id, r); err != nil {
+	if err := s.resolveAnswer(devicewire.WithOwnerAnswer(ctx), id, r, true, nil, nil); err != nil {
 		if errors.Is(err, errNotPending) {
 			return map[string]any{"ok": false, "status": s.endedStatus(ctx, id, err)}, nil
 		}

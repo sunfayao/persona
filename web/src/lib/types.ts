@@ -355,6 +355,7 @@ export interface Session {
   asks?: string;
   /** It stopped (unread or seen) on a question to the user nobody has answered yet (#5096): Awaiting Reply once seen. */
   awaits_reply?: boolean;
+  owner_needs_you?: boolean;
   /** Its latest step when that is a tool call no text came after ("running tests", "reading tasks.go"), and when it started. */
   activity?: string;
   activity_at?: string;
@@ -978,6 +979,7 @@ export interface Interaction {
   /** The assistant is deciding whether it may answer this question for the user (docs/assistant/assistant.md "Assistant
    *  answers questions first"): nothing was pushed yet, and an answer given here wins. The same card comes again without it. */
   delegating?: boolean;
+  supervisor_pending?: boolean;
   /** Hub push-grading urgency ("P0" | "P1" | "P2"): absent defaults to P0. */
   push_level?: "P0" | "P1" | "P2" | (string & {});
   /** What the assistant filled in when it left the question to the user. */

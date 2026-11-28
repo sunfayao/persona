@@ -11,6 +11,7 @@ import (
 	"time"
 
 	approvalops "github.com/sunfayao/persona/server/internal/approval"
+	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/compat"
 	"github.com/sunfayao/persona/server/internal/devicewire"
@@ -72,7 +73,8 @@ type pending struct {
 	// Persona Link's summary notifies by it (fleet_attention.go).
 	told bool
 	// route: on its way up to the user through its task's supervisors (ask_route.go); nil once it is the user's.
-	route *askRoute
+	route     *askRoute
+	ownerMain SessionRef // placement of an explicitly escalated worker question; the original ix still receives its answer
 }
 
 // resumeGrace is how long a resumable interaction outlives its node: a little longer than hooks keep reconnecting
@@ -191,7 +193,7 @@ func (s *Service) show(ix proto.Interaction) {
 func (s *Service) tellCard(ix proto.Interaction) {
 	s.fleet.cardTell.Lock()
 	defer s.fleet.cardTell.Unlock()
-	if err := s.hub.Tell(assistantwire.EventFleetInteraction, assistantwire.FleetInteraction{Interaction: ix}); err != nil {
+	if err := s.hub.Tell(assistantwire.EventFleetInteraction, assistantwire.FleetInteraction{Interaction: s.ownerCard(ix)}); err != nil {
 		return // the hub did not get it: nothing of it to take back (its handshake gets the pending cards again)
 	}
 	s.fleet.mu.Lock()
@@ -217,6 +219,7 @@ func (s *Service) markTold(ix proto.Interaction) {
 // nodeInteraction is a node's interaction.create: allowed right away when "Always allow in this session" already covers it, else
 // shown and waited for.
 func (s *Service) nodeInteraction(ctx context.Context, ix proto.Interaction) (proto.Resolution, error) {
+	ix.SupervisorPending = false
 	// These capabilities are manager-minted only. A node cannot turn its card
 	// into an exact owner-action proposal or exempt it from expiry.
 	ix.ApprovalBatchID, ix.ApprovalItemID = "", ""
@@ -647,9 +650,11 @@ var errNotPending = errors.New("no longer pending")
 // answeredJustNow is errNotPending for a card another answer claimed a moment ago. That answer reaches the history
 // only after the claim (recordEnd), so whoever asks in between is told it from the claim (#1230).
 type answeredJustNow struct {
-	id     string
-	status string
-	kept   proto.Resolution // as the history keeps it
+	interaction proto.Interaction
+	id          string
+	status      string
+	kept        proto.Resolution // as the history keeps it
+	inFlight    *questionPersistence
 }
 
 func (e *answeredJustNow) Error() string {
@@ -782,26 +787,83 @@ func (s *Service) resolveActiveAnswer(ctx context.Context, id string, r proto.Re
 	}
 	if p != nil && p.persisting != nil {
 		attempt := p.persisting
+		first := &answeredJustNow{interaction: p.ix, id: id, status: endStatus(*p.resolution), kept: redacted(p.ix, *p.resolution)}
 		s.fleet.mu.Unlock()
 		<-attempt.done
 		if attempt.err != nil {
 			return attempt.err
 		}
-		return fmt.Errorf("interaction %s is %w", id, errNotPending)
+		return first
+	}
+	if first := s.fleet.localQuestionAnswers[id]; first != nil {
+		s.fleet.mu.Unlock()
+		if err := first.wait(ctx); err != nil {
+			return err
+		}
+		return first
 	}
 	var first *answeredJustNow
 	if p != nil && p.claimed {
 		if p.resolution != nil {
-			first = &answeredJustNow{id: id, status: endStatus(*p.resolution), kept: redacted(p.ix, *p.resolution)}
+			first = &answeredJustNow{interaction: p.ix, id: id, status: endStatus(*p.resolution), kept: redacted(p.ix, *p.resolution)}
 		}
 		p = nil // answered a moment ago: the first answer is the one the hook and the history get
+	}
+	if first != nil {
+		s.fleet.mu.Unlock()
+		return first
+	}
+	if p != nil && p.ix.Kind == proto.IxQuestion && r.AnsweredBy == proto.AnsweredByAssistant {
+		var latest ownerfence.Input
+		if a, ok := ownerfence.ActionOf(ctx); ok {
+			latest = s.ownerInputs.Check(a)
+			if latest.Seq == 0 && a.Owner.Seq == 0 {
+				if p.ownerMain.SessionID != "" {
+					s.fleet.mu.Unlock()
+					return ownerfence.WorkerQuestionError(true, true, false)
+				}
+				if to := p.route.at(); to != "" && to != a.Supervisor.Session && to != leaderRef(a.Supervisor.Machine, a.Supervisor.Session) {
+					s.fleet.mu.Unlock()
+					return ownerfence.WorkerQuestionError(false, false, true)
+				}
+			}
+		} else {
+			if p.route != nil || p.ownerMain.SessionID != "" {
+				s.fleet.mu.Unlock()
+				return ownerfence.WorkerQuestionError(false, false, true)
+			}
+			current := s.ownerInputs.Latest(s.ownerInputRef(p.ix.MachineID, p.ix.SessionID))
+			if current.At.After(p.ix.CreatedAt) {
+				latest = current
+			}
+		}
+		if latest.Seq != 0 {
+			s.fleet.mu.Unlock()
+			return ownerfence.Refusal(latest)
+		}
 	}
 	if p != nil && p.local != nil && authorization != nil {
 		s.fleet.mu.Unlock()
 		return fmt.Errorf("standing authorizations require a hook-waited card")
 	}
+	var localAnswer *questionPersistence
 	if p != nil && p.local != nil {
 		delete(s.fleet.interactions, id) // claimed: a second answer to the same card is not pending any more
+		if p.ix.Kind == proto.IxQuestion {
+			if s.fleet.localQuestionAnswers == nil {
+				s.fleet.localQuestionAnswers = make(map[string]*answeredJustNow)
+			}
+			localAnswer = &questionPersistence{done: make(chan struct{})}
+			s.fleet.localQuestionAnswers[id] = &answeredJustNow{
+				interaction: p.ix, id: id, status: endStatus(r), kept: redacted(p.ix, r), inFlight: localAnswer,
+			}
+			defer func() {
+				s.fleet.mu.Lock()
+				delete(s.fleet.localQuestionAnswers, id)
+				close(localAnswer.done)
+				s.fleet.mu.Unlock()
+			}()
+		}
 		if p.ix.Kind == proto.IxScreen && !r.Dismiss {
 			// Marked before the keys go: the node's next list may come while they are on the way (#4391).
 			if s.fleet.screenAnswered == nil {
@@ -831,15 +893,16 @@ func (s *Service) resolveActiveAnswer(ctx context.Context, id string, r proto.Re
 		s.claimHandoffLocked(id, r, approver) // claimed with this answer: an approval, and who gave it
 	}
 	if p != nil {
+		if p.ix.Kind == proto.IxQuestion && endStatus(r) == "resolved" &&
+			(devicewire.IsOwnerAnswer(ctx) || r.AnsweredBy == proto.AnsweredByAssistant) {
+			s.recordQuestionInput(p.ix, r)
+		}
 		p.answeredBy, p.answeredReason = r.AnsweredBy, r.Reason // read by finished(), under this lock
 		if r.AnsweredBy != "" {
 			p.answeredWith = r.Answers
 		}
 	}
 	s.fleet.mu.Unlock()
-	if first != nil {
-		return first
-	}
 	if p == nil {
 		return fmt.Errorf("interaction %s is %w", id, errNotPending)
 	}
@@ -849,6 +912,9 @@ func (s *Service) resolveActiveAnswer(ctx context.Context, id string, r proto.Re
 	told := redacted(p.ix, r)
 	if p.local != nil {
 		err := p.local(ctx, r)
+		if localAnswer != nil {
+			localAnswer.err = err
+		}
 		if err != nil {
 			status = "failed"
 			s.fleet.mu.Lock()
@@ -1019,6 +1085,9 @@ func (s *Service) finished(p *pending) {
 	// the app marks a question the assistant answered, and why
 	s.hub.Tell(assistantwire.EventFleetResolved, done)
 	s.publishSessions(p.ix.MachineID)
+	if p.ownerMain.MachineID != "" && p.ownerMain.MachineID != p.ix.MachineID {
+		s.publishSessions(p.ownerMain.MachineID)
+	}
 }
 
 // pendingInteractions is the authoritative pending inventory for transport and lifecycle operations.
@@ -1080,6 +1149,9 @@ func (s *Service) visiblePendingCards() ([]proto.Interaction, map[string]bool) {
 		delete(told, ix.ID)
 		return true
 	})
+	for i := range out {
+		out[i] = s.ownerCard(out[i])
+	}
 	return out, told
 }
 
@@ -1516,6 +1588,7 @@ func (s *Service) restoreRoute(ctx context.Context, ix proto.Interaction) bool {
 	// with nobody told.
 	p.route = &askRoute{todo: todo, machine: home, ladder: ladder, routedAt: now, since: now, held: now, maybeTold: ix.Kind == proto.IxQuestion}
 	p.ix.Delegating = true
+	p.ix.SupervisorPending = ix.Kind == proto.IxQuestion
 	shown := p.ix
 	s.fleet.mu.Unlock()
 	if ix.Kind == proto.IxScreen {

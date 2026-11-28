@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
 	"strings"
 	"testing"
 	"time"
@@ -299,7 +300,7 @@ func TestInteractionAnswersTakeAnOptionWrittenOut(t *testing.T) {
 		{pick, []string{"iOS：先修崩溃", "Web：顺手"}, ""},
 	} {
 		raw, _ := json.Marshal(map[string]any{tc.q.Question: tc.in})
-		got, err := interactionAnswers(ask(tc.q), raw)
+		got, err := ownerfence.InteractionAnswers(ask(tc.q), raw)
 		if tc.want == "" {
 			if err == nil {
 				t.Errorf("%q: answered %q, want it refused", tc.in, got[tc.q.Question])

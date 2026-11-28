@@ -34,13 +34,14 @@ import (
 
 // fleetBook is what the manager keeps of it.
 type fleetBook struct {
-	mu           sync.Mutex
-	interactions map[string]*pending
-	seen         map[[2]string]time.Time      // (machine, session) -> when the user last looked at it
-	seenLoaded   bool                         // seen holds the table's times (loadSeen succeeded once)
-	stateSince   map[[2]string]stateMark      // (machine, session) -> its state and when it entered it
-	upstream     map[[2]string]upstreamStreak // (machine, session) -> consecutive no-work upstream 5xx turns (fleet_upstream.go)
-	notified     map[string]time.Time         // assistant conversation -> when it last pushed with notify_user
+	mu                   sync.Mutex
+	interactions         map[string]*pending
+	localQuestionAnswers map[string]*answeredJustNow  // local node answer between claim and outcome recording
+	seen                 map[[2]string]time.Time      // (machine, session) -> when the user last looked at it
+	seenLoaded           bool                         // seen holds the table's times (loadSeen succeeded once)
+	stateSince           map[[2]string]stateMark      // (machine, session) -> its state and when it entered it
+	upstream             map[[2]string]upstreamStreak // (machine, session) -> consecutive no-work upstream 5xx turns (fleet_upstream.go)
+	notified             map[string]time.Time         // assistant conversation -> when it last pushed with notify_user
 	// reportSent: assistant conversation -> when a scheduled run or a task notice was sent into it (noteReportTurn):
 	// the turn it starts is pushed however short it is.
 	reportSent map[string]time.Time

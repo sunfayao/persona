@@ -1,10 +1,14 @@
 package assistant
 
 import (
+	"context"
 	"encoding/json"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -203,4 +207,169 @@ func (s *Service) seenWorking(machine, id string) bool {
 		machine = s.devs.Canonical(machine)
 	}
 	return s.fleetPrevious(machine)[id].Status == proto.StatusWorking
+}
+
+func (s *Service) ownerInputRef(machine, session string) ownerfence.Ref {
+	if s.devs != nil {
+		machine = s.devs.Canonical(machine)
+	}
+	return ownerfence.Ref{Machine: machine, Session: session}
+}
+
+func (s *Service) recordDirectOwnerInput(p assistantwire.UserSpokeParams) {
+	if p.MachineID == "" || p.SessionID == "" || strings.TrimSpace(p.Text) == "" {
+		return
+	}
+	s.ownerInputs.Record(s.ownerInputRef(p.MachineID, p.SessionID), ownerfence.Input{
+		At: time.Now(), Text: clip(p.Text, 1200), ClientMsgID: p.ClientMsgID, ByOwner: true,
+	})
+}
+
+// mainOwnerInput grants proxy authority only after the current main turn can read the exact authenticated input.
+// A message still waiting in the main conversation's outbox does not give the earlier turn new authority.
+func (s *Service) mainOwnerInput(ctx context.Context, supervisor ownerfence.Ref) ownerfence.Input {
+	input := s.ownerInputs.Latest(supervisor)
+	if input.Seq == 0 || !s.isMain(ctx, supervisor.Session) {
+		return ownerfence.Input{}
+	}
+	var result struct{ Items []proto.Item }
+	if err := s.call(ctx, supervisor.Machine, DeviceSessionItems, map[string]any{
+		"session_id": supervisor.Session, "turns": 1, "lazy_images": true,
+	}, &result); err != nil {
+		return ownerfence.Input{}
+	}
+	if ownerfence.MatchesOwnerInput(result.Items, input) {
+		return input
+	}
+	return ownerfence.Input{}
+}
+
+func (s *Service) supervisoryAction(ctx context.Context, machine, self, targetMachine, targetSession string, askedAt ...time.Time) (context.Context, error) {
+	supervisor := s.ownerInputRef(machine, self)
+	a := s.ownerInputs.Action(supervisor, s.ownerInputRef(targetMachine, targetSession), askedAt...)
+	a.Owner = s.mainOwnerInput(ctx, supervisor)
+	if input := s.ownerInputs.Check(a); input.Seq != 0 {
+		return ctx, ownerfence.Refusal(input)
+	}
+	if len(askedAt) == 0 {
+		if err := s.workerQuestionAuthority(ctx, a); err != nil {
+			return ctx, err
+		}
+	}
+	return ownerfence.WithAction(ctx, a), nil
+}
+
+// admitSupervisedWrite rechecks after all confirmations, task lookups and resume preparation, at the node write.
+// The same context survives offline task sends, compaction and interrupt-with-follow-up.
+func (s *Service) admitSupervisedWrite(ctx context.Context, machine, method string, params any) error {
+	a, ok := ownerfence.ActionOf(ctx)
+	if !ok {
+		return nil
+	}
+	session, text := ownerfence.WriteTarget(method, params)
+	if session == "" || s.ownerInputRef(machine, session) != a.Target {
+		return nil
+	}
+	if err := s.ownerInputs.CheckContext(ctx); err != nil {
+		return err
+	}
+	if err := s.workerQuestionAuthority(ctx, a); err != nil {
+		return err
+	}
+	var relayed ownerfence.Input
+	if a.Owner.Seq != 0 && strings.TrimSpace(text) != "" && !exitText(text) {
+		relayed = ownerfence.Input{At: time.Now(), Text: a.Owner.Text, ByOwner: true, RelayOf: a.Owner.Seq}
+	}
+	if input := s.ownerInputs.Admit(a, relayed); input.Seq != 0 {
+		return ownerfence.Refusal(input)
+	}
+	return nil
+}
+
+func (s *Service) recordTaskOwnerDecision(t Todo, said string, observer ownerfence.Ref) {
+	input := ownerfence.Input{At: time.Now(), Text: clip(said, 1200), ByOwner: true}
+	for _, agent := range t.Agents {
+		if agent.SessionID != "" && agent.Source != sourceLeader {
+			target := s.ownerInputRef(agent.MachineID, agent.SessionID)
+			s.ownerInputs.Observe(observer, target, s.ownerInputs.Record(target, input))
+		}
+	}
+}
+
+func (s *Service) ownerInputAfterSignal(t Todo, g superviseSignal) bool {
+	if g.Session != "" {
+		return s.ownerInputs.Latest(s.ownerInputRef(g.Machine, g.Session)).At.After(g.At)
+	}
+	if agent, ok := workerAgent(t); ok {
+		return s.ownerInputs.Latest(s.ownerInputRef(agent.MachineID, agent.SessionID)).At.After(g.At)
+	}
+	return false
+}
+
+// On an assigned worker question the leader gets the ordinary wake. Once it escalates the decision, the upper
+// conversation owns the answer. An authenticated instruction from the owner always takes precedence.
+func (s *Service) workerQuestionAuthority(ctx context.Context, a ownerfence.Action) error {
+	if a.Owner.Seq != 0 || a.Supervisor.Session == "" {
+		return nil
+	}
+	s.fleet.mu.Lock()
+	for _, p := range s.fleet.interactions {
+		if p.claimed || p.ix.Kind != proto.IxQuestion || p.ix.MachineID != a.Target.Machine || p.ix.SessionID != a.Target.Session {
+			continue
+		}
+		if p.ownerMain.SessionID != "" {
+			s.fleet.mu.Unlock()
+			return ownerfence.WorkerQuestionError(true, true, false)
+		}
+		if to := p.route.at(); to != "" && to != a.Supervisor.Session && to != leaderRef(a.Supervisor.Machine, a.Supervisor.Session) {
+			s.fleet.mu.Unlock()
+			return ownerfence.WorkerQuestionError(false, false, true)
+		}
+	}
+	s.fleet.mu.Unlock()
+	t, ok := s.taskOf(ctx, a.Target.Machine, a.Target.Session)
+	if !ok {
+		return nil
+	}
+	lead, _, reachable := s.leaderSupervisor(t)
+	if !reachable {
+		return nil
+	}
+	isLeader := a.Supervisor == s.ownerInputRef(lead.MachineID, lead.SessionID)
+	waitingOnOwner := t.Supervision.state(t) == reviewNeedsUser
+	waitingOnLeader := false
+	if row, ok := s.decoratedSession(a.Target.Machine, a.Target.Session); ok {
+		waitingOnLeader = row.State == proto.StateNeedsYou || row.PendingInteractions > 0
+	}
+	return ownerfence.WorkerQuestionError(isLeader, waitingOnOwner, waitingOnLeader)
+}
+
+type relayedOwnerDecisionKey struct{}
+
+func (s *Service) supervisedWriteDelivered(ctx context.Context, machine, method string, params any) {
+	sent, ok := ctx.Value(relayedOwnerDecisionKey{}).(string)
+	if !ok || method != DeviceSessionSend && method != DeviceSessionStart {
+		return
+	}
+	a, ok := ownerfence.ActionOf(ctx)
+	if !ok || a.Owner.Seq == 0 || s.canonical(machine) != a.Target.Machine {
+		return
+	}
+	p, ok := params.(map[string]any)
+	if !ok {
+		return
+	}
+	if method == DeviceSessionStart && p["prompt"] == nil { // only the second, post-compaction request carries the instruction
+		return
+	}
+	id := s.activeTodoOf(a.Target.Machine, a.Target.Session)
+	if id == "" {
+		return
+	}
+	// The async receiver shares the task action lock with a card, a default or task_decided.
+	s.inOrder(func() {
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), liveSendWait)
+		defer cancel()
+		s.relayedOwnerDecision(ctx, id, sent, a)
+	})
 }

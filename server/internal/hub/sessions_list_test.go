@@ -1083,3 +1083,19 @@ func TestRuntimeSummaryKeepsBypassPending(t *testing.T) {
 		t.Fatalf("summary lost the queued restart: %s", body)
 	}
 }
+
+func TestMainOwnerDecisionMakesTheSessionCountInNeedsYou(t *testing.T) {
+	row := proto.Session{SessionID: "main", Assistant: true, State: proto.StateNeedsYou}
+	current := indexedRow("box", "main", &row, false, "", "", json.RawMessage(`{}`), sessionlist.Item{})
+	if !current.Assistant {
+		t.Fatal("ordinary main conversation became an Agent")
+	}
+	row.OwnerNeedsYou = true
+	current = indexedRow("box", "main", &row, false, "", "", json.RawMessage(`{}`), sessionlist.Item{})
+	if current.Assistant || current.State != proto.StateNeedsYou {
+		t.Fatalf("main decision was excluded from the indexed Needs you state: %+v", current)
+	}
+	if compact := runtimeSummary(row); !compact.OwnerNeedsYou {
+		t.Fatal("paged summary dropped the main attention marker")
+	}
+}

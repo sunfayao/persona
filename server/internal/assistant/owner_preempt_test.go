@@ -2,10 +2,13 @@ package assistant
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/db"
 
 	"github.com/sunfayao/persona/server/internal/prompts"
@@ -360,5 +363,43 @@ func TestOwnerPreemptMark(t *testing.T) {
 	}
 	if got := ownerSend(t, s, main, "hm"); got["interject_background"] != nil {
 		t.Fatalf("a refused send left a mark: %v", got)
+	}
+}
+
+func TestMainSendRequiresOwnerInputToReachMainTranscript(t *testing.T) {
+	s, f := newQuietService(t)
+	const worker = "worker-session"
+	f.setSessions("box", proto.Session{SessionID: worker, MachineID: "box", Agent: "pi", Cwd: "/code/app",
+		State: proto.StateWorking, Status: proto.StatusWorking})
+	s.recordDirectOwnerInput(assistantwire.UserSpokeParams{SessionRef: SessionRef{MachineID: "box", SessionID: worker}, Text: "Probe hourly."})
+	args := map[string]string{"machine": "box", "session_id": worker, "text": "Change to a daily probe."}
+	s.recordDirectOwnerInput(assistantwire.UserSpokeParams{
+		SessionRef: SessionRef{MachineID: "server", SessionID: "conv1"}, Text: args["text"], ClientMsgID: "owner-override",
+	})
+	f.answerNode(DeviceSessionItems, func(string, json.RawMessage) (any, error) {
+		return map[string]any{"items": []proto.Item{
+			{Role: "user", Kind: proto.KindText, Text: args["text"], ClientMsgID: "owner-override", Queued: true},
+		}}, nil
+	})
+	before := len(sendsTo(f, "box", worker))
+	if got, failed := toolFrom(t, s, "conv1", "agent_send", args); !failed || !strings.Contains(got, "Probe hourly.") {
+		t.Fatalf("queued main input incorrectly authorized a stale turn: %s, failed=%v", got, failed)
+	}
+	if got := len(sendsTo(f, "box", worker)); got != before {
+		t.Fatalf("the stale main turn sent %d messages", got-before)
+	}
+	f.answerNode(DeviceSessionItems, func(string, json.RawMessage) (any, error) {
+		return map[string]any{"items": []proto.Item{
+			{Role: "user", Kind: proto.KindText, Text: args["text"], ClientMsgID: "owner-override"},
+		}}, nil
+	})
+	if got, failed := toolFrom(t, s, "conv1", "agent_send", args); failed {
+		t.Fatalf("main relaying the latest instruction: %s", got)
+	}
+	if got := sendsTo(f, "box", worker)[before:]; len(got) != 1 || !strings.Contains(got[0], args["text"]) {
+		t.Fatalf("messages sent: %q", got)
+	}
+	if _, err := s.supervisoryAction(t.Context(), "box", "leader", "box", worker); err == nil || !strings.Contains(err.Error(), args["text"]) {
+		t.Fatalf("the leader failed to see the main owner's decision: %v", err)
 	}
 }

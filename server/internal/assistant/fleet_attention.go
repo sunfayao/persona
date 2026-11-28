@@ -7,6 +7,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/sunfayao/persona/server/internal/assistant/ownerattention"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/link"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -119,4 +120,95 @@ func linkItem(l i18n.Lang, n needer) link.AttentionItem {
 		it.Since = since.UTC().Truncate(time.Second).Format(time.RFC3339)
 	}
 	return it
+}
+
+// projectOwnerAttention acts on a copy of the inventory before publication. The supervision watch keeps the
+// original worker state, including waits it still needs to investigate.
+func (s *Service) projectOwnerAttention(machine string, list []proto.Session, includeMain bool) {
+	if len(list) == 0 {
+		return
+	}
+	var mainID, mainMachine string
+	if includeMain {
+		cfg := s.settings(context.Background())
+		mainID, mainMachine = cfg.Main, s.canonical(cfg.mainRouteMachine())
+	}
+	var managed map[string]bool
+	mainDecision, decidedAt := "", time.Time{}
+	s.todos.mu.RLock()
+	for _, t := range s.todos.todos {
+		if t.Supervision == nil || t.DoneAt != nil {
+			continue
+		}
+		if machine == mainMachine && t.Supervision.State == reviewNeedsUser && t.Supervision.UpdatedAt.After(decidedAt) {
+			decidedAt, mainDecision = t.Supervision.UpdatedAt, t.Title
+			if review := triageLatestReview(t.Supervision); review != nil {
+				mainDecision = cmp.Or(review.Note, mainDecision)
+			}
+		}
+		for _, a := range t.Agents {
+			if a.MachineID == machine && a.active() {
+				if managed == nil {
+					managed = make(map[string]bool)
+				}
+				managed[a.SessionID] = true
+			}
+		}
+	}
+	s.todos.mu.RUnlock()
+	if len(managed) == 0 && (mainID == "" || mainMachine != machine) {
+		return
+	}
+	cards := make(map[string]ownerattention.Cards)
+	mainCards, transferred := 0, 0
+	s.fleet.mu.Lock()
+	for _, p := range s.fleet.interactions {
+		if p.claimed {
+			continue
+		}
+		if machine == mainMachine && mainID != "" && p.ownerMain.SessionID == mainID && p.ownerMain.MachineID == machine {
+			mainCards++
+			transferred++
+		}
+		if p.ix.MachineID == machine {
+			sid := p.ix.SessionID
+			c := cards[sid]
+			if p.ix.Kind == proto.IxQuestion && routable(p.ix) {
+				c.Questions++
+			} else {
+				c.OwnerOnly++
+			}
+			cards[sid] = c
+			if machine == mainMachine && sid == mainID && p.ix.Kind == proto.IxQuestion && p.told {
+				mainCards++
+			}
+		}
+	}
+	s.fleet.mu.Unlock()
+	changed := false
+	for i := range list {
+		row := &list[i]
+		if machine == mainMachine && row.SessionID == mainID {
+			changed = ownerattention.Project(row, false, cards[row.SessionID], transferred, mainDecision != "" || mainCards > 0) || changed
+			if mainDecision != "" && mainCards == 0 {
+				row.AttentionReason, row.StateSince = mainDecision, decidedAt
+			}
+		} else {
+			changed = ownerattention.Project(row, managed[row.SessionID], cards[row.SessionID], 0, false) || changed
+		}
+	}
+	if changed {
+		foldSessions(list, nil).Apply(list)
+	}
+}
+
+func (s *Service) ownerCard(ix proto.Interaction) proto.Interaction {
+	s.fleet.mu.Lock()
+	defer s.fleet.mu.Unlock()
+	if p := s.fleet.interactions[ix.ID]; p != nil && p.ownerMain.SessionID != "" {
+		ix.MachineID, ix.SessionID = p.ownerMain.MachineID, p.ownerMain.SessionID
+		ix.SessionTitle = "Persona"
+		ix.FoldedUnder, ix.FoldedAs, ix.FoldedSide = "", "", ""
+	}
+	return ix
 }

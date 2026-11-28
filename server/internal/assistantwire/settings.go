@@ -46,6 +46,8 @@ const (
 	// by itself) with the launcher and model it runs on, and what
 	// the old main conversation left before the text of the first one to a new main conversation started empty.
 	MethodSendParams = "assistant.send_params"
+	// MethodOwnerInput acknowledges authenticated direct input before the hub dispatches it to the node.
+	MethodOwnerInput = "session.owner_input"
 	// MethodRename: RenameParams → the node's answer: the user renames one of its conversations in the app (the main
 	// one has no title to change, a Codex one only its tab); the new title is the user's from now on.
 	MethodRename = "assistant.rename"

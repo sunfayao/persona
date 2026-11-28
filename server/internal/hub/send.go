@@ -298,6 +298,14 @@ func (h *Hub) sendMessageOnce(w http.ResponseWriter, r *http.Request, m *Machine
 			mergeTodoImages(p, images)
 		}
 	}
+	asst := h.asstOf(h.sessionOwner(m.cfg.ID, sid))
+	if isText && strings.TrimSpace(text) != "" && personSent(r.Context()) {
+		clientID, _ := p["client_msg_id"].(string)
+		asst.recordOwnerInput(r.Context(), assistantwire.UserSpokeParams{
+			SessionRef: assistantwire.SessionRef{MachineID: m.cfg.ID, SessionID: sid},
+			Text:       text, ClientMsgID: clientID,
+		})
+	}
 	spokeSession, spokeKnown := s, known
 	if !terminal {
 		spokeSession, spokeKnown = m.session(sid)
@@ -308,7 +316,7 @@ func (h *Hub) sendMessageOnce(w http.ResponseWriter, r *http.Request, m *Machine
 		if (terminal || !m.isAssistant(spokeSession)) && isText && personSent(r.Context()) {
 			spoke.Text = text
 		}
-		h.asstOf(h.sessionOwner(m.cfg.ID, sid)).userSpoke(r.Context(), spoke)
+		asst.userSpoke(r.Context(), spoke)
 	}
 	if !terminal {
 		s, known = m.session(sid)

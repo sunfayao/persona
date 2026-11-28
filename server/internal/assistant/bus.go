@@ -582,6 +582,13 @@ func (b *BusHub) request(ctx context.Context, method string, params json.RawMess
 			return nil, err
 		}
 		return map[string]any{"session": sess}, nil
+	case assistantwire.MethodOwnerInput:
+		var p assistantwire.UserSpokeParams
+		if err := decode(&p); err != nil {
+			return nil, err
+		}
+		s.recordDirectOwnerInput(p)
+		return struct{}{}, nil
 	case assistantwire.MethodSendParams:
 		var p SendParams
 		if err := decode(&p); err != nil {

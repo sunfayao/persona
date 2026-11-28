@@ -1298,3 +1298,17 @@ func RenderSegmentHandoff(h SegmentHandoff) string { return render("assistant/se
 func RenderSegmentSummary(language string) string {
 	return render("assistant/segment_summary", struct{ Language string }{Language: language})
 }
+
+type OwnerInputFence struct {
+	Text           string
+	Owner, Blocked bool
+}
+
+func RenderOwnerInputFence(d OwnerInputFence) string { return render("assistant/owner_input_fence", d) }
+func RenderInteractionAlreadyAnswered(d OwnerInputFence) string {
+	return render("assistant/interaction_already_answered", d)
+}
+
+func RenderWorkerQuestionAuthority(waitingOnOwner bool) string {
+	return render("assistant/worker_question_authority", OwnerInputFence{Owner: waitingOnOwner})
+}

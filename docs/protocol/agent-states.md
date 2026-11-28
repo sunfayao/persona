@@ -39,7 +39,20 @@ Sort priority of a folded row or tab (which agent it speaks for and which pane i
   waits for a person. The group's name says why the number leaves it out, so no other state word is added for it. Any
   other mark, such as a muted agent's look, stays as it is elsewhere.
 
-### Awaiting your reply
+#### Supervised questions
+
+A worker's ordinary question first goes to the supervisor assigned to its open task. A
+`supervisor_pending` question is still answerable in the worker's chat. It stays out of
+the owner's attention list, its counts and reply reminders. A slow supervisor hands the
+question to the main conversation for supervision. The owner sees it only after an
+explicit escalation.
+
+An escalated card appears in the main conversation and keeps its original interaction ID.
+The answer still goes to the worker that is waiting for it. The main conversation
+carries `owner_needs_you` while it has an actionable question or an escalated task decision.
+A manually run Agent's questions and approvals that require the owner remain actionable.
+
+## Awaiting your reply
 
 "Seen" only says the user looked; it does not say whether the agent still waits on them. A turn that stops on a question
 ("Push it to beta?", "A or B?") that the user glanced at and left would read as Seen like a finished one, folded into Idle Spaces, and

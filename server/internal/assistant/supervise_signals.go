@@ -1095,7 +1095,7 @@ func watchSignals(t Todo, agents []proto.Session, now time.Time, groups ...super
 	for _, c := range currentTaskAgents(agents, supersededAgents(t, agents)) {
 		base := superviseSignal{Todo: t.ID, Machine: c.MachineID, Session: c.SessionID}
 		switch {
-		case c.State == proto.StateNeedsYou || c.PendingInteractions > 0:
+		case c.State == proto.StateNeedsYou || c.PendingInteractions > 0 || c.AwaitsReply:
 			since := cmp.Or(c.StateSince, c.UpdatedAt)
 			if wait := now.Sub(since); t.Quiet || wait >= superviseNeedsAfter {
 				g := base

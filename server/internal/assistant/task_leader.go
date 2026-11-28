@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
 	"slices"
 	"strings"
 	"time"
@@ -594,7 +595,7 @@ func (s *Service) supervisorRoute(g superviseSignal) (lead TodoAgent, dest taskl
 // dropped: it never falls to the main conversation). A signal that names its conversation itself (g.To: a card's rung,
 // a decision sent up) is not one of these.
 func (s *Service) leaderRoute(g superviseSignal) (lead TodoAgent, handled, reachable bool) {
-	if g.To != "" {
+	if g.To != "" && (g.Kind != sigAsk || !s.isLeaderRef(g.To)) {
 		return TodoAgent{}, false, false
 	}
 	t, ok := s.todoNow(g.Todo)
@@ -602,6 +603,9 @@ func (s *Service) leaderRoute(g superviseSignal) (lead TodoAgent, handled, reach
 		return TodoAgent{}, false, false
 	}
 	lead, handled, reachable = s.leaderSupervisor(t)
+	if g.To != "" && reachable && g.To != leaderRef(lead.MachineID, lead.SessionID) {
+		return TodoAgent{}, false, false
+	}
 	return lead, handled, reachable
 }
 
@@ -936,7 +940,7 @@ func (s *Service) leaderAgentRead(ctx context.Context, lead TodoAgent, args json
 	if !ok {
 		return "", fmt.Errorf("worker %s's Agent %s is not listed on %s now", w.ID, short(agent.SessionID), m.Name)
 	}
-	return s.agentTranscript(ctx, m, c, a.Turns)
+	return s.agentTranscript(ownerfence.WithObserver(ctx, s.ownerInputRef(lead.MachineID, lead.SessionID)), m, c, a.Turns)
 }
 
 // leaderAgentSend is the supervisor's agent_send: a message to one of its open workers' Agent (a nudge, an answer, a
@@ -954,7 +958,10 @@ func (s *Service) leaderAgentSend(ctx context.Context, lead TodoAgent, args json
 	if w.DoneAt != nil {
 		return "", fmt.Errorf("task %s is closed (%s): plan a new worker for what is left", w.ID, cmp.Or(w.DoneReason, "done"))
 	}
-	sent, err := s.sendToTask(ctx, w, a.Text)
+	if res, handled, err := s.leaderAnswerWorkerQuestion(ctx, lead, w, a.Text); handled {
+		return res, err
+	}
+	sent, err := s.sendToTask(ownerfence.WithObserver(ctx, s.ownerInputRef(lead.MachineID, lead.SessionID)), w, a.Text)
 	if errors.Is(err, errTaskAgentsStopped) {
 		return "", fmt.Errorf("worker %s's Agent was stopped by the owner and takes no message: plan a new worker with task_plan "+
 			"(put what it needs in the prompt) and cancel this one with task_review", w.ID)
@@ -1164,6 +1171,9 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 			}
 		}
 		r := TaskReview{At: time.Now().UTC(), Verdict: verdict, Checks: checks, Note: note}
+		if verdict == reviewNeedsUser {
+			r.Note = cmp.Or(r.Note, clip(oneLine(a.Reason), 200))
+		}
 		if verdict == reviewRework {
 			round, stalled := v.applyReworkAccounting(a.ReworkKind)
 			r.Round, r.ReworkKind, r.StalledReworkRounds = round, a.ReworkKind, stalled
@@ -1231,6 +1241,14 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 		if over && a.Reason == "" {
 			why = fmt.Sprintf("sent back %d times already, still short: %s", n, clip(oneLine(note), 160))
 		}
+		if cfg := s.settings(ctx); cfg.Main != "" {
+			up = cfg.Main
+		}
+		ids := slices.DeleteFunc(s.waitingCards(t, true), func(id string) bool {
+			ix, ok := s.pendingIx(id)
+			return !ok || ix.Kind != proto.IxQuestion
+		})
+		s.ringAsks(t.ID, ids, &proto.Delegate{Reason: why, Recommend: clip(oneLine(a.Recommend), 200)}, escalation{})
 		s.signal(superviseSignal{Todo: t.ID, Kind: sigDecide, To: up, Key: fmt.Sprintf("decide@%d@%s", v.Round, time.Now().UTC().Format(time.RFC3339Nano)),
 			Detail: why, Ask: clip(oneLine(a.Recommend), 200)})
 		if over {
@@ -1249,7 +1267,7 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 		displayMax = maxReworkRounds
 	}
 	text := prompts.RenderSuperviseRework(prompts.SuperviseRework{Round: v.Round, Max: displayMax, Checks: reworkChecks(checks), Note: note})
-	sent, err := s.sendToTask(ctx, t, text)
+	sent, err := s.sendToTask(ownerfence.WithObserver(ctx, s.ownerInputRef(lead.MachineID, lead.SessionID)), t, text)
 	if err != nil {
 		return "", fmt.Errorf("recorded rework round %d, but sending it to the worker failed: %v", v.Round, err)
 	}
@@ -1385,4 +1403,41 @@ func leaderRetryBackoff(d time.Duration) time.Duration {
 		return d * 2
 	}
 	return 30 * time.Minute
+}
+
+// A leader replies to its current option card through the same claim as interaction_answer. The scoped tool
+// accepts a label for a single question or a JSON object keyed by question when the card asks several.
+func (s *Service) leaderAnswerWorkerQuestion(ctx context.Context, lead TodoAgent, task Todo, text string) (string, bool, error) {
+	cards := s.heldAsks(task.ID, leaderRef(lead.MachineID, lead.SessionID))
+	for _, card := range cards {
+		if card.Kind != proto.IxQuestion {
+			continue
+		}
+		ix, ok := s.pendingIx(card.ID)
+		if !ok {
+			continue
+		}
+		ctx, err := s.supervisoryAction(ctx, lead.MachineID, lead.SessionID, ix.MachineID, ix.SessionID, ix.CreatedAt)
+		if err != nil {
+			return "", true, err
+		}
+		raw := json.RawMessage(strings.TrimSpace(text))
+		if len(ix.Questions) == 1 && !bytes.HasPrefix(raw, []byte("{")) {
+			raw, _ = json.Marshal(map[string]string{ix.Questions[0].Question: text})
+		}
+		answers, err := ownerfence.InteractionAnswers(ix, raw)
+		if err != nil {
+			return "", true, err
+		}
+		ok, err = s.answerQuestion(ctx, ix.MachineID, ix.SessionID, ix.ID, answers, "")
+		if err != nil && !errors.Is(err, errNotPending) {
+			return "", true, err
+		}
+		if !ok {
+			return "", true, s.questionOutcome(ctx, ix.MachineID, ix.SessionID, ix.ID, err).ToolError(ix.ID)
+		}
+		s.askAnswered(ctx, task.ID, lead.SessionID, ix, answers, "")
+		return fmt.Sprintf("Answered worker question %s.", ix.ID), true, nil
+	}
+	return "", false, nil
 }

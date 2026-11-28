@@ -17,7 +17,7 @@ import type { Interaction, Session } from "./types";
  *  the assistants' badges) as its row leaves the lists; they stay answerable on that session's own page. The row comes
  *  from the lists or from the card's exact lookup (store.ts cardSessionRow), which returns hidden rows too. */
 export function directoryVisibleCards(cards: Interaction[]): Interaction[] {
-  const visible = cards.filter((ix) => !cardSessionRow(ix.machine_id, ix.session_id)?.hidden_by_directory);
+  const visible = cards.filter((ix) => !(ix.kind === "question" && ix.supervisor_pending) && !cardSessionRow(ix.machine_id, ix.session_id)?.hidden_by_directory);
   return visible.length === cards.length ? cards : visible;
 }
 
@@ -32,7 +32,7 @@ export function useAgentSessions(): Session[] {
   const bounded = useStore((s) => s.features.includes(SESSIONS_LIST_FEATURE));
   const launches = useStore((s) => s.launches);
   // folded before the assistant's conversations go: a child folded under one of them is no Agent of its own either
-  return useMemo(() => heldLaunchRows(foldRows(directoryVisible(bounded ? summaries : Object.values(by).flat())).filter((s) => !s.assistant), launches, Date.now()), [by, summaries, bounded, launches]);
+  return useMemo(() => heldLaunchRows(foldRows(directoryVisible(bounded ? summaries : Object.values(by).flat())).filter((s) => !s.assistant || s.owner_needs_you), launches, Date.now()), [by, summaries, bounded, launches]);
 }
 
 /** The complete list as its readers get it: `error` says why it has not loaded (its read failed; it is read again in a
@@ -88,7 +88,7 @@ function createFullCache(owner: string) {
       if (valid()) observeLaunchRows(result.sessions);
       // An unchanged delta leaves the published snapshot (and its older base, which only widens the overlay) as it is.
       if (valid() && (result.changed || !fullSnapshot.loaded)) {
-        fullSnapshot = { sessions: foldRows(directoryVisible(result.sessions)).filter((s) => !s.assistant), loaded: true, error: "", base, epoch: fullSnapshot.epoch };
+        fullSnapshot = { sessions: foldRows(directoryVisible(result.sessions)).filter((s) => !s.assistant || s.owner_needs_you), loaded: true, error: "", base, epoch: fullSnapshot.epoch };
         fullChanged();
       }
     } catch (e) {
@@ -207,7 +207,7 @@ function useHubCompleteAgentSessions(on: boolean): FullAgentSessions {
   return useMemo(() => {
     // `on` false: the caller has no use for the list now and asks the hub for nothing
     if (!on) return EMPTY_FULL_LIST;
-    if (!bounded) return { sessions: heldLaunchRows(foldRows(directoryVisible(Object.values(by).flat())).filter((s) => !s.assistant), launches, Date.now()), loaded, error: "" };
+    if (!bounded) return { sessions: heldLaunchRows(foldRows(directoryVisible(Object.values(by).flat())).filter((s) => !s.assistant || s.owner_needs_you), launches, Date.now()), loaded, error: "" };
     // Wait for the first refresh's pins and grouping inputs before showing the complete snapshot.
     if (!loaded) return EMPTY_FULL_LIST;
     if (by === full.base) {

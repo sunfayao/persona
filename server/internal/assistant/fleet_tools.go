@@ -302,6 +302,13 @@ func (s *Service) mcpCallRun(ctx context.Context, machine, session, name string,
 	if !assistant && name == "task_review" {
 		return s.leaderTaskReview(ctx, machine, session, args)
 	}
+	if !assistant && name == "ask_escalate" && s.isLeaderSession(machine, session) {
+		out, err := s.toolAskEscalate(ctx, leaderRef(machine, session), args)
+		if err != nil {
+			return proto.TextResult(err.Error(), true)
+		}
+		return proto.TextResult(out, false)
+	}
 	if !assistant && isLeaderTool(name) { // agent_read, agent_send, task_scope: a task leader's own (task_leader.go)
 		return s.leaderScopedTool(ctx, machine, session, name, args)
 	}

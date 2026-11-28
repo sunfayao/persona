@@ -64,12 +64,17 @@ func (s *Service) toolAgentInterrupt(ctx context.Context, machine, self string, 
 		Then      string `json:"then"`
 	}
 	_ = json.Unmarshal(args, &a)
-	am, c, err := s.findAgent(ctx, a.Machine, a.SessionID)
+	space := s.agentCallerSpace(ctx, machine, self)
+	am, c, err := s.findAgentInSpace(ctx, a.Machine, a.SessionID, &space)
 	if err != nil {
 		return "", err
 	}
 	if c.Assistant {
 		return "", fmt.Errorf("that is an assistant conversation, not a coding agent: it is the user's to stop")
+	}
+	ctx, err = s.supervisoryAction(ctx, machine, self, am.ID, c.SessionID)
+	if err != nil {
+		return "", err
 	}
 	then := strings.TrimSpace(a.Then)
 	if c.SourceKind != "" && (c.Capabilities == nil || !c.Capabilities.Interrupt || then != "" && !c.Capabilities.Send) {

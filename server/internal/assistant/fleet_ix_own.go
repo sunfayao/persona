@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
 	"sync"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 
 // answerQuestion resolves the pending question id of machine's session with answers, as the assistant answered it
 // (and why, "" when it did not say); false when it is no longer pending.
-func (s *Service) answerQuestion(machine, session, id string, answers map[string]string, reason string) (bool, error) {
+func (s *Service) answerQuestion(ctx context.Context, machine, session, id string, answers map[string]string, reason string) (bool, error) {
 	ix, ok := s.pendingIx(id)
 	if !ok {
 		return false, nil
@@ -28,10 +29,7 @@ func (s *Service) answerQuestion(machine, session, id string, answers map[string
 	if ix.MachineID != machine || ix.SessionID != session {
 		return false, fmt.Errorf("interaction %s is not machine=%s session_id=%s's", id, machine, session)
 	}
-	if err := s.resolve(id, proto.Resolution{Answers: answers, AnsweredBy: proto.AnsweredByAssistant, Reason: reason}); err != nil {
-		if errors.Is(err, errNotPending) {
-			return false, nil
-		}
+	if err := s.resolveAnswer(ctx, id, proto.Resolution{Answers: answers, AnsweredBy: proto.AnsweredByAssistant, Reason: reason}, true, nil, nil); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -58,6 +56,65 @@ func (s *Service) interactionOutcome(ctx context.Context, id string) string {
 		return ""
 	}
 	return status
+}
+
+func (s *Service) questionOutcome(ctx context.Context, machine, session, id string, cause error) ownerfence.QuestionEnd {
+	if machine == "" || session == "" {
+		return ownerfence.QuestionEnd{Status: s.endedStatus(ctx, id, cause)}
+	}
+	s.fleet.mu.Lock()
+	first := s.fleet.localQuestionAnswers[id]
+	if p := s.fleet.interactions[id]; p != nil && p.claimed && p.resolution != nil {
+		first = &answeredJustNow{interaction: p.ix, id: id, status: endStatus(*p.resolution), kept: redacted(p.ix, *p.resolution)}
+	}
+	s.fleet.mu.Unlock()
+	var claimed *answeredJustNow
+	if errors.As(cause, &claimed) {
+		first = claimed
+	}
+	if first != nil && first.interaction.Kind == proto.IxQuestion &&
+		first.interaction.MachineID == machine && first.interaction.SessionID == session {
+		if err := first.wait(ctx); err != nil {
+			return ownerfence.QuestionEnd{}
+		}
+		if first.interaction.Secret {
+			return ownerfence.QuestionEnd{Status: first.status}
+		}
+		return ownerfence.QuestionEnd{Status: first.status, Answer: ownerfence.QuestionAnswerText(first.kept), ByOwner: first.kept.AnsweredBy == ""}
+	}
+	if st, ok := s.store().(interface {
+		QuestionOutcome(context.Context, string, string, string) (string, *proto.Resolution, error)
+	}); ok {
+		status, res, err := st.QuestionOutcome(ctx, id, machine, session)
+		if err == nil && res != nil {
+			return ownerfence.QuestionEnd{Status: status, Answer: ownerfence.QuestionAnswerText(*res), ByOwner: res.AnsweredBy == ""}
+		}
+		return ownerfence.QuestionEnd{Status: status}
+	}
+	return ownerfence.QuestionEnd{Status: s.interactionOutcome(ctx, id)}
+}
+
+func (a *answeredJustNow) wait(ctx context.Context) error {
+	if a.inFlight == nil {
+		return nil
+	}
+	select {
+	case <-a.inFlight.done:
+		return a.inFlight.err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (s *Service) recordQuestionInput(ix proto.Interaction, r proto.Resolution) {
+	if ix.Secret {
+		r = proto.Resolution{Text: redactedValue, AnsweredBy: r.AnsweredBy}
+	}
+	if text := ownerfence.QuestionAnswerText(r); text != "" {
+		s.ownerInputs.Record(s.ownerInputRef(ix.MachineID, ix.SessionID), ownerfence.Input{
+			At: time.Now(), Text: text, ByOwner: r.AnsweredBy == "",
+		})
+	}
 }
 
 // ---- the assistant's own questions and cards ----

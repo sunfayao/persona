@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
 	"maps"
 	"slices"
 	"sort"
@@ -380,7 +381,7 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 	case "concern_report":
 		return s.toolConcernReport(ctx, machine, self, args) // concerns.go
 	case "interaction_answer":
-		return s.toolInteractionAnswer(ctx, self, args)
+		return s.toolInteractionAnswer(ownerfence.WithObserver(ctx, s.ownerInputRef(machine, self)), self, args)
 	case "ask_escalate":
 		return s.toolAskEscalate(ctx, self, args) // ask_route.go
 	case "secret_run":
@@ -496,6 +497,7 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		var a struct{ State, Machine, Query string }
 		_ = json.Unmarshal(args, &a)
 		// The main conversation acts for the owner: its reuse hints include resuming an Agent that ended on its own.
+		ctx = ownerfence.WithObserver(ctx, s.ownerInputRef(machine, self))
 		return s.describeAgentsFor(ctx, s.isMain(ctx, self), a.State, a.Machine, a.Query, s.agentCallerSpace(ctx, machine, self)), nil
 	case "agent_read":
 		var a struct {
@@ -504,6 +506,7 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 			Turns     int    `json:"turns"`
 		}
 		_ = json.Unmarshal(args, &a)
+		ctx = ownerfence.WithObserver(ctx, s.ownerInputRef(machine, self))
 		return s.toolAgentRead(ctx, a.Machine, a.SessionID, a.Turns, s.agentCallerSpace(ctx, machine, self))
 	case "agent_send":
 		wait, waitErr := agentWaitDuration(args)
@@ -547,6 +550,11 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		if strings.TrimSpace(a.Text) == "" {
 			return "", fmt.Errorf("text is empty")
 		}
+		ctx, err = s.supervisoryAction(ctx, machine, self, am.ID, c.SessionID)
+		if err != nil {
+			return "", err
+		}
+		ctx = context.WithValue(ctx, relayedOwnerDecisionKey{}, a.Text)
 		// A terminal Agent that ended without an owner's Stop takes only the owner's own message on its node: for this
 		// tool it is stopped too, and resume brings it back (exitedTerminal).
 		stopped := stoppedAgent(c) || exitedTerminal(c)
@@ -2100,6 +2108,7 @@ func (s *Service) describeAgentsFor(ctx context.Context, forOwner bool, state, m
 			fmt.Fprintf(&b, " · reuse=%s", hint)
 		}
 		b.WriteString("\n")
+		b.WriteString(s.ownerInputs.ShowObserved(ctx, s.ownerInputRef(r.m.ID, c.SessionID)))
 		// A row of the reuse groups (and of done, muted and ended) says what it concluded, which is what a reuse needs.
 		conclusion := ""
 		if c.Work != nil && c.Work.Phase != proto.WorkWorking && c.Work.Line != "" {
@@ -2204,7 +2213,8 @@ func (s *Service) agentTranscript(ctx context.Context, m Device, c proto.Session
 		return "", err
 	}
 	head := fmt.Sprintf("%s on %s (%s, %s)", agentLabel(c), m.Name, stateNames[c.State], c.Cwd)
-	return transcriptText(head, sessionLink(s.webBase(ctx), m.ID, c.SessionID, false), res.Items), nil
+	text := transcriptText(head, sessionLink(s.webBase(ctx), m.ID, c.SessionID, false), res.Items)
+	return text + s.ownerInputs.ShowObserved(ctx, s.ownerInputRef(m.ID, c.SessionID)), nil
 }
 
 // questionSummary is every question of an interaction with its options, so agents_list carries what answering one
@@ -2214,7 +2224,7 @@ func questionSummary(ix proto.Interaction) string {
 	for _, q := range ix.Questions {
 		part := q.Question
 		if len(q.Options) > 0 {
-			part += "（" + optionLabels(q) + "）"
+			part += "（" + ownerfence.OptionLabels(q) + "）"
 		}
 		parts = append(parts, part)
 	}

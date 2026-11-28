@@ -37,6 +37,11 @@ func (s *Service) delegable(ix proto.Interaction) (forget func()) {
 	if !s.hello(ctx).Agents.Delegate.On() {
 		return nil
 	}
+	if t, ok := s.taskOf(ctx, ix.MachineID, ix.SessionID); ok {
+		if _, _, reachable := s.leaderSupervisor(t); reachable {
+			return nil // the leader receives the worker's question through supervision
+		}
+	}
 	forget, ok := s.claimDelegate(ctx, ix)
 	if !ok {
 		s.workEvent(ix.MachineID, ix.SessionID, "delegate_repeat", map[string]any{"questions": len(ix.Questions)})
@@ -269,12 +274,12 @@ func (s *Service) delegateNow(ix proto.Interaction, forget func(), since time.Ti
 		s.logf("delegate %s: %v; asking the user", ix.ID, d.err)
 	case d.res.Answer:
 		// Noted since delegable: the agent has the answer at once and may ask the same again before this goes on.
-		ok, err := s.answerQuestion(ix.MachineID, ix.SessionID, ix.ID, d.res.Answers, d.res.Reason)
+		ok, err := s.answerQuestion(ctx, ix.MachineID, ix.SessionID, ix.ID, d.res.Answers, d.res.Reason)
 		if ok {
 			answered = true
 			s.rememberDelegated(ix)
 		}
-		if ok || err == nil {
+		if ok || err == nil || errors.Is(err, errNotPending) {
 			s.delegateMark(ix, "delegate_end")
 			return // answered, or no longer pending (the user answered it meanwhile)
 		}

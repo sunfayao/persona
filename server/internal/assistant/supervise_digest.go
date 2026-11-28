@@ -893,10 +893,14 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 			g.Detail = strings.TrimSpace(g.Detail + " " + r.ExternalPR.detail())
 		}
 	case sigNeedsYou:
-		if !s.taskWaits(ctx, t) {
+		// Close a queued wake for the earlier question as soon as the owner supplies newer input.
+		if s.ownerInputAfterSignal(t, g) || s.routedSessions()[[2]string{g.Machine, g.Session}] || !s.taskWaits(ctx, t) {
 			return prompts.SuperviseEntry{}, false // answered meanwhile
 		}
 	case sigDecide:
+		if s.ownerInputAfterSignal(t, g) {
+			return prompts.SuperviseEntry{}, false
+		}
 		if g.Unreachable {
 			// The leader could not be reached: the worker's own state is not what decides this (the leader's task is still open).
 		} else if st != reviewNeedsUser {

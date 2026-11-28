@@ -190,6 +190,34 @@
     }
   },
   {
+    "name": "interaction_supervisor_pending",
+    "description": "A worker question is visible in its chat while its supervisor decides.",
+    "source": [
+      "server/internal/proto/interaction.go: Interaction"
+    ],
+    "derived": true,
+    "decoder": "event",
+    "input": {
+      "interaction": {
+        "id": "ix_supervised",
+        "machine_id": "m1",
+        "session_id": "s1",
+        "kind": "question",
+        "created_at": "2026-01-02T03:04:05Z",
+        "expires_at": "2026-01-02T04:04:05Z",
+        "delegating": true,
+        "supervisor_pending": true
+      },
+      "type": "interaction"
+    },
+    "expected": {
+      "accepted": true,
+      "fields": {
+        "/interaction/supervisor_pending": true
+      }
+    }
+  },
+  {
     "name": "interaction_question_decision",
     "description": "助手的提问卡带截止时间、能否撤回和每题的建议项；客户端不认识这几个键，照常读其余字段。",
     "source": [

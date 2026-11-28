@@ -116,7 +116,8 @@ type SessionRef struct {
 // Keep it out of SessionRef: session references are also used as map keys.
 type UserSpokeParams struct {
 	SessionRef
-	Text string `json:"text,omitempty"`
+	Text        string `json:"text,omitempty"`
+	ClientMsgID string `json:"client_msg_id,omitempty"`
 }
 
 // ContextParams is assistant.context's params. MachineID is the asking node's machine: the hub sets it from the

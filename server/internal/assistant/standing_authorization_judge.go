@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
 	"slices"
 	"strings"
 
@@ -73,7 +74,7 @@ func assessStandingWith(ctx context.Context, m jsonModel, ix proto.Interaction, 
 		}
 		if hasOptions {
 			raw, _ := json.Marshal(out.Answers)
-			answers, err := interactionAnswers(ix, raw)
+			answers, err := ownerfence.InteractionAnswers(ix, raw)
 			if err != nil {
 				return standingCardAssessment{}, err
 			}
@@ -85,7 +86,7 @@ func assessStandingWith(ctx context.Context, m jsonModel, ix proto.Interaction, 
 				if json.Unmarshal(out.Answers[q.Question], &answer) != nil || strings.TrimSpace(answer) == "" {
 					return standingCardAssessment{}, errors.New("missing standing question answer")
 				}
-				if len(q.Options) > 0 && checkOptions(q, answer) != nil {
+				if len(q.Options) > 0 && ownerfence.CheckOptions(q, answer) != nil {
 					return standingCardAssessment{}, errors.New("invalid standing question answer")
 				}
 				a.Answers[q.Question] = answer

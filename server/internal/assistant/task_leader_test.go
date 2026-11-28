@@ -11,7 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/devicewire"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
@@ -1658,5 +1660,151 @@ func TestLeaderRetryDeliveredIsNotRedeliveredAfterRestart(t *testing.T) {
 		if strings.Contains(m, w.ID) {
 			t.Fatalf("the review the leader took on a retry was delivered again after a restart:\n%s", m)
 		}
+	}
+}
+
+func TestLeaderSendRequiresFreshObservationAfterDirectOwnerInput(t *testing.T) {
+	s, f, id := leaderDecisionFixture(t)
+	target, ok := workerAgent(todoNow(s, id))
+	if !ok {
+		t.Fatal("worker fixture has no Agent")
+	}
+	before := len(sendsTo(f, target.MachineID, target.SessionID))
+	recv := func(name, raw string) proto.ToolResult {
+		return s.mcpCall(t.Context(), "box", "s1", name, json.RawMessage(raw), false)
+	}
+	if r := recv("agent_read", `{"todo_id":"`+id+`"}`); r.IsError {
+		t.Fatalf("initial leader read: %+v", r)
+	}
+	s.recordDirectOwnerInput(assistantwire.UserSpokeParams{
+		SessionRef: SessionRef{MachineID: target.MachineID, SessionID: target.SessionID}, Text: "Probe every hour.",
+	})
+	if r := recv("agent_send", `{"todo_id":"`+id+`","text":"Probe every fifteen minutes."}`); !r.IsError ||
+		!strings.Contains(r.Content[0].Text, "Probe every hour.") {
+		t.Fatalf("stale leader send: %+v", r)
+	}
+	if got := len(sendsTo(f, target.MachineID, target.SessionID)); got != before {
+		t.Fatalf("stale instruction reached the node, writes %d -> %d", before, got)
+	}
+	if r := recv("agent_read", `{"todo_id":"`+id+`"}`); r.IsError || !strings.Contains(r.Content[0].Text, "Probe every hour.") {
+		t.Fatalf("fresh leader read: %+v", r)
+	}
+	if r := recv("agent_send", `{"todo_id":"`+id+`","text":"Keep the hourly schedule."}`); r.IsError {
+		t.Fatalf("fresh leader send: %+v", r)
+	}
+	if got := sendsTo(f, target.MachineID, target.SessionID)[before:]; len(got) != 1 || got[0] != "Keep the hourly schedule." {
+		t.Fatalf("node writes: %q", got)
+	}
+}
+
+func TestMainRelaySettlesEscalatedWorkerDecision(t *testing.T) {
+	s, f, id := leaderDecisionFixture(t)
+	leaderNeedsUserReview(t, s, id, "Probe every fifteen minutes or hourly?")
+	target, ok := workerAgent(todoNow(s, id))
+	if !ok {
+		t.Fatal("worker fixture has no Agent")
+	}
+	ctx := t.Context()
+	if _, err := s.supervisoryAction(ctx, "box", "s1", target.MachineID, target.SessionID); err == nil ||
+		!strings.Contains(err.Error(), "waiting for the owner") {
+		t.Fatalf("the leader could answer its own escalation: %v", err)
+	}
+	const choice = "Probe hourly."
+	s.recordDirectOwnerInput(assistantwire.UserSpokeParams{
+		SessionRef: SessionRef{MachineID: "server", SessionID: "conv1"}, Text: choice, ClientMsgID: "owner-choice",
+	})
+	f.answerNode(DeviceSessionItems, func(string, json.RawMessage) (any, error) {
+		return map[string]any{"items": []proto.Item{{Role: "user", Kind: proto.KindText, Text: choice, ClientMsgID: "owner-choice"}}}, nil
+	})
+	relay, err := s.supervisoryAction(ctx, "server", "conv1", target.MachineID, target.SessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	relay = context.WithValue(relay, relayedOwnerDecisionKey{}, choice)
+	if err := s.call(relay, target.MachineID, DeviceSessionSend, sendParams(target.SessionID, choice, false), nil); err != nil {
+		t.Fatal(err)
+	}
+	settled := make(chan struct{})
+	s.inOrder(func() { close(settled) })
+	<-settled
+	if state := todoNow(s, id).Supervision.State; state == reviewNeedsUser {
+		t.Fatalf("worker still waits for the owner after main's accepted relay: %s", state)
+	}
+	if _, err := s.supervisoryAction(ctx, "box", "s1", target.MachineID, target.SessionID); err == nil ||
+		!strings.Contains(err.Error(), choice) {
+		t.Fatalf("late leader action was not suppressed with the owner's choice: %v", err)
+	}
+}
+
+func TestWorkerQuestionReachesTheOwnerOnlyAfterEscalation(t *testing.T) {
+	s, _, id := leaderDecisionFixture(t)
+	worker, found := workerAgent(todoNow(s, id))
+	if !found {
+		t.Fatal("missing worker")
+	}
+	ix := askOn("ix_supervised", "What cadence?", false, "Hourly", "Every fifteen minutes")
+	ix.MachineID, ix.SessionID = worker.MachineID, worker.SessionID
+	done := make(chan proto.Resolution, 1)
+	s.fleet.mu.Lock()
+	s.ixMapLocked()[ix.ID] = &pending{ix: ix, done: done}
+	s.fleet.mu.Unlock()
+	if !s.routeAsk(ix) || len(s.heldAsks(id, "box/s1")) != 1 {
+		t.Fatal("the question did not go to the worker's supervisor")
+	}
+	check := func(wantMain bool) {
+		rows := []proto.Session{{SessionID: worker.SessionID, State: proto.StateNeedsYou, PendingInteractions: 1}}
+		s.projectOwnerAttention(worker.MachineID, rows, true)
+		if rows[0].State == proto.StateNeedsYou || rows[0].PendingInteractions != 0 {
+			t.Fatalf("worker leaked to the owner: %+v", rows[0])
+		}
+		main := []proto.Session{{SessionID: "conv1", Assistant: true, State: proto.StateIdle}}
+		s.projectOwnerAttention("server", main, true)
+		if main[0].OwnerNeedsYou != wantMain || (main[0].State == proto.StateNeedsYou) != wantMain {
+			t.Fatalf("main owner attention = %v (state %q), want %v", main[0].OwnerNeedsYou, main[0].State, wantMain)
+		}
+	}
+	check(false)
+	s.askTick(ix.CreatedAt.Add(2 * time.Hour))
+	s.askTick(ix.CreatedAt.Add(3 * time.Hour))
+	check(false)
+	if card, ok := s.pendingIx(ix.ID); !ok || !card.SupervisorPending {
+		t.Fatalf("timeout made a worker question owner-facing: %+v", card)
+	}
+	if _, err := s.toolAskEscalate(t.Context(), "conv1", json.RawMessage(`{"todo_id":"`+id+`","reason":"The owner must set the cadence"}`)); err != nil {
+		t.Fatal(err)
+	}
+	check(true)
+	if card := s.ownerCard(ix); card.MachineID != "server" || card.SessionID != "conv1" {
+		t.Fatalf("escalated card displayed on the worker: %+v", card)
+	}
+	if err := s.resolveAnswer(devicewire.WithOwnerAnswer(t.Context()), ix.ID,
+		proto.Resolution{Answers: map[string]string{"What cadence?": "Hourly"}}, true, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if result := <-done; result.Answers["What cadence?"] != "Hourly" {
+		t.Fatalf("the answer did not reach the original worker: %+v", result)
+	}
+	check(false)
+}
+
+func TestLeaderAnswersRoutedQuestionWithoutSendingASecondTurn(t *testing.T) {
+	s, f, id := leaderDecisionFixture(t)
+	worker, _ := workerAgent(todoNow(s, id))
+	ix := askOn("ix_leader_reply", "What cadence?", false, "Hourly", "Every fifteen minutes")
+	ix.MachineID, ix.SessionID = worker.MachineID, worker.SessionID
+	done := make(chan proto.Resolution, 1)
+	s.fleet.mu.Lock()
+	s.ixMapLocked()[ix.ID] = &pending{ix: ix, done: done}
+	s.fleet.mu.Unlock()
+	if !s.routeAsk(ix) {
+		t.Fatal("question was not routed")
+	}
+	before := len(sendsTo(f, worker.MachineID, worker.SessionID))
+	res := s.mcpCall(t.Context(), "box", "s1", "agent_send", json.RawMessage(`{"todo_id":"`+id+`","text":"Hourly"}`), false)
+	if res.IsError || len(sendsTo(f, worker.MachineID, worker.SessionID)) != before {
+		t.Fatalf("leader answer used a separate send: %+v", res)
+	}
+	if result := <-done; result.AnsweredBy != proto.AnsweredByAssistant || result.Answers["What cadence?"] != "Hourly" {
+		t.Fatalf("wrong result: %+v", result)
 	}
 }

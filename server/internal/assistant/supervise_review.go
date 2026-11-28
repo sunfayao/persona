@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -842,6 +843,13 @@ func (s *Service) sendTaskInput(ctx context.Context, t Todo, text string, wait b
 	}
 	if _, ok := s.device(ctx, c.MachineID); !ok {
 		return "", errors.New("its machine is offline")
+	}
+	if supervisor, ok := ownerfence.ObserverOf(ctx); ok {
+		var err error
+		ctx, err = s.supervisoryAction(ctx, supervisor.Machine, supervisor.Session, c.MachineID, c.SessionID)
+		if err != nil {
+			return "", err
+		}
 	}
 	if resumeStopped {
 		return s.resumeStoppedTaskAgent(ctx, t, c, text)

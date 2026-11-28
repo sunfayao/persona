@@ -94,6 +94,7 @@ func (s *Service) fleetInputsInto(kept map[string][]proto.Session) ([]fleetInput
 			lists[i] = s.decoratedInto(m.ID, kept[m.ID])
 			keepList(kept, m.ID, lists[i])
 		}
+		s.projectOwnerAttention(m.ID, lists[i], false)
 		n += len(lists[i])
 	}
 	if len(kept) > 0 {

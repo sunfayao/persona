@@ -238,12 +238,14 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 		Queued: []string{"请补充示例。"}, Suggestion: "继续检查示例", Background: []proto.BackgroundTask{{ID: "task_example", Kind: "shell", Description: "检查示例", Command: "pwd", StartedAt: now}},
 		Subagents: []proto.Subagent{{ID: "agent_example", SessionID: "s1@agent_example", Type: "Explore", Running: true, StartedAt: now}},
 		Loop:      &proto.LoopInfo{Kind: "wakeup", Prompt: "检查示例状态", NextAt: now.Add(time.Hour), Ticks: 1}},
-		{MachineID: "m1", SessionID: "s2", Title: "离线示例", Cwd: "/home/user/project", Status: proto.StatusOffline, UpdatedAt: now}}
+		{MachineID: "m1", SessionID: "s2", Title: "离线示例", Cwd: "/home/user/project", Status: proto.StatusOffline, UpdatedAt: now},
+		{MachineID: "m1", SessionID: "main", Title: "Persona", Assistant: true, OwnerNeedsYou: true, State: proto.StateNeedsYou, UpdatedAt: now},
+	}
 	// The states as the manager works them out (assistant/fleet.go).
 	sessions[0].State, sessions[1].State = proto.StateNeedsYou, proto.StateOffline
 	sessions[0].StateSince, sessions[1].StateSince = now, now
 	add("sessions", "sessions_list", "会话列表保留状态、模式和后台任务信息。", "sessions", httpJSON(map[string]any{"sessions": sessions}),
-		map[string]any{"/sessions/0/state": "needs_you", "/sessions/0/rev": 120, "/sessions/0/permission_mode": "plan", "/sessions/0/background/0/kind": "shell", "/sessions/1/state": "offline"},
+		map[string]any{"/sessions/0/state": "needs_you", "/sessions/0/rev": 120, "/sessions/0/permission_mode": "plan", "/sessions/0/background/0/kind": "shell", "/sessions/1/state": "offline", "/sessions/2/owner_needs_you": true},
 		"server/internal/proto/session.go: Session", "server/internal/hub/http.go: Hub.listSessions")
 	add("sessions", "sessions_event", "会话事件以信封中的机器标识为准。", "event", ws(map[string]any{"type": "sessions", "machine_id": "m1", "sessions": sessions}),
 		map[string]any{"/type": "sessions", "/machine_id": "m1", "/sessions/0/machine_id": "m1", "/sessions/1/status": "offline"},
@@ -466,6 +468,12 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 	// The assistant's ask_user keeps its decision on the card (deadline, reversible, each question's recommend): keys the
 	// apps do not model, which they read past.
 	deadline, reversible := now.Add(6*time.Hour), true
+	supervisedQuestion := proto.Interaction{ID: "ix_supervised", MachineID: "m1", SessionID: "s1", Kind: proto.IxQuestion,
+		CreatedAt: now, ExpiresAt: now.Add(time.Hour), Delegating: true, SupervisorPending: true}
+	add("interactions", "interaction_supervisor_pending", "A worker question is visible in its chat while its supervisor decides.", "event",
+		ws(map[string]any{"type": "interaction", "interaction": supervisedQuestion}),
+		map[string]any{"/interaction/supervisor_pending": true}, "server/internal/proto/interaction.go: Interaction")
+
 	decision := proto.Interaction{ID: "ix_decision", MachineID: "m1", SessionID: "s1", SessionTitle: "Persona", Kind: proto.IxQuestion,
 		ToolName: "ask_user", CreatedAt: now, ExpiresAt: now.Add(time.Hour), Deadline: &deadline, Reversible: &reversible,
 		Questions: []proto.Question{{Question: "现在合并示例分支吗", Header: "合并", Recommend: "合并",

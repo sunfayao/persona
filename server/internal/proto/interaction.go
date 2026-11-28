@@ -187,6 +187,8 @@ type Interaction struct {
 	// docs/assistant/assistant.md "Assistant answers questions first"); nothing was pushed yet. The card shows in the apps meanwhile, and an answer
 	// given there wins.
 	Delegating bool `json:"delegating,omitempty"`
+	// SupervisorPending marks a worker question shown in its chat but omitted from the owner's attention surfaces.
+	SupervisorPending bool `json:"supervisor_pending,omitempty"`
 	// PushLevel is the hub push-grading urgency for this card ("P0", "P1", "P2"): empty/absent defaults to "P0",
 	// while "P1" marks a supervisor-escalated card held for the Needs you list and briefing when grading is on.
 	PushLevel string `json:"push_level,omitempty"`

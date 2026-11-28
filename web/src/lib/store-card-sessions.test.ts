@@ -320,3 +320,12 @@ describe("directory-hidden cards on a paging hub", () => {
     expect(lookups.length).toBe(before);
   });
 });
+
+it("omits a question under supervision from owner counts until it is escalated to main", () => {
+  const held: Interaction = { ...rootCard, kind: "question", delegating: true, supervisor_pending: true };
+  const permission: Interaction = { ...rootCard, id: "owner-only", kind: "permission", delegating: true };
+  const manual: Interaction = { ...rootCard, id: "manual", kind: "question", delegating: true };
+  expect(directoryVisibleCards([held, permission, manual]).map((card) => card.id)).toEqual(["owner-only", "manual"]);
+  const escalated: Interaction = { ...held, session_id: "main", delegating: false, supervisor_pending: false };
+  expect(directoryVisibleCards([escalated])).toEqual([escalated]);
+});

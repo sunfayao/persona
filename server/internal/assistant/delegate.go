@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"encoding/json"
+	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -103,7 +104,7 @@ func delegateResult(ix proto.Interaction, out delegateOut, now time.Time) Delega
 		return DelegateResult{Ask: ask}
 	}
 	raw, _ := json.Marshal(out.Answers)
-	answers, err := interactionAnswers(ix, raw)
+	answers, err := ownerfence.InteractionAnswers(ix, raw)
 	if err != nil {
 		return DelegateResult{Ask: ask}
 	}

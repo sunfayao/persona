@@ -758,6 +758,17 @@ func (a assistantRemote) userSpoke(_ context.Context, p assistantwire.UserSpokeP
 	a.notify(assistantwire.EventUserSpoke, p)
 }
 
+// recordOwnerInput orders the manager's observation before the hub dispatches the owner's message to its node.
+func (a assistantRemote) recordOwnerInput(ctx context.Context, p assistantwire.UserSpokeParams) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	err := a.call(ctx, assistantwire.MethodOwnerInput, p, nil)
+	var re *rpc.Error
+	if err != nil && !(errors.As(err, &re) && re.Code == bus.CodeUnknownMethod) {
+		a.h.logf("assistant: record owner input: %v", err)
+	}
+}
+
 func (a assistantRemote) UserStopped(_ context.Context, r assistantwire.SessionRef) {
 	a.notify(assistantwire.EventUserStopped, r)
 }
