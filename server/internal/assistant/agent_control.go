@@ -401,7 +401,7 @@ func othersTask(c proto.Session, t Todo, self string) error {
 	switch {
 	case t.Origin == "":
 		return fmt.Errorf("%s is on the user's own todo %q (%s): it stays theirs", agentLabel(c), t.Title, t.ID)
-	case t.Origin != self && (t.Supervision == nil || t.Supervision.Supervisor != self):
+	case t.Origin != self && (t.Supervision == nil || t.Supervision.Supervisor != self && t.Supervision.Above != self):
 		return fmt.Errorf("%s works for task %q (%s) of another conversation: it stays that conversation's", agentLabel(c), t.Title, t.ID)
 	}
 	return nil
@@ -508,7 +508,7 @@ func (s *Service) requestOfPiece(ctx context.Context, self, id string) error {
 	case root.Origin != self && (root.Supervision == nil || root.Supervision.Supervisor != self && root.Supervision.Supervisor != s.settings(ctx).Main):
 		return fmt.Errorf("part_of: %s is not a to-do this conversation opened or supervises", id)
 	}
-	if err := s.supervisedWorkRefusal(PlanTask{PartOf: id}); err != nil {
+	if err := s.supervisedWorkRefusal(ctx, PlanTask{PartOf: id}); err != nil {
 		return err
 	}
 	_, err := s.checkPieces("", pieceEdit{PartOf: &id})
@@ -963,7 +963,10 @@ func (s *Service) reportToSupervisor(ctx context.Context, machine, session strin
 		return "", err
 	}
 	t, ok := s.taskOf(ctx, machine, session)
-	if !ok || t.Supervision == nil || t.Supervision.Supervisor == "" {
+	if root, _, leads := s.leaderTask(ctx, machine, session); leads && root.Supervision == nil {
+		root.Supervision = &Supervision{Supervisor: s.conversationAbove(ctx, root)} // a request container the hub gave a supervisor Agent
+		t, ok = root, true
+	} else if !ok || t.Supervision == nil || t.Supervision.Supervisor == "" {
 		// Any open todo's agent has a receiver while agent tasks are on (#3617, agent_tasks.go).
 		t, ok = s.superviseOpenTodoOf(ctx, machine, session)
 	}
@@ -1004,6 +1007,10 @@ func (s *Service) reportToSupervisor(ctx context.Context, machine, session strin
 	}
 	if a.Kind == upReportDone { // a supervisor Agent's done on its own to-do is its completion (task_leader.go)
 		if root, _, leads := s.leaderTask(ctx, machine, session); leads && root.ID == t.ID {
+			if root.memberSupervised() {
+				return "", errors.New("close this to-do with task_review accepted (one check per criterion, once you checked its evidence) instead: " +
+					"kind done is for a to-do whose work its pieces do")
+			}
 			return s.supervisorCompletion(ctx, root, machine, session, text, evidence, step, steps, now)
 		}
 	}

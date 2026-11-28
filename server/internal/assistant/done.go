@@ -912,7 +912,7 @@ func autoDoneSkip(t Todo, work time.Time, worked bool) string {
 	case t.ReopenedAt != nil && !(worked && work.After(*t.ReopenedAt)):
 		return "reopened" // no new turn since the user reopened it
 	}
-	if _, ok := t.supervisorAgent(); ok {
+	if _, ok := t.supervisorAgent(); ok && !t.memberSupervised() {
 		// Its supervisor Agent stops to wait for its workers, which is no stretch of work to judge: the to-do waits
 		// for review only when the supervisor reports it done (supervisorCompletion, task_leader.go).
 		return "supervisor"

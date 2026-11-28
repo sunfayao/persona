@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/autosupervise"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -264,6 +265,11 @@ type superviseBook struct {
 	told             map[string]time.Time // conversation → last accepted supervision message
 	timer            *time.Timer
 	timerAt          time.Time
+
+	// autoOnce makes auto (Service.autoGate), the supervisors the hub attaches by itself (supervise_leader.go); autoNow is its clock in tests.
+	autoOnce sync.Once
+	auto     *autosupervise.Gate
+	autoNow  func() time.Time
 
 	resuming map[[2]string]struct{} // fingerprints of offline leader sends in flight, under dedupMu
 

@@ -260,6 +260,10 @@ func (s *Service) sendDigest(ctx context.Context) {
 			wait = append(wait, g)
 			continue
 		}
+		if to == here.Main && s.superviseAuto(ctx, here, g) { // its request's supervisor Agent is on its way
+			wait = append(wait, g)
+			continue
+		}
 		if to == here.BackgroundSupervisor && to != here.Main {
 			to, g = s.applyBackgroundBreaker(ctx, here, to, g, now)
 			if to == "" {

@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"github.com/sunfayao/persona/server/internal/assistant/mdtext"
 	"strings"
 	"time"
 
@@ -34,7 +35,7 @@ type machineList struct {
 func (s *Service) taskAgentsIn(ctx context.Context, t Todo, lists machineSessions) []proto.Session {
 	var out []proto.Session
 	for _, a := range t.Agents {
-		if a.ReleasedAt != nil || a.DismissedAt != nil {
+		if a.ReleasedAt != nil || a.DismissedAt != nil || t.supervisorRow(a) {
 			continue
 		}
 		l, ok := lists[a.MachineID]
@@ -107,7 +108,7 @@ func (s *Service) taskAgentsReached(ctx context.Context, t Todo) (agents []proto
 		lists[a.MachineID] = list
 	}
 	for _, a := range t.Agents {
-		if a.ReleasedAt != nil || a.DismissedAt != nil {
+		if a.ReleasedAt != nil || a.DismissedAt != nil || t.supervisorRow(a) {
 			continue
 		}
 		for _, c := range lists[a.MachineID] {
@@ -181,7 +182,9 @@ func (s *Service) taskWorking(ctx context.Context, mid, sid string) {
 		}
 		s.logf("task %s: reopened: its agent works again", t.ID)
 	}
-	s.taskWorks(ctx, t)
+	if !t.supervisorTurn(mid, sid) { // a supervisor Agent's own turn is not the work of the to-do it supervises
+		s.taskWorks(ctx, t)
+	}
 }
 
 // taskWorks is what follows a turn's start on open task t: the stretch of work begins now, and what was judged or
@@ -422,7 +425,7 @@ func (s *Service) settleTurnReporting(ctx context.Context, machine, sid, unheard
 		}
 		return settleRefused
 	}
-	if unheard != "" && t.ID != unheard {
+	if unheard != "" && t.ID != unheard || t.supervisorTurn(machine, sid) {
 		return settleRefused // the session is another task's agent now: its turns are not this todo's
 	}
 	if current, ok := s.todoNow(t.ID); ok && (current.Cancelled() || current.AgentAborted(machine, sid)) {
@@ -700,7 +703,7 @@ func (s *Service) settleTurnReporting(ctx context.Context, machine, sid, unheard
 	s.forgetStop(last.MachineID, last.SessionID, stop) // a Stop that came after its output: this turn's
 	// The files it handed over (task_files.go, #10511): copied to the computer of the conversation that hears of it.
 	files := s.deliverTaskFiles(cctx, t, machine, s.conversationMachine(cctx, s.taskReceiver(cctx, t), ""), text)
-	body := receiptBody{Title: t.Title, State: "done", Summary: clipMarkdown(text, 600), Machine: name, Files: files,
+	body := receiptBody{Title: t.Title, State: "done", Summary: mdtext.Clip(text, 600), Machine: name, Files: files,
 		MachineID: last.MachineID, SessionID: last.SessionID, Reroute: s.rerouteOfTask(cctx, t.ID, t.PlanID)}
 	// Persona follows up on a supervised stop through sigReview or sigIdle after judgment; the receipt need not wait.
 	// needs_user waits on the user instead. Read the latest todo in case it changed while reading the reply.
@@ -765,7 +768,7 @@ func (s *Service) settleTurnReporting(ctx context.Context, machine, sid, unheard
 		s.turnAgain(cctx, t, turn, last, text, since, worked)
 		return settleTaken
 	}
-	s.taskNoticeOf(cctx, t, name, "done", "", clipMarkdown(text, 1500), 0, files)
+	s.taskNoticeOf(cctx, t, name, "done", "", mdtext.Clip(text, 1500), 0, files)
 	if s.advanceTaskReply(cctx, t, last.MachineID, last.SessionID, text) {
 		go s.askAcceptance(t, last.MachineID, last.SessionID, text) // verified, by the supervising assistant or the user (acceptance.go)
 	}

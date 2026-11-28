@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"context"
+	"github.com/sunfayao/persona/server/internal/assistant/mdtext"
 	"strings"
 	"testing"
 	"time"
@@ -11,7 +12,7 @@ import (
 
 func TestCardFallbackPrecedesSummaryClipping(t *testing.T) {
 	text := "Conclusion\n```persona-view\n{\"fallback\":\"Readable progress\",\"sections\":[]}\n```\n"
-	if got := clipMarkdown(text, 600); strings.Contains(got, "sections") || !strings.Contains(got, "Readable progress") {
+	if got := mdtext.Clip(text, 600); strings.Contains(got, "sections") || !strings.Contains(got, "Readable progress") {
 		t.Fatalf("summary %q", got)
 	}
 	if got := transcriptText("Example", "", []proto.Item{{Role: "assistant", Kind: proto.KindText, Text: text}}); strings.Contains(got, "sections") || !strings.Contains(got, "Readable progress") {

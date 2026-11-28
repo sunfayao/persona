@@ -164,7 +164,7 @@ func (s *Service) orphanOf(id string) (TodoOrphan, bool) {
 // is connected could not be asked, so nothing can be said of t this time.
 func (s *Service) orphanAgents(ctx context.Context, t Todo, reachable map[string]bool, lists map[string]map[string]proto.Session, failed map[string]bool) (agents []orphanAgent, known bool) {
 	for _, a := range t.Agents {
-		if a.ReleasedAt != nil || a.DismissedAt != nil {
+		if a.ReleasedAt != nil || a.DismissedAt != nil || t.supervisorRow(a) {
 			continue
 		}
 		oa := orphanAgent{machine: a.MachineID, session: a.SessionID, reachable: reachable[a.MachineID]}

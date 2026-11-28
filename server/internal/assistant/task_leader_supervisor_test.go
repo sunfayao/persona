@@ -117,7 +117,7 @@ func TestASupervisedTodosRoutineSignalsNeverReachMain(t *testing.T) {
 		t.Fatalf("the main conversation was told of the supervisor's own to-do: %q", got)
 	}
 	for _, kind := range []string{sigStalled, sigIdle, sigEstimateDue, sigOrphaned, sigCheck} {
-		if taskleader.Route(kind, "") == taskleader.ToMain {
+		if taskleader.Route(kind, "", taskleader.SubjectRoot) == taskleader.ToMain {
 			t.Fatalf("%s goes to main", kind)
 		}
 	}

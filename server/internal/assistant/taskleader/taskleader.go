@@ -105,16 +105,31 @@ var ownerDecisions = map[string]bool{
 	KindHandoffResult: true,
 }
 
-// Route is where signal kind (with report, a report's or a check's kind) about the supervisor's own to-do goes. The
-// main conversation gets its completion (a review whose report is ReportCompletion), the supervisor's own questions
-// and blocks, and the decisions only it and the owner take: nothing else. The workers' signals are not routed here:
-// every one of them goes to the supervisor (the assistant's leaderRoute), but for the decisions it sends up.
-func Route(kind, report string) Destination {
+// Subject is whose signal Route is asked about.
+type Subject int
+
+const (
+	// SubjectRoot is the supervisor's own to-do while it waits for its workers (a to-do planned with role leader).
+	SubjectRoot Subject = iota
+	// SubjectMember is a to-do whose own Agents do its work while the supervisor supervises them directly: a to-do
+	// the hub gave a supervisor Agent after it was dispatched (the ledger's supervisor is that Agent).
+	SubjectMember
+)
+
+// Route is where signal kind (with report, a report's or a check's kind) about subject goes. For SubjectRoot the main
+// conversation gets its completion (a review whose report is ReportCompletion), the supervisor's own questions and
+// blocks, and the decisions only it and the owner take: nothing else. The workers' signals are not routed here: every
+// one of them goes to the supervisor (the assistant's leaderRoute), but for the decisions it sends up. For
+// SubjectMember the supervisor judges everything its Agents raise; the conversation above hears only the decisions.
+func Route(kind, report string, subject Subject) Destination {
 	switch kind {
 	case KindAsk, KindInbox:
 		return AsBefore // the owner's cards, and news the Inbox already shows the owner
 	case KindEscalated, KindDecide:
 		return ToMain // what the supervisor or a worker of it needs decided above it
+	}
+	if subject == SubjectMember {
+		return routeMember(kind, report)
 	}
 	if ownerDecisions[kind] {
 		return ToMain
@@ -144,6 +159,37 @@ func Route(kind, report string) Destination {
 	// timed_out, orphaned, no_progress, all_stopped, needs_you, the PR signals, todo_ready, parent_closeout, the
 	// estimates and parked_due: the supervisor acts on them; delivering them wakes or resumes it.
 	return ToSupervisor
+}
+
+// routeMember is Route for a member-supervised to-do. A start failure and the owner's decisions stay above; a
+// card-less review wait is handed back to the supervisor that owes the review, never to the conversation above.
+func routeMember(kind, report string) Destination {
+	switch kind {
+	case KindFailed, KindStarted:
+		return ToMain
+	case KindParkedSummary:
+		return Absorbed
+	case KindReport:
+		if report == ReportProgress {
+			return Absorbed
+		}
+	case KindCheck:
+		if report == CheckDecided {
+			return ToMain
+		}
+	case KindCardlessWait:
+		return ToSupervisor
+	}
+	if ownerDecisions[kind] {
+		return ToMain
+	}
+	return ToSupervisor
+}
+
+// NeedsJudgment says a signal of a member-supervised to-do is one its supervisor Agent judges: the signals that start
+// a supervisor when the to-do has none yet.
+func NeedsJudgment(kind, report string) bool {
+	return Route(kind, report, SubjectMember) == ToSupervisor
 }
 
 // Criterion is one done_when of the supervisor's own to-do as its ledger has it now.

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sunfayao/persona/server/internal/assistant/cronrule"
 	"slices"
 	"time"
 
@@ -203,7 +204,7 @@ func validRhythm(r assistantwire.TrackRhythm) error {
 	if r.Prompt == "" || len(r.Prompt) > 4000 {
 		return errors.New("prompt: empty or longer than 4000 bytes")
 	}
-	if _, err := parseCron(r.Cron); err != nil {
+	if _, err := cronrule.Parse(r.Cron); err != nil {
 		return fmt.Errorf("cron: %w", err)
 	}
 	if r.TZ != "" {

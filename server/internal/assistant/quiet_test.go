@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/autosupervise"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -32,7 +33,7 @@ func newQuietServiceOn(t testing.TB, st Store) (*Service, *fakeHub) {
 	s, f := newTaskServiceOn(t, st)
 	shortSupervise(t, s)
 	f.hello.Assistant.MachineID = "server"
-	setSettings(t, s, func(v *Settings) { v.Main = "conv1" })
+	setSettings(t, s, func(v *Settings) { v.Main, v.TodoSupervisor = "conv1", autosupervise.Explicit }) // as before: the main conversation hears it all
 	f.known["conv1"] = true
 	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle})
 	return s, f

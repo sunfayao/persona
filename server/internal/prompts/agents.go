@@ -288,6 +288,22 @@ type TaskLeader struct {
 // can hand direct workers to task_plan and how their reports reach it.
 func RenderTaskLeader(l TaskLeader) string { return render("agents/task_leader", l) }
 
+// TaskSupervisorAttached is the note of a supervisor Agent the hub attached to a request already under way.
+type TaskSupervisorAttached struct {
+	Todos []SupervisedTodo // the to-dos it supervises now
+}
+
+// SupervisedTodo is one to-do a supervisor Agent the hub attached takes over: its Agents are the ones at work.
+type SupervisedTodo struct {
+	ID, Title, Machine string
+	Criteria           []string
+}
+
+// RenderTaskSupervisorAttached is the first message of a supervisor Agent the hub attached (agents/task_supervisor_attached).
+func RenderTaskSupervisorAttached(d TaskSupervisorAttached) string {
+	return render("agents/task_supervisor_attached", d)
+}
+
 // RenderTaskWorker is what follows the prompt of a worker a task leader handed out (agents/task_worker).
 func RenderTaskWorker() string { return render("agents/task_worker", struct{}{}) }
 

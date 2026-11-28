@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sunfayao/persona/server/internal/assistant/autosupervise"
 	"github.com/sunfayao/persona/server/internal/assistant/criteria"
 	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
 	"slices"
@@ -59,6 +60,35 @@ func (t Todo) supervisorAgent() (TodoAgent, bool) {
 		}
 	}
 	return TodoAgent{}, false
+}
+
+// memberSupervised: t's own Agents do its work while its supervisor Agent supervises them directly (the hub attached it
+// to a request under way): the ledger's supervisor is that Agent. The Agent is no worker of t.
+func (t Todo) memberSupervised() bool {
+	lead, ok := t.supervisorAgent()
+	return ok && t.Supervision != nil && t.Supervision.Supervisor == leaderRef(lead.MachineID, lead.SessionID)
+}
+
+// supervisorRow: a is the supervisor Agent of member-supervised t, not an Agent that works on it.
+func (t Todo) supervisorRow(a TodoAgent) bool {
+	return a.Source == sourceLeader && t.memberSupervised()
+}
+
+// supervisorTurn: machine/sid is the supervisor Agent of member-supervised t: its turns are not the work of t.
+func (t Todo) supervisorTurn(machine, sid string) bool {
+	lead, ok := t.supervisorAgent()
+	return ok && lead.MachineID == machine && lead.SessionID == sid && t.memberSupervised()
+}
+
+// conversationAbove is the conversation a decision of supervisor Agent's to-do t goes to: the one that supervised t
+// before the Agent took it over, else t's ledger supervisor, else (a to-do with no ledger) its origin, else the main
+// conversation.
+func (s *Service) conversationAbove(ctx context.Context, t Todo) string {
+	above, supervisor, origin := "", "", t.Origin // a ledger names its own supervisor: the origin stands in for a to-do with none
+	if v := t.Supervision; v != nil {
+		above, supervisor, origin = v.Above, v.Supervisor, ""
+	}
+	return autosupervise.Above(above, supervisor, origin, s.settings(ctx).Main, s.isLeaderRef)
 }
 
 // linkSource is the todo_agents source and via the agent of plan task t is linked with.
@@ -123,8 +153,9 @@ func (s *Service) leaderDefaults(ctx context.Context, t *PlanTask) {
 
 // supervisedWorkRefusal refuses a task of the main conversation's plan that would run work of a to-do its
 // supervisor Agent runs: on that to-do itself (but a new supervisor for it, when its own has stopped), or on a piece of
-// it. That work goes to the supervisor, which hands it out itself.
-func (s *Service) supervisedWorkRefusal(t PlanTask) error {
+// it. That work goes to the supervisor, which hands it out itself. With the setting auto a new piece of such a request
+// is allowed: it is the supervisor's worker from its creation.
+func (s *Service) supervisedWorkRefusal(ctx context.Context, t PlanTask) error {
 	check := func(id string, replace bool) error {
 		todo, ok := s.todoNow(id)
 		if id == "" || !ok || todo.DoneAt != nil {
@@ -145,6 +176,9 @@ func (s *Service) supervisedWorkRefusal(t PlanTask) error {
 		if err := check(p.PartOf, false); err != nil {
 			return err
 		}
+	}
+	if autosupervise.On(s.settings(ctx).TodoSupervisor) && t.ReuseTodo == "" {
+		return nil // a piece of a request its supervisor Agent runs is that supervisor's worker (planTaskSupervisor)
 	}
 	return check(t.PartOf, false)
 }
@@ -476,7 +510,7 @@ func (s *Service) checkLeaderRoom(ctx context.Context, scope *leaderScope, addin
 	open := 0
 	s.todos.mu.RLock()
 	for _, t := range s.todos.todos {
-		if t.DoneAt != nil || t.Supervision == nil && !slices.ContainsFunc(t.Agents, func(a TodoAgent) bool { return a.Source == sourceWorker }) {
+		if t.DoneAt != nil || t.ID == scope.task.ID || t.Supervision == nil && !slices.ContainsFunc(t.Agents, func(a TodoAgent) bool { return a.Source == sourceWorker }) {
 			continue
 		}
 		belongs := t.Supervision != nil && t.Supervision.Supervisor == ref
@@ -526,10 +560,7 @@ func (s *Service) supervisorAboveTask(ctx context.Context, t Todo) (up, leaderSe
 	if !ok {
 		return "", ""
 	}
-	if lead.Supervision != nil && lead.Supervision.Supervisor != "" && !s.isLeaderRef(lead.Supervision.Supervisor) {
-		return lead.Supervision.Supervisor, sid
-	}
-	return s.settings(ctx).Main, sid
+	return s.conversationAbove(ctx, lead), sid
 }
 
 // escalateLeaderSignal is signal g about a worker whose leader agent is unreachable, as a decision for the conversation
@@ -579,7 +610,11 @@ func (s *Service) supervisorRoute(g superviseSignal) (lead TodoAgent, dest taskl
 		return TodoAgent{}, "", false
 	}
 	if lead, ok = t.supervisorAgent(); ok {
-		return lead, taskleader.Route(g.Kind, g.Report), true
+		subject := taskleader.SubjectRoot
+		if t.memberSupervised() && !(g.Kind == sigReport && g.Session == lead.SessionID) { // its own report goes up as a root's does
+			subject = taskleader.SubjectMember
+		}
+		return lead, taskleader.Route(g.Kind, g.Report, subject), true
 	}
 	if g.Kind == sigTodoReady && t.PartOf != "" && (t.Supervision == nil || !s.agentSupervised(t)) {
 		if root, found := s.todoNow(t.PartOf); found && root.DoneAt == nil {
@@ -600,7 +635,7 @@ func (s *Service) leaderRoute(g superviseSignal) (lead TodoAgent, handled, reach
 		return TodoAgent{}, false, false
 	}
 	t, ok := s.todoNow(g.Todo)
-	if !ok {
+	if !ok || t.memberSupervised() { // what the supervisor does not judge goes to the conversation above (digestTo)
 		return TodoAgent{}, false, false
 	}
 	lead, handled, reachable = s.leaderSupervisor(t)
@@ -618,7 +653,7 @@ func (s *Service) deliverToLeaderAgent(ctx context.Context, lead TodoAgent, list
 	var entries []prompts.SuperviseEntry
 	var kept, moot, retry []superviseSignal
 	own := "" // the leader's own to-do: its signals come with its workers' (supervisorRoute)
-	if lt, ok := s.leaderTaskOf(ctx, lead); ok {
+	if lt, ok := s.leaderTaskOf(ctx, lead); ok && !lt.memberSupervised() {
 		own = lt.ID
 	}
 	// An earlier offline resume owns its in-flight signals until its real delivery callback. Keep them out of this
@@ -908,7 +943,7 @@ func workerAgent(t Todo) (TodoAgent, bool) {
 	var pick TodoAgent
 	found := false
 	for _, a := range t.Agents {
-		if a.SessionID == "" {
+		if a.SessionID == "" || a.Source == sourceLeader { // never the supervisor's own session
 			continue
 		}
 		better := !found || a.active() && !pick.active() || a.active() == pick.active() && a.LinkedAt.After(pick.LinkedAt)
@@ -981,7 +1016,7 @@ func (s *Service) leaderTaskScope(ctx context.Context, root Todo, lead TodoAgent
 		return "", err
 	}
 	self := leaderRef(lead.MachineID, lead.SessionID)
-	if a.TodoID == root.ID {
+	if a.TodoID == root.ID && !root.memberSupervised() {
 		if a.DoneWhen != nil || len(a.Add)+len(a.Drop)+len(a.Edit) > 0 {
 			return "", errors.New("your own to-do's done_when is the main conversation's to change: ask it with report_to_supervisor " +
 				"(kind question); on your own to-do you change only expect_minutes")
@@ -1148,12 +1183,15 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 	if cur, supervised, reachable := s.leaderSupervisor(t); !supervised || !reachable || cur.MachineID != lead.MachineID || cur.SessionID != lead.SessionID {
 		return "", fmt.Errorf("task %s is not one of your workers: you review the workers you handed out with task_plan, nothing else", t.ID)
 	}
+	if a.Verdict == reviewAccepted && t.DoneAt == nil && t.memberSupervised() && len(s.openLeaderWorkers(t)) > 0 {
+		return "", fmt.Errorf("task %s has open pieces: close them with task_review first", t.ID)
+	}
 	if t.DoneAt != nil && (a.Verdict == reviewRework || a.Verdict == reviewNeedsUser) {
 		return "", fmt.Errorf("task %s is done already (%s): hand out a new worker for what is left", t.ID, cmp.Or(t.DoneReason, "closed"))
 	}
 	var up string // the conversation a needs_user goes to: whoever handed the leader its task
-	if lt, ok := s.leaderTaskOf(ctx, lead); ok && lt.Supervision != nil {
-		up = lt.Supervision.Supervisor
+	if lt, ok := s.leaderTaskOf(ctx, lead); ok {
+		up = s.conversationAbove(ctx, lt)
 	}
 	if a.Verdict == reviewNeedsUser && up == "" {
 		return "", errors.New("your own task has nobody to hand a decision to: decide it yourself, or review the worker with the other verdicts")
@@ -1366,6 +1404,9 @@ func (s *Service) rehomeWorker(ctx context.Context, t Todo) (cur Todo, cancelled
 	var pending bool
 	v, _, err := s.updateSupervision(ctx, t.ID, func(v *Supervision) bool {
 		v.Supervisor = up
+		if v.SupervisorSource == autosupervise.Auto { // an adopted piece goes back as it was: the hub's own decision again
+			v.SupervisorSource, v.Above = "", ""
+		}
 		if v.State == reviewRework {
 			v.State = reviewPending // what the leader asked for is with the worker: the new supervisor reviews what comes back
 		}

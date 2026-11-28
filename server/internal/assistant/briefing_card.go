@@ -3,6 +3,7 @@ package assistant
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sunfayao/persona/server/internal/assistant/mdtext"
 	"strings"
 	"time"
 
@@ -54,7 +55,7 @@ func (s *Service) briefCardWithHeader(f *briefFacts, label, answer, header strin
 	if answer = strings.TrimSpace(answer); answer != "" {
 		// Charts become text first, as the bot's answers do (feishu_answer.go): clipMarkdown drops a persona-card block
 		// it cannot draw down to its title, so a chart on a long answer would lose its numbers.
-		c.Markdown(feishubot.CardMarkdown(clipMarkdown(feishubot.PersonaCards(answer), briefAnswerRunes)))
+		c.Markdown(feishubot.CardMarkdown(mdtext.Clip(feishubot.PersonaCards(answer), briefAnswerRunes)))
 		plain = append(plain, clip(answer, briefAnswerRunes))
 		if len([]rune(answer)) > briefAnswerRunes {
 			c.Note(i18n.T(l, "assistant-briefing.answer_clipped"))
