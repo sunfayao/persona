@@ -33,10 +33,9 @@ const DISPATCH_TOOL = {
     properties: { name: { type: 'string' }, arguments: { type: 'object', additionalProperties: true }, describe: { type: 'boolean' } },
   },
 }
-const DESCRIBE = `${DISPATCH} {name, describe: true} returns a tool's whole description and arguments.`
+const DESCRIBE = `${DISPATCH} {name, describe: true} shows one in full.`
 // Added to the server's instructions, which agy keeps beside the tools.
-const INSTRUCTIONS = `Call a Persona tool that is not in your tool list with ${DISPATCH} {name, arguments}; ${DISPATCH} ` +
-  `with no arguments lists every Persona tool, and ${DESCRIBE}`
+const INSTRUCTIONS = `Persona tools not in your list: ${DISPATCH} {name, arguments}. ${DISPATCH} {} lists them all; ${DESCRIBE}`
 // What agy declares of a tool (its name, description and parameters), in bytes: what its largest-first deferral weighs.
 const size = (tool) => Buffer.byteLength(JSON.stringify({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema }))
 const DISPATCH_SIZE = size(DISPATCH_TOOL)
@@ -182,7 +181,7 @@ function compact(tool) {
 function describeTool(name) {
   const tool = known.get(name)
   const text = tool ? JSON.stringify({ name, description: tool.description, inputSchema: tool.inputSchema })
-    : `No Persona tool ${name}; ${DISPATCH} with no name lists them.`
+    : `No Persona tool ${name}; ${DISPATCH} {} lists them.`
   return { content: [{ type: 'text', text }], isError: !tool }
 }
 

@@ -6,10 +6,12 @@ import (
 )
 
 // TestDistBudget bounds what personad, persona-node and persona-manager embed of the runtime packages: every file
-// Generate writes from integrations/. They measured 257,367 B on 2026-11-24, so the ceiling is 258,000 B. Raise it
-// only for code a runtime needs, never to embed the packages raw again.
+// Generate writes from integrations/. They measured 257,367 B on 2026-11-24, so the ceiling was 258,000 B. On
+// 2026-11-28 the Antigravity runtime's stop of its background tasks on a restart notice (b6aa95b911) took them to
+// 258,042 B, and the MCP proxy's shorter texts gave back 19 B: the ceiling is 258,300 B. Raise it only for code a
+// runtime needs, never to embed the packages raw again.
 func TestDistBudget(t *testing.T) {
-	const budget = 258_000
+	const budget = 258_300
 	_, out := generateIntegrations(t)
 	entries, err := os.ReadDir(out)
 	if err != nil {

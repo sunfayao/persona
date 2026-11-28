@@ -158,7 +158,7 @@ describe('core tools first, within agy\'s budget', { timeout: 15_000 }, () => {
     assert.equal((await dispatch({})).content[0].text, [
       'In your tool list:', '- agents_list: Do one thing.', '- agent_read: Do one thing.', '- todo_get: Do one thing.', '',
       'Call through persona_call:', '- inbox_move: Do one thing.', '- todo_delete: Do one thing.', '',
-      'persona_call {name, describe: true} returns a tool\'s whole description and arguments.',
+      'persona_call {name, describe: true} shows one in full.',
     ].join('\n'))
   })
 
@@ -218,7 +218,7 @@ describe('persona_call', { timeout: 15_000 }, () => {
     assert.equal((await call('test/lists', {})).result.lists, 1)
     const unknown = await dispatch({ name: 'nope', describe: true })
     assert.equal(unknown.isError, true)
-    assert.equal(unknown.content[0].text, 'No Persona tool nope; persona_call with no name lists them.')
+    assert.equal(unknown.content[0].text, 'No Persona tool nope; persona_call {} lists them.')
     assert.equal((await call('test/lists', {})).result.lists, 2)
     assert.ok(received.every((msg) => !String(msg.id).startsWith('persona-proxy-')), 'agy got the proxy\'s own answers')
   })
@@ -244,7 +244,7 @@ describe('persona_call', { timeout: 15_000 }, () => {
       '- quiet:',
       `- long_one: ${'word '.repeat(60).trim()}.`,
       '',
-      'persona_call {name, describe: true} returns a tool\'s whole description and arguments.',
+      'persona_call {name, describe: true} shows one in full.',
     ].join('\n'))
   })
 
@@ -266,9 +266,8 @@ describe('persona_call', { timeout: 15_000 }, () => {
   it('adds a sentence about persona_call to the server\'s instructions', async (t) => {
     const { call } = proxied(t)
     const init = await call('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'agy', version: '1' } })
-    assert.equal(init.result.instructions, 'Persona tools reach the fixture. Call a Persona tool that is not in your tool list with ' +
-      'persona_call {name, arguments}; persona_call with no arguments lists every Persona tool, and persona_call ' +
-      '{name, describe: true} returns a tool\'s whole description and arguments.')
+    assert.equal(init.result.instructions, 'Persona tools reach the fixture. Persona tools not in your list: ' +
+      'persona_call {name, arguments}. persona_call {} lists them all; persona_call {name, describe: true} shows one in full.')
     assert.equal(init.result.protocolVersion, '2025-06-18')
   })
 })
