@@ -340,7 +340,7 @@ func TestRelayInDoubtSurvivesManagerAndNodeRestart(t *testing.T) {
 			restarted, node := newQuietServiceOn(t, store)
 			t.Cleanup(func() { stopRelayTimer(restarted, "conv1") })
 			node.mu.Lock()
-			node.items = []proto.Item{{Role: "user", Kind: proto.KindText, Text: relayDeliveryText(msg), TS: written}}
+			node.items = []proto.Item{{Role: "user", Kind: proto.KindText, Text: relayDeliveryText("conv1", msg), TS: written}}
 			node.mu.Unlock()
 			if name == "node restarted" {
 				drainRelayTest(t, restarted, idle)
@@ -469,7 +469,7 @@ func TestRelayFailedReadWaitsForLateTranscript(t *testing.T) {
 		t.Fatalf("retried after an early transcript miss: %v", got)
 	}
 	f.mu.Lock()
-	f.items = []proto.Item{{Role: "user", Kind: proto.KindText, Text: relayDeliveryText(msg), TS: time.Now()}}
+	f.items = []proto.Item{{Role: "user", Kind: proto.KindText, Text: relayDeliveryText("conv1", msg), TS: time.Now()}}
 	f.mu.Unlock()
 	advanceRelayLook(t, s, "conv1", 2)
 	drainRelayTest(t, s, idle)
@@ -516,12 +516,12 @@ func TestRelayContextOnlyMatchesItsOwnPayload(t *testing.T) {
 	tries := relayTries(f, "conv1")
 	f.mu.Lock()
 	f.failAssistant = context.DeadlineExceeded
-	f.items = []proto.Item{{Role: "user", Kind: proto.KindText, Text: relayDeliveryText(other), TS: time.Now()}}
+	f.items = []proto.Item{{Role: "user", Kind: proto.KindText, Text: relayDeliveryText("conv1", other), TS: time.Now()}}
 	f.mu.Unlock()
 	drainRelayTest(t, s, idle)
 	advanceRelayLook(t, s, "conv1", 1) // another context-only line from the same sender did not match
 	f.mu.Lock()
-	line := prompts.MessageSourceText(relayDeliveryText(msg), msg.source())
+	line := prompts.MessageSourceText(relayDeliveryText("conv1", msg), msg.source())
 	f.items = append(f.items, proto.Item{Role: "user", Kind: proto.KindText, Text: line, TS: time.Now()})
 	f.mu.Unlock()
 	drainRelayTest(t, s, idle)

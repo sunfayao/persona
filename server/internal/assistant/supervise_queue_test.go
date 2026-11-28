@@ -190,7 +190,7 @@ func TestQueuedDigestUncertainDeliveryKeepsIdentity(t *testing.T) {
 			s.relays.mu.Unlock()
 			if landed {
 				f.mu.Lock()
-				f.items = append(f.items, proto.Item{Role: "user", Kind: proto.KindText, Text: msg.Text, TS: time.Now()})
+				f.items = append(f.items, proto.Item{Role: "user", Kind: proto.KindText, Text: relayDeliveryText("conv1", msg), TS: time.Now()})
 				f.mu.Unlock()
 			}
 			closeTodo(t, s, tasks[0].ID)

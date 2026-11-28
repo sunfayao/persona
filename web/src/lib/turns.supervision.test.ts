@@ -48,6 +48,19 @@ describe("supervision rounds", () => {
     expect(chatLines(failed)[0].kind).toBe("segment");
   });
 
+  it("never shows the end marker of a supervision turn", () => {
+    const notify = call(2, "mcp__persona__notify_user");
+    // After a visible action the round stays, but its closing [silent] is no reply.
+    const [promoted] = chatLines([user(1), notify, result(3, notify), answer(4, " [silent]\n")]);
+    expect(promoted.kind).toBe("segment");
+    expect(promoted.kind === "segment" && promoted.seg.answer).toBeUndefined();
+    // A lone marker is not a completed answer either: the round stays quiet.
+    expect(chatLines([user(1), answer(2, "[silent]")])[0].kind).toBe("supervision");
+    // Outside a supervision round it is an ordinary word.
+    const plain = chatLines([user(1, "Hello"), answer(2, "[silent]")])[0];
+    expect(plain.kind === "segment" && plain.seg.answer?.text).toBe("[silent]");
+  });
+
   it("retains feed placement and day separators around the quiet round's original input", () => {
     const lines = chatLines([user(1, raw, { ts: "2026-11-01T10:00:00Z" }), narration(2), user(3, "Next real request", { ts: "2026-11-01T11:00:00Z" })]);
     const feed = { id: "fictional-feed", conversation: "fictional-chat", kind: "notice" as const, at: "2026-11-01T09:00:00Z", body: { text: "Fictional prior notice" } };
@@ -61,6 +74,10 @@ describe("supervision rounds", () => {
     expect(parseInjected(raw)).toMatchObject({ state: "supervise", level: "triage" });
     expect(parseInjected(raw.replace('level="triage"', 'level="user"'))).toMatchObject({ level: "user" });
     expect(parseInjected(raw.replace('<persona-supervision level="triage" />\n', ""))).toMatchObject({ level: "triage" });
+    // Since batches the tag carries the batch id; the legacy tag without it reads the same.
+    expect(parseInjected(raw.replace('level="triage" />', 'level="user" batch="relay-0123abcd" />'))).toMatchObject({ state: "supervise", level: "user" });
+    expect(parseInjected(raw.replace('level="triage" />', 'level="triage" batch="relay-0123abcd" />'))).toMatchObject({ state: "supervise", level: "triage" });
+    expect(parseInjected(raw.replace('level="triage" />', 'level="user" />'))).toMatchObject({ state: "supervise", level: "user" });
     expect(parseInjected(raw.split("\n")[0])).toBeNull();
     expect(parseInjected('A real request\n<persona-supervision level="user" />')).toBeNull();
     expect(injectedOf(user(1, raw, { client_msg_id: "fictional-message" }))).toBeNull();

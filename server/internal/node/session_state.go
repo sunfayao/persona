@@ -87,6 +87,8 @@ type sessionState struct {
 	// Compaction: the last compaction the user asked for (assistant_compact.go).
 	Compaction *proto.Compaction `json:"compaction,omitempty"`
 	// RecoveryPending survives restarts until an input carrying this checkpoint is delivered.
+	// AgyCheckpoint: the step of the last agy CHECKPOINT this node acted on (agyCheckpointed).
+	AgyCheckpoint       int    `json:"agy_checkpoint,omitempty"`
 	RecoveryPending     string `json:"recovery_pending,omitempty"`
 	RecoveryHookPending bool   `json:"recovery_hook_pending,omitempty"`
 	CompactInstructions string `json:"compact_instructions,omitempty"`

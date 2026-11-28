@@ -255,6 +255,10 @@ func TestParseInjectedLegacyChineseShapes(t *testing.T) {
 			&proto.Injected{Kind: "system", State: "lost_tasks", Line: "node 重启过，2 个后台任务停了"}},
 		{"supervision", "📋 督办：你派出去的任务有 2 个要你处理\n（这是 Persona 的督办消息，不是用户发的。）\n<persona-supervision level=\"user\" />",
 			&proto.Injected{Kind: "system", State: "supervise", Level: "user", Line: "督办：2 个派出去的任务要处理"}},
+		{"supervision with a batch", "📋 Supervision: 2 of the tasks you handed out need you\n(This is a supervision message from Persona, not a message from the user.)\n<persona-supervision level=\"user\" batch=\"relay-0123abcd\" />",
+			&proto.Injected{Kind: "system", State: "supervise", Level: "user", Line: "督办：2 个派出去的任务要处理"}},
+		{"supervision without a level or batch", "📋 督办：你派出去的任务有 1 个要你处理\n（这是 Persona 的督办消息，不是用户发的。）",
+			&proto.Injected{Kind: "system", State: "supervise", Level: "triage", Line: "督办：1 个派出去的任务要处理"}},
 		{"ask later, answered", askHead + "用户在卡片上回答了：\n- 今晚几点提醒你？ → 到家时\n\n" + askMarker,
 			&proto.Injected{Kind: "system", State: "ask_answered", Title: "到家时", Line: "你回答了：到家时"}},
 		{"ask later, ran out", askHead + "卡片到点没人回：已经记成待办了。\n\n" + askMarker,
@@ -271,5 +275,22 @@ func TestParseInjectedLegacyChineseShapes(t *testing.T) {
 		if !bytes.Equal(got, want) {
 			t.Errorf("%s: got %s, want %s", c.name, got, want)
 		}
+	}
+}
+
+func TestSuperviseBatchText(t *testing.T) {
+	const text = "📋 Supervision: 1 of the tasks you handed out need you\nThis is a supervision message from Persona\n<persona-supervision level=\"info\" />\n<persona-supervision-round />\nbody"
+	got := SuperviseBatchText(text, "relay-1")
+	if want := strings.Replace(text, `level="info" />`, `level="info" batch="relay-1" />`, 1); got != want {
+		t.Fatalf("batch not printed on the tag:\n%s", got)
+	}
+	if again := SuperviseBatchText(got, "relay-2"); again != got {
+		t.Fatalf("a tag that has a batch took another:\n%s", again)
+	}
+	if plain := "no marker here"; SuperviseBatchText(plain, "relay-1") != plain || SuperviseBatchText(text, "") != text {
+		t.Fatal("text without a tag, or with no id, must stay as it is")
+	}
+	if in := ParseInjected(got); in == nil || in.Level != "info" || !IsSuperviseRound(got) {
+		t.Fatalf("batch-tagged message: %+v", in)
 	}
 }

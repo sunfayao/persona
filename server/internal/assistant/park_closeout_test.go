@@ -349,7 +349,7 @@ func TestAutomaticCloseoutSummaryDailyAndDurable(t *testing.T) {
 	send := lastSendTo(f, bg)
 	text, _ = send["text"].(string)
 	if send[superviseRoundParam] != true || !prompts.IsSuperviseRound(text) ||
-		!strings.Contains(text, `<persona-supervision level="info" />`) ||
+		!strings.Contains(text, `<persona-supervision level="info" batch="`) ||
 		!strings.Contains(text, "Daily automatic-parking summary") || !strings.Contains(text, "keep unchanged waits parked") {
 		t.Fatalf("fresh background round lost the quiet summary or its round marker: %v\n%s", send, text)
 	}

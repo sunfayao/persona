@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/quietturn"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -256,32 +258,107 @@ func TestSupervisionRegisteredBeforeDispatch(t *testing.T) {
 	}
 }
 
+func finishBody(t *testing.T, s *Service, conv, args string) (map[string]string, error) {
+	t.Helper()
+	res, err := s.toolSupervisionFinish(context.Background(), conv, json.RawMessage(args))
+	if err != nil {
+		return nil, err
+	}
+	var body map[string]string
+	if err := json.Unmarshal([]byte(res), &body); err != nil {
+		t.Fatalf("receipt %q: %v", res, err)
+	}
+	return body, nil
+}
+
+const silentFinish = `{"visibility":"silent","summary":"Checked: no task delivery occurred."}`
+
 func TestSupervisionFinishVisibility(t *testing.T) {
 	s, _ := newQuietService(t)
 	ctx := context.Background()
-	args := json.RawMessage(`{"visibility":"silent","summary":"Checked: no task delivery occurred."}`)
-	if _, err := s.toolSupervisionFinish(ctx, "normal-user-turn", args); err == nil {
-		t.Fatal("normal user input could be hidden")
+	if _, err := s.toolSupervisionFinish(ctx, "normal-user-turn", json.RawMessage(silentFinish)); !errors.Is(err, quietturn.ErrNoBatch) {
+		t.Fatalf("normal user input could be hidden: %v", err)
+	}
+	if _, err := s.toolSupervisionFinish(ctx, "conv1", json.RawMessage(`{"visibility":"later","summary":"x"}`)); err == nil || errors.Is(err, quietturn.ErrNoBatch) {
+		t.Fatalf("invalid arguments are their own error: %v", err)
 	}
 	s.holdPushes(ctx, "conv1")
-	res, err := s.toolSupervisionFinish(ctx, "conv1", args)
-	var body map[string]string
-	if err != nil || json.Unmarshal([]byte(res), &body) != nil || body["visibility"] != "silent" || body["level"] != supervisionTriage {
-		t.Fatalf("silent finish: %q, %v", res, err)
+	s.turns.Open(ctx, "conv1", "b1")
+	body, err := finishBody(t, s, "conv1", silentFinish)
+	if err != nil || body["visibility"] != "silent" || body["level"] != supervisionTriage {
+		t.Fatalf("silent finish: %v, %v", body, err)
 	}
 	if !s.supervising("conv1") {
 		t.Fatal("silent finish released automatic notifications")
 	}
-	res, err = s.toolSupervisionFinish(ctx, "conv1", json.RawMessage(`{"visibility":"user","summary":"A decision is needed."}`))
-	if err != nil || json.Unmarshal([]byte(res), &body) != nil || body["level"] != supervisionUser {
-		t.Fatalf("visible finish: %q, %v", res, err)
+	s.turns.Open(ctx, "conv1", "b2")
+	if body, err = finishBody(t, s, "conv1", `{"visibility":"user","summary":"A decision is needed."}`); err != nil || body["level"] != supervisionUser {
+		t.Fatalf("visible finish: %v, %v", body, err)
 	}
-	if _, err := s.toolSupervisionFinish(ctx, "conv1", args); err == nil {
-		t.Fatal("a promoted turn was hidden again")
+}
+
+// The owner typing, or any other message, must not break the silent finish of the supervision turn that is running.
+func TestSupervisionFinishSurvivesTheOwnerSpeaking(t *testing.T) {
+	s, _ := newQuietService(t)
+	ctx := context.Background()
+	s.holdPushes(ctx, "conv1")
+	s.turns.Open(ctx, "conv1", "b1")
+	s.releasePushes(ctx, "conv1") // the owner spoke
+	if body, err := finishBody(t, s, "conv1", silentFinish); err != nil || body["level"] != supervisionTriage {
+		t.Fatalf("finish after the owner spoke: %v, %v", body, err)
 	}
-	s.holdPushes(ctx, "conv2")
-	s.promoteSupervision("conv2")
-	if _, err := s.toolSupervisionFinish(ctx, "conv2", args); err == nil {
-		t.Fatal("a user notification or question could be hidden")
+}
+
+// Batch B arrives while turn A runs; A accepts a task (a visible action); B's own silent finish still works, and a
+// silent finish of a visible batch is no error: it reports level user.
+func TestSupervisionFinishPerBatch(t *testing.T) {
+	s, _ := newQuietService(t)
+	ctx := context.Background()
+	s.holdPushes(ctx, "conv1")
+	s.turns.Open(ctx, "conv1", "a")
+	s.turns.Open(ctx, "conv1", "b")
+	s.promoteSupervision("conv1") // task_review accepted, in turn A
+	if body, err := finishBody(t, s, "conv1", `{"visibility":"silent","summary":"B needs nothing.","batch":"b"}`); err != nil || body["level"] != supervisionTriage {
+		t.Fatalf("B's silent finish: %v, %v", body, err)
+	}
+	s.turns.Open(ctx, "conv1", "c")
+	s.turns.Open(ctx, "conv1", "d")
+	s.promoteSupervision("conv1") // marks the oldest open batch: c
+	body, err := finishBody(t, s, "conv1", silentFinish)
+	if err != nil || body["level"] != supervisionUser || body["visibility"] != "user" || body["note"] == "" {
+		t.Fatalf("silent after accepted: %v, %v", body, err)
+	}
+	if _, err := finishBody(t, s, "conv1", `{"visibility":"silent","summary":"Again.","batch":"nope"}`); !errors.Is(err, quietturn.ErrNoBatch) {
+		t.Fatalf("an unknown batch: %v", err)
+	}
+}
+
+// A manager restart keeps the open batches: the book is read back from the settings store.
+func TestSupervisionBatchesSurviveARestart(t *testing.T) {
+	st := &memStore{}
+	s, _ := newQuietServiceOn(t, st)
+	ctx := context.Background()
+	s.turns.Open(ctx, "conv1", "a")
+	s.turns.Open(ctx, "conv1", "b")
+	restarted, _ := newQuietServiceOn(t, st)
+	if body, err := finishBody(t, restarted, "conv1", `{"visibility":"silent","summary":"After the restart.","batch":"b"}`); err != nil || body["level"] != supervisionTriage {
+		t.Fatalf("finish after a restart: %v, %v", body, err)
+	}
+	if _, err := finishBody(t, restarted, "conv1", silentFinish); !errors.Is(err, quietturn.ErrNoBatch) {
+		t.Fatalf("finishing b closes a too: %v", err)
+	}
+}
+
+// The batch id is printed on the marker tag of a delivered supervision message, and the tag is still recognised.
+func TestDeliveredSupervisionCarriesItsBatch(t *testing.T) {
+	msg := relayMsg{From: superviseTool, Tool: superviseTool, At: time.Now().UTC(),
+		Text: "📋 Supervision: 1 of the tasks you handed out need you\n(This is a supervision message from Persona, not a message from the user.)\n<persona-supervision level=\"user\" />\n1. Task"}
+	got := relayDeliveryText("conv1", msg)
+	want := `<persona-supervision level="user" batch="` + relayMsgID("conv1", msg) + `" />`
+	if !strings.Contains(got, want) || relayDeliveryText("conv1", msg) != got {
+		t.Fatalf("delivered text lacks %q:\n%s", want, got)
+	}
+	if in := prompts.ParseInjected(got); in == nil || in.State != "supervise" || in.Level != "user" {
+		t.Fatalf("a batch-tagged message is not recognised: %+v", in)
 	}
 }

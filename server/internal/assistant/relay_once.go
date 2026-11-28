@@ -60,7 +60,7 @@ func relayWords(s string) string {
 // relayArrived checks the latest turns for the relay's text and source since the first try that may have gone in.
 // An error means the transcript could not be read. A successful read without a match can still miss a late write.
 func (s *Service) relayArrived(machine, to string, msg relayMsg) (bool, error) {
-	text := strings.TrimSpace(relayDeliveryText(msg))
+	text := strings.TrimSpace(relayDeliveryText(to, msg))
 	want := relayWords(text)
 	ctx, cancel := context.WithTimeout(context.Background(), relayCheckWait)
 	defer cancel()

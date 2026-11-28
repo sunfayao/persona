@@ -40,7 +40,8 @@ func simulateSupervisionRestart(t *testing.T, s *Service) {
 	}
 	b.timer, b.timerAt = nil, time.Time{}
 	b.pending, b.pendingLoaded, b.sent, b.dedup = nil, false, nil, nil
-	b.queued, b.last, b.asks, b.hold, b.visible = nil, time.Time{}, nil, nil, nil
+	b.queued, b.last, b.asks = nil, time.Time{}, nil
+	s.turns = s.newQuietTurns() // what a restarted manager has: nothing held, the open batches read back from the store
 	b.legacyBackground, b.failSeen = nil, nil
 	b.mu.Unlock()
 	b.dedupMu.Unlock()

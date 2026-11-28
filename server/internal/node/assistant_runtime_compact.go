@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/node/harness/agy"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
 )
@@ -187,4 +188,27 @@ func (n *Node) assistantHandoffRuntime(ctx context.Context, id string) (Handoff,
 		return Handoff{}, err
 	}
 	return Handoff{Recent: recentTurns(page.Items, 0)}, nil
+}
+
+// agyCheckpointed: agy summarized conversation id's context itself (its transcript has a CHECKPOINT step this node has
+// not acted on), so the blocks Persona sent are gone: the next message carries the whole snapshot and the compaction
+// recovery text, as after a typed /compact. The transcript is read again and again; the checkpoint's step, kept in the
+// conversation's state, makes each checkpoint count once, also across a restart.
+func (n *Node) agyCheckpointed(id string, h *agy.Projection) {
+	_, seq := h.Compaction()
+	if seq == 0 {
+		return
+	}
+	if st, ok := n.state.get(id); !ok || st.AgyCheckpoint == seq || !n.runtimeAssistant(id) {
+		return
+	}
+	fresh := false
+	n.state.update(id, func(v *sessionState) bool {
+		fresh = v.AgyCheckpoint != seq
+		v.AgyCheckpoint = seq
+		return fresh
+	})
+	if fresh {
+		n.contextCompacted(id)
+	}
 }

@@ -403,6 +403,7 @@ func (n *Node) mergeRuntimeAgy(s *proto.Session, ref agy.Ref) {
 		}
 		policy := n.agyContextPolicy(s.SessionID, s.Launcher, model, int(s.ContextWindow))
 		h.ApplyWithPolicy(s, false, policy)
+		n.agyCheckpointed(s.SessionID, h)
 		if h.Kind() == agy.Subagent {
 			s.IsSubagent = true
 		}

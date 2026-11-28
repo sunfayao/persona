@@ -6,18 +6,23 @@ import (
 	"errors"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/sunfayao/persona/server/internal/assistant/quietturn"
 )
+
+// newQuietTurns makes the book of supervision batches and push holds, kept in the settings store (quietturn).
+func (s *Service) newQuietTurns() *quietturn.Book {
+	return quietturn.New(quietturn.Dependencies{Max: superviseHoldMax, Logf: s.logf, Store: func() quietturn.Store {
+		if st := s.store(); st != nil {
+			return st
+		}
+		return nil
+	}})
+}
 
 // promoteSupervision is monotone within a wake-up: a later silent finish cannot hide a user action.
 func (s *Service) promoteSupervision(self string) {
-	key := s.supervisionHoldKey(context.Background(), self)
-	b := &s.supervise
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.init()
-	if _, held := b.hold[key]; held {
-		b.visible[key] = true
-	}
+	s.turns.Promote(context.Background(), s.supervisionHoldKey(context.Background(), self))
 }
 
 // toolSupervisionFinish records the caller's disposition in its persisted MCP result.
@@ -26,6 +31,7 @@ func (s *Service) toolSupervisionFinish(ctx context.Context, self string, args j
 	var a struct {
 		Visibility string `json:"visibility"`
 		Summary    string `json:"summary"`
+		Batch      string `json:"batch"`
 	}
 	if err := json.Unmarshal(args, &a); err != nil {
 		return "", err
@@ -34,20 +40,17 @@ func (s *Service) toolSupervisionFinish(ctx context.Context, self string, args j
 	if (a.Visibility != "silent" && a.Visibility != "user") || a.Summary == "" || utf8.RuneCountInString(a.Summary) > 1000 {
 		return "", errors.New("visibility must be silent or user, with a summary of 1–1000 characters")
 	}
-	key := s.supervisionHoldKey(ctx, self)
-	b := &s.supervise
-	b.mu.Lock()
-	_, held := b.hold[key]
-	if !held || a.Visibility == "silent" && b.visible[key] {
-		b.mu.Unlock()
-		return "", errors.New("this is not an unpromoted supervision turn; normal user messages cannot be hidden")
+	r, err := s.turns.Finish(ctx, s.supervisionHoldKey(ctx, self), strings.TrimSpace(a.Batch), a.Visibility)
+	if err != nil {
+		return "", err
 	}
-	level := "triage"
-	if a.Visibility == "user" {
-		level = "user"
-		b.visible[key] = true
+	out := map[string]string{"visibility": a.Visibility, "summary": a.Summary, "level": r.Level}
+	if r.Level == "user" {
+		out["visibility"] = "user" // clients fold a turn only on a silent receipt: this one stays visible
 	}
-	b.mu.Unlock()
-	body, err := json.Marshal(map[string]string{"visibility": a.Visibility, "summary": a.Summary, "level": level})
+	if r.Note != "" {
+		out["note"] = r.Note
+	}
+	body, err := json.Marshal(out)
 	return string(body), err
 }

@@ -223,6 +223,11 @@ func (n *Node) assistantSendRuntime(ctx context.Context, h *runtimeConn, id, cwd
 	command := runtimeCommandOnly(text, len(images)) && !st.AwaitingFirstMessage
 	live, commit := "", func() {}
 	if !command {
+		if ref := h.agyOf(id); ref.Conversation != "" && !startedNew { // a compaction agy made since the last look (agyCheckpointed)
+			if history, err := n.agyReader().Read(ref); err == nil {
+				n.agyCheckpointed(id, history)
+			}
+		}
 		if !public {
 			live, commit = n.turnContext(id, n.assistantContext(id))
 		}

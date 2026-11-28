@@ -799,7 +799,7 @@ func (s *Service) deliverRelay(ctx context.Context, machine, to string, msg rela
 	if msg.Tool == superviseTool && s.runtimeWithoutSupervisionPolicy(ctx, machine, to) {
 		return s.supervisionRuntimeRefusal(ctx, machine)
 	}
-	text := relayDeliveryText(msg)
+	text := relayDeliveryText(to, msg)
 	source, onceID := msg.source(), relayMsgID(to, msg)
 	if strings.TrimSpace(text) != "" && relayWords(text) == "" {
 		text = prompts.RelayMessageText(text, source, onceID)
@@ -827,6 +827,7 @@ func (s *Service) deliverRelay(ctx context.Context, machine, to string, msg rela
 	if msg.Tool == superviseTool {
 		// Register only after admission, but before dispatch: a fast MCP call may precede assistant.send's answer.
 		s.holdPushes(ctx, to)
+		s.turns.Open(ctx, to, onceID)
 	}
 	// A supervision message rendered as a round starts from the first turn (supervise_round.go): what the text says
 	// and the switch now decide, also for one queued before a restart or a change of the switch, and whatever model runs it.
@@ -838,6 +839,7 @@ func (s *Service) deliverRelay(ctx context.Context, machine, to string, msg rela
 	if err := s.call(ctx, machine, DeviceAssistantSend, params, &res); err != nil {
 		if msg.Tool == superviseTool && !relayInDoubt(err) { // in doubt, drainRelays lets go once it knows it did not go in
 			s.releasePushes(ctx, to)
+			s.turns.Drop(ctx, to, onceID)
 		}
 		return err
 	}
@@ -859,8 +861,11 @@ func (s *Service) deliverRelay(ctx context.Context, machine, to string, msg rela
 
 // relayDeliveryText is what a relayed message says in the conversation: a notice, a supervision message and an answer
 // are their own text; a message from another conversation says where it comes from.
-func relayDeliveryText(msg relayMsg) string {
-	if msg.Tool == noticeTool || msg.Tool == superviseTool || msg.Tool == askAnswerTool || msg.Tool == taskEndTool || msg.Tool == prFollowupTool ||
+func relayDeliveryText(to string, msg relayMsg) string {
+	if msg.Tool == superviseTool {
+		return prompts.SuperviseBatchText(msg.Text, relayMsgID(to, msg)) // the batch its turn finishes (supervise_finish.go)
+	}
+	if msg.Tool == noticeTool || msg.Tool == askAnswerTool || msg.Tool == taskEndTool || msg.Tool == prFollowupTool ||
 		msg.Tool == chatReplyTool || msg.Tool == relayRefusedTool {
 		return msg.Text
 	}

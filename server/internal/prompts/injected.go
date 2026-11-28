@@ -53,6 +53,19 @@ const (
 	legacySuperviseMarker = "这是 Persona 的督办消息"
 )
 
+// superviseTagRe is the supervision marker tag: its level, and (since batches) the batch the turn finishes. A tag
+// from before batches has no batch attribute and is still read.
+var superviseTagRe = lazyre.New(`<persona-supervision level="(info|triage|user)"(?: batch="([^"]*)")? />`)
+
+// SuperviseBatchText prints the batch id on the supervision marker tag of text, where supervision_finish reads it.
+func SuperviseBatchText(text, id string) string {
+	m := superviseTagRe.FindStringSubmatchIndex(text)
+	if m == nil || m[4] >= 0 || id == "" {
+		return text
+	}
+	return text[:m[3]+1] + ` batch="` + id + `"` + text[m[3]+1:]
+}
+
 // SuperviseRoundMarker is on its own line in a supervision message that is a round of the background supervisor starting
 // from a clean context (assistant/supervise, Fresh, #7315). The manager sends such a message as a round (IsSuperviseRound),
 // and the transcript reader keeps every round in view though they all hang from the conversation's first turn
@@ -181,11 +194,8 @@ func ParseInjected(text string) *proto.Injected {
 			return nil
 		}
 		level := "triage" // Messages from before levels were added are routine triage too.
-		for _, candidate := range []string{"info", "triage", "user"} {
-			if strings.Contains(rest, `<persona-supervision level="`+candidate+`" />`) {
-				level = candidate
-				break
-			}
+		if lm := superviseTagRe.FindStringSubmatch(rest); lm != nil {
+			level = lm[1]
 		}
 		return &proto.Injected{Kind: proto.InjectedSystem, State: "supervise", Level: level, Line: superviseLine(m[1])}
 	case strings.HasPrefix(head, "Persona · supervision: "):
