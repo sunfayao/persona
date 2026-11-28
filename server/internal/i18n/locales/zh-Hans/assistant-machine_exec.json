@@ -1,0 +1,4 @@
+{
+  "card": "在 {machine} 上运行：",
+  "card_cwd": "目录：{cwd}"
+}

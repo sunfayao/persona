@@ -263,6 +263,7 @@ func (s *Service) profileFields() []settingField {
 			get:   s.fromSettings(func(v Settings) any { return ownerApprovalPhrasesForView(v) }),
 			write: s.profileWrite(func(v *Settings, val any) { v.OwnerApprovalPhrases = val.([]string) })},
 		s.machineField(),
+		s.machineExecField(), // machine_exec.go
 	}
 }
 

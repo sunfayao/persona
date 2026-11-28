@@ -4,6 +4,7 @@
   "browser_run": "Browser script",
   "extension_ui": "Extension action",
   "persona_settings": "Persona settings change",
+  "machine_exec": "Shell command",
   "subscription_save": "Subscription change",
   "agent_send": "Message to an agent",
   "agent_start": "New agent",

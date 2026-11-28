@@ -14,6 +14,7 @@
   "title_assistant_persistent_owner_action_cards": "Keep prepared action cards pending",
   "title_assistant_owner_reply_approval_phrases": "Reply phrases that approve",
   "title_assistant_machine": "The computer the assistant runs on",
+  "title_assistant_machine_exec": "Shell commands on computers",
   "title_agents_triage_enabled": "Triage stopped Agent turns",
   "title_agents_triage_auto_continue": "Continue after a usage limit resets",
   "title_agents_triage_wake": "Wake Agents whose wait is over",

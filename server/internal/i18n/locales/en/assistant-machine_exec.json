@@ -1,0 +1,4 @@
+{
+  "card": "Run on {machine}:",
+  "card_cwd": "In {cwd}"
+}

@@ -14,6 +14,7 @@
   "title_assistant_persistent_owner_action_cards": "让已备好的操作卡片一直等待",
   "title_assistant_owner_reply_approval_phrases": "用来批准的回复用语",
   "title_assistant_machine": "助手运行所在的电脑",
+  "title_assistant_machine_exec": "在电脑上运行 Shell 命令",
   "title_agents_triage_enabled": "分诊停下来的 Agent 回合",
   "title_agents_triage_auto_continue": "额度重置后自动继续",
   "title_agents_triage_wake": "唤醒等待已结束的 Agent",
