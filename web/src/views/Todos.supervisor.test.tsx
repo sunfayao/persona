@@ -195,3 +195,31 @@ it("shows persisted Agent activity and an explicit coverage gap across pages", a
   expect(activity.textContent).toContain("轮次已结束");
   expect(api).toHaveBeenCalledWith("/todos/root/lifecycle?before=42", expect.anything());
 });
+
+it("shows the background work of one turn as one group that opens to its runs, with a failure in its summary", async () => {
+  seed({ features: ["agent_lifecycle_v1"] });
+  const rows = Array.from({ length: 16 }, (_, i) => {
+    const ref = `task-${i}`, start = 40 * 60_000 - i * 60_000;
+    return [
+      { revision: String(100 + i * 2 + 1), machine_id: "m1", session_id: "s-lead", kind: "background.ended", confidence: "observed", occurred_at: iso(start - 30_000), ref, outcome: i === 3 ? "failed" : "completed", activity: "test" },
+      { revision: String(100 + i * 2), machine_id: "m1", session_id: "s-lead", kind: "background.started", confidence: "observed", occurred_at: iso(start), ref, activity: "test" },
+    ];
+  }).flat();
+  api.mockImplementation(async (path: string) => {
+    if (path === "/todos/root/lifecycle") return { events: rows };
+    if (path.endsWith("/decisions?all=1")) return { decisions: [] };
+    return {};
+  });
+  await open("root");
+  const activity = document.querySelector("[data-testid=todo-section-lifecycle]")!;
+  expect(activity.querySelectorAll("li[data-testid=todo-activity-group]")).toHaveLength(1);
+  expect(activity.querySelectorAll("[data-testid=todo-activity-run]")).toHaveLength(0);
+  expect(activity.textContent).toContain("后台工作 × 16");
+  expect(activity.textContent).toContain("1 个失败");
+  expect(activity.textContent).toContain("15 个已完成");
+  expect(activity.textContent).toContain("测试 × 16");
+  expect(activity.textContent!.match("观测记录") ?? []).toHaveLength(1);
+  await act(async () => (activity.querySelector("[data-testid=todo-activity-group] button") as HTMLElement).click());
+  expect(activity.querySelectorAll("[data-testid=todo-activity-run]")).toHaveLength(16);
+  expect(activity.textContent).toContain("失败");
+});

@@ -166,6 +166,22 @@ func commandActivity(cmd, desc string) string {
 	return "在跑命令"
 }
 
+// CommandClass names the kind of work a shell command or its description is doing ("test", "build", "lint", "sync", ...),
+// or "" when the classifier has no rule for it. It reads cmd and desc and returns neither: callers that must not keep a
+// command line store only this name.
+func CommandClass(cmd, desc string) string {
+	for _, text := range []string{cmd, desc} {
+		low := strings.ToLower(text)
+		for _, r := range commandRules {
+			if r.re.MatchString(low) {
+				key, _ := ActivityKey(r.says)
+				return strings.TrimPrefix(key, "act_")
+			}
+		}
+	}
+	return ""
+}
+
 func join(verb, what string) string {
 	if what = actLine(what); what == "" {
 		return verb

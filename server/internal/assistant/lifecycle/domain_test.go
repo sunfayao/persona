@@ -18,6 +18,7 @@ type testStore struct {
 	cursor  proto.LifecycleBatchRequest
 	fail    bool
 	commits int
+	last    proto.LifecycleBatch
 }
 
 func (s *testStore) LifecycleCursor(context.Context, string) (proto.LifecycleBatchRequest, error) {
@@ -33,6 +34,7 @@ func (s *testStore) CommitLifecycle(_ context.Context, _ string, cursor proto.Li
 	}
 	s.cursor = proto.LifecycleBatchRequest{Stream: batch.Stream, After: batch.First + int64(len(batch.Events)) - 1}
 	s.commits++
+	s.last = batch
 	return nil
 }
 
@@ -140,5 +142,38 @@ func TestLifecycleRoutesRequireTheOwnerAndTheReferencedTodo(t *testing.T) {
 		if w.Code != c.want {
 			t.Errorf("%s: status %d, want %d", c.path, w.Code, c.want)
 		}
+	}
+}
+
+func TestLifecycleKeepsKnownActivityClassesAndDropsUnknownOnes(t *testing.T) {
+	t.Parallel()
+	at := time.Date(2026, 11, 28, 0, 0, 0, 0, time.UTC)
+	turn := proto.LifecycleRef("turn")
+	event := func(ref, activity string) proto.LifecycleObservation {
+		return proto.LifecycleObservation{Session: "session", Kind: proto.LifecycleBackgroundStarted, At: at, Source: "inventory",
+			Ref: proto.LifecycleRef(ref), Turn: turn, Activity: activity}
+	}
+	st := &testStore{}
+	d := New(Dependencies{
+		Now:   func() time.Time { return at },
+		Scope: func(context.Context, string, string) (string, bool, error) { return "", true, nil },
+		Call: func(_ context.Context, _, _ string, _, out any) error {
+			*out.(*proto.LifecycleBatch) = proto.LifecycleBatch{Stream: proto.LifecycleRef("stream"), First: 1,
+				Events: []proto.LifecycleObservation{event("a", "test"), event("b", "future_class"), event("c", "")}}
+			return nil
+		},
+	})
+	if err := d.pull(t.Context(), st, "machine"); err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, e := range st.last.Events {
+		got = append(got, e.Activity)
+		if e.Turn != turn {
+			t.Fatalf("turn lost: %+v", e)
+		}
+	}
+	if len(got) != 3 || got[0] != "test" || got[1] != "" || got[2] != "" {
+		t.Fatalf("activity classes after validation: %q", got)
 	}
 }

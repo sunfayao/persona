@@ -264,3 +264,42 @@ func BenchmarkLifecycleBatch(b *testing.B) {
 		}
 	}
 }
+
+func TestLifecycleActivityRoundTripAndRowsWithoutIt(t *testing.T) {
+	ctx, d := context.Background(), open(t)
+	at := time.Now().UTC().Truncate(time.Microsecond)
+	machine, session, todo := "lifecycle-activity-machine", "lifecycle-activity-session", "lifecycle-activity-todo"
+	if err := d.CreateTodo(ctx, TodoRow{ID: todo, Title: "Trace activity", CreatedAt: at, UpdatedAt: at}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.LinkTodoAgentWithSource(ctx, todo, machine, session, "", "", "", "", "spawned", "another/session", at.Add(-time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	turn := proto.LifecycleRef("turn-1")
+	classified := proto.LifecycleObservation{Session: session, Kind: proto.LifecycleBackgroundStarted, At: at, Source: "inventory",
+		Ref: proto.LifecycleRef("task-1"), Turn: turn, Activity: "test"}
+	older := proto.LifecycleObservation{Session: session, Kind: proto.LifecycleBackgroundStarted, At: at, Source: "inventory",
+		Ref: proto.LifecycleRef("task-2")} // as an older node wrote it: neither field
+	if err := d.AppendLifecycle(ctx, machine, []proto.LifecycleObservation{classified, older}); err != nil {
+		t.Fatal(err)
+	}
+	var activity *string
+	if err := d.pool.QueryRow(ctx, "SELECT activity FROM agent_lifecycle_events WHERE machine_id = $1 AND source_ref = $2",
+		machine, older.Ref).Scan(&activity); err != nil || activity != nil {
+		t.Fatalf("a row without a class must keep NULL: %v, %v", activity, err)
+	}
+	p, err := d.LifecyclePage(ctx, "", "", todo, 0, true, 10, at.Add(-time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	byRef := map[string]proto.LifecycleEvent{}
+	for _, e := range p.Events {
+		byRef[e.Ref] = e
+	}
+	if e := byRef[classified.Ref]; e.Activity != "test" || e.Turn != turn {
+		t.Fatalf("class and turn did not round trip: %+v", e)
+	}
+	if e, ok := byRef[older.Ref]; !ok || e.Activity != "" || e.Turn != "" {
+		t.Fatalf("a row without the fields must still read: %+v", e)
+	}
+}

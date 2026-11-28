@@ -1153,6 +1153,15 @@ export interface AgentLifecycleEvent {
   occurred_at: string;
   confidence: "confirmed" | "observed" | (string & {});
   outcome?: string;
+  /** Names the boundary within its source: a background task's start and end share it. */
+  ref?: string;
+  incarnation?: string;
+  source?: string;
+  /** The turn the event belongs to; a background run carries the turn that started it (newer nodes only). */
+  turn_id?: string;
+  duration_ms?: number;
+  /** A background run's bounded class of work (test, build, ...), never its command; newer nodes only. */
+  activity?: string;
 }
 
 export interface AgentLifecyclePage {

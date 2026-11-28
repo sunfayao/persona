@@ -3,6 +3,7 @@ package proto
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"slices"
 	"strings"
 	"time"
 )
@@ -174,6 +175,17 @@ type LifecycleObservation struct {
 	Turn        string    `json:"turn_id,omitempty"`
 	Outcome     string    `json:"outcome,omitempty"`
 	DurationMS  int64     `json:"duration_ms,omitempty"`
+	// Activity is the bounded class of a background task's work (LifecycleActivityClasses), never its command or description.
+	Activity string `json:"activity,omitempty"`
+}
+
+// LifecycleActivityClasses is the closed set of Activity values; the node derives them with transcript.CommandClass.
+var LifecycleActivityClasses = []string{"ci", "pr_create", "pr_merge", "release", "deploy", "test", "lint", "build", "install",
+	"push", "commit", "sync", "diff", "simulator", "waiting", "search_code", "read_files"}
+
+// ValidLifecycleActivity accepts the empty class (an older node) and the closed set.
+func ValidLifecycleActivity(class string) bool {
+	return class == "" || slices.Contains(LifecycleActivityClasses, class)
 }
 
 type LifecycleBatchRequest struct {

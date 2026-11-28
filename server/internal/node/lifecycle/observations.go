@@ -18,6 +18,7 @@ func (q *Queue) Inventory(list []proto.Session) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	next := make(map[string]inventory, len(list))
+	nextBG := make(map[string]backgroundInfo)
 	now := q.now()
 	for _, s := range list {
 		if !proto.ValidLifecycleSession(s.SessionID) || s.IsDeleted() || s.Starting || s.AwaitingFirstMessage {
@@ -46,16 +47,20 @@ func (q *Queue) Inventory(list []proto.Session) error {
 					Source: "inventory", Ref: proto.LifecycleRef(s.ParentSessionID)})
 			}
 		}
-		for _, bg := range s.Background {
-			q.background(s.SessionID, bg)
-		}
-		for _, bg := range s.BackgroundEnded() {
-			q.background(s.SessionID, bg)
-		}
 		if s.Status == proto.StatusWorking && before.status != "" && before.status != proto.StatusWorking && s.Launcher != "claude" && s.Launcher != "codex" {
 			entry.turn = eventTurn(s, generation)
 			q.add(proto.LifecycleObservation{Session: s.SessionID, Kind: proto.LifecycleTurnStarted, At: now,
 				Source: "inventory", Ref: entry.turn, Turn: entry.turn, Incarnation: generation})
+		}
+		turn := q.state.Open[s.SessionID].ID
+		if turn == "" {
+			turn = entry.turn
+		}
+		for _, bg := range s.Background {
+			q.background(s.SessionID, bg, turn, nextBG)
+		}
+		for _, bg := range s.BackgroundEnded() {
+			q.background(s.SessionID, bg, turn, nextBG)
 		}
 		if s.Launcher != "codex" && s.Status != proto.StatusWorking && s.TurnErrorKind != "" && !s.UpdatedAt.IsZero() && s.UpdatedAt.After(now.Add(-30*24*time.Hour)) {
 			outcome := "runtime_error"
@@ -73,7 +78,7 @@ func (q *Queue) Inventory(list []proto.Session) error {
 		}
 		next[s.SessionID] = entry
 	}
-	q.inventory = next
+	q.inventory, q.backgrounds = next, nextBG
 	return q.save()
 }
 
@@ -81,12 +86,28 @@ func eventTurn(s proto.Session, generation string) string {
 	return proto.LifecycleRef(generation, s.UpdatedAt.UTC().Format(time.RFC3339Nano), strconv.FormatInt(s.Rev, 10))
 }
 
-func (q *Queue) background(session string, bg proto.BackgroundTask) {
+// backgroundInfo is what the first sighting of a background task settled: the turn that started it and its activity
+// class, kept while the inventory still lists the task so its end carries the same values.
+type backgroundInfo struct{ turn, activity string }
+
+// background records a task's start and end. turn is the turn open now; it is attributed to the task only when the task
+// is still running at its first sighting, because an ended task may belong to an earlier turn. The task's command and
+// description are read for their class and never stored.
+func (q *Queue) background(session string, bg proto.BackgroundTask, turn string, next map[string]backgroundInfo) {
 	if bg.ID == "" {
 		return
 	}
 	ref := proto.LifecycleRef(bg.ID, bg.StartedAt.UTC().Format(time.RFC3339Nano))
-	base := proto.LifecycleObservation{Session: session, Source: "inventory", Ref: ref}
+	k := session + "\x00" + ref
+	info, known := q.backgrounds[k]
+	if !known {
+		info.activity = transcript.CommandClass(bg.Command, bg.Description)
+		if bg.EndedAt == nil || bg.EndedAt.IsZero() {
+			info.turn = turn
+		}
+	}
+	next[k] = info
+	base := proto.LifecycleObservation{Session: session, Source: "inventory", Ref: ref, Turn: info.turn, Activity: info.activity}
 	if !bg.StartedAt.IsZero() {
 		base.Kind, base.At = proto.LifecycleBackgroundStarted, bg.StartedAt
 		q.add(base)

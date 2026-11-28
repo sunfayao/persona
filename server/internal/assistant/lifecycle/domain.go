@@ -138,6 +138,10 @@ func (d *Domain) pull(ctx context.Context, st Store, machine string) error {
 				}
 				scopes[e.Session] = scope
 			}
+			if !proto.ValidLifecycleActivity(e.Activity) {
+				// A newer node may know classes this manager does not: drop the class, keep the event.
+				batch.Events[i].Activity = ""
+			}
 			if scope.allowed {
 				// The sending node never decides the event's scope.
 				batch.Events[i].SpaceRef = scope.space

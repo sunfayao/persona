@@ -33,16 +33,17 @@ type journal struct {
 }
 
 type Queue struct {
-	mu        sync.Mutex
-	path      string
-	now       func() time.Time
-	state     journal
-	dirty     bool
-	seen      map[string]bool
-	keys      []string
-	nextKey   int
-	inventory map[string]inventory
-	history   map[string]string
+	mu          sync.Mutex
+	path        string
+	now         func() time.Time
+	state       journal
+	dirty       bool
+	seen        map[string]bool
+	keys        []string
+	nextKey     int
+	inventory   map[string]inventory
+	backgrounds map[string]backgroundInfo
+	history     map[string]string
 }
 
 func New(path string, now func() time.Time) (*Queue, error) {
