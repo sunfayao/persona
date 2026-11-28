@@ -38,18 +38,16 @@ func (c *codexRemote) request(m codexMessage) {
 	if c.n.sessionBlocked(ix.SessionID, ix.Cwd) {
 		return // a blocked Agent folder (agentdirs.go): no card; an observer never answers, Codex's own client decides
 	}
+	r.Command = unwrapShell(r.Command)
+	r.PopulateCard(m.Method, &ix, paths)
 	var response func(proto.Resolution) (any, bool)
 	switch m.Method {
 	case "item/commandExecution/requestApproval", "item/fileChange/requestApproval":
-		ix.Kind = proto.IxPermission
 		if m.Method == "item/commandExecution/requestApproval" {
-			ix.ToolName, ix.AlwaysLabel = "Bash", "本会话不再问这个命令"
-			ix.Summary = unwrapShell(r.Command)
-			ix.ToolInput, _ = json.Marshal(map[string]any{"command": unwrapShell(r.Command)})
+			ix.AlwaysLabel, ix.Summary = "本会话不再问这个命令", r.Command
 		} else {
-			ix.ToolName, ix.AlwaysLabel = "Edit", "本会话不再问这些文件"
+			ix.AlwaysLabel = "本会话不再问这些文件"
 			ix.Summary = strings.Join(paths, "\n")
-			ix.ToolInput, _ = json.Marshal(map[string]any{"file_path": firstNonEmpty(append(paths, r.GrantRoot)...)})
 			if ix.Summary == "" {
 				ix.Summary = firstNonEmpty(r.GrantRoot, "修改文件")
 			}
@@ -68,39 +66,23 @@ func (c *codexRemote) request(m codexMessage) {
 			return map[string]any{"decision": d}, true
 		}
 	case "item/permissions/requestApproval":
-		ix.Kind, ix.ToolName, ix.Summary, ix.ToolInput = proto.IxPermission, "权限", "Codex 要更多权限："+compactJSON(r.Permissions), r.Permissions
+		ix.Summary = "Codex 要更多权限：" + compactJSON(r.Permissions)
 		ix.AlwaysLabel = "本会话都给这些权限"
 		response = func(res proto.Resolution) (any, bool) {
 			if res.Allow == nil {
 				return nil, false
 			}
-			var p map[string]any
+			p := map[string]any{}
 			scope := "turn"
 			if *res.Allow {
-				_ = json.Unmarshal(r.Permissions, &p)
-				for k, v := range p {
-					if v == nil {
-						delete(p, k)
-					}
-				}
+				p = r.PermissionGrant()
 				if res.Always {
 					scope = "session"
 				}
 			}
-			if p == nil {
-				p = map[string]any{}
-			}
 			return map[string]any{"permissions": p, "scope": scope}, true
 		}
 	case "item/tool/requestUserInput":
-		ix.Kind, ix.ToolName, ix.CanCancel = proto.IxQuestion, "request_user_input", true
-		for _, q := range r.Questions {
-			qq := proto.Question{Question: q.Question, Header: q.Header}
-			for _, o := range q.Options {
-				qq.Options = append(qq.Options, proto.QuestionOption{Label: o.Label, Description: o.Description})
-			}
-			ix.Questions = append(ix.Questions, qq)
-		}
 		response = func(res proto.Resolution) (any, bool) {
 			answers := map[string]any{}
 			if res.Cancel {
@@ -119,8 +101,6 @@ func (c *codexRemote) request(m codexMessage) {
 		if r.Meta.Kind != "mcp_tool_call" {
 			return
 		}
-		ix.Kind, ix.ToolName, ix.Summary = proto.IxPermission, "mcp__"+r.ServerName, r.Message
-		ix.ToolInput, _ = json.Marshal(r.Meta.ToolParams)
 		response = func(res proto.Resolution) (any, bool) {
 			if res.Allow == nil {
 				return nil, false

@@ -57,9 +57,10 @@ func (c *codexConn) decide(ctx context.Context, method string, raw json.RawMessa
 	switch method {
 	case "item/commandExecution/requestApproval":
 		command := r.Command
-		ix.ToolName = "Bash"
-		ix.ToolInput, _ = json.Marshal(map[string]any{"command": command})
-		decision, reason, err := n.larkCheck(ctx, p.id, cwd, command, ix)
+		r.PopulateCard(method, &ix, nil)
+		gateCard := ix
+		gateCard.Kind = ""
+		decision, reason, err := n.larkCheck(ctx, p.id, cwd, command, gateCard)
 		if err != nil {
 			return map[string]any{"decision": "cancel"}, nil
 		}
@@ -74,7 +75,7 @@ func (c *codexConn) decide(ctx context.Context, method string, raw json.RawMessa
 		if mode == proto.ModeBypass || readsOnlyMemory(command, cwd, c.memDir) {
 			return map[string]any{"decision": "accept"}, nil // Claude reads its auto-memory unasked too
 		}
-		ix.Kind, ix.Summary = proto.IxPermission, withReason(command, r.Reason)
+		ix.Summary = withReason(command, r.Reason)
 		ix.AlwaysKeys = []string{"codex-command:" + command} // keep the legacy command scope
 		// The hub remembers Always; accepting once keeps the next request revocable.
 		return c.askPhone(ctx, ix, "accept", "accept", "decline"), nil
@@ -87,10 +88,8 @@ func (c *codexConn) decide(ctx context.Context, method string, raw json.RawMessa
 		if mode == proto.ModeBypass || mode == "acceptEdits" || (mode != "plan" && r.GrantRoot == "" && allUnder(paths, cwd, c.memDir)) {
 			return map[string]any{"decision": "accept"}, nil
 		}
-		ix.ToolName = "Edit"
-		file := firstNonEmpty(append(paths, r.GrantRoot)...)
-		ix.ToolInput, _ = json.Marshal(map[string]any{"file_path": file})
-		ix.Kind, ix.Summary = proto.IxPermission, withReason(strings.Join(paths, "\n"), r.Reason)
+		r.PopulateCard(method, &ix, paths)
+		ix.Summary = withReason(strings.Join(paths, "\n"), r.Reason)
 		if ix.Summary == "" {
 			ix.Summary = "修改文件"
 		}
@@ -111,9 +110,7 @@ func (c *codexConn) decide(ctx context.Context, method string, raw json.RawMessa
 		if compat.IsMCPServer(r.ServerName) || mode == proto.ModeBypass {
 			return accept, nil
 		}
-		ix.ToolName = "mcp__" + r.ServerName
-		ix.ToolInput, _ = json.Marshal(r.Meta.ToolParams)
-		ix.Kind, ix.Summary = proto.IxPermission, r.Message
+		r.PopulateCard(method, &ix, nil)
 		res, ok, err := n.ask(ctx, ix)
 		if err != nil || !ok || res.Allow == nil || !*res.Allow {
 			if ok && res.Message != "" {
@@ -125,21 +122,11 @@ func (c *codexConn) decide(ctx context.Context, method string, raw json.RawMessa
 
 	case "item/permissions/requestApproval":
 		deny := map[string]any{"permissions": map[string]any{}, "scope": "turn"}
-		var granted map[string]any
-		_ = json.Unmarshal(r.Permissions, &granted)
-		for k, v := range granted {
-			if v == nil {
-				delete(granted, k)
-			}
-		}
-		if granted == nil {
-			granted = map[string]any{}
-		}
+		granted := r.PermissionGrant()
 		if mode != proto.ModeBypass {
-			ix.ToolName = "权限"
-			ix.ToolInput = r.Permissions
+			r.PopulateCard(method, &ix, nil)
 			b, _ := json.Marshal(granted)
-			ix.Kind, ix.Summary = proto.IxPermission, withReason("Codex 要更多权限："+string(b), r.Reason)
+			ix.Summary = withReason("Codex 要更多权限："+string(b), r.Reason)
 			ix.AlwaysKeys = []string{"codex-permissions:" + string(b)}
 			res, ok, err := n.ask(ctx, ix)
 			if err != nil || !ok || res.Allow == nil || !*res.Allow {
@@ -150,14 +137,7 @@ func (c *codexConn) decide(ctx context.Context, method string, raw json.RawMessa
 		return map[string]any{"permissions": granted, "scope": "turn"}, nil
 
 	case "item/tool/requestUserInput":
-		ix.Kind, ix.ToolName, ix.CanCancel = proto.IxQuestion, "request_user_input", true
-		for _, q := range r.Questions {
-			qq := proto.Question{Question: q.Question, Header: q.Header}
-			for _, o := range q.Options {
-				qq.Options = append(qq.Options, proto.QuestionOption{Label: o.Label, Description: o.Description})
-			}
-			ix.Questions = append(ix.Questions, qq)
-		}
+		r.PopulateCard(method, &ix, nil)
 		answers := map[string]any{}
 		res, ok, err := n.ask(ctx, ix)
 		if err == nil && ok && !res.Cancel {
