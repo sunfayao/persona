@@ -141,6 +141,16 @@ export interface EngineLeg {
   until: string;
 }
 
+export interface SlashCommand {
+  name: string;
+  description: string;
+  source: string;
+}
+
+export interface SlashCommandCatalog {
+  commands: SlashCommand[];
+}
+
 export interface SessionCapabilities {
   native_slash_commands?: boolean;
   takeover?: { running: boolean; can_resume: boolean; reason?: string; released_desktop?: boolean };

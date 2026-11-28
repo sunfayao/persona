@@ -11,6 +11,7 @@ export interface ComposerCommand {
   desc: string;
   text: string;
   confirm?: string;
+  native?: string;
   key?: string;
   /** The small label at the right of its row in the "/" palette, where it comes from: the agent's name for its own slash
    *  commands (agentCommands), the extension's name for a quick prompt; none for Persona's own. */

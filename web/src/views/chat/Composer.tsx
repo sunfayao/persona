@@ -10,6 +10,7 @@ import { memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { useQuickPrompts } from "../../lib/extension-declared";
 import { promptCommands, type ComposerCommand as Command } from "../../lib/extension-prompts";
 import { useSavedPromptRows } from "../../lib/saved-prompt-rows";
+import { cliSlashRows, slashQuery, useCLISlashCommands, type SlashTarget } from "../../lib/cli-slash-commands";
 import { LOOP_TEXT, loopHint } from "../../lib/loop-command";
 import { WORKFLOWS_COMMAND } from "../../lib/background-panel";
 import { credentialOwner } from "../../lib/api";
@@ -120,11 +121,6 @@ export const AGENT_COMMANDS: Command[] = [
   { word: "/clear", desc: t("chat-composer.cmd_clear_desc"), text: "/clear", confirm: t("chat-composer.cmd_clear_confirm"), agent: true },
 ];
 
-function parseSlash(draft: string) {
-  const m = /^\/(\S*)$/.exec(draft);
-  return m ? m[1].toLowerCase() : null;
-}
-
 /** A picked picture made ready for a message (scaled down as on the iPhone, lib/image-scale.ts, loaded here), or null when
  *  the page cannot read it or bring it under the limits: it goes as a file. */
 async function readImage(file: File, limits: ImageLimits): Promise<Attachment | null> {
@@ -185,6 +181,7 @@ export const Composer = memo(function Composer({
   needsYou,
   disabled,
   commands = AGENT_COMMANDS,
+  slashTarget,
   onSend = async () => false,
   onStop,
   onSendNow,
@@ -221,6 +218,7 @@ export const Composer = memo(function Composer({
   needsYou?: boolean;
   disabled?: boolean;
   commands?: Command[];
+  slashTarget?: SlashTarget;
   /** False: it did not go and nothing shows it (the chat keeps one that failed as a failed bubble, true), so the words go
    *  back into the box. */
   onSend?: (m: Outgoing) => Promise<boolean>;
@@ -702,17 +700,28 @@ export const Composer = memo(function Composer({
   const quickPrompts = useQuickPrompts();
   // your saved prompts (#7329) after the chat's own commands, read once a box has the focus or a "/"
   const savedPrompts = useSavedPromptRows(focused || draft.startsWith("/"));
-  const allCommands = useMemo(() => [...commands, ...savedPrompts, ...promptCommands(quickPrompts)], [commands, savedPrompts, quickPrompts]);
-  const query = dismissed ? null : parseSlash(draft);
+  const query = dismissed ? null : slashQuery(draft);
+  const nativeTarget = Boolean(slashTarget);
+  const { rows: native, loading: slashLoading } = useCLISlashCommands(slashTarget, !disabled && query !== null && !ime.composing);
+  const allCommands = useMemo(() => {
+    const existing = new Map(commands.map((row) => [row.word, row]));
+    const cli = cliSlashRows(native).map((row) => {
+      const action = existing.get(row.word);
+      existing.delete(row.word);
+      return { ...row, confirm: action?.confirm ?? (row.word === "/clear" ? t("chat-composer.cmd_clear_confirm") : undefined) };
+    });
+    const actions = Array.from(existing.values()).filter((row) => !nativeTarget || !row.agent);
+    return [...cli, ...actions, ...savedPrompts, ...promptCommands(quickPrompts)];
+  }, [commands, native, savedPrompts, quickPrompts, nativeTarget]);
   // A /loop draft gets a line under the box saying what it will do (only where the menu offers /loop: Claude agents).
-  const loop = commands.some((c) => c.text === LOOP_TEXT) ? loopHint(draft) : null;
+  const loop = allCommands.some((c) => c.text === LOOP_TEXT) ? loopHint(draft) : null;
   // Keep bare "/" focused on commands; a non-empty "/<keyword>" also matches against the active skill catalog.
-  const slashSkillActive = Boolean(mention?.skills) && hasSlashSkillQuery(query);
+  const slashSkillActive = !slashTarget && Boolean(mention?.skills) && hasSlashSkillQuery(query);
   // A menu already open stays through a composition; none opens in the middle of one (it would cover the candidates).
   const menusShown = useRef({ slash: false, at: false });
-  const slashOpen = !disabled && query !== null && (allCommands.length > 0 || slashSkillActive) && (!ime.composing || menusShown.current.slash);
+  const slashOpen = !disabled && query !== null && (allCommands.length > 0 || slashSkillActive || nativeTarget) && (!ime.composing || menusShown.current.slash);
   const closeSlash = useCallback(() => setDismissed(true), []);
-  const rows = useMemo(() => (slashOpen ? rankCommands(allCommands, query) : []), [slashOpen, query, allCommands]);
+  const rows = useMemo(() => (slashOpen ? rankCommands(allCommands, query, nativeTarget ? allCommands.length : undefined) : []), [slashOpen, query, allCommands, nativeTarget]);
   useEffect(() => setActive(0), [query]);
 
   // @: the token just before the caret (lib/mentions.ts)
@@ -1082,7 +1091,7 @@ export const Composer = memo(function Composer({
     }
     if (c.confirm && !confirm(c.confirm)) return;
     // `/permissions` opens the permission menu at once; where the chat has no picker it goes in the box as any command
-    if (c.text === PERMISSIONS_COMMAND && requestPermissionPicker(draftKey)) {
+    if (!c.native && c.text === PERMISSIONS_COMMAND && requestPermissionPicker(draftKey)) {
       queueDraftSave("");
       setDraft("");
       setDismissed(true);
@@ -1098,7 +1107,7 @@ export const Composer = memo(function Composer({
     rows, active, onHover: setActive, onPick: pick, onClose: closeSlash,
     query, source: mention, machineId, within: box, memory: catalogMemory, ime: ime.tracker,
   };
-  const commandPalette = () => <SlashPalette {...slashProps} active={Math.min(active, Math.max(rows.length - 1, 0))} />;
+  const commandPalette = () => <SlashPalette {...slashProps} loading={slashLoading} cliLoading={slashLoading} active={Math.min(active, Math.max(rows.length - 1, 0))} />;
 
   return (
     <div
@@ -1234,7 +1243,7 @@ export const Composer = memo(function Composer({
           }}
           onChange={(e) => {
             const next = e.target.value;
-            if (parseSlash(next) !== query) setActive(0);
+            if (slashQuery(next) !== query) setActive(0);
             changeText(next, e.target.selectionStart);
             setDismissed(false);
             setCaret(e.target.selectionStart);

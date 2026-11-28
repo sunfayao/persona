@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { t } from "../i18n";
 import { api, ApiError, credentialOwner, errorText } from "../lib/api";
+import { CLI_SLASH_COMMANDS, launchSlashTarget } from "../lib/cli-slash-commands";
 import { agentId } from "../lib/agent-kind";
 import { base64File, pickAttachment, releaseAttachments, type LocalAttachment } from "../lib/attachments";
 import { CODEX_APP_SOURCE, startsInDesktopApp } from "../lib/desktop-start";
@@ -29,6 +30,7 @@ const CLAUDE_DESKTOP = "claude_desktop";
 export function FolderAgentDraft({ draft, onToggleSidebar }: { draft: Draft; onToggleSidebar: () => void }) {
   const { machine: mid, manager, cwd } = draft;
   const machine = useStore((s) => s.machines.find((m) => m.id === mid));
+  const dynamicSlash = useStore((s) => s.features?.includes(CLI_SLASH_COMMANDS));
   const [choice, setChoice] = useState(draft.choice);
   const [mode, setMode] = useState(draft.permissionMode);
   const [options, setOptions] = useState<{ list: MachineLaunchers; effective: ModelBinding | null }>();
@@ -183,6 +185,7 @@ export function FolderAgentDraft({ draft, onToggleSidebar }: { draft: Draft; onT
       <div className="min-h-0 flex-1" />
       <div className="mx-auto w-full max-w-[760px] shrink-0 px-3 pb-3 sm:px-6">
         <Composer draftKey={draftKey} machineId={mid} agent={agent} autoFocus commands={[]}
+          slashTarget={dynamicSlash && online && hostCurrent && !desktopStart && launcher ? launchSlashTarget(mid, runs, cwd, agent) : undefined}
           deferredAttachments={draft.attachments} placeholder={t("chat-chatview.agent_placeholder")}
           mention={{ cwd, self: draftKey, fileManager: manager, files: () => [] }}
           blocked={blocked}

@@ -28,13 +28,19 @@ const terminalCommands: Readonly<Record<string, readonly string[]>> = {
   agy: ["/help", "/context", "/usage", "/diff", "/tasks", "/agents", "/mcp", "/config", "/effort", "/resume"],
 };
 
-function terminalCommandList(s: Session | undefined) {
+export function takesNativeSlashCommands(s: Session | undefined): boolean {
   if (!s?.pane_id || s.assistant || s.starting || s.awaiting_first_message || s.pending_switch ||
       s.agent_surface === "desktop" || s.source_kind === "runtime" || s.space_kind === "botmux" ||
-      !sessionCan(s, "send") || !sessionCan(s, "terminal") || stateOf(s) === "offline") return;
+      !sessionCan(s, "send") || !sessionCan(s, "terminal") || stateOf(s) === "offline") return false;
   const who = sessionAgent(s);
   const agent = markId(who.agent);
-  if (agent === "codex" && !s.capabilities?.native_slash_commands) return;
+  return agent === "codex" ? Boolean(s.capabilities?.native_slash_commands) : ["claude", "agy", "traex"].includes(agent);
+}
+
+function terminalCommandList(s: Session | undefined) {
+  if (!s || !takesNativeSlashCommands(s)) return;
+  const who = sessionAgent(s);
+  const agent = markId(who.agent);
   const names = terminalCommands[agent];
   if (names) return { names, source: agentName(who.agent, who.label) };
 }

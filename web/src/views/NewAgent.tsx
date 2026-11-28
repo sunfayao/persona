@@ -13,6 +13,8 @@ import { safeDraftRemove, safeDraftWrite, type DraftImage } from "../lib/drafts"
 import { withContexts } from "../lib/context-xml";
 import type { ContextRef } from "../lib/links";
 import { ForwardBar } from "./chat/ForwardBar";
+import { NewAgentSlashField } from "./chat/NewAgentSlashField";
+import { CLI_SLASH_COMMANDS, launchSlashTarget } from "../lib/cli-slash-commands";
 import { lazyPage } from "../lib/lazy-page";
 import { browserStartKeys, launchAgent, presetPrompt, type NewAgentPreset } from "../lib/new-agent";
 import { whenStarted } from "../lib/new-agent-started";
@@ -1030,10 +1032,12 @@ function AgentForm({ open, onClose, preset }: NewAgentProps) {
                 setAttachments((current) => current.filter((a) => a.id !== id));
               }} /></div>}
               <ProjectDocumentSource />
-              <textarea
-                ref={firstMessage}
+              <NewAgentSlashField
+                target={open && features.includes(CLI_SLASH_COMMANDS) && targetOnline && !desktopStart
+                  ? launchSlashTarget(mid, runs, cwd.trim(), agent) : undefined}
+                input={firstMessage}
                 value={prompt}
-                onChange={(e) => { promptRevision.current++; setPrompt(e.target.value); }}
+                onValue={(text) => { promptRevision.current++; setPrompt(text); }}
                 onPaste={(e) => { if (e.clipboardData.files.length) { e.preventDefault(); addFiles(e.clipboardData.files); } }}
                 onKeyDown={(e) => {
                   if (e.nativeEvent.isComposing || e.keyCode === 229) return;

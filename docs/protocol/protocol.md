@@ -177,6 +177,11 @@ The authenticated WS `hello.features` always lists server capabilities; trusted 
 
 - Message receipt transport (`proto.Features`): `message_send_state` (hub-received message feedback, "Message feedback") and `todo_send_state` (the same for a to-do's message or answer sent with an op id, its "To-do writes"). Their feature strings are informational; the dedicated current-socket hello versions establish receipt authority.
 - Terminal Agent sends (`agent_terminal_send`) confirm the exact listed Agent before the terminal client uses the full-device message receipt route.
+- `cli_slash_commands_v1` enables full-device command discovery through `GET /api/v1/sessions/{mid}/{sid}/slash-commands`
+  or `GET /api/v1/machines/{mid}/slash-commands?launcher=…&cwd=…` for a new Agent. The session path uses the
+  node's live session metadata. Both return `{"commands":[{"name":"/compact","description":"…","source":"builtin"}]}`.
+  Sources are `builtin`, `skill`, or `command`. The devices manager relays only to a connected node advertising
+  `cli_slash_commands_v1`. An older node yields an empty list. Discovery does not submit input to the Agent.
 - In `proto.Features`, by area:
   - Connection and errors: `persona_contracts_v1` (the Persona naming contract: both sides read the old and the new names, and a client keeps sending the old ones to a hub without the flag), `tls` (the optional TLS listener and SPKI pin), `endpoints` (`GET /api/v1/endpoints`, see "Candidate addresses" below), `client_hello`, `heartbeat`, `app_ping` (see "Client capabilities and heartbeat"), `error_codes` (a stable `code` in error bodies, see "Error body"), `request_id` (`X-Request-Id`, see "Authentication" above), `client_ops` (see "Operation receipts"), `locale` (honors `Accept-Language`, `client_hello.locale` and the device's `locale`; human-readable text follows the language, [i18n.md](i18n.md)).
   - Devices: `ws_notify` (alerts over the WebSocket, see "Notifications over the persistent connection")

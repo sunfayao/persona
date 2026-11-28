@@ -206,6 +206,7 @@ machines.read        GET /api/v1/machines/{id}/usage
 -                    GET /api/v1/machines/{mid}/screen/video/connect
 -                    GET /api/v1/machines/{mid}/services
 -                    GET /api/v1/machines/{mid}/services/logs
+-                    GET /api/v1/machines/{mid}/slash-commands
 machines.read        GET /api/v1/machines/{mid}/stat
 -                    GET /api/v1/machines/{mid}/storage
 -                    GET /api/v1/machines/{mid}/storage/hotspots
@@ -242,6 +243,7 @@ agents.read          GET /api/v1/sessions/{mid}/{sid}/screen
 -                    GET /api/v1/sessions/{mid}/{sid}/share-catalog
 -                    GET /api/v1/sessions/{mid}/{sid}/share-preview/{preview_id}
 -                    GET /api/v1/sessions/{mid}/{sid}/skills
+-                    GET /api/v1/sessions/{mid}/{sid}/slash-commands
 -                    GET /api/v1/subscriptions
 -                    GET /api/v1/subscriptions/-/graph
 todos.read           GET /api/v1/todos

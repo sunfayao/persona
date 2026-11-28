@@ -59,7 +59,8 @@ import { useAnimatedPresence, useFlash } from "../../ui/motion";
 import { segmentChanges, shiftAbove } from "./offscreen";
 import { glide } from "./glide";
 import { AGENT_COMMANDS, Composer, type Outgoing } from "./Composer";
-import { agentCommands, isNativeTerminalCommand, nativeCommandRows, openPickerCommand } from "../../lib/composer-commands";
+import { CLI_SLASH_COMMANDS, knownCLISlashCommand } from "../../lib/cli-slash-commands";
+import { agentCommands, isNativeTerminalCommand, nativeCommandRows, openPickerCommand, takesNativeSlashCommands } from "../../lib/composer-commands";
 import { IMAGE_LIMIT_CODE } from "../../lib/api-errors";
 import { COMPACT_FEATURE, compactBody, compactPath } from "../../lib/compaction";
 import { canResendFailedTurn, compactResendSupport, failedTurnToResend, isImageLimitError, resolveFailedTurnPayload, snapshotTerminalCompaction, waitForAssistantCompaction, watchTerminalCompaction, type OutgoingPayload } from "../../lib/compact-resend";
@@ -1224,7 +1225,10 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
         toast(isStoppedAgent(row) ? t("chat-chatview.stopped_line") : sourceSubtitle(session) || t("chat-chatview.session_unavailable"), "error");
         return false;
       }
-      const showNativeOutput = switchable && !out.edit && isNativeTerminalCommand(row, out.text, out.images.length);
+      const nativeWord = /^\/(\S+)(?:[ \t].*)?$/.exec(out.text.trim())?.[0].split(/\s/, 1)[0];
+      const dynamicNative = nativeWord && !out.images.length && takesNativeSlashCommands(row) &&
+        knownCLISlashCommand({ machine: mid, session: sid, cwd: row?.cwd, launcher: row?.launcher }, nativeWord);
+      const showNativeOutput = switchable && !out.edit && (dynamicNative || isNativeTerminalCommand(row, out.text, out.images.length));
       const sendingPage = showNativeOutput ? location.href : undefined;
       if (!internalCompactIds.current.has(id)) {
         const recent = deliveredPayloads.current;
@@ -2125,13 +2129,16 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   const faceLast = useMemo(() => (lastRole && lastKind ? { role: lastRole, kind: lastKind } : undefined), [lastRole, lastKind]);
   // the main conversation's /clear (#5095, lib/main-clear.ts) and every Persona conversation's /permissions (#6476)
   // /workflows opens this page's side panel: a chat drawn inside a panel (the Team panel's worker) does not offer it (#5421)
+  const dynamicSlash = useStore((s) => s.features?.includes(CLI_SLASH_COMMANDS));
+  const slashTarget = dynamicSlash && !assistant && takesNativeSlashCommands(session) && mid && sid
+    ? { machine: mid, session: sid, cwd: session?.cwd, launcher: session?.launcher } : undefined;
   const commands = useMemo(
     () => {
       if (assistant) return [...(clears ? mainCommands() : []), ...(session ? [permissionsCommand()] : [])];
       const actions = agentCommands(AGENT_COMMANDS, session).filter((c) => !(embedded && c.text === WORKFLOWS_COMMAND));
-      return [...actions, ...nativeCommandRows(session, actions)];
+      return dynamicSlash ? actions : [...actions, ...nativeCommandRows(session, actions)];
     },
-    [assistant, clears, session, embedded],
+    [assistant, clears, session, embedded, dynamicSlash],
   );
   // the permission picker after the + (#5324), where the mode can be switched: a Persona conversation whatever its state
   // (the hub applies it, #2416), an agent with modes while it runs; Plan mode is the + panel's check row. An agent that
@@ -2631,6 +2638,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
           onStop={!backgroundOnly && sessionCan(session, "interrupt") ? interrupt : undefined}
           stopping={stopping}
           commands={commands}
+          slashTarget={slashTarget}
           suggestion={session?.suggestion}
           suggestionRisky={session?.suggestion_risky}
           mention={mention}

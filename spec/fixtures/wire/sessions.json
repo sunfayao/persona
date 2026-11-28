@@ -245,6 +245,36 @@
     }
   },
   {
+    "name": "cli_slash_commands",
+    "description": "The computer returns native commands with source and description.",
+    "source": [
+      "server/internal/devices/slashcommands/routes.go: Serve"
+    ],
+    "derived": true,
+    "decoder": "cli_slash_commands",
+    "input": {
+      "commands": [
+        {
+          "name": "/compact",
+          "description": "Summarize the conversation",
+          "source": "builtin"
+        },
+        {
+          "name": "/example-skill",
+          "description": "Run the example workflow",
+          "source": "skill"
+        }
+      ]
+    },
+    "expected": {
+      "accepted": true,
+      "fields": {
+        "/commands/0/name": "/compact",
+        "/commands/1/source": "skill"
+      }
+    }
+  },
+  {
     "name": "sessions_assistant_queue",
     "description": "Persona 对话的队列先列用户自己的消息，最后 queued_relayed 条来自其他对话或系统。",
     "source": [

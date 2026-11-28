@@ -123,6 +123,8 @@ func wireDecodeGo(t *testing.T, c wireSample) {
 	}
 	var target any
 	switch c.Decoder {
+	case "cli_slash_commands":
+		target = &proto.SlashCommandCatalog{}
 	case "sessions":
 		target = &struct {
 			Sessions []proto.Session `json:"sessions"`
@@ -242,6 +244,12 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 	add("sessions", "session_native_slash_commands", "A terminal-backed Codex session advertises native slash-command routing.",
 		"sessions", httpJSON(map[string]any{"sessions": []proto.Session{nativeCLI}}),
 		map[string]any{"/sessions/0/capabilities/native_slash_commands": true}, "server/internal/proto/codex.go: SessionCapabilities")
+	add("sessions", "cli_slash_commands", "The computer returns native commands with source and description.", "cli_slash_commands",
+		httpJSON(proto.SlashCommandCatalog{Commands: []proto.SlashCommand{
+			{Name: "/compact", Source: proto.SlashBuiltin, Description: "Summarize the conversation"},
+			{Name: "/example-skill", Source: proto.SlashSkill, Description: "Run the example workflow"},
+		}}), map[string]any{"/commands/0/name": "/compact", "/commands/1/source": "skill"},
+		"server/internal/devices/slashcommands/routes.go: Serve")
 	// A Persona chat's queue: the user's own first, then what the manager holds from other conversations (fleet_sessions.go).
 	personaQueue := []proto.Session{{MachineID: "m1", SessionID: "a1", Title: "Persona", Cwd: "/home/user/persona", Status: proto.StatusWorking,
 		State: proto.StateWorking, StateSince: now, Assistant: true, UpdatedAt: now,

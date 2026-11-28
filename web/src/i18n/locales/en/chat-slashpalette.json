@@ -3,5 +3,9 @@
   "label_with_skills": "Commands and skills",
   "no_match": "No matching commands",
   "no_match_skills": "No matching commands or skills",
-  "types": "Types: “{text}”"
+  "types": "Types: “{text}”",
+  "source_builtin": "Built-in",
+  "source_skill": "Skill",
+  "source_command": "Command",
+  "loading_cli": "Loading CLI commands…"
 }

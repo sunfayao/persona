@@ -104,3 +104,29 @@ type TodoSendState struct {
 	State      string    `json:"state"`
 	At         time.Time `json:"at"`
 }
+
+const SlashCommandsFeature = "cli_slash_commands_v1"
+
+func init() { Features = append(Features, SlashCommandsFeature) }
+
+type SlashCommand struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Source      string `json:"source"`
+}
+
+const (
+	SlashBuiltin = "builtin"
+	SlashSkill   = "skill"
+	SlashCustom  = "command"
+)
+
+type SlashCommandQuery struct {
+	SessionID string `json:"session_id,omitempty"`
+	Launcher  string `json:"launcher,omitempty"`
+	Cwd       string `json:"cwd,omitempty"`
+}
+
+type SlashCommandCatalog struct {
+	Commands []SlashCommand `json:"commands"`
+}

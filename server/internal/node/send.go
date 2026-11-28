@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/node/slashcommands"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/screen"
 )
@@ -363,19 +364,13 @@ func (n *Node) sendLocked(ctx context.Context, id, text string, images []proto.I
 	return uncertain(err)
 }
 
-// Keep in step with the Codex rows in web/src/lib/composer-commands.ts.
 // Compact keeps its existing app-server implementation.
 func codexTerminalCommand(text string, images int) bool {
 	text = strings.TrimSpace(text)
 	if text == "" || images != 0 || strings.ContainsAny(text, "\r\n") {
 		return false
 	}
-	switch strings.Fields(text)[0] {
-	case "/status", "/diff", "/review", "/mcp", "/skills", "/resume", "/statusline":
-		return true
-	default:
-		return false
-	}
+	return slashcommands.CodexTerminalCommand(strings.Fields(text)[0])
 }
 
 // prompt submits text to the agent in a pane. A host only prompts agents it detects (herdr); for the others (a compatible CLI)

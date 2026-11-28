@@ -36,6 +36,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/node/machdiag"
 	"github.com/sunfayao/persona/server/internal/node/ports"
 	"github.com/sunfayao/persona/server/internal/node/preview"
+	"github.com/sunfayao/persona/server/internal/node/slashcommands"
 	"github.com/sunfayao/persona/server/internal/node/traexbg"
 	"github.com/sunfayao/persona/server/internal/nodeproto"
 	"github.com/sunfayao/persona/server/internal/nodeupdate"
@@ -72,6 +73,7 @@ type Node struct {
 	memoryMu     sync.Mutex
 	Version      string
 	skillImports assistantskills.Importer
+	slashCatalog *slashcommands.Catalog
 	updater      *nodeupdate.Manager // resident-owned, shared across attach connections
 	reload       *ResidentReload     // admission/draining while the attach transport stays available
 
@@ -477,6 +479,7 @@ func New(version string) (*Node, error) {
 	}
 	n := &Node{
 		doctorChecks: newDoctor(),
+		slashCatalog: slashcommands.New(time.Now),
 		Version:      version,
 		bootAt:       time.Now().UTC(), // sessions started before this were the previous herdr server's (interrupted.go)
 		home:         home,

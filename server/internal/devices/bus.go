@@ -9,7 +9,10 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/devices/slashcommands"
 	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
@@ -262,6 +265,14 @@ func (d *Devices) Handler(next http.Handler) http.Handler {
 	})
 	route("GET /api/v1/machines/{mid}/codex/{sid}/takeover", d.prepareCodexTakeover)
 	route("GET /api/v1/sessions/{mid}/{sid}/skills", d.getSessionSkills)
+	slashCatalog := func(w http.ResponseWriter, r *http.Request, m *Machine) {
+		slashcommands.Serve(w, r, d.NodeAnnounced(m.cfg.ID, nodeproto.SlashCommands),
+			func(ctx context.Context, q proto.SlashCommandQuery, out *proto.SlashCommandCatalog) error {
+				return m.call(ctx, devicewire.SlashCommandsMethod, q, out)
+			})
+	}
+	route(devicewire.SessionSlashCommandsRoute, slashCatalog)
+	route(devicewire.LaunchSlashCommandsRoute, slashCatalog)
 	route("GET /api/v1/sessions/{mid}/{sid}/mode-changes", d.getModeChanges)
 	route("POST /api/v1/sessions/{mid}/{sid}/start/continue", d.postStartContinue)
 	route(devicewire.HeldOutboxRoute, d.listHeldOutbox)

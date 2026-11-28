@@ -3,5 +3,9 @@
   "label_with_skills": "コマンドとスキル",
   "no_match": "一致するコマンドはありません",
   "no_match_skills": "一致するコマンドやスキルはありません",
-  "types": "入力：「{text}」"
+  "types": "入力：「{text}」",
+  "source_builtin": "組み込み",
+  "source_skill": "スキル",
+  "source_command": "コマンド",
+  "loading_cli": "CLI コマンドを読み込み中…"
 }
