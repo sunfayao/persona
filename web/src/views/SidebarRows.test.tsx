@@ -38,6 +38,17 @@ describe("an agent's row", () => {
     expect(link(html)).not.toContain("aria-current");
     expect(link(html)).not.toContain(SESSION_ACTIVE_ROW);
   });
+  it("keeps layout weight, padding, and transform steady when toggling active selection on an idle row", () => {
+    const inactiveHtml = renderToStaticMarkup(<SessionRow {...rowProps} active={false} />);
+    const activeHtml = renderToStaticMarkup(<SessionRow {...rowProps} active />);
+    expect(link(inactiveHtml)).not.toContain("active:scale-");
+    expect(link(activeHtml)).not.toContain("active:scale-");
+    expect(link(inactiveHtml)).toMatch(/\bpr-8\b/);
+    expect(link(activeHtml)).toMatch(/\bpr-8\b/);
+    expect(inactiveHtml).toContain("font-normal text-ink-2");
+    expect(activeHtml).toContain("font-normal text-ink");
+    expect(activeHtml).not.toContain("font-medium text-ink");
+  });
   it("keeps its ⋯ shown when open, on hover only otherwise", () => {
     expect(more(renderToStaticMarkup(<SessionRow {...rowProps} active />))).toMatch(/class="[^"]*\bopacity-100\b/);
     expect(more(renderToStaticMarkup(<SessionRow {...rowProps} active={false} />))).toMatch(/class="[^"]*\bopacity-0\b/);

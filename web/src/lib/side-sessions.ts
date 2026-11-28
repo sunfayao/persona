@@ -86,6 +86,9 @@ export function orderNestedRows<T>(nested: Nested<T>, compare: (a: T, b: T) => n
 /** Structural placement, separate from activity and the transport's newest-first cursor order. */
 export interface StableRowOrder<T> {
   compare: (a: T, b: T) => number;
+  /** Keep already-presented rows in their established positions across live deltas instead of re-sorting them when
+   *  status or timestamps change (e.g. clicking an unread conversation to mark it seen, or working rows ticking). */
+  keepRetainedOrder?: boolean;
 }
 
 /**
@@ -105,6 +108,34 @@ export function mergeStableRows<T>(previous: readonly T[], transport: readonly T
   }
   const retainedIds = new Set(retained.map(key));
   const added = transport.filter((row) => !retainedIds.has(key(row)) && (admittedIds === undefined || admittedIds.has(key(row))));
+  if (order.keepRetainedOrder && retained.length > 0) {
+    const out = [...retained];
+    if (added.length > 0) {
+      const sortedAdded = [...added].sort(order.compare);
+      const hasRetainedAncestor = (row: T): boolean => {
+        if (!parentKey) return false;
+        const seen = new Set([key(row)]);
+        let up = parentKey(row);
+        while (up !== undefined && !seen.has(up)) {
+          if (retainedIds.has(up)) return true;
+          seen.add(up);
+          const parent = candidates.get(up);
+          up = parent ? parentKey(parent) : undefined;
+        }
+        return false;
+      };
+      for (const row of sortedAdded) {
+        if (hasRetainedAncestor(row)) {
+          out.push(row);
+          continue;
+        }
+        const at = out.findIndex((existing) => order.compare(row, existing) < 0);
+        if (at === -1) out.push(row);
+        else out.splice(at, 0, row);
+      }
+    }
+    return parentKey ? [...nestUnderParents(out, key, parentKey).rows] : out;
+  }
   const combined = [...retained, ...added];
   if (!parentKey) return combined.sort(order.compare);
   return [...orderNestedRows(nestUnderParents(combined, key, parentKey), order.compare)];

@@ -108,7 +108,8 @@ export function sidebarSessionRank(s: Session): number {
 }
 
 /** Sidebar row order: completed sessions first (after urgent needs_you), then working sessions, then seen/idle sessions
- *  sorted newest first, with deterministic herdr placement as the tie-breaker. */
+ *  sorted newest first, with deterministic herdr placement as the tie-breaker. Keeps already-presented rows in place
+ *  across live deltas so clicking a completed conversation or receiving activity ticks never jumps rows around. */
 export function sidebarSessionPresentation(machines: readonly Machine[]): StableRowOrder<Session> {
   const base = machineSessionOrder(machines);
   const compare = (a: Session, b: Session): number => {
@@ -118,7 +119,7 @@ export function sidebarSessionPresentation(machines: readonly Machine[]): Stable
     if (recent) return recent;
     return base(a, b);
   };
-  return { compare };
+  return { compare, keepRetainedOrder: true };
 }
 
 export function sidebarSessionOrder(machines: readonly Machine[]): (a: Session, b: Session) => number {

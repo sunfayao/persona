@@ -130,6 +130,7 @@ function useGlide(activeKey: string) {
   const rows = useRef(new Map<string, HTMLElement>());
   const lastKey = useRef<string | null>(null);
   const following = useRef(false);
+  const sidebarNavUntil = useRef(0);
   const deletedSelection = useRef<string | null>(null);
   const hovered = useRef<string | null>(null);
   const [box] = useState(glideStore);
@@ -175,6 +176,21 @@ function useGlide(activeKey: string) {
     const stop = () => (following.current = false);
     const events = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
     for (const e of events) n.addEventListener(e, stop, { passive: true });
+    // Clicking or activating a link already inside the sidebar should switch conversations in place without jumping scroll.
+    const markSidebarClick = (e: Event) => {
+      if ((e.target as Element | null)?.closest("a[href]")) {
+        following.current = false;
+        sidebarNavUntil.current = Date.now() + 500;
+      }
+    };
+    const markSidebarKey = (e: KeyboardEvent) => {
+      if ((e.key === "Enter" || e.key === " ") && (e.target as Element | null)?.closest("a[href]")) {
+        following.current = false;
+        sidebarNavUntil.current = Date.now() + 500;
+      }
+    };
+    n.addEventListener("click", markSidebarClick, true);
+    n.addEventListener("keydown", markSidebarKey, true);
     // layout moves the list doesn't re-render for, measured once per frame however many come in it
     let frame = 0;
     const soon = () => {
@@ -197,6 +213,8 @@ function useGlide(activeKey: string) {
     n.addEventListener("scroll", soon, { passive: true, capture: true });
     return () => {
       events.forEach((e) => n.removeEventListener(e, stop));
+      n.removeEventListener("click", markSidebarClick, true);
+      n.removeEventListener("keydown", markSidebarKey, true);
       n.removeEventListener("transitionend", soon);
       n.removeEventListener("scroll", soon, { capture: true });
       mo.disconnect();
@@ -208,7 +226,9 @@ function useGlide(activeKey: string) {
   useLayoutEffect(() => {
     if (lastKey.current !== activeKey) {
       // Deleting the open Agent leaves the panel on Home without revealing a different sidebar row.
-      following.current = deletedSelection.current === null || lastKey.current !== deletedSelection.current;
+      // Navigating from a row already clicked/activated inside the sidebar never jumps scroll to re-center it.
+      const fromSidebar = Date.now() < sidebarNavUntil.current;
+      following.current = !fromSidebar && (deletedSelection.current === null || lastKey.current !== deletedSelection.current);
       deletedSelection.current = null;
       lastKey.current = activeKey;
     }

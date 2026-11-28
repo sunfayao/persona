@@ -98,7 +98,7 @@ export const PersonaRow = memo(function PersonaRow({ reg, hover, active, go, mai
       aria-keyshortcuts={chord ? ariaKeyshortcuts(chord) : undefined}
       title={t("sidebar.persona_main")}
       // pinned over the list (#5581), its own hover fill: the gliding highlight passes under the pinned box
-      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-[background-color,box-shadow,color,transform] duration-200 ease-(--ease-out-strong) active:scale-[0.985] [@media(pointer:coarse)]:min-h-11", active ? CURRENT_ROW : "hover:bg-hover focus-visible:bg-hover")}
+      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-[background-color,box-shadow,color] duration-150 ease-out [@media(pointer:coarse)]:min-h-11", active ? CURRENT_ROW : "hover:bg-hover focus-visible:bg-hover")}
     >
       <Icon name="home" size={14} stroke={1.8} className="shrink-0 text-ink" />
       <span className="flex min-w-0 flex-1 flex-col">
@@ -139,7 +139,7 @@ export const NavRow = memo(function NavRow({ k, reg, hover, active, to, go, icon
       onFocus={() => hover(k)}
       onBlur={() => hover(null)}
       aria-current={active ? "page" : undefined}
-      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-[background-color,box-shadow,color,transform] duration-200 ease-(--ease-out-strong) active:scale-[0.985] [@media(pointer:coarse)]:min-h-11", active && CURRENT_ROW)}
+      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-[background-color,box-shadow,color] duration-150 ease-out [@media(pointer:coarse)]:min-h-11", active && CURRENT_ROW)}
     >
       <span className={active ? "text-ink" : "text-ink-3"}>
         {agent ? <AgentMark agent={agent} size={14} decorative /> : <Icon name={icon} size={14} stroke={1.8} />}
@@ -322,8 +322,9 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
   const usageLimited = Boolean(usageLimitLabel(s));
   const markState = usageLimited && st === "unread" ? "idle" : st;
   const quietMark = (markState === "idle" && !awaiting && !finished && !unopened) || markState === "offline";
-  const prominent = active || st === "needs_you" || (st === "working" && !bgWait) || (st === "unread" && !usageLimited);
-  const titleTone = prominent ? "font-medium text-ink" : st === "offline" ? "font-normal text-ink-3" : "font-normal text-ink-2";
+  // Keep font-weight stable across active selection toggles so 1-line titles never reflow to 2 lines when clicked.
+  const emphatic = st === "needs_you" || (st === "working" && !bgWait) || (st === "unread" && !usageLimited);
+  const titleTone = emphatic ? "font-medium text-ink" : active ? "font-normal text-ink" : st === "offline" ? "font-normal text-ink-3" : "font-normal text-ink-2";
   const rowTone = active ? SESSION_ACTIVE_ROW : undefined;
   const link = (
     <a
@@ -341,11 +342,10 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
       title={`${title}${titleDetail ? `\n${titleDetail}` : ""}${source ? `\n${sourceName(source)}` : ""}${origin ? `\n${openerFrom(origin, openerName)}` : ""}${subtitle ? `\n${subtitle}` : ""}${hint ? `\n${hint}` : ""}${tabIdentity ? `\n${tabIdentity}` : ""}${s.todo ? `\n${t("sidebar.todo_tag", { title: s.todo.title })}` : ""}${preview ? `\n${preview}` : ""}`}
       data-sidebar-session=""
       data-sidebar-context={tailShown || undefined}
-      // a touch screen: rows a finger can hit (44), and room at the end for the ⋯ that is always there; the open row
-      // keeps its ⋯ too, so it has room for it. Nothing at the row's end hides for the hover ⋯: in the wide layout, where
-      // the state and age sit at the end of the title's line, every row keeps the ⋯'s slot, so hovering moves nothing
-      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-[background-color,box-shadow,color,transform] duration-200 ease-(--ease-out-strong) active:scale-[0.985] [@media(pointer:coarse)]:min-h-11", rowTone, // room for "N agents" and the ⋯ beside it (instead of the ⋯'s own)
-        endRoom ? "lg:pointer-fine:pr-[108px]" : onMenu && "lg:[@media(hover:hover)]:pr-8", onMenu && active && "pr-8", onMenu && "[@media(hover:none)]:pr-11")}
+      // a touch screen: rows a finger can hit (44), and room at the end for the ⋯ that is always there; every hoverable
+      // row keeps the ⋯'s slot consistently so selecting a row never changes horizontal padding or wraps titles.
+      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-[background-color,box-shadow,color] duration-150 ease-out [@media(pointer:coarse)]:min-h-11", rowTone, // room for "N agents" and the ⋯ beside it (instead of the ⋯'s own)
+        endRoom ? "lg:pointer-fine:pr-[108px]" : onMenu && "pr-8 lg:[@media(hover:hover)]:pr-8", onMenu && "[@media(hover:none)]:pr-11")}
     >
       {/* Clean borderless harness icon + inline status indicator (no overlapping cutout ring) */}
       <span
@@ -672,10 +672,10 @@ export const AgentRow = memo(function AgentRow({ s, reg, hover, active, go, pinn
         aria-current={active ? "page" : undefined}
         title={`${s.title || t("lib-format.untitled_session")} · ${providerLabel(s.provider)}`}
         // the wide layout keeps the hover pin's slot at the row's end, so its unread count or age stays in sight under the pointer
-        className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-[background-color,box-shadow,color,transform] duration-200 ease-(--ease-out-strong) active:scale-[0.985] lg:[@media(hover:hover)]:pr-7 [@media(hover:none)]:pr-11 [@media(pointer:coarse)]:min-h-11", active && cx(CURRENT_ROW, "pr-7"))}
+        className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-[background-color,box-shadow,color] duration-150 ease-out pr-7 lg:[@media(hover:hover)]:pr-7 [@media(hover:none)]:pr-11 [@media(pointer:coarse)]:min-h-11", active && CURRENT_ROW)}
       >
         <AgentAvatar s={s} size={16} />
-        <span className={cx("sidebar-session-copy sidebar-session-title min-w-0 flex-1 truncate text-[13px]", active || unread ? "font-medium text-ink" : "font-normal text-ink-2")}>{s.title || t("lib-format.untitled_session")}</span>
+        <span className={cx("sidebar-session-copy sidebar-session-title min-w-0 flex-1 truncate text-[13px]", unread ? "font-medium text-ink" : active ? "font-normal text-ink" : "font-normal text-ink-2")}>{s.title || t("lib-format.untitled_session")}</span>
         <span className="sidebar-personal-meta flex shrink-0 items-center">
           {unread ? (
             <span className="shrink-0 text-[11px] font-semibold text-accent-ink tabular-nums">{s.unreadCount}</span>

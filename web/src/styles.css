@@ -367,10 +367,7 @@ body {
 @utility sidebar-row-float {
   background: var(--float);
   box-shadow: var(--shadow-float);
-  transform: translateY(-0.5px);
   z-index: 15;
-  &:active { transform: translateY(0) scale(0.988); }
-  @media (prefers-reduced-motion: reduce) { transform: none; }
 }
 /* A contextual row keeps provenance, tab and time below the conversation. On desktop
    a simple row with an avatar tile, title, and status/time fits cleanly on one horizontal line. */

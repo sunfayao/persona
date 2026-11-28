@@ -180,4 +180,46 @@ describe("stable sidebar order (#11801)", () => {
     const merged = mergeStableRows([], rows, new Map(rows.map((r) => [key(r), r])), key, sidebarSessionPresentation(machines));
     expect(merged.slice(0, 4).map(key)).toEqual(["needs-you", "unread-done", "unopened-done", "just-finished"]);
   });
+
+  it("keeps already-presented sidebar rows in place when marking unread seen or updating timestamps", () => {
+    const mk = (id: string, patch: Partial<Session>): Session => ({
+      machine_id: "mac", session_id: id, title: id, cwd: "/alpha", status: "idle", state: "idle",
+      space_id: "alpha", space_name: "alpha", space_index: 0,
+      updated_at: "2026-01-01T10:00:00Z", ...patch,
+    });
+    const order = sidebarSessionPresentation(machines);
+    const key = (row: Session) => row.session_id;
+    const initialRows: Session[] = [
+      mk("unread-done", { status: "done", state: "unread", updated_at: "2026-01-01T12:00:00Z" }),
+      mk("working-a", { status: "working", state: "working", updated_at: "2026-01-01T11:00:00Z" }),
+      mk("working-b", { status: "working", state: "working", updated_at: "2026-01-01T10:30:00Z" }),
+      mk("idle-new", { updated_at: "2026-01-01T13:00:00Z" }),
+    ];
+    const first = mergeStableRows([], initialRows, new Map(initialRows.map((r) => [key(r), r])), key, order);
+    expect(first.map(key)).toEqual(["unread-done", "working-a", "working-b", "idle-new"]);
+
+    // Clicking unread-done marks it seen (idle) and working-b ticks newer: neither row should teleport.
+    const updatedRows = first.map((r) =>
+      r.session_id === "unread-done"
+        ? { ...r, state: "idle" as const, seen_at: "2026-01-01T12:05:00Z" }
+        : r.session_id === "working-b"
+          ? { ...r, updated_at: "2026-01-01T14:00:00Z" }
+          : r,
+    );
+    const afterSeen = mergeStableRows(first, [...updatedRows].reverse(), new Map(updatedRows.map((r) => [key(r), r])), key, order, undefined, new Set());
+    expect(afterSeen.map(key)).toEqual(["unread-done", "working-a", "working-b", "idle-new"]);
+    expect(afterSeen[0]!.state).toBe("idle");
+
+    // A brand-new working conversation still inserts at its priority slot without reshuffling existing rows.
+    const created = mk("brand-new", { status: "working", state: "working", updated_at: "2026-01-01T15:00:00Z" });
+    const withCreated = [...updatedRows, created];
+    const afterCreate = mergeStableRows(afterSeen, withCreated, new Map(withCreated.map((r) => [key(r), r])), key, order, undefined, new Set(["brand-new"]));
+    expect(afterCreate.map(key)).toEqual(["brand-new", "unread-done", "working-a", "working-b", "idle-new"]);
+
+    // A newly admitted side session nests under its retained parent without moving the parent.
+    const side = mk("side-of-idle", { status: "working", state: "working", updated_at: "2026-01-01T16:00:00Z", parent_agent_id: "idle-new" });
+    const withSide = [...withCreated, side];
+    const afterSide = mergeStableRows(afterCreate, withSide, new Map(withSide.map((r) => [key(r), r])), key, order, (r) => r.parent_agent_id, new Set(["side-of-idle"]));
+    expect(afterSide.map(key)).toEqual(["brand-new", "unread-done", "working-a", "working-b", "idle-new", "side-of-idle"]);
+  });
 });
