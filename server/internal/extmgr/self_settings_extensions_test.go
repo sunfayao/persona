@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/extension"
 	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -58,7 +60,8 @@ func TestSelfSettingsExtensionList(t *testing.T) {
 	out, err := h.hubCall(ctx, extwire.HubSettingsList, nil)
 	raw, _ := json.Marshal(out)
 	list := string(raw)
-	if err != nil || !strings.Contains(list, `"key":"extension.example-chat","title":"示例聊天的设置"`) || !strings.Contains(list, `"actions":["get","set"]`) {
+	if err != nil || !strings.Contains(list, `"key":"extension.example-chat","title":"示例聊天的设置"`) || !strings.Contains(list, `"actions":["get","set"]`) ||
+		!strings.Contains(list, `"current":"enabled: true"`) {
 		t.Fatalf("list: %v\n%s", err, list)
 	}
 	if strings.Contains(list, "example-bare") || strings.Contains(list, "example-fixed") {
@@ -69,6 +72,7 @@ func TestSelfSettingsExtensionList(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
+		`- enabled: true or false; now true (the extension itself`,
 		`- agent ("聊天里的 /agent"): true or false; now false (the default)`,
 		`  发 /agent 交给助手`,
 		`- agent_machine ("在哪台电脑上跑"): a machine id (machines_list); now not set`,
@@ -178,6 +182,94 @@ func TestSelfSettingsExtensionSet(t *testing.T) {
 	}
 	if c := config(); c["agent"] != nil || c["hours"] != nil || len(c["allow"].([]any)) != 2 || c["agent_launcher"] != "work_gw" {
 		t.Fatalf("after reset: %v", c)
+	}
+}
+
+// An extension's own switch (enabled) is persona_settings' too, apart from its settings: one set for a Mac but switched
+// off shows enabled: false in list and get; set {"enabled": true} asks on the phone first, and only approved switches it
+// as the Settings page does, which tells the running conversations (ToolsChanged), the answer naming the tools it brought.
+// Declined or unanswered, nothing changes; switching it off, here with one of its settings, goes the same way.
+func TestSelfSettingsExtensionSwitch(t *testing.T) {
+	h, _ := extensionTestHub(t)
+	var changes atomic.Int64
+	h.opts.ToolsChanged = func() { changes.Add(1) }
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := h.extensions.reg.SetConfig(ctx, egoExtensionID, json.RawMessage(`{"machines":["mac-example"]}`), "test"); err != nil {
+		t.Fatal(err)
+	}
+	on := func() bool { return h.extensions.reg.Snapshot(egoExtensionID).Record.Enabled }
+	listed := func() string {
+		for _, s := range h.settingsList(ctx) {
+			if s.Key == "extension."+egoExtensionID {
+				return s.Current
+			}
+		}
+		return "not listed"
+	}
+	got, err := h.toolPersonaSettings(ctx, "server", "s1", json.RawMessage(`{"action":"get","key":"extension.ego"}`))
+	if err != nil || !strings.Contains(got, "- enabled: true or false; now false (the extension itself") ||
+		!strings.Contains(got, `now ["mac-example"]`) || listed() != "enabled: false" {
+		t.Fatalf("get: %v\n%s\nlist: %s", err, got, listed())
+	}
+
+	th := hubOf(h)
+	var asked []proto.Interaction
+	var answer proto.Resolution
+	th.mu.Lock()
+	th.answer = func(ix proto.Interaction) proto.Resolution {
+		asked = append(asked, ix)
+		return answer
+	}
+	th.mu.Unlock()
+	set := func(value string) (string, error) {
+		return h.toolPersonaSettings(ctx, "server", "s1", json.RawMessage(`{"action":"set","key":"extension.ego","value":`+value+`}`))
+	}
+	// Refused before a card: a switch that is not true or false. Already off: said so, and no card.
+	for _, bad := range []string{`{"enabled":"true"}`, `{"enabled":1}`, `{"enabled":null}`} {
+		if _, err := set(bad); err == nil || !strings.Contains(err.Error(), "enabled takes true or false") {
+			t.Errorf("%s: %v", bad, err)
+		}
+	}
+	if out, err := set(`{"enabled":false}`); err != nil || out != "浏览器（ego lite） is already switched off (enabled: false): nothing to change." {
+		t.Fatalf("already off: %q %v", out, err)
+	}
+	if len(asked) != 0 {
+		t.Fatalf("a card with nothing to change: %+v", asked)
+	}
+
+	before := changes.Load()
+	no, yes := false, true
+	for want, r := range map[string]proto.Resolution{"The user declined the change: nothing changed.": {Allow: &no},
+		prompts.RenderSettingUnanswered(): {Dismiss: true}} {
+		answer = r
+		if out, err := set(`{"enabled":true}`); err != nil || out != want || on() || h.browserTools() != nil || changes.Load() != before {
+			t.Fatalf("not approved (%+v): %q %v, on %v", r, out, err, on())
+		}
+	}
+	if len(asked) != 2 || asked[0].Summary != "改浏览器（ego lite）：关 → 开" || asked[0].ToolName != "persona_settings" {
+		t.Fatalf("the cards: %+v", asked)
+	}
+
+	answer = proto.Resolution{Allow: &yes}
+	out, err := set(`{"enabled":true}`)
+	if err != nil || out != "浏览器（ego lite） is switched on. New tools: browser_look, browser_run. Running conversations are sent their new tool list." ||
+		!on() || h.browserTools() == nil || changes.Load() == before || listed() != "enabled: true" {
+		t.Fatalf("approved: %q %v, on %v, list %s", out, err, on(), listed())
+	}
+	before = changes.Load()
+	out, err = set(`{"enabled":false,"confirm":true}`)
+	if err != nil || !strings.Contains(out, "浏览器（ego lite） is switched off. Tools no longer offered: browser_look, browser_run.") ||
+		on() || h.browserTools() != nil || changes.Load() == before {
+		t.Fatalf("switched off: %q %v, on %v", out, err, on())
+	}
+	if want := "改浏览器（ego lite）：开 → 关\n改操作前在手机上确认：关（默认） → 开"; asked[len(asked)-1].Summary != want {
+		t.Fatalf("the card says\n%s\nnot\n%s", asked[len(asked)-1].Summary, want)
+	}
+	var c map[string]any
+	_ = json.Unmarshal(h.extensions.reg.SavedConfig(h.extensions.reg.Get(egoExtensionID)), &c)
+	if c["confirm"] != true || len(c["machines"].([]any)) != 1 {
+		t.Fatalf("saved: %v", c)
 	}
 }
 

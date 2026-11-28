@@ -17,10 +17,11 @@ import (
 )
 
 // An extension's settings in persona_settings (#2385): extension.<id> for every extension the user can configure that has
-// a form, read and changed in a conversation the way Settings › Extensions does it. get lists each field (its title,
-// kind, choices and value); set takes only the fields to change, is held to the schema before the card, shows each
-// field before → after on the phone, and once approved saves through the registry's SetConfig (the extension restarts
-// with it). Secrets never pass here; an extension set in manager.json is not listed (it is changed there).
+// a form, read and changed in a conversation the way Settings › Extensions does it. get lists the extension's own switch
+// (enabled) and each field (its title, kind, choices and value); set takes only the fields to change, and enabled, is
+// held to the schema before the card, shows each before → after on the phone, and once approved saves through the
+// registry's SetConfig (the extension restarts with it) and switches it as the Settings page does (setByUser). Secrets
+// never pass here; an extension set in manager.json is not listed (it is changed there).
 
 const extensionSettingPrefix = "extension."
 
@@ -30,17 +31,19 @@ func (h *Manager) extensionSettings() []selfSetting {
 		return nil
 	}
 	var out []selfSetting
-	for _, p := range h.extensions.reg.List() {
+	for _, p := range h.extensions.reg.Snapshots() { // its switch is read here, and SetEnabled writes it
 		if p.ReadOnly() || p.Record.Source == extension.SourceDev || p.Schema == nil || len(assistantExtensionFields(p.Schema.Fields)) == 0 {
 			continue
 		}
 		id, name := p.Record.ID, extensionDisplayName(p)
 		title := i18n.T(h.userLang(), "hub-self_settings_extensions.title", i18n.Args{"name": name})
 		out = append(out, selfSetting{key: extensionSettingPrefix + id, title: title,
-			about: fmt.Sprintf("the settings of the extension %s (%s), as in Settings › Extensions › %s; get lists every field "+
-				"with its title, kind, choices and current value", name, id, name),
+			about: fmt.Sprintf("the extension %s (%s), as in Settings › Extensions › %s: its own switch (enabled) and its settings; "+
+				"get lists every field with its title, kind, choices and current value", name, id, name),
 			value: `an object of only the fields to change, {"<field>": <value>, …} (an object field takes an object of its own ` +
-				`fields to change); null puts a field back to its default. Secrets are not set here`,
+				`fields to change; "enabled": true or false switches the extension itself on or off); null puts a field back to ` +
+				`its default. Secrets are not set here`,
+			now: "enabled: " + strconv.FormatBool(p.Record.Enabled),
 			get: func(context.Context) (string, error) { return h.extensionSettingsText(id) },
 			set: func(_ context.Context, v json.RawMessage) (*selfChange, error) {
 				return h.setExtensionSettings(id, title, v)
@@ -65,12 +68,14 @@ func (h *Manager) savedSettings(p *extension.Extension) map[string]json.RawMessa
 
 // extensionSettingsText is get's answer: every field, in the form's order, for the model.
 func (h *Manager) extensionSettingsText(id string) (string, error) {
-	p := h.extensions.reg.Get(id)
+	p := h.extensions.reg.Snapshot(id)
 	if p == nil {
 		return "", fmt.Errorf("no extension %s", id)
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "Settings of %s (%s); set changes only the fields given, null puts one back to its default:\n", extensionDisplayName(p), p.Record.ID)
+	fmt.Fprintf(&b, "- enabled: true or false; now %t (the extension itself: while it is false it runs nothing and offers no "+
+		"tools, whatever the fields below say)\n", p.Record.Enabled)
 	saved := h.savedSettings(p)
 	for _, f := range assistantExtensionFields(p.Schema.Fields) {
 		if isVolc(p) && f.Name == volcMeetingsField {
@@ -239,13 +244,13 @@ func sameValue(a, b json.RawMessage) bool {
 	return bytes.Equal(ab, bb)
 }
 
-// setExtensionSettings is set's card: the fields that change, before → after, checked first.
+// setExtensionSettings is set's card: the switch and the fields that change, before → after, checked first.
 func (h *Manager) setExtensionSettings(id, title string, v json.RawMessage) (*selfChange, error) {
 	var patch map[string]json.RawMessage
 	if err := json.Unmarshal(v, &patch); err != nil || patch == nil {
-		return nil, errors.New(`value must be an object of the fields to change, like {"<field>": <value>}`)
+		return nil, errors.New(`value must be an object of the fields to change, like {"<field>": <value>} or {"enabled": true}`)
 	}
-	p := h.extensions.reg.Get(id)
+	p := h.extensions.reg.Snapshot(id)
 	if p == nil {
 		return nil, fmt.Errorf("no extension %s", id)
 	}
@@ -255,54 +260,98 @@ func (h *Manager) setExtensionSettings(id, title string, v json.RawMessage) (*se
 	if p.ReadOnly() {
 		return nil, fmt.Errorf("%s is set in manager.json: change it there (or in the admin page)", id)
 	}
+	name, wasOn := extensionDisplayName(p), p.Record.Enabled
+	on, asked := wasOn, false // enabled, the extension's own switch, is none of its fields
+	if raw, ok := patch["enabled"]; ok {
+		var b any
+		_ = json.Unmarshal(raw, &b)
+		if on, asked = b.(bool); !asked {
+			return nil, errors.New("enabled takes true or false (the extension's own switch)")
+		}
+		delete(patch, "enabled")
+	}
+	switches, word := on != wasOn, map[bool]string{true: "on", false: "off"}[on]
+	if switches && p.Full.IsPack() {
+		return nil, fmt.Errorf("%s is an extension pack: switch it in Settings › Extensions, which switches its members with it", name)
+	}
+	if switches && !on { // what the Settings page asks about before it switches one off
+		if deps := h.extensions.dependentsOf([]string{id}); len(deps) > 0 {
+			names := make([]string, 0, len(deps))
+			for _, d := range deps {
+				names = append(names, d.Name)
+			}
+			return nil, fmt.Errorf("%s is needed by %s, which are on: switch those off first", name, strings.Join(names, ", "))
+		}
+	}
 	before := h.savedSettings(p)
 	fields := assistantExtensionFields(p.Schema.Fields)
 	next, err := patchSettings(fields, before, patch)
 	if err != nil {
 		return nil, err
 	}
-	raw, _ := json.Marshal(next)
-	if err := h.checkExtensionSettings(p, raw); err != nil {
-		return nil, err
+	if len(patch) > 0 { // enabled alone switches it whatever its settings are, as the Settings page does
+		raw, _ := json.Marshal(next)
+		if err := h.checkExtensionSettings(p, raw); err != nil {
+			return nil, err
+		}
 	}
 	l := h.userLang()
 	lines := h.settingChanges(l, fields, before, next, "")
-	if len(lines) == 0 {
+	configures := len(lines) > 0
+	if switches {
+		toggle := extension.Field{Type: "boolean"}
+		lines = append([]string{changeSummary(l, name, h.fieldValueText(l, toggle, json.RawMessage(strconv.FormatBool(wasOn))),
+			h.fieldValueText(l, toggle, json.RawMessage(strconv.FormatBool(on))))}, lines...)
+	}
+	switch {
+	case len(lines) == 0 && asked:
+		return &selfChange{summary: fmt.Sprintf("%s is already switched %s (enabled: %t): nothing to change.", name, word, on)}, nil
+	case len(lines) == 0:
 		return &selfChange{summary: ss(l, "no_change", i18n.Args{"title": title})}, nil
 	}
 	return &selfChange{summary: strings.Join(lines, "\n"),
 		apply: func(ctx context.Context, _ map[string]string) (string, error) {
-			p := h.extensions.reg.Get(id)
-			if p == nil {
-				return "", fmt.Errorf("no extension %s", id)
-			}
-			now := h.savedSettings(p)
-			// What the card showed is still so: one of these fields changed meanwhile (on another device) is not
-			// overwritten with a value the user did not see next to it.
-			for k := range patch {
-				if !sameValue(now[k], before[k]) {
-					return "", fmt.Errorf("%s changed since the card was shown; nothing saved: get it again", k)
+			toolsBefore, out := h.assistantToolNames(ctx), ""
+			if configures {
+				p := h.extensions.reg.Snapshot(id)
+				if p == nil {
+					return "", fmt.Errorf("no extension %s", id)
+				}
+				now := h.savedSettings(p)
+				// What the card showed is still so: one of these fields changed meanwhile (on another device) is not
+				// overwritten with a value the user did not see next to it.
+				for k := range patch {
+					if !sameValue(now[k], before[k]) {
+						return "", fmt.Errorf("%s changed since the card was shown; nothing saved: get it again", k)
+					}
+				}
+				next, err := patchSettings(fields, now, patch)
+				if err != nil {
+					return "", err
+				}
+				raw, _ := json.Marshal(next)
+				if err := h.checkExtensionSettings(p, raw); err != nil {
+					return "", err
+				}
+				cleared, err := h.extensions.reg.SetConfigPreservingEntries(ctx, id, raw, "assistant")
+				if err != nil {
+					return "", settingsError(err)
+				}
+				out = title + " updated; " + name + " restarts with them."
+				if len(cleared) > 0 {
+					out += " Secrets bound to the old settings were deleted: " + strings.Join(cleared, ", ") + "."
 				}
 			}
-			next, err := patchSettings(fields, now, patch)
-			if err != nil {
-				return "", err
+			if switches { // as the Settings page switches it (switchExtension), which tells the conversations (toolsChanged)
+				h.extensions.switchMu.Lock()
+				err := h.setByUser(ctx, id, on, "assistant")
+				h.extensions.switchMu.Unlock()
+				if err != nil {
+					return "", fmt.Errorf("%s was not switched %s: %w", strings.TrimSpace(out+" "+name), word, err)
+				}
+				out = strings.TrimSpace(out + " " + name + " is switched " + word + ".")
 			}
-			raw, _ := json.Marshal(next)
-			if err := h.checkExtensionSettings(p, raw); err != nil {
-				return "", err
-			}
-			toolsBefore := h.assistantToolNames(ctx)
-			cleared, err := h.extensions.reg.SetConfigPreservingEntries(ctx, id, raw, "assistant")
-			if err != nil {
-				return "", settingsError(err)
-			}
-			out := title + " updated; " + extensionDisplayName(p) + " restarts with them."
-			out += toolChangeText(toolsBefore, h.assistantToolNames(ctx))
-			if len(cleared) > 0 {
-				out += " Secrets bound to the old settings were deleted: " + strings.Join(cleared, ", ") + "."
-			}
-			return out, nil
+			return out + toolChangeText(toolsBefore, h.assistantToolNames(ctx)), nil
 		}}, nil
 }
 
