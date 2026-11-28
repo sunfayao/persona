@@ -60,3 +60,37 @@ func TestAgyOwnCheckpointResetsWhatTheConversationHasSeenOnce(t *testing.T) {
 		t.Fatalf("a restarted node saw the checkpoint as new: %+v, before %+v", again, st)
 	}
 }
+
+// A crash between persisting the checkpoint and the reset must not lose the reset: what reached the disk before the
+// crash never holds the sequence without the reset.
+func TestAgyCheckpointCrashBetweenWritesDoesNotLoseTheReset(t *testing.T) {
+	n := assistantNode(t)
+	root := t.TempDir()
+	const sid = "agy-" + agyTestID
+	n.state.put(sid, sessionState{Launcher: "agy", Cwd: "/home/u/.persona/assistant"})
+	var disk sessionState
+	writes := 0
+	n.state.persist = func(_ string, v sessionState) {
+		if writes++; writes == 2 {
+			panic("crash")
+		}
+		disk = v
+	}
+	agyTestFile(t, root, agyTestID, `{"step_index":0,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","created_at":"2026-01-01T00:00:00Z","content":"hello"}
+{"step_index":1,"type":"CHECKPOINT","status":"DONE","created_at":"2026-01-01T00:00:02Z","content":"summary"}
+`)
+	h, err := agy.New(agy.Dependencies{Clock: agyClock{}}).Read(agy.Ref{Root: root, Conversation: agyTestID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	func() {
+		defer func() { _ = recover() }()
+		n.agyCheckpointed(sid, h)
+	}()
+	if disk.AgyCheckpoint != 0 && disk.RecoveryPending == "" && !disk.RecoveryHookPending {
+		t.Fatalf("the checkpoint sequence was stored without its reset: %+v", disk)
+	}
+	if disk.RecoveryPending == "" {
+		t.Fatalf("the reset was not stored first: %+v", disk)
+	}
+}

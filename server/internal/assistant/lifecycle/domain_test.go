@@ -177,3 +177,20 @@ func TestLifecycleKeepsKnownActivityClassesAndDropsUnknownOnes(t *testing.T) {
 		t.Fatalf("activity classes after validation: %q", got)
 	}
 }
+
+func TestLifecycleAcceptsEveryClosedBackgroundOutcome(t *testing.T) {
+	t.Parallel()
+	at := time.Date(2026, 11, 28, 0, 0, 0, 0, time.UTC)
+	for _, outcome := range append([]string{""}, proto.LifecycleBackgroundOutcomes...) {
+		b := proto.LifecycleBatch{Stream: proto.LifecycleRef("stream"), First: 1, Events: []proto.LifecycleObservation{{Session: "session",
+			Kind: proto.LifecycleBackgroundEnded, At: at, Source: "inventory", Ref: proto.LifecycleRef("a"), Outcome: outcome}}}
+		if !validBatch(b) {
+			t.Errorf("outcome %q refused", outcome)
+		}
+	}
+	b := proto.LifecycleBatch{Stream: proto.LifecycleRef("stream"), First: 1, Events: []proto.LifecycleObservation{{Session: "session",
+		Kind: proto.LifecycleBackgroundEnded, At: at, Source: "inventory", Ref: proto.LifecycleRef("a"), Outcome: "surprise"}}}
+	if validBatch(b) {
+		t.Error("an outcome outside the closed set was accepted")
+	}
+}

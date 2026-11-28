@@ -114,10 +114,7 @@ func (q *Queue) background(session string, bg proto.BackgroundTask, turn string,
 	}
 	if bg.EndedAt != nil && !bg.EndedAt.IsZero() {
 		base.Kind, base.At = proto.LifecycleBackgroundEnded, *bg.EndedAt
-		switch bg.Status {
-		case "completed", "failed", "killed", "stopped":
-			base.Outcome = bg.Status
-		}
+		base.Outcome = proto.LifecycleBackgroundOutcome(bg.Status)
 		q.add(base)
 	}
 }
