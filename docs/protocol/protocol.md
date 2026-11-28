@@ -1091,7 +1091,7 @@ Provider responses carry only the description and `has_key`, never secrets.
 // Item: one normalized transcript entry (one per content block)
 {"id":"<entry uuid>#<block idx>","seq":123,            // seq = transcript line number, monotonically increasing, used for increments and paging
  "ts":"...","role":"user|assistant|system",
- "kind":"text|thinking|tool_use|tool_result|notice|image|fold|turn_duration|visualization",
+ "kind":"text|thinking|tool_use|tool_result|notice|image|fold|recap|turn_duration|visualization",
  "text":"…",                                           // text of text / thinking / notice / tool_result
  "model":"claude-opus-5-5",                           // assistant items only, optional: the model that wrote the item as the transcript records it (Claude Code's message.model, never its "<synthetic>";
                                                       // a Codex turn's turn_context model). Absent when the transcript does not say and from older nodes; clients draw a divider where the replies' model changes
@@ -3141,6 +3141,17 @@ Every batch of items (WebSocket `items` events, HTTP `/items` responses, the nod
 - **Sub-Agent chats use the same mechanism as sessions**: subscribing to `<session>@<agent>` is a `session.watch` for it. The node opens `<session>/subagents/agent-<id>.jsonl` and, as for the main session, reads new lines every 250 milliseconds and pushes `session.items`. The rules for `history` / `from_seq` / `to_seq` / `since_seq` are the same; `session.unwatch` (page unsubscribed, disconnected) stops it. At most 16 sub-Agent chats can be followed at once; additional watches return an error, and those pages rely on the fallback fetch below.
 - **The page's own fallback** (web `useTranscript`, `lib/stale-page.ts`): if the session's `rev` moved since the page's newest `items` read was sent (the session list's row or the `revs` event; a push does not settle it, since nothing says which lines a rev was for), or the session list's `updated_at` (for a sub-Agent, its entry in the parent's `subagents`) is newer than the `ts` of the latest item the page has, and no items have arrived and the rev has not moved for 4 seconds, fetch once with `after_seq=covered` (at most once every 10 seconds per session, only while the page is in the foreground; if `history` changed, refetch the whole page). The `rev` catches the last line of a burst whose push was lost: its `updated_at` is within a second of the line before, which the page holds, and that close the two times count as the same write. The node reports revs on its next tick, mostly after the items, so an open chat makes one empty read each time it goes quiet. Fetched items merge in silently; writes that yield no items (title, mode) aren't fetched repeatedly. Only after 2 consecutive fetches find items that "should have arrived by push" (or 2 consecutive fetches fail) does a small "Not live · Reload" notice appear at the top of the chat; it disappears when pushes resume.
 - A hub without these fields leaves clients merging by id.
+
+### Turn model
+
+The existing item stream and session row each accept an optional `facets` object. Item facets carry turn and parent
+IDs plus typed input, progress, tool, plan, subagent, task, interaction, artifact and notice data. The `native` facet
+is provenance for diagnostics, not for rendering. Session facets carry the current plan, timers, artifact index,
+context meter, progress and turn state. See [the turn-model schema](../../schema/wire/turn-model.schema.json).
+
+This contract does not change paging, live events, or legacy fields such as `outcome`, `task`, `compact`, `usage`
+and `turn_duration`. Readers tolerate absent facets, unknown fields and unfamiliar enum values. The fields alone
+do not enable runtime production or change rendering; the rollout uses the `turn_model_v1` capability.
 
 ### Turn duration from actual records
 

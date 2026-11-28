@@ -191,7 +191,7 @@ func TestA2ATextOnlyHarnessReturnsQuestionAndContinues(t *testing.T) {
 	}
 	h.setItems(proto.Item{Role: "user", Text: prompts.RelayMessageText("Check the build.", nil, a2aDeliveryID(task.ID, 1))},
 		proto.Item{Role: "user", Kind: proto.KindToolResult, Text: "The tool output appeared inside the same turn."},
-		proto.Item{Role: "assistant", Kind: proto.KindText, Text: question}, proto.Item{Kind: "turn_duration", ID: "closed-turn"},
+		proto.Item{Role: "assistant", Kind: proto.KindText, Text: question}, proto.Item{Kind: proto.KindTurnDuration, ID: "closed-turn"},
 		proto.Item{Role: "user", ClientMsgID: "different-message"})
 	task = a2aProcessOne(t, s, st, cfg, task.ID)
 	if last := task.Events[len(task.Events)-1]; task.State != a2aInput || last.Text != "Which build target?" || last.Delivery != a2aQueued {

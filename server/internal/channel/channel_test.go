@@ -335,7 +335,7 @@ func TestStoppedIsTheClosingNotice(t *testing.T) {
 		{Role: "assistant", Kind: proto.KindToolUse, ToolName: "Bash"},
 		{Role: "user", Kind: proto.KindToolResult},
 		{Role: "system", Kind: proto.KindNotice, Text: "API 错误：overloaded（重试 10 次后放弃）"},
-		{Role: "system", Kind: "turn_duration", TurnDuration: &proto.TurnDuration{DurationMS: 1}},
+		{Role: "system", Kind: proto.KindTurnDuration, TurnDuration: &proto.TurnDuration{DurationMS: 1}},
 	}
 	if got := Stopped(apiErr); got != "API 错误：overloaded（重试 10 次后放弃）" {
 		t.Fatalf("api error: %q", got)

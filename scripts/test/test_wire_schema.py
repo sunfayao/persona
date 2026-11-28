@@ -13,6 +13,7 @@ import importlib.util
 import json
 import os
 import re
+import runpy
 import subprocess
 import sys
 import unittest
@@ -99,7 +100,14 @@ def item_detail(expected):
     return detail
 
 
-SAMPLES = {"recents.schema.json": recent_setups, "todo-view.schema.json": todo_views}
+def turn_model():
+    """The canonical facets carried by items and session snapshots."""
+    for where, c in domain_cases("turn-model"):
+        yield c["definition"], where, c["sample"]
+
+
+SAMPLES = {"recents.schema.json": recent_setups, "todo-view.schema.json": todo_views,
+           "turn-model.schema.json": turn_model}
 
 
 def walk(doc, schema, value, at, reached):
@@ -140,7 +148,9 @@ LANGUAGES = {  # language: (suffixes, a declaration of one of NAMES)
     "ts": ((".ts", ".tsx", ".mts", ".cts"),
            r"^[ \t]*" + TS_DECL + r"(?:class|interface|enum|const\s+enum|" + TS_ALIAS + r")\s+(NAMES)\b"),
     "go": ((".go",), r"^[ \t]*type\s+(NAMES)\b"),  # and the specs of a type ( … ) group, below
+    "js": ((".js", ".mjs", ".cjs", ".jsx"), r"^[ \t]*(?:export\s+)?(?:const|let|var)\s+(NAMES)\b"),
 }
+plural = runpy.run_path(str(GENERATOR))["plural"]
 
 
 def declared(language, text, names):
@@ -166,8 +176,12 @@ def hand_copies(schemas, read, tracked):
     generated = {rel for doc in schemas.values() for rel in doc["x-out"].values()}
     out = []
     for doc in schemas.values():
-        names = list(doc["$defs"]) + doc.get("x-reserved", [])
         for language in sorted(set(doc["x-out"]) | set(doc.get("x-guard", []))):
+            defs = doc["$defs"]
+            names = ([plural(name) for name, schema in defs.items() if schema.get("type") == "string" and "enum" in schema]
+                     if language == "js" else list(defs)) + doc.get("x-reserved", [])
+            if not names:
+                continue
             suffixes = LANGUAGES[language][0]
             for rel in tracked:
                 if rel in generated or not rel.endswith(suffixes):
@@ -233,6 +247,8 @@ class WireSchema(unittest.TestCase):
         schemas = {
             "a.schema.json": {"x-out": {"ts": "web/a.ts"}, "$defs": {"Thing": {}}},
             "b.schema.json": {"x-out": {"go": "server/b_gen.go"}, "x-reserved": ["Later"], "$defs": {"Widget": {}}},
+            "c.schema.json": {"x-out": {"js": "runtime/c.js"},
+                              "$defs": {"State": {"type": "string", "enum": ["active"]}}},
         }
         files = {
             "server/b_gen.go": "type Widget struct {}\n",  # generated
@@ -245,8 +261,12 @@ class WireSchema(unittest.TestCase):
             "web/use.ts": "const x: Thing = y;\n",
             "web/a.ts": "export interface Thing {}\n",  # generated
             "web/notes.md": "struct Widget\n",
+            "runtime/c.js": "export const States=Object.freeze([\"active\"]);\n",  # generated
+            "runtime/handcopy.mjs": "export const States = [];\n",
+            "runtime/use.js": "import { States } from './c.js';\n",
         }
         self.assertEqual(hand_copies(schemas, files.__getitem__, sorted(files)), [
+            ("runtime/handcopy.mjs", "States"),
             ("server/group.go", "Later"), ("server/local.go", "Widget"),
             ("web/generic.ts", "Thing"), ("web/thing.ts", "Thing"),
         ])

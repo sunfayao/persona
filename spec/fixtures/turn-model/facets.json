@@ -1,0 +1,83 @@
+{
+  "cases": [
+    {
+      "name": "queued input",
+      "definition": "ItemFacets",
+      "sample": {
+        "turn_id": "t4",
+        "native": {"agent": "claude", "type": "user", "version": "1.0"},
+        "input": {"via": "queued"}
+      }
+    },
+    {
+      "name": "redacted thinking",
+      "definition": "ItemFacets",
+      "sample": {
+        "turn_id": "t4",
+        "progress": {"phase": "thinking", "duration_ms": 4200, "redacted": true}
+      }
+    },
+    {
+      "name": "MCP tool with a file location",
+      "definition": "ItemFacets",
+      "sample": {
+        "turn_id": "t4",
+        "parent_id": "call-1",
+        "native": {"agent": "codex", "type": "mcp_tool_call", "name": "format"},
+        "tool": {
+          "kind": "mcp",
+          "name": "mcp__workspace__format",
+          "title": "Format the example",
+          "status": "completed",
+          "locations": [{"path": "example.go", "line": 3, "end_line": 8}],
+          "mcp": {"server": "workspace", "tool": "format"}
+        }
+      }
+    },
+    {
+      "name": "task completion with a zero exit code",
+      "definition": "ItemFacets",
+      "sample": {
+        "turn_id": "t8",
+        "tool": {"kind": "execute", "name": "Bash", "language": "shell", "task_id": "job-1"},
+        "task": {"id": "job-1", "kind": "shell", "status": "completed", "title": "Run the tests", "command": "go test ./...", "exit_code": 0, "output_file": "jobs/job-1.log"},
+        "notice": {"code": "task_update", "severity": "info", "args": {"title": "Run the tests"}}
+      }
+    },
+    {
+      "name": "checklist and related subagent",
+      "definition": "ItemFacets",
+      "sample": {
+        "turn_id": "t4",
+        "plan": {"mode": "merge", "entries": [{"id": "step-1", "title": "Review the example", "status": "in_progress", "active_form": "Reviewing the example", "priority": "high"}], "explanation": "Check the public API first"},
+        "subagent": {"id": "agent-1", "session_id": "s1@agent-1", "relation": "spawn", "name": "Reviewer", "agent_type": "review", "model": "example-model", "status": "running"}
+      }
+    },
+    {
+      "name": "answered single-choice question",
+      "definition": "ItemFacets",
+      "sample": {
+        "turn_id": "t4",
+        "interaction": {
+          "id": "question-1",
+          "kind": "question",
+          "questions": [{"question": "Which format?", "header": "Format", "options": [{"label": "Markdown", "description": "A text document"}, {"label": "Plain text"}], "multi_select": false}],
+          "status": "answered",
+          "answers": {"Which format?": "Markdown"}
+        }
+      }
+    },
+    {
+      "name": "session snapshot with a pending timer and a closed turn",
+      "definition": "SessionFacets",
+      "sample": {
+        "plan": {"entries": [], "at": "2026-01-02T03:03:00Z"},
+        "timers": [{"id": "timer-1", "kind": "timer", "status": "scheduled", "timer": {"next_at": "2026-01-02T03:15:00Z", "interval_s": 300, "max_runs": 2, "prompt": "Check the status"}}],
+        "artifacts": [{"id": "artifact-1", "op": "created", "kind": "visualization", "title": "Example diagram", "mime": "text/html", "path": "diagram.html", "version": 1, "mode": "wide"}],
+        "context": {"used": 0, "window": 200000, "auto_compact_at": 180000, "source": "reported"},
+        "progress": {"phase": "summary", "title": "Tests finished", "at": "2026-01-02T03:04:05Z"},
+        "turn": {"id": "t4", "open": false, "started_at": "2026-01-02T03:03:00Z"}
+      }
+    }
+  ]
+}

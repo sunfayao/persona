@@ -30,7 +30,7 @@ func TestSourceReportFullTaskAnswer(t *testing.T) {
 			proto.Item{Role: "user", Kind: proto.KindToolResult, TS: at, Text: "Tool log"},
 			proto.Item{ID: "final", Role: "assistant", Kind: proto.KindText, TS: at, Text: "Truncated", FullSize: 100},
 			proto.Item{Role: "assistant", Kind: proto.KindText, TS: at, Text: "See the [release notes](https://example.com/notes)."},
-			proto.Item{ID: "end", Kind: "turn_duration", TS: at},
+			proto.Item{ID: "end", Kind: proto.KindTurnDuration, TS: at},
 		)
 		final := "The notes are ready.\n\n- Fixed a crash\n- Added an example"
 		e.f.answerNode("session.item", func(machine string, args json.RawMessage) (any, error) {
@@ -93,10 +93,10 @@ func TestSourceReportMainAnswerWaitsForItsOwnTurn(t *testing.T) {
 		answer := "This release includes:\n\n1. A fix\n2. A guide"
 		e.f.setItems(prompt,
 			proto.Item{Role: "assistant", Kind: proto.KindText, TS: at, Text: answer},
-			proto.Item{ID: "end", Kind: "turn_duration", TS: at},
+			proto.Item{ID: "end", Kind: proto.KindTurnDuration, TS: at},
 			proto.Item{Role: "user", Kind: proto.KindText, TS: at, Text: "Separate private request"},
 			proto.Item{Role: "assistant", Kind: proto.KindText, TS: at, Text: "Separate private answer"},
-			proto.Item{ID: "other_end", Kind: "turn_duration", TS: at},
+			proto.Item{ID: "other_end", Kind: proto.KindTurnDuration, TS: at},
 		)
 		e.clock.advance(5 * time.Second)
 		if got := reportsTo(e.f, askSrc, "om_main_result"); len(got) != 1 || got[0]["text"] != answer {
@@ -117,7 +117,7 @@ func TestSourceReportMainAnswerWaitsForItsBackgroundWork(t *testing.T) {
 			{Seq: 2, Role: "assistant", Kind: proto.KindToolUse, ToolUseID: "tool_check"},
 			{Seq: 3, Role: "user", Kind: proto.KindToolResult, ToolUseID: "tool_check", Text: "Command running in background with ID: check1."},
 			{Seq: 4, Role: "assistant", Kind: proto.KindText, Text: "The check is still running."},
-			{ID: "interim_end", Seq: 5, Kind: turnDurationKind},
+			{ID: "interim_end", Seq: 5, Kind: proto.KindTurnDuration},
 		}
 		e.f.setItems(items...)
 		e.closeDone(todo.ID) // the channel watcher can mark the run held after the todo closes
@@ -136,7 +136,7 @@ func TestSourceReportMainAnswerWaitsForItsBackgroundWork(t *testing.T) {
 		items = append(items,
 			proto.Item{Seq: 6, Kind: proto.KindNotice, Wake: true, Task: &proto.TaskNote{TaskID: "unrelated", Status: "completed"}},
 			proto.Item{Seq: 7, Role: "assistant", Kind: proto.KindText, Text: "A different background task finished."},
-			proto.Item{ID: "other_end", Seq: 8, Kind: turnDurationKind},
+			proto.Item{ID: "other_end", Seq: 8, Kind: proto.KindTurnDuration},
 		)
 		e.f.setItems(items...)
 		e.clock.advance(5 * time.Second)
@@ -148,7 +148,7 @@ func TestSourceReportMainAnswerWaitsForItsBackgroundWork(t *testing.T) {
 		items = append(items,
 			proto.Item{Seq: 9, Kind: proto.KindNotice, Wake: true, Task: &proto.TaskNote{TaskID: "check1", Status: "completed"}},
 			proto.Item{Seq: 10, Role: "assistant", Kind: proto.KindText, Text: answer},
-			proto.Item{ID: "final_end", Seq: 11, Kind: turnDurationKind},
+			proto.Item{ID: "final_end", Seq: 11, Kind: proto.KindTurnDuration},
 		)
 		e.f.setItems(items...)
 		e.clock.advance(5 * time.Second)
@@ -162,7 +162,7 @@ func TestSourceMainReplyMatchesWakeForAHeldRun(t *testing.T) {
 	items := []proto.Item{
 		{Seq: 2, Kind: proto.KindToolUse, ToolUseID: "background_call"},
 		{Seq: 3, Role: "assistant", Kind: proto.KindText, Text: "Still running."},
-		{ID: "interim", Seq: 4, Kind: turnDurationKind},
+		{ID: "interim", Seq: 4, Kind: proto.KindTurnDuration},
 	}
 	if reply, wait := sourceMainReplyItems(items, 4); len(reply) != 0 || wait != channel.HeldMost {
 		t.Fatalf("the held turn must wait for background work, got %v with wait %s", reply, wait)
@@ -170,7 +170,7 @@ func TestSourceMainReplyMatchesWakeForAHeldRun(t *testing.T) {
 	items = append(items,
 		proto.Item{Seq: 5, Kind: proto.KindNotice, Wake: true, Task: &proto.TaskNote{ToolUseID: "background_call", Status: "completed"}},
 		proto.Item{Seq: 6, Role: "assistant", Kind: proto.KindText, Text: "Work finished."},
-		proto.Item{ID: "final", Seq: 7, Kind: turnDurationKind},
+		proto.Item{ID: "final", Seq: 7, Kind: proto.KindTurnDuration},
 	)
 	for _, heldThrough := range []int{4, -1} {
 		if reply, wait := sourceMainReplyItems(items, heldThrough); len(reply) != 1 || reply[0].Text != "Work finished." || wait != 0 {
@@ -197,7 +197,7 @@ func TestSourceReportImmediateAnswerWaitsForLateHandoff(t *testing.T) {
 		e.f.setItems(
 			proto.Item{Role: "user", Kind: proto.KindText, Text: "Earlier request"},
 			proto.Item{Role: "assistant", Kind: proto.KindText, Text: "Earlier answer"},
-			proto.Item{ID: "earlier_end", Kind: turnDurationKind},
+			proto.Item{ID: "earlier_end", Kind: proto.KindTurnDuration},
 		)
 		e.closeDone(todo.ID)
 		e.clock.advance(0)
@@ -208,7 +208,7 @@ func TestSourceReportImmediateAnswerWaitsForLateHandoff(t *testing.T) {
 		e.f.setItems(
 			proto.Item{Role: "user", Kind: proto.KindText, ClientMsgID: channel.ClientMsgID(channel.Feishu, todo.Source.Handoff)},
 			proto.Item{Role: "assistant", Kind: proto.KindText, Text: answer},
-			proto.Item{ID: "final_end", Kind: turnDurationKind},
+			proto.Item{ID: "final_end", Kind: proto.KindTurnDuration},
 		)
 		e.clock.advance(5 * time.Second)
 		if got := reportsTo(e.f, askSrc, "om_late_handoff"); len(got) != 1 || got[0]["text"] != answer || got[0]["full_answer"] != true {
@@ -225,7 +225,7 @@ func backgroundHandoff(handoff string) []proto.Item {
 		{Seq: 2, Role: "assistant", Kind: proto.KindToolUse, ToolUseID: "tool_check"},
 		{Seq: 3, Role: "user", Kind: proto.KindToolResult, ToolUseID: "tool_check", Text: "Command running in background with ID: check1."},
 		{Seq: 4, Role: "assistant", Kind: proto.KindText, Text: "The check is still running."},
-		{ID: "interim_end", Seq: 5, Kind: turnDurationKind},
+		{ID: "interim_end", Seq: 5, Kind: proto.KindTurnDuration},
 	}
 }
 
@@ -261,7 +261,7 @@ func TestSourceReportBackgroundWaitSurvivesUnclearReads(t *testing.T) {
 	items = append(items,
 		proto.Item{Seq: 6, Role: "user", Kind: proto.KindToolResult, ToolUseID: "peer_call", Wake: true, Task: &proto.TaskNote{Kind: "agent", TaskID: "peer", ToolUseID: "peer_call", Status: "completed"}},
 		proto.Item{Seq: 7, Role: "assistant", Kind: proto.KindText, Text: "The peer finished."},
-		proto.Item{ID: "peer_end", Seq: 8, Kind: turnDurationKind},
+		proto.Item{ID: "peer_end", Seq: 8, Kind: proto.KindTurnDuration},
 	)
 	e.f.setItems(items...)
 	e.clock.advance(30 * time.Second)
@@ -273,7 +273,7 @@ func TestSourceReportBackgroundWaitSurvivesUnclearReads(t *testing.T) {
 	items = append(items,
 		proto.Item{Seq: 9, Kind: proto.KindNotice, Wake: true, Task: &proto.TaskNote{TaskID: "check1", Status: "completed"}},
 		proto.Item{Seq: 10, Role: "assistant", Kind: proto.KindText, Text: answer},
-		proto.Item{ID: "final_end", Seq: 11, Kind: turnDurationKind},
+		proto.Item{ID: "final_end", Seq: 11, Kind: proto.KindTurnDuration},
 	)
 	e.f.setItems(items...)
 	e.clock.advance(30 * time.Second)
@@ -306,13 +306,13 @@ func TestSourceReportEndsAtAnotherRequest(t *testing.T) {
 		items = append(items,
 			proto.Item{Seq: seq - 2, Role: "user", Kind: proto.KindText, Text: fmt.Sprintf("Other request %d", i)},
 			proto.Item{Seq: seq - 1, Role: "assistant", Kind: proto.KindText, Text: "Other answer"},
-			proto.Item{ID: fmt.Sprintf("other_end_%d", i), Seq: seq, Kind: turnDurationKind},
+			proto.Item{ID: fmt.Sprintf("other_end_%d", i), Seq: seq, Kind: proto.KindTurnDuration},
 		)
 	}
 	items = append(items,
 		proto.Item{Seq: seq + 1, Kind: proto.KindNotice, Wake: true, Task: &proto.TaskNote{TaskID: "check1", Status: "completed"}},
 		proto.Item{Seq: seq + 2, Role: "assistant", Kind: proto.KindText, Text: "The check passed, and here is the other request again."},
-		proto.Item{ID: "late_end", Seq: seq + 3, Kind: turnDurationKind},
+		proto.Item{ID: "late_end", Seq: seq + 3, Kind: proto.KindTurnDuration},
 	)
 	e.f.setItems(items...)
 	e.clock.advance(5 * time.Second)
@@ -329,16 +329,16 @@ func TestSourceMainReplyEndsAtAnotherRequest(t *testing.T) {
 	other := []proto.Item{
 		{Seq: 6, Role: "user", Kind: proto.KindText, Text: "Other request"},
 		{Seq: 7, Role: "assistant", Kind: proto.KindText, Text: "Other answer"},
-		{ID: "other_end", Seq: 8, Kind: turnDurationKind},
+		{ID: "other_end", Seq: 8, Kind: proto.KindTurnDuration},
 	}
 	interim := []proto.Item{
 		{Seq: 4, Role: "assistant", Kind: proto.KindText, Text: "Interim."},
-		{ID: "interim_end", Seq: 5, Kind: turnDurationKind},
+		{ID: "interim_end", Seq: 5, Kind: proto.KindTurnDuration},
 	}
 	wake := []proto.Item{
 		{Seq: 9, Kind: proto.KindNotice, Wake: true, Task: &proto.TaskNote{TaskID: "check1", Status: "completed"}},
 		{Seq: 10, Role: "assistant", Kind: proto.KindText, Text: "Continuation."},
-		{ID: "wake_end", Seq: 11, Kind: turnDurationKind},
+		{ID: "wake_end", Seq: 11, Kind: proto.KindTurnDuration},
 	}
 	cases := []struct {
 		name  string
@@ -371,7 +371,7 @@ func TestSourceMainReplyReadsToolLines(t *testing.T) {
 		{Seq: 3, Role: "user", Kind: proto.KindToolResult, ToolUseID: "shot", Text: "Screenshot taken"},
 		{Seq: 4, Role: "user", Kind: proto.KindImage, ToolUseID: "shot"},
 		{Seq: 5, Role: "assistant", Kind: proto.KindText, Text: "The page renders."},
-		{ID: "end", Seq: 6, Kind: turnDurationKind},
+		{ID: "end", Seq: 6, Kind: proto.KindTurnDuration},
 	}
 	if reply, wait := sourceMainReplyItems(items, -1); len(reply) != 1 || reply[0].Text != "The page renders." || wait != 0 {
 		t.Fatalf("tool lines: got %v with wait %s", reply, wait)
@@ -381,7 +381,7 @@ func TestSourceMainReplyReadsToolLines(t *testing.T) {
 		{Seq: 2, Role: "assistant", Kind: proto.KindToolUse, ToolUseID: "watch"},
 		{Seq: 3, Role: "user", Kind: proto.KindToolResult, ToolUseID: "watch", Text: "Monitor started (task m1, expires in 30m unless stopped)"},
 		{Seq: 4, Role: "assistant", Kind: proto.KindText, Text: "Watching the deploy."},
-		{ID: "end", Seq: 5, Kind: turnDurationKind},
+		{ID: "end", Seq: 5, Kind: proto.KindTurnDuration},
 	}
 	if reply, wait := sourceMainReplyItems(items, -1); len(reply) != 1 || reply[0].Text != "Watching the deploy." || wait != 0 {
 		t.Fatalf("a Monitor: got %v with wait %s", reply, wait)
@@ -395,10 +395,10 @@ func TestSourceMainReplyWaitsForAllItsBackgroundWork(t *testing.T) {
 		{Seq: 4, Role: "assistant", Kind: proto.KindToolUse, ToolUseID: "call_b"},
 		{Seq: 5, Role: "user", Kind: proto.KindToolResult, ToolUseID: "call_b", Text: "Command running in background with ID: b1."},
 		{Seq: 6, Role: "assistant", Kind: proto.KindText, Text: "Both are running."},
-		{ID: "first_end", Seq: 7, Kind: turnDurationKind},
+		{ID: "first_end", Seq: 7, Kind: proto.KindTurnDuration},
 		{Seq: 8, Kind: proto.KindNotice, Wake: true, Task: &proto.TaskNote{ToolUseID: "call_a", Status: "completed"}},
 		{Seq: 9, Role: "assistant", Kind: proto.KindText, Text: "A passed; B is still running."},
-		{ID: "a_end", Seq: 10, Kind: turnDurationKind},
+		{ID: "a_end", Seq: 10, Kind: proto.KindTurnDuration},
 	}
 	if reply, wait := sourceMainReplyItems(items, -1); len(reply) != 0 || wait != channel.HeldMost {
 		t.Fatalf("one of two tasks reported: got %v with wait %s", reply, wait)
@@ -406,7 +406,7 @@ func TestSourceMainReplyWaitsForAllItsBackgroundWork(t *testing.T) {
 	items = append(items,
 		proto.Item{Seq: 11, Kind: proto.KindNotice, Wake: true, Task: &proto.TaskNote{ToolUseID: "call_b", Status: "completed"}},
 		proto.Item{Seq: 12, Role: "assistant", Kind: proto.KindText, Text: "Both passed."},
-		proto.Item{ID: "b_end", Seq: 13, Kind: turnDurationKind},
+		proto.Item{ID: "b_end", Seq: 13, Kind: proto.KindTurnDuration},
 	)
 	if reply, wait := sourceMainReplyItems(items, -1); len(reply) != 1 || reply[0].Text != "Both passed." || wait != 0 {
 		t.Fatalf("both tasks reported: got %v with wait %s", reply, wait)
@@ -420,7 +420,7 @@ func TestSourceMainReplyWaitsForItsContinuation(t *testing.T) {
 		{Seq: 7, Role: "assistant", Kind: proto.KindToolUse, ToolUseID: "tool_read"},
 		{Seq: 8, Role: "user", Kind: proto.KindToolResult, ToolUseID: "tool_read", Text: "Release log"},
 	}
-	end := proto.Item{ID: "continuation_end", Seq: 10, Kind: turnDurationKind}
+	end := proto.Item{ID: "continuation_end", Seq: 10, Kind: proto.KindTurnDuration}
 	cases := []struct {
 		name  string
 		items []proto.Item
@@ -488,7 +488,7 @@ func TestSourceReportWaitsForTheContinuationTurn(t *testing.T) {
 	const answer = "The release check passed."
 	items = append(items,
 		proto.Item{Seq: 9, Role: "assistant", Kind: proto.KindText, Text: answer},
-		proto.Item{ID: "final_end", Seq: 10, Kind: turnDurationKind},
+		proto.Item{ID: "final_end", Seq: 10, Kind: proto.KindTurnDuration},
 	)
 	e.f.setItems(items...)
 	e.clock.advance(30 * time.Second)
@@ -517,7 +517,7 @@ func TestSourceReportDoesNotShareAnUnrelatedTurn(t *testing.T) {
 		proto.Item{Role: "user", Kind: proto.KindText, TS: at, Text: "What shipped?", ClientMsgID: channel.ClientMsgID(channel.Feishu, todo.Source.Handoff)},
 		proto.Item{Role: "user", Kind: proto.KindText, TS: at, Text: "Unrelated request"},
 		proto.Item{Role: "assistant", Kind: proto.KindText, TS: at, Text: "Unrelated answer"},
-		proto.Item{ID: "end", Kind: "turn_duration", TS: at},
+		proto.Item{ID: "end", Kind: proto.KindTurnDuration, TS: at},
 	)
 	e.closeDone(todo.ID)
 	e.clock.advance(0)
@@ -535,7 +535,7 @@ func TestSourceReportFullPreviewCanBeCancelled(t *testing.T) {
 	e.f.setItems(
 		proto.Item{Role: "user", Kind: proto.KindText, TS: at, Text: "What shipped?", ClientMsgID: channel.ClientMsgID(channel.Feishu, todo.Source.Handoff)},
 		proto.Item{Role: "assistant", Kind: proto.KindText, TS: at, Text: "A guide shipped."},
-		proto.Item{ID: "end", Kind: "turn_duration", TS: at},
+		proto.Item{ID: "end", Kind: proto.KindTurnDuration, TS: at},
 	)
 	e.closeDone(todo.ID)
 	e.deliver(topicEventIn("om_cancel_result", askHome, "omt_home", "/noreply"))

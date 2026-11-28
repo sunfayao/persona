@@ -21,7 +21,7 @@ func TurnEnd(items []proto.Item) (TurnClose, bool) {
 	for i := len(items) - 1; i >= 0; i-- {
 		it := items[i]
 		switch {
-		case it.Kind == "turn_duration":
+		case it.Kind == proto.KindTurnDuration:
 			key := it.ID
 			if d := it.TurnDuration; d != nil && d.TurnID != "" {
 				key = d.TurnID

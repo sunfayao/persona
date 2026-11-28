@@ -2,8 +2,9 @@
 
 JSON Schemas for the wire shapes of domains the shared fixtures (`spec/fixtures/`) already pin.
 Each `<domain>.schema.json` generates the types with `scripts/gen/extension_schema.py`, the same generator and
-subset as `schema/extension/README.md`; the file's `x-out` names the generated TypeScript (`ts`) and Go (`go`) files it
-wants. A Go file takes the package of the directory it is written to (the generator checks that the files already there
+subset as `schema/extension/README.md`; the file's `x-out` names the generated TypeScript (`ts`), Go (`go`) and
+JavaScript (`js`) files it wants. JavaScript exports a frozen array of known values per enum, with no types.
+A Go file takes the package of the directory it is written to (the generator checks that the files already there
 say the same), gets no package doc and names its registry of definitions after the schema (`todoViewDefs`), since it
 shares its package with hand-written code. Go is generated only for a schema whose `x-out` names it.
 
@@ -16,6 +17,7 @@ python3 scripts/test/test_wire_schema.py          # --check, fixture samples hol
 | File | Domain | Generated |
 | --- | --- | --- |
 | `recents.schema.json` | `RecentSetup`, New Agent's recent setups (`spec/fixtures/recents`) | `web/src/lib/recents-wire.ts` |
+| `turn-model.schema.json` | Canonical item and session facets (`spec/fixtures/turn-model`) | `web/src/lib/turn-model-wire.ts`, `server/internal/proto/turnmodel_gen.go`, `integrations/runtime-sdk/lib/turn-model.js` |
 | `todo-view.schema.json` | To-dos: a row's view (`TodoSummary`) and its asks (`OwnerAsk`), the list's counts (`TodoCounts`) (`spec/fixtures/todo-view`, `spec/fixtures/todo-counts`); a to-do's conversation in rounds (`TodoTimeline`), its results (`TodoResult`) and what changed since the owner looked (`TodoRecap`) (#10465, `spec/fixtures/todo-rounds`), and what `GET /api/v1/todos/{id}` carries of them beside the row (`TodoItemDetail`); a decision push's `todo` (`TodoDecidePush`, #10465, `spec/fixtures/todo-push`) | `web/src/lib/todo-view-wire.ts`, `server/internal/assistantwire/todo_view_gen.go` |
 
 Every sample a fixture holds for a definition must name exactly the schema's fields, at any depth, and every definition

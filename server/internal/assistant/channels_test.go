@@ -1178,7 +1178,7 @@ func TestNewConversationsFirstMessageFoldedIsAnswered(t *testing.T) {
 		{ID: "a3", Seq: 3, Role: "assistant", Kind: proto.KindText, Text: "first answer"},
 		{ID: "u4", Seq: 4, Role: "user", Kind: proto.KindText, Text: "second", ClientMsgID: "feishu-om2"},
 		{ID: "a5", Seq: 5, Role: "assistant", Kind: proto.KindText, Text: "second answer"},
-		{ID: "d6", Seq: 6, Role: "system", Kind: "turn_duration", TurnDuration: &proto.TurnDuration{DurationMS: 5}},
+		{ID: "d6", Seq: 6, Role: "system", Kind: proto.KindTurnDuration, TurnDuration: &proto.TurnDuration{DurationMS: 5}},
 	}}
 	s := withSettings(t, f, New(Options{Hub: h, Store: func() Store { return &memStore{} }, Logf: testLogf(t)}))
 	// As feishu_message.go's rt.isNew path leaves it, then as its session.send path does.

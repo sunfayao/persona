@@ -502,6 +502,8 @@ type Session struct {
 	// AskingParentSessionID and IsDeleted; it is shared by every copy of the row, so it is never written in place:
 	// SetParentAgentID, SetFold, SetStartedAt, SetAskingParentSessionID and SetDeleted put a new one.
 	Hierarchy *SessionHierarchy `json:"-"`
+	// Facets are the canonical turn-model state (docs/protocol/protocol.md "Turn model").
+	Facets *SessionFacets `json:"facets,omitempty"`
 }
 
 // Session.TurnErrorKind values.

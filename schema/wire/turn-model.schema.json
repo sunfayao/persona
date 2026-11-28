@@ -1,0 +1,325 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Turn model",
+  "description": "Canonical facets for conversation items and session snapshots.",
+  "x-out": {
+    "ts": "web/src/lib/turn-model-wire.ts",
+    "go": "server/internal/proto/turnmodel_gen.go",
+    "js": "integrations/runtime-sdk/lib/turn-model.js"
+  },
+  "$defs": {
+    "ItemFacets": {
+      "type": "object",
+      "properties": {
+        "turn_id": {"type": "string", "description": "The native turn ID, or t followed by the opening input's sequence number."},
+        "parent_id": {"type": "string", "description": "The enclosing tool call, subagent or task."},
+        "native": {"$ref": "#/$defs/NativeRef"},
+        "input": {"$ref": "#/$defs/InputFacet"},
+        "progress": {"$ref": "#/$defs/ProgressFacet"},
+        "tool": {"$ref": "#/$defs/ToolFacet"},
+        "plan": {"$ref": "#/$defs/PlanFacet"},
+        "subagent": {"$ref": "#/$defs/SubagentFacet"},
+        "task": {"$ref": "#/$defs/TaskFacet"},
+        "interaction": {"$ref": "#/$defs/InteractionFacet"},
+        "artifact": {"$ref": "#/$defs/ArtifactFacet"},
+        "notice": {"$ref": "#/$defs/NoticeFacet"}
+      }
+    },
+    "NativeRef": {
+      "description": "Provenance for diagnostics, not for rendering decisions.",
+      "type": "object",
+      "properties": {"agent": {"type": "string"}, "type": {"type": "string"}, "name": {"type": "string"}, "version": {"type": "string"}},
+      "required": ["agent", "type"]
+    },
+    "InputFacet": {
+      "type": "object",
+      "properties": {"via": {"$ref": "#/$defs/InputVia"}},
+      "required": ["via"]
+    },
+    "InputVia": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["typed", "queued", "steer", "scheduled", "relay", "resume", "wake"]
+    },
+    "ProgressFacet": {
+      "type": "object",
+      "properties": {
+        "phase": {"$ref": "#/$defs/ProgressPhase"},
+        "title": {"type": "string"},
+        "duration_ms": {"type": "integer", "x-go-type": "int64"},
+        "redacted": {"type": "boolean"}
+      },
+      "required": ["phase"]
+    },
+    "ProgressPhase": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["thinking", "commentary", "summary", "status"]
+    },
+    "ToolFacet": {
+      "description": "The canonical tool identity and display metadata, on both the call and its result.",
+      "type": "object",
+      "properties": {
+        "kind": {"$ref": "#/$defs/ToolKind"},
+        "name": {"type": "string"},
+        "title": {"type": "string"},
+        "status": {"$ref": "#/$defs/ToolStatus"},
+        "locations": {"type": "array", "items": {"$ref": "#/$defs/ToolLocation"}},
+        "mcp": {"$ref": "#/$defs/McpRef"},
+        "language": {"$ref": "#/$defs/ToolLanguage"},
+        "task_id": {"type": "string"}
+      },
+      "required": ["kind", "name"]
+    },
+    "ToolKind": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["execute", "read", "edit", "write", "delete", "move", "search", "fetch", "web_search", "plan", "ask", "mode", "agent", "message", "task", "schedule", "workflow", "artifact", "image", "mcp", "skill", "other"]
+    },
+    "ToolStatus": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["pending", "running", "completed", "failed", "denied", "interrupted", "background"]
+    },
+    "ToolLanguage": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["shell", "javascript", "python"]
+    },
+    "ToolLocation": {
+      "type": "object",
+      "properties": {"path": {"type": "string"}, "line": {"type": "integer"}, "end_line": {"type": "integer"}},
+      "required": ["path"]
+    },
+    "McpRef": {
+      "type": "object",
+      "properties": {"server": {"type": "string"}, "tool": {"type": "string"}},
+      "required": ["server", "tool"]
+    },
+    "PlanFacet": {
+      "type": "object",
+      "properties": {
+        "mode": {"$ref": "#/$defs/TurnPlanMode"},
+        "entries": {"type": "array", "items": {"$ref": "#/$defs/PlanEntry"}},
+        "explanation": {"type": "string"}
+      },
+      "required": ["mode", "entries"]
+    },
+    "TurnPlanMode": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["replace", "merge"]
+    },
+    "PlanEntry": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "string"},
+        "title": {"type": "string"},
+        "status": {"$ref": "#/$defs/PlanEntryStatus"},
+        "active_form": {"type": "string"},
+        "priority": {"$ref": "#/$defs/PlanPriority"}
+      },
+      "required": ["title", "status"]
+    },
+    "PlanEntryStatus": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["pending", "in_progress", "completed", "skipped", "failed", "cancelled"]
+    },
+    "PlanPriority": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["high", "medium", "low"]
+    },
+    "SubagentFacet": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "string"},
+        "session_id": {"type": "string"},
+        "relation": {"$ref": "#/$defs/SubagentRelation"},
+        "name": {"type": "string"},
+        "agent_type": {"type": "string"},
+        "model": {"type": "string"},
+        "status": {"$ref": "#/$defs/SubagentStatus"}
+      },
+      "required": ["id", "relation"]
+    },
+    "SubagentRelation": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["spawn", "message_to", "message_from", "result", "cancel", "list"]
+    },
+    "SubagentStatus": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["starting", "running", "waiting", "completed", "failed", "cancelled"]
+    },
+    "TaskFacet": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "string"},
+        "kind": {"$ref": "#/$defs/TaskKind"},
+        "status": {"$ref": "#/$defs/TaskStatus"},
+        "title": {"type": "string"},
+        "command": {"type": "string"},
+        "exit_code": {"type": "integer", "x-go-pointer": true},
+        "output_file": {"type": "string"},
+        "timer": {"$ref": "#/$defs/TimerSpec"}
+      },
+      "required": ["id", "kind", "status"]
+    },
+    "TaskKind": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["shell", "monitor", "agent", "workflow", "timer"]
+    },
+    "TaskStatus": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["running", "waiting", "event", "completed", "failed", "cancelled", "scheduled", "fired"]
+    },
+    "TimerSpec": {
+      "type": "object",
+      "properties": {
+        "next_at": {"type": "string", "format": "date-time"},
+        "interval_s": {"type": "integer"},
+        "cron": {"type": "string"},
+        "condition": {"type": "string"},
+        "max_runs": {"type": "integer"},
+        "prompt": {"type": "string"}
+      }
+    },
+    "InteractionFacet": {
+      "description": "The history record of an interaction; live requests still use Interaction.",
+      "type": "object",
+      "properties": {
+        "id": {"type": "string"},
+        "kind": {"$ref": "#/$defs/InteractionKind"},
+        "questions": {"type": "array", "items": {"$ref": "#/$defs/InteractionQuestion"}},
+        "plan": {"type": "string"},
+        "status": {"$ref": "#/$defs/InteractionStatus"},
+        "answers": {"type": "object", "additionalProperties": {"type": "string"}},
+        "feedback": {"type": "string"}
+      },
+      "required": ["kind", "status"]
+    },
+    "InteractionKind": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["question", "plan", "permission"]
+    },
+    "InteractionStatus": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["pending", "answered", "approved", "denied", "dismissed", "expired"]
+    },
+    "InteractionQuestion": {
+      "type": "object",
+      "properties": {
+        "question": {"type": "string"},
+        "header": {"type": "string"},
+        "options": {"type": "array", "items": {"$ref": "#/$defs/InteractionOption"}},
+        "multi_select": {"type": "boolean"}
+      },
+      "required": ["question", "options", "multi_select"]
+    },
+    "InteractionOption": {
+      "type": "object",
+      "properties": {"label": {"type": "string"}, "description": {"type": "string"}},
+      "required": ["label"]
+    },
+    "ArtifactFacet": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "string"},
+        "op": {"$ref": "#/$defs/ArtifactOp"},
+        "kind": {"$ref": "#/$defs/ArtifactKind"},
+        "title": {"type": "string"},
+        "mime": {"type": "string"},
+        "path": {"type": "string"},
+        "route": {"type": "string"},
+        "version": {"type": "integer"},
+        "mode": {"type": "string"}
+      },
+      "required": ["id", "op", "kind"]
+    },
+    "ArtifactOp": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["created", "updated", "deleted"]
+    },
+    "ArtifactKind": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["document", "plan", "checklist", "walkthrough", "visualization", "image", "file", "diagram"]
+    },
+    "NoticeFacet": {
+      "description": "A notice code and localization arguments; the item's text remains the legacy display.",
+      "type": "object",
+      "properties": {
+        "code": {"$ref": "#/$defs/NoticeCode"},
+        "severity": {"$ref": "#/$defs/NoticeSeverity"},
+        "args": {"type": "object", "additionalProperties": {"type": "string"}}
+      },
+      "required": ["code", "severity"]
+    },
+    "NoticeCode": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["interrupted", "compacted", "api_error", "retrying", "usage_limit", "model_fallback", "model_switched", "mode_switched", "checkpoint", "wake", "timer_fired", "task_update", "server_restart", "loop_fired", "runtime_error", "unknown_event"]
+    },
+    "NoticeSeverity": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["info", "warning", "error"]
+    },
+    "SessionFacets": {
+      "type": "object",
+      "properties": {
+        "plan": {"$ref": "#/$defs/SessionPlan"},
+        "timers": {"type": "array", "items": {"$ref": "#/$defs/TaskFacet"}},
+        "artifacts": {"type": "array", "items": {"$ref": "#/$defs/ArtifactFacet"}},
+        "context": {"$ref": "#/$defs/ContextMeter"},
+        "progress": {"$ref": "#/$defs/SessionProgress"},
+        "turn": {"$ref": "#/$defs/TurnState"}
+      }
+    },
+    "SessionPlan": {
+      "type": "object",
+      "properties": {
+        "entries": {"type": "array", "items": {"$ref": "#/$defs/PlanEntry"}},
+        "at": {"type": "string", "format": "date-time"}
+      },
+      "required": ["entries", "at"]
+    },
+    "ContextMeter": {
+      "type": "object",
+      "properties": {
+        "used": {"type": "integer", "x-go-type": "int64"},
+        "window": {"type": "integer", "x-go-type": "int64"},
+        "auto_compact_at": {"type": "integer", "x-go-type": "int64"},
+        "source": {"$ref": "#/$defs/ContextSource"}
+      },
+      "required": ["used", "source"]
+    },
+    "ContextSource": {
+      "description": "Open: a newer node may send other values.",
+      "type": "string",
+      "enum": ["reported", "rule", "estimated"]
+    },
+    "SessionProgress": {
+      "type": "object",
+      "properties": {
+        "phase": {"$ref": "#/$defs/ProgressPhase"},
+        "title": {"type": "string"},
+        "at": {"type": "string", "format": "date-time"}
+      },
+      "required": ["phase", "at"]
+    },
+    "TurnState": {
+      "type": "object",
+      "properties": {"id": {"type": "string"}, "open": {"type": "boolean"}, "started_at": {"type": "string", "format": "date-time"}},
+      "required": ["open"]
+    }
+  }
+}

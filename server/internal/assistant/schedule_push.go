@@ -207,16 +207,12 @@ func quietTurnItems(items []proto.Item) bool {
 			answered = true
 		case it.Role == "assistant" && it.Kind == proto.KindToolUse:
 			worked = true
-		case it.Kind == turnDurationKind && worked:
+		case it.Kind == proto.KindTurnDuration && worked:
 			answered = true
 		}
 	}
 	return answered
 }
-
-// turnDurationKind is the item kind of a turn's end as the transcript readers write it (transcript.go and codex.go:
-// Claude Code's system/turn_duration line, Codex's completed turn).
-const turnDurationKind = "turn_duration"
 
 // askedScheduledSource: source is a scheduled run's that pushes only what it sends.
 func askedScheduledSource(source *proto.MessageSource) bool {

@@ -409,7 +409,7 @@ func TestSilentRun(t *testing.T) {
 	task := Task{Prompt: "给我今天的早报"}
 	prompt := proto.Item{ID: "u1", Role: "user", Kind: proto.KindText, Text: "⏰ 早报（定时任务）\n\n给我今天的早报"}
 	empty := proto.Item{ID: "a1", Role: "assistant", Kind: proto.KindText, Text: ""}
-	end := proto.Item{ID: "e1", Role: "system", Kind: "turn_duration", TurnDuration: &proto.TurnDuration{DurationMS: 900}}
+	end := proto.Item{ID: "e1", Role: "system", Kind: proto.KindTurnDuration, TurnDuration: &proto.TurnDuration{DurationMS: 900}}
 	other := proto.Item{ID: "u2", Role: "user", Kind: proto.KindText, Text: "顺便看下明天的会"}
 	reply := proto.Item{ID: "a2", Role: "assistant", Kind: proto.KindText, Text: "今天三个会"}
 	for _, c := range []struct {
@@ -476,7 +476,7 @@ func TestReferenceOnlySilentRunMatchesItsOwnTurn(t *testing.T) {
 	prior.promptRunID = "run_previous"
 	another := proto.Item{ID: "other", Role: "user", Kind: proto.KindText, Text: render(prior)}
 	user := proto.Item{ID: "user", Role: "user", Kind: proto.KindText, Text: "Did the notes get reviewed?"}
-	end := proto.Item{ID: "end", Role: "system", Kind: "turn_duration", TurnDuration: &proto.TurnDuration{DurationMS: 300}}
+	end := proto.Item{ID: "end", Role: "system", Kind: proto.KindTurnDuration, TurnDuration: &proto.TurnDuration{DurationMS: 300}}
 	for _, tc := range []struct {
 		name  string
 		items []proto.Item

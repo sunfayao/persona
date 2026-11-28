@@ -224,7 +224,7 @@ func taskTurnAwaitingAnswer(items []proto.Item) bool {
 	for i := len(items) - 1; i >= 0; i-- {
 		it := items[i]
 		switch it.Kind {
-		case "turn_duration":
+		case proto.KindTurnDuration:
 			return false
 		case proto.KindText:
 			return it.Role != "assistant"

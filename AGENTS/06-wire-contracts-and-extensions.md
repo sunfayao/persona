@@ -56,6 +56,7 @@ Go types. When you change a shape the web app reads, you change both, and the sa
 | Source of truth | Generates | Command |
 | --- | --- | --- |
 | `schema/wire/*.schema.json` | `web/src/lib/todo-view-wire.ts`, `recents-wire.ts`, `server/internal/assistantwire/todo_view_gen.go` | `python3 scripts/gen/extension_schema.py` (`--check` compares) |
+| `schema/wire/turn-model.schema.json` | `server/internal/proto/turnmodel_gen.go`, `web/src/lib/turn-model-wire.ts`, `integrations/runtime-sdk/lib/turn-model.js` (enum values only) | the same |
 | `schema/extension/*.json` | `sdk/go/wire/wire_gen.go`, `sdk/ts/src/wire.ts`, `web/src/lib/extension-wire.ts` | the same |
 | `schema/configuration/` | Validation of the configuration files | read by tests |
 

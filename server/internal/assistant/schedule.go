@@ -2644,7 +2644,7 @@ func silentRun(items []proto.Item, t Task, ran bool) bool {
 		return true
 	}
 	for _, it := range items {
-		if it.TurnDuration != nil || it.Kind == "turn_duration" {
+		if it.TurnDuration != nil || it.Kind == proto.KindTurnDuration {
 			return true
 		}
 	}

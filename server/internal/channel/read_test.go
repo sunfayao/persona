@@ -167,7 +167,7 @@ func TestReadTurnFoldedAcrossPages(t *testing.T) {
 	first := &Run{Base: 1, MsgIDs: []string{"voice-1"}, Started: t0}
 	second := &Run{Base: 4, MsgIDs: []string{"voice-2"}, Started: t0.Add(30e9)}
 	second.Fold(first)
-	duration := proto.Item{Role: "system", Kind: "turn_duration", TurnDuration: &proto.TurnDuration{DurationMS: 5}}
+	duration := proto.Item{Role: "system", Kind: proto.KindTurnDuration, TurnDuration: &proto.TurnDuration{DurationMS: 5}}
 	src := &pagedSource{page: 2, items: numbered(agentSays("before"),
 		userSays("voice-1", "fix it"), toolUse, toolResult, agentSays("fixed"), duration,
 		userSays("voice-2", "and lint"), toolUse, toolResult, agentSays("lint clean"), duration)}
@@ -214,10 +214,10 @@ func TestFoldedRunAnswerTurnDuration(t *testing.T) {
 	items := []proto.Item{
 		{Seq: 1, Role: "user", Kind: "text", Text: "one", ClientMsgID: "a"},
 		{Seq: 2, Role: "assistant", Kind: "text", Text: "answer one"},
-		{Seq: 3, Role: "system", Kind: "turn_duration", TurnDuration: &proto.TurnDuration{DurationMS: 5}},
+		{Seq: 3, Role: "system", Kind: proto.KindTurnDuration, TurnDuration: &proto.TurnDuration{DurationMS: 5}},
 		{Seq: 4, Role: "user", Kind: "text", Text: "two", ClientMsgID: "b"},
 		{Seq: 5, Role: "assistant", Kind: "text", Text: "answer two"},
-		{Seq: 6, Role: "system", Kind: "turn_duration", TurnDuration: &proto.TurnDuration{DurationMS: 5}},
+		{Seq: 6, Role: "system", Kind: proto.KindTurnDuration, TurnDuration: &proto.TurnDuration{DurationMS: 5}},
 	}
 	got, all := RunAnswer(r, items)
 	if !all || texts(got) != "answer one|answer two" {
@@ -251,7 +251,7 @@ func TestFoldedRunAnswerEndings(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			items := numbered(userSays("a", "one"), agentSays("answer one"), c.end,
-				proto.Item{Role: "system", Kind: "turn_duration", TurnDuration: &proto.TurnDuration{DurationMS: 5}},
+				proto.Item{Role: "system", Kind: proto.KindTurnDuration, TurnDuration: &proto.TurnDuration{DurationMS: 5}},
 				proto.Item{Role: "system", Kind: proto.KindNotice, Text: transcript.CompactSummaryNotice},
 				userSays("b", "two"), agentSays("answer two"))
 			want := "answer two"
@@ -309,7 +309,7 @@ func TestReadTurnFoldsTheConversationsFirstMessage(t *testing.T) {
 	first := &Run{Started: t0} // started the conversation: no id, no probe, base 0
 	second := &Run{Base: 3, MsgIDs: []string{"feishu-2"}, Probe: "second", Started: t0.Add(5e9)}
 	second.Fold(first)
-	duration := proto.Item{Role: "system", Kind: "turn_duration", TurnDuration: &proto.TurnDuration{DurationMS: 5}}
+	duration := proto.Item{Role: "system", Kind: proto.KindTurnDuration, TurnDuration: &proto.TurnDuration{DurationMS: 5}}
 	src := &pagedSource{page: 2, items: numbered(userSays("", "first"), toolUse, toolResult, agentSays("first answer"),
 		userSays("feishu-2", "second"), agentSays("second answer"), duration)}
 	rd, err := ReadTurn(context.Background(), src, second)
@@ -352,7 +352,7 @@ func TestReadTurnFoldsAProbedFirstMessage(t *testing.T) {
 	first := &Run{Probe: "first", Started: t0} // as voice handOver leaves a run that started the conversation
 	second := &Run{Base: 4, MsgIDs: []string{"voice-2"}, Probe: "second", Started: t0.Add(5e9)}
 	second.Fold(first)
-	duration := proto.Item{Role: "system", Kind: "turn_duration", TurnDuration: &proto.TurnDuration{DurationMS: 5}}
+	duration := proto.Item{Role: "system", Kind: proto.KindTurnDuration, TurnDuration: &proto.TurnDuration{DurationMS: 5}}
 	src := &pagedSource{page: 2, items: numbered(userSays("", "first"), toolUse, toolResult, agentSays("first answer"),
 		userSays("voice-2", "second"), agentSays("second answer"), duration)}
 	rd, err := ReadTurn(context.Background(), src, second)
@@ -375,7 +375,7 @@ func TestReadTurnFoldsAProbedFirstMessage(t *testing.T) {
 
 // A turn that ended with a turn_duration only (#4895): no words, not stopped, but recorded as finished.
 func TestReadTurnTurnDurationWithoutWords(t *testing.T) {
-	duration := proto.Item{Role: "system", Kind: "turn_duration", TurnDuration: &proto.TurnDuration{DurationMS: 500}}
+	duration := proto.Item{Role: "system", Kind: proto.KindTurnDuration, TurnDuration: &proto.TurnDuration{DurationMS: 500}}
 	src := &pagedSource{page: 10, items: numbered(userSays("voice-1", "one"), duration)}
 	rd, err := ReadTurn(context.Background(), src, &Run{MsgIDs: []string{"voice-1"}})
 	if err != nil || !rd.Found || rd.Answer != "" || rd.Stopped != "" || rd.Last != 2 {

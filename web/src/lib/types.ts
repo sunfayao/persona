@@ -1,5 +1,6 @@
 import type { UsageCard } from "./tokens";
 import type { RuleSuggestion } from "./rule-suggestion";
+import type { ItemFacets, SessionFacets } from "./turn-model-wire";
 // The hub's wire types (docs/protocol/protocol.md). Only the fields the web client reads.
 
 export type AgentState = "needs_you" | "working" | "unread" | "idle" | "offline" | "unknown";
@@ -237,6 +238,7 @@ export interface Port {
 }
 
 export interface Session {
+  facets?: SessionFacets;
   /** Explicit references to a deleted Assistant conversation return a scrubbed tombstone. */
   deleted?: boolean;
   /** The terminal host it lives in (herdr, tmux, botmux); none for transcripts and runtimes' sessions. */
@@ -685,19 +687,39 @@ export interface TokenUsage {
   fast?: boolean;
 }
 
+export interface ToolOutcome {
+  status?: string;
+  exit_code?: number;
+  duration_ms?: number;
+  tail?: string;
+  persisted?: { path: string; size?: number };
+  patch?: string;
+  patch_cut?: boolean;
+  files?: { path: string; adds?: number; dels?: number; created?: boolean }[];
+  git?: {
+    commit?: { sha: string; branch?: string; kind?: string };
+    push?: { branch?: string };
+    pr?: { number?: number; url?: string; action?: string };
+    branch?: { ref?: string; action?: string };
+  };
+  read?: { start?: number; lines?: number; total?: number; unchanged?: boolean };
+  answers?: Record<string, string>;
+}
+
 export interface Item {
   id: string;
   seq: number;
   ts?: string;
   role: "user" | "assistant" | "system";
-  kind: "text" | "thinking" | "tool_use" | "tool_result" | "notice" | "image" | "fold" | "recap" | "visualization";
+  kind: "text" | "thinking" | "tool_use" | "tool_result" | "notice" | "image" | "fold" | "recap" | "turn_duration" | "visualization";
+  facets?: ItemFacets;
   text?: string;
   tool_use_id?: string;
   tool_name?: string;
   tool_input?: Record<string, unknown>;
   is_error?: boolean;
   /** The runtime's own outcome, when the node recorded one (docs/protocol/protocol.md "Tool outcomes"). */
-  outcome?: { status?: string; exit_code?: number };
+  outcome?: ToolOutcome;
   full_size?: number;
   /** Opaque identity of the source record when an item ID names only a position. */
   source_fingerprint?: string;

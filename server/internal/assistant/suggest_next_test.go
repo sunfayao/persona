@@ -346,7 +346,7 @@ func TestReportedNextStepBelongsToLatestAnswer(t *testing.T) {
 		items []proto.Item
 		want  string
 	}{
-		{"terminal report", []proto.Item{owner, reply, {Kind: turnDurationKind}}, step},
+		{"terminal report", []proto.Item{owner, reply, {Kind: proto.KindTurnDuration}}, step},
 		{"plain question", []proto.Item{owner, assistantText("Shall I draft a summary?")}, ""},
 		{"later answer", []proto.Item{reply, assistantText("That suggestion is withdrawn.")}, ""},
 		{"later user", []proto.Item{reply, owner}, ""},

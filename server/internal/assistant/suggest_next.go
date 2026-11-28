@@ -222,7 +222,7 @@ func (s *Service) reportedNextStep(ctx context.Context, machine, sid string, ite
 	_, last := splitLastTurn(items)
 	for i := len(last) - 1; i >= 0; i-- {
 		it := last[i]
-		if it.Kind == turnDurationKind || it.Kind == proto.KindNotice && !it.IsError && it.Text != userStoppedNotice && it.ModelRefusal == nil {
+		if it.Kind == proto.KindTurnDuration || it.Kind == proto.KindNotice && !it.IsError && it.Text != userStoppedNotice && it.ModelRefusal == nil {
 			continue
 		}
 		if !proposalAnswer(it) {

@@ -134,7 +134,7 @@ func TestAnswerBeforeTheDurationLineGoesOutAtOnce(t *testing.T) {
 	s, h, sent, r, _ := endedRunHub(t)
 	h.items = append(h.items,
 		proto.Item{ID: "a4", Seq: 4, Role: "assistant", Kind: proto.KindText, Text: "结论"},
-		proto.Item{ID: "d5", Seq: 5, Role: "system", Kind: "turn_duration", TurnDuration: &proto.TurnDuration{}})
+		proto.Item{ID: "d5", Seq: 5, Role: "system", Kind: proto.KindTurnDuration, TurnDuration: &proto.TurnDuration{}})
 	s.checkChannelRun(r.ID)
 	if got := sentText(*sent); !strings.Contains(got, "结论") {
 		t.Fatalf("waited: %q", got)

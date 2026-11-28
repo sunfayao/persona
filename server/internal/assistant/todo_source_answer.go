@@ -227,7 +227,7 @@ func sourceMainReplyItems(items []proto.Item, heldThrough int) ([]proto.Item, ti
 					background = append(background, it)
 				}
 			}
-		case turnDurationKind:
+		case proto.KindTurnDuration:
 			owned = false
 			turn := items[start : i+1]
 			words, _ := sourceReplyItems(turn)

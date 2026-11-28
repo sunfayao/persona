@@ -308,7 +308,7 @@ func TestTaskCompletionWaitsForTheAnswerAfterATool(t *testing.T) {
 			}
 			// A later session update must finish the held receipt without another working tick.
 			f.setItems(proto.Item{Kind: proto.KindText, Role: "assistant", Text: "Delivery verified; all acceptance checks passed"},
-				proto.Item{Kind: "turn_duration", Role: "system"})
+				proto.Item{Kind: proto.KindTurnDuration, Role: "system"})
 			final := idle
 			final.Status, final.LastText, final.UpdatedAt = finalStatus, "Delivery verified", time.Now()
 			f.setSessions("box", final)
@@ -344,7 +344,7 @@ func TestTaskCompletionReconcilesAnAnswerArrivingDuringTheRead(t *testing.T) {
 		}
 		// The final event overtakes the old tool transcript response.
 		f.setItems(proto.Item{Kind: proto.KindText, Role: "assistant", Text: "Delivery verified"},
-			proto.Item{Kind: "turn_duration", Role: "system"})
+			proto.Item{Kind: proto.KindTurnDuration, Role: "system"})
 		final := idle
 		final.Status, final.Rev = proto.StatusDone, 2
 		f.setSessions("box", final)
@@ -415,7 +415,7 @@ func TestCancelledTaskSettledAgentDoesNotIssueDoneReceipt(t *testing.T) {
 	f.setSessions("box", idle)
 	s.fleetKeepPrevious("box", []proto.Session{idle})
 	f.setItems(proto.Item{Kind: proto.KindText, Role: "assistant", Text: "Done with work"},
-		proto.Item{Kind: "turn_duration", Role: "system"})
+		proto.Item{Kind: proto.KindTurnDuration, Role: "system"})
 
 	s.taskTurnEnded(ctx, "box", "s1")
 
@@ -462,7 +462,7 @@ func TestReassignedAbortedAgentSettledDoesNotCompleteTask(t *testing.T) {
 	f.setSessions("box", idle1)
 	s.fleetKeepPrevious("box", []proto.Session{idle1})
 	f.setItems(proto.Item{Kind: proto.KindText, Role: "assistant", Text: "Old agent finished"},
-		proto.Item{Kind: "turn_duration", Role: "system"})
+		proto.Item{Kind: proto.KindTurnDuration, Role: "system"})
 
 	s.taskTurnEnded(ctx, "box", "s1")
 
@@ -481,7 +481,7 @@ func TestReassignedAbortedAgentSettledDoesNotCompleteTask(t *testing.T) {
 	f.setSessions("box", idle2)
 	s.fleetKeepPrevious("box", []proto.Session{idle2})
 	f.setItems(proto.Item{Kind: proto.KindText, Role: "assistant", Text: "New agent really finished"},
-		proto.Item{Kind: "turn_duration", Role: "system"})
+		proto.Item{Kind: proto.KindTurnDuration, Role: "system"})
 
 	s.taskTurnEnded(ctx, "box", "s2")
 

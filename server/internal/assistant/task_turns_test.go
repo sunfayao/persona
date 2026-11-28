@@ -22,7 +22,7 @@ func turnPage(turn, reply string, closed bool) []proto.Item {
 	if !closed {
 		return append(items, proto.Item{ID: turn + "-tool#0", Kind: proto.KindToolUse, Role: "assistant", ToolName: "shell", ToolUseID: turn + "-call", TS: at})
 	}
-	return append(items, proto.Item{ID: turn + "-end#0", Kind: "turn_duration", Role: "system", TS: at,
+	return append(items, proto.Item{ID: turn + "-end#0", Kind: proto.KindTurnDuration, Role: "system", TS: at,
 		TurnDuration: &proto.TurnDuration{DurationMS: 1200, Source: "codex_task_complete", TurnID: turn}})
 }
 
@@ -296,8 +296,8 @@ func TestTaskReceiptReservationIsReleased(t *testing.T) {
 func TestTurnEndOf(t *testing.T) {
 	ask := proto.Item{ID: "u1#0", Kind: proto.KindText, Role: "user", Text: "修登录崩溃"}
 	reply := proto.Item{ID: "a1#0", Kind: proto.KindText, Role: "assistant", Text: "修好了"}
-	codexEnd := proto.Item{ID: "line9#0", Kind: "turn_duration", Role: "system", TurnDuration: &proto.TurnDuration{DurationMS: 5, Source: "codex_task_complete", TurnID: "turn-7"}}
-	claudeEnd := proto.Item{ID: "d1#0", Kind: "turn_duration", Role: "system", TurnDuration: &proto.TurnDuration{DurationMS: 5, Source: "claude", ParentUUID: "a1"}}
+	codexEnd := proto.Item{ID: "line9#0", Kind: proto.KindTurnDuration, Role: "system", TurnDuration: &proto.TurnDuration{DurationMS: 5, Source: "codex_task_complete", TurnID: "turn-7"}}
+	claudeEnd := proto.Item{ID: "d1#0", Kind: proto.KindTurnDuration, Role: "system", TurnDuration: &proto.TurnDuration{DurationMS: 5, Source: "claude", ParentUUID: "a1"}}
 	stopped := proto.Item{ID: "n1#0", Kind: proto.KindNotice, Role: "system", Text: userStoppedNotice}
 	for _, c := range []struct {
 		name  string
@@ -310,13 +310,13 @@ func TestTurnEndOf(t *testing.T) {
 		{"Codex task_complete: its turn id", []proto.Item{ask, reply, codexEnd}, "turn-7"},
 		{"Claude Code turn_duration: its item", []proto.Item{ask, reply, claudeEnd}, "d1#0"},
 		{"stopped by the user", []proto.Item{ask, stopped}, "n1#0"},
-		{"an end with nothing to name it", []proto.Item{ask, reply, {Kind: "turn_duration", Role: "system"}}, ""},
+		{"an end with nothing to name it", []proto.Item{ask, reply, {Kind: proto.KindTurnDuration, Role: "system"}}, ""},
 		{"a compaction notice after the end", []proto.Item{ask, reply, codexEnd, {ID: "n2#0", Kind: proto.KindNotice, Role: "system", Text: "compacted", Compact: &proto.Compact{}}}, "turn-7"},
 		{"a queued message started the next turn", []proto.Item{ask, reply, codexEnd, {ID: "u2#0", Kind: proto.KindText, Role: "user", Text: "再看看深色", Queued: true}}, ""},
 		{"a wake started the next turn", []proto.Item{ask, reply, claudeEnd, {ID: "w1#0", Kind: proto.KindNotice, Role: "system", Wake: true}}, ""},
 		{"a background task's notice started the next turn", []proto.Item{ask, reply, claudeEnd, {ID: "k1#0", Kind: proto.KindNotice, Role: "system", Task: &proto.TaskNote{Kind: "shell"}}}, ""},
 		{"the next turn ended too", []proto.Item{ask, reply, codexEnd, {ID: "u2#0", Kind: proto.KindText, Role: "user", Text: "再看看深色", Queued: true},
-			{ID: "line20#0", Kind: "turn_duration", Role: "system", TurnDuration: &proto.TurnDuration{DurationMS: 5, Source: "codex_task_complete", TurnID: "turn-8"}}}, "turn-8"},
+			{ID: "line20#0", Kind: proto.KindTurnDuration, Role: "system", TurnDuration: &proto.TurnDuration{DurationMS: 5, Source: "codex_task_complete", TurnID: "turn-8"}}}, "turn-8"},
 	} {
 		end, closed := turnEndOf(c.items)
 		if closed != (c.key != "") || end.Key != c.key {

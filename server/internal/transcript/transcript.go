@@ -797,7 +797,7 @@ func parseLine(seq int, line []byte, meta *Meta) []proto.Item {
 			if !ok || strings.TrimSpace(e.ParentUUID) == "" {
 				return nil
 			}
-			it := mk(0, "system", "turn_duration")
+			it := mk(0, "system", proto.KindTurnDuration)
 			it.TurnDuration = &proto.TurnDuration{DurationMS: ms, Source: "claude_turn_duration", ParentUUID: e.ParentUUID}
 			return []proto.Item{it}
 		case "compact_boundary":

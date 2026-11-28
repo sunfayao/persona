@@ -9,7 +9,7 @@ import (
 
 // turnDurationItem is the item the transcript reader makes of Claude Code's system/turn_duration line: the turn it closes ended.
 func turnDurationItem() proto.Item {
-	return proto.Item{Role: "system", Kind: "turn_duration",
+	return proto.Item{Role: "system", Kind: proto.KindTurnDuration,
 		TurnDuration: &proto.TurnDuration{DurationMS: 4100, Source: "claude_turn_duration", ParentUUID: "p1"}}
 }
 

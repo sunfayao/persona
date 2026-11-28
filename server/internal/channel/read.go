@@ -215,7 +215,7 @@ func retrying(items []proto.Item) bool {
 // hasTurnDuration: items has a whole-turn duration recorded (a turn that finished, words or not).
 func hasTurnDuration(items []proto.Item) bool {
 	return slices.ContainsFunc(items, func(it proto.Item) bool {
-		return it.TurnDuration != nil || it.Kind == "turn_duration"
+		return it.TurnDuration != nil || it.Kind == proto.KindTurnDuration
 	})
 }
 

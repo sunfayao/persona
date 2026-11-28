@@ -477,7 +477,7 @@ func (h *fakeHub) add(sid string, items ...proto.Item) {
 
 // end ends a turn: its turn_duration line, and the conversation idle.
 func (h *fakeHub) end(sid string) {
-	h.add(sid, proto.Item{Role: "system", Kind: "turn_duration", TurnDuration: &proto.TurnDuration{DurationMS: 50, Source: "claude_turn_duration"}})
+	h.add(sid, proto.Item{Role: "system", Kind: proto.KindTurnDuration, TurnDuration: &proto.TurnDuration{DurationMS: 50, Source: "claude_turn_duration"}})
 	h.status(sid, "idle")
 }
 

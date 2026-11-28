@@ -368,7 +368,7 @@ func parseCodexLine(seq int, line []byte, meta *Meta) []proto.Item {
 		if !ok || strings.TrimSpace(p.TurnID) == "" || (meta.codexTurnID != "" && meta.codexTurnID != p.TurnID) {
 			return nil
 		}
-		it := mk(0, "", "system", "turn_duration")
+		it := mk(0, "", "system", proto.KindTurnDuration)
 		it.TurnDuration = &proto.TurnDuration{DurationMS: ms, Source: "codex_task_complete", TurnID: p.TurnID, UserItemID: meta.codexUserID}
 		it.Usage = usage // the turn's requests, summed (item_usage.go)
 		return []proto.Item{it}
