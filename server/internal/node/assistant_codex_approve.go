@@ -2,8 +2,6 @@ package node
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -13,6 +11,7 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/compat"
 	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex/appserver"
 	"github.com/sunfayao/persona/server/internal/nodeclient"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -40,48 +39,18 @@ func (c *codexConn) serve(m codexMessage) {
 	c.reply(m.ID, result)
 }
 
-// codexRequest is the union of the request params the node reads.
-type codexRequest struct {
-	ThreadID   string `json:"threadId"`
-	TurnID     string `json:"turnId"`
-	ItemID     string `json:"itemId"`
-	ApprovalID string `json:"approvalId"`
-	Kind       string `json:"kind"`
-	Reason     string `json:"reason"`
-	Command    string `json:"command"`
-	Cwd        string `json:"cwd"`
-	GrantRoot  string `json:"grantRoot"`
-	ServerName string `json:"serverName"`
-	Message    string `json:"message"`
-	Mode       string `json:"mode"`
-	Meta       struct {
-		Kind       string         `json:"codex_approval_kind"`
-		ToolParams map[string]any `json:"tool_params"`
-	} `json:"_meta"`
-	Questions []struct {
-		ID       string `json:"id"`
-		Header   string `json:"header"`
-		Question string `json:"question"`
-		Options  []struct {
-			Label       string `json:"label"`
-			Description string `json:"description"`
-		} `json:"options"`
-	} `json:"questions"`
-	Permissions json.RawMessage `json:"permissions"`
-}
-
 // decide works out the answer to one app-server request.
 func (c *codexConn) decide(ctx context.Context, method string, raw json.RawMessage) (any, error) {
 	n, p := c.p.ownerOr(c.n), c.p
 	ctx = context.WithValue(ctx, codexApprovalOwner{}, c)
-	var r codexRequest
+	var r appserver.Request
 	_ = json.Unmarshal(raw, &r)
 	mode, _ := n.modesOf(p.id)
 	cwd := firstNonEmpty(r.Cwd, p.cwd) // where the request runs: what the gate and the memory checks go by
 	// The card is the conversation's: placed in its directory, where it started, not a subfolder the request runs in
 	// (identity.CardCwd, #2368).
 	ix := proto.Interaction{
-		ID: codexInteractionID(p.id, method, r.ItemID, r.ApprovalID, r.ServerName), SessionID: p.id, Cwd: identity.CardCwd(p.cwd, cwd),
+		ID: appserver.ApprovalID(p.id, method, r.ItemID, r.ApprovalID, r.ServerName), SessionID: p.id, Cwd: identity.CardCwd(p.cwd, cwd),
 		CreatedAt: time.Now().UTC(), ExpiresAt: time.Now().Add(nodeclient.HookTimeout).UTC(), ToolUseID: r.ItemID,
 		SessionTitle: n.assistantTitle(p.id, firstNonEmpty(p.cwd, r.Cwd)),
 	}
@@ -264,12 +233,6 @@ func unwrapShell(cmd string) string {
 		}
 	}
 	return cmd
-}
-
-// codexInteractionID is stable for one request (a retried request finds its card again).
-func codexInteractionID(session, method, item, approval, server string) string {
-	sum := sha256.Sum256([]byte(session + "\x00" + method + "\x00" + item + "\x00" + approval + "\x00" + server))
-	return "ix_" + hex.EncodeToString(sum[:])[:16]
 }
 
 func (n *Node) assistantTitle(id, cwd string) string {

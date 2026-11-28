@@ -14,7 +14,7 @@ import (
 
 // Shared-server observers never auto-answer, including errors, declines, timeouts and unsupported requests.
 func (c *codexRemote) request(m codexMessage) {
-	var r codexRequest
+	var r appserver.Request
 	if json.Unmarshal(m.Params, &r) != nil {
 		return
 	}
@@ -33,7 +33,7 @@ func (c *codexRemote) request(m codexMessage) {
 	c.n.mu.Lock()
 	machineID := c.n.machineID
 	c.n.mu.Unlock()
-	ix := proto.Interaction{ID: remoteInteractionID(machineID, c.spec.ID, c.generation, r.ThreadID, m.ID), SessionID: t.publicID, Cwd: firstNonEmpty(r.Cwd, t.cwd), SessionTitle: t.title, CreatedAt: time.Now().UTC(), ExpiresAt: time.Now().Add(nodeclient.HookTimeout).UTC(), ToolUseID: r.ItemID,
+	ix := proto.Interaction{ID: appserver.ObservedRequestID(machineID, c.spec.ID, c.generation, r.ThreadID, m.ID), SessionID: t.publicID, Cwd: firstNonEmpty(r.Cwd, t.cwd), SessionTitle: t.title, CreatedAt: time.Now().UTC(), ExpiresAt: time.Now().Add(nodeclient.HookTimeout).UTC(), ToolUseID: r.ItemID,
 		Agent: "codex", Reason: strings.TrimSpace(r.Reason)}
 	if c.n.sessionBlocked(ix.SessionID, ix.Cwd) {
 		return // a blocked Agent folder (agentdirs.go): no card; an observer never answers, Codex's own client decides

@@ -3,8 +3,6 @@ package node
 import (
 	"cmp"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"slices"
@@ -16,7 +14,6 @@ import (
 	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 	"github.com/sunfayao/persona/server/internal/node/harness/codex/appserver"
 	"github.com/sunfayao/persona/server/internal/proto"
-	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 var errCodexNoOwner = errors.New("没有可共享的 app-server 运行入口")
@@ -845,27 +842,11 @@ func (c *codexRemote) message(m codexMessage) {
 	if !ready {
 		return
 	}
-	var ev struct {
-		ThreadID  string          `json:"threadId"`
-		TurnID    string          `json:"turnId"`
-		Delta     string          `json:"delta"`
-		RequestID json.RawMessage `json:"requestId"`
-		Turn      struct {
-			ID     string          `json:"id"`
-			Status string          `json:"status"`
-			Error  json.RawMessage `json:"error"`
-		} `json:"turn"`
-		Item     remoteEventItem `json:"item"`
-		Settings struct {
-			Model       string          `json:"model"`
-			Effort      string          `json:"effort"`
-			ServiceTier json.RawMessage `json:"serviceTier"`
-		} `json:"threadSettings"`
-	}
-	if json.Unmarshal(m.Params, &ev) != nil {
+	ev, ok := appserver.DecodeEvent(m.Method, m.Params)
+	if !ok {
 		return
 	}
-	if m.Method == "serverRequest/resolved" {
+	if ev.Kind == appserver.RequestResolved {
 		c.mu.Lock()
 		c.finished[appserver.RequestKey(ev.RequestID)] = true
 		a := c.asks[appserver.RequestKey(ev.RequestID)]
@@ -890,44 +871,35 @@ func (c *codexRemote) message(m codexMessage) {
 	delta := ""
 	emit := false
 	refresh := false
-	switch m.Method {
-	case "thread/reverted":
+	switch ev.Kind {
+	case appserver.ThreadReverted:
 		invalidateCodexPaginated(c.spec.Home)
 		t.partial, t.failure, t.failureKind = "", "", ""
 		t.buffer = nil
 		emit, refresh = true, true
-	case "turn/started":
+	case appserver.TurnStarted:
 		t.turn = ev.Turn.ID
 		t.status = proto.StatusWorking
 		t.failure, t.failureKind = "", ""
 		t.partial = ""
 		t.buffer = nil
 		emit = true
-	case "turn/completed":
+	case appserver.TurnCompleted:
 		// A turn that began before Persona joined (a resume started with its message, #5598) never had its
 		// turn/started here: with no turn known, this is its end, or its live text would stay on the hub.
 		if t.turn == ev.Turn.ID || (t.turn == "" && ev.Turn.ID != t.ended) {
 			t.turn = ""
 			t.ended = ev.Turn.ID
 			t.status = proto.StatusDone
-			t.failure, t.failureKind = "", ""
-			if ev.Turn.Status == "failed" { // interrupted is the user's Esc, no failure
-				if t.failure, t.failureKind = transcript.CodexTurnError(ev.Turn.Error); t.failure == "" {
-					t.failure = transcript.CodexTurnFailed // failed with no error to say why
-				}
-			}
+			t.failure, t.failureKind = ev.Failure, ev.FailureKind
 			t.partial = ""
 			t.buffer = nil
 			emit = true
 			refresh = true
 		}
-	case "item/started":
+	case appserver.ItemStarted:
 		if ev.Item.Type == "fileChange" {
-			var paths []string
-			for _, ch := range ev.Item.Changes {
-				paths = append(paths, ch.Path)
-			}
-			t.files[ev.Item.ID] = paths
+			t.files[ev.Item.ID] = ev.Item.Paths()
 		}
 		if ev.Item.Type == "agentMessage" {
 			t.partial = ""
@@ -935,7 +907,7 @@ func (c *codexRemote) message(m codexMessage) {
 			emit = true
 			refresh = true
 		}
-	case "item/agentMessage/delta":
+	case appserver.AgentMessageDelta:
 		if t.buffer == nil {
 			t.buffer = &strings.Builder{}
 		}
@@ -946,13 +918,13 @@ func (c *codexRemote) message(m codexMessage) {
 		if emit {
 			t.lastDelta = time.Now()
 		}
-	case "thread/settings/updated": // the thread's settings changed: on the computer, or from here (codex_effort.go)
+	case appserver.ThreadSettings: // the thread's settings changed: on the computer, or from here (codex_effort.go)
 		t.model, t.effort = firstNonEmpty(ev.Settings.Model, t.model), ev.Settings.Effort
 		if tier := codex.ServiceTier(ev.Settings.ServiceTier); tier != "" {
 			t.serviceTier = tier
 			t.serviceTierRevision++
 		}
-	case "item/completed":
+	case appserver.ItemCompleted:
 		delete(t.files, ev.Item.ID)
 		refresh = true
 		if ev.Item.Type == "agentMessage" {
@@ -973,7 +945,7 @@ func (c *codexRemote) message(m codexMessage) {
 	}
 	if refresh {
 		go func() {
-			if m.Method == "thread/reverted" {
+			if ev.Kind == appserver.ThreadReverted {
 				_ = c.refresh()
 			}
 			if f, err := c.n.file(t.publicID); err == nil {
@@ -984,12 +956,7 @@ func (c *codexRemote) message(m codexMessage) {
 	if emit {
 		c.n.emitDelta(t.publicID, delta)
 	}
-	if m.Method == "turn/started" || m.Method == "turn/completed" || m.Method == "thread/settings/updated" || m.Method == "thread/reverted" {
+	if ev.Kind == appserver.TurnStarted || ev.Kind == appserver.TurnCompleted || ev.Kind == appserver.ThreadSettings || ev.Kind == appserver.ThreadReverted {
 		c.n.notifyCodex()
 	}
-}
-
-func remoteInteractionID(machine, instance, generation, thread string, id json.RawMessage) string {
-	h := sha256.Sum256([]byte(machine + "\x00" + instance + "\x00" + generation + "\x00" + thread + "\x00" + appserver.RequestKey(id)))
-	return "codex-" + hex.EncodeToString(h[:])
 }

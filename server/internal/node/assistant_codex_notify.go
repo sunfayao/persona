@@ -8,7 +8,6 @@ import (
 	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 	"github.com/sunfayao/persona/server/internal/node/harness/codex/appserver"
 	"github.com/sunfayao/persona/server/internal/proto"
-	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // codexLineMax is the longest app-server line read; a var so tests can lower it.
@@ -16,41 +15,8 @@ var codexLineMax = 64 * 1024 * 1024
 
 func (c *codexConn) notification(method string, params json.RawMessage) {
 	n, p := c.p.ownerOr(c.n), c.p
-	var ev struct {
-		ThreadID string `json:"threadId"`
-		Settings struct {
-			Model       string          `json:"model"`
-			ServiceTier json.RawMessage `json:"serviceTier"`
-		} `json:"threadSettings"`
-		TurnID string `json:"turnId"`
-		Delta  string `json:"delta"`
-		Turn   struct {
-			ID     string          `json:"id"`
-			Status string          `json:"status"`
-			Error  json.RawMessage `json:"error"`
-		} `json:"turn"`
-		Item struct {
-			Type    string `json:"type"`
-			ID      string `json:"id"`
-			Text    string `json:"text"`
-			Changes []struct {
-				Path string `json:"path"`
-			} `json:"changes"`
-		} `json:"item"`
-		Error struct {
-			Message string `json:"message"`
-		} `json:"error"`
-		WillRetry bool            `json:"willRetry"`
-		RequestID json.RawMessage `json:"requestId"`
-		// TokenUsage: thread/tokenUsage/updated, a request's usage and the model's window (#10278).
-		TokenUsage struct {
-			Last struct {
-				InputTokens int64 `json:"inputTokens"`
-			} `json:"last"`
-			ModelContextWindow int64 `json:"modelContextWindow"`
-		} `json:"tokenUsage"`
-	}
-	if json.Unmarshal(params, &ev) != nil {
+	ev, ok := appserver.DecodeEvent(method, params)
+	if !ok {
 		return
 	}
 	c.mu.Lock()
@@ -59,14 +25,13 @@ func (c *codexConn) notification(method string, params json.RawMessage) {
 	if ev.ThreadID != "" && thread != "" && ev.ThreadID != thread {
 		return // a subagent's thread: its items are in the main rollout's events anyway
 	}
-
-	if n.lifecycle != nil && (method == "turn/started" || method == "turn/completed") {
+	if n.lifecycle != nil && (ev.Kind == appserver.TurnStarted || ev.Kind == appserver.TurnCompleted) {
 		if err := n.lifecycle.CodexTurn(p.id, ev.Turn.ID, method, ev.Turn.Status); err != nil {
 			n.logger.Printf("lifecycle Codex turn: %v", err)
 		}
 	}
-	switch method {
-	case "thread/settings/updated":
+	switch ev.Kind {
+	case appserver.ThreadSettings:
 		c.mu.Lock()
 		c.speedModel = firstNonEmpty(ev.Settings.Model, c.speedModel)
 		if tier := codex.ServiceTier(ev.Settings.ServiceTier); tier != "" {
@@ -75,7 +40,7 @@ func (c *codexConn) notification(method string, params json.RawMessage) {
 		}
 		c.mu.Unlock()
 		n.notifyCodex()
-	case "turn/started":
+	case appserver.TurnStarted:
 		n.ttft.armIfUnarmed(p.id, time.Now(), ev.Turn.ID)
 		c.mu.Lock()
 		c.turnID = ev.Turn.ID
@@ -96,14 +61,10 @@ func (c *codexConn) notification(method string, params json.RawMessage) {
 		if had {
 			n.emitDelta(p.id, "")
 		}
-	case "item/started":
+	case appserver.ItemStarted:
 		if ev.Item.Type == "fileChange" {
-			var paths []string
-			for _, ch := range ev.Item.Changes {
-				paths = append(paths, ch.Path)
-			}
 			c.mu.Lock()
-			c.files[ev.Item.ID] = paths
+			c.files[ev.Item.ID] = ev.Item.Paths()
 			c.mu.Unlock()
 		}
 		if ev.Item.Type != "agentMessage" {
@@ -118,7 +79,7 @@ func (c *codexConn) notification(method string, params json.RawMessage) {
 		if had {
 			n.emitDelta(p.id, "")
 		}
-	case "item/agentMessage/delta":
+	case appserver.AgentMessageDelta:
 		if ev.Delta != "" {
 			n.ttft.firstToken(p.id, time.Now(), ev.TurnID)
 		}
@@ -130,15 +91,15 @@ func (c *codexConn) notification(method string, params json.RawMessage) {
 		if text != "" {
 			n.emitDelta(p.id, text)
 		}
-	case "item/reasoning/textDelta", "item/reasoning/summaryTextDelta":
+	case appserver.ReasoningDelta:
 		if ev.Delta != "" {
 			n.ttft.firstToken(p.id, time.Now(), ev.TurnID)
 		}
-	case "thread/tokenUsage/updated":
+	case appserver.TokenUsageUpdated:
 		c.noteRequest(ev.TokenUsage.Last.InputTokens, ev.TokenUsage.ModelContextWindow, c.turnModel())
-	case "thread/compacted":
+	case appserver.ThreadCompacted:
 		c.compacted()
-	case "item/completed":
+	case appserver.ItemCompleted:
 		c.mu.Lock()
 		delete(c.files, ev.Item.ID)
 		c.mu.Unlock()
@@ -151,23 +112,14 @@ func (c *codexConn) notification(method string, params json.RawMessage) {
 		if f, err := n.file(p.id); err == nil {
 			n.refresh(p.id, f)
 		}
-	case "turn/completed":
+	case appserver.TurnCompleted:
 		n.ttft.clearPending(p.id)
 		c.mu.Lock()
 		if c.turnID == ev.Turn.ID {
 			c.turnID = ""
 		}
 		c.mu.Unlock()
-		var failure, failureKind string
-		modelServiceFailure := false
-		if ev.Turn.Status != "interrupted" {
-			if len(ev.Turn.Error) > 0 && string(ev.Turn.Error) != "null" {
-				failure, failureKind, modelServiceFailure = transcript.CodexTurnErrorRecovery(ev.Turn.Error)
-			}
-			if failure == "" && (ev.Turn.Status == "failed" || (ev.Turn.Status != "completed" && ev.Turn.Status != "")) {
-				failure = transcript.CodexTurnFailed
-			}
-		}
+		failure, failureKind, modelServiceFailure := ev.Failure, ev.FailureKind, ev.ModelServiceFailure
 		if stop, model := c.endTurnLoop(); stop != "" {
 			// The loop's interrupt (assistant_codex_compaction_loop.go): the user's to act on, never a "Continue".
 			if failure == "" {
@@ -211,11 +163,19 @@ func (c *codexConn) notification(method string, params json.RawMessage) {
 			n.notifySessions()
 		}
 		go c.syncTasks()
-	case "error":
-		if !ev.WillRetry {
-			n.logger.Printf("assistant codex %s: %s", short(p.id), ev.Error.Message)
+	case appserver.ThreadReverted:
+		p.mu.Lock()
+		p.partial.Reset()
+		p.turnError, p.turnErrorKind = "", ""
+		p.mu.Unlock()
+		if f, err := n.file(p.id); err == nil {
+			n.refresh(p.id, f)
 		}
-	case "serverRequest/resolved":
+		n.emitDelta(p.id, "")
+		n.notifyCodex()
+	case appserver.UnretriedError:
+		n.logger.Printf("assistant codex %s: %s", short(p.id), ev.Error.Message)
+	case appserver.RequestResolved:
 		// Answered some other way (the turn was interrupted): drop the phone's question.
 		c.mu.Lock()
 		cancel := c.asks[string(ev.RequestID)]

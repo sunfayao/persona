@@ -523,8 +523,8 @@ func TestCodexRemoteApprovalsOnlyExplicitAndResolvedNoReply(t *testing.T) {
 }
 
 func TestCodexRemoteRequestIDsAndRestartGeneration(t *testing.T) {
-	a := remoteInteractionID("machine", "one", "generation1", remoteRaw, json.RawMessage(`7`))
-	for _, b := range []string{remoteInteractionID("machine", "two", "generation1", remoteRaw, json.RawMessage(`7`)), remoteInteractionID("machine", "one", "generation2", remoteRaw, json.RawMessage(`7`)), remoteInteractionID("machine", "one", "generation1", remoteRaw, json.RawMessage(`"7"`))} {
+	a := appserver.ObservedRequestID("machine", "one", "generation1", remoteRaw, json.RawMessage(`7`))
+	for _, b := range []string{appserver.ObservedRequestID("machine", "two", "generation1", remoteRaw, json.RawMessage(`7`)), appserver.ObservedRequestID("machine", "one", "generation2", remoteRaw, json.RawMessage(`7`)), appserver.ObservedRequestID("machine", "one", "generation1", remoteRaw, json.RawMessage(`"7"`))} {
 		if a == b {
 			t.Fatal("request identities collide")
 		}
