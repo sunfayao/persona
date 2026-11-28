@@ -294,9 +294,9 @@ func TestPaginatedOpeningPromptIsOnlyAListTitle(t *testing.T) {
 	if err != nil || !strings.Contains(historyText(items), "user:text:"+want) {
 		t.Fatalf("opening prompt missing from history: %v", err)
 	}
-	raw, err := os.ReadFile(f.Where())
-	if err != nil || !strings.Contains(string(raw), prompt) {
-		t.Fatalf("full opening prompt missing from materialized history: %v", err)
+	full, err := f.Full("u1#0")
+	if err != nil || full.Text != prompt {
+		t.Fatalf("full opening prompt has %d bytes, want %d, error %v", len(full.Text), len(prompt), err)
 	}
 }
 
