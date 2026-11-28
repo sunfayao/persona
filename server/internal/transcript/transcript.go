@@ -29,7 +29,8 @@ const (
 	maxImageLen   = 1536 * 1024
 )
 
-type entry struct {
+// ClaudeLine is the typed source record for the shared transcript projection.
+type ClaudeLine struct {
 	Type             string          `json:"type"`
 	Subtype          string          `json:"subtype"`
 	UUID             string          `json:"uuid"`
@@ -81,6 +82,7 @@ type entry struct {
 	// outcome.go), never the output. toolDenialKind says why a call did not run (user-rejected, permission-rule…).
 	ToolUseResult  claudeToolResult `json:"toolUseResult"`
 	ToolDenialKind denialKind       `json:"toolDenialKind"`
+	TaskEvidence   ToolTaskEvidence `json:"-"`
 
 	// system/api_error: {message, formatted}, and which retry this is. An assistant line Claude Code wrote itself for a
 	// request that failed (isApiErrorMessage) carries the error's kind here as a string (rate_limit,
@@ -98,6 +100,23 @@ type entry struct {
 	Prompt string `json:"prompt"`
 	// ContextBreakdown is an optional native context category split when an engine writes one into the transcript.
 	ContextBreakdown *proto.ContextBreakdown `json:"context_breakdown"`
+}
+
+type entry = ClaudeLine
+
+// ClaudeLineReader decodes a line selected by the file reader.
+type ClaudeLineReader interface {
+	DecodeLine([]byte, *ClaudeLine) error
+}
+
+// ToolTaskEvidence is the state supplied by the tool's structured completion.
+type ToolTaskEvidence struct {
+	ShellID       string
+	ShellTimedOut bool
+	MonitorID     string
+	AgentID       string
+	ResumedAgent  string
+	AgentAsync    bool
 }
 
 type block struct {
@@ -119,6 +138,7 @@ type block struct {
 
 // Meta is session-level information collected while parsing.
 type Meta struct {
+	ClaudeReader ClaudeLineReader
 	// Developer info for the chat header (all from fields Claude Code writes on each line).
 	GitBranch string
 	Version   string
@@ -597,9 +617,24 @@ var lineJSON = jsonv2.JoinOptions(json.DefaultOptionsV1(), json.ReportErrorsWith
 // unmarshalLine is json.Unmarshal reading data once (lineJSON); err only says whether it failed.
 func unmarshalLine(data []byte, v any) error { return jsonv2.Unmarshal(data, v, lineJSON) }
 
+// DecodeClaudeLine reads the native record without copying nested tool output.
+func DecodeClaudeLine(data []byte, out *ClaudeLine) error {
+	if err := unmarshalLine(data, out); err != nil {
+		return err
+	}
+	result := out.ToolUseResult
+	out.TaskEvidence.AgentID = result.AgentID
+	out.TaskEvidence.AgentAsync = result.AgentAsync || result.AgentStatus == "async_launched"
+	return nil
+}
+
 func parseLine(seq int, line []byte, meta *Meta) []proto.Item {
 	var e entry
-	if err := unmarshalLine(line, &e); err != nil {
+	decode := DecodeClaudeLine
+	if meta.ClaudeReader != nil {
+		decode = meta.ClaudeReader.DecodeLine
+	}
+	if err := decode(line, &e); err != nil {
 		return nil
 	}
 	meta.tree = treeLine{uuid: e.UUID, parent: e.ParentUUID, sidechain: e.IsSidechain, assistant: e.Type == "assistant",
@@ -907,8 +942,10 @@ func parseLine(seq int, line []byte, meta *Meta) []proto.Item {
 		var out []proto.Item
 		// The line's record of a call (toolUseResult, toolDenialKind) is its result's when it holds only one.
 		record, denial := &noToolResult, ""
+		var taskEvidence ToolTaskEvidence
 		if oneToolResult(blocks) {
 			record, denial = &e.ToolUseResult, string(e.ToolDenialKind)
+			taskEvidence = e.TaskEvidence
 		}
 		for i, b := range blocks {
 			switch b.Type {
@@ -948,13 +985,13 @@ func parseLine(seq int, line []byte, meta *Meta) []proto.Item {
 				}
 				text, imgs := toolResultContent(b.Content)
 				meta.ContextStats.ToolOutputBytes += estimateWeightedBytes(text) + int64(len(imgs))*imageTokenBytesEstimate
-				meta.backgroundStarted(b.ToolUseID, text, b.IsError, e.Timestamp)
+				meta.backgroundStarted(b.ToolUseID, text, b.IsError, e.Timestamp, taskEvidence)
 				it := mk(i, "user", proto.KindToolResult)
 				it.ToolUseID = b.ToolUseID
 				it.IsError = b.IsError
 				it.Text = clip(text)
 				it.Outcome = claudeOutcome(text, b.IsError, record, denial)
-				it.Task = meta.agentResult(it.ToolUseID, it.Text, it.IsError, line)
+				it.Task = meta.agentResult(it.ToolUseID, it.Text, it.IsError, taskEvidence)
 				out = append(out, it)
 				for j, img := range imgs {
 					im := mk(i*100+j+1, "user", proto.KindImage)

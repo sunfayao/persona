@@ -33,20 +33,17 @@ func (m *Meta) rememberAgentCall(call, title string) {
 	m.agentCalls[call] = agentCall{Title: strings.Clone(oneLine(title, noteTitleLen)), Status: "running"}
 }
 
-func (m *Meta) agentResult(toolUseID, text string, isError bool, line []byte) *proto.TaskNote {
+func (m *Meta) agentResult(toolUseID, text string, isError bool, result ToolTaskEvidence) *proto.TaskNote {
 	call, ok := m.agentCalls[toolUseID]
-	if !ok {
+	resumed := result.ResumedAgent != ""
+	if !ok && !resumed {
 		return nil
 	}
-	var e struct {
-		ToolUseResult struct {
-			AgentID string `json:"agentId"`
-			IsAsync bool   `json:"isAsync"`
-			Status  string `json:"status"`
-		} `json:"toolUseResult"`
+	agent, async := result.AgentID, result.AgentAsync
+	if resumed {
+		agent, async = result.ResumedAgent, true
+		call = m.agentCalls[m.taskCalls[agent]]
 	}
-	_ = unmarshalLine(line, &e)
-	agent, async := e.ToolUseResult.AgentID, e.ToolUseResult.IsAsync || e.ToolUseResult.Status == "async_launched"
 	if agent == "" {
 		if match := bgIDRe.FindStringSubmatch(text); match != nil {
 			agent = match[1]
@@ -56,7 +53,9 @@ func (m *Meta) agentResult(toolUseID, text string, isError bool, line []byte) *p
 		if m.taskCalls == nil {
 			m.taskCalls = map[string]string{}
 		}
-		m.taskCalls[strings.Clone(agent)] = toolUseID
+		if !resumed || m.taskCalls[agent] == "" {
+			m.taskCalls[strings.Clone(agent)] = toolUseID
+		}
 	}
 	status := "completed"
 	if isError {
@@ -65,6 +64,9 @@ func (m *Meta) agentResult(toolUseID, text string, isError bool, line []byte) *p
 		status = "running"
 	}
 	call.Status = status
+	if m.agentCalls == nil {
+		m.agentCalls = map[string]agentCall{}
+	}
 	m.agentCalls[toolUseID] = call
 	return &proto.TaskNote{Kind: "agent", TaskID: strings.Clone(agent), ToolUseID: toolUseID, Title: call.Title, Status: status}
 }

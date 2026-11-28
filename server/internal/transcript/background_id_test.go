@@ -40,7 +40,7 @@ func TestMovedToBackgroundOnlyAtALineStart(t *testing.T) {
 			t.Errorf("%s: launched %q, want %q", c.name, got, c.want)
 		}
 		meta := &Meta{}
-		meta.backgroundStarted("tu1", c.result, false, time.Unix(0, 0))
+		meta.backgroundStarted("tu1", c.result, false, time.Unix(0, 0), ToolTaskEvidence{})
 		want := 0
 		if c.want != "" {
 			want = 1

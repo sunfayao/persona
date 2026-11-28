@@ -163,10 +163,15 @@ var injectedBlockRes = []*lazyre.Regexp{
 	lazyre.New(`(?s)<` + compat.ContextPattern() + `\b[^>]*>.*?</` + compat.ContextPattern() + `>`),
 	lazyre.New(`(?s)<persona-view-errors\b[^>]*>.*?</persona-view-errors>`),
 	lazyre.New(`(?s)<system-reminder\b[^>]*>.*?</system-reminder>`),
+	artifactViewContextRe,
+	forkBoilerplateRe,
 }
 
+var artifactViewContextRe = lazyre.New(`(?s)<artifact-view-context\b[^>]*>.*?</artifact-view-context>`)
+var forkBoilerplateRe = lazyre.New(`(?s)<fork-boilerplate\b[^>]*>.*?</fork-boilerplate>`)
+
 // injectedOpenRe is one of those blocks left open: a message clipped inside it (Meta.FirstUser is) ends there.
-var injectedOpenRe = lazyre.New(`<(?:` + compat.ContextPattern() + `|persona-view-errors|system-reminder)\b`)
+var injectedOpenRe = lazyre.New(`<(?:` + compat.ContextPattern() + `|persona-view-errors|system-reminder|artifact-view-context|fork-boilerplate)\b`)
 
 // StripInjected is what the user wrote in a message, for a line that shows it (a title, a notification): without the
 // injected blocks, a block cut off by a clip, and the paste wrappers (what was pasted stays). "" when nothing is left.
@@ -185,7 +190,7 @@ func StripInjected(s string) string {
 }
 
 // injectedNames are the injected blocks' tag names, for an opening tag a clip cut inside its name.
-var injectedNames = append(compat.ContextNames(), "persona-view-errors", "system-reminder")
+var injectedNames = append(compat.ContextNames(), "persona-view-errors", "system-reminder", "artifact-view-context", "fork-boilerplate")
 
 // cutPartialTag drops an opening tag clipped before its name ended ("…<persona-con…"), which injectedOpenRe cannot
 // tell from text: what follows the last "<" is a start of one of the names, behind which a clip's "…" ends the text

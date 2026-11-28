@@ -688,19 +688,19 @@ func TestBackgroundTaskOutcomeRetention(t *testing.T) {
 
 	// Reusing an id clears its old outcome instead of showing it for the new run.
 	meta.pend("tu2", proto.BackgroundTask{Kind: "shell", Command: "make test again", StartedAt: end.Add(time.Second)})
-	meta.backgroundStarted("tu2", "Command running in background with ID: shell. Output is being written to: /tmp/new.out", false, end.Add(time.Second))
+	meta.backgroundStarted("tu2", "Command running in background with ID: shell. Output is being written to: /tmp/new.out", false, end.Add(time.Second), ToolTaskEvidence{})
 	if len(meta.BackgroundEnded) != 0 || len(meta.Background) != 1 || meta.Background[0].Command != "make test again" {
 		t.Fatalf("id reuse: running %+v ended %+v", meta.Background, meta.BackgroundEnded)
 	}
 
 	// A denied stop leaves the command running. Only a successful result records the stop.
 	meta.trackBackground("stop", "TaskStop", json.RawMessage(`{"task_id":"shell"}`), end.Add(2*time.Second))
-	meta.backgroundStarted("stop", "Permission denied", true, end.Add(2*time.Second))
+	meta.backgroundStarted("stop", "Permission denied", true, end.Add(2*time.Second), ToolTaskEvidence{})
 	if len(meta.Background) != 1 || len(meta.BackgroundEnded) != 0 {
 		t.Fatalf("denied stop: running %+v ended %+v", meta.Background, meta.BackgroundEnded)
 	}
 	meta.trackBackground("stop2", "TaskStop", json.RawMessage(`{"task_id":"shell"}`), end.Add(3*time.Second))
-	meta.backgroundStarted("stop2", "Stopped background task shell", false, end.Add(3*time.Second))
+	meta.backgroundStarted("stop2", "Stopped background task shell", false, end.Add(3*time.Second), ToolTaskEvidence{})
 	if len(meta.Background) != 0 || len(meta.BackgroundEnded) != 1 {
 		t.Fatalf("stop: running %+v ended %+v", meta.Background, meta.BackgroundEnded)
 	}

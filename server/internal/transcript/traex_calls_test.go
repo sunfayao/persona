@@ -79,7 +79,7 @@ func TestTraexRolloutJoinsCallsAcrossRefreshes(t *testing.T) {
 	if err := os.WriteFile(path, []byte(call), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	f := transcript.NewFileWithRolloutTools(path, traex.RolloutTools{})
+	f := transcript.NewParsedFile(path, transcript.Sources{RolloutTools: traex.RolloutTools{}})
 	if items, err := f.Refresh(); err != nil || len(items) != 0 {
 		t.Fatalf("call refresh = %+v, %v", items, err)
 	}

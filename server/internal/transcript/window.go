@@ -786,7 +786,7 @@ func (f *File) fullMeta() Meta {
 		return m
 	}
 	end, lines, gen, path := f.offset-int64(len(f.partial)), f.lines, f.gen, f.Path
-	m := Meta{Sidechain: f.meta.Sidechain, RolloutTools: f.rolloutTools}
+	m := Meta{Sidechain: f.meta.Sidechain, ClaudeReader: f.sources.Claude, RolloutTools: f.sources.RolloutTools}
 	f.mu.Unlock()
 	if parseRange(path, 0, end, 1, &m) != nil {
 		f.mu.Lock()

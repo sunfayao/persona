@@ -38,6 +38,11 @@ type claudeToolResult struct {
 	Interrupted              bool     `json:"interrupted"`
 	TimedOutAfterMs          *float64 `json:"timedOutAfterMs"`
 	BackgroundTaskID         string   `json:"backgroundTaskId"`
+	TaskID                   string   `json:"taskId"`
+	AgentID                  string   `json:"agentId"`
+	ResumedAgentID           string   `json:"resumedAgentId"`
+	AgentStatus              string   `json:"status"`
+	AgentAsync               bool     `json:"isAsync"`
 	ReturnCodeInterpretation string   `json:"returnCodeInterpretation"` // "No matches found", "Files differ"…
 	PersistedOutputPath      string   `json:"persistedOutputPath"`
 	PersistedOutputSize      int64    `json:"persistedOutputSize"`

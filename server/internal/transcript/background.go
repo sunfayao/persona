@@ -162,7 +162,9 @@ func (m *Meta) noteBackgroundPending() {
 	}
 }
 
-func (m *Meta) backgroundStarted(toolUseID, result string, isError bool, ts time.Time) {
+const backgroundTimeoutDescription = "超时转到后台的命令"
+
+func (m *Meta) backgroundStarted(toolUseID, result string, isError bool, ts time.Time, record ToolTaskEvidence) {
 	if l, ok := m.loopPending[toolUseID]; ok {
 		delete(m.loopPending, toolUseID)
 		if !isError {
@@ -180,7 +182,7 @@ func (m *Meta) backgroundStarted(toolUseID, result string, isError bool, ts time
 		}
 		return
 	}
-	if mm := manualBackground(result); mm != nil && !isError {
+	if mm := manualBackground(result); record.ShellID == "" && mm != nil && !isError {
 		// Its call is known when every line is read; the node's scan for background work reads only the lines that
 		// name it (node/bgscan.go), so there it is the id alone.
 		f := m.fgBash[toolUseID]
@@ -193,8 +195,17 @@ func (m *Meta) backgroundStarted(toolUseID, result string, isError bool, ts time
 		m.Background = append(m.Background, f)
 		return
 	}
-	delete(m.fgBash, toolUseID)
 	t, ok := m.bgPending[toolUseID]
+	if !ok && record.ShellID != "" {
+		t, ok = m.fgBash[toolUseID]
+		if !ok {
+			t, ok = proto.BackgroundTask{Kind: "shell"}, true
+			if record.ShellTimedOut {
+				t.Description = backgroundTimeoutDescription
+			}
+		}
+	}
+	delete(m.fgBash, toolUseID)
 	if !ok && !isError && workflowLaunch(result) {
 		// A workflow's launch whose call was not read: the node's background scan skips lines over 64 KiB
 		// (node/bgscan.go), and a call with its script inline is as long as the script (#6003). The result names the
@@ -204,7 +215,7 @@ func (m *Meta) backgroundStarted(toolUseID, result string, isError bool, ts time
 	if !ok {
 		if mv := bgMovedRe.FindStringSubmatch(result); mv != nil && !isError {
 			m.removeBackground(mv[1])
-			m.Background = append(m.Background, proto.BackgroundTask{ID: mv[1], Kind: "shell", Description: "超时转到后台的命令",
+			m.Background = append(m.Background, proto.BackgroundTask{ID: mv[1], Kind: "shell", Description: backgroundTimeoutDescription,
 				OutputFile: outputFile(result), StartedAt: ts})
 		}
 		return
@@ -218,11 +229,27 @@ func (m *Meta) backgroundStarted(toolUseID, result string, isError bool, ts time
 		}
 		return
 	}
-	match := bgIDRe.FindStringSubmatch(result)
-	if isError || match == nil {
+	if isError {
+		return
+	}
+	switch t.Kind {
+	case "shell":
+		t.ID = record.ShellID
+	case "monitor":
+		t.ID = record.MonitorID
+	case "agent":
+		if record.AgentAsync {
+			t.ID = record.AgentID
+		}
+	}
+	if t.ID == "" {
+		if match := bgIDRe.FindStringSubmatch(result); match != nil {
+			t.ID = match[1]
+		}
+	}
+	if t.ID == "" {
 		return // ran in the foreground after all, or failed to start
 	}
-	t.ID = match[1]
 	t.OutputFile = outputFile(result)
 	if t.StartedAt.IsZero() {
 		t.StartedAt = ts

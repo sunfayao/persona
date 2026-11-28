@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/sunfayao/persona/server/internal/node/harness/claude"
+	"github.com/sunfayao/persona/server/internal/node/harness/traex"
 	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
@@ -79,16 +81,18 @@ func TestBackgroundTasksGrowingReusesReader(t *testing.T) {
 
 // referenceBackground is what scanBackground finds in src read whole: the complete short lines it parses, in order.
 func referenceBackground(src []byte) transcript.Meta {
-	var m transcript.Meta
+	m := transcript.Meta{ClaudeReader: claude.Reader{}, RolloutTools: traex.RolloutTools{}}
 	for {
 		i := bytes.IndexByte(src, '\n')
 		if i < 0 {
+			m.ClaudeReader, m.RolloutTools = nil, nil
 			return m
 		}
 		l := src[:i]
 		src = src[i+1:]
 		if len(l) < 64<<10 && (containsAny(l, bgMarkers) || containsAny(l, transcript.GoalMarkers) || containsAny(l, transcript.UltracodeMarkers) ||
-			containsAny(l, transcript.PlanMarkers) || containsAny(l, m.PlanPending())) {
+			containsAny(l, transcript.PlanMarkers) || bytes.Contains(l, []byte(`"backgroundTaskId"`)) ||
+			m.PlanRolloutRecord(l) || containsAny(l, m.PlanPending()) || containsAny(l, m.BackgroundPending())) {
 			transcript.ParseLine(0, bytes.Clone(l), &m)
 		}
 		m.ObserveNamingMetadata(l)

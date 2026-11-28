@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/node/harness/claude"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/transcript"
 )
@@ -53,7 +54,7 @@ func (n *Node) subagentFile(id string) (*transcript.File, error) {
 			return nil, fmt.Errorf("subagent %s not found", agent)
 		}
 	}
-	return transcript.NewSubagentFile(p), nil
+	return transcript.NewParsedFile(p, transcript.Sources{Claude: claude.Reader{}, Sidechain: true}), nil
 }
 
 type subagentMeta struct {

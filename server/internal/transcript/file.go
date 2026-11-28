@@ -19,13 +19,13 @@ import (
 type File struct {
 	Path string
 
-	rolloutTools RolloutToolDecoder
-	mu           sync.Mutex
-	offset       int64
-	lines        int
-	partial      []byte
-	items        []proto.Item
-	meta         Meta
+	sources Sources
+	mu      sync.Mutex
+	offset  int64
+	lines   int
+	partial []byte
+	items   []proto.Item
+	meta    Meta
 	// History identity (Span.History): the file's inode, a hash of its first line, and how many times it was found
 	// rewritten while this process read it.
 	ino       uint64
@@ -61,13 +61,20 @@ type Span struct {
 
 func NewFile(path string) *File { return &File{Path: path} }
 
-// NewFileWithRolloutTools adds optional native function metadata to file and window reads.
-func NewFileWithRolloutTools(path string, tools RolloutToolDecoder) *File {
-	return &File{Path: path, rolloutTools: tools}
+// Sources are the native adapters available at a file's ingress.
+type Sources struct {
+	Claude       ClaudeLineReader
+	RolloutTools RolloutToolDecoder
+	Sidechain    bool
+}
+
+// NewParsedFile sets the adapters for incremental and windowed reads.
+func NewParsedFile(path string, sources Sources) *File {
+	return &File{Path: path, sources: sources, meta: Meta{Sidechain: sources.Sidechain}}
 }
 
 func (f *File) parseLine(seq int, line []byte, meta *Meta) []proto.Item {
-	meta.RolloutTools = f.rolloutTools
+	meta.ClaudeReader, meta.RolloutTools = f.sources.Claude, f.sources.RolloutTools
 	return ParseLine(seq, line, meta)
 }
 
@@ -88,7 +95,7 @@ func (f *File) Relocate(path string) {
 }
 
 // NewSubagentFile reads a subagent's transcript (<session>/subagents/agent-<id>.jsonl, every line a sidechain).
-func NewSubagentFile(path string) *File { return &File{Path: path, meta: Meta{Sidechain: true}} }
+func NewSubagentFile(path string) *File { return NewParsedFile(path, Sources{Sidechain: true}) }
 
 func (f *File) history() string {
 	if f.lines == 0 {

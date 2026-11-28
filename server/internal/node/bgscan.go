@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/node/harness/claude"
 	"github.com/sunfayao/persona/server/internal/node/harness/traex"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/transcript"
@@ -167,7 +168,9 @@ var bgReaders = sync.Pool{New: func() any { return bufio.NewReaderSize(nil, 256<
 // scanBackground reads the marker lines between *off and size into m, streamed (the first look at a 300 MB
 // transcript once held all of it in memory). A last line not complete yet is read next time.
 func scanBackground(f *os.File, off *int64, m *transcript.Meta, size int64) {
-	m.RolloutTools = traex.RolloutTools{}
+	reader, tools := m.ClaudeReader, m.RolloutTools
+	m.ClaudeReader, m.RolloutTools = claude.Reader{}, traex.RolloutTools{}
+	defer func() { m.ClaudeReader, m.RolloutTools = reader, tools }()
 	r := bgReaders.Get().(*bufio.Reader)
 	r.Reset(io.NewSectionReader(f, *off, size-*off))
 	defer func() {
@@ -201,6 +204,7 @@ func scanBackground(f *os.File, off *int64, m *transcript.Meta, size int64) {
 		// The static markers (bgMarkers and transcript's goal, ultracode and plan ones) in one pass over the line (bgmatch.go).
 		// Plan and Stop result lines do not name the tool: they hold the call's id.
 		if !long && len(line) <= 64<<10 && (match.match(line) || m.PlanRolloutRecord(line) ||
+			bytes.Contains(line, []byte(`"backgroundTaskId"`)) ||
 			containsAny(line, m.PlanPending()) || containsAny(line, m.BackgroundPending())) {
 			// A copy: m outlives this scan, and the parser keeps the line it was given (the tree's raw record, #8407),
 			// which here would be the pooled buffer, holding another transcript's lines by the next look (#8440).

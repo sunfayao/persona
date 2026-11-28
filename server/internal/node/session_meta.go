@@ -10,6 +10,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/closeout"
 	"github.com/sunfayao/persona/server/internal/identity"
 	"github.com/sunfayao/persona/server/internal/modelretry"
+	"github.com/sunfayao/persona/server/internal/node/harness/claude"
 	"github.com/sunfayao/persona/server/internal/node/harness/traex"
 	"github.com/sunfayao/persona/server/internal/node/transcripttail"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -244,7 +245,7 @@ func readQuickMetaSince(path string, st os.FileInfo, prev quickMeta) quickMeta {
 	// What the tail may not repeat: a rollout names its directory, version and client on its first line only, its model
 	// and effort once a turn. Nothing of the head's exchange, turn or mode.
 	tm := transcript.Meta{Codex: head.Codex, Cwd: head.Cwd, Version: head.Version, VersionAt: head.VersionAt, Surface: head.Surface,
-		Model: head.Model, Effort: head.Effort, EffortAt: head.EffortAt, RolloutTools: traex.RolloutTools{}}
+		Model: head.Model, Effort: head.Effort, EffortAt: head.EffortAt, ClaudeReader: claude.Reader{}, RolloutTools: traex.RolloutTools{}}
 	if prev.titleManual && prev.size <= st.Size() {
 		tm.Title, tm.TitleManual, tm.TitleSource = prev.title, true, "manual"
 	}
@@ -588,7 +589,7 @@ func lookBack(f *os.File, end int64, codex, words, exchange, turn, mode bool) qu
 		if start > 0 && len(lines) > 0 {
 			lines = lines[1:] // a partial line: whole in the next, longer stretch
 		}
-		tm := transcript.Meta{Codex: codex, RolloutTools: traex.RolloutTools{}}
+		tm := transcript.Meta{Codex: codex, ClaudeReader: claude.Reader{}, RolloutTools: traex.RolloutTools{}}
 		for _, line := range lines {
 			if len(line) > 0 {
 				quickLine(line, &tm, nil)
