@@ -1,7 +1,6 @@
 {
-  "card_propose": "Add a field note to {tool} for {days} days: “{text}”",
-  "card_propose_scoped": "Add a field note to {tool} ({where}) for {days} days: “{text}”",
-  "card_renew": "Keep the field note on {tool} for another {days} days: “{text}”",
+  "card_propose": "Add a field note to {tool}: “{text}”",
+  "card_propose_scoped": "Add a field note to {tool} ({where}): “{text}”",
   "fix_title": "Fix {tool}: {code}",
   "fix_seen": "Failed {count} times, first on {first}, last on {last}.",
   "fix_skeleton": "Arguments that failed: {skeleton}",

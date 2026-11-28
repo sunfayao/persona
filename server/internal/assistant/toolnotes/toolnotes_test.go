@@ -233,11 +233,11 @@ func TestApprovedNoteIsRenderedAndChangesTheRevision(t *testing.T) {
 		t.Fatalf("revision with no notes = %q", rev)
 	}
 	out := mustRun(t, d, `{"action":"propose","tool":"computer_run","text":"Open apps with a script (await cua.launch), never a launch_app step."}`)
-	if !strings.Contains(out, "Approved: field note tn_") || !strings.Contains(out, "2027-02-26") {
+	if !strings.HasPrefix(out, "Approved: note tn_") || !strings.HasSuffix(out, " now ends computer_run's description, until 2027-02-26.") {
 		t.Fatalf("propose = %q", out)
 	}
 	if len(f.cards) != 1 || f.cards[0].Machine != "m-studio" || f.cards[0].Session != "main" ||
-		f.cards[0].Summary != "Add a field note to computer_run for 90 days: “Open apps with a script (await cua.launch), never a launch_app step.”" {
+		f.cards[0].Summary != "Add a field note to computer_run: “Open apps with a script (await cua.launch), never a launch_app step.”" {
 		t.Fatalf("cards = %+v", f.cards)
 	}
 	got := descriptions(d, f)["computer_run"]
@@ -256,7 +256,7 @@ func TestApprovedNoteIsRenderedAndChangesTheRevision(t *testing.T) {
 	}
 	notes := held(d)
 	if len(notes) != 1 || notes[0].Status != StatusApproved || notes[0].By != "main" || notes[0].PromptDigest != Digest(f.tools[0]) ||
-		!notes[0].ReviewAt.Equal(f.now.Add(90*day)) || notes[0].ApprovedAt.IsZero() {
+		!notes[0].ReviewAt.Equal(f.now.Add(ReviewDays*day)) || notes[0].ApprovedAt.IsZero() {
 		t.Fatalf("stored = %+v", notes)
 	}
 	// What is stored is what a new Domain reads: the note is shown after a restart.
@@ -291,7 +291,8 @@ func TestDeclinedAndUnansweredProposalsStayOut(t *testing.T) {
 	if desc := descriptions(d, f)["agent_send"]; strings.Contains(desc, "Field notes") {
 		t.Fatalf("an unapproved note is shown: %q", desc)
 	}
-	if list := mustRun(t, d, `{"action":"list"}`); !strings.Contains(list, "waiting for the user's tap") || !strings.Contains(list, "2 retired notes") {
+	if list := mustRun(t, d, `{"action":"list"}`); !strings.Contains(list, "agent_send, waiting for the user's tap: “Use task for new work.”") ||
+		strings.Contains(list, "Read the agent first.") {
 		t.Fatalf("list = %q", list)
 	}
 	// The waiting card ends unanswered later: the note retires; a late Allow of an ended card applies nothing.
@@ -308,10 +309,11 @@ func TestDeclinedAndUnansweredProposalsStayOut(t *testing.T) {
 }
 
 // Nothing that carries a secret, a path, an address or one of the user's computers' names is shown on a card or kept:
-// the call is refused with the text as the scrubber leaves it.
+// the call is refused with the text as the scrubber leaves it. A draft's evidence is checked too.
 func TestNotesCarryingPrivateValuesAreRefused(t *testing.T) {
 	t.Parallel()
 	f := newFake()
+	f.drafts = []Draft{{ID: "fd_1", Kind: DraftNote, Tool: "agent_send", Code: "studio_offline", Count: 2, Status: DraftPending}}
 	d := New(f.host(t))
 	for _, tc := range []struct{ args, scrubbed string }{
 		{`{"action":"propose","tool":"agent_send","text":"Pass token=abcdef123456 in the header."}`, "token=<redacted>"},
@@ -319,7 +321,7 @@ func TestNotesCarryingPrivateValuesAreRefused(t *testing.T) {
 		{`{"action":"propose","tool":"agent_send","text":"It only works on studio, the big Mac."}`, "<machine>"},
 		{`{"action":"propose","tool":"agent_send","text":"Ask ops@example.com first."}`, "<email>"},
 		{`{"action":"propose","tool":"agent_send","text":"Call https://hub.example.com/api directly."}`, "https://<host>/api"},
-		{`{"action":"propose","tool":"agent_send","text":"Fine words.","evidence":"seen on lab-mini twice"}`, "seen on <machine> twice"},
+		{`{"action":"propose","draft_id":"fd_1","text":"Wait until it is back."}`, "with <machine>_offline"},
 	} {
 		_, err := run(t, d, tc.args)
 		if err == nil || !strings.Contains(err.Error(), "not proposed") || !strings.Contains(err.Error(), tc.scrubbed) {
@@ -331,8 +333,8 @@ func TestNotesCarryingPrivateValuesAreRefused(t *testing.T) {
 	}
 }
 
-// A note is for a tool the conversations have, on a known computer and runtime, in one line of at most 200
-// characters; anything else is refused before a card.
+// A note is for a tool in the list, on a known computer and runtime, in one line of at most 200 characters; anything
+// else is refused before a card, and so is the same note twice.
 func TestProposeChecksToolMachineRuntimeAndText(t *testing.T) {
 	t.Parallel()
 	f := newFake()
@@ -344,10 +346,9 @@ func TestProposeChecksToolMachineRuntimeAndText(t *testing.T) {
 		`{"action":"propose","tool":"agent_send","text":"x","runtime":"gemini"}`:             "runtime must be claude, codex or agy",
 		`{"action":"propose","tool":"agent_send","text":"one\ntwo"}`:                         "one line",
 		`{"action":"propose","tool":"agent_send","text":" "}`:                                "text is required",
-		`{"action":"propose","tool":"agent_send","text":"x","review_days":-1}`:               "review_days",
 		`{"action":"propose","tool":"agent_send","text":"` + strings.Repeat("a", 201) + `"}`: "201 characters",
-		`{"action":"propose","tool":"agent_send","text":"x","color":"red"}`:                  "unknown field",
-		`{"action":"nope"}`: "action must be",
+		`{"action":"propose","tool":"agent_send","text":"x","review_days":30}`:               "unknown field",
+		`{"action":"renew","id":"tn_1"}`:                                                     "action must be propose, list, retire or file_fix",
 	} {
 		if _, err := run(t, d, args); err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%s: %v, want %q", args, err, want)
@@ -356,11 +357,7 @@ func TestProposeChecksToolMachineRuntimeAndText(t *testing.T) {
 	if len(f.cards) != 0 {
 		t.Fatalf("cards shown: %+v", f.cards)
 	}
-	// review_days is capped at 180, and the same note twice is refused.
-	mustRun(t, d, `{"action":"propose","tool":"agent_send","text":"Read first.","review_days":400}`)
-	if !held(d)[0].ReviewAt.Equal(f.now.Add(MaxReviewDays * day)) {
-		t.Fatalf("review_at = %v", held(d)[0].ReviewAt)
-	}
+	mustRun(t, d, `{"action":"propose","tool":"agent_send","text":"Read first."}`)
 	if _, err := run(t, d, `{"action":"propose","tool":"agent_send","text":"read first."}`); err == nil || !strings.Contains(err.Error(), "already there") {
 		t.Fatalf("a duplicate: %v", err)
 	}
@@ -375,8 +372,8 @@ func TestRuntimeAndMachineScoping(t *testing.T) {
 	f.set(func(f *fake) { f.runtime = "claude" })
 	mustRun(t, d, `{"action":"propose","tool":"computer_run","text":"Call persona_call with describe first.","runtime":"agy"}`)
 	mustRun(t, d, `{"action":"propose","tool":"computer_run","text":"Its screen is small; read before clicking.","machine":"lab-mini"}`)
-	if len(f.cards) != 2 || f.cards[0].Summary != "Add a field note to computer_run (agy) for 90 days: “Call persona_call with describe first.”" ||
-		!strings.Contains(f.cards[1].Summary, "(lab-mini)") {
+	if len(f.cards) != 2 || f.cards[0].Summary != "Add a field note to computer_run (agy): “Call persona_call with describe first.”" ||
+		f.cards[1].Summary != "Add a field note to computer_run (lab-mini): “Its screen is small; read before clicking.”" {
 		t.Fatalf("cards = %+v", f.cards)
 	}
 	claude := descriptions(d, f)["computer_run"]
@@ -393,6 +390,10 @@ func TestRuntimeAndMachineScoping(t *testing.T) {
 	}
 	if n := held(d)[1]; n.Machine != "m-lab" {
 		t.Fatalf("machine kept as %q, want its id", n.Machine)
+	}
+	if list := mustRun(t, d, `{"action":"list","tool":"computer_run"}`); !strings.Contains(list, " computer_run (on lab-mini), until 2027-02-26: ") ||
+		!strings.Contains(list, " computer_run (agy only), until ") {
+		t.Fatalf("list = %q", list)
 	}
 }
 
@@ -422,17 +423,17 @@ func TestBlockKeepsTheNewestWithinItsCaps(t *testing.T) {
 }
 
 // Past its review date a note leaves the descriptions and is listed as due (and counted for the snapshot); Sweep tells
-// the watches once; renew, after a card, brings it back.
-func TestReviewDateAndRenew(t *testing.T) {
+// the watches once. Proposed again and approved, it is back and replaces the due one.
+func TestDueNoteLeavesAndIsProposedAgain(t *testing.T) {
 	t.Parallel()
 	f := newFake()
 	d := New(f.host(t))
-	mustRun(t, d, `{"action":"propose","tool":"agent_send","text":"Read the agent first.","review_days":2}`)
-	id := held(d)[0].ID
+	mustRun(t, d, `{"action":"propose","tool":"agent_send","text":"Read the agent first."}`)
+	old := held(d)[0].ID
 	ctx := context.Background()
 	d.Sweep(ctx)
 	told := f.notifications()
-	f.set(func(f *fake) { f.now = f.now.Add(3 * day) })
+	f.set(func(f *fake) { f.now = f.now.Add((ReviewDays + 1) * day) })
 	if desc := descriptions(d, f)["agent_send"]; strings.Contains(desc, "Field notes") {
 		t.Fatalf("a note past its review date is shown: %q", desc)
 	}
@@ -442,7 +443,7 @@ func TestReviewDateAndRenew(t *testing.T) {
 	if _, due := d.Waiting(ctx); due != 1 {
 		t.Fatalf("due = %d", due)
 	}
-	if list := mustRun(t, d, `{"action":"list","status":"due"}`); !strings.Contains(list, id+" agent_send, due for review since 2026-11-30") {
+	if list := mustRun(t, d, `{"action":"list"}`); !strings.Contains(list, "Due for review") || !strings.Contains(list, old+" agent_send, due since 2027-02-26") {
 		t.Fatalf("list = %q", list)
 	}
 	d.Sweep(ctx)
@@ -450,19 +451,16 @@ func TestReviewDateAndRenew(t *testing.T) {
 	if f.notifications() != told+1 {
 		t.Fatalf("Sweep told the watches %d times, want once", f.notifications()-told)
 	}
-	out := mustRun(t, d, `{"action":"renew","id":"`+id+`","review_days":30}`)
-	if !strings.Contains(out, "Renewed: note "+id) || !strings.Contains(f.cards[1].Summary, "for another 30 days") {
-		t.Fatalf("renew = %q, card %+v", out, f.cards[1])
+	mustRun(t, d, `{"action":"propose","tool":"agent_send","text":"Read the agent first."}`)
+	notes := held(d)
+	if len(notes) != 2 || notes[0].Status != StatusRetired || notes[0].RetiredReason != "proposed again as "+notes[1].ID || notes[1].Status != StatusApproved {
+		t.Fatalf("notes = %+v", notes)
 	}
 	if desc := descriptions(d, f)["agent_send"]; !strings.Contains(desc, "Read the agent first.") {
-		t.Fatalf("a renewed note is not shown: %q", desc)
+		t.Fatalf("the note proposed again is not shown: %q", desc)
 	}
-	if !held(d)[0].ReviewAt.Equal(f.now.Add(30 * day)) {
-		t.Fatalf("review_at = %v", held(d)[0].ReviewAt)
-	}
-	mustRun(t, d, `{"action":"retire","id":"`+id+`","reason":"no longer needed"}`)
-	if _, err := run(t, d, `{"action":"renew","id":"`+id+`"}`); err == nil || !strings.Contains(err.Error(), "only an approved note") {
-		t.Fatalf("renewing a retired note: %v", err)
+	if _, due := d.Waiting(ctx); due != 0 {
+		t.Fatalf("due = %d", due)
 	}
 }
 
@@ -516,9 +514,8 @@ func TestDigestIsTheSameInEveryLanguage(t *testing.T) {
 	}
 }
 
-// A note draft is proposed by its id: the draft gives the tool, the code, the text and the evidence (the call may
-// replace the text), and once approved the draft is marked proposed with the note's id. A draft that is not pending is
-// refused.
+// A note draft is proposed by its id: the draft gives the tool, the code and the evidence (the call may replace the
+// text), and once approved the draft is marked proposed with the note's id. A draft that is not pending is refused.
 func TestProposeFromADraft(t *testing.T) {
 	t.Parallel()
 	f := newFake()
@@ -558,7 +555,7 @@ func TestFileFixAndTheNotesItCovers(t *testing.T) {
 		{ID: "fd_1", Kind: DraftFix, Tool: "todo_create", Code: "store_unavailable", Count: 3, FirstAt: f.now.Add(-2 * day),
 			LastAt: f.now.Add(-day), Skeleton: "{title:str}", RetrySkeleton: "{notes:str,title:str}", Text: "todo_create fails while the store restarts.",
 			Evidence: []Evidence{{Machine: "m-studio", Session: "conv-a"}, {Machine: "m-studio", Session: "conv-b"}}, Status: DraftPending},
-		{ID: "fd_2", Kind: DraftNote, Tool: "todo_create", Code: "store_unavailable", Text: "Retry once after a minute.", Status: DraftPending},
+		{ID: "fd_2", Kind: DraftNote, Tool: "todo_create", Code: "store_unavailable", Count: 3, Text: "Retry once after a minute.", Status: DraftPending},
 		{ID: "fd_3", Kind: DraftFix, Tool: "agent_send", Code: "busy", Count: 1, Status: DraftPending},
 	}
 	d := New(f.host(t))
@@ -568,7 +565,8 @@ func TestFileFixAndTheNotesItCovers(t *testing.T) {
 		t.Fatalf("a note draft filed: %v", err)
 	}
 	out := mustRun(t, d, `{"action":"file_fix","draft_id":"fd_1"}`)
-	if !strings.Contains(out, "Filed as to-do todo_1 “Fix todo_create: store_unavailable”") || !strings.Contains(out, "is not saved in Persona") {
+	if out != "Filed as to-do todo_1 “Fix todo_create: store_unavailable” (sunfayao/persona is not saved in Persona: the to-do names it). "+
+		"Once it is done, the notes on todo_create for store_unavailable retire." {
 		t.Fatalf("file_fix = %q", out)
 	}
 	todo := f.filed[0]
@@ -591,7 +589,7 @@ func TestFileFixAndTheNotesItCovers(t *testing.T) {
 	}
 	// Saved in Persona, the repository is bound instead of named.
 	f.set(func(f *fake) { f.repo = &Repository{ID: "repo_1", Revision: 7} })
-	if out := mustRun(t, d, `{"action":"file_fix","draft_id":"fd_3"}`); !strings.Contains(out, ", bound to sunfayao/persona") {
+	if out := mustRun(t, d, `{"action":"file_fix","draft_id":"fd_3"}`); !strings.Contains(out, ", bound to sunfayao/persona.") {
 		t.Fatalf("bound = %q", out)
 	}
 	if got := f.filed[1]; got.repo == nil || got.repo.ID != "repo_1" || strings.Contains(got.notes, "Repository:") {
@@ -619,35 +617,38 @@ func TestFileFixAndTheNotesItCovers(t *testing.T) {
 	}
 }
 
-// dismiss sets a pending draft aside and retire takes a note out at once; each refuses what it does not take.
-func TestDismissAndRetire(t *testing.T) {
+// retire takes a note out at once by its id, or sets a pending friction draft aside by its draft_id; it refuses what
+// it does not take.
+func TestRetireTakesANoteOrADraft(t *testing.T) {
 	t.Parallel()
 	f := newFake()
 	f.drafts = []Draft{{ID: "fd_1", Kind: DraftNote, Tool: "agent_send", Status: DraftPending}}
 	d := New(f.host(t))
-	if out := mustRun(t, d, `{"action":"dismiss","draft_id":"fd_1"}`); out != "Dismissed draft fd_1." || f.drafts[0].Status != DraftDismissed {
-		t.Fatalf("dismiss = %q, %+v", out, f.drafts[0])
+	if out := mustRun(t, d, `{"action":"retire","draft_id":"fd_1"}`); out != "Set draft fd_1 aside." || f.drafts[0].Status != DraftDismissed {
+		t.Fatalf("retire a draft = %q, %+v", out, f.drafts[0])
 	}
-	if _, err := run(t, d, `{"action":"dismiss","draft_id":"fd_1"}`); err == nil || !strings.Contains(err.Error(), "not pending") {
-		t.Fatalf("dismissed twice: %v", err)
+	if _, err := run(t, d, `{"action":"retire","draft_id":"fd_1"}`); err == nil || !strings.Contains(err.Error(), "not pending") {
+		t.Fatalf("set aside twice: %v", err)
 	}
-	if _, err := run(t, d, `{"action":"dismiss","draft_id":"fd_7"}`); err == nil || !strings.Contains(err.Error(), "no friction draft") {
+	if _, err := run(t, d, `{"action":"retire","draft_id":"fd_7"}`); err == nil || !strings.Contains(err.Error(), "no friction draft") {
 		t.Fatalf("unknown draft: %v", err)
 	}
 	mustRun(t, d, `{"action":"propose","tool":"agent_send","text":"Read first."}`)
 	id := held(d)[0].ID
 	told := f.notifications()
-	if out := mustRun(t, d, `{"action":"retire","id":"`+id+`","reason":"the tool says it now"}`); !strings.Contains(out, "out of agent_send's description") {
+	if out := mustRun(t, d, `{"action":"retire","id":"`+id+`"}`); out != "Retired note "+id+": it is out of agent_send's description." {
 		t.Fatalf("retire = %q", out)
 	}
-	if n := held(d)[0]; n.Status != StatusRetired || n.RetiredReason != "the tool says it now" || f.notifications() != told+1 {
+	if n := held(d)[0]; n.Status != StatusRetired || n.RetiredReason != "retired on request" || f.notifications() != told+1 {
 		t.Fatalf("retired = %+v, told %d", n, f.notifications()-told)
 	}
-	if _, err := run(t, d, `{"action":"retire","draft_id":"fd_1"}`); err == nil || !strings.Contains(err.Error(), "dismiss") {
-		t.Fatalf("retire without id: %v", err)
+	for _, args := range []string{`{"action":"retire"}`, `{"action":"retire","id":"` + id + `","draft_id":"fd_1"}`} {
+		if _, err := run(t, d, args); err == nil || !strings.Contains(err.Error(), "retire takes id") {
+			t.Errorf("%s: %v", args, err)
+		}
 	}
-	if list := mustRun(t, d, `{"action":"list","status":"retired"}`); !strings.Contains(list, "retired 2026-11-28: the tool says it now") {
-		t.Fatalf("list = %q", list)
+	if _, err := run(t, d, `{"action":"retire","id":"`+id+`"}`); err == nil || !strings.Contains(err.Error(), "retired already") {
+		t.Fatalf("retired twice: %v", err)
 	}
 }
 
@@ -679,14 +680,14 @@ func TestWaitingCountsDraftsAndDueNotes(t *testing.T) {
 	if drafts, due := d.Waiting(context.Background()); drafts != 2 || due != 0 {
 		t.Fatalf("waiting = %d, %d", drafts, due)
 	}
-	mustRun(t, d, `{"action":"propose","tool":"agent_send","text":"Read first.","review_days":1}`)
-	f.set(func(f *fake) { f.now = f.now.Add(2 * day) })
+	mustRun(t, d, `{"action":"propose","tool":"agent_send","text":"Read first."}`)
+	f.set(func(f *fake) { f.now = f.now.Add((ReviewDays + 1) * day) })
 	if drafts, due := d.Waiting(context.Background()); drafts != 2 || due != 1 {
 		t.Fatalf("waiting = %d, %d", drafts, due)
 	}
 }
 
-// Retired notes are kept for list a while, then dropped: past keepRetired, or the oldest past maxRetired.
+// Retired notes are kept a while, then dropped: past keepRetired, or the oldest past maxRetired.
 func TestPruneDropsOldRetiredNotes(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 11, 28, 9, 0, 0, 0, time.UTC)

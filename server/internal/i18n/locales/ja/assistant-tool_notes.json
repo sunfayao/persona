@@ -1,7 +1,6 @@
 {
-  "card_propose": "{tool} に使い方メモを追加します（{days} 日間）：「{text}」",
-  "card_propose_scoped": "{tool}（{where}）に使い方メモを追加します（{days} 日間）：「{text}」",
-  "card_renew": "{tool} の使い方メモをさらに {days} 日間残します：「{text}」",
+  "card_propose": "{tool} に使い方メモを追加します：「{text}」",
+  "card_propose_scoped": "{tool}（{where}）に使い方メモを追加します：「{text}」",
   "fix_title": "{tool} を修正：{code}",
   "fix_seen": "{count} 回失敗しました（初回 {first}、最終 {last}）。",
   "fix_skeleton": "失敗した呼び出しの引数の形：{skeleton}",

@@ -21,9 +21,9 @@ func Digest(t proto.Tool) string {
 	return hex.EncodeToString(sum[:8])
 }
 
-// Annotate is tools with the notes that hold for the assistant's conversations appended to their descriptions, as a
-// "Field notes:" block: approved, before their review date, for every runtime or the one the conversations run on,
-// and proposed on the description the tool still has. A note whose tool's description changed is left out here and
+// Annotate is tools with the notes that hold for the main conversation appended to their descriptions, as a "Field
+// notes:" block: approved, before their review date, for every runtime or the one it runs on, and proposed on the
+// description the tool still has. A note whose tool's description changed is left out here and
 // retired by Sweep. The list is copied, not changed.
 func (d *Domain) Annotate(ctx context.Context, tools []proto.Tool) []proto.Tool {
 	shown := d.shown(ctx)
@@ -45,9 +45,9 @@ func (d *Domain) Annotate(ctx context.Context, tools []proto.Tool) []proto.Tool 
 	return out
 }
 
-// Revision is a digest of the notes the assistant's conversations' tool lists show now (":notes=" and 16 hex digits),
-// for the tool-list revision a tool watch compares: a note approved, retired, renewed or past its review date, a
-// computer renamed or the conversations' runtime changed changes it. "" when no note is shown.
+// Revision is a digest of the notes the tool lists show now (":notes=" and 16 hex digits), for the tool-list revision a
+// tool watch compares: a note approved, retired or past its review date, a computer renamed or the main
+// conversation's runtime changed changes it. "" when no note is shown.
 func (d *Domain) Revision(ctx context.Context) string {
 	shown := d.shown(ctx)
 	if len(shown) == 0 {
@@ -61,7 +61,7 @@ func (d *Domain) Revision(ctx context.Context) string {
 }
 
 // shown are the notes in the descriptions now, by tool, newest first: approved, before their review date, and for
-// every runtime or the conversations' own. The runtime is asked only when a note is scoped to one.
+// every runtime or the main conversation's. The runtime is asked only when a note is scoped to one.
 func (d *Domain) shown(ctx context.Context) map[string][]Note {
 	now := d.now()
 	var notes []Note

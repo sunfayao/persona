@@ -1,10 +1,10 @@
-// Package toolnotes keeps the field notes: one-line tips the assistant learned about using a tool, appended to that
-// tool's description in every assistant conversation once the user approves each on a one-tap card. A note may hold
-// on one computer or for one runtime only; it is due for review after 90 days (at most 180) and leaves the
-// descriptions then unless renewed; it retires itself when its tool's description changes (a release that fixed what
-// the note worked around). The tool record's friction drafts (assistant/tooluse) are proposed as notes from here, set
-// aside, or, for a defect of Persona's own, filed as a to-do whose completion retires the notes it covers. The
-// assistant Service lends what the package needs through Host.
+// Package toolnotes keeps the field notes: one-line tips about using a tool, learned in the main conversation and
+// appended to that tool's description in its tool list once the user approves each on a one-tap card. A note may hold
+// on one computer or for one runtime only; after ReviewDays it is due for review and leaves the descriptions until it
+// is proposed again; it retires itself when its tool's description changes (a release that fixed what the note worked
+// around). The tool record's friction drafts (assistant/tooluse) are proposed as notes from here, set aside, or, for a
+// defect of Persona's own, filed as a to-do whose completion retires the notes it covers. The Service lends what the
+// package needs through Host.
 package toolnotes
 
 import (
@@ -25,7 +25,7 @@ import (
 // Key is where the notes are kept, in the assistant's settings.
 const Key = "assistant.tool_notes"
 
-// ToolName is the assistant's tool that proposes and reviews the notes.
+// ToolName is the tool that proposes and reviews the notes.
 const ToolName = "tool_note"
 
 // The states of a note.
@@ -48,15 +48,12 @@ const (
 const (
 	// MaxText bounds a note, in characters; it is one line.
 	MaxText = 200
-	// MaxEvidence bounds what a note keeps of what showed it, in characters.
-	MaxEvidence = 300
 	// MaxPerTool and MaxBlock bound what one tool's description gains: the newest notes that fit, at most this many
 	// and this many bytes of "Field notes:" block, so Antigravity's tool budget is not spent on notes.
 	MaxPerTool = 3
 	MaxBlock   = 600
-	// DefaultReviewDays and MaxReviewDays: how long a note stays before it is due for review.
-	DefaultReviewDays = 90
-	MaxReviewDays     = 180
+	// ReviewDays is how long an approved note stays before it is due for review.
+	ReviewDays = 90
 	// maxActive bounds the notes that are not retired; maxRetired and keepRetired the retired ones kept for list.
 	maxActive   = 100
 	maxRetired  = 100
@@ -72,8 +69,9 @@ type Note struct {
 	// Machine is the id of the computer it holds on; "" for every computer.
 	Machine string `json:"machine,omitempty"`
 	// Runtime: only conversations on this runtime (claude, codex, agy) get it; "" for every runtime.
-	Runtime  string `json:"runtime,omitempty"`
-	Text     string `json:"text"`
+	Runtime string `json:"runtime,omitempty"`
+	Text    string `json:"text"`
+	// Evidence is what showed it, from its friction draft.
 	Evidence string `json:"evidence,omitempty"`
 	// By is the conversation that proposed it.
 	By string `json:"by"`
@@ -81,7 +79,7 @@ type Note struct {
 	PromptDigest string    `json:"prompt_digest"`
 	CreatedAt    time.Time `json:"created_at"`
 	ApprovedAt   time.Time `json:"approved_at,omitzero"`
-	// ReviewAt: from then on the note is due for review and out of the descriptions until renewed.
+	// ReviewAt: from then on the note is due for review and out of the descriptions until proposed again.
 	ReviewAt      time.Time `json:"review_at"`
 	Status        string    `json:"status"`
 	RetiredAt     time.Time `json:"retired_at,omitzero"`
@@ -155,7 +153,7 @@ type Repository struct {
 	Revision int64
 }
 
-// Host is what the package takes from the assistant Service. Every function is required.
+// Host is what the package takes from the Service. Every function is required.
 type Host struct {
 	// Load reads the stored value of key into out (false when there is none); Save stores v under key.
 	Load func(ctx context.Context, key string, out any) (bool, error)
@@ -163,10 +161,10 @@ type Host struct {
 	Now  func() time.Time
 	Logf func(format string, args ...any)
 
-	// Tools are the tools the assistant's conversations have now, built-in and the extensions', as their lists show
-	// them, without notes.
+	// Tools are the tools in the main conversation's list now, built-in and the extensions', as the list shows them,
+	// without notes.
 	Tools func(ctx context.Context) []proto.Tool
-	// Runtime is the runtime the assistant's conversations run on (claude, codex, agy; "" when unknown).
+	// Runtime is the runtime the main conversation runs on (claude, codex, agy; "" when unknown).
 	Runtime func(ctx context.Context) string
 	// Machine finds the computer a call names by its id or name: its id and its name; false when the user has none.
 	Machine func(ctx context.Context, name string) (id, display string, ok bool)
