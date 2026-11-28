@@ -91,7 +91,7 @@ session therefore carries `work.just_finished` (`state` is unchanged):
 
 - **Set** by the manager while it makes the lists (`decorateWork`, `server/internal/assistant/fleet_work.go`): the triage
   found the turn done (`work.phase` `done`), the session was Unread before that took it out (nobody had seen it: not
-  opened or marked seen in the web app, not focused in herdr, not viewed in Paseo's own app), no `/loop` wakes it again (that
+  opened or marked seen in the web app, not focused in herdr), no `/loop` wakes it again (that
   is Waiting), and the turn ended less than `agents.triage.just_finished_hours` ago (manager.json, 3 by default;
   `work.turn_at`, else `updated_at`). Only on the lists; the triage's record never holds it. With Session Triage off no
   turn has a work state, so a finished one is Unread as before.
@@ -131,7 +131,7 @@ manager are unchanged.
   three hours keep Just finished's rank).
 - **Not counted**: the quick filters, folded tallies, group headers, the Unread and Needs you counts, badges and pushes
   are as before: none of them names it, so none changes meaning.
-- **Which hosts say `done`**: herdr, Tern and Rex panes until the tab is focused on the computer; Claude's desktop app
+- **Which hosts say `done`**: herdr panes until the tab is focused on the computer; Claude's desktop app
   while it runs the session's claude, until the app shows the session (once that claude exits, the row is Not running
   and has neither Unread nor this mark); the Codex App's threads until opened in the App, for 72 hours
   (`codexDesktopRecent`, then Not running); runtimes by their own unread mark.
@@ -158,24 +158,9 @@ Deciding "Needs you" / "done" and pushing are the hub's existing logic (based on
 - **Unrecognized agents** (`gemini`, `amp`…): listed as a terminal-only row. The state is herdr's, so when it's stuck in a confirm box the web app shows "Needs you",
   but there's no card to answer (the hub doesn't parse screens of TUIs it doesn't know); answer it on the terminal page.
 
-### Claude in a Tern or Rex block
-
-Tern and Rex report no agent state: every agent they list is `unknown` (`node/hosttern.go`, `node/hostrex.go`). For a Claude, node takes the status Claude Code keeps in its own
-`sessions/<pid>.json` instead (the file of the block's `claude` process, the one that names its session; `ternClaudeStatus` in `server/internal/node/agent_status.go`),
-before the hook and transcript rules below:
-
-- `busy` → `working`.
-- `waiting` (a question, permission or other dialog of its own has the keyboard) → `blocked`: Needs you, and the manager makes its screen card as for herdr's `blocked`.
-- `idle` → `done` once the session has a transcript (`idle` before its first message). Tern and Rex have nothing like herdr's "seen in the terminal", so a finished
-  turn is Unread until it is opened in an app, and its finished push follows the usual rules.
-- `shell` (Claude Code 2.1.31x and later: the turn is over while a background command or Monitor still runs) is read like `idle`: `done` once
-  there is a transcript, and the row then shows Working (background) from the transcript's background tasks.
-- No status to go by (no pid found for the block yet, an older Claude Code, a file that already names another session after `/clear`): the rules below,
-  as for herdr's `unknown`; a resting Claude's screen is read for a dialog as in a herdr pane.
-
 ### Claude in the desktop app
 
-A Claude Code session of Claude's desktop app takes its status from its own `sessions/<pid>.json`, as above (`busy` → `working`, `waiting` → `blocked`). `idle` and `shell` are `done` while the session's last turn ended unseen. It counts as seen once the app brought it into view, or once the node found someone at the app with the session shown. Otherwise it is `idle`. The web app shows Unread for `done`, and the finished push follows the usual rules.
+A Claude Code session of Claude's desktop app takes its status from its own `sessions/<pid>.json` (`busy` → `working`, `waiting` → `blocked`). `idle` and `shell` are `done` while the session's last turn ended unseen. It counts as seen once the app brought it into view, or once the node found someone at the app with the session shown. Otherwise it is `idle`. The web app shows Unread for `done`, and the finished push follows the usual rules.
 
 ### Hook turn signals
 
@@ -196,7 +181,7 @@ Global events carry `report_only`, and the hub doesn't take them as meaning the 
 Decisions (when herdr says `done` / `idle` / `unknown`; `blocked` and `working` follow herdr):
 
 - **A dialog is open in the terminal** (`node/dialogstatus.go`): for a Claude still `done` / `idle` / `unknown` after the checks above (excluding botmux, those in Claude's agents list, and ones where Persona itself is operating a picker)
-  in a herdr, Tern or Rex pane, node reads its screen in the background every 5 seconds (the list doesn't wait for the read). If the bottom is a dialog (`screen.Choosing`) it's recorded as `blocked`, `attention_reason` is the dialog's first line, and the "last said" in the web app's list and the assistant's `agents_list` shows that line.
+  in a herdr pane, node reads its screen in the background every 5 seconds (the list doesn't wait for the read). If the bottom is a dialog (`screen.Choosing`) it's recorded as `blocked`, `attention_reason` is the dialog's first line, and the "last said" in the web app's list and the assistant's `agents_list` shows that line.
 - **An allow Claude did not take** (`node/allowwatch.go`): whatever herdr says, `working` included. Once node hands a PermissionRequest
   hook an allow (a terminal Agent's, not the assistant's), it reads the pane 1.5 s later; a dialog still at the bottom (`screen.DialogHead`) lists
   the session as `blocked` with the dialog's first line as `attention_reason`, so the manager makes its screen card. The pane is read again every
@@ -300,7 +285,7 @@ List order (the same for all three groupings): Needs you → Unread → Awaiting
 | `space_id` / `space_name` / `space_index` | workspace id / label / number | Project, room, session group |
 | `slot_id` / `slot_name` / `slot_index` | tab id / label / number | Role, window, channel |
 | `pane_index` (optional) | The pane's positional index within the tab (from 0, top-left is 0) | Which position within the slot |
-| `parent_space_id` (optional) | Not set | Which space this space sits under (same machine, same `space_kind`): an Orca child workspace sets the parent workspace's `worktreeId` (`worktree.ps`'s `parentWorktreeId`) |
+| `parent_space_id` (optional) | Not set | Which space this space sits under (same machine, same `space_kind`) |
 
 DSH (`integrations/dsh`): `space_kind` is `dsh`, the space is the session's directory (`space_id` = directory, `space_name` = directory name; the folder's space, "One folder, one space" below), no slots;
 state comes from the plugin: running → working, a permission / question waiting → blocked, otherwise done (the hub splits it into Unread / Seen by whether it's been seen, as usual).
@@ -312,10 +297,6 @@ A project's chats are in the terminal workspace rooted in its folder when there 
 
 Claude desktop app: `space_kind` is `claude_desktop`, the space is the repository the session works in
 (a worktree the app made is its repository's; until that is read, the folder the app started the session in), the same `space_id` as the Codex App's chats there (`codex-project:<repository root>`, `space_name` its folder name), or the terminal workspace rooted in that folder ("One folder, one space" below); a folder that is no repository is a space of its own, the home folder none. No slots.
-
-Paseo (`integrations/paseo`): `space_kind` is `paseo`, the space is a Paseo project (`space_id` = project record id, `space_name` = project name);
-a repository's main checkout and its worktrees share a space. No slots: a workspace's Agents are separate conversations, not the panes of one tab;
-`slot_name` alone carries the Paseo workspace's title, as the Agent's place label.
 
 opencode (`integrations/opencode`): those in herdr panes are herdr sessions (`space_kind` is `herdr`); those outside herdr (web, other terminals) are runtime sessions,
 `space_kind` is `opencode`, the space is the session's directory (the folder's space, "One folder, one space" below), no slots, and state comes from the plugin (running → working, waiting on a permission → blocked, otherwise done / idle depending on whether there's an assistant message).
@@ -337,15 +318,14 @@ The workspace catalog retains its separate `workspace.list` fallback.
 Each way an Agent runs names its space its own way, and the hub and every client group a computer's sessions by
 `space_id` ([protocol.md](protocol.md) "Projects and spaces"). A folder whose Agents ran in herdr, in a desktop app
 and on a runtime was a project for each, all with the folder's name. Some of those spaces only stand for a folder: the
-desktop apps' projects (`codex-project:<root>`) and the space a runtime that keeps no workspaces names by its directory
+desktop apps' projects (`codex-project:<root>`) and the space a runtime names by its directory
 (agy, DSH, opencode outside herdr: `space_id` is the directory). Once the list is built, the node
 (`server/internal/node/folderspace.go`) puts every session in such a space in the folder's space on its computer:
 
-- **The terminal workspace rooted in the folder** (a herdr workspace, a Herdr App space, an Orca worktree): its
-  `space_id`, `space_name`, `space_index` and `parent_space_id`, as the host's own sessions there have them. A host's own
-  workspace goes before a directory group (`dir:<folder>`, herdr-core's terminals outside the app's spaces, botmux's
-  topics). Of several, the one named after the folder (the one New Agent reuses for it), the default engine's first;
-  of several with none named after the folder, none, since which one is the folder's is not known.
+- **The terminal workspace rooted in the folder** (a herdr workspace): its `space_id`, `space_name`, `space_index` and
+  `parent_space_id`, as the host's own sessions there have them. A host's own workspace goes before a directory group
+  (`dir:<folder>`, botmux's topics). Of several, the one named after the folder (the one New Agent reuses for it); of
+  several with none named after the folder, none, since which one is the folder's is not known.
 - **Else the folder's own space**: `codex-project:<physical folder>`, named as the Codex App names its project there and
   numbered by its place in the App's sidebar, else by the folder's name.
 
@@ -358,9 +338,8 @@ Folders compare by their physical paths (symbolic links resolved: a home directo
 and a folder this computer does not have (a daemon's on another machine, one removed since) keeps the space its app
 named. A session keeps its `space_kind` (`claude_desktop`, `codex_app`, `agy`…), so one space can hold several kinds,
 and the Codex App's chats in a terminal workspace have that workspace's number as `space_index`. A space action (Git, a
-new terminal, a worktree) whose `kind` names a session's app rather than a terminal host or an engine goes to the host
-that has the workspace, as one with no `kind` does. Terminal hosts' own workspaces, engines' projects (Paseo, Cindy, T3
-Code), the assistant's conversations and sessions in no space (a terminal Agent that is not running) keep what they have.
+new terminal, a worktree) whose `kind` names a session's app rather than a terminal host goes to the host
+that has the workspace, as one with no `kind` does. Terminal hosts' own workspaces, the assistant's conversations and sessions in no space (a terminal Agent that is not running) keep what they have.
 
 ### Several panes in one tab
 
@@ -372,7 +351,7 @@ A common pattern: an Agent runs `herdr pane split` in its own tab, then starts C
   node starts from the whole tab, finds the node whose `rect` is exactly that area, and splits it in two along its direction (the left / top half first; if several lines in the same direction could split it, it takes the one where each half is exactly one pane or one node), then orders each half the same way.
   So a 2×2 made by splitting top/bottom first and then each half left/right (A, B on top, C, D below) orders as A, B, C, D; looking only at rects, both lines could split it and the order would be ambiguous.
   With no `splits` (old herdr) or no node for an area, it falls back to rects only: find a straight line that crosses no pane, trying left/right first, then top/bottom.
-  When zoomed, herdr still gives each pane its original rect; when rects overlap and can't be split, herdr's own listing order is used. If the host gives no layout (herdr-core, Orca, etc.) or the pane isn't in the layout, there's no `pane_index`.
+  When zoomed, herdr still gives each pane its original rect; when rects overlap and can't be split, herdr's own listing order is used. If the host gives no layout or the pane isn't in the layout, there's no `pane_index`.
   node also pushes `sessions.changed` when only `pane_index` changes (`herdr pane swap`, closing the top-left shell): it's part of the list's change detection (present or not, and its value).
 - Within a group, order by `pane_index`. Number 0 (top-left; every split is cut from it) is the **starter**, the rest are branches it started; without `pane_index`, fall back to the old order (session id).
   If the top-left is a shell rather than an Agent, the group has no number 0 and the Agents are peers (the web doesn't mark a starter).

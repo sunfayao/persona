@@ -162,7 +162,7 @@ The sections that are a manager's (whose assistant it is, `ai`, `agents`, `inbox
 - `machines[].botmux` (optional): false means this computer's node neither lists botmux sessions nor runs botmux (no `botmux observe`, `botmux dashboard current`);
   omitted lists sessions if botmux is installed. The node must also be this version; manual hub.json edits require a hub restart and take effect on reconnect.
   It is now only a default: "Also Show botmux Sessions" in machine details (the web in the page header) is stored per machine in settings (`botmux/<machine id>`) and wins once set.
-- `machines[].herdr_autostart` (optional): false means this computer's node does not start herdr's server itself when herdr is not running; omitted means on. **Only a default**: once the user chooses per machine under **Settings › Machines › Engine**, that choice wins
+- `machines[].herdr_autostart` (optional): false means this computer's node does not start herdr's server itself when herdr is not running; omitted means on. **Only a default**: once a per-machine choice is saved (`PUT /api/v1/machines/{mid}/herdr`), that choice wins
   (stored in the hub's settings, `herdr_autostart/<machine id>`); later edits here do not affect machines already configured.
 - `machines[].herdr_autoinstall` (optional, off by default): true means when herdr is missing on this computer, the node installs a pinned version before starting herdr itself
   (at startup, before creating / continuing sessions). Without it, installation happens only when the user taps "Start" in the Agents list. The node must also be this version; manual hub.json edits require a hub restart and take effect on reconnect.

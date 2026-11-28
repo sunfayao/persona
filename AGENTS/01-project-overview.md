@@ -59,7 +59,7 @@ the time. That is why `06-wire-contracts-and-extensions.md` matters for almost e
 | `server/cmd/` | `main` packages: flags, wiring, exit codes | `02` |
 | `server/internal/hub/` | The communication center | `02` |
 | `server/internal/assistant/`, `devices/`, `extmgr/` | The managers and their domain packages | `02`, `03` |
-| `server/internal/node/` | The node and its domain packages (`engine/`, `doctor/`, `files/`, ...) | `02`, `03` |
+| `server/internal/node/` | The node and its domain packages (`doctor/`, `files/`, ...) | `02`, `03` |
 | `server/internal/db/` | Stores and migrations | `04` |
 | `server/internal/prompts/` | Every prompt template and agent tool description | `05` |
 | `server/internal/proto`, `*wire`, `nodeproto`, `rpc` | Contract packages shared between processes | `06` |

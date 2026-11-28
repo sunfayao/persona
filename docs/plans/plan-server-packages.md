@@ -46,7 +46,6 @@ server/
       harness/claude/            one package per coding CLI: start, send, read, questions, modes
       harness/codex/
       harness/agy/, harness/trae/, harness/cursor/, ...
-      engine/herdr/, engine/orca/, engine/paseo/, engine/tmux/   one per terminal engine
       assistantrt/               running the assistant's own conversations (Claude Code headless, Codex, runtimes)
       gates/                     tool hooks, the Lark gates, the gate proxy and relay
       doctor/                    node diagnostics and LaunchAgent repair
@@ -105,8 +104,8 @@ Extract leaves before trunks: a domain that nothing else in the root calls into 
 | A3 | `assistant/models` and `assistant/settings` | About 20,000 lines; few callers into the rest |
 | A4 | `assistant/todo`, then `assistant/inbox` with `feishu` and `channels` | About 45,000 lines |
 | A5 | `assistant/tasks`, `assistant/supervision`, `assistant/conversation` | The core; last, when the smaller domains have left |
-| N1 | `node/engine/orca`, `node/doctor`, `node/preview`, `node/ports` and `node/files` | Done for these five domains. The node wires RPC, workspace policy, and stream transport at the existing entry points. |
-| N2 | Remaining `node/engine/*` and `node/harness/*`, then `node/gates` and the rest of `node/machine` | Codex parsing (`node/harness/codex`) and its app-server transport (`node/harness/codex/appserver`, with `tomltext` and `gitworktree`) are done. Codex session start, send, inventory, approvals, modes and stop stay in the root: split the pane, session, writer and notification seams (`newTab`, `bindPane`, `runAgentCommand`, `putAgentState`, `notifyCodex`) before moving them or starting Antigravity. Extract the shared Screen Sharing and approval or installer seams before moving `node/computeruse`. Keep file writes and watches with the node path policy until their shared mutation workflow has a boundary. |
+| N1 | `node/doctor`, `node/preview`, `node/ports` and `node/files` | Done for these four domains. The node wires RPC, workspace policy, and stream transport at the existing entry points. |
+| N2 | Remaining `node/harness/*`, then `node/gates` and the rest of `node/machine` | Codex parsing (`node/harness/codex`) and its app-server transport (`node/harness/codex/appserver`, with `tomltext` and `gitworktree`) are done. Codex session start, send, inventory, approvals, modes and stop stay in the root: split the pane, session, writer and notification seams (`newTab`, `bindPane`, `runAgentCommand`, `putAgentState`, `notifyCodex`) before moving them or starting Antigravity. Extract the shared Screen Sharing and approval or installer seams before moving `node/computeruse`. Keep file writes and watches with the node path policy until their shared mutation workflow has a boundary. |
 | N3 | `node/assistantrt`, `node/sessions` | The node's core; last |
 
 Stages of the two roots are independent and can run side by side. After each stage the baseline in `archguard` is
@@ -137,13 +136,11 @@ disposable database wrapper on Linux.
 | --- | ---: | ---: | ---: |
 | `internal/node` before | 640 | 167,841 | Partitioned |
 | `internal/node` after | 611 | 160,494 | Partitioned |
-| `internal/node/engine/orca` | 6 | 1,745 | 0.038 s |
 | `internal/node/doctor` | 3 | 1,357 | 2.781 s |
 | `internal/node/preview` | 9 | 1,853 | 0.036 s |
 | `internal/node/ports` | 5 | 669 | 0.192 s |
 | `internal/node/files` | 12 | 1,206 | 0.175 s |
 
-- Orca needs a runtime client, a process scanner, and node callbacks for Git, workspace policy and refusals.
 - Doctor needs generated configuration, installed extension checks, sandbox status and the startup preflight.
 - Preview owns the browser and tabs. The node starts the project's dev server in a terminal and supplies streams.
 - Ports needs live pane process IDs, pane ownership and a change callback. The node also owns Screen Sharing streams.
