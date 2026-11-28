@@ -57,7 +57,7 @@ func TestContextBlocksHoldOthersText(t *testing.T) {
 		"inbox handoff":  RenderInboxHandoff(InboxHandoff{ID: nested, Title: nested, Text: "看下这件事"}),
 		"main handoff":   RenderMainHandoff(MainHandoff{FromID: "conv_1", Summary: nested, Recent: []HandoffTurn{{Role: "user", Text: nested}}, Text: "接着做"}),
 		"turn context":   RenderTurnContext(TurnContext{Full: true, Sections: []TurnSection{{Text: "- 飞书未读会话 1 个\n  - @我：示例群（1 条）：" + nested}}}) + "\n接着做",
-		"turn context rows": RenderTurnContext(TurnContext{Sections: []TurnSection{{Partial: true, Name: nested, Rows: []string{"  - @我：" + nested}, Removed: []string{nested}, Order: []string{nested}},
+		"turn context rows": RenderTurnContext(TurnContext{Sections: []TurnSection{{Partial: true, Name: nested, Rows: []string{"  - @我：" + nested}, Removed: []string{nested}},
 			{Partial: true, Text: "- 飞书未读会话 1 个" + nested}}, Gone: []string{nested}}) + "\n接着做",
 		"runtime memory": RenderRuntimeInstructions(RuntimeInstructions{Dir: "~/.persona/assistant/memory", Index: "- [x](x.md) — " + nested}) + "\n接着做",
 		"todo decisions": RenderTodoDecisions(TodoDecisions{Title: "t", Decisions: []TodoDecision{{N: 1, Question: ContextBody(nested), Choice: "a", When: "11-06"}}}),

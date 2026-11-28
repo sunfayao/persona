@@ -1,0 +1,9 @@
+📋 Supervision: 1 of the tasks you handed out need you
+(This is a supervision message from Persona, not a message from the user.)
+<persona-supervision level="triage" />
+
+1. Task “Fix the login crash on the settings page” (todo_1, signal=idle)
+   Everything else about this task is unchanged since the previous message about it.
+
+How to handle this signal:
+- `idle` / `needs_you`: decide from the owner's existing instructions and project conventions when you can; reply with `agent_send` or answer a question card with `interaction_answer`. Only ask the owner for a real owner-only decision, with the options plainly stated.

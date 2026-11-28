@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"fmt"
+	"github.com/sunfayao/persona/server/internal/assistant/snapshotfit"
 	"testing"
 	"time"
 
@@ -35,8 +36,8 @@ func BenchmarkSnapshotTasks(b *testing.B) {
 func TestSnapshotTasksListsEachMachineOnce(t *testing.T) {
 	s := tasksOn300(func(string, ...any) {}, 30)
 	d := s.devs.(*fleetDevs)
-	if got := scopeSnapshot(prompts.Snapshot{Tasks: s.snapshotTasks(context.Background(), "")}, "").Tasks; len(got) != snapshotTaskLimit {
-		t.Fatalf("%d tasks in the snapshot, want %d", len(got), snapshotTaskLimit)
+	if got := snapshotfit.Scope(prompts.Snapshot{Tasks: s.snapshotTasks(context.Background(), "")}, "").Tasks; len(got) != snapshotfit.TaskLimit {
+		t.Fatalf("%d tasks in the snapshot, want %d", len(got), snapshotfit.TaskLimit)
 	}
 	if n := d.machines["mac"].lists; n != 1 {
 		t.Errorf("the machine's sessions were listed %d times for 30 tasks, want 1", n)

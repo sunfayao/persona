@@ -227,7 +227,7 @@ func TestParentCloseoutIdempotentAcrossSweepsAndRestart(t *testing.T) {
 	}
 	s1.sweepParentCloseout(ctx)
 	sendPendingPRConflicts(s1)
-	if got := sendsToConversation(f1, "conv1"); len(got) != 1 || !strings.Contains(got[0], "signal="+sigParentCloseout) {
+	if got := sendsToConversation(f1, "conv1"); len(got) != 1 || !hasSignal(got[0], sigParentCloseout) {
 		t.Fatalf("expected 1 parent_closeout wake, got %q", got)
 	}
 

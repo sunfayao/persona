@@ -180,7 +180,7 @@ func TestNoProgressReachesTheSupervisor(t *testing.T) {
 		}
 		waitFor(t, "the supervision message", func() bool {
 			for _, n := range f.notices() {
-				if strings.Contains(n, todo.ID) && strings.Contains(n, "signal=no_progress") {
+				if strings.Contains(n, todo.ID) && strings.Contains(n, "no_progress") {
 					return true
 				}
 			}

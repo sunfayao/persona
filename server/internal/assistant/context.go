@@ -4,19 +4,17 @@ import (
 	"cmp"
 	"context"
 	"sort"
-	"strings"
 	"sync"
 	"time"
-	"unicode/utf8"
 
 	"github.com/sunfayao/persona/server/internal/assistant/replylang"
 	"github.com/sunfayao/persona/server/internal/assistant/rulefiles"
+	"github.com/sunfayao/persona/server/internal/assistant/snapshotfit"
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/connector"
 	"github.com/sunfayao/persona/server/internal/nodeproto"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
-	"github.com/sunfayao/persona/server/internal/textfmt"
 )
 
 // Context is the <persona-context> block a message to conversation p.SessionID starts with (the node asks on every
@@ -26,7 +24,7 @@ import (
 // background supervisor's announcement.
 func (s *Service) Context(ctx context.Context, p ContextParams) ContextResult {
 	if len(p.Ack) > 0 {
-		p.Ack = s.ruleFiles.Delivered(ctx, p.MachineID, p.SessionID, p.Ack)
+		p.Ack = s.policy.Delivered(ctx, p.MachineID, p.SessionID, s.ruleFiles.Delivered(ctx, p.MachineID, p.SessionID, p.Ack))
 		// The background supervisor's announcement is confirmed the same way (supervise_background.go).
 		if p.Ack = s.announcedBackground(ctx, p.SessionID, p.Ack); len(p.Ack) > 0 {
 			s.ackViewErrors(ctx, p)
@@ -39,20 +37,24 @@ func (s *Service) Context(ctx context.Context, p ContextParams) ContextResult {
 	background := s.isBackgroundSession(ctx, p.SessionID)
 	snapshot := ""
 	cleanRound := s.cleanRoundSession(p.SessionID)
+	supervising, judged, whole := s.supervisionTurn(ctx, p)
 	if !cleanRound { // a granted schedule's round reads nothing from outside (schedule_grant.go)
 		if track := s.contextTrack(ctx, p, background); track != "" {
 			// a conversation in a track other than the main space: its own short context, not the snapshot (space_context.go)
 			return s.withRuleNotice(ctx, p, track, s.contextResult(ctx, p, s.spaceContext(ctx, track), "", false))
 		}
-		snapshot = s.contextSnapshot(ctx, s.snapshotScope(ctx, p.SessionID), background)
+		if !supervising { // its context leaves the snapshot out (withSupervisionNotices)
+			snapshot = s.contextSnapshot(ctx, s.snapshotScope(ctx, p.SessionID), background)
+		}
 	}
 	c := prompts.AssistantContext{ScheduledWorkPlan: cleanRound && s.settings(ctx).workGuideOn(), Snapshot: snapshot, Owner: s.owner(ctx),
 		Main: s.isMain(ctx, p.SessionID), Background: background}
 	switch {
-	case c.Main:
+	case c.Main && !supervising: // a supervision message leaves it out with the snapshot
 		c.BackgroundStarted = s.announceBackground(ctx) // until a message carrying it is delivered: its tasks are followed up in the background now (supervise_background.go)
 	}
-	return s.withRuleNotice(ctx, p, "", s.contextResult(ctx, p, prompts.RenderAssistantContext(c), c.BackgroundStarted, cleanRound))
+	out := s.withRuleNotice(ctx, p, "", s.contextResult(ctx, p, prompts.RenderAssistantContext(c), c.BackgroundStarted, cleanRound))
+	return s.withSupervisionNotices(ctx, p, out, supervising, judged, whole)
 }
 
 // withRuleNotice adds to out the one-off About me block a conversation of space's directory is owed when its standing
@@ -152,19 +154,11 @@ func (s *Service) contextSnapshot(ctx context.Context, scope string, background 
 	out := *snap
 	out.Now = time.Now().In(s.location(ctx))
 	out.ModelProfile = s.modelProfileContext(ctx)
-	out = scopeSnapshot(out, scope)
+	out = snapshotfit.Scope(out, scope)
 	if background {
-		out = backgroundSnapshot(out)
+		out = snapshotfit.Background(out)
 	}
-	return fitSnapshot(out)
-}
-
-// backgroundSnapshot is snap for the background supervisor (#7315): without what only the main conversation acts on,
-// its plan cards waiting for Start (only it withdraws them, toolTaskPlanWithdraw), the owner's unread chats and the tools' notes to review. Their tools are not among a round's (supervise_round.go roundToolNames), and its supervision needs none
-// of them.
-func backgroundSnapshot(snap prompts.Snapshot) prompts.Snapshot {
-	snap.Plans, snap.PlansTotal, snap.Chats, snap.ToolReview = nil, 0, nil, nil
-	return snap
+	return snapshotfit.Fit(out)
 }
 
 // snapshotScope is whose tasks conversation id's snapshot lists (#8666): "" for every task in the main conversation,
@@ -195,109 +189,12 @@ func (s *Service) runsScheduledTask(ctx context.Context, session string) bool {
 	return false
 }
 
-// scopeSnapshot is snap for a conversation (scope "" for all, snapshotScope): its task lists cut to what one message
-// shows, after leaving out, for a scoped one, the tasks that are neither handed out nor supervised by it, so another
-// conversation's tasks never crowd its own out. The lists are new: snap shares its own with the cached snapshot.
-func scopeSnapshot(snap prompts.Snapshot, scope string) prompts.Snapshot {
-	// A personal to-do has neither an origin nor a supervisor, so only an unscoped snapshot lists it.
-	mine := func(o prompts.SnapshotOwner) bool { return scope == "" || o.Origin == scope || o.Supervisor == scope }
-	snap.Scoped = scope != ""
-	snap.Tasks, _ = firstOf(snap.Tasks, snapshotTaskLimit, func(t prompts.SnapshotTask) bool { return mine(t.Owner) })
-	snap.Approvals, _ = firstOf(snap.Approvals, snapshotApprovalLimit, func(a prompts.SnapshotApproval) bool { return mine(a.Owner) })
-	var accepts int
-	snap.Unaccepted, accepts = firstOf(snap.Unaccepted, snapshotAcceptLimit, func(a prompts.SnapshotAccept) bool { return mine(a.Owner) })
-	if snap.Scoped {
-		snap.UnacceptedTotal = accepts
-		snap.ToolReview = nil // the main conversation reviews the tools' notes
-	}
-	shown := map[string]bool{} // a scoped index lists only the open ones its details do not
-	for _, t := range snap.Tasks {
-		shown[t.ID] = snap.Scoped
-	}
-	snap.OpenTodos, _ = firstOf(snap.OpenTodos, snapshotOpenTodoLimit, func(t prompts.SnapshotOpenTodo) bool { return mine(t.Owner) && !shown[t.ID] })
-	return snap
-}
-
-// snapshotApprovalLimit, snapshotAcceptLimit: how many tasks waiting for the user's nod, and for the user to verify,
-// one conversation's snapshot lists (the oldest; the count says how many more wait to be verified).
-const (
-	snapshotApprovalLimit = 10
-	snapshotAcceptLimit   = 8
-)
-
-// firstOf is a new list of the first limit items of list that keep takes, and how many it takes in all.
-func firstOf[T any](list []T, limit int, keep func(T) bool) ([]T, int) {
-	var out []T
-	n := 0
-	for _, x := range list {
-		if keep(x) {
-			if n++; len(out) < limit {
-				out = append(out, x)
-			}
-		}
-	}
-	return out, n
-}
-
 const (
 	snapshotFresh   = 45 * time.Second
 	snapshotWait    = 1500 * time.Millisecond
 	snapshotStale   = 30 * time.Minute
 	snapshotSlowest = 5 * time.Second
-
-	// snapshotBudget: characters of rendered snapshot one message may carry (#3203). The block stays in the
-	// conversation, so its size is what every message adds to the context until the next compaction; the node sends
-	// only the sections that changed, but after a compaction or a restart it sends all of them again.
-	snapshotBudget = 6000
 )
-
-// snapshotOmits are the sections fitSnapshot leaves out, the least needed first. Never left out: the agents waiting
-// for the user (needs you, awaiting a reply), the plan cards waiting for "Start" and the failed scheduled runs (no
-// tool lists them), the calendar and the chats that @ the user.
-var snapshotOmits = []func(*prompts.SnapshotOmit){
-	func(o *prompts.SnapshotOmit) { o.Waiting = true },
-	func(o *prompts.SnapshotOmit) { o.Routines = true },
-	func(o *prompts.SnapshotOmit) { o.Following = true },
-	func(o *prompts.SnapshotOmit) { o.Followups = true },
-	func(o *prompts.SnapshotOmit) { o.OtherChats = true },
-	func(o *prompts.SnapshotOmit) { o.Asked = true },
-	func(o *prompts.SnapshotOmit) { o.Unaccepted = true },
-	func(o *prompts.SnapshotOmit) { o.OpenTodos = true },
-	func(o *prompts.SnapshotOmit) { o.Tasks = true },
-	func(o *prompts.SnapshotOmit) { o.Unread = true },
-	func(o *prompts.SnapshotOmit) { o.Approvals = true },
-}
-
-// fitSnapshot is s rendered within snapshotBudget: as it is when it fits, else with sections left out in
-// snapshotOmits' order until it does (each keeps its heading and count: prompts.SnapshotOmit), else cut short. It
-// changes nothing but s.Omit: s shares its lists with the cached snapshot other messages render at the same time,
-// and the free text in them was clipped where the snapshot was taken.
-func fitSnapshot(s prompts.Snapshot) string {
-	text := prompts.RenderSnapshot(s)
-	for _, omit := range snapshotOmits {
-		if utf8.RuneCountInString(text) <= snapshotBudget {
-			return text
-		}
-		omit(&s.Omit)
-		text = prompts.RenderSnapshot(s)
-	}
-	if utf8.RuneCountInString(text) <= snapshotBudget {
-		return text
-	}
-	return cutSnapshot(text)
-}
-
-// cutSnapshot is text cut short, with the line saying so, within snapshotBudget: for what no section can be left out
-// of. The agents waiting for the user come first in the template, so they are what stays; the cut is at a line break
-// unless that would lose more than half the block (one agent list is one line).
-func cutSnapshot(text string) string {
-	tail := "\n" + prompts.SnapshotCut()
-	head := textfmt.Cut(text, snapshotBudget-utf8.RuneCountInString(tail))
-	if i := strings.LastIndexByte(head, '\n'); i > len(head)/2 {
-		head = head[:i]
-	}
-	return head + tail
-}
 
 // takeSnapshot reads the sources and keeps the result for contextSnapshot; done is closed when it is in.
 func (s *Service) takeSnapshot(done chan struct{}) {
@@ -453,7 +350,7 @@ func (s *Service) snapshotAgents(ctx context.Context, devices []Device, web stri
 			} else if upstreamRow(c) {
 				a.Line = s.upstreamSnapshotLine(lang, m.ID, c) // persistent upstream 5xx / pool outage (#13372)
 			}
-			a.Line = clip(oneLine(a.Line), 160)
+			a.Line = clip(oneLine(a.Line), 100)
 			group := snapshotAgentGroup(c, now)
 			if group == snapshotAgentOutside {
 				continue

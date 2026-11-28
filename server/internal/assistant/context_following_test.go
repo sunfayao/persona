@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"context"
+	"github.com/sunfayao/persona/server/internal/assistant/snapshotfit"
 	"reflect"
 	"regexp"
 	"strings"
@@ -227,7 +228,7 @@ func TestSnapshotFollowingClipsFreeText(t *testing.T) {
 // The inbox section has its own omission step before scheduled follow-ups: its heading and total stay within budget.
 func TestFitSnapshotFollowingOmitsBeforeFollowups(t *testing.T) {
 	var omitted prompts.SnapshotOmit
-	snapshotOmits[2](&omitted)
+	snapshotfit.Omits[2](&omitted)
 	if !omitted.Following || omitted.Followups {
 		t.Fatalf("the third omission = %+v, want Following alone", omitted)
 	}
@@ -244,12 +245,12 @@ func TestFitSnapshotFollowingOmitsBeforeFollowups(t *testing.T) {
 		Now: now, Zone: "UTC", FollowingEnabled: true, Following: following, FollowingTotal: 7,
 		Followups: followups, FollowupsTotal: len(followups),
 	}
-	if got := utf8.RuneCountInString(prompts.RenderSnapshot(s)); got <= snapshotBudget {
-		t.Fatalf("fixture has only %d characters, want more than %d", got, snapshotBudget)
+	if got := utf8.RuneCountInString(prompts.RenderSnapshot(s)); got <= snapshotfit.Budget {
+		t.Fatalf("fixture has only %d characters, want more than %d", got, snapshotfit.Budget)
 	}
-	out := fitSnapshot(s)
-	if got := utf8.RuneCountInString(out); got > snapshotBudget {
-		t.Fatalf("fitted snapshot has %d characters, budget is %d", got, snapshotBudget)
+	out := snapshotfit.Fit(s)
+	if got := utf8.RuneCountInString(out); got > snapshotfit.Budget {
+		t.Fatalf("fitted snapshot has %d characters, budget is %d", got, snapshotfit.Budget)
 	}
 	want := "- Following (7 item(s)): too many to fit in this snapshot, so not listed; see the Inbox in Persona"
 	if !strings.Contains(out, want) {

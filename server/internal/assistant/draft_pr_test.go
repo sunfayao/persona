@@ -119,7 +119,7 @@ func TestDraftPRSignalsSupervisedTasks(t *testing.T) {
 				}
 				return
 			}
-			if len(notices) != 1 || !strings.Contains(notices[0], "signal=draft_pr") ||
+			if len(notices) != 1 || !hasSignal(notices[0], "draft_pr") ||
 				!strings.Contains(notices[0], task.PRURL) || !strings.Contains(notices[0], "head-a") {
 				t.Fatalf("supervisor did not receive the own-draft facts: %q", notices)
 			}
@@ -218,7 +218,7 @@ func TestDraftPRBusySupervisorRevalidatesBeforeDelivery(t *testing.T) {
 				t.Fatal("draft was not left pending outside the rendered relay queue")
 			}
 			for _, msg := range queuedRelays(s, "conv1") {
-				if strings.Contains(msg.Text, "signal=draft_pr") {
+				if hasSignal(msg.Text, "draft_pr") {
 					t.Fatal("draft was folded into an existing rendered relay")
 				}
 			}
@@ -292,7 +292,7 @@ func TestDraftPRSignalsEachFollowedOwnDraft(t *testing.T) {
 		}
 	}
 	sendPendingPRConflicts(s)
-	if notices := hub.notices(); len(notices) != 1 || strings.Count(notices[0], "signal=draft_pr") != 2 {
+	if notices := hub.notices(); len(notices) != 1 || strings.Count(notices[0], "- draft_pr:") != 2 {
 		t.Fatalf("the task's drafts were not independently delivered: %q", notices)
 	}
 }

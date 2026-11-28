@@ -32,6 +32,10 @@ const (
 	// beside the Agents' own in every request, and their wire bytes.
 	leaderToolsBudget     = 5
 	leaderToolBytesBudget = 9_539
+	// mainSupervisionSectionBudget: the supervision section of the main conversation's own rules, in bytes. The full
+	// policy (supervisionInstructionsBudget) is not in its standing text unless it supervises to-dos itself: it comes
+	// with the first signal the conversation is asked to judge (supervisionpolicy).
+	mainSupervisionSectionBudget = 470
 )
 
 func TestLeanBudgets(t *testing.T) {
@@ -70,6 +74,12 @@ func TestLeanBudgets(t *testing.T) {
 	}
 	check("a to-do supervisor's own tools", len(leaderToolList()), leaderToolsBudget)
 	check("a to-do supervisor's own tools (wire bytes)", leader, leaderToolBytesBudget)
+
+	for line := range strings.SplitSeq(prompts.RenderAssistantClaudeMD(prompts.AssistantClaudeMD{}), "\n") {
+		if strings.HasPrefix(line, "- **Supervision.**") {
+			check("main conversation's supervision section (bytes)", len(line), mainSupervisionSectionBudget)
+		}
+	}
 
 	handoff := prompts.RenderTaskHandoff(prompts.TaskHandoff{MCP: true, Language: "English"})
 	readonly := handoff + "\n\n" + prompts.RenderAgentCloseoutBrief(prompts.AgentCloseoutBrief{

@@ -167,7 +167,7 @@ func TestDeliveryHoldUnderStopWaitsForTheUser(t *testing.T) {
 	s.superviseWatch(ctx, time.Now().Add(time.Hour))
 	waitFor(t, "the delivery hold message after /stop is lifted", func() bool {
 		for _, n := range f.notices()[before:] {
-			if strings.Contains(n, "signal=delivery_hold") {
+			if strings.Contains(n, "delivery_hold") {
 				return true
 			}
 		}

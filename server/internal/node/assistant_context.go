@@ -140,9 +140,9 @@ func idsOf(rows []string, id func(string) string) (ids []string, ok bool) {
 }
 
 // rowDelta is what changed in section key between the text a conversation has (old) and the snapshot's (text), row
-// by row: the rows that are new or changed, the ids of those that are gone, and the rows' order when the reader
-// could not tell it (prompts.TurnSection). ok is false when the section is not one to tell by rows: no rowIDs for
-// it, or a row on either side without an id of its own.
+// by row: the rows that are new or changed and the ids of those that are gone (prompts.TurnSection); the order of the
+// rows is not told, the reader keeps the one it knows. ok is false when the section is not one to tell by rows: no
+// rowIDs for it, or a row on either side without an id of its own.
 func rowDelta(key, old, text string) (delta prompts.TurnSection, ok bool) {
 	id := rowIDs[key]
 	if id == nil {
@@ -164,27 +164,16 @@ func rowDelta(key, old, text string) (delta prompts.TurnSection, ok bool) {
 		had[k] = oldRows[i]
 	}
 	has := make(map[string]bool, len(rows))
-	var added []string
 	for i, k := range ids {
 		has[k] = true
-		before, known := had[k]
-		if !known {
-			added = append(added, k)
-		}
-		if !known || before != rows[i] {
+		if before, known := had[k]; !known || before != rows[i] {
 			delta.Rows = append(delta.Rows, rows[i])
 		}
 	}
-	var kept []string // the order the reader has without being told: the rows it knew, then the new ones
 	for _, k := range oldIDs {
-		if has[k] {
-			kept = append(kept, k)
-		} else {
+		if !has[k] {
 			delta.Removed = append(delta.Removed, k)
 		}
-	}
-	if !slices.Equal(append(kept, added...), ids) {
-		delta.Order = ids
 	}
 	return delta, true
 }
@@ -221,7 +210,9 @@ func contextDelta(seen map[string]string, snapshot string) (string, map[string]s
 		case !known:
 			c.Sections = append(c.Sections, prompts.TurnSection{Text: s.text})
 		case old != s.text:
-			c.Sections = append(c.Sections, changedSection(s, old))
+			if d := changedSection(s, old); d.Text != "" || len(d.Rows) > 0 || len(d.Removed) > 0 || !d.Partial {
+				c.Sections = append(c.Sections, d) // rows that only changed their order tell nothing
+			}
 		case s.key == timeSection:
 			c.Sections = append(c.Sections, prompts.TurnSection{Text: s.text})
 		}

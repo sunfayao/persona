@@ -1,0 +1,8 @@
+- Now: 2026-11-28 Sat 10:00 (UTC)
+- Model profile: not set (model_profiles: list them, switch to one)
+- Computers online: 
+- Agents: 0 need you, 0 finished unread, 0 working (details: agents_list)
+- Open task details (shown by priority, including personal to-dos; recently ended conversation tasks are listed too; task_plan; for existing results look here, and if that is not enough read its conversation with agent_read; use agent_send only to have it look something up, do something new or change direction): 
+  - Rebuild the report page (todo_led): working; run by its supervisor Agent session_id=lead0001
+  - Fix the login crash (todo_own): working, box session_id=work0001: running the tests and reading the output of every one of the…; now: go test ./...; sub-agents running: read the diff
+- Scheduled follow-ups: none

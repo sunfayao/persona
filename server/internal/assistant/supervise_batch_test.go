@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"context"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -111,9 +112,14 @@ func TestSupervisionBatchImmediateReleasesWholeRecipientDigest(t *testing.T) {
 	waitFor(t, "the mixed immediate digest", func() bool { return len(assistantSendsTo(f, "conv1")) == 1 })
 	send := lastSendTo(f, "conv1")
 	text, _ := send["text"].(string)
-	for _, want := range []string{"signal=" + sigStalled, "signal=" + sigFailed, "routine detail", "start failed"} {
+	for _, want := range []string{"routine detail", "start failed"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("mixed digest lacks %q:\n%s", want, text)
+		}
+	}
+	for _, kind := range []string{sigStalled, sigFailed} {
+		if !hasSignal(text, kind) {
+			t.Errorf("mixed digest lacks the signal %q:\n%s", kind, text)
 		}
 	}
 	s.supervise.mu.Lock()
@@ -179,10 +185,10 @@ func TestSupervisionBatchImmediateRescreensReleasedIdleWake(t *testing.T) {
 			s.queueSignal(immediate)
 			waitFor(t, "the immediate digest", func() bool { return len(assistantSendsTo(f, "conv1")) == 1 })
 			text, _ := lastSendTo(f, "conv1")["text"].(string)
-			if !strings.Contains(text, "signal="+immediate.Kind) {
+			if !hasSignal(text, immediate.Kind) {
 				t.Fatalf("immediate signal was not delivered: %s", text)
 			}
-			if got := strings.Contains(text, "signal="+sigIdle); got != tc.wantIdle {
+			if got := hasSignal(text, sigIdle); got != tc.wantIdle {
 				t.Fatalf("idle delivered = %v, want %v: %s", got, tc.wantIdle, text)
 			}
 			if !tc.wantIdle {
@@ -244,9 +250,9 @@ func TestSupervisionBatchDueDigestsUseExistingBusyQueue(t *testing.T) {
 	settleService(t, s)
 	send := lastSendTo(f, bg)
 	text, _ := send["text"].(string)
-	for _, want := range []string{"signal=" + sigStalled, "signal=" + sigInterrupted} {
-		if !strings.Contains(text, want) {
-			t.Errorf("merged queued digest lacks %q:\n%s", want, text)
+	for _, kind := range []string{sigStalled, sigInterrupted} {
+		if !hasSignal(text, kind) {
+			t.Errorf("merged queued digest lacks the signal %q:\n%s", kind, text)
 		}
 	}
 	if got := len(assistantSendsTo(f, bg)); got != 1 {
@@ -267,4 +273,9 @@ func TestSupervisionBatchIntervalValidation(t *testing.T) {
 	if got := supervisionBatchMinutesOf(Settings{}); got != 0 {
 		t.Fatalf("unset default = %d, want 0", got)
 	}
+}
+
+// hasSignal: a supervision message names kind in a to-do's signal line (signal=kind, or signals=a, kind, b).
+func hasSignal(text, kind string) bool {
+	return regexp.MustCompile(`signals?=(?:[a-z_]+, )*` + kind + `\b`).MatchString(text)
 }

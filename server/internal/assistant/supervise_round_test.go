@@ -20,7 +20,6 @@ import (
 const (
 	roundHeader     = "This round usually starts from a clean context"
 	roundHeaderLine = roundHeader + ": earlier rounds of the conversation may not be in front of you. Whatever must carry across rounds is in the task ledger (brief, scope changes, settled decisions, last verdict); read it with todo_get when needed."
-	roundIdle       = "signal=" + sigIdle
 	roundReview     = "signal=" + sigReview
 )
 
@@ -146,7 +145,7 @@ func TestBackgroundWakeWhileARoundRuns(t *testing.T) {
 	if len(sends) != 1 || sends[0][superviseRoundParam] != true || !prompts.IsSuperviseRound(text) {
 		t.Fatalf("sent %d: %v", len(sends), sends[0])
 	}
-	for _, want := range []string{"50 minutes without progress", "停在提问上", "interrupted by a model service error", "signal=" + sigStalled, roundIdle, "signal=" + sigInterrupted} {
+	for _, want := range []string{"50 minutes without progress", "停在提问上", "interrupted by a model service error", "signals=" + sigIdle + ", " + sigInterrupted + ", " + sigStalled} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the merged round lacks %q:\n%s", want, text)
 		}

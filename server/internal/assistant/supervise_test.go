@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"encoding/json"
+	"github.com/sunfayao/persona/server/internal/assistant/digestfmt"
 	"strings"
 	"testing"
 	"time"
@@ -284,7 +285,7 @@ func TestSupervisedTaskNewMainConversationCanReview(t *testing.T) {
 }
 
 func TestGoldenSupervise(t *testing.T) {
-	golden(t, "supervise.digest", prompts.RenderSupervise(prompts.Supervise{Entries: sortEntries([]prompts.SuperviseEntry{
+	golden(t, "supervise.digest", prompts.RenderSupervise(prompts.Supervise{Entries: digestfmt.Sorted([]prompts.SuperviseEntry{
 		{ID: "todo_1", Title: "修登录崩溃", Kind: sigReview, Detail: "PR 已合并", DoneWhen: []string{"PR 合并到 master", "浅色 / 深色截图贴进 PR"},
 			Machine: "box", Session: "a1b2c3d4", Last: "修好了，PR https://github.com/o/r/pull/901 已合并", Link: "https://hub.example.com/todos?id=todo_1",
 			Review: &prompts.SuperviseReviewed{State: autoClean, Count: 1, Findings: "1. P2 login/view.swift:12 变量名可以更清楚"}},

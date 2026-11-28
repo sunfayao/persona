@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistant/agents"
+	"github.com/sunfayao/persona/server/internal/assistant/digestfmt"
 	"github.com/sunfayao/persona/server/internal/assistant/knowledge"
 	"github.com/sunfayao/persona/server/internal/assistant/lifecycle"
 	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
@@ -22,6 +23,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/assistant/repository"
 	"github.com/sunfayao/persona/server/internal/assistant/rulefiles"
 	"github.com/sunfayao/persona/server/internal/assistant/saved"
+	"github.com/sunfayao/persona/server/internal/assistant/supervisionpolicy"
 	"github.com/sunfayao/persona/server/internal/assistant/toolnotes"
 	"github.com/sunfayao/persona/server/internal/assistant/tooluse"
 	"github.com/sunfayao/persona/server/internal/assistantwire"
@@ -180,6 +182,10 @@ type Service struct {
 	// ruleFiles keeps what each directory's node was given and, for a directory with a live conversation, the About me
 	// and reply language its files say (rulefiles).
 	ruleFiles *rulefiles.Book
+	// digests: what each conversation was told by supervision messages (digestfmt); policy: who carries the supervision
+	// policy in its standing text and who is told it once (supervisionpolicy).
+	digests *digestfmt.Book
+	policy  *supervisionpolicy.Book
 
 	epoch string
 	// born is when this manager started: a background supervisor started before it may be in a profile with no login
@@ -368,6 +374,7 @@ func New(o Options) *Service {
 		c, ok, err := s.sessionNow(ctx, machine, session) // a node that cannot answer leaves it alive
 		return err != nil || ok && !c.Archived
 	}})
+	s.digests, s.policy = digestfmt.NewBook(), supervisionpolicy.New(supervisionpolicy.Dependencies{Store: func() supervisionpolicy.Store { return s.store() }, Logf: s.logf})
 	s.turns = s.newQuietTurns()
 	var knowledgeConfig string
 	if o.RepositoryConfig != "" {

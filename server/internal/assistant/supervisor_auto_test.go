@@ -82,7 +82,7 @@ func TestTheFirstReviewStartsOneSupervisorAndTellsTheMainConversationNothing(t *
 		t.Fatalf("the Agent already working was told something: %q", got)
 	}
 	first := toSession(f, "s2")
-	for _, want := range []string{"Persona · supervision", "修登录崩溃", "1. PR 合并到 master", "2. 浅色 / 深色截图贴进 PR"} {
+	for _, want := range []string{"Persona · supervision", "修登录崩溃", "1. [pending] PR 合并到 master", "2. [pending] 浅色 / 深色截图贴进 PR"} {
 		if !strings.Contains(first, want) {
 			t.Errorf("the supervisor's messages lack %q:\n%s", want, first)
 		}

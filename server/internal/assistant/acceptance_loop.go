@@ -261,8 +261,8 @@ func (s *Service) briefingClock(ctx context.Context) (int, int) {
 }
 
 // snapshotUnaccepted are the deployed tasks still waiting for the user to check them, oldest first, and how many there
-// are (the snapshot's "waiting for the user to verify", which the morning briefing brings up; scopeSnapshot shows a
-// conversation the oldest snapshotAcceptLimit of its own).
+// are (the snapshot's "waiting for the user to verify", which the morning briefing brings up; snapshotfit.Scope shows a
+// conversation the oldest snapshotfit.AcceptLimit of its own).
 func (s *Service) snapshotUnaccepted(ctx context.Context, loc *time.Location) ([]prompts.SnapshotAccept, int) {
 	b := &s.accept
 	b.mu.Lock()

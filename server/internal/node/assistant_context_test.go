@@ -182,3 +182,33 @@ func TestTurnContextCarriesTheRuleNotice(t *testing.T) {
 		t.Fatalf("no notice, no block: %q", block)
 	}
 }
+
+// A supervision message carries no snapshot (the hub answers with none): what the conversation has seen stays as it
+// was, and the owner's next message gets the delta since the last one that carried a snapshot, not the whole.
+func TestTurnContextWithoutASnapshotLeavesWhatWasSeen(t *testing.T) {
+	n := assistantNode(t)
+	const id = "11111111-2222-3333-4444-555555555555"
+	_, commit := n.turnContext(id, contextAnswer{Text: snapA})
+	commit()
+	seen := n.ctxSent[id]
+
+	notice := `<persona-context kind="supervision-policy">` + "\nthe policy\n</persona-context>"
+	for range 3 { // supervision messages, one with a one-off block
+		block, commit := n.turnContext(id, contextAnswer{RuleNotice: notice})
+		commit()
+		if strings.Contains(block, "Live snapshot") || strings.Contains(block, "Now:") {
+			t.Fatalf("a supervision message carries a snapshot:\n%s", block)
+		}
+		notice = ""
+	}
+	if len(n.ctxSent[id]) != len(seen) || n.ctxSent[id]["- Now"] != seen["- Now"] {
+		t.Fatalf("what the conversation has seen changed: %v", n.ctxSent[id])
+	}
+
+	later := strings.NewReplacer("15:04", "16:20", "1 need you", "0 need you", "\n  - Need you: Fix login (server, session_id=aaaaaaaa)", "").Replace(snapA)
+	block, _ := n.turnContext(id, contextAnswer{Text: later})
+	if strings.Contains(block, "Live snapshot (") || !strings.Contains(block, "- Agents: 0 need you") || !strings.Contains(block, "- Now: 2026-11-01 Sun 16:20") ||
+		strings.Contains(block, "Computers online") || strings.Contains(block, "Feishu calendar") {
+		t.Fatalf("the owner's next message is not the delta:\n%s", block)
+	}
+}

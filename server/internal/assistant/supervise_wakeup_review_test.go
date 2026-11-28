@@ -32,7 +32,7 @@ func idleDigestSends(f *fakeHub, conversation string) []string {
 	var out []string
 	for _, send := range assistantSendsTo(f, conversation) {
 		text, _ := send["text"].(string)
-		if strings.Contains(text, "signal="+sigIdle) {
+		if hasSignal(text, sigIdle) {
 			out = append(out, text)
 		}
 	}
@@ -197,7 +197,7 @@ func TestQueuedWakeDrainKeepDoesNotRestore(t *testing.T) {
 func ownerChoiceSends(f *fakeHub, conversation, decision string) []string {
 	var out []string
 	for _, text := range f.noticesTo(conversation) {
-		if strings.Contains(text, "signal="+sigOwnerChoice) && strings.Contains(text, decision) {
+		if hasSignal(text, sigOwnerChoice) && strings.Contains(text, decision) {
 			out = append(out, text)
 		}
 	}

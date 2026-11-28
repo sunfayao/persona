@@ -1,0 +1,10 @@
+Persona · supervision: 1 of your to-do's tasks need you. This message is not from the user.
+
+1. Your own to-do “Add the export button to the report view” (todo_2, signals=estimate_due, idle)
+   Everything else about this task is unchanged since the previous message about it.
+
+How to handle these signals:
+- `estimate_due` / `overdue`: read its progress; give it more time with task_scope (expect_minutes, with why) or nudge it with agent_send; on your own to-do, task_scope your to-do's expect_minutes.
+- `idle` / `unjudged`: read its last turns with agent_read; nudge it with agent_send when it can go on, rework what is missing, or accept what is done.
+
+You own these tasks: handle them yourself, on your own workers only. Reach up only with report_to_supervisor: kind done once every worker is closed and each criterion of your to-do is met with evidence, kind question or blocked when the owner or whoever handed you the to-do must decide. Progress reports need nothing from you.

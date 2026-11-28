@@ -15,7 +15,6 @@ import (
 const (
 	rowsMark    = "(only changed and new rows are listed; rows not listed are unchanged)"
 	rowsRemoved = "  - (removed rows: "
-	rowsOrder   = "  - (current row order: "
 	goneSection = "- Sections no longer in this snapshot"
 	goneNote    = " (discard their earlier content):"
 	deltaIntro  = "Rows of the live snapshot that changed since the previous one (rows not listed are unchanged):"
@@ -79,7 +78,6 @@ func readBlock(t *testing.T, view map[string]string, block string) map[string]st
 			head = oldHead
 		}
 		at := func(k string) int { return slices.IndexFunc(have, func(r string) bool { return id(r) == k }) }
-		var order []string
 		for _, r := range rows {
 			if list, ok := strings.CutPrefix(r, rowsRemoved); ok {
 				for k := range strings.SplitSeq(strings.TrimSuffix(list, ")"), "; ") {
@@ -89,33 +87,19 @@ func readBlock(t *testing.T, view map[string]string, block string) map[string]st
 					}
 					have = slices.Delete(have, i, i+1)
 				}
-			} else if list, ok := strings.CutPrefix(r, rowsOrder); ok {
-				order = strings.Split(strings.TrimSuffix(list, ")"), "; ")
 			} else if i := at(id(r)); i >= 0 {
 				have[i] = r
 			} else {
 				have = append(have, r)
 			}
 		}
-		if order != nil {
-			sorted := make([]string, 0, len(have))
-			for _, k := range order {
-				if i := at(k); i >= 0 {
-					sorted = append(sorted, have[i])
-				}
-			}
-			if len(sorted) != len(have) || len(order) != len(have) {
-				t.Fatalf("%s: the order %v is not of its %d rows:\n%s", name, order, len(have), block)
-			}
-			have = sorted
-		}
 		view[name] = strings.Join(append([]string{head}, have...), "\n")
 	}
 	return view
 }
 
-// sameAsSnapshot fails unless view, in the snapshot's order, is the snapshot byte for byte (less its blank lines,
-// which no block carries).
+// sameAsSnapshot fails unless view is the snapshot byte for byte (less its blank lines, which no block carries), in the
+// snapshot's order of sections and with the same rows in each: the order of a section's rows is not told.
 func sameAsSnapshot(t *testing.T, view map[string]string, snapshot, block string) {
 	t.Helper()
 	var lines []string
@@ -126,13 +110,20 @@ func sameAsSnapshot(t *testing.T, view map[string]string, snapshot, block string
 	}
 	snapshot = strings.Join(lines, "\n")
 	sections := snapshotSections(snapshot)
-	texts := make([]string, 0, len(sections))
+	texts, want := make([]string, 0, len(sections)), make([]string, 0, len(sections))
 	for _, s := range sections {
-		texts = append(texts, view[s.key])
+		texts, want = append(texts, rowsSorted(view[s.key])), append(want, rowsSorted(s.text))
 	}
-	if got := strings.Join(texts, "\n"); got != snapshot || len(view) != len(sections) {
+	if got := strings.Join(texts, "\n"); got != strings.Join(want, "\n") || len(view) != len(sections) {
 		t.Fatalf("after the block the conversation has %d sections:\n%s\n\nthe snapshot has %d:\n%s\n\nthe block:\n%s", len(view), got, len(sections), snapshot, block)
 	}
+}
+
+// rowsSorted is a section with its rows in a fixed order.
+func rowsSorted(text string) string {
+	head, rows := sectionRows(text)
+	slices.Sort(rows)
+	return strings.Join(append([]string{head}, rows...), "\n")
 }
 
 func snapshotOf(sections ...string) string { return strings.Join(sections, "\n") }
@@ -163,13 +154,13 @@ func TestContextDeltaSendsTheChangedRowOnly(t *testing.T) {
 		t.Fatalf("a row removed, a row added:\n%s\nwant\n%s", block, want)
 	}
 
-	// The same rows in another order: only the order. A new row that is not the last: the row and the order.
+	// The same rows in another order: nothing about them (the order is not told). A new row that is not the last: the row.
 	block, seen = contextDelta(seen, snapshotOf(now, "- Computers online: Server (server)", tasksOf(rowDeploy, changed, rowNew), "- Scheduled follow-ups: none"))
-	if want := deltaBlock(now, tasksKey+partialNote, rowsOrder+"todo_3; todo_1; todo_4)"); block != want {
+	if want := deltaBlock(now); block != want {
 		t.Fatalf("rows reordered:\n%s\nwant\n%s", block, want)
 	}
 	block, seen = contextDelta(seen, snapshotOf(now, "- Computers online: Server (server)", tasksOf(rowDocs, rowDeploy, changed, rowNew), "- Scheduled follow-ups: none"))
-	if want := deltaBlock(now, tasksKey+partialNote, rowDocs, rowsOrder+"todo_2; todo_3; todo_1; todo_4)"); block != want {
+	if want := deltaBlock(now, tasksKey+partialNote, rowDocs); block != want {
 		t.Fatalf("a new first row:\n%s\nwant\n%s", block, want)
 	}
 

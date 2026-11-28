@@ -846,7 +846,14 @@ func (s *Service) deliverRelay(ctx context.Context, machine, to string, msg rela
 		params[superviseRoundParam] = true
 	}
 	var res superviseRoundReply
-	if err := s.call(ctx, machine, DeviceAssistantSend, params, &res); err != nil {
+	if msg.Tool == superviseTool {
+		s.digests.Sending(to, msg.Text, judgesSignals(msg)) // its context call leaves the snapshot out and brings what a reader owes (Context)
+	}
+	err = s.call(ctx, machine, DeviceAssistantSend, params, &res)
+	if msg.Tool == superviseTool {
+		s.digests.Done(to, msg.Text, err == nil)
+	}
+	if err != nil {
 		if msg.Tool == superviseTool && !relayInDoubt(err) { // in doubt, drainRelays lets go once it knows it did not go in
 			s.releasePushes(ctx, to)
 			s.turns.Drop(ctx, to, onceID)

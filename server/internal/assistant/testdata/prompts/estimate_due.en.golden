@@ -2,12 +2,12 @@
 (This is a supervision message from Persona, not a message from the user.)
 <persona-supervision level="triage" />
 
-1. Task “Example task” (todo_example, signal=estimate_due):  (The automatic estimate reached its review point: expected 30 minutes; 30 minutes have elapsed since dispatch or the last estimate change. This is a review cue, not an overdue judgment.
+1. Task “Example task” (todo_example, signal=estimate_due): (The automatic estimate reached its review point: expected 30 minutes; 30 minutes have elapsed since dispatch or the last estimate change. This is a review cue, not an overdue judgment.
 )
-   Acceptance criteria:
-   1. PR merged to main
-   2. a test covers landscape
    Original request (2026-11-03, the user's own words): please fix the login crash before Friday
+   Acceptance criteria:
+   1. [pending] PR merged to main
+   2. [pending] a test covers landscape
 
 How to handle this signal:
 - `estimate_due`: ran out with no visible progress, or twice in a row. Check evidence: `task_review`, steer (`agent_send`) or re-scope (`task_scope`). A finished task past the settle window with no owner card is refused: give `task_review` (`accepted`/`rework`/`cancelled`; `needs_user` with options if the owner must decide).

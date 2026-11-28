@@ -3,8 +3,7 @@
 {{range .Sections}}{{if .Partial}}{{if .Text}}{{ctx .Text}}
   - (only changed and new rows are listed; rows not listed are unchanged){{else}}{{ctx .Name}} (only changed and new rows are listed; rows not listed are unchanged):{{end}}{{range .Rows}}
 {{ctx .}}{{end}}{{with .Removed}}
-  - (removed rows: {{ctx (join . "; ")}}){{end}}{{with .Order}}
-  - (current row order: {{ctx (join . "; ")}}){{end}}{{else}}{{ctx .Text}}{{end}}
+  - (removed rows: {{ctx (join . "; ")}}){{end}}{{else}}{{ctx .Text}}{{end}}
 {{end}}{{with .Gone}}- Sections no longer in this snapshot (discard their earlier content):{{range .}}
   - {{ctx .}}{{end}}
 {{end}}</persona-context>

@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"github.com/sunfayao/persona/server/internal/assistant/snapshotfit"
 	"reflect"
 	"strings"
 	"sync"
@@ -66,7 +67,7 @@ func TestFitSnapshotLeavesASmallSnapshotAlone(t *testing.T) {
 	s := prompts.Snapshot{Now: fitNow, Zone: "Asia/Shanghai",
 		Needs:    []prompts.SnapshotAgent{{Label: "assistant › a", Machine: "build-1", Session: "s1", Line: "在等"}},
 		Routines: []prompts.SnapshotRoutine{{Label: "早报", Rule: "每天 09:00"}}, RoutinesTotal: 1}
-	if got, want := fitSnapshot(s), prompts.RenderSnapshot(s); got != want {
+	if got, want := snapshotfit.Fit(s), prompts.RenderSnapshot(s); got != want {
 		t.Fatalf("a snapshot under the budget changed:\n%s\nwant\n%s", got, want)
 	}
 }
@@ -78,7 +79,7 @@ func TestSnapshotDoneAndMutedStayCounts(t *testing.T) {
 		Done:     []prompts.SnapshotAgent{{Label: "已经修完的登录问题", Machine: "build-2", Session: "done-1", Line: "测试通过"}},
 		Muted:    []prompts.SnapshotAgent{{Label: "已经屏蔽的巡检", Machine: "build-3", Session: "mute-1", Line: "没有新事"}},
 		Working:  []prompts.SnapshotAgent{{Label: "后台在跑的编译", Machine: "build-4", Session: "work-1", Ultracode: "on"}}}
-	got := fitSnapshot(s)
+	got := snapshotfit.Fit(s)
 	for _, want := range []string{
 		"- Agents: 1 need you, 0 finished unread, 1 working (details: agents_list)",
 		"  - Done (last 24 hours): 1 in total, query with agents_list state=done",
@@ -99,12 +100,12 @@ func TestSnapshotDoneAndMutedStayCounts(t *testing.T) {
 // Over the budget, sections are left out until it fits, and what waits for the user stays.
 func TestFitSnapshotStaysInBudget(t *testing.T) {
 	s := bigSnapshot(fitNow)
-	if n := runes(prompts.RenderSnapshot(s)); n <= snapshotBudget {
+	if n := runes(prompts.RenderSnapshot(s)); n <= snapshotfit.Budget {
 		t.Fatalf("the fixture has to be over the budget to prove anything (%d characters)", n)
 	}
-	got := fitSnapshot(s)
-	if n := runes(got); n > snapshotBudget {
-		t.Fatalf("the fitted snapshot has %d characters, the budget is %d", n, snapshotBudget)
+	got := snapshotfit.Fit(s)
+	if n := runes(got); n > snapshotfit.Budget {
+		t.Fatalf("the fitted snapshot has %d characters, the budget is %d", n, snapshotfit.Budget)
 	}
 	if strings.Contains(got, strings.TrimSpace(prompts.SnapshotCut())) {
 		t.Fatalf("leaving sections out should have been enough, it was cut:\n%s", got)
@@ -123,7 +124,7 @@ func TestFitSnapshotStaysInBudget(t *testing.T) {
 // A section left out keeps its heading and its count, and says where the rest is: never "none", never a count of 0,
 // and never gone (the node sends only what changed, so a missing section would read as unchanged).
 func TestFitSnapshotKeepsCountsOfWhatItLeavesOut(t *testing.T) {
-	got := fitSnapshot(bigSnapshot(fitNow))
+	got := snapshotfit.Fit(bigSnapshot(fitNow))
 	for _, want := range []string{
 		"- Agents: 6 need you, 6 finished unread, 12 working",
 		"  - Done (last 24 hours): 20 in total, query with agents_list state=done",
@@ -147,11 +148,11 @@ func TestFitSnapshotKeepsCountsOfWhatItLeavesOut(t *testing.T) {
 func TestFitSnapshotCoversEverySection(t *testing.T) {
 	full := bigSnapshot(fitNow)
 	var all prompts.SnapshotOmit
-	for _, omit := range snapshotOmits {
+	for _, omit := range snapshotfit.Omits {
 		before := all
 		omit(&all)
 		if all == before {
-			t.Error("an entry of snapshotOmits leaves nothing out")
+			t.Error("an entry of snapshotfit.Omits leaves nothing out")
 		}
 		one := prompts.SnapshotOmit{}
 		omit(&one)
@@ -168,7 +169,7 @@ func TestFitSnapshotCoversEverySection(t *testing.T) {
 	v := reflect.ValueOf(all)
 	for i := range v.NumField() {
 		if !v.Field(i).Bool() {
-			t.Errorf("SnapshotOmit.%s is in no entry of snapshotOmits", v.Type().Field(i).Name)
+			t.Errorf("SnapshotOmit.%s is in no entry of snapshotfit.Omits", v.Type().Field(i).Name)
 		}
 	}
 }
@@ -181,9 +182,9 @@ func TestFitSnapshotWhenTheLastOmitFits(t *testing.T) {
 		approvals[i] = prompts.SnapshotApproval{ID: "todo_9", Title: strings.Repeat("上线新版发布流程", 25), Stage: "CI 绿", Gate: "等你点头"}
 	}
 	s := prompts.Snapshot{Now: fitNow, Zone: "UTC", Approvals: approvals}
-	got := fitSnapshot(s)
-	if n := runes(got); n > snapshotBudget {
-		t.Fatalf("%d characters, the budget is %d", n, snapshotBudget)
+	got := snapshotfit.Fit(s)
+	if n := runes(got); n > snapshotfit.Budget {
+		t.Fatalf("%d characters, the budget is %d", n, snapshotfit.Budget)
 	}
 	if !strings.Contains(got, "- Waiting for the user's go-ahead to ship (40 item(s); list them together for the user to approve in one go, do not ask one by one): too many to fit in this snapshot") {
 		t.Fatalf("the approvals were not left out with their count:\n%s", got)
@@ -203,9 +204,9 @@ func TestFitSnapshotCutsWhatCannotBeLeftOut(t *testing.T) {
 			Awaiting: []prompts.SnapshotAgent{{Label: "assistant › b", Machine: "m", Session: "s2", Line: long}}},
 		"one line": {Now: fitNow, Zone: "UTC", Needs: []prompts.SnapshotAgent{{Label: "assistant › a", Machine: "m", Session: "s1", Line: long}}},
 	} {
-		got := fitSnapshot(s)
-		if n := runes(got); n > snapshotBudget {
-			t.Errorf("%s: %d characters, the budget is %d", name, n, snapshotBudget)
+		got := snapshotfit.Fit(s)
+		if n := runes(got); n > snapshotfit.Budget {
+			t.Errorf("%s: %d characters, the budget is %d", name, n, snapshotfit.Budget)
 		}
 		if !utf8.ValidString(got) {
 			t.Errorf("%s: cut inside a character", name)
@@ -224,9 +225,9 @@ func TestFitSnapshotHardCutKeepsOpenTodoCountAndEntrance(t *testing.T) {
 		Now: fitNow, Zone: "UTC", OpenTodosLoaded: true, OpenTodosTotal: 26,
 		Needs: []prompts.SnapshotAgent{{Label: "waiting agent", Machine: "m", Session: "s1", Line: strings.Repeat("urgent detail ", 1000)}},
 	}
-	got := fitSnapshot(s)
-	if n := runes(got); n > snapshotBudget {
-		t.Fatalf("snapshot has %d characters, budget is %d", n, snapshotBudget)
+	got := snapshotfit.Fit(s)
+	if n := runes(got); n > snapshotfit.Budget {
+		t.Fatalf("snapshot has %d characters, budget is %d", n, snapshotfit.Budget)
 	}
 	if !strings.HasSuffix(got, "\n"+prompts.SnapshotCut()) {
 		t.Fatalf("fixture did not exercise the hard cut:\n%s", got)
@@ -242,7 +243,7 @@ func TestFitSnapshotLeavesTheCachedSnapshotAlone(t *testing.T) {
 	cached := bigSnapshot(fitNow)
 	var wg sync.WaitGroup
 	for range 4 {
-		wg.Go(func() { fitSnapshot(cached) })
+		wg.Go(func() { snapshotfit.Fit(cached) })
 	}
 	wg.Wait()
 	if !reflect.DeepEqual(cached, bigSnapshot(fitNow)) {

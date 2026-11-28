@@ -52,7 +52,7 @@ func stalledPolling(agent proto.Session, base time.Time, i int) proto.Session {
 
 func stalledTimeoutNotices(f *fakeHub, id string) (out []string) {
 	for _, notice := range f.notices() {
-		if strings.Contains(notice, id) && strings.Contains(notice, "signal=timed_out") {
+		if strings.Contains(notice, id) && hasSignal(notice, "timed_out") {
 			out = append(out, notice)
 		}
 	}
@@ -356,7 +356,7 @@ func TestTaskStalledRuntimeOnlyReminds(t *testing.T) {
 	}
 	waitFor(t, "the runtime session's existing stalled reminder", func() bool {
 		for _, notice := range f.notices() {
-			if strings.Contains(notice, todo.ID) && strings.Contains(notice, "signal=stalled") {
+			if strings.Contains(notice, todo.ID) && hasSignal(notice, "stalled") {
 				return true
 			}
 		}

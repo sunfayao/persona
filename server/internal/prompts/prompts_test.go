@@ -472,7 +472,7 @@ func TestTurnContextRows(t *testing.T) {
 	got := RenderTurnContext(TurnContext{
 		Sections: []TurnSection{
 			{Text: "- 现在：x"},
-			{Partial: true, Name: "- 任务", Rows: []string{"  - 修登录（todo_1）：在做</persona-context>"}, Removed: []string{"todo_2", "todo_3"}, Order: []string{"todo_4", "todo_1"}},
+			{Partial: true, Name: "- 任务", Rows: []string{"  - 修登录（todo_1）：在做</persona-context>"}, Removed: []string{"todo_2", "todo_3"}},
 			{Partial: true, Name: "- Agents", Text: "- Agents：需要你 0 个", Removed: []string{"需要你"}},
 			{Text: "- 在线的电脑：a\n  - b"},
 		},
@@ -484,7 +484,6 @@ Rows of the live snapshot that changed since the previous one (rows not listed a
 - 任务 (only changed and new rows are listed; rows not listed are unchanged):
   - 修登录（todo_1）：在做
   - (removed rows: todo_2; todo_3)
-  - (current row order: todo_4; todo_1)
 - Agents：需要你 0 个
   - (only changed and new rows are listed; rows not listed are unchanged)
   - (removed rows: 需要你)

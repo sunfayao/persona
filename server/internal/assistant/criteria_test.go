@@ -84,8 +84,8 @@ func TestCriteriaReviewAndDecisionDigest(t *testing.T) {
 	waitFor(t, "the decision and criterion in the owner response digest", func() bool {
 		for _, n := range f.notices() {
 			if strings.Contains(n, "the user could not answer the decision you sent") && strings.Contains(n, r.Reason) &&
-				strings.Contains(n, r.Options[1].LeadsTo) && strings.Contains(n, "criterion 1 [met]") &&
-				strings.Contains(n, c.Evidence) && strings.Contains(n, c.By) && strings.Contains(n, c.At.UTC().Format(time.RFC3339)) {
+				strings.Contains(n, r.Options[1].LeadsTo) && strings.Contains(n, "1. [met]") &&
+				strings.Contains(n, c.Evidence) && strings.Contains(n, "(by the supervisor)") {
 				return true
 			}
 		}

@@ -1,0 +1,13 @@
+📋 Supervision: 1 of the tasks you handed out need you
+(This is a supervision message from Persona, not a message from the user.)
+<persona-supervision level="triage" />
+
+1. Task “Fix the login crash on the settings page” (todo_1, signal=idle): the Agent stopped without finishing; on box session_id=s1
+   Acceptance criteria (only the changed ones):
+   3. [met] A criterion 3: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an — the page was checked in both themes (by the supervisor)
+   What the Agent said last:
+   A new last word: the fix is in and the tests pass.
+   Everything else about this task is unchanged since the previous message about it.
+
+How to handle this signal:
+- `idle` / `needs_you`: decide from the owner's existing instructions and project conventions when you can; reply with `agent_send` or answer a question card with `interaction_answer`. Only ask the owner for a real owner-only decision, with the options plainly stated.

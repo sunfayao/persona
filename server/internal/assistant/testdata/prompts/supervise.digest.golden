@@ -3,35 +3,35 @@
 <persona-supervision level="triage" />
 
 1. Task “整理材料” (todo_3, signal=needs_you): the Agent is waiting for an answer, for 4 minutes (the user got no notification; only you know)
-   Acceptance criteria: not recorded
    It is asking:
-   - 用哪个分支？（选项：main / dev）
+     - 用哪个分支？（选项：main / dev）
+   Acceptance criteria: not recorded
 
 2. Task “迁移数据库” (todo_5, signal=report): the Agent is reporting to you on its own initiative: needs your call (step 2/4); on box session_id=e5f6a7b8
-   Acceptance criteria: not recorded
    It said:
-   要不要先停写？
-   停写约 2 分钟
+     要不要先停写？
+     停写约 2 分钟
    Evidence it gave:
    - https://github.com/o/r/pull/902
+   Acceptance criteria: not recorded
 
 3. Task “部署 hub” (todo_2, signal=idle): the Agent stopped without finishing (要用户决定：两种走法选一个); on box; reworked 1 rounds
-   Acceptance criteria: not recorded
    Closeout record it filled in itself (its own account; nobody has checked it): blocked, waiting on 用户选走法; merged: yes; deployed: no
    - The hub checked its PR itself: merged, the version running in production does not include it
    - Did: 部署脚本加了灰度开关
    - Artifact: pr https://github.com/o/r/pull/902
    - Verified: untested
    - Missing: 选 A 还是 B
+   Acceptance criteria: not recorded
    What the Agent said last:
    A 先灰度，B 直接全量。选哪个？
 
 4. Task “修崩溃” (todo_7, signal=failed): the Agent failed to start; its launch tab is kept on the computer until 10:12: the shell in the new tab is stopped at a prompt “[oh-my-zsh] Would you like to update? [Y/n]”; on box
-   Acceptance criteria: not recorded
    Last lines of the launch tab:
-   | Last login: Mon Nov  9 22:01:13 on ttys004
-   | [oh-my-zsh] Would you like to update? [Y/n]
+     | Last login: Mon Nov  9 22:01:13 on ttys004
+     | [oh-my-zsh] Would you like to update? [Y/n]
    3 retries left.
+   Acceptance criteria: not recorded
 
 5. Task “跑基准” (todo_8, signal=failed): the Agent failed to start (终端运行不了「work」); other launchers you can try: claude; on box
    Acceptance criteria: not recorded
@@ -41,7 +41,7 @@
 
 7. Task “升级依赖” (todo_10, signal=orphaned): no Agent is working on it: its Agent was interrupted by a model service error, its tab was closed afterwards, and the hub will not retry by itself (API Error: 400 prompt is too long); on box session_id=c3d4e5f6
    Acceptance criteria:
-   1. CI 通过
+   1. [pending] CI 通过
    What the Agent said last:
    API Error: 400 prompt is too long
 
@@ -54,21 +54,21 @@
    Acceptance criteria: not recorded
 
 10. Task “修登录崩溃” (todo_1, signal=review, link https://hub.example.com/todos?id=todo_1): awaiting item-by-item review; this does not mean it is done (PR 已合并); on box session_id=a1b2c3d4
+   Independent review (the reviewer saw only the task requirements and the change, not the Agent's reasoning): no blocking issues, 1 non-blocking findings
+     1. P2 login/view.swift:12 变量名可以更清楚
    Acceptance criteria:
-   1. PR 合并到 master
-   2. 浅色 / 深色截图贴进 PR
+   1. [pending] PR 合并到 master
+   2. [pending] 浅色 / 深色截图贴进 PR
    What the Agent said last:
    修好了，PR https://github.com/o/r/pull/901 已合并
-   Independent review (the reviewer saw only the task requirements and the change, not the Agent's reasoning): no blocking issues, 1 non-blocking findings
-   1. P2 login/view.swift:12 变量名可以更清楚
 
 11. Task “跑 UI 测试” (todo_4, signal=stalled): 35 minutes without progress (在等编译)
    Acceptance criteria: not recorded
 
 12. Task “整理文档” (todo_6, signal=report): the Agent is reporting to you on its own initiative: progress
-   Acceptance criteria: not recorded
    It said:
-   写完了一半
+     写完了一半
+   Acceptance criteria: not recorded
 
 How to handle these signals:
 - `idle` / `needs_you`: decide from the owner's existing instructions and project conventions when you can; reply with `agent_send` or answer a question card with `interaction_answer`. Only ask the owner for a real owner-only decision, with the options plainly stated.

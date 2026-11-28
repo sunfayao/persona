@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/sunfayao/persona/server/internal/assistant/digestfmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -778,7 +779,7 @@ func TestYouDecideNeverTakesAnIrreversibleDecision(t *testing.T) {
 		t.Fatalf("answer: %d %s", rec.Code, rec.Body.String())
 	}
 	waitFor(t, "the owner_cannot_answer message", func() bool { return len(f.notices()) > before })
-	if n := f.notices()[before]; !strings.Contains(n, "never taken by default") || !strings.Contains(n, "signal=owner_cannot_answer") {
+	if n := f.notices()[before]; !strings.Contains(n, "never taken by default") || !hasSignal(n, "owner_cannot_answer") {
 		t.Fatalf("message:\n%s", n)
 	}
 	s.sweepDecisionDeadlines(time.Now().Add(72 * time.Hour))
@@ -815,7 +816,7 @@ func TestNotWhatIAskedHoldsTheAgentsFollowUps(t *testing.T) {
 		t.Fatalf("answer: %d %s", rec.Code, rec.Body.String())
 	}
 	waitFor(t, "the owner_cannot_answer message", func() bool { return len(f.notices()) > before })
-	if n := f.notices()[before]; !strings.Contains(n, "they replied “That's not what I asked for”") || !strings.Contains(n, "signal=owner_cannot_answer") ||
+	if n := f.notices()[before]; !strings.Contains(n, "they replied “That's not what I asked for”") || !hasSignal(n, "owner_cannot_answer") ||
 		!strings.Contains(n, "Task background (as the hub recorded it)") {
 		t.Fatalf("message:\n%s", n)
 	}
@@ -851,7 +852,7 @@ func TestExplainFirstKeepsTheDecision(t *testing.T) {
 		t.Fatalf("answer: %d %s", rec.Code, rec.Body.String())
 	}
 	waitFor(t, "the owner_cannot_answer message", func() bool { return len(f.notices()) > before })
-	if n := f.notices()[before]; !strings.Contains(n, "they replied “Explain the background first”") || !strings.Contains(n, "signal=owner_cannot_answer") {
+	if n := f.notices()[before]; !strings.Contains(n, "they replied “Explain the background first”") || !hasSignal(n, "owner_cannot_answer") {
 		t.Fatalf("message:\n%s", n)
 	}
 	ask := listedAsk(t, s, todo.ID)
@@ -919,7 +920,7 @@ func TestGoldenSuperviseDecisions(t *testing.T) {
 	d := &prompts.SuperviseDecision{WhyOwner: "irreversible", Question: "Drop the old table?", Recommend: "Drop it", NeverDefault: true,
 		Cost: "The disk fills up in two weeks", Background: "From the main conversation, 2026-11-07: “Finish the migration” · Now: migrated, old table still there",
 		Options: []prompts.SuperviseOption{{Label: "Drop it", LeadsTo: "the old rows cannot be restored"}, {Label: "Keep it", LeadsTo: "40 GB stay in use"}}}
-	golden(t, "supervise.decisions", prompts.RenderSupervise(prompts.Supervise{Decisions: true, Entries: sortEntries([]prompts.SuperviseEntry{
+	golden(t, "supervise.decisions", prompts.RenderSupervise(prompts.Supervise{Decisions: true, Entries: digestfmt.Sorted([]prompts.SuperviseEntry{
 		{ID: "todo_1", Title: "Finish the migration", Kind: sigRecheck, Minutes: 1500, Decision: d, DoneWhen: []string{"old table gone"}},
 		{ID: "todo_2", Title: "Tidy the docs", Kind: sigUndecidable, Detail: "waits for the user to look"},
 		{ID: "todo_3", Title: "Finish the migration", Kind: sigOwnerCannot, Response: respondDecideYourself, Decision: d},

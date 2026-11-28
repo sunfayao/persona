@@ -3,16 +3,15 @@ package assistant
 import (
 	"cmp"
 	"context"
-	"fmt"
 	"maps"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistant/signalrule"
 	"github.com/sunfayao/persona/server/internal/assistant/taskleader"
 	"github.com/sunfayao/persona/server/internal/closeout"
+	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -877,7 +876,7 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 		}
 		// Render through the existing review entry, with this receipt as the evidence.
 		return prompts.SuperviseEntry{ID: t.ID, Title: t.Title, Kind: sigReview, Detail: handoffResultDetail(h),
-			DoneWhen: v.DoneWhen, Round: v.Round, Link: todoLink(web, t.ID), Quiet: t.Quiet}, true
+			Criteria: criterionReadings(v), Round: v.Round, Link: todoLink(web, t.ID), Quiet: t.Quiet}, true
 	case sigFailed:
 		if g.Remedying {
 			// Notification batching never holds the remedy itself. If that remedy already succeeded or became a
@@ -1078,7 +1077,7 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 					ID:           t.ID,
 					Title:        t.Title,
 					Kind:         sigNeedsUserExternalInfo,
-					DoneWhen:     v.DoneWhen,
+					Criteria:     criterionReadings(v),
 					Round:        v.Round,
 					Link:         todoLink(web, t.ID),
 					Quiet:        t.Quiet,
@@ -1100,7 +1099,7 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 			return prompts.SuperviseEntry{}, false // answered, or gone up a rung, meanwhile
 		}
 	}
-	e := prompts.SuperviseEntry{ID: t.ID, Title: t.Title, Kind: g.Kind, Detail: g.Detail, Minutes: g.Minutes, DoneWhen: v.DoneWhen,
+	e := prompts.SuperviseEntry{ID: t.ID, Title: t.Title, Kind: g.Kind, Detail: g.Detail, Minutes: g.Minutes, Criteria: criterionReadings(v),
 		Round: v.Round, Link: todoLink(web, t.ID), Quiet: t.Quiet}
 	if note := breakerNote(g, s.replyLang(ctx, string(s.botLang(ctx)))); note != "" && g.Kind != sigAllStopped {
 		if e.Detail != "" {
@@ -1160,12 +1159,6 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 	}
 	// Progress reports stay quiet. Their persisted evidence accompanies the next
 	// real supervision event, even after restart or a report of a different kind.
-	for i, c := range v.Criteria {
-		if c.At != nil {
-			e.Evidence = append(e.Evidence, fmt.Sprintf("criterion %d [%s] %s — %s (%s at %s)",
-				i+1, c.State, c.Criterion, c.Evidence, c.By, c.At.UTC().Format(time.RFC3339)))
-		}
-	}
 	if g.Kind == sigOrphaned {
 		e.Orphan = g.Orphan
 	}
@@ -1268,25 +1261,13 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 	return e, true
 }
 
-// sortEntries puts what waits on a decision first.
-func sortEntries(list []prompts.SuperviseEntry) []prompts.SuperviseEntry {
-	rank := map[string]int{sigNeedsYou: 0, sigAsk: 0, sigEscalated: 0, sigDecide: 0, sigOwnerCannot: 0, sigUndecidable: 1, sigDeliveryHold: 1, sigRecheck: 1, sigCardlessWait: 1, sigNeedsUserExternalInfo: 1, sigEstimateDue: 2, sigParkedDue: 2, sigParkDecided: 2, sigIdle: 2, sigUnjudged: 2, sigAllStopped: 2, sigFailed: 3, sigStarted: 3, sigTodoReady: 3, sigPRMerged: 3, sigParentCloseout: 3, sigInterrupted: 4, sigOrphaned: 4, sigTimedOut: 4, sigReview: 5, sigStalled: 6, sigNoProgress: 6, sigOverdue: 6, sigInbox: 6, sigReport: 7}
-	at := func(e prompts.SuperviseEntry) int {
-		switch {
-		case e.Kind == sigCheck && e.Report == checkDecidedReport: // the owner's answer
-			return rank[sigOwnerCannot]
-		case e.Kind == sigCheck:
-			return rank[sigStalled]
-		case e.Kind != sigReport:
-		case e.Report == upReportQuestion || e.Report == upReportBlocked: // waits on a decision too
-			return 1
-		case e.Report == upReportDone: // with the work waiting for review
-			return rank[sigReview]
-		}
-		return rank[e.Kind]
+// criterionReadings are v's done_when with the latest reading of each: its state, evidence and who recorded it.
+func criterionReadings(v *Supervision) []prompts.SuperviseCriterion {
+	var out []prompts.SuperviseCriterion
+	for _, c := range db.AlignTodoCriteria(v.DoneWhen, v.Criteria) {
+		out = append(out, prompts.SuperviseCriterion{Text: c.Criterion, State: c.State, Evidence: c.Evidence, By: c.By})
 	}
-	sort.SliceStable(list, func(i, j int) bool { return at(list[i]) < at(list[j]) })
-	return list
+	return out
 }
 
 // ---- the main conversation's pushes ----

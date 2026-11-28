@@ -3,6 +3,8 @@ package assistant
 import (
 	"context"
 	"encoding/json"
+	"github.com/sunfayao/persona/server/internal/assistant/digestfmt"
+	"github.com/sunfayao/persona/server/internal/assistant/snapshotfit"
 	"os"
 	"regexp"
 	"slices"
@@ -151,7 +153,7 @@ func roundMessage(lang string) string {
 		}
 		entries = append(entries, e)
 	}
-	return prompts.RenderSupervise(prompts.Supervise{Entries: sortEntries(entries), Fresh: true,
+	return prompts.RenderSupervise(prompts.Supervise{Entries: digestfmt.Sorted(entries), Fresh: true,
 		Overdue: true, ParkedDue: true, ParkDecided: true, Decisions: true, Inbox: true, Asked: true, AskMinutes: 5, PushGrading: true})
 }
 
@@ -208,7 +210,7 @@ func backgroundContexts() []string {
 		for _, snap := range []prompts.Snapshot{small, bigSnapshot(now)} {
 			snap.ModelProfile = profile
 			out = append(out, prompts.RenderAssistantContext(prompts.AssistantContext{Background: true, Owner: "the owner",
-				Snapshot: fitSnapshot(backgroundSnapshot(scopeSnapshot(snap, "")))}))
+				Snapshot: snapshotfit.Fit(snapshotfit.Background(snapshotfit.Scope(snap, "")))}))
 		}
 	}
 	return out
@@ -457,7 +459,7 @@ func TestBackgroundRoundAsksTheOwnerWithNeedsUser(t *testing.T) {
 			}
 			waitFor(t, "the main conversation's escalated entry", func() bool {
 				for _, n := range f.noticesTo("conv1") {
-					if strings.Contains(n, "signal="+sigEscalated) {
+					if hasSignal(n, sigEscalated) {
 						return true
 					}
 				}

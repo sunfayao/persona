@@ -351,7 +351,7 @@ func TestEstimateDuePromptLanguages(t *testing.T) {
 			}
 			e.ID, e.Title = "todo_example", "Example task"
 			got := prompts.RenderSupervise(prompts.Supervise{Entries: []prompts.SuperviseEntry{e}})
-			if !strings.Contains(got, "signal=estimate_due") || !strings.Contains(got, tc.want) {
+			if !hasSignal(got, "estimate_due") || !strings.Contains(got, tc.want) {
 				t.Fatalf("localized estimate_due = %s", got)
 			}
 			if tc.locale == "en" {

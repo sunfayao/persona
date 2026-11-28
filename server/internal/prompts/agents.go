@@ -335,20 +335,27 @@ func RenderTaskHandoff(h TaskHandoff) string { return render("agents/task_handof
 // its own to-do (agents/worker_supervise, assistant/task_leader.go): what each of its tasks needs, from the same entries
 // a conversation's message lists, with each signal's handling rule once.
 func RenderWorkerSupervise(entries []SuperviseEntry) string {
+	return RenderWorkerSuperviseBlocks(SuperviseBlocks(entries, SuperviseForLeader, false))
+}
+
+// RenderWorkerSuperviseBlocks is that message from blocks (assistant/digestfmt).
+func RenderWorkerSuperviseBlocks(blocks []SuperviseBlock) string {
 	var rules []string
-	for _, e := range entries {
-		rule := strings.TrimSpace(render("agents/worker_supervise_signal", struct {
-			Kind string
-			Own  bool
-		}{e.Kind, e.Own}))
-		if rule != "" && !slices.Contains(rules, rule) {
-			rules = append(rules, rule)
+	for _, b := range blocks {
+		for _, g := range b.Signals {
+			rule := strings.TrimSpace(render("agents/worker_supervise_signal", struct {
+				Kind string
+				Own  bool
+			}{g.Kind, g.Own}))
+			if rule != "" && !slices.Contains(rules, rule) {
+				rules = append(rules, rule)
+			}
 		}
 	}
 	return render("agents/worker_supervise", struct {
-		Entries []SuperviseEntry
-		Rules   []string // each signal's handling rule, once (agents/worker_supervise_signal), as superviseRules does
-	}{entries, rules})
+		Blocks []SuperviseBlock
+		Rules  []string // each signal's handling rule, once (agents/worker_supervise_signal), as superviseRules does
+	}{blocks, rules})
 }
 
 // AgentCloseoutRequired is what an agent is told when its stop is held for a missing closeout (#3612).

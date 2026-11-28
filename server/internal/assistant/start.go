@@ -494,6 +494,7 @@ func (s *Service) startOn(ctx context.Context, machine string, p StartParams, ma
 		err = s.call(ctx, machine, DeviceAssistantSend, params, &res)
 	}
 	s.startRefused(ctx, machine, used, err) // Claude Code or the launcher missing: the readiness's claude step
+	s.noteStartupPolicy(ctx, machine, res.SessionID, params, err)
 	if err != nil {
 		if d, ok := s.device(ctx, machine); ok {
 			err = apierr.OnMachine(err, d.Name) // claude_missing on a sample user's MacBook

@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"errors"
+	"github.com/sunfayao/persona/server/internal/assistant/snapshotfit"
 	"strings"
 	"testing"
 
@@ -16,7 +17,7 @@ func followingGateSnapshot(t *testing.T, h *inboxHub) string {
 	if h.Service.live.snap == nil {
 		t.Fatal("takeSnapshot did not store a snapshot")
 	}
-	return fitSnapshot(*h.Service.live.snap)
+	return snapshotfit.Fit(*h.Service.live.snap)
 }
 
 func TestSnapshotFollowingEnabledEmptyRendersExistingEmptyState(t *testing.T) {

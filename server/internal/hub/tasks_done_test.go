@@ -163,7 +163,7 @@ func TestTaskAutoDone(t *testing.T) {
 	if _, ok := taskOfAgent(h, "box", "s1"); !ok {
 		t.Fatal("a delivered task is no longer followed")
 	}
-	if line := taskLine(h, todo); !strings.Contains(line, "delivered; awaiting a look") || !strings.Contains(line, "部署构建号 202611041200") {
+	if line := taskLine(h, todo); !strings.Contains(line, "delivered; awaiting a look") || !strings.Contains(line, "已合并") {
 		t.Fatalf("the live context = %q", line)
 	}
 	found := false
