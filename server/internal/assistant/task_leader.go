@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sunfayao/persona/server/internal/assistant/acceptance"
 	"github.com/sunfayao/persona/server/internal/assistant/autosupervise"
 	"github.com/sunfayao/persona/server/internal/assistant/criteria"
 	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
@@ -453,24 +454,25 @@ type leaderScope struct {
 // read, an unknown field is refused. Every new worker declares role "worker". todo_id names a piece of the leader's own
 // to-do (part_of it) that nobody supervises yet, to run on that piece's to-do (leadersPiece); any other is refused.
 type leaderTaskIn struct {
-	TodoID        string   `json:"todo_id"`
-	Title         string   `json:"title"`
-	Prompt        string   `json:"prompt"`
-	Role          string   `json:"role"`
-	Machine       string   `json:"machine"`
-	MachinePolicy string   `json:"machine_policy"`
-	Cwd           string   `json:"cwd"`
-	Launcher      string   `json:"launcher"`
-	Model         string   `json:"model"`
-	Tier          string   `json:"tier"`
-	Effort        string   `json:"effort"`
-	Speed         string   `json:"speed"`
-	Permission    string   `json:"permission"`
-	Readonly      bool     `json:"readonly"`
-	DoneWhen      []string `json:"done_when"`
-	Goal          string   `json:"goal"`
-	ExpectMinutes int      `json:"expect_minutes"`
-	Why           string   `json:"why"`
+	TodoID        string                `json:"todo_id"`
+	Title         string                `json:"title"`
+	Prompt        string                `json:"prompt"`
+	Role          string                `json:"role"`
+	Machine       string                `json:"machine"`
+	MachinePolicy string                `json:"machine_policy"`
+	Cwd           string                `json:"cwd"`
+	Launcher      string                `json:"launcher"`
+	Model         string                `json:"model"`
+	Tier          string                `json:"tier"`
+	Effort        string                `json:"effort"`
+	Speed         string                `json:"speed"`
+	Permission    string                `json:"permission"`
+	Readonly      bool                  `json:"readonly"`
+	DoneWhen      []string              `json:"done_when"`
+	Checks        []acceptance.Declared `json:"checks"`
+	Goal          string                `json:"goal"`
+	ExpectMinutes int                   `json:"expect_minutes"`
+	Why           string                `json:"why"`
 }
 
 // workerTasks reads a leader's task_plan arguments as worker tasks beneath its task.
@@ -488,7 +490,7 @@ func (l *leaderScope) workerTasks(args json.RawMessage) ([]PlanTask, error) {
 	for _, t := range in.Tasks {
 		pt := PlanTask{Title: t.Title, Prompt: t.Prompt, Role: t.Role, Machine: t.Machine, MachinePolicy: t.MachinePolicy, Cwd: t.Cwd,
 			Launcher: t.Launcher, Model: t.Model, Tier: t.Tier, Effort: t.Effort, Speed: t.Speed, Permission: t.Permission, Readonly: t.Readonly,
-			DoneWhen: t.DoneWhen, Goal: t.Goal, ExpectMinutes: t.ExpectMinutes, Why: t.Why, Parent: l.task.ID, Project: l.task.Project,
+			DoneWhen: t.DoneWhen, Checks: t.Checks, Goal: t.Goal, ExpectMinutes: t.ExpectMinutes, Why: t.Why, Parent: l.task.ID, Project: l.task.Project,
 			ReuseTodo: strings.TrimSpace(t.TodoID)}
 		if strings.TrimSpace(pt.Machine) == "" {
 			pt.Machine = l.agent.MachineID
@@ -1017,14 +1019,14 @@ func (s *Service) leaderTaskScope(ctx context.Context, root Todo, lead TodoAgent
 	}
 	self := leaderRef(lead.MachineID, lead.SessionID)
 	if a.TodoID == root.ID && !root.memberSupervised() {
-		if a.DoneWhen != nil || len(a.Add)+len(a.Drop)+len(a.Edit) > 0 {
+		if a.DoneWhen != nil || len(a.Add)+len(a.Drop)+len(a.Edit)+len(a.Checks) > 0 {
 			return "", errors.New("your own to-do's done_when is the main conversation's to change: ask it with report_to_supervisor " +
 				"(kind question); on your own to-do you change only expect_minutes")
 		}
 		if a.ExpectMinutes == 0 {
 			return "", errors.New("give expect_minutes: on your own to-do you change only the time it should take")
 		}
-		return s.scopeTask(ctx, self, root, a.Change, a.Why, nil, criteria.Ops{}, a.ExpectMinutes)
+		return s.scopeTask(ctx, self, root, a.Change, a.Why, nil, criteria.Ops{}, declaredChecks{}, a.ExpectMinutes)
 	}
 	w, err := s.leaderWorker(lead, a.TodoID)
 	if err != nil {
@@ -1034,7 +1036,13 @@ func (s *Service) leaderTaskScope(ctx context.Context, root Todo, lead TodoAgent
 	for _, e := range a.Edit {
 		ops.Edit = append(ops.Edit, criteria.Edit{Number: e.Number, Text: e.Text})
 	}
-	return s.scopeTask(ctx, self, w, a.Change, a.Why, a.DoneWhen, ops, a.ExpectMinutes)
+	var declared []acceptance.Declared
+	if len(a.Checks) > 0 {
+		if err := json.Unmarshal(a.Checks, &declared); err != nil {
+			return "", fmt.Errorf("checks: %v", err)
+		}
+	}
+	return s.scopeTask(ctx, self, w, a.Change, a.Why, a.DoneWhen, ops, declaredChecks{declared, acceptance.Supervisor}, a.ExpectMinutes)
 }
 
 // leaderWorkers are the worker to-dos of to-do root's task leaders (open and closed), oldest first: each worker's row
@@ -1145,6 +1153,7 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 	var a struct {
 		TodoID     string        `json:"todo_id"`
 		Verdict    string        `json:"verdict"`
+		Verify     bool          `json:"verify"` // the hub runs the declared checks again; no verdict is written
 		Outcome    string        `json:"outcome"`
 		ReworkKind string        `json:"rework_kind"`
 		Checks     []ReviewCheck `json:"checks"`
@@ -1156,6 +1165,16 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&a); err != nil {
 		return "", fmt.Errorf("a task leader's task_review takes only the fields its schema lists (%v)", err)
+	}
+	t, ok := s.todoNow(strings.TrimSpace(a.TodoID))
+	if !ok {
+		return "", fmt.Errorf("no task %q", a.TodoID)
+	}
+	if cur, supervised, reachable := s.leaderSupervisor(t); !supervised || !reachable || cur.MachineID != lead.MachineID || cur.SessionID != lead.SessionID {
+		return "", fmt.Errorf("task %s is not one of your workers: you review the workers you handed out with task_plan, nothing else", t.ID)
+	}
+	if a.Verify {
+		return s.verifyChecks(ctx, t)
 	}
 	a.Note = strings.TrimSpace(a.Note)
 	a.ReworkKind = strings.TrimSpace(a.ReworkKind)
@@ -1175,13 +1194,6 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 	}
 	if a.Verdict == reviewRework && a.Note == "" && !slices.ContainsFunc(a.Checks, func(c ReviewCheck) bool { return !c.Met }) {
 		return "", errors.New("rework: say what is missing (a check that is not met, or note)")
-	}
-	t, ok := s.todoNow(strings.TrimSpace(a.TodoID))
-	if !ok {
-		return "", fmt.Errorf("no task %q", a.TodoID)
-	}
-	if cur, supervised, reachable := s.leaderSupervisor(t); !supervised || !reachable || cur.MachineID != lead.MachineID || cur.SessionID != lead.SessionID {
-		return "", fmt.Errorf("task %s is not one of your workers: you review the workers you handed out with task_plan, nothing else", t.ID)
 	}
 	if a.Verdict == reviewAccepted && t.DoneAt == nil && t.memberSupervised() && len(s.openLeaderWorkers(t)) > 0 {
 		return "", fmt.Errorf("task %s has open pieces: close them with task_review first", t.ID)
@@ -1215,12 +1227,26 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 	verdict, note := a.Verdict, clip(a.Note, 2000)
 	over, overSafetyCap, overCount := false, false, 0
 	var criteriaErr error
+	gateNote := "" // the gates the main conversation's acceptance passes: owner wait, criteria, delivery (acceptanceGates)
+	if verdict == reviewAccepted {
+		if gateNote, err = s.acceptanceGates(ctx, t, a.Checks, a.Outcome, ""); err != nil {
+			return "", err
+		}
+	}
+	reviewBy := ""
+	if hubActing(ctx) {
+		reviewBy = reviewerHub
+	}
 	v, _, err := s.updateSupervision(ctx, t.ID, func(v *Supervision) bool {
 		if byNumber && !slices.Equal(v.DoneWhen, current) {
 			criteriaErr = criteria.ErrChanged
 			return false
 		}
 		if verdict == reviewAccepted {
+			if t.DoneAt == nil && v.Waits != nil {
+				criteriaErr = acceptance.OwnerWait(t.ID, v.Waits.Reason)
+				return false
+			}
 			if criteriaErr = criteria.Complete(v.DoneWhen, a.Checks); criteriaErr != nil {
 				return false
 			}
@@ -1230,7 +1256,7 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 				verdict, over, overSafetyCap, overCount = reviewNeedsUser, true, safetyCap, count
 			}
 		}
-		r := TaskReview{At: time.Now().UTC(), Verdict: verdict, Checks: checks, Note: note}
+		r := TaskReview{At: time.Now().UTC(), Verdict: verdict, Checks: checks, Note: note, By: reviewBy}
 		if verdict == reviewNeedsUser {
 			r.Note = cmp.Or(r.Note, clip(oneLine(a.Reason), 200))
 		}
@@ -1294,7 +1320,7 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 			s.stopTaskAgents(ctx, t)
 			return fmt.Sprintf("Worker task %s is cancelled and closed; its agent is being stopped (its terminal stays) and archived.", t.ID), nil
 		}
-		return fmt.Sprintf("Worker task %s is accepted and closed; its agent is stopped once it stays still (its terminal stays).", t.ID), nil
+		return fmt.Sprintf("Worker task %s is accepted and closed; its agent is stopped once it stays still (its terminal stays).", t.ID) + gateNote, nil
 	case reviewNeedsUser:
 		why := cmp.Or(clip(oneLine(a.Reason), 200), clip(oneLine(note), 200))
 		n := cmp.Or(overCount, maxReworkRounds)

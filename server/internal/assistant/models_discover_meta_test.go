@@ -266,11 +266,11 @@ func TestDiscoveryCapabilityReportFailuresAreIgnored(t *testing.T) {
 // The levels and limits a gateway reports win over the catalog's, exact or inherited, and an explicit none keeps the
 // catalog's levels out; an exact catalog entry's window still wins over a reported one.
 func TestDiscoveryPrefersReportedLevelsOverTheCatalog(t *testing.T) {
-	exact, ok := catalogModel("glm-5.3")
+	exact, ok := builtinModels.Model("glm-5.3")
 	if !ok || len(exact.Efforts) == 0 || exact.DefaultEffort == "" || exact.InheritedFrom != "" {
 		t.Fatalf("catalog: %+v", exact)
 	}
-	newer, ok := catalogModel("glm-5.9")
+	newer, ok := builtinModels.Model("glm-5.9")
 	if !ok || newer.InheritedFrom == "" {
 		t.Fatalf("catalog generation: %+v", newer)
 	}
@@ -471,7 +471,7 @@ func TestCindyModelMetadata(t *testing.T) {
 // of a shape it can't read, a partial parameter list; a none guessed from a whole parameter list gives way to the
 // catalog's levels. Only an empty level list and the report's protocols: [] say "none".
 func TestDiscoveryReadsOnlyWhatIsSaid(t *testing.T) {
-	exact, ok := catalogModel("glm-5.3")
+	exact, ok := builtinModels.Model("glm-5.3")
 	if !ok || len(exact.Efforts) == 0 {
 		t.Fatalf("catalog: %+v", exact)
 	}

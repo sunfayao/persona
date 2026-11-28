@@ -1,10 +1,10 @@
-Plan code, repository research and other multi-step work for coding Agents, one supervised task per independent piece. Check machines_list and agents_list first; an Agent's own follow-up goes to agent_send. Read-only, user_requested and preapproved tasks start at once, others on the owner's Start; a queued receipt is not a started Agent.
+Plan code, repository research and other multi-step work for coding Agents, one supervised task per piece. Check machines_list and agents_list first; an Agent's own follow-up goes to agent_send. Read-only, user_requested and preapproved tasks start at once, others on the owner's Start; a queued receipt is not a started Agent.
 
 Write title (under 20 characters), why, goal, done_when and out_of_bounds in {{lang .Lang}}. A writable task needs checkable done_when, a read-only one goal. Continue a task with continues (scope_revision after task_scope); retry a failed start with task_start_repair retry. readonly=true: Claude-family launchers run with bypassPermissions; Codex and agy (Antigravity companion) in plan mode, or with assistant.readonly_mode=prompt by instruction only, not a security boundary; pi and cursor refuse it.
 
 `wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, with known input/session ids. Observation never answers questions, accepts tasks, resends or cancels work; normal supervision/`task_review` applies. Older nodes may time out instead of an unrelated reply. Only an immediately dispatchable single-task plan waits.
 
-Details: read .claude/skills/persona-work/references/task-plan.md in your working directory.
+Details: .claude/skills/persona-work/references/task-plan.md in the working dir.
 
 ```json
 {
@@ -58,7 +58,7 @@ Details: read .claude/skills/persona-work/references/task-plan.md in your workin
           },
           "workspace": {
             "type": ["string", "object"],
-            "description": "omit for the default; new: an engine-made checkout (never have the Agent run git worktree add); existing + queue: true waits until it is free",
+            "description": "omit for the default; new: an engine-made checkout (the Agent never runs git worktree add); existing + queue: true waits until free",
             "oneOf": [
               { "type": "string", "enum": ["new", "none"] },
               { "type": "object", "required": ["backend"], "properties": { "backend": { "type": "object", "required": ["operation_id"], "properties": { "operation_id": { "type": "string" }, "host": { "type": "string" } } } } },
@@ -72,7 +72,7 @@ Details: read .claude/skills/persona-work/references/task-plan.md in your workin
           },
           "host": {
             "type": "string",
-            "description": "agy (Antigravity companion) or herdr (terminal); omit to let Persona choose"
+            "description": "agy (Antigravity companion) or herdr (terminal); omit: Persona chooses"
           },
           "model": {
             "type": "string"
@@ -94,7 +94,7 @@ Details: read .claude/skills/persona-work/references/task-plan.md in your workin
           },
           "ultracode": {
             "type": "boolean",
-            "description": "Claude Code multi-agent workflow for large tasks; slower, costlier"
+            "description": "Claude Code multi-agent workflow; slower, costlier"
           },
           "readonly": {
             "type": "boolean",
@@ -114,6 +114,11 @@ Details: read .claude/skills/persona-work/references/task-plan.md in your workin
             "items": {
               "type": "string"
             }
+          },
+"checks": {
+            "type": "array",
+            "items": {"type": "object"},
+            "description": "hub-run checks: {criterion: done_when number, kind: pr_merged|ci_green|deployed|http, arg: http URL [status] [text]}"
           },
           "goal": {
             "type": "string"
@@ -171,7 +176,7 @@ Details: read .claude/skills/persona-work/references/task-plan.md in your workin
           },
           "tier": {
             "type": "string",
-            "description": "preset from the snapshot's Model profile line; explicit launcher, model, effort or speed override it"
+            "description": "preset from the Model profile line; explicit launcher, model, effort or speed override it"
           },
           "speed": {
             "type": "string",

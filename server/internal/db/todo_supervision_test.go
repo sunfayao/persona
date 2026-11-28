@@ -226,3 +226,26 @@ func TestTodoSupervisionKeepsTheConversationAbove(t *testing.T) {
 		t.Fatalf("round trip: %+v, %v", list, err)
 	}
 }
+
+// The typed checks of a ledger are kept with it; a ledger written without any reads back with none.
+func TestTodoSupervisionKeepsItsTypedChecks(t *testing.T) {
+	d, ctx := open(t), context.Background()
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	if err := d.CreateTodo(ctx, TodoRow{ID: "t1", Title: "deploy", CreatedAt: now, UpdatedAt: now, Origin: "main"}); err != nil {
+		t.Fatal(err)
+	}
+	r := TodoSupervisionRow{TodoID: "t1", Supervisor: "main", DoneWhen: []string{"merged"}, UpdatedAt: now}
+	if err := d.PutTodoSupervision(ctx, r); err != nil {
+		t.Fatal(err)
+	}
+	if list, err := d.ListTodoSupervision(ctx); err != nil || len(list) != 1 || len(list[0].Checks) != 0 {
+		t.Fatalf("no checks: %+v, %v", list, err)
+	}
+	r.Checks = json.RawMessage(`[{"criterion":"merged","kind":"pr_merged"}]`)
+	if err := d.PutTodoSupervision(ctx, r); err != nil {
+		t.Fatal(err)
+	}
+	if list, err := d.ListTodoSupervision(ctx); err != nil || len(list) != 1 || string(list[0].Checks) != `[{"kind": "pr_merged", "criterion": "merged"}]` {
+		t.Fatalf("round trip: %+v, %v", list, err)
+	}
+}

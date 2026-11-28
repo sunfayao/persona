@@ -182,7 +182,7 @@ func guessNoEffort(m proto.ProviderModel) proto.ProviderModel {
 	if reportedLevels(m) {
 		return m
 	}
-	if c, ok := catalogModel(m.ID); ok && len(c.Efforts) > 0 {
+	if c, ok := builtinModels.Model(m.ID); ok && len(c.Efforts) > 0 {
 		return m
 	}
 	m.NoEffort = true

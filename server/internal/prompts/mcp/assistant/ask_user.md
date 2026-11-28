@@ -1,6 +1,6 @@
 Ask the user multiple-choice questions on a card in Persona and wait for the answers. Use it to confirm anything risky (sending messages or email for them, deleting, changing live systems) or to let them choose. Your runtime's own question tool does not reach the user. Use wait false only where your instructions say to; a confirmation this turn needs (approving a message before it is sent) keeps the default.
 
-Details: read .claude/skills/persona-work/references/ask-user.md in your working directory.
+Details: .claude/skills/persona-work/references/ask-user.md in the working dir.
 
 ```json
 {

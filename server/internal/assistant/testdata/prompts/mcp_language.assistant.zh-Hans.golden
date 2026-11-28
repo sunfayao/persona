@@ -1,7 +1,7 @@
 [
   {
     "name": "ask_user",
-    "description": "Ask the user multiple-choice questions on a card in Persona and wait for the answers. Use it to confirm anything risky (sending messages or email for them, deleting, changing live systems) or to let them choose. Your runtime's own question tool does not reach the user. Use wait false only where your instructions say to; a confirmation this turn needs (approving a message before it is sent) keeps the default.\n\nDetails: read .claude/skills/persona-work/references/ask-user.md in your working directory.",
+    "description": "Ask the user multiple-choice questions on a card in Persona and wait for the answers. Use it to confirm anything risky (sending messages or email for them, deleting, changing live systems) or to let them choose. Your runtime's own question tool does not reach the user. Use wait false only where your instructions say to; a confirmation this turn needs (approving a message before it is sent) keeps the default.\n\nDetails: .claude/skills/persona-work/references/ask-user.md in the working dir.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -135,7 +135,7 @@
   },
   {
     "name": "schedule_followup",
-    "description": "Schedule a one-off reminder or follow-up (\"remind me at 15:00\", \"check again in an hour\", \"tell me when X finishes\") or work repeated on an interval (\"every 30 minutes\"); a time of day or week is a routine, not a follow-up. Example: {\"at\": \"1h\", \"title\": \"Login fix CI\", \"prompt\": \"Check whether CI on the login fix passed and tell the user\"}. At that time prompt comes back to this conversation (with new_conversation: true, to a conversation of its own), so make it self-contained. at takes RFC 3339 or 30m / 2h / 1d. To repeat, set every (5m to 7d) or a 5-field cron once and never schedule the next run yourself; check the next runs in the reply. Get the owner's consent before creating or changing recurring work.\n\nDetails: read .claude/skills/persona-work/references/schedules.md in your working directory.",
+    "description": "Schedule a one-off reminder or follow-up (\"remind me at 15:00\", \"check again in an hour\", \"tell me when X finishes\") or work repeated on an interval (\"every 30 minutes\"); a time of day or week is a routine, not a follow-up. Example: {\"at\": \"1h\", \"title\": \"Login fix CI\", \"prompt\": \"Check whether CI on the login fix passed and tell the user\"}. At that time prompt comes back to this conversation (with new_conversation: true, to a conversation of its own), so make it self-contained. at takes RFC 3339 or 30m / 2h / 1d. To repeat, set every (5m to 7d) or a 5-field cron once and never schedule the next run yourself; check the next runs in the reply. Get the owner's consent before creating or changing recurring work.\n\nDetails: .claude/skills/persona-work/references/schedules.md in the working dir.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -456,7 +456,7 @@
   },
   {
     "name": "agents_list",
-    "description": "The coding Agents on the user's computers (Claude Code, Codex, Antigravity, TRAE and runtime Agents) and their state: needs_you (waiting for an answer or approval), working, unread (finished, result not looked at), idle, offline (stopped). Much faster and more accurate than ssh + herdr. The default lists Active (needs you, working, finished unread), then Idle and Ended in the last 24 hours, newest first: look at those two before handing out follow-up work, since an Agent that did the related work on that computer and directory goes on in its own context (reuse= says how). Each line has machine, session id, project, title and last update, then its conclusion or last words. Do not reuse an Agent on a model the user retired (model=). Let one with ultracode=on finish its multi-agent workflow without nudging it. A line under an Agent waits for the user: answer a question with interaction_answer and its interaction id; an approval is the user's to give in the app. `kind: \"conversations\"` lists your own Persona conversations instead, newest activity first (id, title, last activity, main/running state, gist; this one marked; `query`, `include_archived`, `limit`): find the user's conversation there before reading or messaging it.\n\nDetails: read .claude/skills/persona-work/references/agents-and-machines.md in your working directory.",
+    "description": "The coding Agents on the user's computers (Claude Code, Codex, Antigravity, TRAE and runtime Agents) and their state: needs_you (waiting for an answer or approval), working, unread (finished, result not looked at), idle, offline (stopped). The default lists Active (needs you, working, finished unread), then Idle and Ended in the last 24 hours, newest first: look at those two before handing out follow-up work, since an Agent that did the related work on that computer and directory goes on in its own context (reuse= says how). Each line has machine, session id, project, title and last update, then its conclusion or last words. Do not reuse an Agent on a model the user retired (model=). Let one with ultracode=on finish its multi-agent workflow without nudging it. A line under an Agent waits for the user: answer a question with interaction_answer and its interaction id; an approval is the user's to give in the app. `kind: \"conversations\"` lists your own Persona conversations instead, newest activity first (id, title, last activity, main/running state, gist; this one marked; `query`, `include_archived`, `limit`): find the user's conversation there before reading or messaging it.\n\nDetails: .claude/skills/persona-work/references/agents-and-machines.md in the working dir.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -857,7 +857,7 @@
   },
   {
     "name": "agent_archive",
-    "description": "Archive a coding agent's session (from agents_list) when the user asks to archive or tidy up agents: it leaves the Agents list for Archived in Persona, nothing is deleted, and `restore: true` brings it back, reopening nothing on the computer (never remove a session any other way). Persona also asks the agent's own tool to archive it where that tool has an archive (Codex); the result says whether it did (native: done / pending / unsupported). Without close the agent itself is not closed: one open on its computer stays open. With close, its agent and its terminal tab are also closed on its computer (its transcript stays; then it is stopped until resumed): only when the user asks to close it too, and the user confirms in Persona first (declined: nothing changes). A busy agent is refused and nothing changes: working, waiting for an answer or background work, and for close also a /loop, queued messages or a server it runs. When the close does not happen the session stays archived and still open on the computer, and the result says why: tell the user exactly that, not that it was closed. With `force: true`, explicitly cancel and close an Agent stuck waiting for a terminal confirmation, then archive it. Use force only when the user asks to stop or archive that blocked Agent. Pending permissions and plans are rejected or cancelled, never allowed. Working Agents, background work, running subagents/workflows, queued messages, loops and serving ports are still refused. A failed close leaves it visible. Force implies close and does not ask for a second permission card. Not for Persona conversations, which no tool archives.",
+    "description": "Archive a coding agent's session (from agents_list) when the user asks to archive or tidy up agents: it leaves the Agents list for Archived in Persona, nothing is deleted, and `restore: true` brings it back, reopening nothing on the computer (never remove a session any other way). Persona also asks the agent's own tool to archive it where that tool has an archive (Codex); the result says whether it did (native: done / pending / unsupported). Without close the agent itself is not closed: one open on its computer stays open. With close, its agent and its terminal tab are also closed on its computer (its transcript stays; then it is stopped until resumed): only when the user asks to close it too, and the user confirms in Persona first (declined: nothing changes). A busy agent is refused and nothing changes: working, waiting for an answer or background work, and for close also a /loop, queued messages or a server it runs. When the close does not happen the session stays archived and still open on the computer, and the result says why: tell the user exactly that, not that it was closed. With `force: true`, explicitly cancel and close an Agent stuck waiting for a terminal confirmation, then archive it. Use force only when the user asks to stop or archive that blocked Agent. Pending permissions and plans are rejected or cancelled, never allowed. A failed close leaves it visible. Force implies close and does not ask for a second permission card. Not for Persona conversations.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -1012,7 +1012,7 @@
   },
   {
     "name": "persona_settings",
-    "description": "This is how the user changes Persona's settings: ask them in conversation, there is no settings page for these. `list` (the default) shows every key with a one-line description, how to set it and its current value (secrets only as set or unset); `get` reads one. `set`, `add` and `remove` apply immediately with before → after; only secret inputs (e.g. adding mail) use a card — never ask for secrets in chat. Change only what was asked. Areas: assistant behavior, session triage, About Me, saved prompts, start page and sidebar, inbox sorting and task links, mail accounts, extensions (`extension.\u003cid\u003e`, channels and connectors too: its own switch, `enabled`, and its settings) and their download mirrors, hub updates, device notifications, each agent CLI's settings per computer and muted Claude config directories. Model profiles are not here: use `model_profiles`.\n\n`test` checks a provider ID for a `model_config.*` group, without approval or saving. `assistant.standing_authorizations`: never invent a quote or widen a grant's scope, and give only conditions that can be checked independently.\n\nDetails: read .claude/skills/persona-work/references/persona-settings.md in your working directory.",
+    "description": "This is how the user changes Persona's settings: ask them in conversation, there is no settings page for these. `list` (the default) shows every key with a one-line description, how to set it and its current value (secrets only as set or unset); `get` reads one. `set`, `add` and `remove` apply immediately with before → after; only secret inputs (e.g. adding mail) use a card — never ask for secrets in chat. Change only what was asked. Areas: assistant behavior, session triage, About Me, saved prompts, start page and sidebar, inbox sorting and task links, mail accounts, extensions (`extension.\u003cid\u003e`, channels and connectors too: its own switch, `enabled`, and its settings) and their download mirrors, hub updates, device notifications, each agent CLI's settings per computer and muted Claude config directories. Model profiles are not here: use `model_profiles`.\n\n`test` checks a provider ID for a `model_config.*` group, without approval or saving. `assistant.standing_authorizations`: never invent a quote or widen a grant's scope, and give only conditions that can be checked independently.\n\nDetails: .claude/skills/persona-work/references/persona-settings.md in the working dir.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -1327,7 +1327,7 @@
   },
   {
     "name": "task_plan",
-    "description": "Plan code, repository research and other multi-step work for coding Agents, one supervised task per independent piece. Check machines_list and agents_list first; an Agent's own follow-up goes to agent_send. Read-only, user_requested and preapproved tasks start at once, others on the owner's Start; a queued receipt is not a started Agent.\n\nWrite title (under 20 characters), why, goal, done_when and out_of_bounds in Simplified Chinese. A writable task needs checkable done_when, a read-only one goal. Continue a task with continues (scope_revision after task_scope); retry a failed start with task_start_repair retry. readonly=true: Claude-family launchers run with bypassPermissions; Codex and agy (Antigravity companion) in plan mode, or with assistant.readonly_mode=prompt by instruction only, not a security boundary; pi and cursor refuse it.\n\n`wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, with known input/session ids. Observation never answers questions, accepts tasks, resends or cancels work; normal supervision/`task_review` applies. Older nodes may time out instead of an unrelated reply. Only an immediately dispatchable single-task plan waits.\n\nDetails: read .claude/skills/persona-work/references/task-plan.md in your working directory.",
+    "description": "Plan code, repository research and other multi-step work for coding Agents, one supervised task per piece. Check machines_list and agents_list first; an Agent's own follow-up goes to agent_send. Read-only, user_requested and preapproved tasks start at once, others on the owner's Start; a queued receipt is not a started Agent.\n\nWrite title (under 20 characters), why, goal, done_when and out_of_bounds in Simplified Chinese. A writable task needs checkable done_when, a read-only one goal. Continue a task with continues (scope_revision after task_scope); retry a failed start with task_start_repair retry. readonly=true: Claude-family launchers run with bypassPermissions; Codex and agy (Antigravity companion) in plan mode, or with assistant.readonly_mode=prompt by instruction only, not a security boundary; pi and cursor refuse it.\n\n`wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, with known input/session ids. Observation never answers questions, accepts tasks, resends or cancels work; normal supervision/`task_review` applies. Older nodes may time out instead of an unrelated reply. Only an immediately dispatchable single-task plan waits.\n\nDetails: .claude/skills/persona-work/references/task-plan.md in the working dir.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -1418,7 +1418,7 @@
                   "string",
                   "object"
                 ],
-                "description": "omit for the default; new: an engine-made checkout (never have the Agent run git worktree add); existing + queue: true waits until it is free",
+                "description": "omit for the default; new: an engine-made checkout (the Agent never runs git worktree add); existing + queue: true waits until free",
                 "oneOf": [
                   {
                     "type": "string",
@@ -1512,7 +1512,7 @@
               },
               "host": {
                 "type": "string",
-                "description": "agy (Antigravity companion) or herdr (terminal); omit to let Persona choose"
+                "description": "agy (Antigravity companion) or herdr (terminal); omit: Persona chooses"
               },
               "model": {
                 "type": "string"
@@ -1537,7 +1537,7 @@
               },
               "ultracode": {
                 "type": "boolean",
-                "description": "Claude Code multi-agent workflow for large tasks; slower, costlier"
+                "description": "Claude Code multi-agent workflow; slower, costlier"
               },
               "readonly": {
                 "type": "boolean",
@@ -1557,6 +1557,13 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "checks": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                },
+                "description": "hub-run checks: {criterion: done_when number, kind: pr_merged|ci_green|deployed|http, arg: http URL [status] [text]}"
               },
               "goal": {
                 "type": "string"
@@ -1614,7 +1621,7 @@
               },
               "tier": {
                 "type": "string",
-                "description": "preset from the snapshot's Model profile line; explicit launcher, model, effort or speed override it"
+                "description": "preset from the Model profile line; explicit launcher, model, effort or speed override it"
               },
               "speed": {
                 "type": "string",
@@ -1659,7 +1666,7 @@
   },
   {
     "name": "task_review",
-    "description": "Record a verdict on a supervised task, judged on its brief and criteria, not on claims.\n- accepted: outcome=done closes verified work: one met check with evidence per done_when criterion, by number or text.\n- rework: a concrete next step in note; do not bounce nitpicks.\n- parked: an outside wait, with reason, waiting_on and evidence.\n- needs_user: only what the owner alone can decide, with why_owner, reason, options, recommend and cost_of_waiting.\n- cancelled: duplicate or unwanted tasks only.\nOn another supervisor's task only accept or cancel; send gaps with agent_send.\n\nDetails: read .claude/skills/persona-work/references/task-review.md in your working directory.",
+    "description": "Record a verdict on a supervised task, judged on its brief and criteria, not on claims.\n- accepted: outcome=done closes verified work: one met check with evidence per done_when criterion, by number or text.\n- rework: a concrete next step in note; do not bounce nitpicks.\n- parked: an outside wait, with reason, waiting_on and evidence.\n- needs_user: only what the owner alone can decide, with why_owner, reason, options, recommend and cost_of_waiting.\n- cancelled: duplicate or unwanted tasks only.\nverify=true reruns the hub's checks; no verdict. On another supervisor's task only accept or cancel; send gaps with agent_send.\n\nDetails: .claude/skills/persona-work/references/task-review.md in the working dir.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -1689,6 +1696,9 @@
             "low_roi_edge"
           ],
           "description": "external_input: not a stalled round; substantive_new: restarts the stalled count"
+        },
+        "verify": {
+          "type": "boolean"
         },
         "checks": {
           "type": "array",
@@ -1781,7 +1791,7 @@
         },
         "question_quote": {
           "type": "string",
-          "description": "the Agent's question verbatim, if reason paraphrases it"
+          "description": "the Agent's question verbatim"
         },
         "can_wait": {
           "type": "boolean",
@@ -1950,7 +1960,7 @@
   },
   {
     "name": "task_scope",
-    "description": "Change a supervised task's work or what done means after it started (its todo id): adds a brief-log entry, applies the new criteria or expect_minutes and restarts overdue; the owner reads it in the next digest. It is the only way done_when changes after start. Use add, drop and edit by criterion number (an edit keeps its place, never a drop) or the whole done_when list (a criterion left out is logged as dropped), not both. A criterion is one checkable result of at most 200 characters. A change adding an owner-only step (deploying, merging, releasing, public sends, deleting, spending, production changes) is refused unless the owner's own message started this turn: ask first (ask_user, or task_review needs_user). Only its supervisor may call it; the Agent is not told: use agent_send. A finished task past the settle window with no owner card is refused: give task_review first. Details: persona-work references/task-review.md.",
+    "description": "Change a supervised task's work or what done means after it started: adds a brief-log entry, applies the new criteria or expect_minutes and restarts overdue; the owner reads it in the next digest. It is the only way done_when changes after start. Use add, drop and edit by criterion number (an edit keeps its place, never a drop) or the whole done_when list (a criterion left out is logged as dropped), not both. A criterion is one checkable result of at most 200 characters. A change adding an owner-only step (deploying, merging, releasing, public sends, deleting, spending, production changes) is refused unless the owner's own message started this turn: ask first (ask_user, or task_review needs_user). Only its supervisor may call it; the Agent is not told (agent_send). A finished task past the settle window with no owner card is refused: give task_review first. Details: persona-work references/task-review.md.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -1979,6 +1989,13 @@
             "type": "string"
           },
           "description": "the whole list after the change; not with add, drop or edit"
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "description": "as in task_plan; numbers follow this change"
         },
         "add": {
           "type": "array",
@@ -2013,7 +2030,7 @@
         "expect_minutes": {
           "type": "integer",
           "minimum": 0,
-          "description": "how long the task should take from now; leave it out (or 0) to keep it"
+          "description": "minutes it should take from now; 0 or omitted keeps it"
         }
       }
     },

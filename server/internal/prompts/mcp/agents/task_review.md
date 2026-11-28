@@ -4,9 +4,9 @@ Record a verdict on a supervised task, judged on its brief and criteria, not on 
 - parked: an outside wait, with reason, waiting_on and evidence.
 - needs_user: only what the owner alone can decide, with why_owner, reason, options, recommend and cost_of_waiting.
 - cancelled: duplicate or unwanted tasks only.
-On another supervisor's task only accept or cancel; send gaps with agent_send.
+verify=true reruns the hub's checks; no verdict. On another supervisor's task only accept or cancel; send gaps with agent_send.
 
-Details: read .claude/skills/persona-work/references/task-review.md in your working directory.
+Details: .claude/skills/persona-work/references/task-review.md in the working dir.
 
 ```json
 {
@@ -25,6 +25,7 @@ Details: read .claude/skills/persona-work/references/task-review.md in your work
       "enum": ["external_input", "substantive_new", "repeated_error", "low_roi_edge"],
       "description": "external_input: not a stalled round; substantive_new: restarts the stalled count"
     },
+    "verify": {"type": "boolean"},
     "checks": {
       "type": "array",
       "items": {
@@ -86,7 +87,7 @@ Details: read .claude/skills/persona-work/references/task-review.md in your work
     },
     "question_quote": {
       "type": "string",
-      "description": "the Agent's question verbatim, if reason paraphrases it"
+      "description": "the Agent's question verbatim"
     },
     "can_wait": {
       "type": "boolean",

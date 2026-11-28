@@ -88,7 +88,7 @@ func TestCatalogLookupInheritsAGeneration(t *testing.T) {
 	if len(got) != 1 || !reflect.DeepEqual(got[0], want) {
 		t.Fatalf("%+v, want %+v", got, want)
 	}
-	if !reflect.DeepEqual(got[0], enrichModel(proto.ProviderModel{ID: "glm-5.4"})) {
+	if !reflect.DeepEqual(got[0], builtinModels.Enrich(proto.ProviderModel{ID: "glm-5.4"})) {
 		t.Fatalf("not discovery's lookup: %+v", got[0])
 	}
 	_, raw := launcherCall(t, mux, "POST", catalogPath, catalogIDs("glm-5.4"))

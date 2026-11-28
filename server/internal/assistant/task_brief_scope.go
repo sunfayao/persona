@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/acceptance"
 	"github.com/sunfayao/persona/server/internal/assistant/criteria"
 	"github.com/sunfayao/persona/server/internal/assistant/signalrule"
 )
@@ -55,7 +56,8 @@ func scopeRisk(text, known string) []string {
 type scopeChange struct {
 	By, Change, Why string
 	DoneWhen        []string
-	Ops             criteria.Ops // add, drop and edit by number; never together with DoneWhen
+	Ops             criteria.Ops   // add, drop and edit by number; never together with DoneWhen
+	Checks          declaredChecks // typed checks declared on the criteria as they are after the change
 	Expect          int
 	Approval        *BriefRequest
 	eventID         string // in-memory identity of an aborted continuation's own event
@@ -98,6 +100,9 @@ func (s *Service) applyScope(ctx context.Context, t Todo, c scopeChange) (TaskBr
 			next = cleanDoneWhen(c.DoneWhen)
 		}
 		added, dropped = criteria.Diff(brief.Criteria, next)
+	}
+	if _, err := acceptance.Declare(next, c.Checks.List, c.Checks.By); err != nil {
+		return TaskBrief{}, fmt.Errorf("task_scope: %w; nothing was written", err)
 	}
 	changed := len(added) + len(dropped) + len(edited)
 	if changed == 0 && (expect == 0 || expect == brief.ExpectNow) && strings.TrimSpace(c.Change) == "" {
@@ -173,6 +178,7 @@ func (s *Service) applyScope(ctx context.Context, t Todo, c scopeChange) (TaskBr
 				}
 			}
 			v.DoneWhen, v.ExpectMinutes = slices.Clone(brief.Criteria), brief.ExpectNow
+			v.setChecks(c.Checks)
 			if changed > 0 && (v.State == reviewAccepted || v.State == reviewCancelled) {
 				// The terminal review covered the old criteria, not this new scope (#6880).
 				v.State = ""
@@ -232,14 +238,15 @@ func (s *Service) rescopeWithEvent(ctx context.Context, t Todo, self, supervisor
 // as an entry in its brief's log.
 func (s *Service) toolTaskScope(ctx context.Context, self string, args json.RawMessage) (string, error) {
 	var a struct {
-		TodoID        string          `json:"todo_id"`
-		Change        string          `json:"change"`
-		Why           string          `json:"why"`
-		DoneWhen      *[]string       `json:"done_when"`
-		Add           []string        `json:"add"`
-		Drop          []int           `json:"drop"`
-		Edit          []criteria.Edit `json:"edit"`
-		ExpectMinutes int             `json:"expect_minutes"`
+		TodoID        string                `json:"todo_id"`
+		Change        string                `json:"change"`
+		Why           string                `json:"why"`
+		DoneWhen      *[]string             `json:"done_when"`
+		Add           []string              `json:"add"`
+		Drop          []int                 `json:"drop"`
+		Edit          []criteria.Edit       `json:"edit"`
+		Checks        []acceptance.Declared `json:"checks"`
+		ExpectMinutes int                   `json:"expect_minutes"`
 	}
 	if err := json.Unmarshal(args, &a); err != nil {
 		return "", fmt.Errorf("arguments: %v", err)
@@ -267,18 +274,18 @@ func (s *Service) toolTaskScope(ctx context.Context, self string, args json.RawM
 	if supervisor != self && (t.Supervision == nil || t.Supervision.Above != self) && !s.isMain(ctx, self) && !s.backgroundSupervises(ctx, self, t) {
 		return "", fmt.Errorf("task %s is supervised by another conversation: only its supervisor changes its scope", t.ID)
 	}
-	return s.scopeTask(ctx, self, t, a.Change, a.Why, a.DoneWhen, criteria.Ops{Add: a.Add, Drop: a.Drop, Edit: a.Edit}, a.ExpectMinutes)
+	return s.scopeTask(ctx, self, t, a.Change, a.Why, a.DoneWhen, criteria.Ops{Add: a.Add, Drop: a.Drop, Edit: a.Edit}, declaredChecks{a.Checks, acceptance.Main}, a.ExpectMinutes)
 }
 
 // scopeTask applies a scope change self may make to task t (task_scope, and a task leader's for its workers and its
 // own to-do's time): what changes and why, the new done_when (nil: as it is) or add/drop/edit by number (never both), and expect_minutes (0: as it is).
-func (s *Service) scopeTask(ctx context.Context, self string, t Todo, change, why string, doneWhen *[]string, ops criteria.Ops, expect int) (string, error) {
+func (s *Service) scopeTask(ctx context.Context, self string, t Todo, change, why string, doneWhen *[]string, ops criteria.Ops, checks declaredChecks, expect int) (string, error) {
 	// A card-less owner wait must not be pushed further out by an estimate extension or scope change (#12648); the
 	// refusal happens before the brief is written.
 	if err := s.cardlessOwnerWaitGuard(ctx, t); err != nil {
 		return "", err
 	}
-	c := scopeChange{By: self, Change: change, Why: why, Expect: expect, Ops: ops}
+	c := scopeChange{By: self, Change: change, Why: why, Expect: expect, Ops: ops, Checks: checks}
 	if doneWhen != nil && !ops.Empty() {
 		return "", errors.New("give done_when (the whole list) or add, drop and edit, not both")
 	}

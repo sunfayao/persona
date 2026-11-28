@@ -11,17 +11,18 @@ Review a direct worker of your to-do. accepted (outcome done) closes verified wo
   "properties": {
     "todo_id": {
       "type": "string",
-      "description": "the worker's task id, as the supervision message and task_plan's answer give it"
+      "description": "the worker's task id"
     },
     "verdict": {
       "type": "string",
       "enum": ["accepted", "rework", "needs_user", "cancelled"]
     },
+    "verify": {"type": "boolean", "description": "run the hub's declared checks again; no verdict"},
     "outcome": {"type": "string", "enum": ["done"]},
     "rework_kind": {
       "type": "string",
       "enum": ["external_input", "substantive_new", "repeated_error", "low_roi_edge"],
-      "description": "rework, optional: external_input (external review/conflict/owner input; skips 2-round stalled cap), substantive_new (prior gap fixed, new defect found; resets stalled cap), repeated_error/low_roi_edge (default when omitted; cap 2 stalled, 10 total)"
+      "description": "rework, optional: external_input (outside input; skips the stalled cap), substantive_new (new defect after the gap was fixed; resets it), repeated_error/low_roi_edge (default)"
     },
     "note": {
       "type": "string",

@@ -348,6 +348,7 @@ func (s *Service) supervisePlanTask(ctx context.Context, id, supervisor string, 
 		}
 		if t.Continues == "" {
 			v.Supervisor, v.DoneWhen, v.ExpectMinutes = supervisor, cleanDoneWhen(t.DoneWhen), t.ExpectMinutes
+			v.setChecks(declaredChecks{t.Checks, planRole(t.Parent != "")})
 			return true
 		}
 		brief, ok := s.briefOfTodo(t.Continues)
