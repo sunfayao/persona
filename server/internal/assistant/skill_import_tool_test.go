@@ -27,6 +27,7 @@ func mcpSkillFixture(t *testing.T) (*Service, []byte, string) {
 	t.Setenv("PERSONA_SKILLS_DIR", filepath.Join(root, "skills"))
 	t.Setenv("PERSONA_PLUGIN_SKILLS_DIR", filepath.Join(root, "plugins"))
 	f := newFakeHub().withMachine()
+	f.ownModels = true // no model, and no model server to keep a synctest bubble from settling (skill_save_tool_test.go)
 	f.hello.Assistant.Machines = []string{"server"}
 	f.devices = []Device{{ID: "server", Home: root, Name: "Example computer"}}
 	i := &assistantskills.Importer{}

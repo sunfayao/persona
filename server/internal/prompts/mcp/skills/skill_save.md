@@ -1,0 +1,14 @@
+Keep a short procedure from this conversation as a skill on the main conversation's computer, once the user approves. Facts and preferences go to memory; skills with files, to skill_import. body: Markdown, no front matter.
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "description", "body"],
+  "properties": {
+    "name": {"type": "string"},
+    "description": {"type": "string"},
+    "body": {"type": "string"}
+  }
+}
+```
