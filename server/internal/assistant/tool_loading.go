@@ -37,13 +37,13 @@ var coreTools = []string{
 	"todo_create", "computer_run", "computer_state",
 	// New and small, ranked so Antigravity declares it rather than leaving it to persona_call.
 	"machine_exec",
-	// Alphabetical: the ones an earlier count kept (called at least 5 times in 30 days, less mail_accounts and
-	// ask_escalate, whose every call failed for want of setup), and the browser's two, which do computer_*'s work in a
-	// browser.
-	"agent_interrupt", "agent_start", "agent_supervise", "ask_user", "browser_look", "browser_run", "cancel_followup",
-	"conversation_read", "conversation_send", "conversations_list", "interaction_answer", "lark_chats", "lark_messages",
-	"lark_search", "larkcli_chats", "larkcli_messages", "larkcli_search", "list_followups", "model_profiles_list",
-	"notify_user", "schedule_followup", "schedule_routine",
+	// Alphabetical: the ones an earlier count kept that eight days of this install still called (2026-11-20 to 11-28),
+	// ask_user for the decisions it carries, and the browser's two, which do computer_*'s work in a browser. Left out
+	// for use too rare to declare in every request: agent_interrupt, agent_start, agent_supervise, cancel_followup,
+	// interaction_answer and schedule_routine (none or one call); they load on demand like any other.
+	"ask_user", "browser_look", "browser_run", "conversation_read", "conversation_send", "conversations_list",
+	"lark_chats", "lark_messages", "lark_search", "larkcli_chats", "larkcli_messages", "larkcli_search", "list_followups",
+	"model_profiles_list", "notify_user", "schedule_followup",
 }
 
 // The operations taught by persona-work. Match built-in names exactly: an
