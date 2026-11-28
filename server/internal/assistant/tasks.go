@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistant/acceptance"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/taskworkspace"
@@ -109,6 +110,7 @@ type PlanTask struct {
 	// DoneWhen: what done means, criteria the supervisor checks before it accepts the work. ExpectMinutes is an optional
 	// override of the hub-selected estimate; EstimateSource records which automatic estimate the brief owns (#11685).
 	DoneWhen         []string              `json:"done_when,omitempty"`
+	Checks           []acceptance.Declared `json:"checks,omitempty"` // typed checks the hub runs on done_when, by number (assistant/acceptance)
 	ExpectMinutes    int                   `json:"expect_minutes,omitempty"`
 	EstimateSource   string                `json:"estimate_source,omitempty"`
 	EstimateEvidence *TaskEstimateEvidence `json:"estimate_evidence,omitempty"`

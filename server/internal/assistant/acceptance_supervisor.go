@@ -22,7 +22,7 @@ func supervisorVerified(t Todo) bool {
 	if r.Verdict != reviewAccepted || r.UserCheck {
 		return false
 	}
-	return r.By == "" || r.By == reviewerJudge && t.Priority != "high"
+	return r.By == "" || r.By == reviewerHub || r.By == reviewerJudge && t.Priority != "high"
 }
 
 // verifyBySupervisor passes task id's "Please verify" for its supervisor, as the owner's "Pass" would (the task is

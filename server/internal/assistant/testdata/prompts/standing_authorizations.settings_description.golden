@@ -2,4 +2,4 @@ This is how the user changes Persona's settings: ask them in conversation, there
 
 `test` checks a provider ID for a `model_config.*` group, without approval or saving. `assistant.standing_authorizations`: never invent a quote or widen a grant's scope, and give only conditions that can be checked independently.
 
-Details: read .claude/skills/persona-work/references/persona-settings.md in your working directory.
+Details: .claude/skills/persona-work/references/persona-settings.md in the working dir.

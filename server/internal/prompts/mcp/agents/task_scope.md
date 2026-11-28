@@ -1,4 +1,4 @@
-Change a supervised task's work or what done means after it started (its todo id): adds a brief-log entry, applies the new criteria or expect_minutes and restarts overdue; the owner reads it in the next digest. It is the only way done_when changes after start. Use add, drop and edit by criterion number (an edit keeps its place, never a drop) or the whole done_when list (a criterion left out is logged as dropped), not both. A criterion is one checkable result of at most 200 characters. A change adding an owner-only step (deploying, merging, releasing, public sends, deleting, spending, production changes) is refused unless the owner's own message started this turn: ask first (ask_user, or task_review needs_user). Only its supervisor may call it; the Agent is not told: use agent_send. A finished task past the settle window with no owner card is refused: give task_review first. Details: persona-work references/task-review.md.
+Change a supervised task's work or what done means after it started: adds a brief-log entry, applies the new criteria or expect_minutes and restarts overdue; the owner reads it in the next digest. It is the only way done_when changes after start. Use add, drop and edit by criterion number (an edit keeps its place, never a drop) or the whole done_when list (a criterion left out is logged as dropped), not both. A criterion is one checkable result of at most 200 characters. A change adding an owner-only step (deploying, merging, releasing, public sends, deleting, spending, production changes) is refused unless the owner's own message started this turn: ask first (ask_user, or task_review needs_user). Only its supervisor may call it; the Agent is not told (agent_send). A finished task past the settle window with no owner card is refused: give task_review first. Details: persona-work references/task-review.md.
 
 ```json
 {
@@ -24,6 +24,12 @@ Change a supervised task's work or what done means after it started (its todo id
       "items": { "type": "string" },
       "description": "the whole list after the change; not with add, drop or edit"
     },
+    "checks": {
+      "type": "array",
+      "items": {"type": "object"},
+      "description": "as in task_plan; numbers follow this change"
+    },
+
     "add": {
       "type": "array",
       "items": {"type": "string"}
@@ -43,7 +49,7 @@ Change a supervised task's work or what done means after it started (its todo id
     "expect_minutes": {
       "type": "integer",
       "minimum": 0,
-      "description": "how long the task should take from now; leave it out (or 0) to keep it"
+      "description": "minutes it should take from now; 0 or omitted keeps it"
     }
   }
 }

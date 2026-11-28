@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/acceptance"
 	"github.com/sunfayao/persona/server/internal/assistant/criteria"
 	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
 	"github.com/sunfayao/persona/server/internal/db"
@@ -25,6 +26,7 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 		TodoID     string        `json:"todo_id"`
 		Verdict    string        `json:"verdict"`
 		ReworkKind string        `json:"rework_kind"`
+		Verify     bool          `json:"verify"` // the hub runs the declared checks again; no verdict is written
 		Checks     []ReviewCheck `json:"checks"`
 		Note       string        `json:"note"`
 		// The conclusion card's (conclusion.go): accepted's outcome (done, or cannot be done), its one sentence of why and
@@ -57,6 +59,9 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 	}
 	if a.UserCheck {
 		return "", errors.New("user_check is retired: accept verified work with outcome done and evidence for each criterion, or use needs_user or ask_user with the owner's decision options")
+	}
+	if a.Verify {
+		return s.verifyReview(ctx, self, a.TodoID)
 	}
 	a.Note = strings.TrimSpace(a.Note)
 	a.ReworkKind = strings.TrimSpace(a.ReworkKind)
@@ -132,13 +137,13 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 	defer s.reviewDismissals.actions.release(t.ID)
 	t, _ = s.todoNow(t.ID)
 	// Origin alone never lets an ordinary side conversation accept a task.
-	// Other authorized reviewers are main, a task leader for its worker, the legacy
-	// background with durable evidence, or the explicit capable-runtime side topology introduced with policy support.
 	isMain := s.isMain(ctx, self)
 	background := s.backgroundSupervises(ctx, self, t)
-	capableRuntime := t.Supervision != nil && (t.Supervision.Supervisor == self || t.Supervision.Above == self) && t.Origin == self && s.runtimeWithSupervisionPolicy(ctx, s.settings(ctx).MachineID, self)
-	allowed := isMain || background || capableRuntime || s.mayReviewForLeader(ctx, self, t)
-	if t.Origin == "" || !allowed {
+	by, reviewBy := "supervisor:"+self, "" // who the ledger names for what this review records; a hub acceptance says so
+	if hubActing(ctx) {
+		by, reviewBy = reviewerHub, reviewerHub
+	}
+	if t.Origin == "" || !s.mayReview(ctx, self, t, isMain, background) {
 		return "", fmt.Errorf("task %s was not handed out from this conversation", t.ID)
 	}
 	if lead, ok := t.supervisorAgent(); ok && a.Verdict == reviewAccepted && t.DoneAt == nil {
@@ -191,17 +196,8 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 	verdict, note := a.Verdict, clip(a.Note, 2000)
 	legacyUserCheck := t.Supervision.state(t) == reviewUserCheck
 	deliveryNote := ""
-	if verdict == reviewAccepted { // delivery_gate: owner wait & criteria first, then PR/issue/deploy gate (supervise_review_delivery.go)
-		if t.DoneAt == nil && t.Supervision != nil && t.Supervision.Waits != nil {
-			w := *t.Supervision.Waits
-			return "", ownerWaitError(t.ID, &w)
-		}
-		if a.Outcome != outcomeCannot && t.Supervision != nil {
-			if err := criteria.Complete(t.Supervision.DoneWhen, a.Checks); err != nil {
-				return "", err
-			}
-		}
-		if deliveryNote, err = s.acceptedDeliveryError(ctx, t, strings.TrimSpace(a.Link), a.Outcome); err != nil {
+	if verdict == reviewAccepted { // the gates every acceptance passes (acceptanceGates)
+		if deliveryNote, err = s.acceptanceGates(ctx, t, a.Checks, a.Outcome, strings.TrimSpace(a.Link)); err != nil {
 			return "", err
 		}
 	}
@@ -309,9 +305,9 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 					park.Count = max(1, prev.Parks) + 1
 				}
 			}
-			r := TaskReview{At: time.Now().UTC(), Verdict: verdict, Checks: checks, Note: note}
+			r := TaskReview{At: time.Now().UTC(), Verdict: verdict, Checks: checks, Note: note, By: reviewBy}
 			reviewedAt = r.At
-			v.applyChecks(checks, r.At, "supervisor:"+self)
+			v.applyChecks(checks, r.At, by)
 			if verdict == reviewNeedsUser {
 				r.WhyOwner, r.Reason, r.Recommend = decision.WhyOwner, decision.Reason, decision.Recommend
 				r.Options, r.CostOfWaiting = decision.Options, decision.CostOfWaiting
@@ -361,7 +357,7 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 		return "", reparkError(t.ID, parks)
 	}
 	if waiting != nil {
-		return "", ownerWaitError(t.ID, waiting)
+		return "", acceptance.OwnerWait(t.ID, waiting.Reason)
 	}
 	if legacyUserCheck && verdict != reviewAccepted && verdict != reviewCancelled {
 		open := false
@@ -926,18 +922,26 @@ func (s *Service) resumeStoppedTaskAgent(ctx context.Context, t Todo, c proto.Se
 	return s.resumeAndSend(ctx, t.Origin, am, c, false, map[string]any{"text": text}, "rework of this task", text, "", nil)
 }
 
-// ownerWaitError refuses accepting task id while its latest stretch of work stopped on a decision only the owner can
-// make (OwnerWait, #1277): closing it would drop the decision, the way a task whose drafts wait for the owner to pick one
-// was once accepted as done.
-func ownerWaitError(id string, w *OwnerWait) error {
-	why := ""
-	if w.Reason != "" {
-		why = fmt.Sprintf(" (the done judge: %q)", w.Reason)
+// acceptanceGates are the gates every acceptance passes, with one set of refusal texts and in one order: the owner's
+// wait, every current criterion checked (acceptance.Gates), then the delivery gate (supervise_review_delivery.go). The
+// main conversation's task_review, a supervisor Agent's and the hub's own acceptance all call it. note is what the
+// delivery gate adds to the reply.
+func (s *Service) acceptanceGates(ctx context.Context, t Todo, checks []ReviewCheck, outcome, link string) (note string, err error) {
+	var waits bool
+	var reason string
+	var incomplete error
+	if v := t.Supervision; v != nil {
+		if waits = v.Waits != nil; waits {
+			reason = v.Waits.Reason
+		}
+		if outcome != outcomeCannot {
+			incomplete = criteria.Complete(v.DoneWhen, checks)
+		}
 	}
-	return fmt.Errorf("task %s stopped on a decision only the owner can make%s: accepting it would close the task and lose "+
-		"that decision. Review it needs_user as a decision they can answer (why_owner, reason, recommend, options, "+
-		"cost_of_waiting); if the owner already decided, send their answer to its agent with agent_send and review the "+
-		"work it does next; or cancelled when it is no longer wanted", id, why)
+	if err := acceptance.Gates(t.ID, t.DoneAt == nil, waits, reason, incomplete); err != nil {
+		return "", err
+	}
+	return s.acceptedDeliveryError(ctx, t, link, outcome)
 }
 
 // reworkCapError refuses a rework past its cap (either the strict stalled/low-ROI cap or the overall

@@ -1,6 +1,6 @@
 Schedule a one-off reminder or follow-up ("remind me at 15:00", "check again in an hour", "tell me when X finishes") or work repeated on an interval ("every 30 minutes"); a time of day or week is a routine, not a follow-up. Example: {"at": "1h", "title": "Login fix CI", "prompt": "Check whether CI on the login fix passed and tell the user"}. At that time prompt comes back to this conversation (with new_conversation: true, to a conversation of its own), so make it self-contained. at takes RFC 3339 or 30m / 2h / 1d. To repeat, set every (5m to 7d) or a 5-field cron once and never schedule the next run yourself; check the next runs in the reply. Get the owner's consent before creating or changing recurring work.
 
-Details: read .claude/skills/persona-work/references/schedules.md in your working directory.
+Details: .claude/skills/persona-work/references/schedules.md in the working dir.
 
 ```json
 {

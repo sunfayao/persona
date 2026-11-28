@@ -912,6 +912,13 @@ func (s *Service) signalReplacing(old *superviseSignal, g superviseSignal) {
 			return // /stop silences the reporting task's notices on every route until the user speaks again (#3308)
 		}
 	}
+	if t, ok := s.todoNow(g.Todo); ok && g.Kind == sigReview && t.Supervision != nil && len(t.Supervision.Checks) > 0 {
+		s.tasks.outcomeRuns.Add(1) // typed checks are declared: the hub runs them as the review begins (hubReview)
+		go func() {
+			defer s.tasks.outcomeRuns.Done()
+			s.hubReview(context.Background(), g.Todo)
+		}()
+	}
 	if g.level() == supervisionInfo && g.Kind != sigParkedSummary {
 		return // Progress is already recorded on the task card; it never wakes the assistant.
 	}

@@ -6,7 +6,7 @@ Judge the task by its scoped brief and its current criteria, not by handovers or
 
 ## Who may review
 
-The main conversation, the conversation that supervises the task, and a task leader for its own workers record verdicts; anyone else is refused. A conversation that is not main and reviews a task another conversation supervises only accepts or cancels it, and sends what is missing to the Agent with `agent_send`.
+The main conversation, the conversation that supervises the task, and a task leader for its own workers record verdicts; anyone else is refused. A supervisor Agent's `accepted` passes the same gates as the main conversation's: the owner's wait, every criterion checked, the delivery gate. A conversation that is not main and reviews a task another conversation supervises only accepts or cancels it, and sends what is missing to the Agent with `agent_send`.
 
 ## accepted
 
@@ -54,6 +54,12 @@ Ask the owner only what they alone can decide, and decide anything else yourself
 ## cancelled
 
 Only for duplicate or unwanted tasks. The task closes, its pending decision ends, and its Agents are stopped and archived (`agent_archive` with `restore` brings one back), and their waiting cards end.
+
+## Typed checks the hub runs
+
+`task_plan` and `task_scope` take `checks`: entries `{criterion, kind, arg}` that name a criterion by its number in the list as it is after the call. `pr_merged`, `ci_green` (while the pull request is open) and `deployed` read the pull requests on record for the task; `http` is a GET of an http or https URL (`arg`: the URL, optionally the expected status, 200 by default, and text the body must contain; 10 seconds, 3 redirects, 64 KB, no credentials or headers). The main conversation declares any kind, a supervisor Agent only the first three, a worker none. A check belongs to its criterion's exact text: a dropped or edited criterion loses its check.
+
+The hub runs the checks when the task enters pending review and when you call `task_review` with `verify: true` (one line per criterion; no verdict is written), and records each result on the criterion as its own. A result of `cannot` (no GitHub access, no pull request on record, the computer offline) is never met and never skipped: the criterion stays not met and its evidence says why. When every criterion has a check, all are met and the task needs no confirmation from the owner (high priority), the hub accepts it itself, with no model turn; otherwise the review comes to its supervisor with the hub's evidence on the ledger.
 
 ## Changing criteria with `task_scope`
 

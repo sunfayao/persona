@@ -8,6 +8,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/acceptance"
 	"github.com/sunfayao/persona/server/internal/assistant/criteria"
 	"github.com/sunfayao/persona/server/internal/connectorwire"
 	"github.com/sunfayao/persona/server/internal/db"
@@ -107,6 +108,8 @@ type Supervision struct {
 	// Above is the conversation that supervised the to-do before a supervisor Agent took it over: where that Agent's
 	// decisions go (conversationAbove). Omitted when no Agent took it.
 	Above string `json:"above,omitempty"`
+	// Checks are the typed checks declared on the criteria, by the criterion's exact text, that the hub runs itself.
+	Checks []acceptance.Check `json:"checks,omitempty"`
 }
 
 // assigned records a current ownership decision, rather than a pre-policy legacy ledger.
@@ -215,7 +218,7 @@ func (v *Supervision) clone() *Supervision {
 	}
 	out := *v
 	out.DoneWhen = slices.Clone(v.DoneWhen)
-	out.Criteria = db.AlignTodoCriteria(v.DoneWhen, v.Criteria)
+	out.Criteria, out.Checks = db.AlignTodoCriteria(v.DoneWhen, v.Criteria), acceptance.Align(v.DoneWhen, v.Checks)
 	out.Reviews = make([]TaskReview, len(v.Reviews))
 	for i, r := range v.Reviews {
 		out.Reviews[i] = r
@@ -322,6 +325,7 @@ func supervisionFromRow(r db.TodoSupervisionRow) *Supervision {
 	v := &Supervision{Supervisor: r.Supervisor, SupervisorSource: r.SupervisorSource, Above: r.Above, DoneWhen: r.DoneWhen, Criteria: r.Criteria, ExpectMinutes: r.ExpectMinutes, State: r.State, Round: r.Round,
 		PendingSince: r.PendingSince, CardlessToldAt: r.CardlessToldAt, UpdatedAt: r.UpdatedAt}
 	_ = json.Unmarshal(r.Reviews, &v.Reviews)
+	_ = json.Unmarshal(r.Checks, &v.Checks)
 	v.StalledReworkRounds = v.stalledReworkRounds()
 	if len(r.AutoReview) > 0 {
 		var a AutoReview
@@ -410,7 +414,8 @@ func (v *Supervision) row(todoID string) db.TodoSupervisionRow {
 	if v.Waits != nil {
 		waits, _ = json.Marshal(v.Waits)
 	}
-	return db.TodoSupervisionRow{TodoID: todoID, Supervisor: v.Supervisor, SupervisorSource: v.SupervisorSource, Above: v.Above, DoneWhen: v.DoneWhen, Criteria: v.Criteria, ExpectMinutes: v.ExpectMinutes,
+	checks, _ := json.Marshal(v.Checks)
+	return db.TodoSupervisionRow{TodoID: todoID, Supervisor: v.Supervisor, SupervisorSource: v.SupervisorSource, Above: v.Above, DoneWhen: v.DoneWhen, Criteria: v.Criteria, Checks: checks, ExpectMinutes: v.ExpectMinutes,
 		State: v.State, Round: v.Round, Reviews: raw, AutoReview: auto, Waits: waits, PendingSince: v.PendingSince, CardlessToldAt: v.CardlessToldAt, UpdatedAt: v.UpdatedAt}
 }
 
@@ -545,7 +550,7 @@ func (s *Service) updateSupervisionGuardedLockedAt(ctx context.Context, id strin
 	if !change(v) {
 		return *v, false, nil
 	}
-	v.Criteria = db.AlignTodoCriteria(v.DoneWhen, v.Criteria)
+	v.Criteria, v.Checks = db.AlignTodoCriteria(v.DoneWhen, v.Criteria), acceptance.Align(v.DoneWhen, v.Checks)
 	v.UpdatedAt = now.UTC()
 	if p := v.parking(); !parkedAt.IsZero() && (p == nil || !p.At.Equal(parkedAt)) {
 		for i := len(v.Reviews) - 1; i >= 0; i-- {

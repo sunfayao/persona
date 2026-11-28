@@ -255,6 +255,8 @@ type ScopeArgs struct {
 	Drop          []int     `json:"drop"`
 	Edit          []Edit    `json:"edit"`
 	ExpectMinutes int       `json:"expect_minutes"`
+	// Checks are the typed checks to declare, as the root reads them (assistant/acceptance).
+	Checks json.RawMessage `json:"checks"`
 }
 
 // Edit is one criterion's new text, named by its one-based number in done_when.
@@ -305,7 +307,7 @@ func DecodeSend(raw json.RawMessage) (SendArgs, error) {
 func DecodeScope(raw json.RawMessage) (ScopeArgs, error) {
 	var a ScopeArgs
 	if err := strict(raw, &a); err != nil {
-		return a, fmt.Errorf("task_scope takes todo_id, change, why, done_when, add, drop, edit and expect_minutes only (%v)", err)
+		return a, fmt.Errorf("task_scope takes todo_id, change, why, done_when, add, drop, edit, checks and expect_minutes only (%v)", err)
 	}
 	a.TodoID, a.Change, a.Why = strings.TrimSpace(a.TodoID), strings.TrimSpace(a.Change), strings.TrimSpace(a.Why)
 	switch {

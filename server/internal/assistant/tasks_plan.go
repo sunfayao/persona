@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistant/acceptance"
 	"github.com/sunfayao/persona/server/internal/assistant/criteria"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -126,6 +127,9 @@ func (s *Service) taskPlanFrom(ctx context.Context, machine, sessionID string, a
 			return "", fmt.Errorf("task %d: %w", i+1, err)
 		}
 		t.DoneWhen, t.ExpectMinutes = cleanDoneWhen(t.DoneWhen), min(t.ExpectMinutes, 24*60)
+		if _, err := acceptance.Declare(t.DoneWhen, t.Checks, planRole(scope != nil)); err != nil {
+			return "", fmt.Errorf("task %d: %w", i+1, err)
+		}
 		if t.Title == "" || t.Prompt == "" || t.Cwd == "" && !t.backendWorkspace() && !s.canInferContainerWorkspace(ctx, *t) {
 			return "", fmt.Errorf("task %d: title, prompt and cwd are required", i+1)
 		}
