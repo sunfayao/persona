@@ -344,9 +344,7 @@ func TestDirectRefusalForGoodEndsByKind(t *testing.T) {
 	})
 }
 
-// Until #11393's decision 1 is answered, conversation_send returns the coded "not now" refusals and the setups the
-// owner fixes to the sender and queues nothing, as before; a computer away still queues the message, in each shape
-// its refusal comes: the node's code, the bus's, and the bare error of the manager's own computers.
+// Transient refusals from the node keep a stable retry. The sender sees setup errors.
 func TestConversationSendNotNowRefusals(t *testing.T) {
 	try := func(t *testing.T, refusal error) (string, error, int) {
 		s, f := newQuietService(t)
@@ -359,9 +357,14 @@ func TestConversationSendNotNowRefusals(t *testing.T) {
 		out, err := s.toolConversationSend(context.Background(), "conv2", []byte(`{"id":"conv1","text":"status?"}`))
 		return out, err, s.queuedFor("conv1")
 	}
-	for _, code := range append(slices.Clone(relayBusyCodes), relaySetupCodes...) {
+	for _, code := range relaySetupCodes {
 		if out, err, queued := try(t, &rpc.Error{Code: code, Message: "not now"}); err == nil || queued != 0 {
 			t.Errorf("%s: reported %q, %d queued", code, out, queued)
+		}
+	}
+	for _, code := range relayBusyCodes {
+		if out, err, queued := try(t, &rpc.Error{Code: code, Message: "not now"}); err != nil || queued != 1 {
+			t.Errorf("%s: reported %q, err %v, %d queued", code, out, err, queued)
 		}
 	}
 	for name, away := range map[string]error{

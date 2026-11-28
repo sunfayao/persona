@@ -200,12 +200,12 @@ func TestInboxNoOutputEscalationRechecksSourceInsteadOfQueuingStaleNotice(t *tes
 	inboxRetryTurn(s, f, "empty-2", prompt, "", 20)
 	failure := unhandledInboxSignals(s)[0]
 	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server",
-		Assistant: true, Status: proto.StatusWorking})
+		Assistant: true, Status: proto.StatusWorking, Starting: true})
 	ordinary := inboxRetryEvent(todo.ID, "ordinary-message")
 	s.updateSupervisePending(func(pending map[string]superviseSignal) { pending[ordinary.id()] = ordinary })
 	if !s.deliverDigest(ctx, s.settings(ctx), "conv1", []superviseSignal{ordinary}, "", time.Now(), time.Time{}) ||
 		s.queuedFor("conv1") != 1 {
-		t.Fatal("ordinary Inbox notice did not queue behind the supervisor's turn")
+		t.Fatal("ordinary Inbox notice did not queue during the supervisor's startup")
 	}
 	if s.deliverDigest(ctx, s.settings(ctx), "conv1", []superviseSignal{failure}, "", time.Now(), time.Time{}) ||
 		s.queuedFor("conv1") != 1 {

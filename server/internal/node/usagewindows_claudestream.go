@@ -1,10 +1,13 @@
 package node
 
 import (
+	"context"
 	"encoding/json"
 	"math"
+	"os"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/node/usagewindows"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/transcript"
 )
@@ -19,6 +22,9 @@ import (
 // choice (modelExecution.ConfigDir): their newer report replaces their own older one and never another pair's, which
 // may be signed in to another account.
 func claudeStreamUsageKey(launcher, configDir string) string {
+	if configDir != "" && configDir != "default" {
+		configDir = realPath(configDir)
+	}
 	if launcher == "" {
 		launcher = "claude"
 	}
@@ -68,19 +74,45 @@ func (n *Node) claudeStreamUsage(launcher, configDir string, line []byte, now ti
 	if !ok {
 		return
 	}
-	source := claudeStreamUsageKey(launcher, configDir)
-	st := &n.usageWin
-	st.mu.Lock()
-	defer st.mu.Unlock()
-	if st.off {
-		return
+	if configDir == "" || configDir == "default" {
+		configDir = n.defaultClaudeDir()
 	}
-	if st.accounts == nil {
-		st.accounts = map[string]proto.UsageNodeAccount{}
+	n.recordUsageSample(claudeStreamUsageKey(launcher, configDir), a, now)
+}
+
+const claudeUsagePollTimeout = 45 * time.Second // includes cold launches via the user's shell wrapper
+
+func (n *Node) pollClaudeUsage(ctx context.Context) (string, proto.UsageNodeAccount) {
+	dir := n.defaultClaudeDir()
+	if start := n.claudeStartDir.Load(); start != nil && *start != "" {
+		dir = proto.ExpandHome(*start, n.home)
 	}
-	if previous, ok := st.accounts[source]; ok && a.SampledAt.Before(previous.SampledAt) {
-		return
+	key := claudeStreamUsageKey("claude", dir)
+	var account proto.UsageAccount
+	usagewindows.Probe(ctx, claudeUsagePollTimeout, usageProbeBackoff, func(read context.Context) bool {
+		var retry bool
+		account, retry = n.readClaudeCLIUsage(read)
+		return retry
+	})
+	return key, proto.UsageNodeAccount{UsageAccount: account}
+}
+
+func (n *Node) readClaudeCLIUsage(ctx context.Context) (proto.UsageAccount, bool) {
+	// The interactive shell resolves the same Claude wrapper as a terminal Agent.
+	// The /usage slash command is local and starts no model turn or session.
+	const args = " -p /usage --output-format json --verbose --no-session-persistence --tools '' --strict-mcp-config --setting-sources user"
+	// A file on PATH can be the bare CLI even on a machine enforcing PMA. An
+	// installed PMA launcher launches the same account as Persona's Agents.
+	command := n.launcherForScript("claude") + args
+	if pma := agentExecutableOnDisk("proxymyagent"); pma != "" {
+		command = "if typeset -f claude >/dev/null; then " + command + "; else " + scriptPath(pma) + " run" + args + "; fi"
 	}
-	st.accounts[source] = proto.UsageNodeAccount{UsageAccount: a}
-	st.at = now
+	cmd := loginShell(ctx, "cd "+scriptPath(os.TempDir())+" && "+command)
+	cmd.Env = append(os.Environ(), "PERSONA_AGENT=1", "PMA_ACCOUNT_NO_PROMPT=1")
+	killGroupOnCancel(cmd)
+	out, _ := cmd.CombinedOutput()
+	if ctx.Err() != nil {
+		return proto.UsageAccount{}, true
+	}
+	return usagewindows.ParseClaudeReport(out, time.Now())
 }

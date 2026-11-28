@@ -17,39 +17,55 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/node/usagewindows"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/transcript"
+	"golang.org/x/sync/errgroup"
 )
 
-// Subscription rate-limit windows of the agents on this machine (#2432): how much of an
-// account's 5-hour and weekly allowance is used. Persona never reads login credentials:
-//
-//   - Codex app-server can return the limits together with the account ID. The node sends only a digest of that ID.
-//     When the app-server cannot supply windows, read the newest rollout's token_count event without an account ID.
-//   - Claude Code hands the limits to a status line command (the rate_limits field of its JSON input), and in
-//     stream-json to the process that runs it (a rate_limit_event after each reply, usagewindows_claudestream.go,
-//     read for the node's own Claude assistant conversations). It keeps them nowhere else; the API that has them
-//     needs the OAuth token, so it is skipped too. For interactive sessions the way in is opt-in: a status line
-//     wrapper drops the JSON into <node dir>/usage/claude*.json, which is read here.
-//
-// The node polls every usageWindowsEvery, keeps the last sample of every source (a source that goes quiet keeps its
-// number for three days), and answers usage.windows from that. hub.json machines[].usage_windows false turns it off.
-
+// Node usage snapshots combine bounded CLI probes and observations from sessions.
 const (
 	usageWindowsEvery  = 5 * time.Minute
 	usageWindowsFirst  = 20 * time.Second // the hub's node.configure (the off switch) comes first
 	usageWindowsMaxAge = 3 * 24 * time.Hour
+	usageProbeBackoff  = 250 * time.Millisecond
 	usageWindowsTail   = 512 << 10 // how much of a rollout's end is searched for the last token_count
 	usageWindowsScan   = 12        // rollouts looked into per Codex home
 )
 
 type usageWindowsState struct {
-	mu       sync.Mutex
-	off      bool // the hub said usage_windows false
-	cancel   context.CancelFunc
-	at       time.Time
-	accounts map[string]proto.UsageNodeAccount // by source ("codex:<source digest>", "claude:<file>")
-	codex    map[string]codexUsagePollState
+	cache       *usagewindows.Cache
+	claudeProbe func(context.Context) (string, proto.UsageNodeAccount)
+	agyProbe    func(context.Context) proto.UsageNodeAccount
+	mu          sync.Mutex
+	off         bool // the hub said usage_windows false
+	cancel      context.CancelFunc
+	at          time.Time
+	accounts    map[string]proto.UsageNodeAccount // by source ("codex:<source digest>", "claude:<file>")
+	codex       map[string]codexUsagePollState
+}
+
+func (n *Node) loadUsageWindows(now time.Time) {
+	st := &n.usageWin
+	st.cache = usagewindows.New(n.dir)
+	accounts, err := st.cache.Load(now, usageWindowsMaxAge)
+	if err != nil {
+		n.logf("usage windows: read local cache: %v", err)
+	}
+	if len(accounts) != 0 {
+		st.accounts = accounts
+		st.at = now
+	}
+}
+
+// saveUsageWindowsLocked serializes file replacements in the same order as the in-memory commits.
+func (n *Node) saveUsageWindowsLocked() {
+	st := &n.usageWin
+	if st.cache != nil {
+		if err := st.cache.Save(st.accounts); err != nil {
+			n.logf("usage windows: write local cache: %v", err)
+		}
+	}
 }
 
 // setUsageWindows is the hub's word (node.configure usage_windows): whether the node reads the windows at all. Off
@@ -65,6 +81,7 @@ func (n *Node) setUsageWindows(on bool) {
 		}
 		st.at, st.accounts = time.Time{}, nil
 		st.codex = nil
+		n.saveUsageWindowsLocked()
 	}
 }
 
@@ -95,12 +112,39 @@ func (n *Node) refreshUsageWindows(ctx context.Context, now time.Time) {
 	ctx, cancel := context.WithCancel(ctx)
 	st.cancel = cancel
 	previous := st.codex
+	agyAt := st.accounts["runtime:agy"].SampledAt
 	st.mu.Unlock()
 	defer cancel()
 
 	homes := n.usageWindowCodexHomes()
 	found := n.collectUsageWindows(now, homes)
-	codex := collectCodexAppUsage(ctx, homes, found, previous, now)
+	var codex map[string]codexUsagePollState
+	var claude, agy proto.UsageNodeAccount
+	var claudeKey string
+	var reads errgroup.Group
+	reads.Go(func() error {
+		codex = collectCodexAppUsage(ctx, homes, found, previous, now)
+		return nil
+	})
+	if st.claudeProbe != nil {
+		reads.Go(func() error {
+			claudeKey, claude = st.claudeProbe(ctx)
+			return nil
+		})
+	}
+	if st.agyProbe != nil && now.Sub(agyAt) >= usageWindowsEvery {
+		reads.Go(func() error {
+			agy = st.agyProbe(ctx)
+			return nil
+		})
+	}
+	_ = reads.Wait()
+	if len(claude.Windows) > 0 {
+		found[claudeKey] = claude
+	}
+	if len(agy.Windows) > 0 {
+		found["runtime:agy"] = agy
+	}
 
 	st.mu.Lock()
 	defer st.mu.Unlock()
@@ -116,6 +160,7 @@ func (n *Node) refreshUsageWindows(ctx context.Context, now time.Time) {
 				}
 			}
 		}
+		n.saveUsageWindowsLocked()
 	}
 }
 
@@ -137,8 +182,11 @@ func (n *Node) usageSnapshot() proto.UsageSnapshot {
 	}
 	sort.Strings(keys)
 	out := proto.UsageSnapshot{Enabled: true, CollectedAt: st.at, Accounts: []proto.UsageNodeAccount{}}
+	now := time.Now()
 	for _, k := range keys {
-		out.Accounts = append(out.Accounts, st.accounts[k])
+		if a := st.accounts[k]; now.Sub(a.SampledAt) <= usageWindowsMaxAge {
+			out.Accounts = append(out.Accounts, a)
+		}
 	}
 	return out
 }
@@ -209,6 +257,11 @@ func (n *Node) runtimeUsageWindows(h *runtimeConn, params json.RawMessage, now t
 	h.mu.Lock()
 	source := "runtime:" + h.hello.Runtime
 	h.mu.Unlock()
+	n.recordUsageSample(source, a, now)
+}
+
+func (n *Node) recordUsageSample(source string, a proto.UsageAccount, now time.Time) {
+
 	st := &n.usageWin
 	st.mu.Lock()
 	defer st.mu.Unlock()
@@ -227,6 +280,7 @@ func (n *Node) runtimeUsageWindows(h *runtimeConn, params json.RawMessage, now t
 		st.accounts[source] = proto.UsageNodeAccount{UsageAccount: a, SourceKey: source}
 	}
 	st.at = now
+	n.saveUsageWindowsLocked()
 }
 
 // collectUsageWindows reads the local files of every source once.
@@ -239,7 +293,7 @@ func (n *Node) collectUsageWindows(now time.Time, homes []string) map[string]pro
 		}
 	}
 	files, _ := filepath.Glob(filepath.Join(n.dir, "usage", "claude*.json"))
-	for _, p := range files {
+	for _, p := range physicalUsagePaths(files) {
 		st, err := os.Stat(p)
 		if err != nil || !st.Mode().IsRegular() || st.Size() > 1<<20 || now.Sub(st.ModTime()) > usageWindowsMaxAge {
 			continue
@@ -258,9 +312,13 @@ func (n *Node) collectUsageWindows(now time.Time, homes []string) map[string]pro
 // The registry may list the default home again through an alias. Poll one source for each physical home, using
 // the first spelling to start the app-server with the same CODEX_HOME as the existing local install.
 func (n *Node) usageWindowCodexHomes() []string {
+	return physicalUsagePaths(n.usageCodexHomes())
+}
+
+func physicalUsagePaths(paths []string) []string {
 	seen := map[string]bool{}
-	return slices.DeleteFunc(n.usageCodexHomes(), func(home string) bool {
-		path := realPath(home)
+	return slices.DeleteFunc(paths, func(path string) bool {
+		path = realPath(path)
 		duplicate := seen[path]
 		seen[path] = true
 		return duplicate

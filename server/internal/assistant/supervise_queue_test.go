@@ -17,7 +17,7 @@ func queuedDigestFixture(t *testing.T, titles ...string) (*Service, *fakeHub, []
 	t.Helper()
 	s, f := newQuietService(t)
 	s.superviseTimes = superviseTimings{gather: time.Hour, every: time.Hour, urgent: time.Hour}
-	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusWorking})
+	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusWorking, Starting: true})
 	var tasks []Todo
 	var signals []superviseSignal
 	for _, title := range titles {

@@ -613,7 +613,7 @@ func TestPRStatusConflictResolvedWhileSupervisorBusyIsNotDelivered(t *testing.T)
 			if !ok {
 				t.Fatal("missing supervisor")
 			}
-			supervisor.Status = "working"
+			supervisor.Status, supervisor.Starting = "working", true
 			f.setSessions("server", supervisor)
 			want := 0
 			if existing {
@@ -638,7 +638,7 @@ func TestPRStatusConflictResolvedWhileSupervisorBusyIsNotDelivered(t *testing.T)
 			if err := s.applyPRStatus(ctx, task, status); err != nil {
 				t.Fatal(err)
 			}
-			supervisor.Status = "idle"
+			supervisor.Status, supervisor.Starting = "idle", false
 			f.setSessions("server", supervisor)
 			sessions, err := s.sessions(ctx, "server")
 			if err != nil {
@@ -664,7 +664,7 @@ func TestPRStatusConflictRetriesAfterBusySupervisor(t *testing.T) {
 	if !ok {
 		t.Fatal("missing supervisor")
 	}
-	supervisor.Status = "working"
+	supervisor.Status, supervisor.Starting = "working", true
 	f.setSessions("server", supervisor)
 	if err := s.applyPRStatus(ctx, task, TodoPRStatus{
 		URL: task.PRURL, State: "open", HeadOID: "head-a", Conflicts: true, CheckedAt: time.Now(),
@@ -676,7 +676,7 @@ func TestPRStatusConflictRetriesAfterBusySupervisor(t *testing.T) {
 	if _, err := st.Setting(ctx, superviseDedupKey, &history); err != nil || len(history) != 0 {
 		t.Fatalf("a busy supervisor permanently consumed the conflict: %+v, %v", history, err)
 	}
-	supervisor.Status = "idle"
+	supervisor.Status, supervisor.Starting = "idle", false
 	f.setSessions("server", supervisor)
 	sendPendingPRConflicts(s)
 	if len(f.notices()) != 1 || s.queuedFor("conv1") != 0 {

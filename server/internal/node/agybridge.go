@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -188,19 +189,27 @@ func findAgyJSRuntime(ctx context.Context) (jsRuntime, error) {
 	return jsRuntime{}, errors.New("no Node.js found (set PERSONA_NODEJS)")
 }
 
-var agyBridgeCommand = func(ctx context.Context, rh *RuntimeHost, agyBin, instance string) (*exec.Cmd, error) {
+func prepareAgyPackage(ctx context.Context, root string) (jsRuntime, string, error) {
 	pkg, err := runtimepkg.Load(agyPackage)
 	if err != nil {
-		return nil, err
+		return jsRuntime{}, "", err
 	}
 	if pkg == nil {
-		return nil, errors.New("this personad carries no Antigravity runtime package (built without go generate ./internal/runtimepkg)")
+		return jsRuntime{}, "", errors.New("this personad carries no Antigravity runtime package (built without go generate ./internal/runtimepkg)")
 	}
-	dir, err := writePackage(filepath.Join(filepath.Dir(rh.path), "runtime-packages", agyPackage), pkg)
+	dir, err := writePackage(filepath.Join(root, "runtime-packages", agyPackage), pkg)
 	if err != nil {
-		return nil, fmt.Errorf("write Antigravity runtime: %w", err)
+		return jsRuntime{}, "", fmt.Errorf("write Antigravity runtime: %w", err)
 	}
 	js, err := findAgyJSRuntime(ctx)
+	if err != nil {
+		return jsRuntime{}, "", err
+	}
+	return js, dir, nil
+}
+
+var agyBridgeCommand = func(ctx context.Context, rh *RuntimeHost, agyBin, instance string) (*exec.Cmd, error) {
+	js, dir, err := prepareAgyPackage(ctx, filepath.Dir(rh.path))
 	if err != nil {
 		return nil, err
 	}
@@ -218,6 +227,33 @@ var agyBridgeCommand = func(ctx context.Context, rh *RuntimeHost, agyBin, instan
 	cmd.Env = js.env(append(os.Environ(), "PERSONA_RUNTIME_SOCKET="+rh.path))
 	cmd.Dir = dir
 	return cmd, nil
+}
+
+// pollAgyUsage fills a missing or stale runtime sample using only the local quota RPC.
+func (n *Node) pollAgyUsage(ctx context.Context) proto.UsageNodeAccount {
+	bin := findAgyExecutable()
+	if bin == "" {
+		return proto.UsageNodeAccount{}
+	}
+	probe, cancel := context.WithTimeout(ctx, 50*time.Second)
+	defer cancel()
+	js, dir, err := prepareAgyPackage(probe, filepath.Join(n.dir, "usage"))
+	if err != nil {
+		return proto.UsageNodeAccount{}
+	}
+	cmd := exec.CommandContext(probe, js.Path, filepath.Join(dir, "antigravity", "companion.mjs"), "--agy-bin", bin, "--usage-only")
+	cmd.Env = js.env(os.Environ())
+	cmd.Dir = dir
+	killGroupOnCancel(cmd)
+	out, err := cmd.Output()
+	if err != nil {
+		return proto.UsageNodeAccount{}
+	}
+	var account proto.UsageAccount
+	if json.Unmarshal(out, &account) != nil || account.Provider != "agy" || account.SampledAt.IsZero() {
+		return proto.UsageNodeAccount{}
+	}
+	return proto.UsageNodeAccount{UsageAccount: account, SourceKey: "runtime:agy"}
 }
 
 func (rh *RuntimeHost) agyConnected() bool {

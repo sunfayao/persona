@@ -63,7 +63,7 @@ func (e *askTodoEnv) send(ctx context.Context, text string) string {
 
 // A conversation other than the main one waits on its question; the main conversation sends it a message. The question
 // lets go of the turn: the call returns saying the card stays up and the answer comes later, the card is the same one
-// (now resumable, nothing asked again), the message goes in once the turn ends, and the owner's answer on the card then
+// (now resumable, nothing asked again), the message goes to native input, and the owner's answer on the card then
 // comes to the conversation as one message, as for a question asked with wait false.
 func TestAWaitingQuestionLetsGoOfItsTurnForAMessageFromAnotherConversation(t *testing.T) {
 	releaseAfter(t, 0)
@@ -71,7 +71,7 @@ func TestAWaitingQuestionLetsGoOfItsTurnForAMessageFromAnotherConversation(t *te
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	ix, done := e.askHeld(ctx)
-	if out := e.send(ctx, "the numbers are in"); !strings.Contains(out, "queued") {
+	if out := e.send(ctx, "the numbers are in"); !strings.HasPrefix(out, "Sent to") {
 		t.Fatalf("conversation_send to a running conversation: %q", out)
 	}
 	var text string
@@ -92,12 +92,7 @@ func TestAWaitingQuestionLetsGoOfItsTurnForAMessageFromAnotherConversation(t *te
 	if !e.s.askLaterSpokeOrKept(ix.ID) {
 		t.Fatal("no record kept for the question: a restart would lose its answer")
 	}
-	if got := e.told("c1x1x1"); len(got) != 0 {
-		t.Fatalf("told while the turn still runs: %q", got)
-	}
-	// The turn ends: the waiting message goes in.
-	e.sessions("server", proto.Session{SessionID: "m1", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "c1x1x1", Title: "Release chat", Assistant: true, Status: proto.StatusIdle})
+	// The runtime accepted the follow-up before the waiting turn let go.
 	waitFor(t, "the message from the main conversation", func() bool {
 		got := e.told("c1x1x1")
 		return len(got) == 1 && strings.Contains(got[0], "the numbers are in")

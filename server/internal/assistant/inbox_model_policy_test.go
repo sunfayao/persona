@@ -179,6 +179,9 @@ func TestOrdinaryOriginsKeepNotifyDelegationAndConversationSend(t *testing.T) {
 		t.Run(origin.name, func(t *testing.T) {
 			h := agentHub(t)
 			const caller, target = "caller", "target"
+			h.f.mu.Lock()
+			h.f.known[target] = true
+			h.f.mu.Unlock()
 			h.f.setSessions("server",
 				proto.Session{SessionID: caller, Assistant: true, Status: proto.StatusWorking, Cwd: "/work"},
 				proto.Session{SessionID: target, Assistant: true, Status: proto.StatusWorking, Cwd: "/work"})

@@ -450,6 +450,18 @@ A runtime with read-only access to a subscription's rate-limit windows calls `rt
 
 The node advertises `usage_windows` only to runtimes on the local socket, not to daemons (their accounts must not be attributed to the node's machine). The SDK returns false while disconnected or with an older node and does not queue reports. A connected hub is not required because the node stores the snapshot locally. Reports replace the source named by the runtime id, so a companion restart does not duplicate its account. An older sample cannot replace a newer one; a valid empty `windows` array explicitly clears the source. The machine's existing `usage_windows` off switch rejects these reports too.
 
+
+The node atomically persists its latest usable samples under `usage/node-cache.json` in the Persona state
+directory. A restart preserves each sample's timestamp and its three-day retention. The node uses Codex's
+`account/rateLimits/read` (15 seconds per attempt) and Claude Code's local `/usage` command (45 seconds per
+attempt, including a shell or PMA launch). Each retries a transient failure once. Claude's stream events and
+status-line files continue to update their sources. Collection uses the physical paths of local profiles and
+status-line files to collapse symlink aliases.
+
+Antigravity's companion reads `RetrieveUserQuotaSummary` over local ACP. If a companion is absent or stops
+reporting and the latest sample is missing or stale, the node starts a bounded, one-shot ACP quota read.
+Both paths report the same source. The probe opens no conversation.
+
 ### Shared runtime behavior
 When two runtimes list the same session (pi's companion lists it from disk while pi-web or a pi terminal is running it), node makes the one running it responsible (ones listing it as `offline` go after),
 and on a tie the newer connection wins. Listing a session as `offline` tells node "I can open it, but it isn't running here".

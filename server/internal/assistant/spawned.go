@@ -50,10 +50,10 @@ func (s *Service) assistantTurnSettled(ctx context.Context, machine, sid string)
 func (s *Service) relayOrQueue(ctx context.Context, to string, msg relayMsg) {
 	machine := s.settings(ctx).MachineID
 	c, ok := s.session(ctx, machine, to)
-	if !ok || c.Status == proto.StatusWorking || c.Starting || s.relayWaits(to, msg) {
+	if !ok || s.relayReplacing(to) || !msg.nativeFollowUp() && (c.Status == proto.StatusWorking || c.Starting || s.relayWaits(to, msg)) {
 		if s.queueRelay(to, msg) > 0 {
 			s.publish(ctx) // shown waiting above its composer
-			if ok && c.Status != proto.StatusWorking && !c.Starting {
+			if ok && (msg.nativeFollowUp() || c.Status != proto.StatusWorking && !c.Starting) {
 				s.drainRelays(machine, []proto.Session{c})
 			}
 		}
@@ -65,7 +65,11 @@ func (s *Service) relayOrQueue(ctx context.Context, to string, msg relayMsg) {
 		}
 		s.logf("relay %s to %s: %v; queued", msg.Tool, short(to), err)
 		if s.queueRelay(to, msg) > 0 {
-			s.publish(ctx)
+			if msg.nativeFollowUp() {
+				s.drainAfter(machine, to, relayRetryGap)
+			} else {
+				s.publish(ctx)
+			}
 		}
 	}
 }

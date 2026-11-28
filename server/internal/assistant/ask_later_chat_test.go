@@ -227,7 +227,7 @@ func TestAskUserNoWaitAnswerIsNotHeldForTheOwnersPresence(t *testing.T) {
 	answered, _ := e.askLater(askLaterArgs)
 	closed, _ := e.askLater(strings.Replace(askLaterArgs, "Merge the release PR now?", "Tag it as well?", 1))
 	e.s.UserSpoke(ctx, SessionRef{MachineID: "server", SessionID: "c1x1x1"})
-	e.s.relayOrQueue(ctx, "c1x1x1", relayMsg{From: "c2", FromTitle: "Research", Tool: "conversation_send", Text: "from another chat", At: time.Now().UTC()})
+	e.s.relayOrQueue(ctx, "c1x1x1", relayMsg{From: "c2", FromTitle: "Research", Tool: noticeTool, Text: "a task finished", At: time.Now().UTC()})
 	if q, sent := e.s.queuedFor("c1x1x1"), len(e.told("c1x1x1")); q != 1 || sent != 0 {
 		t.Fatalf("the system's message while the owner talks: %d queued, %d sent", q, sent)
 	}
@@ -239,7 +239,7 @@ func TestAskUserNoWaitAnswerIsNotHeldForTheOwnersPresence(t *testing.T) {
 	e.mustEnd(closed.ID, `{"dismiss":true}`)
 	waitFor(t, "the closed card held for the owner", func() bool { return e.s.queuedFor("c1x1x1") == 2 })
 	if q, sent := e.s.queuedFor("c1x1x1"), len(e.told("c1x1x1")); q != 2 || sent != 1 {
-		t.Fatalf("after the answer: %d queued (want the other chat's message and the closed card), %d sent", q, sent)
+		t.Fatalf("after the answer: %d queued (want the task notice and the closed card), %d sent", q, sent)
 	}
 	// Among what waits, the answer is first by rank, and only it is free of the hold.
 	b := &e.s.relays

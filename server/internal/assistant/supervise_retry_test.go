@@ -59,7 +59,7 @@ func TestDigestKeptWhenRelayUnreadable(t *testing.T) {
 	if _, _, err := s.updateSupervision(ctx, todo.ID, func(v *Supervision) bool { v.State = reviewPending; return true }); err != nil {
 		t.Fatal(err)
 	}
-	busy := proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusWorking}
+	busy := proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusWorking, Starting: true}
 	f.setSessions("server", busy)
 	g := superviseSignal{Todo: todo.ID, Kind: sigReview, Key: "1", Detail: "做完了", At: time.Now().Add(-time.Minute)}
 	b := &s.supervise
@@ -83,7 +83,7 @@ func TestDigestKeptWhenRelayUnreadable(t *testing.T) {
 	st.failKey(relayKey, nil)
 	waitFor(t, "the message queued once the queue reads", func() bool { return s.queuedFor("conv1") == 1 })
 	idle := busy
-	idle.Status = proto.StatusIdle
+	idle.Status, idle.Starting = proto.StatusIdle, false
 	f.setSessions("server", idle)
 	s.drainRelays("server", []proto.Session{idle})
 	waitFor(t, "the message", func() bool { return len(f.notices()) == 1 })

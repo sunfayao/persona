@@ -8,18 +8,8 @@ import (
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
-// The owner comes first (#4925): what the
-// system puts into an assistant conversation (supervision messages, task notices, late ask_user answers, messages from
-// other conversations) waits while the owner is talking there, and what waits goes in by rank, not in the order it
-// came. A scheduled run into such a conversation waits as well (runHold, schedule.go runDue). The rules hold for the
-// main conversation and leader conversations alike; they are the manager's, and the queue (assistant.relay) keeps
-// its shape.
-//
-// On top of the presence window stands the owner-turn gate (#6394): when the owner sends a message, every queued
-// message waits for the whole of the round that starts for them, not only for the fixed presence window and whatever
-// rank it carries. The gate ends when a session list shows the conversation stopped after showing it working, and on
-// safety limits when the list says nothing.
-
+// Legacy notices and scheduled runs respect owner presence. Native follow-ups leave
+// ordering to the target runtime. The relay queue tracks retries and admission.
 var (
 	// ownerPresentFor is how long after the owner's last message in a conversation nothing from the system is
 	// delivered to it.
@@ -130,7 +120,7 @@ func (b *relayBook) holdLocked(to string, msg relayMsg, now time.Time) time.Dura
 	if wait := msg.Due.Sub(now); !msg.Due.IsZero() && wait > 0 {
 		return wait // past the relay rate: it waits for the window (#10400)
 	}
-	if msg.Owner {
+	if msg.Owner || msg.nativeFollowUp() {
 		return 0
 	}
 	if turn, ok := b.ownerTurns[to]; ok {
@@ -164,11 +154,14 @@ func (b *relayBook) holdLocked(to string, msg relayMsg, now time.Time) time.Dura
 // could not go in last time (b.stuck: its agent's computer unreachable, a delivery that failed) is passed over while
 // another may go, so it holds up nothing but itself. None may go (-1): wait is how long until the first may. b.mu is
 // held.
-func (b *relayBook) pickLocked(to string, now time.Time) (i int, wait time.Duration) {
+func (b *relayBook) pickLocked(to string, now time.Time, running bool) (i int, wait time.Duration) {
 	i = -1
 	stuck := -1
 	q := b.st.Queue[to]
 	for j, m := range q {
+		if running && !m.nativeFollowUp() {
+			continue
+		}
 		lookAfter := m.LookAfter.Sub(now)
 		if m.Withdrawn {
 			lookAfter = 0 // no retry is sent: only check whether the original in-flight text landed
@@ -382,8 +375,8 @@ func (s *Service) drainHeldRelays(ctx context.Context, now time.Time) {
 		if _, spoke := b.st.Spoke[id]; spoke || b.holds[id] != nil || b.draining[id] {
 			continue
 		}
-		if slices.ContainsFunc(q, func(m relayMsg) bool { return !m.Due.IsZero() || !m.TriedAt.IsZero() }) {
-			if i, _ := b.pickLocked(id, now); i >= 0 {
+		if slices.ContainsFunc(q, func(m relayMsg) bool { return m.nativeFollowUp() || !m.Due.IsZero() || !m.TriedAt.IsZero() }) {
+			if i, _ := b.pickLocked(id, now, false); i >= 0 {
 				due = append(due, id)
 			}
 		}
@@ -398,7 +391,7 @@ func (s *Service) drainHeldRelays(ctx context.Context, now time.Time) {
 		if b.holds[id] != nil || b.draining[id] {
 			continue
 		}
-		if i, _ := b.pickLocked(id, now); i >= 0 {
+		if i, _ := b.pickLocked(id, now, false); i >= 0 {
 			due = append(due, id)
 		}
 	}

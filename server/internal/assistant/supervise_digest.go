@@ -575,13 +575,13 @@ func (s *Service) deliverDigest(ctx context.Context, here Settings, to string, l
 		s.logf("supervise: %d signal(s) to the main conversation", len(entries))
 	}
 	c, ok := s.session(ctx, here.MachineID, to)
-	if !ok || c.Starting || s.relayReplacing(to) || slices.ContainsFunc(kept, func(g superviseSignal) bool { return g.Kind == sigOwnerChoice }) || !msg.Interject && (c.Status == proto.StatusWorking || s.relayWaits(to, msg)) {
+	if !ok || c.Starting || s.relayReplacing(to) || slices.ContainsFunc(kept, func(g superviseSignal) bool { return g.Kind == sigOwnerChoice }) {
 		if !s.queueDigest(to, msg, kept, now, prev) {
 			return false
 		}
 		accepted = true
 		s.publish(ctx)
-		if ok && c.Status != proto.StatusWorking && !c.Starting {
+		if ok && !c.Starting {
 			s.drainRelays(here.MachineID, []proto.Session{c})
 		}
 		return true
@@ -594,7 +594,7 @@ func (s *Service) deliverDigest(ctx context.Context, here Settings, to string, l
 		s.logf("supervise: %v; queued", err)
 		if s.queueDigest(to, msg, kept, now, prev) {
 			accepted = true
-			s.publish(ctx)
+			s.drainAfter(here.MachineID, to, relayRetryGap)
 		}
 		return accepted
 	}
@@ -620,7 +620,7 @@ func (b *superviseBook) setQueuedLocked(to string, list []superviseSignal) {
 	b.queued[to] = list
 }
 
-// queueDigest queues msg, the message of signals kept, behind conversation to's turn; at is when sendDigest
+// queueDigest persists a digest that needs a delivery retry or an owner-choice recheck; at is when sendDigest
 // marked it as the last message and prev the last message before. When the relay queue can't be read nothing is
 // queued (false): the signals wait again, no longer marked told (a newer one of the same task and kind keeps its
 // place), the message still queued for it (supervise.queued) stays as it was, the last message is prev again (nothing went

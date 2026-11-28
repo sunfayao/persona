@@ -9,17 +9,9 @@ import (
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
-// An ask_user that waits for its answer holds its conversation's turn for as long as its card is up (askUserWait), and
-// whatever else is sent to the conversation meanwhile waits behind that turn in the relay queue: a message from another
-// conversation (conversation_send), a supervision message, a task's notice, the answer to an earlier question (#7392,
-// docs/assistant/assistant.md "Asking without holding the turn"). The owner writing in the conversation takes the
-// question back (withdrawAskUser); a message from anywhere else does not, since the owner did not answer: the question
-// lets go of the turn instead. It becomes a question asked without waiting, in place: the same card, still on the
-// phone, no second push; its record is kept and its card made resumable as wait false does it (ask_later.go), so it
-// outlives a restart; the call returns saying the answer comes later as a message, and the turn ends, letting the
-// queued message in. A question lets go only once it has waited askReleaseAfter: a confirmation the owner answers
-// within a minute or two keeps its turn.
-
+// A waiting ask_user can let go of its turn when another input arrives. Its
+// card stays open and its later answer goes back to the conversation. For a
+// native follow-up the input has already reached the runtime's input path.
 // askReleaseAfter is how long a waiting ask_user keeps its turn while a message waits for its conversation: about as
 // long as a message from the system waits while the owner is talking there (ownerPresentFor). A variable for the
 // tests.
@@ -46,7 +38,11 @@ func (g guardedStore) MarkInteractionResumable(ctx context.Context, id string) (
 // Each ask_user it waits on that has waited askReleaseAfter lets go of the turn; a younger one is looked at again
 // once it is that old, if a message still waits then.
 func (s *Service) releaseHeldAsks(session string) {
-	if session == "" || s.queuedFor(session) == 0 {
+	s.releaseAsksForInput(session, false)
+}
+
+func (s *Service) releaseAsksForInput(session string, admitted bool) {
+	if session == "" || !admitted && s.queuedFor(session) == 0 {
 		return
 	}
 	now := time.Now()
@@ -57,8 +53,12 @@ func (s *Service) releaseHeldAsks(session string) {
 			continue
 		}
 		if wait := q.ix.CreatedAt.Add(askReleaseAfter).Sub(now); wait > 0 {
+			if admitted && q.releaseCheck != nil {
+				q.releaseCheck.Stop()
+				q.releaseCheck = nil
+			}
 			if q.releaseCheck == nil {
-				q.releaseCheck = time.AfterFunc(wait, func() { s.releaseHeldAsks(session) })
+				q.releaseCheck = time.AfterFunc(wait, func() { s.releaseAsksForInput(session, admitted) })
 			}
 			continue
 		}

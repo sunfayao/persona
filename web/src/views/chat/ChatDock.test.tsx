@@ -482,24 +482,9 @@ describe("QueuePanel (#5327, cindy's pending queue)", () => {
     expect(viewOnly).not.toMatch(/data-queue-(handle|edit|delete)|data-send-now/);
   });
 
-  it("in a Persona chat offers the user's own rows the same; one from another conversation is folded into one line (#4342, #6394)", () => {
-    const persona = { ...queued, agent: undefined, assistant: true, queued: ["顺便把截图换掉", "来自「日报」：今天的汇总"], queued_relayed: 1 } as Session;
-    const html = panel({ session: persona, persona: "Nova" });
-    expect(html.match(/data-send-now/g)).toHaveLength(1);
-    expect(html).toContain("现在就把排队的消息全部发给 Nova");
-    // collapsed: no relayed row markup yet, just the summary line
-    expect(html).not.toContain("data-queue-relayed-list");
-    expect(html).toContain("1 条消息来自其他对话");
-    expect(html).toContain("对话空闲后送达");
-    // an own row sits above it, so the group has its hairline
-    expect(html).toMatch(/data-queue-relayed-group="true" class="[^"]*border-t border-line/);
-    expect(html).toContain("data-queue-relayed-summary");
-    // relayed ones alone: nothing to send now
-    const onlyRelayed = panel({ session: { ...persona, queued_relayed: 2 }, persona: "Nova" });
-    expect(onlyRelayed).not.toContain("data-send-now");
-    // no own rows: no own list and no hairline on the relayed group
-    expect(onlyRelayed).not.toContain("px-1 pt-1.5");
-    expect(onlyRelayed).not.toMatch(/data-queue-relayed-group="true" class="[^"]*border-t/);
+  it("omits the queue panel when the only entry is an older manager's relay", () => {
+    const persona = { ...queued, agent: undefined, assistant: true, queued: ["督办消息"], queued_relayed: 1 } as Session;
+    expect(panel({ session: persona, persona: "Nova" })).toBe("");
   });
 
   it("marks the photos a Persona chat's queued message went with when this browser sent it (#4342)", () => {

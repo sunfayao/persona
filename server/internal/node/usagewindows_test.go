@@ -621,3 +621,78 @@ func TestFakeCodexUsageApp(t *testing.T) {
 		}
 	}
 }
+
+func TestUsageWindowsReloadsThreeProvidersWithoutRestamping(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Now().UTC().Truncate(time.Second)
+	first := &Node{dir: dir}
+	first.loadUsageWindows(now)
+	for _, provider := range []string{"codex", "claude", "agy"} {
+		key := provider + ":example"
+		first.recordUsageSample(key, proto.UsageAccount{
+			Provider: provider, Name: provider, SampledAt: now.Add(-time.Hour),
+			Windows: []proto.UsageWindow{{WindowMinutes: 10080, UsedPercent: 22}},
+		}, now)
+	}
+	restarted := &Node{dir: dir}
+	restarted.loadUsageWindows(now.Add(time.Minute))
+	snapshot := restarted.usageSnapshot()
+	if len(snapshot.Accounts) != 3 {
+		t.Fatalf("reloaded %+v", snapshot)
+	}
+	for _, account := range snapshot.Accounts {
+		if !account.SampledAt.Equal(now.Add(-time.Hour)) {
+			t.Errorf("sample time changed for %s: %v", account.Provider, account.SampledAt)
+		}
+	}
+	expired := &Node{dir: dir}
+	expired.loadUsageWindows(now.Add(usageWindowsMaxAge))
+	if len(expired.usageWin.accounts) != 0 {
+		t.Errorf("expired samples reloaded: %+v", expired.usageWin.accounts)
+	}
+	restarted.setUsageWindows(false)
+	last := &Node{dir: dir}
+	last.loadUsageWindows(now)
+	if len(last.usageWin.accounts) != 0 {
+		t.Errorf("disabled samples reloaded: %+v", last.usageWin.accounts)
+	}
+}
+
+func TestUsageSourcesDeduplicatePhysicalPaths(t *testing.T) {
+	dir := t.TempDir()
+	physical := filepath.Join(dir, "profiles")
+	if err := os.Mkdir(physical, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(dir, "alias")
+	if err := os.Symlink(physical, alias); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	if got := physicalUsagePaths([]string{alias, physical}); len(got) != 1 || got[0] != alias {
+		t.Fatalf("paths = %v", got)
+	}
+	if claudeStreamUsageKey("claude", alias) != claudeStreamUsageKey("claude", physical) {
+		t.Fatal("Claude sources with the same physical directory were split")
+	}
+}
+
+func TestAgyUsagePollsWhenRuntimeSampleIsStale(t *testing.T) {
+	n := &Node{home: t.TempDir(), dir: t.TempDir()}
+	now := time.Now().UTC()
+	account := proto.UsageAccount{Provider: "agy", Name: "Antigravity", SampledAt: now,
+		Windows: []proto.UsageWindow{{WindowMinutes: 300, UsedPercent: 5}}}
+	n.recordUsageSample("runtime:agy", account, now)
+	polls := 0
+	n.usageWin.agyProbe = func(context.Context) proto.UsageNodeAccount {
+		polls++
+		return proto.UsageNodeAccount{} // temporary startup failure
+	}
+	n.refreshUsageWindows(t.Context(), now.Add(time.Minute))
+	if polls != 0 {
+		t.Fatalf("polled with a fresh companion sample")
+	}
+	n.refreshUsageWindows(t.Context(), now.Add(usageWindowsEvery))
+	if snap := n.usageSnapshot(); polls != 1 || len(snap.Accounts) != 1 || !snap.Accounts[0].SampledAt.Equal(now) {
+		t.Fatalf("polls %d, snapshot %+v", polls, snap)
+	}
+}
