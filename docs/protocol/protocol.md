@@ -3154,6 +3154,15 @@ This contract does not change paging, live events, or legacy fields such as `out
 and `turn_duration`. Readers tolerate absent facets, unknown fields and unfamiliar enum values. The hub and node announce `turn_model_v1` when they support this projection. Readers can still receive rows or
 items without facets when the source does not provide them.
 
+A tool row reads the tool's kind and the result's `outcome`. It shows the recorded exit code, including zero, and
+the recorded duration when available. The hub localizes typed notices using their code and arguments. Legacy
+fields continue to supply the display for older nodes and cached items.
+
+Codex and TRAE CLI read rollout archives and native indexed history directly. An indexed reader keeps its paging
+cursor through appends. A cold reader compares the available snapshot and reopens history when the previous
+cursor may refer to replaced records. Scoped nodes continue to read only verified rollout paths.
+
+
 ### Turn duration from actual records
 
 A turn-end record can produce a metadata item with `role: system`, `kind: turn_duration`. It carries no display text and uses the existing HTTP history / incremental pages, WebSocket `items`, and session cache path, with no new event or top-level Envelope field. The `turn_duration` field is optional.

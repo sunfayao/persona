@@ -82,6 +82,7 @@ func TestBackgroundTasksGrowingReusesReader(t *testing.T) {
 // referenceBackground is what scanBackground finds in src read whole: the complete short lines it parses, in order.
 func referenceBackground(src []byte) transcript.Meta {
 	m := transcript.Meta{ClaudeReader: claude.Reader{}, RolloutTools: traex.RolloutTools{}}
+	m.TrackTurnState()
 	for {
 		i := bytes.IndexByte(src, '\n')
 		if i < 0 {
