@@ -38,7 +38,7 @@ import (
 // from an older conversation or a stored suggestion still works.
 var toolNames = []string{"resource_status", "ask_user", "notify_user", "supervision_finish", "schedule_followup", "schedule_routine", "schedule_state_set", "delete_routine", "list_followups",
 	"cancel_followup", "machines_list", "machine_redeploy", "agents_list", "agent_read", "agent_send", "agent_switch", "agents_switch", "agent_interrupt", "agent_start", "agent_supervise", "agent_archive", "agent_unarchive", "agent_autoname", "agent_autoname_receipt", "interaction_answer", "ask_escalate", "inbox_suggest",
-	"inbox_folders", "inbox_move", "inbox_post", "persona_settings", "secret_run", "skill_import",
+	"inbox_folders", "inbox_move", "inbox_post", "persona_settings", "secret_run", "skill_import", "skill_save",
 	"model_profiles_list", "model_profile_get", "model_profile_switch", "model_profile_rollback",
 	"repositories_list", "repository_get", "repository_add", "view_show", "view_update", "view_get",
 	"conversations_list", "conversation_read", "conversation_send", "task_plan", "task_plan_withdraw", "task_review", "task_scope", "task_decided", "task_start_screen", "task_start_keys", "task_retry",
@@ -191,6 +191,8 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		return s.toolSecretRun(ctx, machine, self, args) // secret_run.go
 	case "skill_import":
 		return s.toolSkillImport(ctx, machine, self, args)
+	case "skill_save":
+		return s.toolSkillSave(ctx, machine, self, args) // skill_save_tool.go
 	case "inbox_draft":
 		return s.toolInboxDraft(ctx, self, args)
 	case "inbox_suggest":

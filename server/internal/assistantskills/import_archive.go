@@ -65,6 +65,10 @@ func safeImportName(s string) bool {
 	return len(s) <= 64 && importName.MatchString(s) && !windowsReserved(s)
 }
 
+// ValidName says whether the importer takes name as a skill's name (and so its directory's): lowercase letters and
+// digits in words joined by single hyphens, at most 64 bytes, and no name Windows reserves.
+func ValidName(name string) bool { return safeImportName(name) }
+
 func archivePath(s string) (string, error) {
 	if !utf8.ValidString(s) || len(s) > 1024 || strings.HasPrefix(s, "/") || strings.ContainsAny(s, `\:`) {
 		return "", importErr("skill_zip_path")
