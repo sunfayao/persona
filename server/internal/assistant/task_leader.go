@@ -10,6 +10,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/assistant/acceptance"
 	"github.com/sunfayao/persona/server/internal/assistant/autosupervise"
 	"github.com/sunfayao/persona/server/internal/assistant/criteria"
+	"github.com/sunfayao/persona/server/internal/assistant/digestfmt"
 	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
 	"slices"
 	"strings"
@@ -727,7 +728,7 @@ func (s *Service) deliverToLeaderAgent(ctx context.Context, lead TodoAgent, list
 		s.leaderDelivered(ctx, lead, entries, batch, kept, holds)
 	}
 	// Sort a copy for rendering so the retry still pairs each fingerprint with its original signal.
-	text := prompts.RenderWorkerSupervise(sortEntries(slices.Clone(entries)))
+	text := digestfmt.Render(digestfmt.Input{Role: prompts.SuperviseForLeader, Entries: entries}).Text // whole: a supervisor Agent's compaction is not seen here
 	if delivery == leaderResumeDelivery {
 		s.resumeLeaderForSupervision(lead, text, batch, kept, holds, func(ctx context.Context, err error) {
 			s.supervise.dedupMu.Lock()

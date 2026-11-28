@@ -75,7 +75,7 @@ func TestInboxDeliveredCommentAuthorityQuestionsWakeSupervisor(t *testing.T) {
 					t.Errorf("supervisor question lacks %q: %s", want, notices)
 				}
 			}
-			if strings.Contains(notices, "signal=inbox") {
+			if hasSignal(notices, "inbox") {
 				t.Fatalf("authority question also got an unnecessary Inbox copy: %s", notices)
 			}
 		})
@@ -96,7 +96,7 @@ func TestInboxDeliveredCommentPendingReviewStillWakesSupervisor(t *testing.T) {
 	g, _ := inboxSignalOf(it, true)
 	s.inboxToAgent(context.Background(), g)
 	waitFor(t, "the pending-review comment", func() bool { return len(f.notices()) == 1 })
-	if notice := f.notices()[0]; !strings.Contains(notice, "signal=inbox") || !strings.Contains(notice, "this is a copy") {
+	if notice := f.notices()[0]; !hasSignal(notice, "inbox") || !strings.Contains(notice, "this is a copy") {
 		t.Fatalf("pending review lost its delivered comment: %s", notice)
 	}
 }
@@ -133,7 +133,7 @@ func TestInboxDeliveredCommentWaitChangesDuringSend(t *testing.T) {
 			g, _ := inboxSignalOf(it, true)
 			s.inboxToAgent(context.Background(), g)
 			waitFor(t, "the wait-related comment", func() bool { return len(f.notices()) == 1 })
-			if notice := f.notices()[0]; !strings.Contains(notice, "signal=inbox") || !strings.Contains(notice, "this is a copy") {
+			if notice := f.notices()[0]; !hasSignal(notice, "inbox") || !strings.Contains(notice, "this is a copy") {
 				t.Fatalf("the task wait was hidden by successful delivery: %s", notice)
 			}
 		})
@@ -154,7 +154,7 @@ func TestInboxDeliveredCommentOwnerWaitStillWakesSupervisor(t *testing.T) {
 	g, _ := inboxSignalOf(it, true)
 	s.inboxToAgent(context.Background(), g)
 	waitFor(t, "the owner-wait comment", func() bool { return len(f.notices()) == 1 })
-	if notice := f.notices()[0]; !strings.Contains(notice, "signal=inbox") {
+	if notice := f.notices()[0]; !hasSignal(notice, "inbox") {
 		t.Fatalf("the owner wait lost supervision: %s", notice)
 	}
 }

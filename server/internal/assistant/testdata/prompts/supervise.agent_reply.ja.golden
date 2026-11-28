@@ -3,5 +3,4 @@
 <persona-supervision level="triage" />
 
 1. Task “Example task” (todo_example, signal=decision_reply): Owner wrote in box/agent-session; default paused. Read with `agent_read`, then confirm via `task_decided` or clarify.
-
    Acceptance criteria: not recorded

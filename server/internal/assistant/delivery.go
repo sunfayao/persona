@@ -365,8 +365,8 @@ func deliverySummary(t Todo) string {
 	return out
 }
 
-// snapshotApprovals are the open tasks held for the user's nod, oldest first (scopeSnapshot shows a conversation the
-// oldest snapshotApprovalLimit of its own).
+// snapshotApprovals are the open tasks held for the user's nod, oldest first (snapshotfit.Scope shows a conversation the
+// oldest snapshotfit.ApprovalLimit of its own).
 func (s *Service) snapshotApprovals(ctx context.Context, web string) []prompts.SnapshotApproval {
 	var list []Todo
 	for _, t := range s.todosOf(ctx, "*") {

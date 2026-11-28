@@ -1,0 +1,16 @@
+📋 Supervision: 1 of the tasks you handed out need you
+(This is a supervision message from Persona, not a message from the user.)
+<persona-supervision level="triage" />
+
+1. Task “Fix the login crash on the settings page” (todo_1, signal=estimate_due): (its estimate of 30 minutes ran out after 45); on box session_id=s1
+   Acceptance criteria:
+   1. [met] A criterion 1: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an — go test ./internal/example passes, 14 tests (by hub)
+   2. [met] A criterion 2: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an — screenshot attached to the pull request (by the Agent)
+   3. [pending] A criterion 3: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an
+   4. [pending] A criterion 4: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an
+   5. [pending] A criterion 5: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an
+   What the Agent said last:
+   The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here 
+
+How to handle this signal:
+- `estimate_due`: ran out with no visible progress, or twice in a row. Check evidence: `task_review`, steer (`agent_send`) or re-scope (`task_scope`). A finished task past the settle window with no owner card is refused: give `task_review` (`accepted`/`rework`/`cancelled`; `needs_user` with options if the owner must decide).

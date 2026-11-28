@@ -143,7 +143,8 @@ type ContextResult struct {
 	CompactInstructions string `json:"compact_instructions,omitempty"`
 	// RuleNotice is a one-off <persona-context kind="about-me"> block for this message (nodeproto.RuleNotice): the
 	// conversation's standing rule files say something else of About me or the reply language than the owner's
-	// settings now. Its receipt (item_id "rule_change") is confirmed like the view errors'.
+	// settings now. Its receipt (item_id "rule_change") is confirmed like the view errors'. It also carries the one-off
+	// blocks of a supervision message (the supervision policy, receipt "supervision_policy"; a digest told whole).
 	RuleNotice string             `json:"rule_notice,omitempty"`
 	Text       string             `json:"text"`
 	ViewErrors string             `json:"view_errors,omitempty"`

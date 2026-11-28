@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"context"
+	"github.com/sunfayao/persona/server/internal/assistant/digestfmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -256,7 +257,7 @@ func TestReceivedSince(t *testing.T) {
 }
 
 func TestGoldenSuperviseInbox(t *testing.T) {
-	golden(t, "supervise.inbox", prompts.RenderSupervise(prompts.Supervise{Inbox: true, Entries: sortEntries([]prompts.SuperviseEntry{
+	golden(t, "supervise.inbox", prompts.RenderSupervise(prompts.Supervise{Inbox: true, Entries: digestfmt.Sorted([]prompts.SuperviseEntry{
 		{ID: "todo_1", Title: "修登录崩溃", Kind: sigInbox, DoneWhen: []string{"PR 合并到 master"}, Machine: "box", Session: "s1",
 			Last: "在跑测试", Inbox: &prompts.SuperviseInbox{Item: "lark:f1:12", Title: "客户端发版群", Sender: "陈晓",
 				Preview: "登录那个崩溃今天能修好吗？下午要发版", Count: 3}},

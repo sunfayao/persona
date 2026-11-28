@@ -7,6 +7,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/digestfmt"
 	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
@@ -28,6 +29,12 @@ func decodeDigestSignals(raw string) ([]superviseSignal, bool) {
 	return list, true
 }
 
+// judgesSignals: msg asks its reader to judge a signal, not only to read one.
+func judgesSignals(msg relayMsg) bool {
+	list, ok := decodeDigestSignals(msg.Signals)
+	return !ok || slices.ContainsFunc(list, func(g superviseSignal) bool { return g.Kind != sigParkedSummary })
+}
+
 // Keep the same rendering for initial dispatch and a queue that has waited while tasks changed.
 func (s *Service) renderQueuedDigest(ctx context.Context, to string, list []prompts.SuperviseEntry, originalFresh ...bool) string {
 	here := s.settings(ctx)
@@ -40,15 +47,22 @@ func (s *Service) renderQueuedDigest(ctx context.Context, to string, list []prom
 	if len(list) > 0 && !slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind != sigParkedSummary }) {
 		level = supervisionInfo
 	}
-	return prompts.RenderSupervise(prompts.Supervise{Level: level, Entries: sortEntries(list), Fresh: fresh,
-		Overdue:     slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigOverdue }),
-		ParkedDue:   slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigParkedDue }),
-		ParkDecided: slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigParkDecided }),
-		Decisions: slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool {
-			return e.Kind == sigRecheck || e.Kind == sigUndecidable || e.Kind == sigOwnerCannot || e.Kind == sigCardlessWait
-		}),
-		Inbox: slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigInbox }),
-		Asked: askedIn(list), AskMinutes: int(askHoldFor.Minutes()), PushGrading: askedIn(list) && s.quietModeOn(ctx)})
+	var told map[string]digestfmt.Pieces
+	if to == here.Main && s.noticesReach(here.mainRouteMachine()) || to != here.Main && !fresh && s.noticesReach(here.MachineID) {
+		told = s.digests.Told(to)
+	}
+	out := digestfmt.Render(digestfmt.Input{Role: prompts.SuperviseForMain, Entries: list, Told: told,
+		Frame: prompts.Supervise{Level: level, Fresh: fresh,
+			Overdue:     slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigOverdue }),
+			ParkedDue:   slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigParkedDue }),
+			ParkDecided: slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigParkDecided }),
+			Decisions: slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool {
+				return e.Kind == sigRecheck || e.Kind == sigUndecidable || e.Kind == sigOwnerCannot || e.Kind == sigCardlessWait
+			}),
+			Inbox: slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigInbox }),
+			Asked: askedIn(list), AskMinutes: int(askHoldFor.Minutes()), PushGrading: askedIn(list) && s.quietModeOn(ctx)}})
+	s.digests.Offer(to, out.Text, out)
+	return out.Text
 }
 
 // recheckDigestTo honors explicit moves through the same policy as immediate dispatch. Otherwise it preserves

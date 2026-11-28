@@ -4,7 +4,7 @@
 
 1. Task “Redraw the toolbar icons” (todo_1, signal=parked_due): parking expired: when you parked it you wrote that it was waiting for “The design team has to pick the icon set first” (waiting on someone else), parked until 2026-11-14 Sat 09:00; it has been parked 1 times in a row, with 3 parkings left (counting only parkings where the Agent did no work in between)
    Acceptance criteria:
-   1. icons merged
+   1. [pending] icons merged
 
 2. Task “Move the reports to the new store” (todo_2, signal=parked_due): parking expired: when you parked it you wrote that it was waiting for “Whether this goes ahead of the billing work” (waiting for the user to set priority), parked until 2026-11-12 Thu 18:00; it has been parked 4 times in a row, with 0 parkings left (the Agent did no work in between, so it can no longer be parked)
    Acceptance criteria: not recorded

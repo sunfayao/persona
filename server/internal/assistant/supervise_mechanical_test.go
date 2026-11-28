@@ -367,7 +367,7 @@ func TestScreenMechanicalSignalsDeferredIdleLeavesDigestBatch(t *testing.T) {
 	if strings.Contains(text, todo.ID+"，signal=idle") {
 		t.Fatalf("batch release reclaimed the deferred idle: %s", text)
 	}
-	if !strings.Contains(text, "signal=interrupted") {
+	if !hasSignal(text, "interrupted") {
 		t.Fatalf("the other to-do did not release the digest control: %s", text)
 	}
 	s.supervise.mu.Lock()
@@ -454,7 +454,7 @@ func TestSendDigestRoutesOpenReviewForSupervision(t *testing.T) {
 	if bg := s.settings(context.Background()).BackgroundSupervisor; bg != "" || len(conversationStarts(f)) != 0 {
 		t.Fatalf("new work started a legacy background supervisor: %q", bg)
 	}
-	if notices := f.noticesTo("conv1"); len(notices) != 1 || !strings.Contains(notices[0], "signal=idle") {
+	if notices := f.noticesTo("conv1"); len(notices) != 1 || !hasSignal(notices[0], "idle") {
 		t.Fatalf("open review did not reach main supervision alone: %q", notices)
 	}
 	if len(f.asked) != 0 {

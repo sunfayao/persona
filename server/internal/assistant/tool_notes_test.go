@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"encoding/json"
+	"github.com/sunfayao/persona/server/internal/assistant/snapshotfit"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -210,12 +211,12 @@ func TestMainSnapshotSaysWhatWaitsForToolReview(t *testing.T) {
 		t.Fatalf("tool review = %+v", snap.ToolReview)
 	}
 	const line = "- 2 friction drafts and 0 field notes due wait for review (tool_note list)"
-	if main := fitSnapshot(scopeSnapshot(snap, "")); !strings.Contains(main, line) {
+	if main := snapshotfit.Fit(snapshotfit.Scope(snap, "")); !strings.Contains(main, line) {
 		t.Fatalf("main snapshot lacks %q:\n%s", line, main)
 	}
-	for name, other := range map[string]prompts.Snapshot{"another conversation": scopeSnapshot(snap, "c2"),
-		"the background supervisor": backgroundSnapshot(scopeSnapshot(snap, ""))} {
-		if text := fitSnapshot(other); strings.Contains(text, "tool_note list") {
+	for name, other := range map[string]prompts.Snapshot{"another conversation": snapshotfit.Scope(snap, "c2"),
+		"the background supervisor": snapshotfit.Background(snapshotfit.Scope(snap, ""))} {
+		if text := snapshotfit.Fit(other); strings.Contains(text, "tool_note list") {
 			t.Errorf("%s's snapshot has the line:\n%s", name, text)
 		}
 	}

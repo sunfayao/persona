@@ -3,33 +3,33 @@
 <persona-supervision level="triage" />
 
 1. Task “Finish the migration” (todo_3, signal=owner_cannot_answer): the user could not answer the decision you sent; they replied “Decide it yourself”
-   Acceptance criteria: not recorded
    Decision sent to the user at the time (why_owner=irreversible, never taken by default): Drop the old table?
    - Task background (as the hub recorded it): From the main conversation, 2026-11-07: “Finish the migration” · Now: migrated, old table still there
    - Option “Drop it”: the old rows cannot be restored
    - Option “Keep it”: 40 GB stay in use
    - Recommendation: Drop it
    - Cost of waiting: The disk fills up in two weeks
+   Acceptance criteria: not recorded
 
 2. Task “Fix the login crash” (todo_4, signal=owner_cannot_answer): the user could not answer the decision you sent; they replied “That's not what I asked for”
-   Acceptance criteria: not recorded
    Decision sent to the user at the time (why_owner=priority): Canary or everyone?
    - Option “Canary”: 10% today
    - Option “Everyone”: all users today
    - Recommendation: Canary
+   Acceptance criteria: not recorded
 
 3. Task “Fix the login crash” (todo_5, signal=owner_cannot_answer): the user could not answer the decision you sent; they replied “Explain the background first”
    Acceptance criteria: not recorded
 
 4. Task “Finish the migration” (todo_1, signal=recheck): a decision that needs the user's call has waited more than a day with no answer and was handed back to supervision
-   Acceptance criteria:
-   1. old table gone
    Decision sent to the user at the time (why_owner=irreversible, never taken by default): Drop the old table?
    - Task background (as the hub recorded it): From the main conversation, 2026-11-07: “Finish the migration” · Now: migrated, old table still there
    - Option “Drop it”: the old rows cannot be restored
    - Option “Keep it”: 40 GB stay in use
    - Recommendation: Drop it
    - Cost of waiting: The disk fills up in two weeks
+   Acceptance criteria:
+   1. [pending] old table gone
 
 5. Task “Tidy the docs” (todo_2, signal=undecidable): marked as waiting for a user decision, but there is nothing on the user's side to answer (no question, options or recommendation) (waits for the user to look)
    Acceptance criteria: not recorded

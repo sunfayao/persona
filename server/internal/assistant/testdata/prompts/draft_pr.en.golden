@@ -2,10 +2,10 @@
 (This is a supervision message from Persona, not a message from the user.)
 <persona-supervision level="triage" />
 
-1. Task “Example task” (todo_example, signal=draft_pr):  (Our linked PR https://github.com/example/app/pull/12 at head head-a is still a draft, not waiting for upstream review or merge.
+1. Task “Example task” (todo_example, signal=draft_pr): (Our linked PR https://github.com/example/app/pull/12 at head head-a is still a draft, not waiting for upstream review or merge.
 )
    Acceptance criteria:
-   1. The task PR is merged.
+   1. [pending] The task PR is merged.
 
 How to handle this signal:
 - `draft_pr`: make it ready if appropriate, or record the concrete reason it must remain draft; this grants no new permission.

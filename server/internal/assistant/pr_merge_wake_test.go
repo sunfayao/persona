@@ -133,7 +133,7 @@ func TestPRMergedWakeUnparkedStageMergeAndNeedsUser(t *testing.T) {
 				t.Fatalf("%s: did not queue sigPRMerged", mode)
 			}
 			sendPendingPRConflicts(s)
-			if notices := f.notices(); len(notices) != 1 || !strings.Contains(notices[0], "signal="+sigPRMerged) {
+			if notices := f.notices(); len(notices) != 1 || !hasSignal(notices[0], sigPRMerged) {
 				t.Fatalf("%s: expected 1 sigPRMerged notice, got %q", mode, notices)
 			}
 		})
@@ -282,7 +282,7 @@ func TestPRMergedWakeIdempotentAcrossSweepsAndRestart(t *testing.T) {
 	forge.status.State = "merged"
 	s1.sweepPRStatuses(ctx, now.Add(deployRecheck))
 	sendPendingPRConflicts(s1)
-	if len(f1.notices()) != 1 || !strings.Contains(f1.notices()[0], "signal="+sigPRMerged) {
+	if len(f1.notices()) != 1 || !hasSignal(f1.notices()[0], sigPRMerged) {
 		t.Fatalf("initial merge wake failed: %q", f1.notices())
 	}
 

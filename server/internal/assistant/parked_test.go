@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"encoding/json"
+	"github.com/sunfayao/persona/server/internal/assistant/digestfmt"
 	"slices"
 	"strings"
 	"testing"
@@ -516,7 +517,7 @@ func TestDigestListsATaskParkedForTheOwnersPriorityCall(t *testing.T) {
 // The supervision message for a parked task whose time came, and the briefing's line for one parked for the owner's
 // priority call, as they are read.
 func TestGoldenParked(t *testing.T) {
-	golden(t, "supervise.parked_due", prompts.RenderSupervise(prompts.Supervise{ParkedDue: true, Entries: sortEntries([]prompts.SuperviseEntry{
+	golden(t, "supervise.parked_due", prompts.RenderSupervise(prompts.Supervise{ParkedDue: true, Entries: digestfmt.Sorted([]prompts.SuperviseEntry{
 		{ID: "todo_1", Title: "Redraw the toolbar icons", Kind: sigParkedDue, DoneWhen: []string{"icons merged"},
 			Parked: &prompts.SuperviseParked{Reason: "The design team has to pick the icon set first", WaitingOn: parkSomeoneElse,
 				Until: "2026-11-14 Sat 09:00", Count: 1, Left: 3}},

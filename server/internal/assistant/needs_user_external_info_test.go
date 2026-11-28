@@ -107,7 +107,7 @@ func TestPRStatusChangesDuringNeedsUserWakeWithoutMutatingCard(t *testing.T) {
 
 			waitFor(t, "external info wake delivered", func() bool {
 				for _, n := range f.notices()[beforeNotices:] {
-					if strings.Contains(n, "signal=needs_user_external_info") && strings.Contains(n, tc.wantText) {
+					if hasSignal(n, "needs_user_external_info") && strings.Contains(n, tc.wantText) {
 						return true
 					}
 				}
@@ -117,7 +117,7 @@ func TestPRStatusChangesDuringNeedsUserWakeWithoutMutatingCard(t *testing.T) {
 			// Verify wake carries both the new external info and the pending needs_user question.
 			var wake string
 			for _, n := range f.notices()[beforeNotices:] {
-				if strings.Contains(n, "signal=needs_user_external_info") {
+				if hasSignal(n, "needs_user_external_info") {
 					wake = n
 				}
 			}
@@ -157,7 +157,7 @@ func TestInboxAndThreadAndPrereqSignalsWakeDuringNeedsUser(t *testing.T) {
 
 		waitFor(t, "inbox external info wake", func() bool {
 			for _, n := range f.notices()[beforeNotices:] {
-				if strings.Contains(n, "signal=needs_user_external_info") && strings.Contains(n, "Collaborator confirmed rollout is approved") {
+				if hasSignal(n, "needs_user_external_info") && strings.Contains(n, "Collaborator confirmed rollout is approved") {
 					return true
 				}
 			}
@@ -191,7 +191,7 @@ func TestInboxAndThreadAndPrereqSignalsWakeDuringNeedsUser(t *testing.T) {
 
 		waitFor(t, "thread external info wake", func() bool {
 			for _, n := range f.notices()[beforeNotices:] {
-				if strings.Contains(n, "signal=needs_user_external_info") && strings.Contains(n, "Go ahead after QA signs off") {
+				if hasSignal(n, "needs_user_external_info") && strings.Contains(n, "Go ahead after QA signs off") {
 					return true
 				}
 			}
@@ -220,7 +220,7 @@ func TestInboxAndThreadAndPrereqSignalsWakeDuringNeedsUser(t *testing.T) {
 
 		waitFor(t, "prerequisite external info wake", func() bool {
 			for _, n := range f.notices()[beforeNotices:] {
-				if strings.Contains(n, "signal=needs_user_external_info") && strings.Contains(n, prereq.ID) {
+				if hasSignal(n, "needs_user_external_info") && strings.Contains(n, prereq.ID) {
 					return true
 				}
 			}
@@ -288,7 +288,7 @@ func TestNeedsUserExternalInfoIdempotentDedupeAcrossSweepsAndRestart(t *testing.
 	s.sweepPRStatuses(ctx, now)
 	waitFor(t, "first approved wake", func() bool {
 		for _, n := range f.notices()[beforeNotices:] {
-			if strings.Contains(n, "signal=needs_user_external_info") && strings.Contains(n, "was approved") {
+			if hasSignal(n, "needs_user_external_info") && strings.Contains(n, "was approved") {
 				return true
 			}
 		}
@@ -329,7 +329,7 @@ func TestNeedsUserExternalInfoIdempotentDedupeAcrossSweepsAndRestart(t *testing.
 	}
 	waitFor(t, "merged wake after restart", func() bool {
 		for _, n := range nextHub.notices() {
-			if strings.Contains(n, "signal=needs_user_external_info") && strings.Contains(n, "was merged") {
+			if hasSignal(n, "needs_user_external_info") && strings.Contains(n, "was merged") {
 				return true
 			}
 		}

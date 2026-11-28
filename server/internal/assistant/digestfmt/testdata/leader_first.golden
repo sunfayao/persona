@@ -1,0 +1,18 @@
+Persona · supervision: 1 of your to-do's tasks need you. This message is not from the user.
+
+1. Your own to-do “Add the export button to the report view” (todo_2, signals=estimate_due, idle)
+   - estimate_due: its estimate ran out (its estimate of 20 minutes ran out after 30); on box
+   - idle: the worker stopped, but the work is not finished; on box
+   Done when:
+   1. [met] B criterion 1: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an — go test ./internal/example passes, 14 tests (by hub)
+   2. [met] B criterion 2: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an — screenshot attached to the pull request (by the Agent)
+   3. [pending] B criterion 3: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an
+   4. [pending] B criterion 4: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an
+   Its last reply:
+   The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here 
+
+How to handle these signals:
+- `estimate_due` / `overdue`: read its progress; give it more time with task_scope (expect_minutes, with why) or nudge it with agent_send; on your own to-do, task_scope your to-do's expect_minutes.
+- `idle` / `unjudged`: read its last turns with agent_read; nudge it with agent_send when it can go on, rework what is missing, or accept what is done.
+
+You own these tasks: handle them yourself, on your own workers only. Reach up only with report_to_supervisor: kind done once every worker is closed and each criterion of your to-do is met with evidence, kind question or blocked when the owner or whoever handed you the to-do must decide. Progress reports need nothing from you.

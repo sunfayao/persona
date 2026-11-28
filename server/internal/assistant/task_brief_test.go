@@ -528,7 +528,7 @@ func TestBriefClockRaisesOverdueOnce(t *testing.T) {
 	if !ok || e.Kind != sigOverdue || e.Asked != "please fix the login crash before Friday" || e.AskedAt != "2026-11-03" {
 		t.Fatalf("entry = %+v, %v", e, ok)
 	}
-	if text := prompts.RenderSupervise(prompts.Supervise{Entries: []prompts.SuperviseEntry{e}, Overdue: true}); !strings.Contains(text, "signal=overdue") ||
+	if text := prompts.RenderSupervise(prompts.Supervise{Entries: []prompts.SuperviseEntry{e}, Overdue: true}); !hasSignal(text, "overdue") ||
 		!strings.Contains(text, "please fix the login crash before Friday") {
 		t.Fatalf("the supervision message is missing brief facts:\n%s", text)
 	}

@@ -232,7 +232,10 @@ type SnapshotMiss struct {
 type SnapshotTask struct {
 	ID, Title, State string
 	Machine, Session string // its latest agent, when it has one
-	Last             string // what that agent said last, in a line
+	// Led: its supervisor Agent's session id when one runs it: the task is then this one line (its Agents' rows, steps and
+	// words are that Agent's to follow).
+	Led  string
+	Last string // what that agent said last, in a line
 	// Doing: the step that agent is on (its latest tool call, transcript.Activity) while it works or has said nothing
 	// yet, and DoingFor how long that step has gone on ("3 minutes"), "" when unknown or not working.
 	Doing, DoingFor string
@@ -759,6 +762,8 @@ func RenderAskLater(a AskLater) string { return render("assistant/ask_later", a)
 type Supervise struct {
 	Level   string
 	Entries []SuperviseEntry
+	// Blocks are the entries as the message prints them, one per to-do (SuperviseBlocks); nil makes them from Entries.
+	Blocks []SuperviseBlock
 	// Overdue: an entry is a task past its brief's clock (#3822).
 	Overdue bool
 	// ParkedDue: an entry is a parked task whose time came (#3804).
@@ -791,24 +796,25 @@ type Supervise struct {
 // started, escalated, ask, inbox…).
 type SuperviseEntry struct {
 	ID, Title, Kind string
-	AgentReply      *DecisionAgentReply // decision_reply: a pending decision's owner message, not an inferred choice
-	Detail          string              // why: the judge's reason, the step it is stuck on, the model service's error, why it did not start
-	Minutes         int                 // how long it has waited (needs_you), not moved (stalled) or not progressed (no_progress)
-	Calls, Waits    int                 // no_progress: the tool calls the hub saw since the last progress, and how many were waits or repeats
-	Ask             string              // needs_you: what it asks
-	Recommend       string              // escalated: the option the leader recommends
-	LeaderGone      bool                // decide: its task leader agent cannot be reached, so the supervisor takes the task over
-	DoneWhen        []string            // what done means
-	Round           int                 // reworks so far
-	Machine         string              // where its agent runs (a name)
-	Session         string              // its agent's session id (short)
-	AgentID         string              // full id for durable deduplication; not rendered
-	Last            string              // what its agent said last
-	Closeout        *SuperviseCloseout  // the closeout its agent ended the turn with (#3612), nil when it wrote none
-	Link            string              // the task's page ("" when the hub has no public_url)
-	Quiet           bool                // the user was not pushed about it
-	Orphan          string              // orphaned: why nobody works on it (error, closed, offline)
-	Review          *SuperviseReviewed  // review: what the independent reviewer found (#2173), nil when none ran
+	AgentReply      *DecisionAgentReply  // decision_reply: a pending decision's owner message, not an inferred choice
+	Detail          string               // why: the judge's reason, the step it is stuck on, the model service's error, why it did not start
+	Minutes         int                  // how long it has waited (needs_you), not moved (stalled) or not progressed (no_progress)
+	Calls, Waits    int                  // no_progress: the tool calls the hub saw since the last progress, and how many were waits or repeats
+	Ask             string               // needs_you: what it asks
+	Recommend       string               // escalated: the option the leader recommends
+	LeaderGone      bool                 // decide: its task leader agent cannot be reached, so the supervisor takes the task over
+	DoneWhen        []string             // what done means (Criteria is the same with the ledger's readings; this one is used when it is empty)
+	Criteria        []SuperviseCriterion // done_when with each one's state, evidence and who recorded it
+	Round           int                  // reworks so far
+	Machine         string               // where its agent runs (a name)
+	Session         string               // its agent's session id (short)
+	AgentID         string               // full id for durable deduplication; not rendered
+	Last            string               // what its agent said last
+	Closeout        *SuperviseCloseout   // the closeout its agent ended the turn with (#3612), nil when it wrote none
+	Link            string               // the task's page ("" when the hub has no public_url)
+	Quiet           bool                 // the user was not pushed about it
+	Orphan          string               // orphaned: why nobody works on it (error, closed, offline)
+	Review          *SuperviseReviewed   // review: what the independent reviewer found (#2173), nil when none ran
 	// report: what its agent reported (progress, question, blocked, done), its words, evidence and step.
 	Report      string
 	Said        string
@@ -951,18 +957,25 @@ type SuperviseAsk struct {
 	Reminded bool
 }
 
+// RenderSupervise is the message to a conversation: s.Blocks when set (assistant/digestfmt keeps what the reader has
+// been told out of them), else every part of s.Entries.
 func RenderSupervise(s Supervise) string {
-	s.Rules = superviseRules(s.Entries)
+	if s.Blocks == nil {
+		s.Blocks = SuperviseBlocks(s.Entries, SuperviseForMain, s.Fresh)
+	}
+	s.Rules = superviseRules(s.Blocks)
 	return render("assistant/supervise", s)
 }
 
-// superviseRules are the handling rules of the entries' signals, each once (two signals that share a rule give it
-// once), in the order the entries first carry them; a signal without a rule gives none.
-func superviseRules(entries []SuperviseEntry) []string {
+// superviseRules are the handling rules of the blocks' signals, each once (two signals that share a rule give it
+// once), in the order the blocks first carry them; a signal without a rule gives none.
+func superviseRules(blocks []SuperviseBlock) []string {
 	var out []string
-	for _, e := range entries {
-		if rule := SuperviseRule(e.Kind); rule != "" && !slices.Contains(out, rule) {
-			out = append(out, rule)
+	for _, b := range blocks {
+		for _, g := range b.Signals {
+			if rule := SuperviseRule(g.Kind); rule != "" && !slices.Contains(out, rule) {
+				out = append(out, rule)
+			}
 		}
 	}
 	return out
@@ -1133,16 +1146,13 @@ type TurnContext struct {
 // TurnSection is one section of a TurnContext: all of it in Text, or with Partial only what changed in it (#9078).
 // A partial section says so on its heading, so the rows it lists are never read as all the rows there are: Text is
 // then the heading line when that changed ("" when it did not: Name, the section's name, stands in for it), Rows the
-// rows that are new or changed, Removed the ids of the rows that are gone, and Order the ids of all its rows in
-// their order now, given only when the reader could not tell it (the rows it knew in the order it knew them, the
-// new ones after them).
+// rows that are new or changed and Removed the ids of the rows that are gone; the order of the rows is not told.
 type TurnSection struct {
 	Text    string
 	Partial bool
 	Name    string
 	Rows    []string
 	Removed []string
-	Order   []string
 }
 
 func RenderTurnContext(c TurnContext) string { return render("assistant/turn_context", c) }

@@ -14,16 +14,8 @@ import (
 
 // ---- what the assistant sees ----
 
-// snapshotOpenTodoLimit, snapshotTaskLimit: how many rows of the open to-do index and of the task details one
-// conversation's snapshot shows. The cached snapshot keeps them all, so a conversation's own come first whatever the
-// others have (scopeSnapshot).
-const (
-	snapshotOpenTodoLimit = 100
-	snapshotTaskLimit     = 12
-)
-
 // snapshotOpenTodos is the compact index that keeps every ordinary-sized open todo discoverable: all of them, newest
-// first, and how many (scopeSnapshot shows a conversation the first snapshotOpenTodoLimit of its own). A failed start
+// first, and how many (snapshotfit.Scope shows a conversation the first snapshotfit.OpenTodoLimit of its own). A failed start
 // is open as long as the app's To-dos count it open (snapshotFailedStarts), and marked as one.
 func (s *Service) snapshotOpenTodos(ctx context.Context, web string) ([]prompts.SnapshotOpenTodo, int) {
 	if s.ensureTodosLoaded(ctx) != nil {
@@ -101,7 +93,7 @@ func (s *Service) askedInSnapshot(ctx context.Context) map[string]bool {
 }
 
 // snapshotTasks are the open todos plus recent conversation tasks that have ended, the highest-priority first: all of
-// them (scopeSnapshot shows a conversation the first snapshotTaskLimit of its own).
+// them (snapshotfit.Scope shows a conversation the first snapshotfit.TaskLimit of its own).
 func (s *Service) snapshotTasks(ctx context.Context, web string) []prompts.SnapshotTask {
 	var list []Todo
 	if s.ensureTodosLoaded(ctx) != nil {
@@ -219,6 +211,9 @@ func (s *Service) snapshotTasks(ctx context.Context, web string) []prompts.Snaps
 				reported(&task, p, taskLead(st, agents), now)
 			}
 		}
+		if task.Led != "" {
+			task.Health, task.Orphan, task.DoneWhen, task.Reported = "", "", 0, nil
+		}
 		all = append(all, ranked{task: task, rank: rank, open: t.DoneAt == nil})
 	}
 	sort.SliceStable(all, func(i, j int) bool {
@@ -251,6 +246,10 @@ func todoOwner(t Todo) prompts.SnapshotOwner {
 // task cards show them.
 func snapshotTask(t Todo, st string, agents []proto.Session, now time.Time) prompts.SnapshotTask {
 	task := prompts.SnapshotTask{ID: t.ID, Title: clip(oneLine(t.Title), 60), State: taskStateLabel(st), Owner: todoOwner(t)}
+	if lead, ok := t.supervisorAgent(); ok && t.DoneAt == nil && t.memberSupervised() {
+		task.Led = short(lead.SessionID) // one line: its supervisor Agent follows its Agents
+		return task
+	}
 	last := taskLead(st, agents)
 	if last.SessionID == "" {
 		return task
@@ -259,10 +258,10 @@ func snapshotTask(t Todo, st string, agents []proto.Session, now time.Time) prom
 		task.State = taskStateLabel("stopped") // Persona's Stop, not the model service (silent_turns.go, #10187)
 	}
 	task.Machine, task.Session = last.MachineID, short(last.SessionID)
-	task.Last = clip(oneLine(last.LastText), 80)
+	task.Last = clip(oneLine(last.LastText), 60)
 	working := last.State == proto.StateWorking
 	if doing := strings.TrimSpace(last.Activity); doing != "" && (working || task.Last == "") {
-		task.Doing = clip(oneLine(doing), 80)
+		task.Doing = clip(oneLine(doing), 60)
 		if working && last.ActivityAt != nil && now.Sub(*last.ActivityAt) >= time.Minute {
 			task.DoingFor = humanDuration(now.Sub(*last.ActivityAt))
 		}
@@ -280,7 +279,7 @@ func snapshotTask(t Todo, st string, agents []proto.Session, now time.Time) prom
 // reported puts the agent's latest report p on task. A report newer than lead's plan says more than the plan's count:
 // it stands alone.
 func reported(task *prompts.SnapshotTask, p *TaskProgress, lead proto.Session, now time.Time) {
-	task.Reported = &prompts.SnapshotReport{Kind: p.Kind, Step: p.Step, Steps: p.Steps, Text: clip(oneLine(p.Text), 160),
+	task.Reported = &prompts.SnapshotReport{Kind: p.Kind, Step: p.Step, Steps: p.Steps, Text: clip(oneLine(p.Text), 100),
 		Minutes: max(0, int(now.Sub(p.At).Minutes()))}
 	if lead.Plan != nil && p.At.After(lead.Plan.At) {
 		task.Plan = nil

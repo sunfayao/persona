@@ -111,7 +111,7 @@ func TestSupervisedUnjudgedSaysTheJudgeHasNoModel(t *testing.T) {
 	agentTurn(s, f, proto.StatusDone, fullReport, 0)
 	waitFor(t, "the supervisor's message", func() bool { return len(f.notices()) == 1 })
 	n := entryLine(f.notices()[0])
-	if !strings.Contains(n, "signal=unjudged") || !strings.Contains(n, "(no judge model configured)") || strings.Contains(n, "the judge model failed") {
+	if !hasSignal(n, "unjudged") || !strings.Contains(n, "(no judge model configured)") || strings.Contains(n, "the judge model failed") {
 		t.Fatalf("no model for the judge:\n%s", n)
 	}
 }

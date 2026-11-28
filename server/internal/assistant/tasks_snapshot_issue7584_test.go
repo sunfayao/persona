@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"fmt"
+	"github.com/sunfayao/persona/server/internal/assistant/snapshotfit"
 	"strings"
 	"testing"
 	"time"
@@ -74,7 +75,7 @@ func TestSnapshotOpenTodoRosterIncludesOldAdoptedPersonalAndParked(t *testing.T)
 	if total != 39 {
 		t.Fatalf("open count = %d, want 39", total)
 	}
-	text := fitSnapshot(prompts.Snapshot{Now: now, Zone: "UTC", OpenTodos: rows, OpenTodosTotal: total, OpenTodosLoaded: true})
+	text := snapshotfit.Fit(prompts.Snapshot{Now: now, Zone: "UTC", OpenTodos: rows, OpenTodosTotal: total, OpenTodosLoaded: true})
 	for _, id := range ids {
 		if !strings.Contains(text, id+" “fixture "+id+"”") {
 			t.Errorf("rendered open-work roster lacks %s:\n%s", id, text)
@@ -118,22 +119,22 @@ func TestSnapshotTaskDetailsKeepOldAndOriginlessOpenTodos(t *testing.T) {
 func TestSnapshotOpenTodoRosterCapsHugeListsWithTodoListHint(t *testing.T) {
 	s := newStorelessService(t, newFakeHub().withMachine())
 	ctx := context.Background()
-	for i := 0; i < snapshotOpenTodoLimit+7; i++ {
+	for i := 0; i < snapshotfit.OpenTodoLimit+7; i++ {
 		id := fmt.Sprintf("todo_large_%03d", i)
 		if _, err := s.newTodoAs(ctx, id, "large fixture", "", "", "", false); err != nil {
 			t.Fatal(err)
 		}
 	}
 	rows, total := s.snapshotOpenTodos(ctx, "")
-	snap := scopeSnapshot(prompts.Snapshot{Now: time.Now(), Zone: "UTC", OpenTodos: rows, OpenTodosTotal: total, OpenTodosLoaded: true}, "")
-	text := fitSnapshot(snap)
-	if rows = snap.OpenTodos; total != snapshotOpenTodoLimit+7 || len(rows) != snapshotOpenTodoLimit {
+	snap := snapshotfit.Scope(prompts.Snapshot{Now: time.Now(), Zone: "UTC", OpenTodos: rows, OpenTodosTotal: total, OpenTodosLoaded: true}, "")
+	text := snapshotfit.Fit(snap)
+	if rows = snap.OpenTodos; total != snapshotfit.OpenTodoLimit+7 || len(rows) != snapshotfit.OpenTodoLimit {
 		t.Fatalf("rows/count = %d/%d", len(rows), total)
 	}
 	if !strings.Contains(text, "Open to-dos: 107 in total (full list: todo_list)") || !strings.Contains(text, "use todo_list for the rest") {
 		t.Fatalf("large roster lacks total or todo_list entrance:\n%s", text)
 	}
-	if runes(text) > snapshotBudget {
+	if runes(text) > snapshotfit.Budget {
 		t.Fatalf("snapshot exceeds budget: %d", runes(text))
 	}
 }
@@ -162,9 +163,9 @@ func TestSnapshotTaskDetailsPrioritizeOpenTodosAndKeepTwelveDetailLimit(t *testi
 	s.todos.todos[closed.ID].UpdatedAt = now
 	s.todos.mu.Unlock()
 
-	got := scopeSnapshot(prompts.Snapshot{Tasks: s.snapshotTasks(ctx, "")}, "").Tasks
-	if len(got) != snapshotTaskLimit {
-		t.Fatalf("task details = %d, want %d", len(got), snapshotTaskLimit)
+	got := snapshotfit.Scope(prompts.Snapshot{Tasks: s.snapshotTasks(ctx, "")}, "").Tasks
+	if len(got) != snapshotfit.TaskLimit {
+		t.Fatalf("task details = %d, want %d", len(got), snapshotfit.TaskLimit)
 	}
 	for _, task := range got {
 		if !strings.HasPrefix(task.ID, "todo_open_") {
@@ -180,7 +181,7 @@ func TestFitSnapshotKeepsOpenTodoRosterWhenTaskDetailsAreOmitted(t *testing.T) {
 	}
 	s := bigSnapshot(fitNow)
 	s.OpenTodos, s.OpenTodosTotal, s.OpenTodosLoaded = rows, len(rows), true
-	got := fitSnapshot(s)
+	got := snapshotfit.Fit(s)
 	if !strings.Contains(got, "Open to-dos: 26 in total (full list: todo_list)") {
 		t.Fatalf("open count disappeared:\n%s", got)
 	}
@@ -195,26 +196,26 @@ func TestFitSnapshotKeepsOpenTodoRosterWhenTaskDetailsAreOmitted(t *testing.T) {
 	if !strings.Contains(got, "12 in total") {
 		t.Fatalf("full task details were not replaced by their count:\n%s", got)
 	}
-	if runes(got) > snapshotBudget {
+	if runes(got) > snapshotfit.Budget {
 		t.Fatalf("snapshot exceeds budget: %d", runes(got))
 	}
 }
 
 func TestFitSnapshotCompactsOpenRosterBeforeOmittingTaskDetails(t *testing.T) {
-	rows := make([]prompts.SnapshotOpenTodo, snapshotOpenTodoLimit)
+	rows := make([]prompts.SnapshotOpenTodo, snapshotfit.OpenTodoLimit)
 	for i := range rows {
 		rows[i] = prompts.SnapshotOpenTodo{ID: fmt.Sprintf("todo_compact_%03d", i), Title: strings.Repeat("long title ", 4), Link: "https://hub.example/todos/a-long-link"}
 	}
 	s := bigSnapshot(fitNow)
-	s.OpenTodos, s.OpenTodosTotal, s.OpenTodosLoaded = rows, snapshotOpenTodoLimit, true
-	got := fitSnapshot(s)
+	s.OpenTodos, s.OpenTodosTotal, s.OpenTodosLoaded = rows, snapshotfit.OpenTodoLimit, true
+	got := snapshotfit.Fit(s)
 	if !strings.Contains(got, "IDs only") || !strings.Contains(got, "todo_compact_099") {
 		t.Fatalf("compact roster did not preserve its tail ID:\n%s", got)
 	}
 	if !strings.Contains(got, "12 in total") {
 		t.Fatalf("task detail section was not omitted after roster compaction:\n%s", got)
 	}
-	if runes(got) > snapshotBudget {
+	if runes(got) > snapshotfit.Budget {
 		t.Fatalf("snapshot exceeds budget: %d", runes(got))
 	}
 }
@@ -297,7 +298,7 @@ func TestSnapshotCountsAFailedStartOpenAsTheAppDoes(t *testing.T) {
 	if total != 2 || len(rows) != 2 {
 		t.Fatalf("open count = %d (%v), want todo_open and todo_failed", total, rows)
 	}
-	text := fitSnapshot(prompts.Snapshot{Now: now, Zone: "UTC", OpenTodos: rows, OpenTodosTotal: total, OpenTodosLoaded: true})
+	text := snapshotfit.Fit(prompts.Snapshot{Now: now, Zone: "UTC", OpenTodos: rows, OpenTodosTotal: total, OpenTodosLoaded: true})
 	if !strings.Contains(text, "Open to-dos: 2 in total") || !strings.Contains(text, "todo_failed “fixture todo_failed” (failed to start)") ||
 		!strings.Contains(text, "todo_open “fixture todo_open”") || strings.Contains(text, "todo_open “fixture todo_open” (failed to start)") {
 		t.Fatalf("roster:\n%s", text)

@@ -1,0 +1,17 @@
+📋 Supervision: 2 of the tasks you handed out need you
+(This is a supervision message from Persona, not a message from the user.)
+<persona-supervision level="triage" />
+
+1. Task “Rework the onboarding copy” (todo_3, signal=review): it was accepted since this signal was raised; nothing is left to do for it
+
+2. Task “Upgrade the dependency and fix the fallout” (todo_4, signal=review): awaiting item-by-item review; this does not mean it is done; on box session_id=s4
+   Acceptance criteria:
+   1. [met] D criterion 1: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an — go test ./internal/example passes, 14 tests (by hub)
+   2. [met] D criterion 2: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an — screenshot attached to the pull request (by the Agent)
+   3. [pending] D criterion 3: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an
+   4. [pending] D criterion 4: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an
+   What the Agent said last:
+   The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here is what I changed and how I checked it. The work is finished and verified; here 
+
+How to handle this signal:
+- `review`: verify the evidence and give a `task_review` verdict. A supervisor Agent's completion brings its checks and the hub's worker record as that evidence: accept with them unless something contradicts them.

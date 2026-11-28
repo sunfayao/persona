@@ -201,9 +201,14 @@ func TestRoutineSignalsMergeIntoOneWakeEndToEnd(t *testing.T) {
 	s.queueSignal(superviseSignal{Todo: todo.ID, Kind: sigFailed, Key: "start-2", Detail: "start failed again"})
 	waitFor(t, "the urgent message", func() bool { return len(assistantSendsTo(f, "conv1")) == 2 })
 	text, _ := lastSendTo(f, "conv1")["text"].(string)
-	for _, want := range []string{"signal=" + sigFailed, "signal=" + sigStalled, "start failed again", "routine detail"} {
+	for _, want := range []string{"start failed again", "routine detail"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the urgent message lacks %q:\n%s", want, text)
+		}
+	}
+	for _, kind := range []string{sigFailed, sigStalled} {
+		if !hasSignal(text, kind) {
+			t.Errorf("the urgent message lacks the signal %q:\n%s", kind, text)
 		}
 	}
 }

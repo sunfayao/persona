@@ -122,7 +122,7 @@ func TestAgentSuperviseAndReport(t *testing.T) {
 	waitFor(t, "the message", func() bool { return len(f.notices()) == 1 })
 	n := f.notices()[0]
 	for _, want := range []string{"📋 Supervision", "Task “修登录页”", "the Agent is reporting to you on its own initiative: needs your call (step 2/5)", "A 先灰度，B 直接全量",
-		"- https://github.com/o/r/pull/901", "Acceptance criteria:\n   1. PR 合并到 master\n   2. 截图贴进 PR", "signal=report"} {
+		"- https://github.com/o/r/pull/901", "Acceptance criteria:\n   1. [pending] PR 合并到 master\n   2. [pending] 截图贴进 PR", "signal=report"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("message lacks %q:\n%s", want, n)
 		}

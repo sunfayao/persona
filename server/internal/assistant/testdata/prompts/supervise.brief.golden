@@ -3,15 +3,16 @@
 <persona-supervision level="triage" />
 
 1. Task “接手登录修复” (todo_1, signal=overdue): past the agreed time and still not finished: 1500 minutes since it was handed out (or since the last scope change)
-   Acceptance criteria:
-   1. PR 合并到 main
    Original request (2026-11-03, the user's own words): 登录页横屏会崩，周五前修好
-   Criteria removed in a scope change: 横屏有测试覆盖
+   Criteria removed in a scope change:
+   - 横屏有测试覆盖
+   Acceptance criteria:
+   1. [pending] PR 合并到 main
 
 2. Task “清理旧日志” (todo_2, signal=review): awaiting item-by-item review; this does not mean it is done
-   Acceptance criteria:
-   1. 旧日志已删除
    Why this exists (the user did not ask for it directly): started by the assistant; reason: 部署任务留下的尾巴
+   Acceptance criteria:
+   1. [pending] 旧日志已删除
 
 How to handle these signals:
 - `overdue`: one-time. Verify and close, revise scope with `task_scope`, or set a new `expect_minutes`; never ignore.

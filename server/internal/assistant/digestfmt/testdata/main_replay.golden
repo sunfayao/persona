@@ -1,0 +1,41 @@
+📋 Supervision: 3 of the tasks you handed out need you
+(This is a supervision message from Persona, not a message from the user.)
+<persona-supervision level="triage" />
+
+1. Task “Fix the login crash on the settings page” (todo_1, signal=estimate_due): (its estimate of 30 minutes ran out after 45); on box session_id=s1
+   Acceptance criteria:
+   1. [met] A criterion 1: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an — go test ./internal/example passes, 14 tests (by hub)
+   2. [met] A criterion 2: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an — screenshot attached to the pull request (by the Agent)
+   3. [pending] A criterion 3: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an
+   4. [pending] A criterion 4: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an
+   5. [pending] A criterion 5: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an
+   What the Agent said last:
+   …and verified; here is what I changed and how I checked it. The work is finished and verified; here
+   (cut to keep this message short; the rest: agent_read with session_id=s1)
+
+2. Task “Add the export button to the report view” (todo_2, signals=estimate_due, idle)
+   - estimate_due: (its estimate of 20 minutes ran out after 30); on box session_id=s2
+   - idle: the Agent stopped without finishing; on box session_id=s2
+   Acceptance criteria:
+   1. [met] B criterion 1: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an — go test ./internal/example passes, 14 tests (by hub)
+   2. [met] B criterion 2: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an — screenshot attached to the pull request (by the Agent)
+   3. [pending] B criterion 3: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an
+   4. [pending] B criterion 4: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an
+   What the Agent said last:
+   …and verified; here is what I changed and how I checked it. The work is finished and verified; here
+   (cut to keep this message short; the rest: agent_read with session_id=s2)
+
+3. Task “Upgrade the dependency and fix the fallout” (todo_4, signal=review): awaiting item-by-item review; this does not mean it is done; on box session_id=s4
+   Acceptance criteria:
+   1. [met] D criterion 1: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an — go test ./internal/example passes, 14 tests (by hub)
+   2. [met] D criterion 2: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an — screenshot attached to the pull request (by the Agent)
+   3. [pending] D criterion 3: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an
+   4. [pending] D criterion 4: the change is covered by a focused test, the whole package passes, and the behaviour was checked against the real page in both light an
+   What the Agent said last:
+   …and verified; here is what I changed and how I checked it. The work is finished and verified; here
+   (cut to keep this message short; the rest: agent_read with session_id=s4)
+
+How to handle these signals:
+- `estimate_due`: ran out with no visible progress, or twice in a row. Check evidence: `task_review`, steer (`agent_send`) or re-scope (`task_scope`). A finished task past the settle window with no owner card is refused: give `task_review` (`accepted`/`rework`/`cancelled`; `needs_user` with options if the owner must decide).
+- `idle` / `needs_you`: decide from the owner's existing instructions and project conventions when you can; reply with `agent_send` or answer a question card with `interaction_answer`. Only ask the owner for a real owner-only decision, with the options plainly stated.
+- `review`: verify the evidence and give a `task_review` verdict. A supervisor Agent's completion brings its checks and the hub's worker record as that evidence: accept with them unless something contradicts them.

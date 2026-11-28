@@ -244,7 +244,7 @@ func TestScheduledTodoCheckSignalNamesTheAgent(t *testing.T) {
 		t.Fatalf("the supervision entry lost the Agent: %+v", e)
 	}
 	text := prompts.RenderSupervise(prompts.Supervise{Entries: []prompts.SuperviseEntry{e}})
-	if !strings.Contains(text, "signal=check") || !strings.Contains(text, "a scheduled check attached to it saw no progress") ||
+	if !hasSignal(text, "check") || !strings.Contains(text, "a scheduled check attached to it saw no progress") ||
 		!strings.Contains(text, "this is a hub check, not a report from the Agent") || strings.Contains(text, "the Agent is reporting to you on its own initiative") ||
 		!strings.Contains(text, "; on box session_id="+short("worker")) || strings.Contains(text, "on server") {
 		t.Fatalf("the supervision message misreads the check:\n%s", text)

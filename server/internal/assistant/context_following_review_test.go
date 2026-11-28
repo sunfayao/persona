@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"encoding/json"
+	"github.com/sunfayao/persona/server/internal/assistant/snapshotfit"
 	"reflect"
 	"strings"
 	"testing"
@@ -38,7 +39,7 @@ func TestSnapshotFollowingThroughTheSnapshot(t *testing.T) {
 	done := make(chan struct{})
 	h.Service.takeSnapshot(done)
 	<-done
-	text := fitSnapshot(*h.Service.live.snap)
+	text := snapshotfit.Fit(*h.Service.live.snap)
 
 	if !strings.Contains(text, "- Following (1 item(s)): ") {
 		t.Fatalf("the snapshot has no Following up section:\n%s", text)
@@ -254,7 +255,7 @@ func TestSnapshotFollowingSaysNoneWhenTheLastMatterEnds(t *testing.T) {
 	done := make(chan struct{})
 	h.Service.takeSnapshot(done)
 	<-done
-	if text := fitSnapshot(*h.Service.live.snap); !strings.Contains(text, "- Following (1 item(s)): ") {
+	if text := snapshotfit.Fit(*h.Service.live.snap); !strings.Contains(text, "- Following (1 item(s)): ") {
 		t.Fatalf("the followed matter is not in the section:\n%s", text)
 	}
 
@@ -265,7 +266,7 @@ func TestSnapshotFollowingSaysNoneWhenTheLastMatterEnds(t *testing.T) {
 	done = make(chan struct{})
 	h.Service.takeSnapshot(done)
 	<-done
-	text := fitSnapshot(*h.Service.live.snap)
+	text := snapshotfit.Fit(*h.Service.live.snap)
 	if !strings.Contains(text, "- Following: none") {
 		t.Fatalf("an empty section is missing once the matter ended:\n%s", text)
 	}
