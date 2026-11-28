@@ -182,7 +182,7 @@ export function acceptanceStands(todo: { supervision?: Supervision }): boolean {
  *  its acceptance stands (acceptanceStands); a closed task no longer waits for review or stays parked. */
 export function reviewState(todo: Pick<Todo, "done_at"> & { supervision?: Supervision }): ReviewState {
   const st = todo.supervision?.state ?? "";
-  if (todo.done_at && st === "user_check") return "accepted";
+  if (st === "user_check") return todo.done_at ? "accepted" : "pending_review";
   if (!todo.done_at && st === "accepted" && !acceptanceStands(todo)) return "";
   if (!todo.done_at && st === "cancelled") return "";
   if (todo.done_at && st === "pending_review") return "";
@@ -216,8 +216,6 @@ export function reviewBadge(todo: Pick<Todo, "done_at" | "decision_review"> & { 
   switch (reviewState(todo)) {
     case "pending_review":
       return { label: t("assistant-tasks.review_pending"), tone: "accent" };
-    case "user_check":
-      return { label: t("assistant-tasks.review_user_check"), tone: "orange" };
     case "rework":
       return { label: t("assistant-tasks.review_rework", { round: sup.round ?? 1 }), tone: "orange" };
     case "needs_user":

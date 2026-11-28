@@ -88,7 +88,7 @@ export function workerStep(w: Todo): WorkerStep {
   if (w.start_error) return "failed";
   const review = reviewState(w);
   if (w.done_at) return review === "accepted" || w.done_by === "review" ? "accepted" : "done";
-  if (review === "pending_review" || review === "user_check") return "review";
+  if (review === "pending_review") return "review";
   if (review === "rework" || review === "needs_user" || review === "parked" || review === "accepted") return review;
   return reportedDone(w) ? "review" : "working";
 }

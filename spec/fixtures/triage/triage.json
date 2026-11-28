@@ -4775,7 +4775,7 @@
     },
     {
       "name": "personal_verification_open_before_ask",
-      "description": "Personal verification stays actionable and open even after a deployed result is seen and old.",
+      "description": "Legacy personal verification returns to supervisor review even when the deployed result has been seen.",
       "source": [
         "docs/assistant/todo-status-sop.md \"Decision table\"",
         "issue #10047"
@@ -4824,13 +4824,13 @@
         }
       },
       "expected": {
-        "section": "waiting",
-        "rule": "owner_decides"
+        "section": "just_done",
+        "rule": "finished_unseen"
       }
     },
     {
       "name": "personal_verification_open_with_ask",
-      "description": "Personal verification stays actionable and open even after a deployed result is seen and old.",
+      "description": "Legacy personal verification returns to supervisor review even when the deployed result has been seen.",
       "source": [
         "docs/assistant/todo-status-sop.md \"Decision table\"",
         "issue #10047"
@@ -4883,8 +4883,8 @@
         }
       },
       "expected": {
-        "section": "waiting",
-        "rule": "owner_decides"
+        "section": "just_done",
+        "rule": "finished_unseen"
       }
     }
   ]

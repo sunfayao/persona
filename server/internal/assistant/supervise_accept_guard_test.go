@@ -70,7 +70,7 @@ func TestAcceptGuardRefusesOwnerOnlyBlocker(t *testing.T) {
 }
 
 // #12026 case 2: a read-only evaluation came back inconclusive / partly effective; a bare accepted is refused and the
-// error names user_check, needs_user and a follow-up to-do.
+// error names an explicit completed outcome, an actionable decision, or a follow-up.
 func TestAcceptGuardRefusesInconclusiveResult(t *testing.T) {
 	s, _, todo := guardedReviewTask(t, "Eval finished: Inconclusive. One question still retrieves the wrong page, and most "+
 		"of the skill changes showed no effect or the opposite effect.")
@@ -81,7 +81,7 @@ func TestAcceptGuardRefusesInconclusiveResult(t *testing.T) {
 		"checks": metChecks()})
 	_, err := s.runTool(ctx, "server", "conv1", "task_review", raw)
 	if err == nil || !strings.Contains(err.Error(), "bare accepted refused") ||
-		!strings.Contains(err.Error(), "user_check") || !strings.Contains(err.Error(), "follow-up to-do") {
+		strings.Contains(err.Error(), "user_check") || !strings.Contains(err.Error(), "follow-up to-do") {
 		t.Fatalf("inconclusive result accepted: %v", err)
 	}
 	if cur := todoNow(s, todo.ID); cur.DoneAt != nil || cur.Supervision.State != reviewPending {
@@ -123,9 +123,8 @@ func TestAcceptGuardPassesCleanDone(t *testing.T) {
 	}
 }
 
-// The two ways out of a refused accept both work: needs_user keeps the task in the owner's queue as a decision, and
-// accepted with user_check keeps it there with a "Please verify" card.
-func TestAcceptGuardAllowsNeedsUserAndUserCheck(t *testing.T) {
+// A genuine owner choice can still use needs_user after a refused bare acceptance.
+func TestAcceptGuardAllowsAnActionableOwnerDecision(t *testing.T) {
 	s, _, todo := guardedReviewTask(t, "Inconclusive: the change had no measurable effect on retrieval; one question still fails.")
 	ctx := context.Background()
 
@@ -151,25 +150,16 @@ func TestAcceptGuardAllowsNeedsUserAndUserCheck(t *testing.T) {
 	}
 }
 
-// accepted with user_check: true is the guard's named way out for an inconclusive read-only result. It accepts the
-// review and keeps the to-do open with a "Please verify" ask for the owner.
-func TestAcceptGuardAllowsUserCheck(t *testing.T) {
-	s, _, todo := guardedReviewTask(t, "Inconclusive: the change had no measurable effect; one question still retrieves the wrong page.")
-	ctx := context.Background()
-	raw := reviewRaw(t, todo.ID, map[string]any{"verdict": "accepted", "user_check": true,
-		"note": "评测结论不确定，留给用户看结果再定", "checks": metChecks()})
-	res, err := s.runTool(ctx, "server", "conv1", "task_review", raw)
-	if err != nil {
-		t.Fatalf("accepted with user_check refused: %v", err)
+func TestExplicitAcceptanceClosesVerifiedWorkDespiteAnOlderWorkerBlocker(t *testing.T) {
+	s, _, todo := guardedReviewTask(t, "Earlier attempt: inconclusive. The result could not be verified.")
+	res, err := s.runTool(t.Context(), "server", "conv1", "task_review", reviewRaw(t, todo.ID, map[string]any{
+		"verdict": "accepted", "outcome": "done", "checks": metChecks(),
+		"note": "The supervisor verified the merged version and both screenshots.",
+	}))
+	if err != nil || !strings.Contains(res, "accepted and closed") {
+		t.Fatalf("verified acceptance: %q, %v", res, err)
 	}
-	if !strings.Contains(res, "user_check") {
-		t.Fatalf("user_check result: %s", res)
-	}
-	if cur := todoNow(s, todo.ID); cur.DoneAt != nil || cur.Supervision.State != reviewUserCheck {
-		t.Fatalf("user_check did not keep the task open awaiting verification: %+v", cur.Supervision)
-	}
-	ask, ok := s.askCopy(todo.ID)
-	if !ok || !ask.AcceptedAt.IsZero() {
-		t.Fatalf("no open owner ask after user_check: ok=%v ask=%+v", ok, ask)
+	if got := todoNow(s, todo.ID); got.DoneAt == nil || got.Supervision.State != reviewAccepted || waitingForOwner(s) != 0 {
+		t.Fatalf("verified work failed to close without an owner check: %+v", got)
 	}
 }

@@ -9,55 +9,26 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/db"
-	"github.com/sunfayao/persona/server/internal/devicewire"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
-func TestUserCheckAcceptsAClosedTaskInANewRound(t *testing.T) {
-	ctx := context.Background()
-	s, _, todo := acceptedForUserCheck(t)
-	old := askOf(s, todo.ID)
-	done := true
-	if _, err := s.editTodo(ctx, todo.ID, db.TodoEdit{Done: &done}); err != nil {
-		t.Fatal(err)
-	}
-	reviewTask(t, s, todo.ID, map[string]any{
-		"verdict": "accepted", "user_check": true, "checks": completeReviewChecks(todoNow(s, todo.ID)),
-	})
-	got := todoNow(s, todo.ID)
-	a := askOf(s, todo.ID)
-	if got.DoneAt != nil || got.Supervision.State != reviewUserCheck || a == nil ||
-		!a.AskedAt.After(old.AskedAt) || got.ReopenedAt == nil || a.AskedAt.Before(*got.ReopenedAt) {
-		t.Fatalf("a fresh review lost its new personal-verification round: todo=%+v ask=%+v", got, a)
-	}
-	if result, err := s.acceptTry(ctx, todo.ID, a.MessageID); err != nil || !result.taken {
-		t.Fatalf("the fresh owner Pass did not complete: %+v, %v", result, err)
-	}
-}
-
-func TestUserCheckStartsNewRoundAfterTerminalCleanupWasSkipped(t *testing.T) {
+func TestRetiredUserCheckCannotReopenAClosedTask(t *testing.T) {
 	s, f, todo := dispatchTerminalTask(t, true, true)
 	f.mu.Lock()
 	f.sessions["box"][0].Status = proto.StatusWorking
 	f.mu.Unlock()
-	result := reviewTask(t, s, todo.ID, map[string]any{"verdict": "accepted"})
+	reviewTask(t, s, todo.ID, map[string]any{"verdict": "accepted", "outcome": "done"})
 	closed := todoNow(s, todo.ID)
-	if closed.DoneAt == nil || closed.DoneBy != db.DoneByReview ||
-		!strings.Contains(result, "Terminal cleanup: skipped") {
-		t.Fatalf("the prior review did not complete while keeping the terminal: %q, %+v", result, closed)
+	if closed.DoneAt == nil {
+		t.Fatal("the supervisor did not close the task")
 	}
-
-	reviewTask(t, s, todo.ID, map[string]any{"verdict": "accepted", "user_check": true})
+	_, err := reviewErr(s, todo.ID, map[string]any{"verdict": "accepted", "user_check": true})
+	if err == nil || !strings.Contains(err.Error(), "ask_user") {
+		t.Fatalf("the retired owner check gave no actionable guidance: %v", err)
+	}
 	got := todoNow(s, todo.ID)
-	if got.DoneAt != nil || got.Supervision.state(got) != reviewUserCheck || askOf(s, todo.ID) == nil {
-		t.Fatalf("the fresh owner check did not reopen the task: %+v", got)
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	for _, call := range f.calls {
-		if call.Method == devicewire.MethodCloseTaskTerminal {
-			t.Fatal("starting a fresh owner check attempted terminal cleanup")
-		}
+	if got.DoneAt == nil || !got.DoneAt.Equal(*closed.DoneAt) || got.ReopenedAt != nil {
+		t.Fatalf("the retired owner check changed the closed task: %+v", got)
 	}
 }
 

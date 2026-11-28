@@ -35,9 +35,7 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 		// needs_user's deadline and whether its recommendation can be undone (#3127, decision_deadline.go).
 		Deadline   string `json:"deadline"`
 		Reversible *bool  `json:"reversible"`
-		// accepted: the owner is still to look at the result themselves (a UI change someone has to see); without it the
-		// supervisor's acceptance passes the task's "Please verify" (#3240).
-		UserCheck bool `json:"user_check"`
+		UserCheck  bool   `json:"user_check"` // legacy callers receive an actionable refusal
 		// needs_user's decision (#3804, decision.go): why only the owner can decide, the options (the recommended first,
 		// each with what it leads to) and what waiting costs.
 		WhyOwner      string           `json:"why_owner"`
@@ -55,6 +53,9 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 	}
 	if err := json.Unmarshal(args, &a); err != nil {
 		return "", fmt.Errorf("arguments: %v", err)
+	}
+	if a.UserCheck {
+		return "", errors.New("user_check is retired: accept verified work with outcome done and evidence for each criterion, or use needs_user or ask_user with the owner's decision options")
 	}
 	a.Note = strings.TrimSpace(a.Note)
 	a.ReworkKind = strings.TrimSpace(a.ReworkKind)
@@ -152,7 +153,7 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 	if t.DoneAt != nil && (a.Verdict == reviewRework || a.Verdict == reviewNeedsUser || a.Verdict == reviewParked) {
 		return "", fmt.Errorf("task %s is done already (%s): hand out a new task for what is left", t.ID, cmp.Or(t.DoneReason, "closed"))
 	}
-	if t.DoneAt != nil && t.DoneBy == db.DoneByReview && a.Verdict == reviewAccepted && !a.UserCheck {
+	if t.DoneAt != nil && t.DoneBy == db.DoneByReview && a.Verdict == reviewAccepted {
 		plan, _, _ := s.taskTerminalPlan(ctx, t)
 		if plan.CloseTabOnAccept || plan.TerminalCleanup != "" {
 			s.sendsAccepted(ctx, t.ID, time.Now())
@@ -178,10 +179,7 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 		}
 	}
 	verdict, note := a.Verdict, clip(a.Note, 2000)
-	if a.UserCheck && verdict != reviewAccepted {
-		return "", fmt.Errorf("user_check applies to accepted only")
-	}
-	restartUserCheck := t.Supervision.state(t) == reviewUserCheck && verdict != reviewAccepted
+	legacyUserCheck := t.Supervision.state(t) == reviewUserCheck
 	deliveryNote := ""
 	if verdict == reviewAccepted { // delivery_gate: owner wait & criteria first, then PR/issue/deploy gate (supervise_review_delivery.go)
 		if t.DoneAt == nil && t.Supervision != nil && t.Supervision.Waits != nil {
@@ -196,32 +194,26 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 		if deliveryNote, err = s.acceptedDeliveryError(ctx, t, strings.TrimSpace(a.Link), a.Outcome); err != nil {
 			return "", err
 		}
-		if a.UserCheck && t.DoneAt != nil {
-			if t.Supervision != nil && a.Outcome != outcomeCannot {
-				if err := completeReviewCriteriaError(t.Supervision.DoneWhen, a.Checks); err != nil {
-					return "", err
-				}
-			}
-			// Reopen the old round before writing the new personal-verification ledger.
-			if err := s.reopenTodo(ctx, t.ID); err != nil {
-				return "", err
-			}
-		}
 	}
-	// A bare accept must not hide a result that does not settle the task from the owner's Needs-you list (#12026): a
-	// non-done closeout, a blocker only the owner can clear, or an inconclusive / partial result. user_check (the owner
-	// passes the result themselves) and a "cannot be done" outcome are deliberate closures the guard lets through.
-	if verdict == reviewAccepted && !a.UserCheck && a.Outcome != outcomeCannot {
+	// Evidence-backed explicit outcomes are authoritative. The legacy bare-accept heuristic reads loose text, which
+	// can describe an earlier failure or a valid negative result. The criteria, owner wait and delivery gates above
+	// apply to explicit acceptance before any task state is written.
+	if verdict == reviewAccepted && a.Outcome == "" {
 		evidence := s.acceptGuardEvidence(ctx, t, note, strings.TrimSpace(a.Reason), checks)
 		if matched, _ := acceptGuardBlock(evidence); matched != "" {
 			return "", errors.New(acceptGuardRefusal(matched))
 		}
 	}
-	// An explicit main acceptance records its verdict even for a legacy task without a ledger: accepted prerequisites
-	// use that durable receipt to release their dependents. user_check likewise persists the owner's personal verification.
+	// Retire a stored owner check even if the supervisor reviewed it before the startup sweep.
+	if legacyUserCheck {
+		if err := s.withdrawUserCheck(ctx, t.ID); err != nil {
+			return "", err
+		}
+	}
+	// An explicit main acceptance also records a receipt for legacy tasks without a review ledger.
 	// Dispatch-time topology is decided where the task is created, and nonterminal reviews still require an existing
 	// supervised task. Cancellation needs no such receipt ledger.
-	ledger := t.Supervision != nil || isMain && verdict == reviewAccepted || a.UserCheck
+	ledger := t.Supervision != nil || isMain && verdict == reviewAccepted
 	if t.Supervision == nil && (verdict == reviewRework || verdict == reviewNeedsUser || verdict == reviewParked) {
 		return "", fmt.Errorf("task %s is not supervised: send what is missing to its agent with agent_send, or ask the user in your answer", t.ID)
 	}
@@ -296,7 +288,7 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 					park.Count = max(1, prev.Parks) + 1
 				}
 			}
-			r := TaskReview{At: time.Now().UTC(), Verdict: verdict, Checks: checks, Note: note, UserCheck: a.UserCheck}
+			r := TaskReview{At: time.Now().UTC(), Verdict: verdict, Checks: checks, Note: note}
 			reviewedAt = r.At
 			v.applyChecks(checks, r.At, "supervisor:"+self)
 			if verdict == reviewNeedsUser {
@@ -325,9 +317,6 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 				r.SupersededReason = supersededReason
 			}
 			v.State, v.Waits = verdict, nil // reviewed: the supervisor answered what the judge found
-			if verdict == reviewAccepted && a.UserCheck {
-				v.State = reviewUserCheck
-			}
 			if priorReply != nil && verdict == reviewNeedsUser {
 				v.State = reviewPending
 			}
@@ -353,7 +342,7 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 	if waiting != nil {
 		return "", ownerWaitError(t.ID, waiting)
 	}
-	if restartUserCheck {
+	if legacyUserCheck && verdict != reviewAccepted && verdict != reviewCancelled {
 		open := false
 		if _, err := s.editTodo(ctx, t.ID, db.TodoEdit{Done: &open, RestartWork: true}); err != nil {
 			return "", err
@@ -366,7 +355,7 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 	if verdict != reviewAccepted { // by the reviewer's model and effort; an acceptance once it closed the task (below)
 		s.taskReviewed(ctx, self, t.ID, verdict, v)
 	}
-	if verdict == reviewRework || verdict == reviewNeedsUser || a.UserCheck || a.Outcome == outcomeCannot {
+	if verdict == reviewRework || verdict == reviewNeedsUser || a.Outcome == outcomeCannot {
 		s.setTaskStageKind(ctx, t.ID, "unverified", "", "", false)
 	}
 	b := &s.supervise
@@ -420,18 +409,6 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 	conclusion := conclusionInput{Outcome: cmp.Or(a.Outcome, outcomeDone), Reason: a.Reason, Link: a.Link, Note: note, Checks: checks}
 	switch verdict {
 	case reviewAccepted, reviewCancelled:
-		if verdict == reviewAccepted && a.UserCheck {
-			s.dropTaskReport(t.ID)
-			s.dropDecision(ctx, t.ID)
-			s.sendsAccepted(ctx, t.ID, time.Now())
-			if cur, ok := s.todoNow(t.ID); ok {
-				ag := lastAgent(cur)
-				s.askAcceptanceRound(cur, ag.MachineID, ag.SessionID, reviewReply(note, checks), true)
-			}
-			return fmt.Sprintf("Task %s is accepted by you and remains open awaiting the owner's verification (user_check). "+
-				"Its Agent stays available. The owner's \"Pass\" completes it; change feedback returns it to ongoing work. "+
-				"A \"Please verify\" card waits for them: don't ask them again. Terminal cleanup: skipped.", t.ID) + result.words() + deliveryNote, nil
-		}
 		reason := cmp.Or(clip(oneLine(note), 80), "验收通过")
 		if verdict == reviewCancelled {
 			reason = "取消：" + cmp.Or(clip(oneLine(note), 80), "不做了")
@@ -472,7 +449,7 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 		}
 		authorized := isMain || background || t.Supervision != nil && t.Supervision.Supervisor == self ||
 			t.Supervision == nil && t.Origin == self
-		cleanup := s.finishTaskTerminal(ctx, t, acceptedHere && authorized && a.Outcome != outcomeCannot && !a.UserCheck)
+		cleanup := s.finishTaskTerminal(ctx, t, acceptedHere && authorized && a.Outcome != outcomeCannot)
 		against := terminalCleanupWords(cleanup) + result.words() + deliveryNote
 		if gaps := result.unsettled(); len(gaps) > 0 {
 			against += " You accepted it with criteria of its brief not shown met: if one no longer applies, say so with task_scope before accepting next time."

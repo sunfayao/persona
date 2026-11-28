@@ -253,8 +253,9 @@ export function askOptions(ask: TodoAsk): AskOption[] {
 }
 
 /** The ask a to-do waits on, when the hub supplied its verdict and round. */
-export function openAsk(todo: Pick<Todo, "ask">): TodoAsk | undefined {
+export function openAsk(todo: Pick<Todo, "ask" | "supervision">): TodoAsk | undefined {
   const ask = todo.ask;
+  if (todo.supervision?.state === "user_check" && ask?.outcome !== "decide") return undefined;
   return ask?.verdict && ask.asked_at ? ask : undefined;
 }
 
@@ -421,7 +422,6 @@ export function shownStatus(todo: Todo, status: TodoStatus): TodoStatus {
  *  (or accepted and nothing runs again). */
 export function todoStatusLabel(todo: Todo, status: TodoStatus): string {
   if (isCancelled(todo)) return t("lib-todos.review_cancelled");
-  if (!todo.done_at && todo.supervision?.state === "user_check") return t("assistant-tasks.review_user_check");
   if (acceptedAtRest(todo, status)) return t("lib-todos.review_done");
   if (waitsForOwner(todo)) return t("work-entry.pending");
   if (awaitsReview(todo, status)) return t("assistant-tasks.review_pending");

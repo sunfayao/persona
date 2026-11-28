@@ -223,12 +223,11 @@ func TestAcceptedReviewRequiresCompleteCurrentCriteria(t *testing.T) {
 			before := todoNow(s, todo.ID)
 			valid := completeReviewChecks(before)
 			for _, tc := range []struct {
-				name      string
-				checks    []ReviewCheck
-				want      string
-				userCheck bool
+				name   string
+				checks []ReviewCheck
+				want   string
 			}{
-				{name: "no checks", want: "has no check", userCheck: true},
+				{name: "no checks", want: "has no check"},
 				{name: "missing current criterion", checks: valid[:1], want: "has no check"},
 				{name: "duplicate check", checks: []ReviewCheck{valid[0], valid[0], valid[1]}, want: "duplicate"},
 				{name: "unknown criterion", checks: append(append([]ReviewCheck{}, valid...), ReviewCheck{Criterion: "old criterion", Met: true, Evidence: "old"}), want: "unknown current done_when"},
@@ -237,7 +236,7 @@ func TestAcceptedReviewRequiresCompleteCurrentCriteria(t *testing.T) {
 				{name: "blank evidence", checks: []ReviewCheck{valid[0], {Criterion: before.Supervision.DoneWhen[1], Met: true, Evidence: " \n\t"}}, want: "non-empty evidence"},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
-					res, err := reviewErr(s, todo.ID, map[string]any{"verdict": "accepted", "checks": tc.checks, "user_check": tc.userCheck})
+					res, err := reviewErr(s, todo.ID, map[string]any{"verdict": "accepted", "checks": tc.checks, "outcome": "done"})
 					if err == nil || !strings.Contains(err.Error(), tc.want) || !strings.Contains(err.Error(), "nothing was written") {
 						t.Fatalf("accepted invalid checks: %s, %v", res, err)
 					}

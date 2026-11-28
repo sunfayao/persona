@@ -18,7 +18,7 @@ import (
 // The hub cannot tell an owner wait from a review the supervisor is merely late on: both look like a finished task in
 // pending_review with no owner card. So the refusal states only what is known (a finished review has waited past the
 // window with no card) and names the whole review vocabulary, instead of implying the owner was asked anything:
-// accepted/rework/cancelled when no owner input is needed, needs_user or accepted+user_check when the owner truly must
+// accepted/rework/cancelled when no owner input is needed, needs_user when the owner truly must
 // act (#12648 review).
 func (s *Service) cardlessOwnerWaitGuard(ctx context.Context, t Todo) error {
 	v := t.Supervision
@@ -46,7 +46,6 @@ func (s *Service) cardlessOwnerWaitGuard(ctx context.Context, t Todo) error {
 	}
 	return fmt.Errorf("task %s has been waiting for review for %d minutes since its work finished, and the owner has no card to answer. "+
 		"Give task_review first: accepted, rework or cancelled if no owner input is needed; "+
-		"needs_user with why_owner, reason, recommend, options and cost_of_waiting, or accepted with user_check: true, "+
-		"if the owner really must decide or check. A chat-only request never reaches Needs you. Call task_scope again after the review",
+		"needs_user with why_owner, reason, recommend, options and cost_of_waiting if the owner must decide. A chat-only request never reaches Needs you. Call task_scope again after the review",
 		t.ID, int(waited.Minutes()))
 }

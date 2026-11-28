@@ -138,17 +138,15 @@ func TestDeliveryApprovalFollowsDecisionAndAcceptance(t *testing.T) {
 	}
 	checkDeliveryApproval(t, s, task.ID, deliveryMerged, "", unblockAgent)
 
-	// A later judgment can still ask for an approval in a new round. The supervisor's requested owner check
-	// ends that hold and leaves the existing verification ask as the next step.
+	// The supervisor verifies a later completed round, ending the delivery hold and closing the task.
 	s.setTaskDelivery(ctx, task.ID, TodoDelivery{State: deliveryMerged, Gate: "Approve the next release", Unblock: unblockUser, At: time.Now()})
 	checkDeliveryApproval(t, s, task.ID, deliveryMerged, "Approve the next release", unblockSupervisor) // its supervisor reads it first (#13191)
 	f.judge = `{"changed":"The change is ready","how":"Open the updated screen"}`
-	reviewTask(t, s, task.ID, map[string]any{"verdict": reviewAccepted, "user_check": true,
+	reviewTask(t, s, task.ID, map[string]any{"verdict": reviewAccepted, "outcome": "done",
 		"checks": completeReviewChecks(todoNow(s, task.ID))})
 	checkDeliveryApproval(t, s, task.ID, deliveryMerged, "", "")
-	waitFor(t, "the verification ask", func() bool { return askOf(s, task.ID) != nil })
-	if ask := askOf(s, task.ID); decideAsk(ask) || !ask.AcceptedAt.IsZero() {
-		t.Fatalf("the owner's verification was lost: %+v", ask)
+	if got := todoNow(s, task.ID); got.DoneAt == nil || waitingForOwner(s) != 0 {
+		t.Fatalf("acceptance left the task or an owner check open: %+v", got)
 	}
 }
 

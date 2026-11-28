@@ -347,7 +347,7 @@ func (s *Service) acceptTryAs(ctx context.Context, id, card string, byDefault bo
 // ownerPassPending follows this round's durable owner Pass through completion, ledger and verification writes.
 func ownerPassPending(a *acceptAsk, t Todo) bool {
 	return a != nil && !a.AskedAt.IsZero() && !a.AcceptedAt.IsZero() &&
-		!decideAsk(a) && !a.Conclusion && !a.ByAssistant && !a.BySupervisor &&
+		!decideAsk(a) && !a.Conclusion && !a.ByAssistant && !a.BySupervisor && !a.Superseded &&
 		userCheckAsked(t) && !acceptAskStale(a, t) &&
 		(t.Supervision.State == reviewUserCheck ||
 			t.Supervision.State == reviewAccepted && t.DoneAt != nil && !t.stageVerified)

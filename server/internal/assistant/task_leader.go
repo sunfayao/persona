@@ -1105,6 +1105,7 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 	var a struct {
 		TodoID     string        `json:"todo_id"`
 		Verdict    string        `json:"verdict"`
+		Outcome    string        `json:"outcome"`
 		ReworkKind string        `json:"rework_kind"`
 		Checks     []ReviewCheck `json:"checks"`
 		Note       string        `json:"note"`
@@ -1122,6 +1123,9 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 	case reviewAccepted, reviewRework, reviewNeedsUser, reviewCancelled:
 	default:
 		return "", errors.New("verdict must be accepted, rework, needs_user or cancelled")
+	}
+	if a.Outcome != "" && (a.Verdict != reviewAccepted || a.Outcome != outcomeDone) {
+		return "", errors.New("outcome done applies to accepted only")
 	}
 	if a.ReworkKind != "" && a.Verdict != reviewRework {
 		return "", errors.New("rework_kind applies to rework only")

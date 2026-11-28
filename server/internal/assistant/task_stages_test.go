@@ -252,14 +252,12 @@ func TestTaskStagePendingPlan(t *testing.T) {
 
 func TestTaskStageReviewVerdict(t *testing.T) {
 	for _, tc := range []struct {
-		name      string
-		userCheck bool
-		outcome   string
-		want      string
+		name    string
+		outcome string
+		want    string
 	}{
-		{"accepted without verification", false, "done", "merge"},
-		{"owner-check", true, "done", "merge"},
-		{"cannot", false, "cannot", "merge"},
+		{"accepted without deployment verification", "done", "merge"},
+		{"cannot", "cannot", "merge"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s, f := newTaskService(t)
@@ -275,7 +273,7 @@ func TestTaskStageReviewVerdict(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			raw, _ := json.Marshal(map[string]any{"todo_id": todo.ID, "verdict": "accepted", "note": "Review complete", "user_check": tc.userCheck, "outcome": tc.outcome})
+			raw, _ := json.Marshal(map[string]any{"todo_id": todo.ID, "verdict": "accepted", "note": "Review complete", "outcome": tc.outcome})
 			if _, err := s.toolTaskReview(ctx, "conv1", raw); err != nil {
 				t.Fatal(err)
 			}

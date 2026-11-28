@@ -46,7 +46,7 @@ func TestTaskScopeRefusedOnACardlessOwnerWait(t *testing.T) {
 	if err == nil {
 		t.Fatalf("the estimate extension was not refused: %s", res)
 	}
-	for _, want := range []string{"no card to answer", "accepted", "rework", "cancelled", "needs_user", "user_check"} {
+	for _, want := range []string{"no card to answer", "accepted", "rework", "cancelled", "needs_user"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal lacks %q:\n%v", want, err)
 		}

@@ -1653,7 +1653,7 @@
   },
   {
     "name": "task_review",
-    "description": "Record a verdict on a supervised task, judged on its scoped brief and criteria, not the Agent's claims.\n- accepted: with outcome=done, checks holds each done_when criterion once, met, with evidence; user_check waits for the owner's Pass.\n- rework: a concrete next step in note; accept with a note rather than bounce nitpicks.\n- parked: an outside wait, with reason, waiting_on and evidence.\n- needs_user: only what the owner alone can decide, with why_owner, reason, options, recommend and cost_of_waiting.\n- cancelled: duplicate or unwanted tasks only.\nOn another supervisor's task only accept or cancel; send gaps with agent_send.\n\nDetails: read .claude/skills/persona-work/references/task-review.md in your working directory.",
+    "description": "Record a verdict on a supervised task, judged on its scoped brief and criteria, not the Agent's claims.\n- accepted: outcome=done closes verified work. Give one met check with evidence per current done_when criterion.\n- rework: a concrete next step in note; accept with a note rather than bounce nitpicks.\n- parked: an outside wait, with reason, waiting_on and evidence.\n- needs_user: only what the owner alone can decide, with why_owner, reason, options, recommend and cost_of_waiting.\n- cancelled: duplicate or unwanted tasks only.\nOn another supervisor's task only accept or cancel; send gaps with agent_send.\n\nDetails: read .claude/skills/persona-work/references/task-review.md in your working directory.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -1789,9 +1789,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "user_check": {
-          "type": "boolean"
         },
         "reversible": {
           "type": "boolean"
@@ -1945,7 +1942,7 @@
   },
   {
     "name": "task_scope",
-    "description": "Change what a supervised task is to do, or what done means, after it started (its todo id). The brief is never rewritten: this adds a brief-log entry (what changed and why), applies the new done_when/expect_minutes, restarts overdue, estimate_due only on a new estimate; the owner reads it in the next digest. It is the only way done_when changes after start (agent_supervise and agent_send on a task use the same log). Give done_when as the whole list after the change: a criterion you leave out is logged as dropped and named in the completion report. A change adding an owner-only step (deploying, merging, releasing, public sends/comments, deleting, spending, production changes) not in the original task is refused unless the owner's own message started this turn: ask first (ask_user, or task_review needs_user), then call again. Only its supervisor may call it; the Agent is not told — send the change with agent_send. estimate_due/overdue: revise expect_minutes here, but a finished task past the settle window with no owner card is refused: give task_review first (accepted/rework/cancelled; needs_user or accepted+user_check if the owner must act); chat-only asks never reach Needs you.",
+    "description": "Change what a supervised task is to do, or what done means, after it started (its todo id). The brief is never rewritten: this adds a brief-log entry (what changed and why), applies the new done_when/expect_minutes, restarts overdue, estimate_due only on a new estimate; the owner reads it in the next digest. It is the only way done_when changes after start (agent_supervise and agent_send on a task use the same log). Give done_when as the whole list after the change: a criterion you leave out is logged as dropped and named in the completion report. A change adding an owner-only step (deploying, merging, releasing, public sends/comments, deleting, spending, production changes) not in the original task is refused unless the owner's own message started this turn: ask first (ask_user, or task_review needs_user), then call again. Only its supervisor may call it; the Agent is not told — send the change with agent_send. estimate_due/overdue: revise expect_minutes here, but a finished task past the settle window with no owner card is refused: give task_review first (accepted/rework/cancelled; needs_user with options if the owner must decide); chat-only asks never reach Needs you.",
     "input_schema": {
       "type": "object",
       "required": [

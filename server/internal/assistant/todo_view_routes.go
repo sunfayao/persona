@@ -61,6 +61,9 @@ func (s *Service) listedTodosOf(ctx context.Context, briefs bool, ids map[string
 	plans := make(map[string]*TaskPlan)
 	for i := range list {
 		piece := &list[i]
+		if piece.Supervision != nil && piece.Supervision.State == reviewUserCheck {
+			piece.Supervision.State = triageReviewState(piece.Todo)
+		}
 		if piece.PartOf != "" {
 			if root, ok := s.todoNow(piece.PartOf); ok && root.RequireAcceptedAfter {
 				task := PlanTask{TodoID: piece.ID, RequestGate: root.ID}

@@ -624,13 +624,11 @@ func taskHealth(t Todo, agents []proto.Session, now time.Time) (string, int) {
 		return "", 5
 	}
 	switch v.state(t) {
-	case reviewUserCheck:
-		return "awaiting your review", 0
 	case reviewNeedsUser:
 		if triageReviewState(t) == reviewNeedsUser {
 			return "waiting for you to handle it", 0
 		}
-	case reviewPending:
+	case reviewPending, reviewUserCheck:
 		return "delivered; awaiting a look", 1
 	case reviewAccepted:
 		return "accepted", 8

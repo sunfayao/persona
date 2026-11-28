@@ -120,7 +120,7 @@ type acceptAsk struct {
 	OutsideAnswer     *outsideAnswer `json:"outside_answer,omitempty"`
 	DefaultAllowed    bool           `json:"default_allowed,omitempty"`
 	WithdrawnAt       time.Time      `json:"withdrawn_at,omitzero"`
-	// Superseded marks a pending needs_user decision that supervision cleared via task_review (for example after new
+	// Superseded marks an owner ask withdrawn by supervision (a legacy verification or a decision after new
 	// external information resolved it), with SupersededReason explaining why in natural language (#13112).
 	Superseded       bool   `json:"superseded,omitempty"`
 	SupersededReason string `json:"superseded_reason,omitempty"`

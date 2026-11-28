@@ -3532,7 +3532,7 @@
     },
     {
       "name": "personal_verification_needs_you_before_ask",
-      "description": "A personal-verification task has one owner-action home, not running, shelved or completed.",
+      "description": "Web projects legacy personal verification into supervisor review.",
       "source": [
         "web/src/lib/assistant-entries.ts taskAwaitsDecision",
         "issue #10047"
@@ -3593,12 +3593,15 @@
           "task:t-personal-check"
         ],
         "running": [],
-        "shelved": []
+        "shelved": [],
+        "web_review": [
+          "task:t-personal-check"
+        ]
       }
     },
     {
       "name": "personal_verification_needs_you_with_ask",
-      "description": "A personal-verification task has one owner-action home, not running, shelved or completed.",
+      "description": "Web projects legacy personal verification into supervisor review.",
       "source": [
         "web/src/lib/assistant-entries.ts taskAwaitsDecision",
         "issue #10047"
@@ -3663,7 +3666,10 @@
           "task:t-personal-check"
         ],
         "running": [],
-        "shelved": []
+        "shelved": [],
+        "web_review": [
+          "task:t-personal-check"
+        ]
       }
     },
     {

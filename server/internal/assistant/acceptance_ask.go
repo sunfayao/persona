@@ -61,7 +61,7 @@ func (s *Service) askAcceptanceRound(t Todo, machine, session, reply string, aga
 // is checked and accepted by the supervising assistant (assistantAccepts), so the owner is not asked for each one
 // (#3205): its "Please verify" card is not posted, and nothing waits for the owner.
 func (s *Service) ownerVerifies(t Todo) bool {
-	return t.Priority == "high" || s.ownerVerifiesAll || userCheckAsked(t)
+	return t.Priority == "high" || s.ownerVerifiesAll || t.Supervision.state(t) == reviewUserCheck && userCheckAsked(t)
 }
 
 // userCheckAsked: the supervisor's last review accepted task t and still wants the owner to look (user_check, #3240).
@@ -225,6 +225,11 @@ func (s *Service) acceptLines(ctx context.Context, t Todo, machine, session, rep
 // acceptCard is the "Please verify" card (again: the morning's reminder), or how it ended (accepted): the verdict line on
 // top, then the three lines. A conclusion has its own card (conclusionCard).
 func (s *Service) acceptCard(ctx context.Context, t Todo, a acceptAsk, again bool) *feishubot.Card {
+	if a.Superseded && !decideAsk(&a) {
+		l := s.botLang(ctx)
+		title := clip(oneLine(t.Title), 30)
+		return feishubot.NewCard(title, feishubot.Grey, title).Note(i18n.T(l, "assistant-reports.decision_superseded"))
+	}
 	if a.Conclusion {
 		return s.conclusionCard(ctx, t, a)
 	}

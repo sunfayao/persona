@@ -85,7 +85,7 @@ func (s *Service) retryAcceptance(now time.Time) {
 			b.mu.Unlock()
 			continue
 		}
-		if ok && ownerDecisionReturned(t.Supervision) {
+		if ok && (ownerDecisionReturned(t.Supervision) || legacyVerification(a, t)) {
 			// The stored round stays as facts for the supervisor, but no new card goes out until it is re-issued.
 			b.mu.Unlock()
 			continue
@@ -199,6 +199,10 @@ func (s *Service) remindAcceptance(now time.Time) {
 			b.mu.Unlock()
 			continue
 		}
+		if ok && legacyVerification(a, t) {
+			b.mu.Unlock()
+			continue
+		}
 		if !ok || acceptAskEnded(a, t) || acceptAskStale(a, t) {
 			// The todo is gone, it ended without the hub's auto-judge (the owner closed it or a review did), or the
 			// card is from before its latest reopen: it can never be passed, so stop asking and drop it.
@@ -289,7 +293,7 @@ func (s *Service) snapshotUnaccepted(ctx context.Context, loc *time.Location) ([
 		if !ok {
 			continue
 		}
-		if !x.a.RecheckAt.IsZero() || ownerDecisionReturned(t.Supervision) {
+		if !x.a.RecheckAt.IsZero() || ownerDecisionReturned(t.Supervision) || legacyVerification(&x.a, t) {
 			continue // back with the supervisor: keep the stored facts, but do not present them to the owner again
 		}
 		if acceptAskEnded(&x.a, t) || acceptAskStale(&x.a, t) {

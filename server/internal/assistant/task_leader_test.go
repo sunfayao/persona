@@ -696,7 +696,7 @@ func TestTaskLeaderReviewsItsWorkers(t *testing.T) {
 	refused("another task", review("s1", map[string]any{"todo_id": other.ID, "verdict": "accepted"}), "not one of your workers")
 	refused("an agent of no task", review("someone-else", map[string]any{"todo_id": w1.ID, "verdict": "accepted"}), "unknown tool task_review")
 	refused("a worker's review of a sibling", review(w1.Agents[0].SessionID, map[string]any{"todo_id": w2.ID, "verdict": "accepted"}), "unknown tool task_review")
-	refused("a field outside the schema", review("s1", map[string]any{"todo_id": w1.ID, "verdict": "accepted", "outcome": "cannot"}), "only the fields")
+	refused("unsupported outcome", review("s1", map[string]any{"todo_id": w1.ID, "verdict": "accepted", "outcome": "cannot"}), "outcome done applies")
 	refused("rework with nothing said", review("s1", map[string]any{"todo_id": w1.ID, "verdict": "rework"}), "say what is missing")
 	if cur := todoNow(s, w1.ID); cur.DoneAt != nil || cur.Supervision.State != "" {
 		t.Fatalf("a refused review changed the worker: %+v", cur.Supervision)
@@ -715,7 +715,7 @@ func TestTaskLeaderReviewsItsWorkers(t *testing.T) {
 		t.Fatalf("the ledger after a rework: %+v", v)
 	}
 	// accepted: closed by the leader's review, with no card to the user.
-	res = review("s1", map[string]any{"todo_id": w2.ID, "verdict": "accepted", "note": "测试通过", "checks": completeReviewChecks(todoNow(s, w2.ID))})
+	res = review("s1", map[string]any{"todo_id": w2.ID, "verdict": "accepted", "outcome": "done", "note": "测试通过", "checks": completeReviewChecks(todoNow(s, w2.ID))})
 	if res.IsError || !strings.Contains(res.Content[0].Text, "accepted and closed") {
 		t.Fatalf("accepted: %+v", res)
 	}

@@ -400,7 +400,8 @@ func (s *Service) acceptanceRounds(ctx context.Context, includeReturned bool) []
 		if !ok || acceptAskEnded(&a, t) || acceptAskStale(&a, t) {
 			continue
 		}
-		if !includeReturned && (!a.RecheckAt.IsZero() || ownerDecisionReturned(t.Supervision)) {
+		if !includeReturned && (!a.RecheckAt.IsZero() || ownerDecisionReturned(t.Supervision) ||
+			legacyVerification(&a, t)) {
 			continue
 		}
 		out = append(out, awaitingAccept{todo: id, title: t.Title, machine: a.MachineID, session: a.SessionID, since: a.AskedAt, ask: a})

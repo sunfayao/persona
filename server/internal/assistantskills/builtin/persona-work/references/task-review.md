@@ -11,11 +11,11 @@ The main conversation, the conversation that supervises the task, and a task lea
 ## accepted
 
 - Give `outcome` (`done`, the default, when the work is complete or the answer is yes; `cannot` when it proved impossible), `reason` (one sentence; it defaults to the note's first line), `link` (one evidence link; it defaults to the task's PR, a link in the note or checks, or the Agent's chat) and `note` (the result in a line).
-- With `outcome: done`, `checks` lists every current `done_when` criterion exactly once, with `met: true` and non-empty `evidence`, also with `user_check`. `outcome: cannot`, a cancelled task and a task without criteria need no checks. Other verdicts may leave checks out, or record progress with them: each check updates the stored state, its evidence, its time and its supervisor, and criteria left out keep their progress.
+- With `outcome: done`, `checks` lists every current `done_when` criterion exactly once, with `met: true` and non-empty `evidence`. `outcome: cannot`, a cancelled task and a task without criteria need no checks. Other verdicts may leave checks out, or record progress with them: each check updates the stored state, its evidence, its time and its supervisor, and criteria left out keep their progress.
 - The delivery gate (`delivery_gate=merged` by default) keeps PR and issue work open until the PR is merged and its linked issues are closed. Accepting an open PR is refused: park it until the merge (`waiting_on` `external_event` with `evidence.kind` `external_event`, its `url` and `pr_event: terminal`, or `merge_review`), send what is missing with rework, or accept it with `outcome: cannot` when nothing could be delivered. A brief that asks only for a PR or a draft, a read-only task without a merge or close criterion, and `outcome: cannot` skip the gate.
-- `user_check: true` (accepted only) is for a result the owner must look at, such as a UI change: a Please verify card waits for their Pass instead of passing on its own, and the task and its Agent stay open, with the owner's feedback going to that Agent. Otherwise the hub sends the conclusion card and passes the verification itself.
+- Acceptance closes verified work. Use `ask_user` with options for an interactive choice in the conversation, or record an actionable task decision with `needs_user`.
 - `also_done`: up to 6 lines on what was done beyond the brief; the task's page lists them after the criteria.
-- When the owner opted in at Start, an accepted `done` task closes its idle Agent's tab, except with `user_check`. Report whether it was closed, skipped or still pending; never close the tab yourself.
+- When the owner opted in at Start, an accepted `done` task closes its idle Agent's tab. Report whether it was closed, skipped or still pending; never close the tab yourself.
 - In your reply give each criterion as met, not met or dropped, then what was also done.
 
 ## rework

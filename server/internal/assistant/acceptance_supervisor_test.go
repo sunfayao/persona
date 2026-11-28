@@ -117,105 +117,57 @@ func TestSupervisedBacklogIsPassedBySweep(t *testing.T) {
 	}
 }
 
-// user_check: the supervisor accepted, but the owner is to look themselves: the "Please verify" keeps waiting for them;
-// with none up yet, one is asked.
-func TestSupervisorUserCheckStillAsksTheOwner(t *testing.T) {
-	t.Run("deployed", func(t *testing.T) {
-		s, f, todo, posts, _ := conclusionService(t, false)
-		deployedForReview(t, s, f, todo.ID)
-		res := reviewTask(t, s, todo.ID, map[string]any{"verdict": "accepted", "note": "界面改好了", "user_check": true, "checks": completeReviewChecks(todoNow(s, todo.ID))})
-		if !strings.Contains(res, "user_check") {
-			t.Fatalf("the review's answer: %s", res)
-		}
-		s.verifySupervisedAsks(context.Background())
-		if a := askOf(s, todo.ID); a == nil || !a.AcceptedAt.IsZero() || a.BySupervisor {
-			t.Fatalf("ask %+v", a)
-		}
-		if n := waitingForOwner(s); n != 1 {
-			t.Fatalf("%d waiting for the owner", n)
-		}
-		if n := countAcceptCards(posts()); n != 1 {
-			t.Fatalf("%d 请验收 cards", n)
-		}
-		mid := askOf(s, todo.ID).MessageID
-		if !s.acceptReply(context.Background(), "om_ok", "通过", false, mid) || askOf(s, todo.ID).AcceptedAt.IsZero() {
-			t.Fatal("the owner's Pass did not pass it")
-		}
+func TestLegacyOwnerCheckReturnsToSupervisorOnStartup(t *testing.T) {
+	ctx := t.Context()
+	store := todoTestDB(t)
+	_, f, todo := acceptedForUserCheckOn(t, store)
+	restarted := newServiceOn(t, f, store)
+	setSettings(t, restarted, func(v *Settings) { v.Main = "conv1" })
+	if err := restarted.ensureTodosLoaded(ctx); err != nil {
+		t.Fatal(err)
+	}
+	list, err := restarted.listedTodosOf(ctx, false, map[string]bool{todo.ID: true})
+	if err != nil || len(list) != 1 || list[0].Supervision.State != reviewPending || list[0].Ask != nil {
+		t.Fatalf("legacy check leaked into the owner projection: %+v, %v", list, err)
+	}
+	restarted.verifySupervisedAsks(ctx)
+	restarted.verifySupervisedAsks(ctx)
+	got := todoNow(restarted, todo.ID)
+	if got.DoneAt != nil || got.Supervision.State != reviewPending {
+		t.Fatalf("legacy check did not return to supervisor review: %+v", got)
+	}
+	if ask := askOf(restarted, todo.ID); ask == nil || !ask.Superseded || ask.AcceptedAt.IsZero() {
+		t.Fatalf("legacy verification was not withdrawn: %+v", ask)
+	}
+	if sig := watchSignals(got, nil, time.Now()); len(sig) != 1 || sig[0].Kind != sigReview {
+		t.Fatalf("the supervisor will not receive the old task: %+v", sig)
+	}
+	reviewTask(t, restarted, todo.ID, map[string]any{
+		"verdict": "accepted", "outcome": "done", "checks": completeReviewChecks(got),
 	})
-	t.Run("deployed, passed by the assistant", func(t *testing.T) {
-		s, f, todo, posts, _ := conclusionService(t, false)
-		f.judge = `{"changed":"飞书机器人多了任务进展开关","link":"https://hub.example.com/settings?tab=feishu","how":"打开设置看开关"}`
-		agentTurn(s, f, proto.StatusWorking, "", 0)
-		agentTurn(s, f, proto.StatusDone, deployedReply, 0)
-		waitFor(t, "the assistant's acceptance", func() bool { a := askOf(s, todo.ID); return a != nil && !a.AcceptedAt.IsZero() })
-		if n := countAcceptCards(posts()); n != 0 {
-			t.Fatalf("%d 请验收 cards before the review", n)
-		}
-		f.judge = `{"verdict":"done","reason":"已部署"}`
-		agentTurn(s, f, proto.StatusWorking, "", 0)
-		agentTurn(s, f, proto.StatusDone, deployedReply, 0)
-		waitFor(t, "the review", func() bool { return todoNow(s, todo.ID).Supervision.State == reviewPending })
-		f.judge = `{"changed":"飞书机器人多了任务进展开关","link":"https://hub.example.com/settings?tab=feishu","how":"打开设置看开关"}`
-		reviewTask(t, s, todo.ID, map[string]any{"verdict": "accepted", "note": "界面改好了", "user_check": true, "checks": completeReviewChecks(todoNow(s, todo.ID))})
-		waitFor(t, "the 请验收 card", func() bool { a := askOf(s, todo.ID); return a != nil && a.MessageID != "" })
-		if a := askOf(s, todo.ID); !a.AcceptedAt.IsZero() || a.ByAssistant || a.BySupervisor {
-			t.Fatalf("ask %+v", a)
-		}
-		if n := waitingForOwner(s); n != 1 {
-			t.Fatalf("%d waiting for the owner", n)
-		}
-	})
-	t.Run("not deployed", func(t *testing.T) {
-		s, f, todo, posts, _ := conclusionService(t, false)
-		waitsForReview(t, s, f, todo.ID, "改好了，截图贴在 PR 里")
-		f.judge = `{"changed":"登录页横屏不再崩溃","link":"","how":"iPad 横屏打开登录页"}`
-		reviewTask(t, s, todo.ID, map[string]any{"verdict": "accepted", "note": "界面改好了", "user_check": true, "checks": completeReviewChecks(todoNow(s, todo.ID))})
-		waitFor(t, "the 请验收 card", func() bool { a := askOf(s, todo.ID); return a != nil && a.MessageID != "" })
-		if n := countAcceptCards(posts()); n != 1 {
-			t.Fatalf("%d 请验收 cards", n)
-		}
-		if n := len(cardsWith(posts(), "结论：")); n != 0 {
-			t.Fatalf("%d conclusion cards besides it", n)
-		}
-		if n := waitingForOwner(s); n != 1 {
-			t.Fatalf("%d waiting for the owner", n)
-		}
-	})
-	t.Run("only with accepted", func(t *testing.T) {
-		s, f, todo, _, _ := conclusionService(t, false)
-		waitsForReview(t, s, f, todo.ID, "做了一半")
-		raw, _ := json.Marshal(map[string]any{"todo_id": todo.ID, "verdict": "rework", "note": "补测试", "user_check": true})
-		if _, err := s.runTool(context.Background(), "server", "conv1", "task_review", raw); err == nil {
-			t.Fatal("user_check with rework was taken")
-		}
-	})
+	if row, err := store.GetTodo(ctx, todo.ID); err != nil || row.DoneAt == nil {
+		t.Fatalf("supervisor did not close the stored task: %+v, %v", row, err)
+	}
+	if n := waitingForOwner(restarted); n != 0 {
+		t.Fatalf("supervisor acceptance left %d owner waits", n)
+	}
 }
 
-// A big feature (high priority) is the owner's to try (#3205): its "Please verify" waits for them after the supervisor
-// accepted too; its conclusion would not, but it has none (the card is that).
-func TestSupervisorAcceptedLeavesABigFeatureToTheOwner(t *testing.T) {
+// A supervisor's checked acceptance closes a high-priority task and settles its previous deployment ask.
+func TestSupervisorAcceptsBigFeatureWithoutOwnerPass(t *testing.T) {
 	s, f, todo, _, _ := conclusionService(t, false)
 	s.todos.mu.Lock()
 	s.todos.todos[todo.ID].Priority = "high"
 	s.todos.mu.Unlock()
 	deployedForReview(t, s, f, todo.ID)
-	reviewTask(t, s, todo.ID, map[string]any{"verdict": "accepted", "note": "上线了", "checks": completeReviewChecks(todoNow(s, todo.ID))})
-	s.verifySupervisedAsks(context.Background())
-	if a := askOf(s, todo.ID); a == nil || !a.AcceptedAt.IsZero() {
-		t.Fatalf("ask %+v", a)
+	reviewTask(t, s, todo.ID, map[string]any{
+		"verdict": "accepted", "outcome": "done", "checks": completeReviewChecks(todoNow(s, todo.ID)),
+	})
+	if got := todoNow(s, todo.ID); got.DoneAt == nil || waitingForOwner(s) != 0 {
+		t.Fatalf("verified task still awaits the owner: %+v", got)
 	}
-	if n := waitingForOwner(s); n != 1 {
-		t.Fatalf("%d waiting for the owner", n)
-	}
-	ctx := context.Background()
-	if got := s.todoStages(ctx)[todo.ID]; got.Stage != "deploy" || got.Verified {
-		t.Fatalf("waiting for owner: %+v", got)
-	}
-	if ok, err := s.acceptTry(ctx, todo.ID, ""); err != nil || !ok.taken {
-		t.Fatalf("owner acceptance: %v %v", ok, err)
-	}
-	if got := s.todoStages(ctx)[todo.ID]; got.Stage != "verify" || !got.Verified {
-		t.Fatalf("accepted by owner: %+v", got)
+	if ask := askOf(s, todo.ID); ask == nil || ask.AcceptedAt.IsZero() || !ask.BySupervisor {
+		t.Fatalf("the supervisor's verification did not pass the prior ask: %+v", ask)
 	}
 }
 
@@ -246,8 +198,8 @@ func TestUnsupervisedTaskStillAsksTheOwner(t *testing.T) {
 }
 
 // acceptedAfterJudgeDelivery has the judge deliver a checked live result, proves it did not close the task, then has
-// main accept it. user_check keeps the owner's own verification requirement where asked (#5732).
-func acceptedAfterJudgeDelivery(t *testing.T, s *Service, f *fakeHub, todo string, userCheck bool) {
+// main accept it with a completed outcome.
+func acceptedAfterJudgeDelivery(t *testing.T, s *Service, f *fakeHub, todo string) {
 	t.Helper()
 	sampleAt(t, s, 0)
 	// The judge says it is live; the reply itself does not, so no deployed "Please verify" stands in for the conclusion.
@@ -260,24 +212,16 @@ func acceptedAfterJudgeDelivery(t *testing.T, s *Service, f *fakeHub, todo strin
 	if todoNow(s, todo).DoneAt != nil {
 		t.Fatal("the judge closed the task")
 	}
-	reviewTask(t, s, todo, map[string]any{"verdict": "accepted", "note": "验收通过", "user_check": userCheck,
+	reviewTask(t, s, todo, map[string]any{"verdict": "accepted", "outcome": "done", "note": "验收通过",
 		"checks": completeReviewChecks(todoNow(s, todo))})
-	if userCheck {
-		// main's user_check keeps the task open for the owner's own verification rather than closing it.
-		waitFor(t, "the owner's verification", func() bool { return todoNow(s, todo).Supervision.State == reviewUserCheck })
-		if todoNow(s, todo).DoneAt != nil {
-			t.Fatal("user_check closed the task before the owner verified it")
-		}
-	} else {
-		waitFor(t, "closed by main", func() bool { return todoNow(s, todo).DoneAt != nil })
-	}
+	waitFor(t, "closed by main", func() bool { return todoNow(s, todo).DoneAt != nil })
 	waitFor(t, "its ask", func() bool { a := askOf(s, todo); return a != nil && !a.AskedAt.IsZero() })
 }
 
 // Main's acceptance after a judge delivery passes the owner's conclusion: nothing waits for them (#5732).
 func TestAcceptedAfterJudgeDeliveryWaitsForNobody(t *testing.T) {
 	s, f, todo, posts, _ := conclusionService(t, false)
-	acceptedAfterJudgeDelivery(t, s, f, todo.ID, false)
+	acceptedAfterJudgeDelivery(t, s, f, todo.ID)
 	a := askOf(s, todo.ID)
 	if !a.Conclusion || a.AcceptedAt.IsZero() || !a.BySupervisor {
 		t.Fatalf("ask %+v", a)
@@ -296,21 +240,5 @@ func TestAcceptedAfterJudgeDeliveryWaitsForNobody(t *testing.T) {
 	s.verifySupervisedAsks(context.Background())
 	if n := waitingForOwner(s); n != 0 {
 		t.Fatalf("%d waiting after the sweep", n)
-	}
-}
-
-// A big feature accepted with user_check still asks the owner to look themselves.
-func TestAcceptedBigFeatureWithUserCheckWaitsForTheOwner(t *testing.T) {
-	s, f, todo, _, _ := conclusionService(t, false)
-	s.todos.mu.Lock()
-	s.todos.todos[todo.ID].Priority = "high"
-	s.todos.mu.Unlock()
-	acceptedAfterJudgeDelivery(t, s, f, todo.ID, true)
-	s.verifySupervisedAsks(context.Background())
-	if a := askOf(s, todo.ID); a == nil || a.Conclusion || !a.AcceptedAt.IsZero() {
-		t.Fatalf("ask %+v", a)
-	}
-	if n := waitingForOwner(s); n != 1 {
-		t.Fatalf("%d waiting for the owner", n)
 	}
 }

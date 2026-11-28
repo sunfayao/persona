@@ -22,14 +22,26 @@ func acceptedForUserCheckOn(t *testing.T, store Store) (*Service, *fakeHub, Todo
 	s, f, todo, _, _ := conclusionServiceOn(t, store, false)
 	waitsForReview(t, s, f, todo.ID, "The layout is ready to inspect.")
 	f.judge = `{"changed":"The layout is updated","link":"","how":"Inspect the task page"}`
-	reviewTask(t, s, todo.ID, map[string]any{
-		"verdict": "accepted", "user_check": true, "note": "Ready for the owner's check",
-		"checks": completeReviewChecks(todoNow(s, todo.ID)),
-	})
+	seedLegacyUserCheck(t, s, todo.ID)
 	return s, f, todoNow(s, todo.ID)
 }
 
-func TestUserCheckKeepsTaskAndAgentOpenUntilPass(t *testing.T) {
+// seedLegacyUserCheck writes the shape from older releases without using the retired tool parameter.
+func seedLegacyUserCheck(t *testing.T, s *Service, id string) {
+	t.Helper()
+	if _, _, err := s.updateSupervision(t.Context(), id, func(v *Supervision) bool {
+		v.State = reviewUserCheck
+		v.Reviews = append(v.Reviews, TaskReview{At: time.Now().UTC(), Verdict: reviewAccepted, UserCheck: true})
+		return true
+	}); err != nil {
+		t.Fatal(err)
+	}
+	todo := todoNow(s, id)
+	agent := lastAgent(todo)
+	s.askAcceptanceRound(todo, agent.MachineID, agent.SessionID, "Stored legacy verification", true)
+}
+
+func TestLegacyUserCheckKeepsAgentAvailableUntilPassOrRecovery(t *testing.T) {
 	ctx := context.Background()
 	s, f, todo := acceptedForUserCheck(t)
 	if todo.DoneAt != nil || todo.DoneBy != "" {
@@ -42,8 +54,8 @@ func TestUserCheckKeepsTaskAndAgentOpenUntilPass(t *testing.T) {
 		t.Fatal("a personal-verification task entered completed-task retirement")
 	}
 	a := askOf(s, todo.ID)
-	if a == nil || !a.AcceptedAt.IsZero() || waitingForOwner(s) != 1 {
-		t.Fatalf("the owner has no pending verification: %+v", a)
+	if a == nil || !a.AcceptedAt.IsZero() || waitingForOwner(s) != 0 {
+		t.Fatalf("legacy verification should be recoverable without an owner queue row: %+v", a)
 	}
 
 	// An owner taking longer than the ordinary stalled-task limit must not lose this Agent.
@@ -284,18 +296,18 @@ func TestUserCheckReworkInvalidatesTheOldPass(t *testing.T) {
 	}
 }
 
-func TestUserCheckReplacesAnEarlierDecision(t *testing.T) {
+func TestManagedAcceptanceSupersedesAnEarlierDecision(t *testing.T) {
 	s, f, todo, _, _ := conclusionService(t, false)
 	waitsForReview(t, s, f, todo.ID, "The owner needs to choose a layout.")
 	reviewTask(t, s, todo.ID, map[string]any{"verdict": "needs_user", "reason": "Choose the layout", "recommend": "Use the compact layout"})
 	f.judge = `{"changed":"The layout is updated","link":"","how":"Inspect the task page"}`
 	reviewTask(t, s, todo.ID, map[string]any{
-		"verdict": "accepted", "user_check": true, "checks": completeReviewChecks(todoNow(s, todo.ID)),
+		"verdict": "accepted", "outcome": "done", "checks": completeReviewChecks(todoNow(s, todo.ID)),
 	})
-	if a := askOf(s, todo.ID); a == nil || decideAsk(a) || a.Conclusion || !a.AcceptedAt.IsZero() {
-		t.Fatalf("the earlier decision displaced personal verification: %+v", a)
+	if got := todoNow(s, todo.ID); got.DoneAt == nil || got.Supervision.State != reviewAccepted {
+		t.Fatalf("supervisor acceptance did not close the task: %+v", got)
 	}
-	if result, err := s.acceptTry(context.Background(), todo.ID, ""); err != nil || !result.taken || todoNow(s, todo.ID).DoneAt == nil {
-		t.Fatalf("personal Pass after a decision did not complete: %+v, %v", result, err)
+	if waitingForOwner(s) != 0 {
+		t.Fatal("the former decision still waits for the owner")
 	}
 }

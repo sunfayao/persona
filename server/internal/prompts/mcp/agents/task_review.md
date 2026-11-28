@@ -1,5 +1,5 @@
 Record a verdict on a supervised task, judged on its scoped brief and criteria, not the Agent's claims.
-- accepted: with outcome=done, checks holds each done_when criterion once, met, with evidence; user_check waits for the owner's Pass.
+- accepted: outcome=done closes verified work. Give one met check with evidence per current done_when criterion.
 - rework: a concrete next step in note; accept with a note rather than bounce nitpicks.
 - parked: an outside wait, with reason, waiting_on and evidence.
 - needs_user: only what the owner alone can decide, with why_owner, reason, options, recommend and cost_of_waiting.
@@ -99,9 +99,6 @@ Details: read .claude/skills/persona-work/references/task-review.md in your work
       "type": "array",
       "maxItems": 6,
       "items": {"type": "string"}
-    },
-    "user_check": {
-      "type": "boolean"
     },
     "reversible": {
       "type": "boolean"

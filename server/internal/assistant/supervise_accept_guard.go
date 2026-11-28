@@ -10,11 +10,7 @@ import (
 // Guarding a bare `task_review accepted` (#12026). A supervised task must not vanish from the owner's Needs-you list
 // when its result does not settle anything: the agent was blocked on information only the owner has, its closeout
 // status was not done, or a read-only evaluation / research came back inconclusive, ineffective or only partly done.
-// Such an accept is refused with the fixes that keep the task with the owner: needs_user (owner-only information),
-// accepted with user_check (the owner reads the result and passes it before it leaves Needs you, #3240), or a linked
-// follow-up to-do. The hub judges words, not intent: the signals below are deliberately specific, and the refusal
-// names which one matched, so a supervisor that disagrees can still close the loop the named way instead of being
-// silently overridden.
+// An explicit outcome uses the supervisor's evidence. A refused bare review points to the next actionable step.
 
 // Signals that the result does not settle the task. English and Chinese, word-bounded where the language has words.
 // Each pattern is one line of evidence in the refusal; keep them specific enough that an ordinary "done" note cannot
@@ -95,11 +91,10 @@ func acceptGuardRefusal(matched string) string {
 			"(why_owner: only_owner_knows; reason: what the owner is to provide or decide; recommend: the option you suggest), " +
 			"so it stays in their Needs-you list"
 	case "inconclusive":
-		base += "the result does not settle the task. Re-review with accepted plus user_check: true (the owner reads the " +
-			"result and passes it before it leaves Needs you; the default for read-only research and evaluations), or " +
-			"needs_user with the next-step options, or hand out the remaining work as a linked follow-up to-do and then accept"
+		base += "the result does not settle the task. If the scoped deliverable is complete, use accepted with outcome done and " +
+			"evidence for each criterion. Otherwise use rework, needs_user with actionable options, or link a follow-up to-do"
 	default:
-		base += "the task's result does not settle it. Re-review with needs_user, or accepted with user_check: true, or link a follow-up to-do"
+		base += "the task's result does not settle it. Re-review with rework, needs_user with actionable options, or link a follow-up to-do"
 	}
 	return base + ". A question asked only in chat text never reaches Needs you."
 }

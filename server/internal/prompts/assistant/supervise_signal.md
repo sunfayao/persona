@@ -25,7 +25,7 @@
 {{- else if eq .Kind "overdue"}}
 - `overdue`: one-time. Verify and close, revise scope with `task_scope`, or set a new `expect_minutes`; never ignore.
 {{- else if eq .Kind "estimate_due"}}
-- `estimate_due`: the automatic estimate is due for review, not overdue. Check evidence; use `task_review`, guide the Agent, or revise `expect_minutes`. A finished task past the settle window with no owner card is refused: give `task_review` (`accepted`/`rework`/`cancelled`; `needs_user` or `accepted`+`user_check` if the owner must act).
+- `estimate_due`: the automatic estimate is due for review, not overdue. Check evidence; use `task_review`, guide the Agent, or revise `expect_minutes`. A finished task past the settle window with no owner card is refused: give `task_review` (`accepted`/`rework`/`cancelled`; `needs_user` with options if the owner must decide).
 {{- else if eq .Kind "parked_due"}}
 - `parked_due`: check whether the awaited event occurred (`gh`, `agent_read`, or the relevant person). Resume if ready; re-park with a current reason and time if still worth waiting; turn a real owner decision into `needs_user`; otherwise verify and close. At most three consecutive re-parks without an intervening Agent turn; the hub returns the expiry only once.
 {{- else if eq .Kind "inbox"}}

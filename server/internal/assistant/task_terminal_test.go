@@ -156,15 +156,15 @@ func TestTaskTerminalReviewOnlyAfterAcceptance(t *testing.T) {
 					t.Errorf("the review did not explain why terminal cleanup is pending: %s", res)
 				}
 			}
-			review()
 			if scenario.userCheck {
-				review()
-				got := todoNow(s, task.ID)
-				if got.DoneAt != nil || got.Supervision.state(got) != reviewUserCheck || askOf(s, task.ID) == nil {
-					t.Fatalf("personal verification closed or cleaned up a waiting task: %+v", got)
+				_, err := runJSON(t, s, "conv1", "task_review", args)
+				if err == nil || !strings.Contains(err.Error(), "user_check is retired") || closes != 0 || todoNow(s, task.ID).DoneAt != nil {
+					t.Fatalf("retired owner verification changed the task or terminal: %v", err)
 				}
+				return
 			}
-			if scenario.optIn && !scenario.userCheck {
+			review()
+			if scenario.optIn {
 				before := feedKinds(s, "conv1")
 				review()
 				if after := feedKinds(s, "conv1"); after != before {

@@ -72,7 +72,7 @@ func TestUserCheckPassWaitsForItsOwnRound(t *testing.T) {
 				t.Fatal("the old Pass did not return")
 			}
 			got, current := todoNow(s, todo.ID), askOf(s, todo.ID)
-			if got.DoneAt != nil || current == nil || !current.AcceptedAt.IsZero() {
+			if got.DoneAt != nil || current == nil || !current.AcceptedAt.IsZero() && !current.Superseded {
 				t.Fatalf("a previous Pass affected the new verification round: done=%v ask=%+v", got.DoneAt, current)
 			}
 		})
