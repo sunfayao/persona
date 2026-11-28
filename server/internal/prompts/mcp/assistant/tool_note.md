@@ -1,4 +1,4 @@
-Field notes: one-line tips the user approved, ending a tool's description. When a tool kept failing one way and other arguments worked, propose what worked (tool, text); draft_id proposes a friction draft. list shows notes and drafts; retire takes id or draft_id; file_fix files a fix draft as a to-do.
+Field notes: one-line tips ending a tool's description. When a tool kept failing one way and other arguments worked, propose what worked (tool, text) to add it directly; draft_id adds a friction draft. list shows notes and drafts; retire takes id or draft_id; file_fix files a fix draft as a to-do.
 
 ```json
 {

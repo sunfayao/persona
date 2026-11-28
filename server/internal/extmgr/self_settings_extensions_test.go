@@ -10,7 +10,6 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/extension"
 	"github.com/sunfayao/persona/server/internal/extwire"
-	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -136,29 +135,24 @@ func TestSelfSettingsExtensionSet(t *testing.T) {
 		t.Fatalf("unchanged: %q %v %d", out, err, len(asked))
 	}
 
-	// Declined: nothing changes.
-	allow = false
+	// Non-secret fields apply directly with no card, returning before → after and preserving untouched fields.
 	out, err := set(`{"agent":true,"reply_mode":"thread"}`)
-	if err != nil || !strings.Contains(out, "declined") || len(asked) != 1 || config()["agent"] != nil {
-		t.Fatalf("declined: %q %v %v", out, err, config())
+	if err != nil || !strings.Contains(out, "updated") || len(asked) != 0 {
+		t.Fatalf("direct set: %q %v asked=%d", out, err, len(asked))
 	}
-	ix := asked[0]
-	if ix.ToolName != "persona_settings" || ix.Kind != proto.IxPermission || ix.MachineID != "server" || ix.SessionID != "s1" ||
-		!strings.Contains(string(ix.ToolInput), "示例聊天的设置") {
-		t.Fatalf("the card: %+v", ix)
+	if want := "改聊天里的 /agent：关（默认） → 开\n会以你的身份回复\n改回复方式：引用回复（默认） → 回复到话题"; !strings.Contains(out, want) {
+		t.Fatalf("result lacks before→after\n%s\nwant\n%s", out, want)
 	}
-	if want := "改聊天里的 /agent：关（默认） → 开\n会以你的身份回复\n改回复方式：引用回复（默认） → 回复到话题"; ix.Summary != want {
-		t.Fatalf("the card says\n%s\nnot\n%s", ix.Summary, want)
+	if c := config(); c["agent"] != true || c["reply_mode"] != "thread" || c["hours"] != float64(8) {
+		t.Fatalf("saved: %v", c)
 	}
 
-	// Approved: only those fields change, the others are kept.
-	allow = true
-	out, err = set(`{"agent":true,"agent_launcher":"work_gw","agent_machine":"studio","proxy":{"host":"proxy.example.com"}}`)
-	if err != nil || !strings.Contains(out, "updated") {
-		t.Fatalf("approved: %q %v", out, err)
+	out, err = set(`{"agent_launcher":"work_gw","agent_machine":"studio","proxy":{"host":"proxy.example.com"}}`)
+	if err != nil || !strings.Contains(out, "updated") || len(asked) != 0 {
+		t.Fatalf("second set: %q %v asked=%d", out, err, len(asked))
 	}
-	if want := "改聊天里的 /agent：关（默认） → 开\n会以你的身份回复\n改在哪台电脑上跑：（无） → studio\n改用的启动器：（无） → work_gw\n改代理 · 主机：（无） → proxy.example.com"; asked[1].Summary != want {
-		t.Fatalf("the card says\n%s\nnot\n%s", asked[1].Summary, want)
+	if want := "改在哪台电脑上跑：（无） → studio\n改用的启动器：（无） → work_gw\n改代理 · 主机：（无） → proxy.example.com"; !strings.Contains(out, want) {
+		t.Fatalf("result lacks before→after\n%s\nwant\n%s", out, want)
 	}
 	c := config()
 	if c["agent"] != true || c["agent_launcher"] != "work_gw" || c["agent_machine"] != "studio" || c["hours"] != float64(8) ||
@@ -168,17 +162,17 @@ func TestSelfSettingsExtensionSet(t *testing.T) {
 	// What the extension gets has the defaults filled in.
 	var eff map[string]any
 	_ = json.Unmarshal(h.extensions.reg.Config(h.extensions.reg.Get("example-chat")), &eff)
-	if eff["agent"] != true || eff["reply_mode"] != "quote" || eff["proxy"].(map[string]any)["port"] != float64(8080) {
+	if eff["agent"] != true || eff["reply_mode"] != "thread" || eff["proxy"].(map[string]any)["port"] != float64(8080) {
 		t.Fatalf("effective: %v", eff)
 	}
 
-	// null puts a field back to its default; a list joined; turning a switch off asks nothing more.
+	// null puts a field back to its default; a list joined.
 	out, err = set(`{"agent":null,"hours":null,"allow":["产品群","值班群"]}`)
-	if err != nil || !strings.Contains(out, "updated") {
-		t.Fatalf("reset: %q %v", out, err)
+	if err != nil || !strings.Contains(out, "updated") || len(asked) != 0 {
+		t.Fatalf("reset: %q %v asked=%d", out, err, len(asked))
 	}
-	if want := "改聊天里的 /agent：开 → 关（默认）\n改接着多久：8 → 4（默认）\n改白名单：产品群 → 产品群、值班群"; asked[2].Summary != want {
-		t.Fatalf("the card says\n%s\nnot\n%s", asked[2].Summary, want)
+	if want := "改聊天里的 /agent：开 → 关（默认）\n改接着多久：8 → 4（默认）\n改白名单：产品群 → 产品群、值班群"; !strings.Contains(out, want) {
+		t.Fatalf("reset lacks before→after\n%s\nwant\n%s", out, want)
 	}
 	if c := config(); c["agent"] != nil || c["hours"] != nil || len(c["allow"].([]any)) != 2 || c["agent_launcher"] != "work_gw" {
 		t.Fatalf("after reset: %v", c)
@@ -239,63 +233,24 @@ func TestSelfSettingsExtensionSwitch(t *testing.T) {
 	}
 
 	before := changes.Load()
-	no, yes := false, true
-	for want, r := range map[string]proto.Resolution{"The user declined the change: nothing changed.": {Allow: &no},
-		prompts.RenderSettingUnanswered(): {Dismiss: true}} {
-		answer = r
-		if out, err := set(`{"enabled":true}`); err != nil || out != want || on() || h.browserTools() != nil || changes.Load() != before {
-			t.Fatalf("not approved (%+v): %q %v, on %v", r, out, err, on())
-		}
-	}
-	if len(asked) != 2 || asked[0].Summary != "改浏览器（ego lite）：关 → 开" || asked[0].ToolName != "persona_settings" {
-		t.Fatalf("the cards: %+v", asked)
-	}
-
-	answer = proto.Resolution{Allow: &yes}
 	out, err := set(`{"enabled":true}`)
-	if err != nil || out != "浏览器（ego lite） is switched on. New tools: browser_look, browser_run. Running conversations are sent their new tool list." ||
+	if err != nil || len(asked) != 0 ||
+		!strings.Contains(out, "改浏览器（ego lite）：关 → 开") ||
+		!strings.Contains(out, "浏览器（ego lite） is switched on. New tools: browser_look, browser_run. Running conversations are sent their new tool list.") ||
 		!on() || h.browserTools() == nil || changes.Load() == before || listed() != "enabled: true" {
-		t.Fatalf("approved: %q %v, on %v, list %s", out, err, on(), listed())
+		t.Fatalf("switched on: %q %v, asked=%d, on %v, list %s", out, err, len(asked), on(), listed())
 	}
 	before = changes.Load()
 	out, err = set(`{"enabled":false,"confirm":true}`)
-	if err != nil || !strings.Contains(out, "浏览器（ego lite） is switched off. Tools no longer offered: browser_look, browser_run.") ||
+	if err != nil || len(asked) != 0 ||
+		!strings.Contains(out, "改浏览器（ego lite）：开 → 关\n改操作前在手机上确认：关（默认） → 开") ||
+		!strings.Contains(out, "浏览器（ego lite） is switched off. Tools no longer offered: browser_look, browser_run.") ||
 		on() || h.browserTools() != nil || changes.Load() == before {
-		t.Fatalf("switched off: %q %v, on %v", out, err, on())
-	}
-	if want := "改浏览器（ego lite）：开 → 关\n改操作前在手机上确认：关（默认） → 开"; asked[len(asked)-1].Summary != want {
-		t.Fatalf("the card says\n%s\nnot\n%s", asked[len(asked)-1].Summary, want)
+		t.Fatalf("switched off: %q %v, asked=%d, on %v", out, err, len(asked), on())
 	}
 	var c map[string]any
 	_ = json.Unmarshal(h.extensions.reg.SavedConfig(h.extensions.reg.Get(egoExtensionID)), &c)
 	if c["confirm"] != true || len(c["machines"].([]any)) != 1 {
 		t.Fatalf("saved: %v", c)
-	}
-}
-
-// A field changed elsewhere while the card waited is not overwritten with a value the user didn't see beside it.
-func TestSelfSettingsExtensionChangedMeanwhile(t *testing.T) {
-	h := extensionSettingsHub(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	th := hubOf(h)
-	th.mu.Lock()
-	th.answer = func(proto.Interaction) proto.Resolution {
-		// The phone's settings page saved hours while the card was open.
-		if err := h.extensions.reg.SetConfig(ctx, "example-chat", json.RawMessage(`{"hours":12,"allow":["产品群"]}`), "device:phone"); err != nil {
-			t.Error(err)
-		}
-		yes := true
-		return proto.Resolution{Allow: &yes}
-	}
-	th.mu.Unlock()
-	_, err := h.toolPersonaSettings(ctx, "server", "s1", json.RawMessage(`{"action":"set","key":"extension.example-chat","value":{"hours":24}}`))
-	if err == nil || !strings.Contains(err.Error(), "changed since the card") {
-		t.Fatalf("err: %v", err)
-	}
-	var c map[string]any
-	_ = json.Unmarshal(h.extensions.reg.SavedConfig(h.extensions.reg.Get("example-chat")), &c)
-	if c["hours"] != float64(12) {
-		t.Fatalf("overwritten: %v", c)
 	}
 }

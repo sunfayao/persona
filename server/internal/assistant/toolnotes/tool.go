@@ -13,7 +13,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/sunfayao/persona/server/internal/approval"
 	"github.com/sunfayao/persona/server/internal/errreport"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -62,9 +61,9 @@ func (d *Domain) Tool(ctx context.Context, c Call, raw json.RawMessage) (string,
 	return "", fmt.Errorf("action must be propose, list, retire or file_fix, not %q", in.Action)
 }
 
-// propose checks a note, keeps it as proposed and puts up its card: only the user's Allow approves it (approve); a
-// card declined, unanswered or gone retires it (endProposal). With a draft_id, the draft gives the tool, the failure's
-// code, the evidence and, unless the call gives one, the text.
+// propose checks a note and adds it directly as approved so it immediately ends its tool's description for ReviewDays
+// (replacing any older duplicate due for review). With a draft_id, the draft gives the tool, the failure's code, the
+// evidence and, unless the call gives one, the text.
 func (d *Domain) propose(ctx context.Context, c Call, in input) (string, error) {
 	n := Note{Tool: strings.TrimSpace(in.Tool), Runtime: strings.TrimSpace(in.Runtime), By: c.Session}
 	text := in.Text
@@ -97,28 +96,23 @@ func (d *Domain) propose(ctx context.Context, c Call, in input) (string, error) 
 		return "", fmt.Errorf("no tool %q in your tool list: a note is for one of its tools", n.Tool)
 	}
 	n.PromptDigest = Digest(tool)
-	var where []string // the card's scope: the computer's name and the runtime, as they are written
 	if m := strings.TrimSpace(in.Machine); m != "" {
-		id, name, ok := d.h.Machine(ctx, m)
+		id, _, ok := d.h.Machine(ctx, m)
 		if !ok {
 			return "", fmt.Errorf("no computer %q: machines_list has the user's computers", m)
 		}
-		n.Machine, where = id, append(where, cmp.Or(name, id))
-	}
-	if n.Runtime != "" {
-		where = append(where, n.Runtime)
+		n.Machine = id
 	}
 	if err := d.private(ctx, n); err != nil {
 		return "", err
 	}
 	now := d.now()
-	n.ID, n.CreatedAt, n.ReviewAt, n.Status = newID(), now, now.Add(ReviewDays*day), StatusProposed
-	d.setLive(n.ID, true) // before it is stored: a Sweep meanwhile must not take it for a card that is gone
+	n.ID, n.CreatedAt, n.ApprovedAt, n.ReviewAt, n.Status = newID(), now, now, now.Add(ReviewDays*day), StatusApproved
 	if err := d.change(ctx, func(doc *doc) (bool, error) {
 		active := 0
 		for _, o := range doc.Notes {
 			if o.Status == StatusRetired || o.Status == StatusApproved && !o.ReviewAt.After(now) {
-				continue // a note due for review is proposed again, and replaced once approved
+				continue // a note due for review is replaced below
 			}
 			if active++; o.sameAs(n) {
 				return false, fmt.Errorf("already there: note %s (%s)", o.ID, o.Status)
@@ -127,62 +121,12 @@ func (d *Domain) propose(ctx context.Context, c Call, in input) (string, error) 
 		if active >= maxActive {
 			return false, fmt.Errorf("%d notes are approved or proposed: retire some first", active)
 		}
-		doc.Notes = append(doc.Notes, n)
-		return true, nil
-	}); err != nil {
-		d.setLive(n.ID, false)
-		return "", err
-	}
-	summary := i18n.T(c.Lang, "assistant-tool_notes.card_propose", i18n.Args{"tool": n.Tool, "text": n.Text})
-	if len(where) > 0 {
-		summary = i18n.T(c.Lang, "assistant-tool_notes.card_propose_scoped", i18n.Args{"tool": n.Tool, "where": strings.Join(where, ", "), "text": n.Text})
-	}
-	details := map[string]string{"tool": n.Tool, "text": n.Text}
-	for k, v := range map[string]string{"where": strings.Join(where, ", "), "evidence": n.Evidence} {
-		if v != "" {
-			details[k] = v
-		}
-	}
-	shown, _ := json.Marshal(details)
-	out, err := d.h.Confirm(ctx, Card{Machine: c.Machine, Session: c.Session, Summary: summary, Shown: shown,
-		Key: n.Tool + "\x00" + n.Machine + "\x00" + n.Runtime + "\x00" + n.Text}, approval.Operation{
-		Denied:     "The user declined the field note: it was not added.",
-		Unanswered: "The user did not approve the field note: it was not added.",
-		Apply:      func(ctx context.Context, _ proto.Resolution) (string, error) { return d.approve(ctx, n.ID, c.Zone) },
-		Discard:    func(ctx context.Context, status string) { d.endProposal(ctx, n.ID, status) },
-	})
-	if err != nil {
-		d.endProposal(ctx, n.ID, "unavailable")
-		return "", err
-	}
-	return out.Text, nil
-}
-
-// sameAs: o and n are the same note, in the same place.
-func (o Note) sameAs(n Note) bool {
-	return o.Tool == n.Tool && o.Machine == n.Machine && o.Runtime == n.Runtime && strings.EqualFold(o.Text, n.Text)
-}
-
-// approve is a proposal's Apply, on the user's Allow: the note ends its tool's description for ReviewDays from now and
-// replaces the same note due for review, and its draft is marked proposed. approval.ErrStale when the proposal no
-// longer waits (it retired meanwhile).
-func (d *Domain) approve(ctx context.Context, id string, zone *time.Location) (string, error) {
-	defer d.setLive(id, false)
-	now := d.now()
-	var n Note
-	if err := d.change(ctx, func(doc *doc) (bool, error) {
-		i := doc.find(id)
-		if i < 0 || doc.Notes[i].Status != StatusProposed {
-			return false, approval.ErrStale
-		}
-		p := &doc.Notes[i]
-		p.Status, p.ApprovedAt, p.ReviewAt = StatusApproved, now, now.Add(ReviewDays*day)
-		n = *p
 		for j := range doc.Notes {
-			if o := &doc.Notes[j]; o.Status == StatusApproved && o.ID != id && o.sameAs(n) {
-				retire(o, now, "proposed again as "+id)
+			if o := &doc.Notes[j]; o.Status == StatusApproved && o.sameAs(n) {
+				retire(o, now, "proposed again as "+n.ID)
 			}
 		}
+		doc.Notes = append(doc.Notes, n)
 		return true, nil
 	}); err != nil {
 		return "", err
@@ -199,28 +143,13 @@ func (d *Domain) approve(ctx context.Context, id string, zone *time.Location) (s
 		}
 	}
 	d.h.Changed(true)
-	return fmt.Sprintf("Approved: note %s now ends %s's description%s, until %s.", n.ID, n.Tool, d.scope(n),
-		n.ReviewAt.In(zone).Format(time.DateOnly)), nil
+	return fmt.Sprintf("Approved: note %s now ends %s's description%s, until %s: “%s”", n.ID, n.Tool, d.scope(n),
+		n.ReviewAt.In(c.Zone).Format(time.DateOnly), n.Text), nil
 }
 
-// endProposal is a proposal's card ending without approving it (Discard, or a card that could not be shown): the note
-// retires, saying how, unless it was approved.
-func (d *Domain) endProposal(ctx context.Context, id, status string) {
-	d.setLive(id, false)
-	reason := fmt.Sprintf(reasonEnded, status)
-	if status == "denied" {
-		reason = reasonDeclined
-	}
-	if err := d.change(ctx, func(doc *doc) (bool, error) {
-		i := doc.find(id)
-		if i < 0 || doc.Notes[i].Status != StatusProposed {
-			return false, nil
-		}
-		retire(&doc.Notes[i], d.now(), reason)
-		return true, nil
-	}); err != nil {
-		d.h.Logf("tool notes: end proposal %s: %v", id, err)
-	}
+// sameAs: o and n are the same note, in the same place.
+func (o Note) sameAs(n Note) bool {
+	return o.Tool == n.Tool && o.Machine == n.Machine && o.Runtime == n.Runtime && strings.EqualFold(o.Text, n.Text)
 }
 
 // retire takes a note out at once (id), or sets a pending friction draft aside (draft_id).

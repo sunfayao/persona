@@ -35,7 +35,9 @@ import (
 // Run starts the extensions, connectors and bots and runs their loops until ctx ends; then it stops the programs.
 func (h *Manager) Run(ctx context.Context) error {
 	h.ctx = ctx
-	if ms, ok := h.store.(mailStore); ok && NewMail != nil {
+	if h.opts.Mail != nil {
+		h.mail = h.opts.Mail
+	} else if ms, ok := h.store.(mailStore); ok && NewMail != nil {
 		var err error
 		if h.mail, err = NewMail(h.cfg.dir, h.secretKeyPath(), ms, h.cfg.Google); err != nil {
 			h.logf("mail disabled: %v", err)

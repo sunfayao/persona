@@ -221,33 +221,14 @@ func TestSettingsTool(t *testing.T) {
 	if out := tool(`{"action":"get","key":"inbox.rules"}`); !strings.HasPrefix(out, "the hub's: ") {
 		t.Fatalf("a hub setting: %s", out)
 	}
-	answer := func(allow bool) {
-		q, ok := awaitCard(s)
-		if !ok {
-			t.Error("no card on the phone")
-			return
-		}
-		raw, _ := json.Marshal(proto.Resolution{Allow: &allow})
-		if q.Kind != proto.IxPermission || q.ToolName != "persona_settings" || q.SessionID != "c1" {
-			t.Errorf("card: %+v", q)
-		}
-		if _, err := s.Action(ctx, Action{Op: "answer", InteractionID: q.ID, Answer: raw}); err != nil {
-			t.Error(err)
-		}
-	}
-	go answer(false)
-	if out := tool(`{"action":"set","key":"assistant.notes","value":"示例备注"}`); !strings.Contains(out, "declined") || s.notes(ctx) != "" {
-		t.Fatalf("declined: %s", out)
-	}
-	go answer(true)
-	if out := tool(`{"action":"set","key":"assistant.notes","value":"示例备注"}`); !strings.Contains(out, "updated") || s.notes(ctx) != "示例备注" {
-		t.Fatalf("approved: %s", out)
+	if out := tool(`{"action":"set","key":"assistant.notes","value":"示例备注"}`); len(s.pendingQuestions()) != 0 ||
+		!strings.Contains(out, "→ 示例备注") || !strings.Contains(out, "updated") || s.notes(ctx) != "示例备注" {
+		t.Fatalf("notes direct set: %s (pending=%d)", out, len(s.pendingQuestions()))
 	}
 	if saved, _ := s.savedSettings(ctx); saved.Launcher != "" {
 		t.Fatal("notes changed legacy model inheritance")
 	}
-	go answer(true)
-	if out := tool(`{"action":"set","key":"assistant.launcher","value":"fast"}`); !strings.Contains(out, "fast") ||
+	if out := tool(`{"action":"set","key":"assistant.launcher","value":"fast"}`); len(s.pendingQuestions()) != 0 || !strings.Contains(out, "fast") ||
 		modelRecordOf(t, s, "assistant").Binding != (ModelBinding{Provider: "launcher.fast"}) {
 		t.Fatalf("launcher: %s %+v", out, modelRecordOf(t, s, "assistant"))
 	}
@@ -259,8 +240,8 @@ func TestSettingsTool(t *testing.T) {
 	}
 }
 
-// persona_settings' three on/off settings (setBoolSetting): the same value changes nothing and asks nothing; another
-// asks on the phone with the setting's own card, and only an approval saves it; a value that is not a bool is refused.
+// persona_settings' on/off settings (setBoolSetting): the same value changes nothing; another applies directly with
+// before → after and no card; a value that is not a bool is refused.
 func TestBoolSettingsSet(t *testing.T) {
 	ctx := context.Background()
 	s := newTestService(t, newFakeHub().withMachine())
@@ -269,21 +250,6 @@ func TestBoolSettingsSet(t *testing.T) {
 		return r.Content[0].Text, r.IsError
 	}
 	word := map[bool]string{true: i18n.T(i18n.Default, "assistant-settings_tool.on"), false: i18n.T(i18n.Default, "assistant-settings_tool.off")}
-	// answer approves (or not) the one card, which must say card.
-	answer := func(allow bool, card string) {
-		q, ok := awaitCard(s)
-		if !ok {
-			t.Error("no card on the phone")
-			return
-		}
-		if q.Summary != card {
-			t.Errorf("card %q, want %q", q.Summary, card)
-		}
-		raw, _ := json.Marshal(proto.Resolution{Allow: &allow})
-		if _, err := s.Action(ctx, Action{Op: "answer", InteractionID: q.ID, Answer: raw}); err != nil {
-			t.Error(err)
-		}
-	}
 	for _, c := range []struct {
 		name string
 		def  bool
@@ -302,14 +268,10 @@ func TestBoolSettingsSet(t *testing.T) {
 		if out, isErr := set(`"yes"`); !isErr || !strings.Contains(out, "true or false") {
 			t.Fatalf("%s set to a string: %s", key, out)
 		}
-		card := i18n.T(i18n.Default, "assistant-settings_tool.change_"+c.name, i18n.Args{"before": word[c.def], "after": word[!c.def]})
-		go answer(false, card)
-		if out, _ := set(fmt.Sprint(!c.def)); !strings.Contains(out, "declined") || get() != fmt.Sprint(c.def) {
-			t.Fatalf("%s declined: %s", key, out)
-		}
-		go answer(true, card)
-		if out, _ := set(fmt.Sprint(!c.def)); !strings.HasPrefix(out, key+" is "+fmt.Sprint(!c.def)) || get() != fmt.Sprint(!c.def) {
-			t.Fatalf("%s approved: %s", key, out)
+		summary := i18n.T(i18n.Default, "assistant-settings_tool.change_"+c.name, i18n.Args{"before": word[c.def], "after": word[!c.def]})
+		if out, isErr := set(fmt.Sprint(!c.def)); isErr || len(s.pendingQuestions()) != 0 ||
+			!strings.Contains(out, summary) || !strings.Contains(out, key+" is "+fmt.Sprint(!c.def)) || get() != fmt.Sprint(!c.def) {
+			t.Fatalf("%s direct set: %s (err=%v, pending=%d)", key, out, isErr, len(s.pendingQuestions()))
 		}
 	}
 	// The legacy keys left persona_settings: delivery_gate is the one switch, and main supervises its tasks. A stored

@@ -134,35 +134,20 @@ func settingsTool(s *Service, args string) proto.ToolResult {
 	return s.Tool(context.Background(), ToolCall{Name: "persona_settings", MachineID: "server", SessionID: "c1", Arguments: json.RawMessage(args)})
 }
 
-// Changes made through persona_settings wait for the user's own approval on the phone, like agents.blocked_claude_dirs.
+// Changes made through persona_settings apply directly with no card and return a summary of what changed.
 func TestHiddenDirectorySettingConfirmation(t *testing.T) {
-	for _, allow := range []bool{false, true} {
-		t.Run(map[bool]string{false: "declined", true: "approved"}[allow], func(t *testing.T) {
-			ft := newFleetTest(t)
-			f := useAgentDirs(ft.s)
-			go func() {
-				q, ok := awaitCard(ft.s)
-				if !ok {
-					t.Error("missing phone confirmation")
-					return
-				}
-				if !strings.Contains(q.Summary, "/work") || !strings.Contains(q.Summary, "Mac") {
-					t.Errorf("card does not say what changes where: %q", q.Summary)
-				}
-				raw, _ := json.Marshal(proto.Resolution{Allow: &allow})
-				if _, err := ft.s.Action(context.Background(), Action{Op: "answer", InteractionID: q.ID, Answer: raw}); err != nil {
-					t.Error(err)
-				}
-			}()
-			result := settingsTool(ft.s, `{"action":"add","key":"agents.hidden_dirs","value":{"machine":"mac","pattern":"/work/"}}`)
-			if result.IsError {
-				t.Fatalf("tool: %+v", result)
-			}
-			rules, _, _ := f.HiddenAgentDirs(context.Background(), "mac")
-			if want := []proto.HiddenAgentDir{{Pattern: "/work", Enabled: true, Action: proto.AgentDirBlock}}; slices.Equal(rules, want) != allow {
-				t.Fatalf("approval=%v rules=%+v", allow, rules)
-			}
-		})
+	ft := newFleetTest(t)
+	f := useAgentDirs(ft.s)
+	result := settingsTool(ft.s, `{"action":"add","key":"agents.hidden_dirs","value":{"machine":"mac","pattern":"/work/"}}`)
+	if result.IsError || len(ft.s.pendingQuestions()) != 0 {
+		t.Fatalf("tool: %+v pending=%d", result, len(ft.s.pendingQuestions()))
+	}
+	if !strings.Contains(result.Content[0].Text, "/work") || !strings.Contains(result.Content[0].Text, "Mac") {
+		t.Errorf("result does not say what changed where: %q", result.Content[0].Text)
+	}
+	rules, _, _ := f.HiddenAgentDirs(context.Background(), "mac")
+	if want := []proto.HiddenAgentDir{{Pattern: "/work", Enabled: true, Action: proto.AgentDirBlock}}; !slices.Equal(rules, want) {
+		t.Fatalf("rules=%+v want=%+v", rules, want)
 	}
 }
 
@@ -180,27 +165,13 @@ func TestHiddenDirectorySettingActions(t *testing.T) {
 	if got := settingsTool(ft.s, `{"action":"add","key":"agents.hidden_dirs","value":{"machine":"mac","pattern":"/work"}}`); got.IsError || !strings.Contains(got.Content[0].Text, "already") {
 		t.Fatalf("no-op add: %+v", got)
 	}
-	approve := func() {
-		go func() {
-			q, ok := awaitCard(ft.s)
-			if !ok {
-				t.Error("missing phone confirmation")
-				return
-			}
-			yes := true
-			raw, _ := json.Marshal(proto.Resolution{Allow: &yes})
-			_, _ = ft.s.Action(context.Background(), Action{Op: "answer", InteractionID: q.ID, Answer: raw})
-		}()
-	}
-	approve()
-	if got := settingsTool(ft.s, `{"action":"add","key":"agents.hidden_dirs","value":{"machine":"mac","pattern":"/work","enabled":false}}`); got.IsError {
+	if got := settingsTool(ft.s, `{"action":"add","key":"agents.hidden_dirs","value":{"machine":"mac","pattern":"/work","enabled":false}}`); got.IsError || len(ft.s.pendingQuestions()) != 0 {
 		t.Fatalf("switch off: %+v", got)
 	}
 	if rules, _, _ := f.HiddenAgentDirs(context.Background(), "mac"); !slices.Equal(rules, []proto.HiddenAgentDir{{Pattern: "/work", Enabled: false, Action: proto.AgentDirHide}}) {
 		t.Fatalf("switched off: %+v", rules)
 	}
-	approve()
-	if got := settingsTool(ft.s, `{"action":"remove","key":"agents.hidden_dirs","id":"mac:/work"}`); got.IsError {
+	if got := settingsTool(ft.s, `{"action":"remove","key":"agents.hidden_dirs","id":"mac:/work"}`); got.IsError || len(ft.s.pendingQuestions()) != 0 {
 		t.Fatalf("remove: %+v", got)
 	}
 	if rules, _, _ := f.HiddenAgentDirs(context.Background(), "mac"); len(rules) != 0 {

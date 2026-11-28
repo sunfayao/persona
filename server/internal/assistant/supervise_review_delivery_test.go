@@ -764,25 +764,12 @@ func TestDeliveryGateSettingsAndBackwardCompat(t *testing.T) {
 	if out, isErr := tool(`{"action":"set","key":"assistant.delivery_gate","value":"invalid"}`); !isErr || !strings.Contains(out, "off, merged or live") {
 		t.Fatalf("invalid tier not refused: %v %s", isErr, out)
 	}
-	wantCard := i18n.T(i18n.Default, "assistant-settings_tool.change_delivery_gate", i18n.Args{
+	wantSummary := i18n.T(i18n.Default, "assistant-settings_tool.change_delivery_gate", i18n.Args{
 		"before": i18n.T(i18n.Default, "assistant-settings_tool.delivery_gate_off"),
 		"after":  i18n.T(i18n.Default, "assistant-settings_tool.delivery_gate_merged"),
 	})
-	go func() {
-		q, ok := awaitCard(s)
-		if !ok {
-			t.Error("no approval card")
-			return
-		}
-		if q.Summary != wantCard {
-			t.Errorf("card %q, want %q", q.Summary, wantCard)
-		}
-		allow := true
-		raw, _ := json.Marshal(proto.Resolution{Allow: &allow})
-		_, _ = s.Action(ctx, Action{Op: "answer", InteractionID: q.ID, Answer: raw})
-	}()
-	if out, isErr := tool(`{"action":"set","key":"assistant.delivery_gate","value":"merged"}`); isErr || !strings.Contains(out, "assistant.delivery_gate is merged") {
-		t.Fatalf("set delivery_gate merged failed: %v %s", isErr, out)
+	if out, isErr := tool(`{"action":"set","key":"assistant.delivery_gate","value":"merged"}`); isErr || !strings.Contains(out, wantSummary) || !strings.Contains(out, "assistant.delivery_gate is merged") || len(s.pendingQuestions()) != 0 {
+		t.Fatalf("set delivery_gate merged failed: %v %s (pending=%d)", isErr, out, len(s.pendingQuestions()))
 	}
 	if out, _ := tool(`{"action":"get","key":"assistant.delivery_gate"}`); out != deliveryGateMerged {
 		t.Fatalf("after set, get = %q, want merged", out)

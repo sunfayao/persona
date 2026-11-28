@@ -62,6 +62,7 @@ type Options struct {
 	ConfigFile string
 	Config     *Config // nil: read from Dir and ConfigFile
 	Store      Store   // nil: nothing is kept (tests)
+	Mail       Mail    // optional prebuilt mail service (tests)
 	Logf       func(format string, args ...any)
 	Build      update.Build
 	Hub        Host

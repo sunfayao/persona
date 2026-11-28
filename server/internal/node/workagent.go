@@ -55,6 +55,12 @@ func workAgentKind(launcher, agentType string) string {
 	return ""
 }
 
+// agyBypassSettingsJSON aligns agy's bypassPermissions mode with Claude Code (--dangerously-skip-permissions) and
+// Codex (danger-full-access + approval_policy="never"): no terminal sandbox, no approval prompts, non-workspace file
+// access enabled, and artifact reviews auto-proceeding. Passed via --settings on top of --dangerously-skip-permissions
+// so agy v1.5.7+ does not fall back to auto mode's terminal sandbox or workspace-only access.
+const agyBypassSettingsJSON = `{"toolPermission":"always-proceed","allowNonWorkspaceAccess":true,"artifactReviewPolicy":"always-proceed","agentMode":"accept-edits","enableTerminalSandbox":false}`
+
 // workAgentCommand is what a start types into the pane: the launcher (the program, for the agent's own name) with the
 // model when one was picked, and for agy the effort when picked and the flags of its permission mode (agyModeFlags).
 // The first message is delivered once the agent is up.
@@ -62,18 +68,22 @@ func workAgentKind(launcher, agentType string) string {
 // its Trust prompt, which nobody at the pane answers, and the start is abandoned (#9462). The flag trusts the directory
 // the start chose for this run only; it writes nothing to ~/.pi/agent/trust.json, so a pi the user runs keeps asking.
 func workAgentCommand(launcher, program, model, effort, mode string) string {
+	return workAgentCommandQ(launcher, program, model, effort, mode, shellQuote)
+}
+
+func workAgentCommandQ(launcher, program, model, effort, mode string, q func(string) string) string {
 	cmd := launcher
 	if launcher == "" || launcher == program || workAgentKind(launcher, "") == launcher {
 		cmd = program
 	}
 	if model != "" {
-		cmd += " --model " + shellQuote(model)
+		cmd += " --model " + q(model)
 	}
 	if program == agyAgent && effort != "" {
-		cmd += " --effort " + shellQuote(effort)
+		cmd += " --effort " + q(effort)
 	}
 	if program == agyAgent {
-		cmd += agyModeFlags(mode)
+		cmd += agyModeFlagsQ(mode, q)
 	}
 	if program == "pi" {
 		cmd += " --approve"
@@ -85,16 +95,20 @@ func workAgentCommand(launcher, program, model, effort, mode string) string {
 // Code. plan never gets here: a read-only start on a work agent is refused (control.go).
 func agyStartMode(mode string) string { return cmp.Or(mode, proto.ModeBypass) }
 
-// agyModeFlags are agy's own flags for a permission mode (agy --help: --dangerously-skip-permissions, --mode
-// accept-edits|auto|plan). default is agy's own approval, and "" (a record from before modes were kept) is no flag.
-func agyModeFlags(mode string) string {
+// agyModeFlags are agy's own flags for a permission mode (agy --help: --dangerously-skip-permissions, --settings,
+// --mode accept-edits|auto|plan). default is agy's own approval, and "" (a record from before modes were kept) is no flag.
+func agyModeFlags(mode string) string { return agyModeFlagsQ(mode, shellQuote) }
+
+func agyModeFlagsQ(mode string, q func(string) string) string {
 	switch mode {
 	case proto.ModeBypass:
-		return " --dangerously-skip-permissions"
+		return " --dangerously-skip-permissions --settings " + q(agyBypassSettingsJSON)
 	case "acceptEdits":
 		return " --mode accept-edits"
 	case "auto":
 		return " --mode auto"
+	case "plan":
+		return " --mode plan"
 	}
 	return ""
 }

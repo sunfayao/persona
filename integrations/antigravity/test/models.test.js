@@ -42,6 +42,13 @@ async function fixture(t, options = {}) {
   runtime.start()
   await n.ready
   const calls = () => readFileSync(join(home, 'calls.jsonl'), 'utf8').trim().split('\n').map(JSON.parse)
+  const spawns = () => {
+    try {
+      return readFileSync(join(home, 'spawns.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line).argv)
+    } catch {
+      return []
+    }
+  }
   const modelsCalls = () => {
     try {
       return readFileSync(join(home, 'models-calls.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line).at)
@@ -49,11 +56,11 @@ async function fixture(t, options = {}) {
       return []
     }
   }
-  if (options.noStart) return { n, home, catalog, calls, settings, modelsCalls }
+  if (options.noStart) return { n, home, catalog, calls, spawns, settings, modelsCalls }
   const { session } = await n.peer.call('session.start', { cwd: home })
   const sessionId = session.session_id
   const row = () => n.last('runtime.sessions')?.sessions.find((entry) => entry.session_id === sessionId)
-  return { n, home, catalog, settings, sessionId, row, session, calls }
+  return { n, home, catalog, settings, sessionId, row, session, calls, spawns }
 }
 
 async function modePermissionFixture(t, controls = {}, startParams = {}) {
@@ -409,4 +416,34 @@ test('periodic discovery backs off while it keeps timing out', { timeout: 30_000
   await until('the usual pace again', () => modelsCalls().length >= before + 2, 20_000)
   const after = modelsCalls()
   assert.ok(after.at(-1) - after.at(-2) < 1000, `back to every 250 ms: ${after.at(-1) - after.at(-2)} ms`)
+})
+
+test('bypassPermissions spawns agy acp with full unsandboxed settings and --dangerously-skip-permissions while plan/default stay on plain acp', async (t) => {
+  const { n, home, spawns } = await fixture(t, { noStart: true })
+  await n.peer.call('session.start', { cwd: home, permission_mode: 'plan' })
+  assert.equal(spawns().length, 1)
+  assert.equal(spawns()[0][0], 'acp')
+  assert.equal(spawns()[0].includes('--dangerously-skip-permissions'), false)
+
+  const bypass = await n.peer.call('session.start', { cwd: home, permission_mode: 'bypassPermissions' })
+  assert.equal(bypass.session.permission_mode, 'bypassPermissions')
+  assert.equal(spawns().length, 2)
+  const bypassArgv = spawns()[1]
+  assert.equal(bypassArgv[0], '--settings')
+  assert.deepEqual(JSON.parse(bypassArgv[1]), {
+    toolPermission: 'always-proceed',
+    allowNonWorkspaceAccess: true,
+    artifactReviewPolicy: 'always-proceed',
+    agentMode: 'accept-edits',
+    enableTerminalSandbox: false,
+  })
+  assert.equal(bypassArgv[2], 'acp')
+  assert.equal(bypassArgv[3], '--dangerously-skip-permissions')
+
+  // An assistant session starting in bypassPermissions gets its own bypass worker too.
+  const asst = await n.peer.call('session.start', { cwd: home, assistant: true, permission_mode: 'bypassPermissions' })
+  assert.equal(asst.session.permission_mode, 'bypassPermissions')
+  assert.equal(spawns().length, 3)
+  assert.equal(spawns()[2][0], '--settings')
+  assert.equal(spawns()[2][3], '--dangerously-skip-permissions')
 })

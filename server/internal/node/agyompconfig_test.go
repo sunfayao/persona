@@ -62,11 +62,26 @@ func TestAgySettingsReadWrite(t *testing.T) {
 	if err := n.setAgySetting("toolPermission", "always-proceed"); err != nil {
 		t.Fatalf("setAgySetting toolPermission: %v", err)
 	}
+	if err := n.setAgySetting("allowNonWorkspaceAccess", true); err != nil {
+		t.Fatalf("setAgySetting allowNonWorkspaceAccess: %v", err)
+	}
+	if err := n.setAgySetting("artifactReviewPolicy", "always-proceed"); err != nil {
+		t.Fatalf("setAgySetting artifactReviewPolicy: %v", err)
+	}
+	if err := n.setAgySetting("enableTerminalSandbox", false); err != nil {
+		t.Fatalf("setAgySetting enableTerminalSandbox: %v", err)
+	}
 	if err := n.setAgySetting("showFeedbackSurvey", false); err != nil {
 		t.Fatalf("setAgySetting showFeedbackSurvey: %v", err)
 	}
 	if err := n.setAgySetting("agentMode", "invalid-mode"); err == nil {
 		t.Fatal("expected invalid enum error for agentMode")
+	}
+	if err := n.setAgySetting("artifactReviewPolicy", "invalid-policy"); err == nil {
+		t.Fatal("expected invalid enum error for artifactReviewPolicy")
+	}
+	if err := n.setAgySetting("allowNonWorkspaceAccess", "yes"); err == nil {
+		t.Fatal("expected invalid bool error for allowNonWorkspaceAccess")
 	}
 
 	list, err = n.getAgySettings()
@@ -77,7 +92,8 @@ func TestAgySettingsReadWrite(t *testing.T) {
 	for _, s := range list {
 		got[s.Key] = s.Value
 	}
-	if got["agentMode"] != "auto" || got["toolPermission"] != "always-proceed" || got["showFeedbackSurvey"] != false {
+	if got["agentMode"] != "auto" || got["toolPermission"] != "always-proceed" || got["allowNonWorkspaceAccess"] != true ||
+		got["artifactReviewPolicy"] != "always-proceed" || got["enableTerminalSandbox"] != false || got["showFeedbackSurvey"] != false {
 		t.Fatalf("unexpected agy settings values: %#v", got)
 	}
 

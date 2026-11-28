@@ -92,69 +92,34 @@ func TestReadonlyModeManagersKeepIndependentSettings(t *testing.T) {
 	}
 }
 
-func TestReadonlyModeToolConfirmation(t *testing.T) {
-	yes, no := true, false
-	for _, tc := range []struct {
-		name    string
-		answer  proto.Resolution
-		applied bool
-	}{
-		{"allow", proto.Resolution{Allow: &yes}, true},
-		{"deny", proto.Resolution{Allow: &no}, false},
-		{"assistant cannot approve", proto.Resolution{Allow: &yes, AnsweredBy: proto.AnsweredByAssistant}, false},
-		{"dismiss", proto.Resolution{Dismiss: true}, false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			s := newTestService(t, newFakeHub().withMachine())
-			tool := func(args string) proto.ToolResult {
-				return s.Tool(ctx, ToolCall{Name: "persona_settings", MachineID: "server", SessionID: "c1", Arguments: json.RawMessage(args)})
-			}
-			for _, action := range []string{`{"action":"list"}`, `{"action":"get","key":"assistant.readonly_mode"}`} {
-				r := tool(action)
-				if r.IsError || !strings.Contains(r.Content[0].Text, readonlySandbox) {
-					t.Fatalf("%s: %+v", action, r)
-				}
-			}
-			for _, value := range []string{`null`, `""`, `true`, `"bad"`} {
-				r := tool(`{"action":"set","key":"assistant.readonly_mode","value":` + value + `}`)
-				if !r.IsError || len(s.pendingQuestions()) != 0 {
-					t.Fatalf("invalid value %s: %+v", value, r)
-				}
-			}
-			done := make(chan proto.ToolResult, 1)
-			go func() {
-				done <- tool(`{"action":"set","key":"assistant.readonly_mode","value":"prompt"}`)
-			}()
-			card, ok := awaitCard(s)
-			if !ok {
-				t.Fatal("no owner confirmation card")
-			}
-			if readonlyModeOf(s.settings(ctx)) != readonlySandbox || !strings.Contains(card.Summary, readonlyPrompt) ||
-				!strings.Contains(card.Summary, readonlySandbox) || card.ToolName != "persona_settings" {
-				t.Fatalf("changed before approval, or missing warning: %+v", card)
-			}
-			raw, _ := json.Marshal(tc.answer)
-			if _, err := s.Action(ctx, Action{Op: "answer", InteractionID: card.ID, Answer: raw}); err != nil {
-				t.Fatal(err)
-			}
-			select {
-			case r := <-done:
-				if r.IsError {
-					t.Fatalf("set: %+v", r)
-				}
-			case <-time.After(5 * time.Second):
-				t.Fatal("settings tool did not return")
-			}
-			want := readonlySandbox
-			if tc.applied {
-				want = readonlyPrompt
-			}
-			r := tool(`{"action":"get","key":"assistant.readonly_mode"}`)
-			if r.IsError || r.Content[0].Text != want {
-				t.Fatalf("confirmed setting = %+v, want %q", r, want)
-			}
-		})
+func TestReadonlyModeToolDirectApply(t *testing.T) {
+	ctx := context.Background()
+	s := newTestService(t, newFakeHub().withMachine())
+	tool := func(args string) proto.ToolResult {
+		return s.Tool(ctx, ToolCall{Name: "persona_settings", MachineID: "server", SessionID: "c1", Arguments: json.RawMessage(args)})
+	}
+	for _, action := range []string{`{"action":"list"}`, `{"action":"get","key":"assistant.readonly_mode"}`} {
+		r := tool(action)
+		if r.IsError || !strings.Contains(r.Content[0].Text, readonlySandbox) {
+			t.Fatalf("%s: %+v", action, r)
+		}
+	}
+	for _, value := range []string{`null`, `""`, `true`, `"bad"`} {
+		r := tool(`{"action":"set","key":"assistant.readonly_mode","value":` + value + `}`)
+		if !r.IsError || len(s.pendingQuestions()) != 0 {
+			t.Fatalf("invalid value %s: %+v", value, r)
+		}
+	}
+	r := tool(`{"action":"set","key":"assistant.readonly_mode","value":"prompt"}`)
+	if r.IsError || len(s.pendingQuestions()) != 0 || !strings.Contains(r.Content[0].Text, readonlySandbox) || !strings.Contains(r.Content[0].Text, readonlyPrompt) {
+		t.Fatalf("direct set: %+v, pending=%d", r, len(s.pendingQuestions()))
+	}
+	if readonlyModeOf(s.settings(ctx)) != readonlyPrompt {
+		t.Fatalf("readonly mode = %q, want %q", readonlyModeOf(s.settings(ctx)), readonlyPrompt)
+	}
+	r = tool(`{"action":"get","key":"assistant.readonly_mode"}`)
+	if r.IsError || r.Content[0].Text != readonlyPrompt {
+		t.Fatalf("get after set = %+v, want %q", r, readonlyPrompt)
 	}
 }
 

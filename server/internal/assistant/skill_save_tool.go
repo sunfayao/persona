@@ -3,19 +3,16 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistant/skillsave"
 	"github.com/sunfayao/persona/server/internal/assistantskills"
-	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
-// toolSkillSave is skill_save (assistant/skillsave): a procedure worked out in a conversation kept as a skill of the
-// main conversation's computer, through the importer and the permission card skill_import uses.
-func (s *Service) toolSkillSave(ctx context.Context, machine, self string, raw json.RawMessage) (string, error) {
+// toolSkillSave is skill_save (assistant/skillsave): a procedure worked out in a conversation kept directly as a skill
+// of the main conversation's computer through the node's skill importer.
+func (s *Service) toolSkillSave(ctx context.Context, _, _ string, raw json.RawMessage) (string, error) {
 	return skillsave.New(skillsave.Host{
 		Importer: func(ctx context.Context) (skillsave.Importer, error) {
 			target, err := s.skillImportTarget(ctx)
@@ -24,16 +21,8 @@ func (s *Service) toolSkillSave(ctx context.Context, machine, self string, raw j
 			}
 			return skillSaveImporter{s, target}, nil
 		},
-		Confirm: func(ctx context.Context, summary string, details json.RawMessage, expires time.Time) (bool, string, error) {
-			ok, text, err := s.confirmSkillImport(ctx, machine, self, "skill_save", summary, details, expires)
-			if errors.Is(err, context.DeadlineExceeded) && ctx.Err() == nil { // the card's own time ran out
-				return false, prompts.RenderSettingUnanswered(), nil
-			}
-			return ok, text, err
-		},
-		Names:    s.skillSaveNames,
-		Language: s.lang,
-		Logf:     s.logf,
+		Names: s.skillSaveNames,
+		Logf:  s.logf,
 	}).Save(ctx, raw)
 }
 

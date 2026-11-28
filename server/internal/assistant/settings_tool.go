@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	approvalops "github.com/sunfayao/persona/server/internal/approval"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -19,8 +18,9 @@ import (
 // persona_settings: Persona changes its own settings for the user (the
 // "Control Persona itself" row). The assistant's own ("About me", its launcher, "notify tasks the main chat starts only
 // in the main chat") are its to read and change; the hub's (the inbox's rules, the blocked Claude config directories,
-// mail accounts…) are the hub's settings app's, which asks the user itself (app.tool persona_settings). Reads are free;
-// every change is a card on the phone that says what changes (before → after) and is applied only when approved.
+// mail accounts…) are the hub's settings app's (app.tool persona_settings). Reads are free; non-secret changes apply
+// immediately and return before → after, while changes that require the user to type a secret on a card (such as
+// adding a mail account) still wait for that card.
 
 // ownSetting is one of the assistant's own settings persona_settings offers.
 type ownSetting struct {
@@ -59,7 +59,7 @@ func (s *Service) ownSettings() []ownSetting {
 	out := []ownSetting{
 		s.hiddenDirSetting(),
 		{Setting: Setting{Key: standingAuthorizationsKey, Title: "Standing authorizations", Actions: getSet,
-			About: "user-confirmed actions for one computer and absolute directory tree; only the main conversation may set them, and every change requires the user’s own permission approval",
+			About: "user-confirmed actions for one computer and absolute directory tree; only the main conversation may set them, and changes apply immediately with before → after",
 			Value: "{revision, authorizations: [{id?, machine_id, directory, actions, conditions, quote, source, reversible}]}; get first; retain existing entries unchanged or remove them; omit id for new grants; granted_at is set by the server"},
 			get: s.getStandingAuthorizations, set: s.setStandingAuthorizations},
 		{Setting: Setting{Key: "assistant.notes", Title: "关于我", Actions: getSet,
@@ -335,8 +335,8 @@ func (s *Service) listSettings(ctx context.Context, own []ownSetting) (string, e
 	}
 	sort.Slice(all, func(i, j int) bool { return all[i].Key < all[j].Key })
 	var b strings.Builder
-	b.WriteString("Persona's settings: this tool is how the user changes them. Reading is free; every set / add / remove shows the user an approval card " +
-		"(before → after) and changes nothing until they approve:\n")
+	b.WriteString("Persona's settings: this tool is how the user changes them. Reading is free; non-secret set / add / remove changes apply immediately " +
+		"and return before → after (only changes that need the user to type a secret, such as adding a mail account, show a card):\n")
 	for _, st := range all {
 		fmt.Fprintf(&b, "- %s (%s): %s. Actions: %s.", st.Key, st.Title, st.About, strings.Join(st.Actions, ", "))
 		if st.Value != "" {
@@ -355,8 +355,8 @@ func (s *Service) listSettings(ctx context.Context, own []ownSetting) (string, e
 // settingCardWait is how long a change's approval card waits for the user before it expires (and changes nothing).
 var settingCardWait = 15 * time.Minute
 
-// ownSettingAction reads one of the assistant's settings, or changes it once the user approves on the phone.
-func (s *Service) ownSettingAction(ctx context.Context, call ToolCall, o ownSetting, action string, value json.RawMessage) (string, error) {
+// ownSettingAction reads one of the assistant's settings, or applies a change directly and returns before → after.
+func (s *Service) ownSettingAction(ctx context.Context, _ ToolCall, o ownSetting, action string, value json.RawMessage) (string, error) {
 	var change *ownChange
 	var err error
 	switch {
@@ -376,51 +376,38 @@ func (s *Service) ownSettingAction(ctx context.Context, call ToolCall, o ownSett
 		return change.summary, nil // nothing to change
 	}
 	l := s.lang(ctx)
-	title := o.Title
-	if o.cardTitle != nil {
-		title = o.cardTitle(l)
-	} else if k, ok := settingTitles[o.Key]; ok {
-		title = i18n.T(l, "assistant-settings_tool."+k)
-	}
-	shown, _ := json.Marshal(map[string]string{"setting": title, "action": action})
-	now := time.Now().UTC()
 	proposal := change.card(l)
-	outcome, err := s.waitPreparedCard(ctx, proto.Interaction{ID: "ix_" + randomHex(6), MachineID: call.MachineID, SessionID: call.SessionID,
-		Kind: proto.IxPermission, ToolName: "persona_settings", Summary: proposal, ToolInput: shown, SessionTitle: "Persona",
-		CreatedAt: now, ExpiresAt: now.Add(settingCardWait)}, approvalops.Operation{
-		Replacement: call.MachineID + "\x00" + call.SessionID + "\x00setting\x00" + o.Key,
-		Denied:      "The user declined the change: nothing changed.",
-		Unanswered:  prompts.RenderSettingUnanswered(),
-		Apply: func(ctx context.Context, _ proto.Resolution) (string, error) {
-			if change.applyChecksProposal {
-				// This apply already re-reads and compares the approved revision
-				// under its state lock; do not rebase it onto a newer revision.
-				return change.apply(ctx)
-			}
-			// Rebuild from current state: only the exact visible proposal the owner
-			// approved may execute, and the freshly validated operation is used.
-			var fresh *ownChange
-			var err error
-			switch {
-			case action == "set" && o.set != nil:
-				fresh, err = o.set(ctx, value)
-			case action != "set" && o.change != nil && slices.Contains(o.Actions, action):
-				fresh, err = o.change(ctx, action, value)
-			default:
-				return "", approvalops.ErrStale
-			}
-			if err != nil {
-				// The setter only rebuilds and validates a fresh operation here;
-				// fresh.apply below is the first possible side effect.
-				return "", fmt.Errorf("%w: validate the approved operation against current state: %v", approvalops.ErrNotApplied, err)
-			}
-			if fresh == nil || fresh.apply == nil || fresh.card(l) != proposal {
-				return "", approvalops.ErrStale
-			}
-			return fresh.apply(ctx)
-		},
-	})
-	return outcome.Text, err
+	if strings.TrimSpace(proposal) == "" {
+		proposal = settingTitle(l, o)
+	}
+	applied, err := change.apply(ctx)
+	if err != nil {
+		return "", err
+	}
+	return formatDirectSettingResult(proposal, applied), nil
+}
+
+func settingTitle(l i18n.Lang, o ownSetting) string {
+	if o.cardTitle != nil {
+		return o.cardTitle(l)
+	}
+	if k, ok := settingTitles[o.Key]; ok {
+		return i18n.T(l, "assistant-settings_tool."+k)
+	}
+	return o.Title
+}
+
+func formatDirectSettingResult(summary, applied string) string {
+	summary = strings.TrimSpace(summary)
+	applied = strings.TrimSpace(applied)
+	switch {
+	case summary == "":
+		return applied
+	case applied == "" || applied == summary || strings.Contains(applied, summary):
+		return applied
+	default:
+		return summary + "\n" + applied
+	}
 }
 
 func orNone(s string) string {

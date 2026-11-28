@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/sunfayao/persona/server/internal/i18n"
-	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestIdleCompactSettingsDefaultsAndView(t *testing.T) {
@@ -61,44 +60,20 @@ func TestIdleCompactSettingsToolApprovalAndValidation(t *testing.T) {
 	if out, isErr := tool(`{"action":"set","key":"assistant.idle_auto_compact","value":true}`); isErr || len(s.pendingQuestions()) != 0 || !strings.Contains(out, "unchanged") && !strings.Contains(out, "未变化") {
 		t.Fatalf("same value should be a no-op: %q error=%v", out, isErr)
 	}
-	card := i18n.T(i18n.Default, "assistant-settings_tool.change_idle_auto_compact", i18n.Args{"before": i18n.T(i18n.Default, "assistant-settings_tool.on"), "after": i18n.T(i18n.Default, "assistant-settings_tool.off")})
-	go func() {
-		q, ok := awaitCard(s)
-		if !ok {
-			return
-		}
-		allowed := true
-		answer, _ := json.Marshal(proto.Resolution{Allow: &allowed})
-		if q.Summary != card {
-			t.Errorf("approval card: %q want %q", q.Summary, card)
-		}
-		if _, err := s.Action(ctx, Action{Op: "answer", InteractionID: q.ID, Answer: answer}); err != nil {
-			t.Errorf("approve: %v", err)
-		}
-	}()
-	if out, isErr := tool(`{"action":"set","key":"assistant.idle_auto_compact","value":false}`); isErr || !strings.Contains(out, "saved") && !strings.Contains(out, "保存") {
-		t.Fatalf("approved change: %q error=%v", out, isErr)
+	wantSummary := i18n.T(i18n.Default, "assistant-settings_tool.change_idle_auto_compact", i18n.Args{"before": i18n.T(i18n.Default, "assistant-settings_tool.on"), "after": i18n.T(i18n.Default, "assistant-settings_tool.off")})
+	if out, isErr := tool(`{"action":"set","key":"assistant.idle_auto_compact","value":false}`); isErr || len(s.pendingQuestions()) != 0 ||
+		!strings.Contains(out, wantSummary) || (!strings.Contains(out, "saved") && !strings.Contains(out, "保存")) {
+		t.Fatalf("direct change: %q error=%v pending=%d", out, isErr, len(s.pendingQuestions()))
 	}
 	if got, _ := tool(`{"action":"get","key":"assistant.idle_auto_compact"}`); got != "false" {
-		t.Fatalf("approved value was not persisted: %q", got)
+		t.Fatalf("direct value was not persisted: %q", got)
 	}
 	for _, c := range []struct{ key, value, want string }{
 		{"assistant.idle_auto_compact_minutes", "45", "45"}, {"assistant.idle_auto_compact_tokens", "400000", "400000"},
 	} {
-		go func() {
-			q, ok := awaitCard(s)
-			if !ok {
-				return
-			}
-			allowed := true
-			answer, _ := json.Marshal(proto.Resolution{Allow: &allowed})
-			if _, err := s.Action(ctx, Action{Op: "answer", InteractionID: q.ID, Answer: answer}); err != nil {
-				t.Errorf("approve %s: %v", c.key, err)
-			}
-		}()
 		out, isErr := tool(fmt.Sprintf(`{"action":"set","key":%q,"value":%s}`, c.key, c.value))
-		if isErr {
-			t.Fatalf("valid %s: %q", c.key, out)
+		if isErr || len(s.pendingQuestions()) != 0 {
+			t.Fatalf("valid %s: %q pending=%d", c.key, out, len(s.pendingQuestions()))
 		}
 		if got, _ := tool(fmt.Sprintf(`{"action":"get","key":%q}`, c.key)); got != c.want {
 			t.Fatalf("persisted %s: got %q want %q", c.key, got, c.want)

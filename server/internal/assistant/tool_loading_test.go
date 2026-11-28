@@ -177,20 +177,9 @@ func TestLoadAllToolsSetting(t *testing.T) {
 		t.Fatalf("set to what it is: %s", out)
 	}
 	word := map[bool]string{true: i18n.T(i18n.Default, "assistant-settings_tool.on"), false: i18n.T(i18n.Default, "assistant-settings_tool.off")}
-	card := i18n.T(i18n.Default, "assistant-settings_tool.change_load_all_tools", i18n.Args{"before": word[false], "after": word[true]})
-	go func() {
-		q, ok := awaitCard(s)
-		if !ok || q.Summary != card {
-			t.Errorf("card %q (%v), want %q", q.Summary, ok, card)
-		}
-		allow := true
-		raw, _ := json.Marshal(proto.Resolution{Allow: &allow})
-		if _, err := s.Action(ctx, Action{Op: "answer", InteractionID: q.ID, Answer: raw}); err != nil {
-			t.Error(err)
-		}
-	}()
-	if out, _ := tool(`{"action":"set","key":"assistant.load_all_tools","value":true}`); !strings.HasPrefix(out, "assistant.load_all_tools is true") {
-		t.Fatalf("approved: %s", out)
+	summary := i18n.T(i18n.Default, "assistant-settings_tool.change_load_all_tools", i18n.Args{"before": word[false], "after": word[true]})
+	if out, isErr := tool(`{"action":"set","key":"assistant.load_all_tools","value":true}`); isErr || !strings.Contains(out, summary) || !strings.Contains(out, "assistant.load_all_tools is true") || len(s.pendingQuestions()) != 0 {
+		t.Fatalf("direct set: %s (err=%v, pending=%d)", out, isErr, len(s.pendingQuestions()))
 	}
 	if get() != fmt.Sprint(true) || deferred() {
 		t.Fatalf("after the change: %s, deferred %v", get(), deferred())

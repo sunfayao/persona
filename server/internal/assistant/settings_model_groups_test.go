@@ -97,7 +97,7 @@ func TestModelGroupSettingsListAndGet(t *testing.T) {
 	}
 }
 
-func TestModelGroupProviderSetRequiresApproval(t *testing.T) {
+func TestModelGroupProviderSetDirectApply(t *testing.T) {
 	s, _, _ := modelService(t)
 	putModelGroupProviders(t, s, "https://provider.invalid")
 	setModel(t, s, "kb", ModelBinding{Provider: "launcher.old-provider", Model: "old-model", Effort: "low"})
@@ -106,37 +106,19 @@ func TestModelGroupProviderSetRequiresApproval(t *testing.T) {
 	unrelated := modelRecordOf(t, s, "translate")
 	args := modelGroupArgs(t, "set", "model_config.kb", "launcher.new-provider")
 
-	done := make(chan proto.ToolResult, 1)
-	go func() {
-		done <- s.Tool(context.Background(), ToolCall{Name: "persona_settings", MachineID: "server", SessionID: "main-1", Arguments: args})
-	}()
-	card, ok := awaitCard(s)
-	if !ok {
-		t.Fatal("provider change did not wait for a phone approval card")
+	result := s.Tool(context.Background(), ToolCall{Name: "persona_settings", MachineID: "server", SessionID: "main-1", Arguments: args})
+	if result.IsError || len(s.pendingQuestions()) != 0 {
+		t.Fatalf("direct provider change failed: %s (pending=%d)", modelGroupResultText(result), len(s.pendingQuestions()))
 	}
+	text := modelGroupResultText(result)
 	for _, want := range []string{"launcher.old-provider", "launcher.new-provider", "old-model", "new-default", "→"} {
-		if !strings.Contains(card.Summary, want) {
-			t.Errorf("approval card does not show %q: %s", want, card.Summary)
+		if !strings.Contains(text, want) {
+			t.Errorf("direct change result does not show %q: %s", want, text)
 		}
-	}
-	if after := modelRecordOf(t, s, "kb"); after.Revision != before.Revision || after.Binding != before.Binding {
-		t.Fatalf("model group changed before approval: before=%+v after=%+v", before, after)
-	}
-	allow := true
-	if _, err := s.Action(context.Background(), Action{Op: "answer", InteractionID: card.ID, Answer: standingJSON(t, proto.Resolution{Allow: &allow})}); err != nil {
-		t.Fatal(err)
-	}
-	select {
-	case result := <-done:
-		if result.IsError {
-			t.Fatalf("approved provider change failed: %s", modelGroupResultText(result))
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("approved provider change did not finish")
 	}
 	after := modelRecordOf(t, s, "kb")
 	if after.Revision != before.Revision+1 || after.Binding.Provider != "launcher.new-provider" || after.Binding.Model != "" || after.Binding.Effort != "" {
-		t.Fatalf("approved binding did not replace the provider and clear its old fields: %+v", after)
+		t.Fatalf("direct binding did not replace the provider and clear its old fields: %+v", after)
 	}
 	if got := modelRecordOf(t, s, "translate"); got.Revision != unrelated.Revision || got.Binding != unrelated.Binding {
 		t.Fatalf("an unrelated model group changed: before=%+v after=%+v", unrelated, got)
@@ -270,34 +252,20 @@ func TestModelGroupLauncherConnectionTest(t *testing.T) {
 	}
 }
 
-func TestModelGroupProviderApprovalRechecksRevision(t *testing.T) {
+func TestModelGroupProviderApplyRechecksRevision(t *testing.T) {
 	s, _, _ := modelService(t)
 	putModelGroupProviders(t, s, "https://provider.invalid")
 	setModel(t, s, "kb", ModelBinding{Provider: "launcher.old-provider", Model: "old-model"})
-	args := modelGroupArgs(t, "set", "model_config.kb", "launcher.new-provider")
-	done := make(chan proto.ToolResult, 1)
-	go func() {
-		done <- s.Tool(context.Background(), ToolCall{Name: "persona_settings", MachineID: "server", SessionID: "main-1", Arguments: args})
-	}()
-	card, ok := awaitCard(s)
-	if !ok {
-		t.Fatal("provider change did not wait for approval")
+	change, err := s.setModelGroupProvider(context.Background(), "kb", json.RawMessage(`"launcher.new-provider"`))
+	if err != nil {
+		t.Fatal(err)
 	}
 	setModel(t, s, "kb", ModelBinding{Provider: "launcher.old-provider", Model: "concurrent-model"})
 	concurrent := modelRecordOf(t, s, "kb")
-	allow := true
-	if _, err := s.Action(context.Background(), Action{Op: "answer", InteractionID: card.ID, Answer: standingJSON(t, proto.Resolution{Allow: &allow})}); err != nil {
-		t.Fatal(err)
-	}
-	select {
-	case result := <-done:
-		if !strings.Contains(modelGroupResultText(result), "Nothing was applied") {
-			t.Fatalf("stale approval did not report its refusal: %s", modelGroupResultText(result))
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("stale approval did not finish")
+	if _, err := change.apply(context.Background()); err == nil || !strings.Contains(err.Error(), "changed after") {
+		t.Fatalf("stale apply did not report refusal: %v", err)
 	}
 	if after := modelRecordOf(t, s, "kb"); after.Revision != concurrent.Revision || after.Binding != concurrent.Binding {
-		t.Fatalf("stale approval overwrote the concurrent edit: concurrent=%+v after=%+v", concurrent, after)
+		t.Fatalf("stale apply overwrote the concurrent edit: concurrent=%+v after=%+v", concurrent, after)
 	}
 }

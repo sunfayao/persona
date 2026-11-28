@@ -327,18 +327,31 @@ func TestHubSelfSettingRechecksCurrentProposalAfterClarification(t *testing.T) {
 					shown <- in.Interaction
 					return approval.Outcome{Clarifying: true, Text: approval.ClarifyingText}, nil
 				}
-				m := &Machine{cfg: MachineConfig{ID: "m1"}, hub: h}
+				setting := h.pushGradingSelfSetting()
+				initial, err := setting.set(context.Background(), json.RawMessage(`true`))
+				if err != nil {
+					t.Fatal(err)
+				}
 				toolDone := make(chan struct {
 					text string
 					err  error
 				}, 1)
 				go func() {
-					text, err := h.toolPersonaSettings(context.Background(), assistantwire.AssistantID, m, "s1",
-						json.RawMessage(`{"action":"set","key":"notifications.low_distraction","value":true}`), nil)
+					ix := proto.Interaction{ID: "ix_" + randomHex(6), MachineID: "m1", SessionID: "s1", Kind: proto.IxPermission,
+						ToolName: "persona_settings", Summary: initial.summary, SessionTitle: "Persona",
+						CreatedAt: time.Now().UTC(), ExpiresAt: time.Now().Add(15 * time.Minute).UTC()}
+					out, err := h.waitPreparedSetting(context.Background(), assistantwire.AssistantID, ix, "m1\x00s1\x00"+setting.key,
+						func(ctx context.Context, r proto.Resolution) (string, error) {
+							fresh, err := setting.set(ctx, json.RawMessage(`true`))
+							if err != nil || fresh == nil || fresh.apply == nil || fresh.summary != initial.summary {
+								return "", approval.ErrStale
+							}
+							return fresh.apply(ctx, r.Values)
+						}, nil)
 					toolDone <- struct {
 						text string
 						err  error
-					}{text, err}
+					}{out.Text, err}
 				}()
 				var ix proto.Interaction
 				select {

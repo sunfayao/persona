@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	approvalops "github.com/sunfayao/persona/server/internal/approval"
 	"github.com/sunfayao/persona/server/internal/assistant/repository"
 	"github.com/sunfayao/persona/server/internal/assistant/toolnotes"
 	"github.com/sunfayao/persona/server/internal/assistant/tooluse"
@@ -60,15 +59,8 @@ func (s *Service) newToolNotes() *toolnotes.Domain {
 		},
 		Drafts:      s.frictionDrafts,
 		UpdateDraft: s.updateFrictionDraft,
-		Confirm: func(ctx context.Context, c toolnotes.Card, op approvalops.Operation) (approvalops.Outcome, error) {
-			now := time.Now().UTC()
-			op.Replacement = c.Machine + "\x00" + c.Session + "\x00" + toolnotes.ToolName + "\x00" + c.Key
-			return s.waitPreparedCard(ctx, proto.Interaction{ID: "ix_" + randomHex(6), MachineID: c.Machine, SessionID: c.Session,
-				Kind: proto.IxPermission, ToolName: toolnotes.ToolName, Summary: c.Summary, ToolInput: c.Shown, SessionTitle: "Persona",
-				CreatedAt: now, ExpiresAt: now.Add(settingCardWait)}, op)
-		},
-		Repository: s.savedRepository,
-		FileTodo:   s.fileFixTodo,
+		Repository:  s.savedRepository,
+		FileTodo:    s.fileFixTodo,
 		TodoDone: func(id string) bool {
 			t, ok := s.todoNow(id)
 			return ok && t.DoneAt != nil

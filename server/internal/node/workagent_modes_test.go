@@ -55,7 +55,8 @@ func TestAgyPaneRowAndResumeKeepStartMode(t *testing.T) {
 	seedAgents(t, n, f, agyTestAgent(agyTestPane, home, ""))
 	n.noteWorkAgent(context.Background(), n.hosts.Get(host.Herdr).(*herdrHost), agyTestPane, agyTestRow, home, agyAgent, agyAgent, "test-model", "", agyStartMode(""))
 	waitFor(t, "the agy resume report", func() bool { return len(f.trace("pane.report_agent_session")) > 0 })
-	if got := f.trace("pane.report_agent_session"); !strings.Contains(got[0], `agy --model test-model --dangerously-skip-permissions"`) {
+	wantBypass := `agy --model test-model --dangerously-skip-permissions --settings ` + dquote(agyBypassSettingsJSON)
+	if got := f.trace("pane.report_agent_session"); !strings.Contains(got[0], strings.ReplaceAll(strings.ReplaceAll(wantBypass, `\`, `\\`), `"`, `\"`)) || strings.Contains(got[0], "'") {
 		t.Fatalf("resume command: %v", got)
 	}
 	var row *proto.Session
@@ -100,11 +101,15 @@ func TestAgyModeFlags(t *testing.T) {
 		"default":        "",
 		"acceptEdits":    " --mode accept-edits",
 		"auto":           " --mode auto",
-		proto.ModeBypass: " --dangerously-skip-permissions",
+		"plan":           " --mode plan",
+		proto.ModeBypass: " --dangerously-skip-permissions --settings " + shellQuote(agyBypassSettingsJSON),
 	} {
 		if got := agyModeFlags(mode); got != want {
 			t.Errorf("agyModeFlags(%q) = %q, want %q", mode, got, want)
 		}
+	}
+	if got := agyModeFlagsQ(proto.ModeBypass, dquote); strings.Contains(got, "'") || !strings.Contains(got, "--dangerously-skip-permissions --settings ") || !resumeSayable("agy"+got) {
+		t.Errorf("resume agy bypass flags not sayable: %q", got)
 	}
 	if got := agyStartMode(""); got != proto.ModeBypass {
 		t.Errorf("default start mode %q", got)

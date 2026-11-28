@@ -49,7 +49,7 @@ func newBoundPRTask(t *testing.T, st Store, agentSession proto.Session) (*Servic
 
 func TestPREventsRouteToAgentSetting(t *testing.T) {
 	st := &memStore{}
-	s, f := newQuietServiceOn(t, st)
+	s, _ := newQuietServiceOn(t, st)
 	ctx := context.Background()
 
 	// Default is false in GET /api/v1/assistant, helper, and persona_settings.
@@ -77,51 +77,12 @@ func TestPREventsRouteToAgentSetting(t *testing.T) {
 		t.Fatalf("persona_settings set non-bool = %q (err=%v)", out, isErr)
 	}
 
-	// Approval card required via persona_settings; deny keeps false, allow flips to true.
+	// persona_settings applies directly with no card and returns before → after plus confirmation.
 	word := map[bool]string{true: i18n.T(i18n.Default, "assistant-settings_tool.on"), false: i18n.T(i18n.Default, "assistant-settings_tool.off")}
-	wantCard := i18n.T(i18n.Default, "assistant-settings_tool.change_pr_events_route_to_agent", i18n.Args{"before": word[false], "after": word[true]})
-	// The service tells the hub right after it puts a card up (the card itself, or a snapshot with it), so each thing it
-	// tells is when to look again.
-	published := make(chan struct{}, 1)
-	f.mu.Lock()
-	f.onTell = func() {
-		select {
-		case published <- struct{}{}:
-		default:
-		}
-	}
-	f.mu.Unlock()
-	answer := func(allow bool) {
-		var q proto.Interaction
-		deadline := time.After(5 * time.Second)
-		for {
-			if qs := s.pendingQuestions(); len(qs) > 0 {
-				q = qs[0]
-				break
-			}
-			select {
-			case <-published:
-				continue
-			case <-deadline:
-				t.Error("no approval card raised")
-				return
-			}
-		}
-		if q.Summary != wantCard {
-			t.Errorf("card summary = %q, want %q", q.Summary, wantCard)
-		}
-		raw, _ := json.Marshal(proto.Resolution{Allow: &allow})
-		if _, err := s.Action(ctx, Action{Op: "answer", InteractionID: q.ID, Answer: raw}); err != nil {
-			t.Error(err)
-		}
-	}
-	go answer(false)
-	if out, _ := tool(`{"action":"set","key":"assistant.pr_events_route_to_agent","value":true}`); !strings.Contains(out, "declined") || s.prEventsRouteToAgentOn(ctx) {
-		t.Fatalf("declined set: out=%q on=%v", out, s.prEventsRouteToAgentOn(ctx))
-	}
-	go answer(true)
-	if out, isErr := tool(`{"action":"set","key":"assistant.pr_events_route_to_agent","value":true}`); isErr || !strings.HasPrefix(out, "assistant.pr_events_route_to_agent is true") || !s.prEventsRouteToAgentOn(ctx) {
-		t.Fatalf("approved set: out=%q err=%v on=%v", out, isErr, s.prEventsRouteToAgentOn(ctx))
+	wantSummary := i18n.T(i18n.Default, "assistant-settings_tool.change_pr_events_route_to_agent", i18n.Args{"before": word[false], "after": word[true]})
+	if out, isErr := tool(`{"action":"set","key":"assistant.pr_events_route_to_agent","value":true}`); isErr || len(s.pendingQuestions()) != 0 ||
+		!strings.Contains(out, wantSummary) || !strings.Contains(out, "assistant.pr_events_route_to_agent is true") || !s.prEventsRouteToAgentOn(ctx) {
+		t.Fatalf("direct set: out=%q err=%v pending=%d on=%v", out, isErr, len(s.pendingQuestions()), s.prEventsRouteToAgentOn(ctx))
 	}
 
 	// Unrelated PUT preserves it; explicit PUT false disables it.

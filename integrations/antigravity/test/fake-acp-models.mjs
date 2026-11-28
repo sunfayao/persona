@@ -18,6 +18,7 @@ if (process.argv.includes('models')) {
   process.exit(0)
   }
 }
+appendFileSync(`${directory}/spawns.jsonl`, `${JSON.stringify({ argv: process.argv.slice(3) })}\n`)
 const id = '11111111-2222-3333-4444-555555555555'
 let model = 'gemini-future-medium'
 let effort = 'medium'

@@ -11,7 +11,6 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/i18n"
-	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // persona_settings notifications.low_distraction (#8157): settings.list names it, get answers what GET
@@ -59,66 +58,43 @@ func TestPushGradingSettingChangesTheSwitchOnlyOnApproval(t *testing.T) {
 		}
 		return out.Enabled
 	}
-	// run calls the tool; answer, when set, answers the one card it shows (after checking the switch has not moved).
-	run := func(args string, answer *bool) (string, []proto.Interaction) {
+	run := func(args string) string {
 		t.Helper()
-		done := make(chan string, 1)
-		go func() {
-			out, err := h.toolPersonaSettings(ctx, assistantwire.AssistantID, m, "s1", json.RawMessage(args), nil)
-			if err != nil {
-				out = "error: " + err.Error()
-			}
-			done <- out
-		}()
-		var cards []proto.Interaction
-		for {
-			if pending := h.pendingInteractions(); answer != nil && len(cards) == 0 && len(pending) == 1 {
-				cards = pending
-				if h.push.pushGradingOn() || route() {
-					t.Fatal("the switch changed before the owner answered the card")
-				}
-				_ = h.resolve(pending[0].ID, proto.Resolution{Allow: answer})
-			}
-			select {
-			case out := <-done:
-				return out, cards
-			case <-ctx.Done():
-				t.Fatalf("%s: no answer", args)
-				return "", nil
-			case <-time.After(5 * time.Millisecond):
-			}
+		out, err := h.toolPersonaSettings(ctx, assistantwire.AssistantID, m, "s1", json.RawMessage(args), nil)
+		if err != nil {
+			out = "error: " + err.Error()
 		}
+		if pending := h.pendingInteractions(); len(pending) != 0 {
+			t.Fatalf("unexpected approval card for %s: %+v", args, pending)
+		}
+		return out
 	}
 	get := `{"action":"get","key":"notifications.low_distraction"}`
 	set := `{"action":"set","key":"notifications.low_distraction","value":true}`
 
-	if out, _ := run(get, nil); out != "false" || route() {
+	if out := run(get); out != "false" || route() {
 		t.Fatalf("get = %q, route = %v; want both off", out, route())
 	}
-	no, yes := false, true
-	if out, cards := run(set, &no); !strings.Contains(out, "declined") || len(cards) != 1 || h.push.pushGradingOn() {
-		t.Fatalf("declined: %q, cards %d, on %v", out, len(cards), h.push.pushGradingOn())
+	out := run(set)
+	wantSummary := i18n.T(h.userLang(), "hub-self_settings_lnmode.change", i18n.Args{
+		"before": i18n.T(h.userLang(), "hub-self_settings_lnmode.off"),
+		"after":  i18n.T(h.userLang(), "hub-self_settings_lnmode.on"),
+		"what":   i18n.T(h.userLang(), "hub-self_settings_lnmode.when_on"),
+	})
+	if !strings.Contains(out, wantSummary) || !h.push.pushGradingOn() || !route() || !strings.Contains(out, "true") {
+		t.Fatalf("direct set: %q, on %v, route %v", out, h.push.pushGradingOn(), route())
 	}
-	out, cards := run(set, &yes)
-	if len(cards) != 1 || cards[0].Kind != proto.IxPermission || cards[0].ToolName != "persona_settings" ||
-		cards[0].Summary != i18n.T(h.userLang(), "hub-self_settings_lnmode.change", i18n.Args{"before": i18n.T(h.userLang(), "hub-self_settings_lnmode.off"),
-			"after": i18n.T(h.userLang(), "hub-self_settings_lnmode.on"), "what": i18n.T(h.userLang(), "hub-self_settings_lnmode.when_on")}) {
-		t.Fatalf("the card: %+v", cards)
-	}
-	if !h.push.pushGradingOn() || !route() || !strings.Contains(out, "true") {
-		t.Fatalf("approved: %q, on %v, route %v", out, h.push.pushGradingOn(), route())
-	}
-	if got, _ := run(get, nil); got != "true" {
+	if got := run(get); got != "true" {
 		t.Fatalf("get after the change = %q, want what the route says (true)", got)
 	}
 	eventually(t, 5*time.Second, "the manager told the switch is on", func() bool {
 		hello, _ := a.bh.Hello(context.Background())
 		return hello.QuietPush
 	})
-	if out, cards := run(set, &yes); len(cards) != 0 || !strings.Contains(out, "already") {
-		t.Fatalf("setting what it already is: %q, %d cards", out, len(cards))
+	if out := run(set); !strings.Contains(out, "already") {
+		t.Fatalf("setting what it already is: %q", out)
 	}
-	if out, _ := run(`{"action":"set","key":"notifications.low_distraction","value":"yes"}`, nil); !strings.HasPrefix(out, "error:") || !route() {
+	if out := run(`{"action":"set","key":"notifications.low_distraction","value":"yes"}`); !strings.HasPrefix(out, "error:") || !route() {
 		t.Fatalf("a value that is not true or false: %q", out)
 	}
 }

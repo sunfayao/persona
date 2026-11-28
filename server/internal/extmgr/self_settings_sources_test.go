@@ -61,25 +61,21 @@ func TestSelfSettingsSourceTriageRules(t *testing.T) {
 		t.Fatalf("get through the hub: %v %v", out, err)
 	}
 
-	set := func(allow bool, value string) (string, proto.Interaction) {
+	var asked []proto.Interaction
+	th := hubOf(h)
+	th.mu.Lock()
+	th.answer = func(ix proto.Interaction) proto.Resolution {
+		asked = append(asked, ix)
+		return proto.Resolution{}
+	}
+	th.mu.Unlock()
+	set := func(value string) string {
 		t.Helper()
-		// The card is the hub's (interactions.wait): the phone answers it.
-		th := hubOf(h)
-		var ix proto.Interaction
-		th.mu.Lock()
-		th.answer = func(asked proto.Interaction) proto.Resolution {
-			ix = asked
-			return proto.Resolution{Allow: &allow}
-		}
-		th.mu.Unlock()
 		out, err := h.toolPersonaSettings(ctx, "server", "s1", json.RawMessage(`{"action":"set","key":"inbox.rules.example-chat","value":`+value+`}`))
 		if err != nil {
-			out = "error: " + err.Error()
+			t.Fatalf("set %s: %v", value, err)
 		}
-		if ix.ID == "" || ix.MachineID != "server" || ix.SessionID != "s1" || ix.ToolName != "persona_settings" || ix.Kind != proto.IxPermission {
-			t.Fatalf("the card: %+v", ix)
-		}
-		return out, ix
+		return out
 	}
 	config := func() map[string]any {
 		var c map[string]any
@@ -87,13 +83,12 @@ func TestSelfSettingsSourceTriageRules(t *testing.T) {
 		return c
 	}
 
-	out2, ix := set(false, `"机器人发的都算噪音"`)
-	if ix.Summary != "改示例聊天的分拣规则：（无） → 机器人发的都算噪音" || !strings.Contains(out2, "declined") || config()["triage_rules"] != nil {
-		t.Fatalf("declined: %q %q %v", ix.Summary, out2, config())
+	out2 := set(`"机器人发的都算噪音"`)
+	if len(asked) != 0 || !strings.Contains(out2, "改示例聊天的分拣规则：（无） → 机器人发的都算噪音") || !strings.Contains(out2, "updated") {
+		t.Fatalf("direct set: %q asked=%d", out2, len(asked))
 	}
-	out2, _ = set(true, `"机器人发的都算噪音"`)
-	if c := config(); c["triage_rules"] != "机器人发的都算噪音" || c["account"] != float64(2) || !strings.Contains(out2, "updated") {
-		t.Fatalf("approved: %q %v", out2, c)
+	if c := config(); c["triage_rules"] != "机器人发的都算噪音" || c["account"] != float64(2) {
+		t.Fatalf("saved: %v", c)
 	}
 	if got, _ := h.toolPersonaSettings(ctx, "server", "s1", json.RawMessage(`{"action":"get","key":"inbox.rules.example-chat"}`)); got != "机器人发的都算噪音" {
 		t.Fatalf("get after: %q", got)
@@ -101,8 +96,8 @@ func TestSelfSettingsSourceTriageRules(t *testing.T) {
 	if out, _ := h.toolPersonaSettings(ctx, "server", "s1", json.RawMessage(`{"action":"set","key":"inbox.rules.example-chat","value":"机器人发的都算噪音"}`)); !strings.Contains(out, "没有变化") {
 		t.Fatalf("unchanged: %q", out)
 	}
-	if _, ix = set(true, `""`); !strings.HasSuffix(ix.Summary, "→ （无）") {
-		t.Fatalf("clear card: %q", ix.Summary)
+	if out2 = set(`""`); len(asked) != 0 || !strings.Contains(out2, "→ （无）") {
+		t.Fatalf("clear: %q asked=%d", out2, len(asked))
 	}
 	if c := config(); c["triage_rules"] != nil || c["account"] != float64(2) {
 		t.Fatalf("cleared: %v", c)

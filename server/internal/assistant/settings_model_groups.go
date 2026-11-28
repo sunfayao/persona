@@ -28,7 +28,7 @@ func (s *Service) modelGroupOwnSettings() []ownSetting {
 				Key:     modelKey(id),
 				Title:   purposeName(i18n.En, id),
 				Actions: actions,
-				About:   "provider for this background model group; get returns the effective provider, model, effort and revision plus valid provider IDs; set waits for phone approval and a provider change clears the old provider's model, effort and permission mode; test makes one bounded connection request and saves no model-group setting",
+				About:   "provider for this background model group; get returns the effective provider, model, effort and revision plus valid provider IDs; set applies immediately, returns before → after, and a provider change clears the old provider's model, effort and permission mode; test makes one bounded connection request and saves no model-group setting",
 				Value:   "provider ID string from get's purpose.provider_ids (set and test)",
 			},
 			get: func(ctx context.Context) (string, error) { return s.getModelGroupSetting(ctx, id) },

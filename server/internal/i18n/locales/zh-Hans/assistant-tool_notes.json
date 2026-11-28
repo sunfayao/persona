@@ -1,6 +1,4 @@
 {
-  "card_propose": "给 {tool} 加一条使用笔记：“{text}”",
-  "card_propose_scoped": "给 {tool}（{where}）加一条使用笔记：“{text}”",
   "fix_title": "修复 {tool}：{code}",
   "fix_seen": "共失败 {count} 次，首次在 {first}，最近一次在 {last}。",
   "fix_skeleton": "失败调用的参数结构：{skeleton}",

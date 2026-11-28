@@ -14,7 +14,10 @@ import (
 var agySettings = []ClaudeSetting{
 	{Key: "model", Title: "默认模型", Detail: "没有指定模型时使用 Antigravity 自己的默认模型", Type: "string", Default: ""},
 	{Key: "agentMode", Title: "执行模式", Detail: "改文件、跑命令时的默认模式；auto 自动放行安全操作，需要时仍会询问", Type: "enum", Options: []string{"default", "accept-edits", "auto", "plan"}, Default: "default"},
-	{Key: "toolPermission", Title: "工具权限", Detail: "调用工具或跑命令前要不要问你；选 always-proceed 会自动放行所有权限检查（全部放行）", Type: "enum", Options: []string{"ask", "always-proceed"}, Default: "ask"},
+	{Key: "toolPermission", Title: "工具权限", Detail: "调用工具或跑命令前要不要问你；选 always-proceed 会自动放行所有权限检查（全部放行）", Type: "enum", Options: []string{"ask", "request-review", "proceed-in-sandbox", "always-proceed", "strict"}, Default: "ask"},
+	{Key: "allowNonWorkspaceAccess", Title: "允许访问工作区外文件", Detail: "允许读写当前工作目录之外的文件（与 Claude / Codex 全部放行一致）", Type: "bool", Default: false},
+	{Key: "artifactReviewPolicy", Title: "计划与产物审核策略", Detail: "生成实现计划等 artifact 时是否暂停等待确认；always-proceed 自动继续不中断", Type: "enum", Options: []string{"asks-for-review", "agent-decides", "always-proceed"}, Default: "asks-for-review"},
+	{Key: "enableTerminalSandbox", Title: "终端沙盒", Detail: "开启后终端命令在 OS 沙盒内运行；关闭以允许全盘与网络访问", Type: "bool", Default: false},
 	{Key: "modelProvider", Title: "模型接入方式", Detail: "oauth 走 Google / Antigravity 登录；填了 GOOGLE_GEMINI_BASE_URL + GEMINI_API_KEY 时选 gemini", Type: "enum", Options: []string{"oauth", "gemini"}, Default: "oauth"},
 	{Key: "showFeedbackSurvey", Title: "显示反馈问卷", Detail: "在终端里偶尔弹出反馈调查", Type: "bool", Default: true},
 }

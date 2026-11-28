@@ -11,7 +11,6 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/i18n"
-	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Nothing saved: the policy carries no release fields, so the node keeps 20 minutes and 75% of the window (#12008).
@@ -60,22 +59,6 @@ func TestIdleReleaseSettingsToolAndAPI(t *testing.T) {
 		r := s.Tool(ctx, ToolCall{Name: "persona_settings", Arguments: json.RawMessage(args), MachineID: "server", SessionID: "c1"})
 		return r.Content[0].Text, r.IsError
 	}
-	approve := func(wantCard string) {
-		go func() {
-			q, ok := awaitCard(s)
-			if !ok {
-				return
-			}
-			if wantCard != "" && q.Summary != wantCard {
-				t.Errorf("approval card: %q want %q", q.Summary, wantCard)
-			}
-			allowed := true
-			answer, _ := json.Marshal(proto.Resolution{Allow: &allowed})
-			if _, err := s.Action(ctx, Action{Op: "answer", InteractionID: q.ID, Answer: answer}); err != nil {
-				t.Errorf("approve: %v", err)
-			}
-		}()
-	}
 	if got, _ := tool(`{"action":"get","key":"assistant.idle_release_minutes"}`); got != "20" {
 		t.Fatalf("default: %q", got)
 	}
@@ -90,20 +73,19 @@ func TestIdleReleaseSettingsToolAndAPI(t *testing.T) {
 	if out, isErr := tool(`{"action":"set","key":"assistant.idle_release_minutes","value":20}`); isErr || len(s.pendingQuestions()) != 0 {
 		t.Fatalf("the value in effect should be a no-op: %q error=%v", out, isErr)
 	}
-	approve(i18n.T(i18n.Default, "assistant-settings_tool.change_idle_release_minutes", i18n.Args{"before": 20, "after": 45}))
-	if out, isErr := tool(`{"action":"set","key":"assistant.idle_release_minutes","value":45}`); isErr {
-		t.Fatalf("valid change: %q", out)
+	wantSummary := i18n.T(i18n.Default, "assistant-settings_tool.change_idle_release_minutes", i18n.Args{"before": 20, "after": 45})
+	if out, isErr := tool(`{"action":"set","key":"assistant.idle_release_minutes","value":45}`); isErr || !strings.Contains(out, wantSummary) || len(s.pendingQuestions()) != 0 {
+		t.Fatalf("valid change: %q (err=%v, want summary %q, pending=%d)", out, isErr, wantSummary, len(s.pendingQuestions()))
 	}
 	if got, _ := tool(`{"action":"get","key":"assistant.idle_release_minutes"}`); got != "45" || s.idleCompactionPolicy(ctx).ReleaseMinutes != 45 {
-		t.Fatalf("approved value: %q, policy %+v", got, s.idleCompactionPolicy(ctx))
+		t.Fatalf("applied value: %q, policy %+v", got, s.idleCompactionPolicy(ctx))
 	}
 	if settingTitles["assistant.idle_release_minutes"] != "title_idle_release_minutes" {
-		t.Fatal("no approval-card title for assistant.idle_release_minutes")
+		t.Fatal("no title for assistant.idle_release_minutes")
 	}
 
 	// Saving the default token count while unset is a change: it makes 300000 the release-time threshold too.
-	approve("")
-	if out, isErr := tool(`{"action":"set","key":"assistant.idle_auto_compact_tokens","value":300000}`); isErr || s.idleCompactionPolicy(ctx).ReleaseTokens != 300000 {
+	if out, isErr := tool(`{"action":"set","key":"assistant.idle_auto_compact_tokens","value":300000}`); isErr || s.idleCompactionPolicy(ctx).ReleaseTokens != 300000 || len(s.pendingQuestions()) != 0 {
 		t.Fatalf("saving the default tokens: %q error=%v, policy %+v", out, isErr, s.idleCompactionPolicy(ctx))
 	}
 	if out, isErr := tool(`{"action":"set","key":"assistant.idle_auto_compact_tokens","value":300000}`); isErr || len(s.pendingQuestions()) != 0 {

@@ -5,7 +5,7 @@ The tool's description holds what every call needs. This page holds the rest: wh
 ## Reading and changing
 
 - `list` (the default) shows every key with a one-line description, the actions it takes, how to set it and its current value (secrets only as set or unset); `get` reads one whole. Reading is free.
-- `set`, `add` and `remove` show the owner a confirmation card in Persona, before → after, and change nothing until they approve. Secrets are entered on that card, never in chat. A card declined, closed or left unanswered changes nothing; one nobody answered is not a decline, so say the change waits for their approval.
+- `set`, `add` and `remove` apply immediately for non-secret settings and return a before → after summary. Only changes that require the owner to enter an unknown secret (such as adding a mail account) show a confirmation card in Persona; secrets are entered on that card, never in chat. A card declined, closed or left unanswered changes nothing; one nobody answered is not a decline, so say the change waits for their approval.
 - Change only what the owner asked for.
 
 ## What the settings cover
@@ -21,7 +21,7 @@ The tool's description holds what every call needs. This page holds the rest: wh
 
 - An extension has its own switch, `enabled`, apart from its settings: `list` shows `enabled: true` or `enabled: false` as its current value, and `get` starts with it. While an extension is switched off it runs nothing and offers no tools, whatever its settings say: a computer listed in its settings does not get its tools (`machines_list` then shows that feature off).
 - `set` takes an object of only what changes: `{"enabled": true}`, a field or several, or both, such as `{"enabled": true, "machines": ["<machine id>"]}`. `null` puts a field back to its default.
-- Once approved, the extension is switched as on the Settings page, and the answer names the tools it brought or took away. Running conversations are sent their new tool list. An extension that others need is switched off only after them; a pack is switched on the Settings page, which switches its members with it.
+- The extension is switched immediately as on the Settings page, and the answer names the tools it brought or took away. Running conversations are sent their new tool list. An extension that others need is switched off only after them; a pack is switched on the Settings page, which switches its members with it.
 
 ## Model groups
 
@@ -29,7 +29,7 @@ The tool's description holds what every call needs. This page holds the rest: wh
 
 ## Standing authorizations
 
-`assistant.standing_authorizations`: only the main conversation may replace the list, at its current revision, with the owner's approval in Persona. Each grant names `machine_id`, an absolute `directory`, `actions` (merge, push, deploy-test, deploy-production, send, delete, spend), `conditions`, the owner's exact `quote`, `source` and `reversible`.
+`assistant.standing_authorizations`: only the main conversation may replace the list, at its current revision; changes apply immediately and return before → after. Each grant names `machine_id`, an absolute `directory`, `actions` (merge, push, deploy-test, deploy-production, send, delete, spend), `conditions`, the owner's exact `quote`, `source` and `reversible`.
 
 - `get` first. Keep unchanged grants by their ID. To change one, remove it and add it again without an ID; to revoke one, replace the list without it.
 - Never invent a quote or widen a grant's scope.

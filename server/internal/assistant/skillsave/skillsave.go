@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -23,7 +22,6 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/assistantskills"
 	"github.com/sunfayao/persona/server/internal/errreport"
-	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/rpc"
 	"github.com/sunfayao/persona/server/internal/textfmt"
 )
@@ -71,13 +69,8 @@ type Importer interface {
 type Host struct {
 	// Importer is the importer of the main conversation's computer as of now; an error says why there is none.
 	Importer func(ctx context.Context) (Importer, error)
-	// Confirm shows the calling conversation's user a permission card with summary and details until expires, and says
-	// whether they approved it. When they did not, text says what happened and that nothing changed.
-	Confirm func(ctx context.Context, summary string, details json.RawMessage, expires time.Time) (approved bool, text string, err error)
 	// Names are the user's machine names and host names, which a skill must not keep.
 	Names func(ctx context.Context) []string
-	// Language is the user's, for the card.
-	Language func(ctx context.Context) i18n.Lang
 	// Logf logs what could not be cleaned up.
 	Logf func(format string, args ...any)
 }
@@ -93,9 +86,9 @@ func New(h Host) *Saver {
 	return &Saver{h: h}
 }
 
-// Save keeps the procedure raw describes (skill_save's arguments) as a skill on the main conversation's computer once
-// the user approved it, and returns the importer's receipt with how to undo it. A refusal is an error that says what to
-// change; a decline, or a card left unanswered, is text that says nothing changed.
+// Save keeps the procedure raw describes (skill_save's arguments) as a skill on the main conversation's computer,
+// installing immediately after preview validation and returning the importer's receipt with how to undo it. A refusal
+// is an error that says what to change.
 func (s *Saver) Save(ctx context.Context, raw json.RawMessage) (string, error) {
 	in, err := parse(raw)
 	if err != nil {
@@ -119,20 +112,6 @@ func (s *Saver) Save(ctx context.Context, raw json.RawMessage) (string, error) {
 	if previewed.Status != "previewed" || previewed.Name != in.name {
 		s.cancel(ctx, importer, previewed)
 		return "", errors.New("skill_save_changed: the computer read another skill from the archive; nothing was saved")
-	}
-	// The card names what the computer validated, never the caller's own words for it.
-	summary := i18n.T(s.h.Language(ctx), "assistant-skill_import.save",
-		i18n.Args{"name": previewed.Name, "bytes": previewed.Bytes, "machine": previewed.Machine})
-	details, _ := json.Marshal(struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		Machine     string `json:"machine"`
-		Bytes       int    `json:"bytes"`
-	}{previewed.Name, previewed.Description, previewed.Machine, previewed.Bytes})
-	approved, text, err := s.h.Confirm(ctx, summary, details, previewed.ExpiresAt)
-	if err != nil || !approved {
-		s.cancel(ctx, importer, previewed)
-		return text, err
 	}
 	installed, err := importer.Install(ctx, archive, previewed)
 	if err != nil || installed.Status != "installed" {

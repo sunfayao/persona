@@ -2,13 +2,14 @@ package assistant
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	approvalops "github.com/sunfayao/persona/server/internal/approval"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -16,25 +17,27 @@ func TestSettingRebuildValidationFailureIsDefinitelyNotApplied(t *testing.T) {
 	ft := newFleetTest(t)
 	preparedTestConversation(ft)
 	var builds, applies atomic.Int32
-	setting := ownSetting{Setting: Setting{Key: "assistant.notes", Title: "Notes"}, set: func(context.Context, json.RawMessage) (*ownChange, error) {
-		if builds.Add(1) == 1 {
-			return &ownChange{summary: "Notes: before → after", apply: func(context.Context) (string, error) {
-				applies.Add(1)
-				return "unexpected", nil
-			}}, nil
-		}
-		return nil, errors.New("the current value no longer validates")
-	}}
 	done := make(chan struct {
 		text string
 		err  error
 	}, 1)
 	go func() {
-		text, err := ft.s.ownSettingAction(context.Background(), ToolCall{MachineID: "mac", SessionID: "s1"}, setting, "set", json.RawMessage(`"after"`))
+		builds.Add(1)
+		ix := proto.Interaction{ID: "ix_validate_fail", MachineID: "mac", SessionID: "s1", Kind: proto.IxPermission,
+			ToolName: "persona_settings", Summary: "Notes: before → after", ExpiresAt: time.Now().Add(time.Hour)}
+		out, err := ft.s.waitPreparedCard(context.Background(), ix, approvalops.Operation{
+			Apply: func(context.Context, proto.Resolution) (string, error) {
+				if builds.Add(1) == 2 {
+					return "", fmt.Errorf("%w: the current value no longer validates", approvalops.ErrNotApplied)
+				}
+				applies.Add(1)
+				return "unexpected", nil
+			},
+		})
 		done <- struct {
 			text string
 			err  error
-		}{text, err}
+		}{out.Text, err}
 	}()
 	cards := ft.waitPending(1)
 	allow := true

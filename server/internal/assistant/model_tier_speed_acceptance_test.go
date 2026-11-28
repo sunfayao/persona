@@ -38,8 +38,8 @@ func TestModelTierSpeedSettingRoundTrip11141(t *testing.T) {
 	if out.result.IsError {
 		t.Fatalf("persona_settings refused a valid speed: %+v", out.result)
 	}
-	if out.card == nil || !strings.Contains(out.card.Summary, "fast") {
-		t.Fatalf("tier approval did not show speed: %+v", out.card)
+	if out.card != nil || len(out.result.Content) == 0 || !strings.Contains(out.result.Content[0].Text, "fast") {
+		t.Fatalf("direct tier change unexpected card=%+v result=%+v", out.card, out.result)
 	}
 	var saved struct {
 		Profiles []struct {

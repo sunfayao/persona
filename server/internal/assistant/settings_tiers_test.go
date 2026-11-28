@@ -103,28 +103,6 @@ func TestModelTiersSetting(t *testing.T) {
 	set := func(value string) (string, bool) {
 		return tool(`{"action":"set","key":"model_profiles.tiers","value":` + value + `}`)
 	}
-	// answer approves (or not) the one card, after before() ran
-	answer := func(allow bool, says []string, before func()) {
-		go func() {
-			q, ok := awaitCard(s)
-			if !ok {
-				t.Error("no card on the phone")
-				return
-			}
-			for _, w := range says {
-				if !strings.Contains(q.Summary, w) {
-					t.Errorf("card %q lacks %q", q.Summary, w)
-				}
-			}
-			if before != nil {
-				before()
-			}
-			raw, _ := json.Marshal(proto.Resolution{Allow: &allow})
-			if _, err := s.Action(ctx, Action{Op: "answer", InteractionID: q.ID, Answer: raw}); err != nil {
-				t.Error(err)
-			}
-		}()
-	}
 
 	if out, _ := tool(`{}`); !strings.Contains(out, "- model_profiles.tiers (") {
 		t.Fatalf("list:\n%s", out)
@@ -140,11 +118,15 @@ func TestModelTiersSetting(t *testing.T) {
 		t.Fatalf("an unknown launcher does not say which there are: %s", out)
 	}
 
-	// Added in every profile, with the card naming both.
-	answer(true, []string{"Economy · review", "Performance · review", "fast · m-review · high — Code review"}, nil)
+	// Added in every profile directly with no card, returning before → after naming both.
 	out, isErr := set(`{"tier":"review","launcher":"fast","model":"m-review","effort":"high","description":"Code review"}`)
-	if isErr || !strings.Contains(out, "economy, performance") {
-		t.Fatalf("add: %s", out)
+	if isErr || len(s.pendingQuestions()) != 0 || !strings.Contains(out, "economy, performance") {
+		t.Fatalf("add: %s (err=%v pending=%d)", out, isErr, len(s.pendingQuestions()))
+	}
+	for _, w := range []string{"Economy · review", "Performance · review", "fast · m-review · high — Code review"} {
+		if !strings.Contains(out, w) {
+			t.Errorf("add output %q lacks %q", out, w)
+		}
 	}
 	ps, st := storedTiers(t, s)
 	want := ModelTier{Launcher: "fast", Model: "m-review", Effort: "high", Description: "Code review"}
@@ -160,8 +142,7 @@ func TestModelTiersSetting(t *testing.T) {
 	}
 
 	// A field left out keeps the tier's own; a different launcher drops the old one's model and effort.
-	answer(true, nil, nil)
-	if out, isErr := set(`{"tier":"review","description":"Careful review","profiles":["economy"]}`); isErr {
+	if out, isErr := set(`{"tier":"review","description":"Careful review","profiles":["economy"]}`); isErr || len(s.pendingQuestions()) != 0 {
 		t.Fatalf("description: %s", out)
 	}
 	ps, _ = storedTiers(t, s)
@@ -171,8 +152,7 @@ func TestModelTiersSetting(t *testing.T) {
 	if got, _ := tierOf(ps, "performance", "review"); got != want {
 		t.Fatalf("profiles was not kept to: %+v", got)
 	}
-	answer(true, nil, nil)
-	if out, isErr := set(`{"tier":"review","launcher":"claude","profiles":["performance"]}`); isErr {
+	if out, isErr := set(`{"tier":"review","launcher":"claude","profiles":["performance"]}`); isErr || len(s.pendingQuestions()) != 0 {
 		t.Fatalf("launcher: %s", out)
 	}
 	ps, _ = storedTiers(t, s)
@@ -187,29 +167,8 @@ func TestModelTiersSetting(t *testing.T) {
 		t.Fatalf("new without launcher: %s", out)
 	}
 
-	// The profiles changed while the card waited: nothing is saved.
-	answer(true, nil, func() {
-		if _, err := s.saveModelProfile(ctx, nil, "economy", ProfileActor{Kind: "hub"}, func(p *ModelProfile, _ bool) error {
-			p.Description = "edited meanwhile"
-			return nil
-		}); err != nil {
-			t.Error(err)
-		}
-	})
-	if out, _ := set(`{"tier":"review","remove":true}`); !strings.Contains(out, "changed after the card") {
-		t.Fatalf("conflict: %s", out)
-	}
-	ps, _ = storedTiers(t, s)
-	if _, ok := tierOf(ps, "economy", "review"); !ok {
-		t.Fatal("a stale card removed the tier")
-	}
-	// Removed, and declining changes nothing.
-	answer(false, nil, nil)
-	if out, _ := set(`{"tier":"review","remove":true}`); !strings.Contains(out, "declined") {
-		t.Fatalf("declined: %s", out)
-	}
-	answer(true, []string{"Economy · review"}, nil)
-	if out, isErr := set(`{"tier":"review","remove":true}`); isErr || !strings.Contains(out, "Removed") {
+	// Removed directly with before → after summary.
+	if out, isErr := set(`{"tier":"review","remove":true}`); isErr || len(s.pendingQuestions()) != 0 || !strings.Contains(out, "Economy · review") || !strings.Contains(out, "Removed") {
 		t.Fatalf("remove: %s", out)
 	}
 	ps, _ = storedTiers(t, s)
@@ -369,8 +328,8 @@ func TestLegacyTierModelBlocksNothing(t *testing.T) {
 	}
 }
 
-// Templates never saved are made again when the user approves: a configuration changed since the card is a conflict,
-// not a save of something the card did not show.
+// Templates never saved are made again when apply runs: a configuration changed since preparation is a conflict,
+// not a save of something different from what was prepared.
 func TestTierCardOnUnsavedTemplates(t *testing.T) {
 	ctx := context.Background()
 	f := newFakeHub().withMachine()
@@ -382,23 +341,13 @@ func TestTierCardOnUnsavedTemplates(t *testing.T) {
 		}
 	}
 	record("model-a")
-	go func() {
-		q, ok := awaitCard(s)
-		if !ok {
-			t.Error("no card on the phone")
-			return
-		}
-		record("model-b")
-		allow := true
-		raw, _ := json.Marshal(proto.Resolution{Allow: &allow})
-		if _, err := s.Action(ctx, Action{Op: "answer", InteractionID: q.ID, Answer: raw}); err != nil {
-			t.Error(err)
-		}
-	}()
-	r := s.Tool(ctx, ToolCall{Name: "persona_settings", MachineID: "server", SessionID: "c1",
-		Arguments: json.RawMessage(`{"action":"set","key":"model_profiles.tiers","value":{"tier":"standard","description":"Everyday"}}`)})
-	if out := r.Content[0].Text; !strings.Contains(out, "changed after the card") {
-		t.Fatalf("approved over a changed configuration: %s", out)
+	change, err := s.setModelTiers(ctx, json.RawMessage(`{"tier":"standard","description":"Everyday"}`))
+	if err != nil || change == nil || change.apply == nil {
+		t.Fatalf("prepare tier edit: change=%+v err=%v", change, err)
+	}
+	record("model-b")
+	if out, err := change.apply(ctx); err == nil || !strings.Contains(err.Error(), "changed after the card") {
+		t.Fatalf("applied over a changed configuration: out=%q err=%v", out, err)
 	}
 	if ps, _ := storedTiers(t, s); len(ps.Profiles) != 0 {
 		t.Fatalf("saved: %+v", ps)

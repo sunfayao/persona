@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	approvalops "github.com/sunfayao/persona/server/internal/approval"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -28,10 +29,25 @@ func TestSessionlessPreparedSettingUsesOneShotFallback10515(t *testing.T) {
 			ft := newFleetTest(t)
 			preparedTestConversation(ft) // another live conversation must never receive this outcome
 			setSettings(t, ft.s, func(v *Settings) { on := true; v.MainTasksQuiet = &on })
+			change, err := ft.s.setMainTasksQuiet(context.Background(), json.RawMessage(`false`))
+			if err != nil {
+				t.Fatal(err)
+			}
 			done := make(chan proto.ToolResult, 2)
 			go func() {
-				done <- ft.s.Tool(context.Background(), ToolCall{Name: "persona_settings", MachineID: tc.machine, SessionID: tc.session,
-					Arguments: json.RawMessage(`{"action":"set","key":"assistant.main_tasks_quiet","value":false}`)})
+				now := time.Now().UTC()
+				out, err := ft.s.waitPreparedCard(context.Background(), proto.Interaction{ID: "ix_sessionless_" + randomHex(4),
+					MachineID: tc.machine, SessionID: tc.session, Kind: proto.IxPermission, ToolName: "persona_settings",
+					Summary: change.card(ft.s.lang(context.Background())), SessionTitle: "Persona",
+					CreatedAt: now, ExpiresAt: now.Add(settingCardWait)}, approvalops.Operation{
+					Denied: "The user declined the change: nothing changed.",
+					Apply:  func(ctx context.Context, _ proto.Resolution) (string, error) { return change.apply(ctx) },
+				})
+				if err != nil {
+					done <- proto.TextResult(err.Error(), true)
+					return
+				}
+				done <- proto.TextResult(out.Text, false)
 			}()
 
 			var card proto.Interaction

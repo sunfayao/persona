@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -59,4 +60,43 @@ func TestStandingAuthorizationRejectsBroadOrMutatedGrants(t *testing.T) {
 }
 func TestGoldenStandingAuthorizationSettingsDescription(t *testing.T) {
 	golden(t, "standing_authorizations.settings_description", prompts.Tool("persona_settings").Description)
+}
+
+func TestStandingAuthorizationsDirectApplyInMainAndRefusedElsewhere(t *testing.T) {
+	ctx := context.Background()
+	f := newFakeHub().withMachine()
+	s := newServiceOn(t, f, &ownerActionTestStore{})
+	if _, err := s.updateSettings(ctx, func(v *Settings) error {
+		v.MachineID = "server"
+		v.Main = "main-conv"
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	payload := StandingAuthorizations{Authorizations: []StandingAuthorization{standingRegistryGrant()}}
+	args, _ := json.Marshal(map[string]any{
+		"action": "set",
+		"key":    standingAuthorizationsKey,
+		"value":  payload,
+	})
+	// Non-main conversation is still refused.
+	refused := s.Tool(ctx, ToolCall{Name: "persona_settings", MachineID: "server", SessionID: "other-conv", Arguments: args})
+	if !refused.IsError || !strings.Contains(resultText(refused), "main conversation") || len(s.pendingQuestions()) != 0 {
+		t.Fatalf("non-main standing authorizations: %+v (pending=%d)", refused, len(s.pendingQuestions()))
+	}
+	// Main conversation applies directly without an approval card.
+	applied := s.Tool(ctx, ToolCall{Name: "persona_settings", MachineID: "server", SessionID: "main-conv", Arguments: args})
+	if applied.IsError || len(s.pendingQuestions()) != 0 {
+		t.Fatalf("main standing authorizations: %+v (pending=%d)", applied, len(s.pendingQuestions()))
+	}
+	if text := resultText(applied); !strings.Contains(text, "/code/example") || !strings.Contains(text, `"revision":1`) {
+		t.Fatalf("main standing authorizations output = %q", text)
+	}
+	got, err := s.standingAuthorizations(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Authorizations) != 1 || got.Authorizations[0].Directory != "/code/example" {
+		t.Fatalf("stored standing authorizations = %+v", got)
+	}
 }

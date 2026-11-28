@@ -8,38 +8,21 @@ import (
 	"testing"
 
 	"github.com/sunfayao/persona/server/internal/i18n"
-	"github.com/sunfayao/persona/server/internal/proto"
 )
 
-// registryTool runs persona_settings the way the main chat does and answers each approval card with allow.
+// registryTool runs persona_settings the way the main chat does.
 type registryTool struct {
-	t     *testing.T
-	s     *Service
-	cards []string
+	t *testing.T
+	s *Service
 }
 
-// call runs one call; given allow, it waits for the one approval card and answers it that way (no card is a failure).
-func (r *registryTool) call(args string, allow ...bool) (string, bool) {
+// call runs one call directly and asserts no approval card is raised.
+func (r *registryTool) call(args string) (string, bool) {
 	r.t.Helper()
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		if len(allow) == 0 {
-			return
-		}
-		q, ok := awaitCard(r.s)
-		if !ok {
-			r.t.Errorf("no approval card for %s", args)
-			return
-		}
-		r.cards = append(r.cards, q.Summary)
-		answer, _ := json.Marshal(proto.Resolution{Allow: &allow[0]})
-		if _, err := r.s.Action(context.Background(), Action{Op: "answer", InteractionID: q.ID, Answer: answer}); err != nil {
-			r.t.Errorf("answer: %v", err)
-		}
-	}()
 	res := r.s.Tool(context.Background(), ToolCall{Name: "persona_settings", Arguments: json.RawMessage(args), MachineID: "server", SessionID: "c1"})
-	<-done
+	if len(r.s.pendingQuestions()) != 0 {
+		r.t.Errorf("unexpected approval card for %s", args)
+	}
 	return res.Content[0].Text, res.IsError
 }
 
@@ -119,25 +102,17 @@ func TestRegistrySettingsSet(t *testing.T) {
 					t.Fatalf("invalid value %s accepted: %q", bad, out)
 				}
 			}
-			if len(r.cards) != 0 || len(s.pendingQuestions()) != 0 {
-				t.Fatal("an invalid value made a card")
+			out, isErr := r.call(fmt.Sprintf(`{"action":"set","key":%q,"value":%s}`, c.key, c.value))
+			if isErr {
+				t.Fatalf("direct change: %q", out)
 			}
-			if out, isErr := r.call(fmt.Sprintf(`{"action":"set","key":%q,"value":%s}`, c.key, c.value), false); isErr || !strings.Contains(out, "declined") {
-				t.Fatalf("declined card: %q error=%v", out, isErr)
-			}
-			if got := r.get(c.key); c.before != "" && got != c.before {
-				t.Fatalf("a declined change changed %s to %q", c.key, got)
-			}
-			if out, isErr := r.call(fmt.Sprintf(`{"action":"set","key":%q,"value":%s}`, c.key, c.value), true); isErr {
-				t.Fatalf("approved change: %q", out)
+			if !strings.Contains(out, i18n.T(i18n.Default, "assistant-settings_registry.title_"+settingSlug(c.key))) || !strings.Contains(out, "→") {
+				t.Fatalf("direct change output lacks before→after: %q", out)
 			}
 			if got := r.get(c.key); got != c.want {
 				t.Fatalf("after: %q want %q", got, c.want)
 			}
-			if len(r.cards) != 2 || !strings.Contains(r.cards[0], i18n.T(i18n.Default, "assistant-settings_registry.title_"+settingSlug(c.key))) {
-				t.Fatalf("approval cards: %q", r.cards)
-			}
-			// the value in effect again is no change and needs no card
+			// the value in effect again is no change
 			if out, isErr := r.call(fmt.Sprintf(`{"action":"set","key":%q,"value":%s}`, c.key, c.value)); isErr || !strings.Contains(out, "unchanged") {
 				t.Fatalf("same value: %q error=%v", out, isErr)
 			}
@@ -164,7 +139,7 @@ func TestRegistrySavedPrompts(t *testing.T) {
 			t.Fatalf("invalid prompt %s accepted: %q", bad, out)
 		}
 	}
-	if out, isErr := r.call(`{"action":"add","key":"assistant.saved_prompts","value":{"name":"/review","text":"Review my diff"}}`, true); isErr {
+	if out, isErr := r.call(`{"action":"add","key":"assistant.saved_prompts","value":{"name":"/review","text":"Review my diff"}}`); isErr {
 		t.Fatalf("add: %q", out)
 	}
 	got := r.get("assistant.saved_prompts")
@@ -175,13 +150,13 @@ func TestRegistrySavedPrompts(t *testing.T) {
 		t.Fatalf("a duplicate name was accepted: %q", out)
 	}
 	id := strings.Fields(strings.TrimPrefix(got, "- "))[0]
-	if out, isErr := r.call(fmt.Sprintf(`{"action":"set","key":"assistant.saved_prompts","value":{"id":%q,"name":"review","text":"Review the diff and the tests"}}`, id), true); isErr {
+	if out, isErr := r.call(fmt.Sprintf(`{"action":"set","key":"assistant.saved_prompts","value":{"id":%q,"name":"review","text":"Review the diff and the tests"}}`, id)); isErr {
 		t.Fatalf("set: %q", out)
 	}
 	if got := r.get("assistant.saved_prompts"); !strings.Contains(got, "Review the diff and the tests") {
 		t.Fatalf("after set: %q", got)
 	}
-	if out, isErr := r.call(fmt.Sprintf(`{"action":"remove","key":"assistant.saved_prompts","id":%q}`, id), true); isErr {
+	if out, isErr := r.call(fmt.Sprintf(`{"action":"remove","key":"assistant.saved_prompts","id":%q}`, id)); isErr {
 		t.Fatalf("remove: %q", out)
 	}
 	if got := r.get("assistant.saved_prompts"); got != "（无）" {

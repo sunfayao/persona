@@ -127,6 +127,19 @@ func (s selfSetting) actions() []string {
 	return a
 }
 
+func formatDirectSettingResult(summary, applied string) string {
+	summary = strings.TrimSpace(summary)
+	applied = strings.TrimSpace(applied)
+	switch {
+	case summary == "":
+		return applied
+	case applied == "" || applied == summary || strings.Contains(applied, summary):
+		return applied
+	default:
+		return summary + "\n" + applied
+	}
+}
+
 func orNone(s string) string {
 	if strings.TrimSpace(s) == "" {
 		return "（无）"
@@ -359,6 +372,13 @@ func (h *Manager) toolPersonaSettings(ctx context.Context, machineID, sessionID 
 	}
 	if change.apply == nil {
 		return change.summary, nil // nothing to change
+	}
+	if len(change.fields) == 0 {
+		applied, err := change.apply(ctx, nil)
+		if err != nil {
+			return "", err
+		}
+		return formatDirectSettingResult(change.summary, applied), nil
 	}
 	shown, _ := json.Marshal(map[string]string{"setting": s.title, "action": a.Action})
 	ix := proto.Interaction{ID: "ix_" + randomHex(6), MachineID: machineID, SessionID: sessionID, Kind: proto.IxPermission,

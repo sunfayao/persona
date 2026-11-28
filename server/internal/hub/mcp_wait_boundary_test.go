@@ -141,16 +141,23 @@ func TestMCPWaitSettingsFieldsCrossManagerHubBoundary(t *testing.T) {
 	const callID = "88888888-8888-4888-8888-888888888888"
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	done := callMCPWaitNode(manager, ctx, map[string]any{
-		"name": "persona_settings", "args": json.RawMessage(`{"action":"add","key":"agents.blocked_claude_dirs","value":{"machine":"computer","pattern":"~/.example/*"}}`),
-		"session_id": "s1", "assistant": true, "wait_updates": true, "call_id": callID,
-	})
+	_ = manager
+	done := make(chan error, 1)
+	go func() {
+		ix := proto.Interaction{ID: "ix_mcp_wait_boundary", MachineID: "computer", SessionID: "s1", Kind: proto.IxPermission,
+			ToolName: "persona_settings", Summary: "secret setting confirmation", SessionTitle: "Persona",
+			CreatedAt: time.Now().UTC(), ExpiresAt: time.Now().Add(15 * time.Minute).UTC()}
+		_, err := h.waitPreparedSetting(ctx, assistantwire.AssistantID, ix, "computer\x00s1\x00secret",
+			func(context.Context, proto.Resolution) (string, error) { return "applied", nil },
+			h.mcpWaitReporter(assistantwire.AssistantID, "computer", callID))
+		done <- err
+	}()
 
 	select {
 	case event := <-bus.events:
 		requireMCPWaitBoundaryEvent(t, event, "computer", callID, proto.MCPWaitApproval)
-	case result := <-done:
-		t.Fatalf("the settings tool returned before its approval: %+v", result)
+	case err := <-done:
+		t.Fatalf("the prepared setting returned before its approval: %v", err)
 	case <-time.After(5 * time.Second):
 		t.Fatal("the manager did not receive the settings approval relay")
 	}

@@ -8,7 +8,6 @@ import (
 	"testing/synctest"
 	"time"
 
-	approvalops "github.com/sunfayao/persona/server/internal/approval"
 	"github.com/sunfayao/persona/server/internal/assistant/repository"
 	"github.com/sunfayao/persona/server/internal/assistant/repositorystore"
 	"github.com/sunfayao/persona/server/internal/assistant/toolnotes"
@@ -47,9 +46,9 @@ func toolNotesFleet(t *testing.T) *fleetTest {
 	return ft
 }
 
-// A friction draft proposed as a field note goes on a one-tap card; only the user's Allow puts the note into the
-// assistant conversations' tool list, at the end of its tool's description, and then the tool watches are woken, the
-// list's revision moves, and the draft is marked proposed with the note's id. An agent's list gets no notes.
+// A friction draft proposed as a field note applies directly without a card: the note reaches the assistant
+// conversations' tool list at once, tool watches are woken, the list's revision moves, and the draft is marked
+// proposed with the note's id. An agent's list gets no notes.
 func TestToolNoteApprovedReachesTheToolListAndItsWatch(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ft := toolNotesFleet(t)
@@ -60,21 +59,9 @@ func TestToolNoteApprovedReachesTheToolListAndItsWatch(t *testing.T) {
 		}
 		base, changed := s.mcpChanges.snapshot()
 		before := s.toolsCursor(ctx, "mac", "s1", true, base)
-		done := toolNoteCall(s, `{"action":"propose","draft_id":"fd_1","text":"Read the agent before sending it more work."}`)
-		card := ft.waitPending(1)[0]
-		if card.ToolName != "tool_note" || card.SessionID != "s1" || !strings.Contains(card.Summary, "agent_send") ||
-			!strings.Contains(card.Summary, "Read the agent before sending it more work.") {
-			t.Fatalf("card = %+v", card)
-		}
-		if desc := mcpToolList(t, s, "s1", true, false)["agent_send"].Description; strings.Contains(desc, "Field notes") {
-			t.Fatalf("shown before the user's tap: %q", desc)
-		}
-		allow := true
-		if err := s.resolve(card.ID, proto.Resolution{Allow: &allow}); err != nil {
-			t.Fatal(err)
-		}
-		if res := <-done; res.IsError || !strings.HasPrefix(res.Content[0].Text, "Approved: note tn_") {
-			t.Fatalf("result = %+v", res)
+		res := s.mcpCall(ctx, "mac", "s1", "tool_note", json.RawMessage(`{"action":"propose","draft_id":"fd_1","text":"Read the agent before sending it more work."}`), true)
+		if res.IsError || !strings.HasPrefix(res.Content[0].Text, "Approved: note tn_") || len(s.pendingQuestions()) != 0 {
+			t.Fatalf("result = %+v, pending = %+v", res, s.pendingQuestions())
 		}
 		select {
 		case <-changed:
@@ -97,45 +84,6 @@ func TestToolNoteApprovedReachesTheToolListAndItsWatch(t *testing.T) {
 			t.Fatalf("an agent's list has notes: %+v", got)
 		}
 		synctest.Wait()
-	})
-}
-
-// Declined, or never answered until its card expires, a proposal stays out of the tool list, and the call says so.
-func TestToolNoteDeclinedOrUnansweredStaysOut(t *testing.T) {
-	old := approvalWaitingWindow
-	approvalWaitingWindow = time.Hour
-	t.Cleanup(func() { approvalWaitingWindow = old })
-	synctest.Test(t, func(t *testing.T) {
-		ft := toolNotesFleet(t)
-		s := ft.s
-		done := toolNoteCall(s, `{"action":"propose","tool":"agent_send","text":"Read the agent first."}`)
-		card := ft.waitPending(1)[0]
-		deny := false
-		if err := s.resolve(card.ID, proto.Resolution{Allow: &deny}); err != nil {
-			t.Fatal(err)
-		}
-		if res := <-done; res.IsError || res.Content[0].Text != "The user declined the field note: it was not added." {
-			t.Fatalf("declined = %+v", res)
-		}
-		done = toolNoteCall(s, `{"action":"propose","tool":"agent_send","text":"Send one clear message."}`)
-		ft.waitPending(1)
-		elapse(approvalInitialWait + time.Second)
-		if res := <-done; res.Content[0].Text != approvalops.WaitingText {
-			t.Fatalf("unanswered = %+v", res)
-		}
-		if desc := mcpToolList(t, s, "s1", true, false)["agent_send"].Description; strings.Contains(desc, "Field notes") {
-			t.Fatalf("a waiting proposal is shown: %q", desc)
-		}
-		elapse(approvalWaitingWindow + time.Minute)
-		ft.waitPending(0)
-		synctest.Wait()
-		notes := storedNotes(t, s)
-		if len(notes) != 2 || notes[0].RetiredReason != "declined by the user" || notes[1].RetiredReason != "not approved: its card ended (expired)" {
-			t.Fatalf("notes = %+v", notes)
-		}
-		if desc := mcpToolList(t, s, "s1", true, false)["agent_send"].Description; strings.Contains(desc, "Field notes") {
-			t.Fatalf("an unapproved note is shown: %q", desc)
-		}
 	})
 }
 

@@ -15,10 +15,30 @@ func TestClarifiedApprovalRejectsStaleSetting(t *testing.T) {
 	ft := newFleetTest(t)
 	preparedTestConversation(ft)
 	setSettings(t, ft.s, func(v *Settings) { on := true; v.MainTasksQuiet = &on })
-	toolDone := make(chan proto.ToolResult, 1)
+	initial, err := ft.s.setMainTasksQuiet(context.Background(), json.RawMessage(`false`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	proposal := initial.card(ft.s.lang(context.Background()))
+	toolDone := make(chan approvalops.Outcome, 1)
 	go func() {
-		toolDone <- ft.s.Tool(context.Background(), ToolCall{Name: "persona_settings", MachineID: "mac", SessionID: "s1",
-			Arguments: json.RawMessage(`{"action":"set","key":"assistant.main_tasks_quiet","value":false}`)})
+		now := time.Now().UTC()
+		out, err := ft.s.waitPreparedCard(context.Background(), proto.Interaction{ID: "ix_stale_setting", MachineID: "mac", SessionID: "s1",
+			Kind: proto.IxPermission, ToolName: "persona_settings", Summary: proposal, SessionTitle: "Persona",
+			CreatedAt: now, ExpiresAt: now.Add(settingCardWait)}, approvalops.Operation{
+			Replacement: "mac\x00s1\x00setting\x00assistant.main_tasks_quiet",
+			Apply: func(ctx context.Context, _ proto.Resolution) (string, error) {
+				fresh, err := ft.s.setMainTasksQuiet(ctx, json.RawMessage(`false`))
+				if err != nil || fresh == nil || fresh.apply == nil || fresh.card(ft.s.lang(ctx)) != proposal {
+					return "", approvalops.ErrStale
+				}
+				return fresh.apply(ctx)
+			},
+		})
+		if err != nil {
+			t.Error(err)
+		}
+		toolDone <- out
 	}()
 	cards := ft.waitPending(1)
 	if len(cards) != 1 || !cards[0].CanClarify {
@@ -29,7 +49,7 @@ func TestClarifiedApprovalRejectsStaleSetting(t *testing.T) {
 	}
 	select {
 	case out := <-toolDone:
-		if out.IsError || !strings.Contains(out.Content[0].Text, "remains valid") {
+		if !strings.Contains(out.Text, "remains valid") {
 			t.Fatalf("clarified setting tool = %+v", out)
 		}
 	case <-time.After(5 * time.Second):
@@ -55,10 +75,25 @@ func TestClarifiedModelTierApprovalKeepsOriginalRevisionGuard(t *testing.T) {
 	ft := newFleetTest(t)
 	preparedTestConversation(ft)
 	putTierProfiles(t, ft.s, "economy", map[string]ModelTier{"review": {Launcher: "claude"}}, nil)
-	toolDone := make(chan proto.ToolResult, 1)
+	change, err := ft.s.setModelTiers(context.Background(), json.RawMessage(`{"tier":"review","remove":true}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	toolDone := make(chan approvalops.Outcome, 1)
 	go func() {
-		toolDone <- ft.s.Tool(context.Background(), ToolCall{Name: "persona_settings", MachineID: "mac", SessionID: "s1",
-			Arguments: json.RawMessage(`{"action":"set","key":"model_profiles.tiers","value":{"tier":"review","remove":true}}`)})
+		now := time.Now().UTC()
+		out, err := ft.s.waitPreparedCard(context.Background(), proto.Interaction{ID: "ix_stale_tier", MachineID: "mac", SessionID: "s1",
+			Kind: proto.IxPermission, ToolName: "persona_settings", Summary: change.card(ft.s.lang(context.Background())), SessionTitle: "Persona",
+			CreatedAt: now, ExpiresAt: now.Add(settingCardWait)}, approvalops.Operation{
+			Replacement: "mac\x00s1\x00setting\x00model_profiles.tiers",
+			Apply: func(ctx context.Context, _ proto.Resolution) (string, error) {
+				return change.apply(ctx)
+			},
+		})
+		if err != nil {
+			t.Error(err)
+		}
+		toolDone <- out
 	}()
 	cards := ft.waitPending(1)
 	if len(cards) != 1 || !cards[0].CanClarify {
@@ -69,7 +104,7 @@ func TestClarifiedModelTierApprovalKeepsOriginalRevisionGuard(t *testing.T) {
 	}
 	select {
 	case out := <-toolDone:
-		if out.IsError || !strings.Contains(out.Content[0].Text, "remains valid") {
+		if !strings.Contains(out.Text, "remains valid") {
 			t.Fatalf("clarified model-tier tool = %+v", out)
 		}
 	case <-time.After(5 * time.Second):

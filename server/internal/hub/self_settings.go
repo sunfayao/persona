@@ -16,10 +16,10 @@ import (
 // The hub's own settings persona_settings offers (the "Control Persona
 // itself" row): the tool is the assistant's (its own settings are its own: "About me", its launcher, …), which lists
 // these (app.call settings.list) and hands the actions on them to the hub (app.tool persona_settings). One registry:
-// each setting says what it is, how to read it and how a change is made. Reads are free; every change is a card on the
-// phone that says what changes (before → after) and is applied only when approved. What the card needs filled in (a
-// password) is typed on the phone and never passes through the model. Some things are never here: the hub's and
-// devices' tokens, pairing, which machines the hub reaches, permission modes.
+// each setting says what it is, how to read it and how a change is made. Reads are free; non-secret changes apply
+// immediately and return before → after. Only changes that ask the user to type a secret (fields) show a card on the
+// phone so the password never passes through the model. Some things are never here: the hub's and devices' tokens,
+// pairing, which machines the hub reaches, permission modes.
 
 // selfSetting is one thing Persona may change. A value setting has set; a list has add / remove.
 type selfSetting struct {
@@ -138,6 +138,13 @@ func (h *Hub) toolPersonaSettings(ctx context.Context, from string, m *Machine, 
 	if change.apply == nil {
 		return change.summary, nil // nothing to change
 	}
+	if len(change.fields) == 0 {
+		applied, err := change.apply(ctx, nil)
+		if err != nil {
+			return "", err
+		}
+		return formatDirectSettingResult(change.summary, applied), nil
+	}
 	shown, _ := json.Marshal(map[string]string{"setting": s.title, "action": a.Action})
 	ix := proto.Interaction{ID: "ix_" + randomHex(6), MachineID: m.cfg.ID, SessionID: sessionID, Kind: proto.IxPermission,
 		ToolName: "persona_settings", Summary: change.summary, ToolInput: shown, Fields: change.fields, SessionTitle: "Persona",
@@ -159,6 +166,19 @@ func (h *Hub) toolPersonaSettings(ctx context.Context, from string, m *Machine, 
 			return fresh.apply(ctx, r.Values)
 		}, report)
 	return out.Text, err
+}
+
+func formatDirectSettingResult(summary, applied string) string {
+	summary = strings.TrimSpace(summary)
+	applied = strings.TrimSpace(applied)
+	switch {
+	case summary == "":
+		return applied
+	case applied == "" || applied == summary || strings.Contains(applied, summary):
+		return applied
+	default:
+		return summary + "\n" + applied
+	}
 }
 
 func orNone(s string) string {

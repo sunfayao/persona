@@ -15,7 +15,6 @@ import (
 	"github.com/coder/websocket"
 	"github.com/sunfayao/persona/server/internal/extwire"
 	"github.com/sunfayao/persona/server/internal/i18n"
-	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func transcriptionSettingsRequest(t *testing.T, s *Service, method, role, body string, status int) map[string]any {
@@ -340,31 +339,11 @@ func TestMeetingTranscriptionDefaultSettingsTool(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	finished := make(chan struct{})
-	go func() {
-		defer close(finished)
-		q, ok := awaitCard(s)
-		if !ok {
-			t.Error("no confirmation card")
-			cancel()
-			return
-		}
-		if q.Summary != change.card(s.lang(ctx)) || q.ToolName != "persona_settings" || q.Kind != proto.IxPermission {
-			t.Errorf("unexpected card: %+v", q)
-		}
-		if got := meetingTranscriptionDefaultOf(s.settings(ctx)); got != "device" {
-			t.Errorf("changed before approval: %s", got)
-		}
-		allow := true
-		raw, _ := json.Marshal(proto.Resolution{Allow: &allow})
-		if _, err := s.Action(ctx, Action{Op: "answer", InteractionID: q.ID, Answer: raw}); err != nil {
-			t.Error(err)
-		}
-	}()
-	if out, isErr := tool("set", `"hub"`); isErr || out != i18n.T(s.lang(ctx), "assistant-settings_tool.meeting_transcription_applied", i18n.Args{"mode": i18n.T(s.lang(ctx), "assistant-settings_tool.meeting_transcription_hub")}) {
-		t.Fatalf("approved: %s, error=%v", out, isErr)
+	out, isErr := tool("set", `"hub"`)
+	wantApplied := i18n.T(s.lang(ctx), "assistant-settings_tool.meeting_transcription_applied", i18n.Args{"mode": i18n.T(s.lang(ctx), "assistant-settings_tool.meeting_transcription_hub")})
+	if isErr || len(s.pendingQuestions()) != 0 || !strings.Contains(out, change.card(s.lang(ctx))) || !strings.Contains(out, wantApplied) {
+		t.Fatalf("direct set: %s, error=%v, pending=%d", out, isErr, len(s.pendingQuestions()))
 	}
-	<-finished
 	get("hub", false)
 	s.trans = newSettingsTranscribers()
 	s.transcriptionReadinessChanged()
@@ -457,29 +436,13 @@ func TestMeetingTranscriptionReadinessWakesOnChange(t *testing.T) {
 	}
 }
 
-func TestMeetingTranscriptionDefaultSettingsToolDeclined(t *testing.T) {
+func TestMeetingTranscriptionDefaultSettingsToolDirectApply(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	s := newTestService(t, newFakeHub().withMachine())
-	finished := make(chan struct{})
-	go func() {
-		defer close(finished)
-		q, ok := awaitCard(s)
-		if !ok {
-			t.Error("no confirmation card")
-			cancel()
-			return
-		}
-		allow := false
-		raw, _ := json.Marshal(proto.Resolution{Allow: &allow})
-		if _, err := s.Action(ctx, Action{Op: "answer", InteractionID: q.ID, Answer: raw}); err != nil {
-			t.Error(err)
-		}
-	}()
 	r := s.Tool(ctx, ToolCall{Name: "persona_settings", MachineID: "server", SessionID: "c1",
 		Arguments: json.RawMessage(`{"action":"set","key":"assistant.meeting_transcription_default","value":"hub"}`)})
-	<-finished
-	if r.IsError || meetingTranscriptionDefaultOf(s.settings(ctx)) != "device" {
-		t.Fatalf("declined change applied: %+v", r)
+	if r.IsError || len(s.pendingQuestions()) != 0 || meetingTranscriptionDefaultOf(s.settings(ctx)) != "hub" {
+		t.Fatalf("direct apply failed: %+v, pending=%d, mode=%s", r, len(s.pendingQuestions()), meetingTranscriptionDefaultOf(s.settings(ctx)))
 	}
 }

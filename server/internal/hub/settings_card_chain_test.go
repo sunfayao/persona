@@ -3,6 +3,7 @@ package hub
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
@@ -11,14 +12,28 @@ import (
 	"github.com/sunfayao/persona/server/internal/assistant"
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/extmgr"
+	"github.com/sunfayao/persona/server/internal/mail"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
+type chainTestMail struct {
+	extmgr.Mail
+	added atomic.Int32
+}
+
+func (f *chainTestMail) Handler() http.Handler                     { return http.NotFoundHandler() }
+func (f *chainTestMail) Tools() []proto.Tool                       { return nil }
+func (f *chainTestMail) ListAccounts() ([]mail.MailAccount, error) { return nil, nil }
+func (f *chainTestMail) AddAccount(req mail.AddAccountRequest) (*mail.MailAccount, error) {
+	f.added.Add(1)
+	return &mail.MailAccount{ID: "acc_1", Email: req.Email, Provider: req.Provider}, nil
+}
+
 // The manager's side of #5907 with nothing played: the real manager (assistant.Service with its interaction queue,
-// extmgr.Manager with its settings, wired as assistant/main.go wires them) on the hub's real bus. The assistant's
-// persona_settings call goes to the hub (app.call), which hands a change of one of the manager's settings back to
-// the manager's extensions (extensions.hub_call), which put its card in the assistant's queue. When the tool call
-// stops, the card goes with it, and approving it afterwards changes nothing.
+// extmgr.Manager with its settings, wired as assistant/main.go wires them) on the hub's real bus. A secret-input
+// persona_settings call (mail.accounts add) goes to the hub (app.call), which hands it to the manager's extensions
+// (extensions.hub_call), which put its password card in the assistant's queue. When the tool call stops, the card
+// goes with it, and approving it afterwards changes nothing.
 func TestManagerSettingCardGoesWithItsToolCall(t *testing.T) {
 	h := newTestHub(t)
 	h.bus.idents = &memIdents{}
@@ -28,8 +43,9 @@ func TestManagerSettingCardGoesWithItsToolCall(t *testing.T) {
 
 	store := &computerAppsSettings{values: map[string]json.RawMessage{}}
 	host := &busHost{}
+	fm := &chainTestMail{}
 	var svc atomic.Pointer[assistant.Service]
-	ext := extmgr.New(extmgr.Options{Dir: t.TempDir(), Config: &extmgr.Config{}, Store: store, Hub: host,
+	ext := extmgr.New(extmgr.Options{Dir: t.TempDir(), Config: &extmgr.Config{}, Store: store, Hub: host, Mail: fm,
 		Ask: func(ctx context.Context, ix proto.Interaction) (proto.Resolution, error) {
 			return svc.Load().AskCard(ctx, ix)
 		}})
@@ -52,18 +68,13 @@ func TestManagerSettingCardGoesWithItsToolCall(t *testing.T) {
 	a := dialAssistant(t, h, srv.URL, false, func(o *assistant.BusOptions) { o.Extensions = ext })
 	svc.Store(a.svc)
 	host.bh.Store(a.bh)
-	rules := func() (string, bool) {
-		var v string
-		ok, _ := store.Setting(context.Background(), "inbox.rules", &v)
-		return v, ok
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	told := make(chan proto.ToolResult, 1)
 	go func() {
 		told <- a.svc.Tool(ctx, assistantwire.ToolCall{Name: "persona_settings", MachineID: "m1", SessionID: "s1",
-			Arguments: json.RawMessage(setInboxRules)})
+			Arguments: json.RawMessage(`{"action":"add","key":"mail.accounts","value":{"email":"me@example.com"}}`)})
 	}()
 	eventually(t, 10*time.Second, "the card of the change, from the manager's queue", func() bool { return len(h.pendingInteractions()) == 1 })
 	card := h.pendingInteractions()[0]
@@ -97,11 +108,10 @@ func TestManagerSettingCardGoesWithItsToolCall(t *testing.T) {
 		t.Error("the tool call stopped, and the card of its change is still on the phone")
 	}
 	yes := true
-	if err := h.resolve(card.ID, proto.Resolution{Allow: &yes}); err == nil {
+	if err := h.resolve(card.ID, proto.Resolution{Allow: &yes, Values: map[string]string{"password": "pw"}}); err == nil {
 		t.Error("the card was still there to approve after the call that asked for the change had ended")
-		eventually(t, 10*time.Second, "the change that approval makes", func() bool { _, ok := rules(); return ok })
 	}
-	if v, ok := rules(); ok {
-		t.Errorf("inbox.rules became %q after the assistant's call had ended", v)
+	if fm.added.Load() != 0 {
+		t.Errorf("mail account was added after the assistant's call had ended")
 	}
 }

@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/sunfayao/persona/server/internal/i18n"
-	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A remembered kind covers its directory's tree on its machine with its access, however the directory is spelled
@@ -142,8 +141,8 @@ func TestPlanStartsAtOnceInARememberedFolderTree(t *testing.T) {
 	}
 }
 
-// persona_settings tasks.trust: get lists the kinds, add and remove change one once the owner approves on the phone, a
-// too-broad folder is refused, and what is covered already asks nothing.
+// persona_settings tasks.trust: get lists the kinds, add and remove apply directly, a
+// too-broad folder is refused, and what is covered already is a no-op.
 func TestTaskTrustSettingsTool(t *testing.T) {
 	ctx := context.Background()
 	s, _ := trustFixture(t)
@@ -153,23 +152,6 @@ func TestTaskTrustSettingsTool(t *testing.T) {
 	}
 	change := func(action, value string) (string, bool) {
 		return tool(`{"action":"` + action + `","key":"tasks.trust","value":` + value + `}`)
-	}
-	approve := func(card string) {
-		go func() {
-			q, ok := awaitCard(s)
-			if !ok {
-				t.Error("no card appeared")
-				return
-			}
-			if q.Summary != card {
-				t.Errorf("card %+v, want %q", q, card)
-			}
-			allow := true
-			raw, _ := json.Marshal(proto.Resolution{Allow: &allow})
-			if _, err := s.Action(ctx, Action{Op: "answer", InteractionID: q.ID, Answer: raw}); err != nil {
-				t.Error(err)
-			}
-		}()
 	}
 	if out, _ := tool(`{"action":"list"}`); !strings.Contains(out, "- tasks.trust (") {
 		t.Fatalf("list does not offer tasks.trust:\n%s", out)
@@ -184,9 +166,9 @@ func TestTaskTrustSettingsTool(t *testing.T) {
 			t.Fatalf("add %s: %s (error %v)", bad, out, isErr)
 		}
 	}
-	approve(i18n.T(i18n.Default, "assistant-settings_tool.change_task_trust_add_edit", i18n.Args{"machine": "Box", "directory": "/home/me/src/tools"}))
-	if out, isErr := change("add", `{"machine":"Box","directory":"~/src//tools/"}`); isErr || !strings.Contains(out, "Remembered") {
-		t.Fatalf("add approved: %s", out)
+	wantAdd := i18n.T(i18n.Default, "assistant-settings_tool.change_task_trust_add_edit", i18n.Args{"machine": "Box", "directory": "/home/me/src/tools"})
+	if out, isErr := change("add", `{"machine":"Box","directory":"~/src//tools/"}`); isErr || !strings.Contains(out, wantAdd) || !strings.Contains(out, "Remembered") || len(s.pendingQuestions()) != 0 {
+		t.Fatalf("add direct: %s (err=%v, pending=%d)", out, isErr, len(s.pendingQuestions()))
 	}
 	if got := storedTrust(t, s.store().(*memStore)); !slices.Equal(got, []string{"box|/home/me/src/tools|edit"}) {
 		t.Fatalf("tasks.trust = %v", got)
@@ -203,9 +185,9 @@ func TestTaskTrustSettingsTool(t *testing.T) {
 	if out, isErr := change("set", `{"machine":"box","directory":"/opt/x"}`); !isErr {
 		t.Fatalf("set is not an action of tasks.trust: %s", out)
 	}
-	approve(i18n.T(i18n.Default, "assistant-settings_tool.change_task_trust_remove_edit", i18n.Args{"machine": "Box", "directory": "/home/me/src/tools"}))
-	if out, isErr := change("remove", `{"machine":"box","directory":"/data/home/me/src/tools"}`); isErr || !strings.Contains(out, "Forgotten") {
-		t.Fatalf("remove approved: %s", out)
+	wantRemove := i18n.T(i18n.Default, "assistant-settings_tool.change_task_trust_remove_edit", i18n.Args{"machine": "Box", "directory": "/home/me/src/tools"})
+	if out, isErr := change("remove", `{"machine":"box","directory":"/data/home/me/src/tools"}`); isErr || !strings.Contains(out, wantRemove) || !strings.Contains(out, "Forgotten") || len(s.pendingQuestions()) != 0 {
+		t.Fatalf("remove direct: %s (err=%v, pending=%d)", out, isErr, len(s.pendingQuestions()))
 	}
 	if got := storedTrust(t, s.store().(*memStore)); len(got) != 0 {
 		t.Fatalf("tasks.trust after remove = %v", got)
@@ -225,23 +207,6 @@ func TestTaskTrustSettingsToolWindows(t *testing.T) {
 	}
 	change := func(action, value string) (string, bool) {
 		return tool(`{"action":"` + action + `","key":"tasks.trust","value":` + value + `}`)
-	}
-	approve := func(card string) {
-		go func() {
-			q, ok := awaitCard(s)
-			if !ok {
-				t.Error("no card appeared")
-				return
-			}
-			if q.Summary != card {
-				t.Errorf("card %+v, want %q", q, card)
-			}
-			allow := true
-			raw, _ := json.Marshal(proto.Resolution{Allow: &allow})
-			if _, err := s.Action(ctx, Action{Op: "answer", InteractionID: q.ID, Answer: raw}); err != nil {
-				t.Error(err)
-			}
-		}()
 	}
 
 	for _, bad := range []string{
@@ -263,9 +228,9 @@ func TestTaskTrustSettingsToolWindows(t *testing.T) {
 		}
 	}
 
-	approve(i18n.T(i18n.Default, "assistant-settings_tool.change_task_trust_add_edit", i18n.Args{"machine": "Bell", "directory": `C:\Users\alice\src\tools`}))
-	if out, isErr := change("add", `{"machine":"Bell","directory":"~/src//tools/"}`); isErr || !strings.Contains(out, "Remembered") {
-		t.Fatalf("add ~/src//tools/ approved: %s", out)
+	wantAdd := i18n.T(i18n.Default, "assistant-settings_tool.change_task_trust_add_edit", i18n.Args{"machine": "Bell", "directory": `C:\Users\alice\src\tools`})
+	if out, isErr := change("add", `{"machine":"Bell","directory":"~/src//tools/"}`); isErr || !strings.Contains(out, wantAdd) || !strings.Contains(out, "Remembered") || len(s.pendingQuestions()) != 0 {
+		t.Fatalf("add ~/src//tools/ direct: %s (err=%v, pending=%d)", out, isErr, len(s.pendingQuestions()))
 	}
 	if got := storedTrust(t, s.store().(*memStore)); !slices.Equal(got, []string{`win|C:\Users\alice\src\tools|edit`}) {
 		t.Fatalf("tasks.trust = %v", got)
@@ -284,9 +249,9 @@ func TestTaskTrustSettingsToolWindows(t *testing.T) {
 	if out, isErr := change("add", `{"machine":"win","directory":"d:/profiles/ALICE/src/tools/a"}`); isErr || !strings.Contains(out, "Already remembered") || len(s.pendingQuestions()) != 0 {
 		t.Fatalf("add under remembered Windows folder: %s", out)
 	}
-	approve(i18n.T(i18n.Default, "assistant-settings_tool.change_task_trust_remove_edit", i18n.Args{"machine": "Bell", "directory": `C:\users\ALICE\src\tools`}))
-	if out, isErr := change("remove", `{"machine":"win","directory":"c:/users/ALICE/src/tools"}`); isErr || !strings.Contains(out, "Forgotten") {
-		t.Fatalf("remove approved: %s", out)
+	wantRemove := i18n.T(i18n.Default, "assistant-settings_tool.change_task_trust_remove_edit", i18n.Args{"machine": "Bell", "directory": `C:\users\ALICE\src\tools`})
+	if out, isErr := change("remove", `{"machine":"win","directory":"c:/users/ALICE/src/tools"}`); isErr || !strings.Contains(out, wantRemove) || !strings.Contains(out, "Forgotten") || len(s.pendingQuestions()) != 0 {
+		t.Fatalf("remove direct: %s (err=%v, pending=%d)", out, isErr, len(s.pendingQuestions()))
 	}
 	if got := storedTrust(t, s.store().(*memStore)); len(got) != 0 {
 		t.Fatalf("tasks.trust after remove = %v", got)

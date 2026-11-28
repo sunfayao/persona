@@ -8,8 +8,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestSupervisionBatchManagerConfigOverridesSavedSettings(t *testing.T) {
@@ -106,19 +104,8 @@ func TestSupervisionBatchSettingsToolApprovalAndReadback(t *testing.T) {
 	if len(s.pendingQuestions()) != 0 {
 		t.Fatal("invalid values unexpectedly created approval cards")
 	}
-	go func() {
-		q, ok := awaitCard(s)
-		if !ok {
-			return
-		}
-		allowed := true
-		answer, _ := json.Marshal(proto.Resolution{Allow: &allowed})
-		if _, err := s.Action(ctx, Action{Op: "answer", InteractionID: q.ID, Answer: answer}); err != nil {
-			t.Errorf("approve: %v", err)
-		}
-	}()
-	if out, isErr := tool(`{"action":"set","key":"assistant.supervision_batch_minutes","value":45}`); isErr || !strings.Contains(out, "45") {
-		t.Fatalf("approved setting: %q error=%v", out, isErr)
+	if out, isErr := tool(`{"action":"set","key":"assistant.supervision_batch_minutes","value":45}`); isErr || !strings.Contains(out, "45") || len(s.pendingQuestions()) != 0 {
+		t.Fatalf("direct setting: %q error=%v pending=%d", out, isErr, len(s.pendingQuestions()))
 	}
 	if got, _ := tool(`{"action":"get","key":"assistant.supervision_batch_minutes"}`); got != "45" {
 		t.Fatalf("persisted readback = %q, want 45", got)

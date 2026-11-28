@@ -222,9 +222,9 @@ func held(d *Domain) []Note {
 	return d.held(context.Background()).Notes
 }
 
-// A proposal waits for the user's tap: approved, it is at the end of its tool's description in a "Field notes:" block,
-// the tool-list revision moves and the tool watches are told once; the stored note says who proposed it, its tool's
-// digest and when it is due for review.
+// A proposed note applies directly without a card: it immediately ends its tool's description in a "Field notes:"
+// block, the tool-list revision moves and the tool watches are told once; the stored note says who proposed it, its
+// tool's digest and when it is due for review.
 func TestApprovedNoteIsRenderedAndChangesTheRevision(t *testing.T) {
 	t.Parallel()
 	f := newFake()
@@ -233,12 +233,11 @@ func TestApprovedNoteIsRenderedAndChangesTheRevision(t *testing.T) {
 		t.Fatalf("revision with no notes = %q", rev)
 	}
 	out := mustRun(t, d, `{"action":"propose","tool":"computer_run","text":"Open apps with a script (await cua.launch), never a launch_app step."}`)
-	if !strings.HasPrefix(out, "Approved: note tn_") || !strings.HasSuffix(out, " now ends computer_run's description, until 2027-02-26.") {
+	if !strings.HasPrefix(out, "Approved: note tn_") || !strings.Contains(out, " now ends computer_run's description, until 2027-02-26: ") {
 		t.Fatalf("propose = %q", out)
 	}
-	if len(f.cards) != 1 || f.cards[0].Machine != "m-studio" || f.cards[0].Session != "main" ||
-		f.cards[0].Summary != "Add a field note to computer_run: “Open apps with a script (await cua.launch), never a launch_app step.”" {
-		t.Fatalf("cards = %+v", f.cards)
+	if len(f.cards) != 0 {
+		t.Fatalf("unexpected approval cards = %+v", f.cards)
 	}
 	got := descriptions(d, f)["computer_run"]
 	want := "Runs steps on a Mac.\n\nField notes:\n- Open apps with a script (await cua.launch), never a launch_app step."
@@ -262,49 +261,6 @@ func TestApprovedNoteIsRenderedAndChangesTheRevision(t *testing.T) {
 	// What is stored is what a new Domain reads: the note is shown after a restart.
 	if again := New(f.host(t)); descriptions(again, f)["computer_run"] != want {
 		t.Fatal("a restarted Domain does not show the stored note")
-	}
-}
-
-// Declined or unanswered, a proposal never reaches a description: it retires saying how, and the call says nothing
-// was added. While its card waits it is listed as waiting and shown nowhere.
-func TestDeclinedAndUnansweredProposalsStayOut(t *testing.T) {
-	t.Parallel()
-	f := newFake()
-	d := New(f.host(t))
-	f.set(func(f *fake) { f.answer = "deny" })
-	if out := mustRun(t, d, `{"action":"propose","tool":"agent_send","text":"Read the agent first."}`); out != "The user declined the field note: it was not added." {
-		t.Fatalf("declined = %q", out)
-	}
-	f.set(func(f *fake) { f.answer = "expire" })
-	if out := mustRun(t, d, `{"action":"propose","tool":"agent_send","text":"Send one clear message."}`); !strings.Contains(out, "it was not added") {
-		t.Fatalf("unanswered = %q", out)
-	}
-	f.set(func(f *fake) { f.answer = "wait" })
-	if out := mustRun(t, d, `{"action":"propose","tool":"agent_send","text":"Use task for new work."}`); out != approval.WaitingText {
-		t.Fatalf("waiting = %q", out)
-	}
-	notes := held(d)
-	if len(notes) != 3 || notes[0].RetiredReason != reasonDeclined || notes[1].RetiredReason != "not approved: its card ended (expired)" ||
-		notes[2].Status != StatusProposed {
-		t.Fatalf("notes = %+v", notes)
-	}
-	if desc := descriptions(d, f)["agent_send"]; strings.Contains(desc, "Field notes") {
-		t.Fatalf("an unapproved note is shown: %q", desc)
-	}
-	if list := mustRun(t, d, `{"action":"list"}`); !strings.Contains(list, "agent_send, waiting for the user's tap: “Use task for new work.”") ||
-		strings.Contains(list, "Read the agent first.") {
-		t.Fatalf("list = %q", list)
-	}
-	// The waiting card ends unanswered later: the note retires; a late Allow of an ended card applies nothing.
-	f.ops[2].Discard(context.Background(), "expired")
-	if n := held(d)[2]; n.Status != StatusRetired {
-		t.Fatalf("after its card expired: %+v", n)
-	}
-	if _, err := f.ops[2].Apply(context.Background(), proto.Resolution{}); !errors.Is(err, approval.ErrStale) {
-		t.Fatalf("a retired proposal was approved: %v", err)
-	}
-	if f.notifications() != 0 {
-		t.Fatalf("watches told %d times about notes never shown", f.notifications())
 	}
 }
 
@@ -370,12 +326,10 @@ func TestRuntimeAndMachineScoping(t *testing.T) {
 	f := newFake()
 	d := New(f.host(t))
 	f.set(func(f *fake) { f.runtime = "claude" })
-	mustRun(t, d, `{"action":"propose","tool":"computer_run","text":"Call persona_call with describe first.","runtime":"agy"}`)
-	mustRun(t, d, `{"action":"propose","tool":"computer_run","text":"Its screen is small; read before clicking.","machine":"lab-mini"}`)
-	if len(f.cards) != 2 || f.cards[0].Summary != "Add a field note to computer_run (agy): “Call persona_call with describe first.”" ||
-		f.cards[1].Summary != "Add a field note to computer_run (lab-mini): “Its screen is small; read before clicking.”" ||
-		string(f.cards[1].Shown) != `{"text":"Its screen is small; read before clicking.","tool":"computer_run","where":"lab-mini"}` {
-		t.Fatalf("cards = %+v", f.cards)
+	out1 := mustRun(t, d, `{"action":"propose","tool":"computer_run","text":"Call persona_call with describe first.","runtime":"agy"}`)
+	out2 := mustRun(t, d, `{"action":"propose","tool":"computer_run","text":"Its screen is small; read before clicking.","machine":"lab-mini"}`)
+	if len(f.cards) != 0 || !strings.Contains(out1, "(agy only)") || !strings.Contains(out2, "(on lab-mini)") {
+		t.Fatalf("cards = %+v, out1 = %q, out2 = %q", f.cards, out1, out2)
 	}
 	claude := descriptions(d, f)["computer_run"]
 	if strings.Contains(claude, "persona_call") || !strings.Contains(claude, "- On lab-mini: Its screen is small; read before clicking.") {
@@ -653,20 +607,22 @@ func TestRetireTakesANoteOrADraft(t *testing.T) {
 	}
 }
 
-// A proposal whose card is gone with the process that showed it (a restart) retires at the next Sweep; one whose card
-// is still up does not.
+// A legacy proposal left in StatusProposed across a restart retires at the next Sweep; one still marked live does not.
 func TestSweepRetiresProposalsWhoseCardIsGone(t *testing.T) {
 	t.Parallel()
 	f := newFake()
-	f.answer = "wait"
 	d := New(f.host(t))
-	mustRun(t, d, `{"action":"propose","tool":"agent_send","text":"Read first."}`)
-	d.Sweep(context.Background())
+	ctx := context.Background()
+	raw, _ := json.Marshal(doc{Notes: []Note{{ID: "tn_legacy", Tool: "agent_send", Text: "Read first.", Status: StatusProposed,
+		PromptDigest: Digest(f.tools[1]), CreatedAt: f.now, ReviewAt: f.now.Add(ReviewDays * day)}}})
+	f.set(func(f *fake) { f.vals[Key] = raw })
+	d.setLive("tn_legacy", true)
+	d.Sweep(ctx)
 	if n := held(d)[0]; n.Status != StatusProposed {
 		t.Fatalf("a live proposal retired: %+v", n)
 	}
 	restarted := New(f.host(t))
-	restarted.Sweep(context.Background())
+	restarted.Sweep(ctx)
 	if n := held(restarted)[0]; n.Status != StatusRetired || n.RetiredReason != reasonRestart {
 		t.Fatalf("after a restart: %+v", n)
 	}

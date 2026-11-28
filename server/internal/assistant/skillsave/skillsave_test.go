@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -16,14 +15,13 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/sunfayao/persona/server/internal/assistantskills"
-	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 var receiptExpires = time.Date(2026, 11, 27, 12, 10, 0, 0, time.UTC)
 
-// fake is the node's importer and the permission card as a save sees them. Its preview reads the archive as the
-// importer does: one <name>/SKILL.md whose front matter holds the name and the description as strings.
+// fake is the node's importer as a save sees it. Its preview reads the archive as the importer does: one
+// <name>/SKILL.md whose front matter holds the name and the description as strings.
 type fake struct {
 	mu         sync.Mutex
 	previewErr error
@@ -35,18 +33,11 @@ type fake struct {
 	previews   [][]byte
 	installs   []installCall
 	cancels    []string
-	cards      []card
 }
 
 type installCall struct {
 	archive   []byte
 	previewed Receipt
-}
-
-type card struct {
-	summary string
-	details json.RawMessage
-	expires time.Time
 }
 
 func (f *fake) Preview(_ context.Context, archive []byte) (Receipt, error) {
@@ -95,8 +86,8 @@ func (f *fake) Skill(_ context.Context, name string) (assistantskills.Skill, boo
 	return skill, ok
 }
 
-// saver saves through f; confirm answers the card.
-func (f *fake) saver(t *testing.T, confirm func() (bool, string, error)) *Saver {
+// saver saves through f.
+func (f *fake) saver(t *testing.T) *Saver {
 	return New(Host{
 		Importer: func(context.Context) (Importer, error) {
 			f.mu.Lock()
@@ -104,23 +95,10 @@ func (f *fake) saver(t *testing.T, confirm func() (bool, string, error)) *Saver 
 			f.asked++
 			return f, nil
 		},
-		Confirm: func(_ context.Context, summary string, details json.RawMessage, expires time.Time) (bool, string, error) {
-			f.mu.Lock()
-			f.cards = append(f.cards, card{summary, details, expires})
-			early := len(f.installs) > 0
-			f.mu.Unlock()
-			if early {
-				t.Error("the skill was installed before the user answered the card")
-			}
-			return confirm()
-		},
-		Names:    func(context.Context) []string { return []string{"kiln-box", "orchard.example.net"} },
-		Language: func(context.Context) i18n.Lang { return i18n.En },
-		Logf:     t.Logf,
+		Names: func(context.Context) []string { return []string{"kiln-box", "orchard.example.net"} },
+		Logf:  t.Logf,
 	})
 }
-
-func approve() (bool, string, error) { return true, "", nil }
 
 // unpack reads a skill archive as the importer does, and refuses any other layout.
 func unpack(archive []byte) (name, description, content string, err error) {
@@ -168,10 +146,10 @@ func arguments(name, description, body string) json.RawMessage {
 	return raw
 }
 
-func TestSaveInstallsTheSkillOnlyAfterTheUsersApproval(t *testing.T) {
+func TestSaveInstallsDirectlyAfterPreview(t *testing.T) {
 	t.Parallel()
 	f := &fake{}
-	out, err := f.saver(t, approve).Save(context.Background(),
+	out, err := f.saver(t).Save(context.Background(),
 		arguments("deploy-checklist", "  Use when: the user ships the web app  ", "# Deploy\n\n1. Run the tests.\n2. Tag the release.\n\n"))
 	if err != nil {
 		t.Fatal(err)
@@ -183,19 +161,6 @@ func TestSaveInstallsTheSkillOnlyAfterTheUsersApproval(t *testing.T) {
 	want := "---\nname: deploy-checklist\ndescription: 'Use when: the user ships the web app'\n---\n\n# Deploy\n\n1. Run the tests.\n2. Tag the release.\n"
 	if name != "deploy-checklist" || description != "Use when: the user ships the web app" || content != want {
 		t.Fatalf("archive holds %q (%q, %q), want %q", content, name, description, want)
-	}
-	if len(f.cards) != 1 {
-		t.Fatalf("cards: %+v", f.cards)
-	}
-	c := f.cards[0]
-	wantSummary := "Save “deploy-checklist” (" + strconv.Itoa(len(want)) + " bytes) as a skill on Example computer? New conversations there can use it."
-	if c.summary != wantSummary || !c.expires.Equal(receiptExpires) {
-		t.Fatalf("card %q until %v, want %q until %v", c.summary, c.expires, wantSummary, receiptExpires)
-	}
-	var details map[string]any
-	if json.Unmarshal(c.details, &details) != nil || details["name"] != "deploy-checklist" || details["machine"] != "Example computer" ||
-		details["description"] != "Use when: the user ships the web app" || details["bytes"] != float64(len(want)) || len(details) != 4 {
-		t.Fatalf("card details %s", c.details)
 	}
 	if len(f.installs) != 1 || !bytes.Equal(f.installs[0].archive, f.previews[0]) || f.installs[0].previewed.Reference != "ref-preview" ||
 		f.installs[0].previewed.Environment != "env-1" || len(f.cancels) != 0 {
@@ -218,37 +183,11 @@ func TestTheLimitsAreInclusive(t *testing.T) {
 	description := strings.Repeat("é", MaxDescription)
 	body := strings.Repeat("Check the logs.\n", MaxBody/16-1) + "Check the logs!"
 	body += strings.Repeat("!", MaxBody-len(body))
-	if _, err := f.saver(t, approve).Save(context.Background(), arguments(strings.Repeat("z", 64), description, body)); err != nil {
+	if _, err := f.saver(t).Save(context.Background(), arguments(strings.Repeat("z", 64), description, body)); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.installs) != 1 {
 		t.Fatalf("installs %d", len(f.installs))
-	}
-}
-
-func TestADeclinedOrUnansweredSaveChangesNothing(t *testing.T) {
-	t.Parallel()
-	for _, c := range []struct {
-		name string
-		text string
-		err  error
-	}{
-		{"declined", "The user declined the change: nothing changed.", nil},
-		{"unanswered", "The user did not answer the approval card for this change themselves: nothing changed.", nil},
-		{"withdrawn", "", context.Canceled},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			t.Parallel()
-			f := &fake{}
-			out, err := f.saver(t, func() (bool, string, error) { return false, c.text, c.err }).Save(context.Background(),
-				arguments("deploy-checklist", "Ship the web app", "1. Run the tests."))
-			if out != c.text || !errors.Is(err, c.err) || (c.err == nil) != (err == nil) {
-				t.Fatalf("got %q, %v", out, err)
-			}
-			if len(f.installs) != 0 || len(f.cancels) != 1 || f.cancels[0] != "ref-preview" {
-				t.Fatalf("installs %+v, cancels %v: the preview must be dropped and nothing installed", f.installs, f.cancels)
-			}
-		})
 	}
 }
 
@@ -270,12 +209,12 @@ func TestPrivateTextIsRefusedWithWhatWouldBeHidden(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			f := &fake{}
-			_, err := f.saver(t, approve).Save(context.Background(), arguments(c.skill, c.description, c.body))
+			_, err := f.saver(t).Save(context.Background(), arguments(c.skill, c.description, c.body))
 			if err == nil || !strings.HasPrefix(err.Error(), "skill_save_private: nothing was shown or saved") || !strings.Contains(err.Error(), "\n"+c.want+"\n") {
 				t.Fatalf("got %v, want a refusal showing %q", err, c.want)
 			}
-			if f.asked != 0 || len(f.cards) != 0 {
-				t.Fatalf("a private skill reached the computer (%d) or a card (%d)", f.asked, len(f.cards))
+			if f.asked != 0 {
+				t.Fatalf("a private skill reached the computer (%d)", f.asked)
 			}
 		})
 	}
@@ -313,12 +252,12 @@ func TestBadArgumentsAreRefusedBeforeTheComputerIsAsked(t *testing.T) {
 		{`{"name":"deploy","description":"Ship it","body":"` + strings.Repeat("a", maxArguments) + `"}`, "skill_save_body"},
 	} {
 		f := &fake{}
-		_, err := f.saver(t, approve).Save(context.Background(), json.RawMessage(c.raw))
+		_, err := f.saver(t).Save(context.Background(), json.RawMessage(c.raw))
 		if err == nil || !strings.HasPrefix(err.Error(), c.code+": ") {
 			t.Errorf("%.80s: got %v, want %s", c.raw, err, c.code)
 		}
-		if f.asked != 0 || len(f.cards) != 0 {
-			t.Errorf("%.80s reached the computer (%d) or a card (%d)", c.raw, f.asked, len(f.cards))
+		if f.asked != 0 {
+			t.Errorf("%.80s reached the computer (%d)", c.raw, f.asked)
 		}
 	}
 }
@@ -339,13 +278,13 @@ func TestAnExistingNameIsRefusedNamingTheSkill(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			f := &fake{previewErr: &rpc.Error{Code: "skill_conflict", Message: "private path details"}, listed: c.listed}
-			_, err := f.saver(t, approve).Save(context.Background(), arguments("deploy-checklist", "Ship it", "1. Run make."))
+			_, err := f.saver(t).Save(context.Background(), arguments("deploy-checklist", "Ship it", "1. Run make."))
 			if err == nil || !strings.HasPrefix(err.Error(), "skill_conflict: ") || !strings.Contains(err.Error(), c.want) ||
 				!strings.Contains(err.Error(), "nothing was saved") || strings.Contains(err.Error(), "private path") {
 				t.Fatalf("got %v, want it to name %s", err, c.want)
 			}
-			if len(f.cards) != 0 || len(f.installs) != 0 {
-				t.Fatalf("cards %d, installs %d", len(f.cards), len(f.installs))
+			if len(f.installs) != 0 {
+				t.Fatalf("installs %d", len(f.installs))
 			}
 		})
 	}
@@ -366,12 +305,12 @@ func TestAComputerThatDoesNotTakeTheSkillSavesNothing(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := c.f.saver(t, approve).Save(context.Background(), arguments("deploy-checklist", "Ship it", "1. Run make."))
+			_, err := c.f.saver(t).Save(context.Background(), arguments("deploy-checklist", "Ship it", "1. Run make."))
 			if err == nil || !strings.HasPrefix(err.Error(), c.want) || strings.Contains(err.Error(), "private") {
 				t.Fatalf("got %v, want %q", err, c.want)
 			}
-			if len(c.f.cards) != 0 || len(c.f.installs) != 0 {
-				t.Fatalf("cards %d, installs %d", len(c.f.cards), len(c.f.installs))
+			if len(c.f.installs) != 0 {
+				t.Fatalf("installs %d", len(c.f.installs))
 			}
 		})
 	}
@@ -390,7 +329,7 @@ func TestAnUncertainInstallPointsAtTheReceipt(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := c.f.saver(t, approve).Save(context.Background(), arguments("deploy-checklist", "Ship it", "1. Run make."))
+			_, err := c.f.saver(t).Save(context.Background(), arguments("deploy-checklist", "Ship it", "1. Run make."))
 			want := c.code + `: the skill may or may not be saved. Before saving it again, call skill_import with op "status", reference "ref-preview" and environment "env-1"`
 			if err == nil || err.Error() != want {
 				t.Fatalf("got %v, want %q", err, want)

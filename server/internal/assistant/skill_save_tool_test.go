@@ -6,15 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 	"testing/synctest"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistantskills"
-	"github.com/sunfayao/persona/server/internal/prompts"
-	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const releaseNotes = `{"name":"release-notes","description":"Use when the user asks for release notes","body":"# Release notes\n\n1. List the merged changes.\n2. Group them by area.\n"}`
@@ -44,52 +40,15 @@ func importOps(s *Service) []string {
 	return ops
 }
 
-// startSkillSave calls skill_save from the conversation c1 and returns its result when it ends.
-func startSkillSave(s *Service, args string) <-chan proto.ToolResult {
-	done := make(chan proto.ToolResult, 1)
-	go func() { done <- skillImportCall(context.Background(), s, "skill_save", args) }()
-	return done
-}
-
-// skillSaveCard is the one card waiting once every goroutine of the bubble is blocked. Without one the test ends
-// here: nothing then waits in the bubble.
-func skillSaveCard(t *testing.T, s *Service) proto.Interaction {
-	t.Helper()
-	synctest.Wait()
-	cards := s.pendingQuestions()
-	if len(cards) != 1 {
-		t.Fatalf("cards waiting: %+v", cards)
-	}
-	return cards[0]
-}
-
-func answerSkillSaveCard(t *testing.T, s *Service, card proto.Interaction, answer proto.Resolution) {
-	t.Helper()
-	raw, _ := json.Marshal(answer)
-	if _, err := s.Action(context.Background(), Action{Op: "answer", InteractionID: card.ID, Answer: raw}); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestSkillSaveToolInstallsAfterTheUsersApproval(t *testing.T) {
+func TestSkillSaveToolInstallsDirectlyWithoutCard(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := skillSaveFixture(t)
 		installed := filepath.Join(assistantskills.UserDir(), "release-notes")
-		done := startSkillSave(s, releaseNotes)
-		card := skillSaveCard(t, s)
+		res := skillImportCall(context.Background(), s, "skill_save", releaseNotes)
+		if len(s.pendingQuestions()) != 0 {
+			t.Fatalf("unexpected approval card: %+v", s.pendingQuestions())
+		}
 		want := "---\nname: release-notes\ndescription: Use when the user asks for release notes\n---\n\n# Release notes\n\n1. List the merged changes.\n2. Group them by area.\n"
-		// The card is in the user's language: it names the skill, its size and the computer, not the procedure.
-		if card.ToolName != "skill_save" || card.Kind != proto.IxPermission || !strings.Contains(card.Summary, "release-notes") ||
-			!strings.Contains(card.Summary, "Example computer") || !strings.Contains(card.Summary, strconv.Itoa(len(want))) ||
-			strings.Contains(string(card.ToolInput), "merged changes") {
-			t.Errorf("card %q %s", card.Summary, card.ToolInput)
-		}
-		if _, err := os.Stat(installed); !os.IsNotExist(err) {
-			t.Errorf("the skill was installed before the user approved it: %v", err)
-		}
-		allow := true
-		answerSkillSaveCard(t, s, card, proto.Resolution{Allow: &allow})
-		res := <-done
 		var out skillImportOutput
 		if res.IsError || json.Unmarshal([]byte(res.Content[0].Text), &out) != nil || out.Status != "installed" || out.Reference == "" || out.Environment == "" {
 			t.Fatalf("result %+v", res)
@@ -106,46 +65,6 @@ func TestSkillSaveToolInstallsAfterTheUsersApproval(t *testing.T) {
 			t.Fatalf("status %+v", status)
 		}
 	})
-}
-
-func TestSkillSaveToolChangesNothingUnlessTheUserApproves(t *testing.T) {
-	allow, deny := true, false
-	for _, c := range []struct {
-		name   string
-		answer *proto.Resolution // nil: the card is left until it expires
-		want   string
-	}{
-		{"declined", &proto.Resolution{Allow: &deny}, "The user declined the change: nothing changed."},
-		{"closed", &proto.Resolution{Dismiss: true}, prompts.RenderSettingUnanswered()},
-		{"approved by a model, not the user", &proto.Resolution{Allow: &allow, AnsweredBy: "assistant"}, prompts.RenderSettingUnanswered()},
-		{"expired", nil, prompts.RenderSettingUnanswered()},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			synctest.Test(t, func(t *testing.T) {
-				s := skillSaveFixture(t)
-				done := startSkillSave(s, releaseNotes)
-				card := skillSaveCard(t, s)
-				if c.answer != nil {
-					answerSkillSaveCard(t, s, card, *c.answer)
-				} else {
-					time.Sleep(11 * time.Minute) // sleep-ok: virtual synctest time runs out the card's ten minutes
-				}
-				res := <-done
-				if res.IsError || res.Content[0].Text != c.want {
-					t.Fatalf("result %+v, want %q", res, c.want)
-				}
-				if _, err := os.Stat(filepath.Join(assistantskills.UserDir(), "release-notes")); !os.IsNotExist(err) {
-					t.Fatalf("a skill was installed: %v", err)
-				}
-				if ops := importOps(s); !slices.Equal(ops, []string{"preview", "cancel"}) {
-					t.Fatalf("the computer was asked for %v; want the preview dropped", ops)
-				}
-				if len(s.pendingQuestions()) != 0 {
-					t.Fatal("the card is still waiting")
-				}
-			})
-		})
-	}
 }
 
 func TestSkillSaveToolRefusesANameInUseNamingTheSkill(t *testing.T) {

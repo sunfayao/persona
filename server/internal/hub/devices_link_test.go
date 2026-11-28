@@ -105,8 +105,8 @@ func TestTheHubShowsTheHandOverUntilTheManagerReports(t *testing.T) {
 	}
 }
 
-// persona_settings (the hub's own tool) blocks a Claude config directory on a machine through the manager, whose setting
-// it is now, only after the phone approves, and removes it the same way.
+// persona_settings (the hub's own tool) blocks a Claude config directory on a machine through the manager directly
+// without an approval card, and removes it the same way.
 func TestSelfSettingsBlocksClaudeDirsThroughTheManager(t *testing.T) {
 	box := newMeshNode("uid-box", "box", "s1")
 	box.resident = true
@@ -118,38 +118,25 @@ func TestSelfSettingsBlocksClaudeDirsThroughTheManager(t *testing.T) {
 	defer cancel()
 	run := func(args string) string {
 		t.Helper()
-		done := make(chan string, 1)
-		go func() {
-			out, err := h.toolPersonaSettings(ctx, assistantwire.AssistantID, m, "s1", json.RawMessage(args), nil)
-			if err != nil {
-				out = "error: " + err.Error()
-			}
-			done <- out
-		}()
-		for ctx.Err() == nil {
-			if pending := h.pendingInteractions(); len(pending) == 1 {
-				allow := true
-				_ = h.resolve(pending[0].ID, proto.Resolution{Allow: &allow})
-				break
-			}
-			select {
-			case out := <-done:
-				return out
-			case <-time.After(5 * time.Millisecond):
-			}
+		out, err := h.toolPersonaSettings(ctx, assistantwire.AssistantID, m, "s1", json.RawMessage(args), nil)
+		if err != nil {
+			out = "error: " + err.Error()
 		}
-		return <-done
+		if pending := h.pendingInteractions(); len(pending) != 0 {
+			t.Fatalf("unexpected approval card for %s: %+v", args, pending)
+		}
+		return out
 	}
 	if out := run(`{"action":"get","key":"agents.blocked_claude_dirs"}`); !strings.Contains(out, "/home/user/.automation/claude-a (listed") {
 		t.Fatalf("get: %s", out)
 	}
-	if out := run(`{"action":"add","key":"agents.blocked_claude_dirs","value":{"machine":"box","pattern":"~/.automation/*"}}`); !strings.HasPrefix(out, "Blocked") {
+	if out := run(`{"action":"add","key":"agents.blocked_claude_dirs","value":{"machine":"box","pattern":"~/.automation/*"}}`); !strings.Contains(out, "Blocked ~/.automation/* on box.") {
 		t.Fatalf("add: %s", out)
 	}
 	if got := m.claudeDirsState(ctx).Blocked; len(got) != 1 || got[0] != "~/.automation/*" {
 		t.Fatalf("the manager keeps %v", got)
 	}
-	if out := run(`{"action":"remove","key":"agents.blocked_claude_dirs","id":"box:~/.automation/*"}`); !strings.HasPrefix(out, "Unblocked") {
+	if out := run(`{"action":"remove","key":"agents.blocked_claude_dirs","id":"box:~/.automation/*"}`); !strings.Contains(out, "Unblocked ~/.automation/* on box.") {
 		t.Fatalf("remove: %s", out)
 	}
 	if got := m.claudeDirsState(ctx).Blocked; len(got) != 0 {
