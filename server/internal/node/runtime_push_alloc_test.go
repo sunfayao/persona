@@ -108,10 +108,10 @@ func TestRuntimeRowExtrasReadsAsEachAlone(t *testing.T) {
 		`{"sessions":[{"session_id":` + id + `}],"unlisted_transcripts":null}`,
 		`{"sessions":null}`, `{"sessions":{}}`, `{}`, `[`,
 	} {
-		got := runtimeRowExtras(json.RawMessage(params), 4)
+		got := runtimeRowExtras(json.RawMessage(params), 4, false)
 		unlisted, said := unlistedTranscripts(json.RawMessage(params))
-		each := rowExtras{resumeArgvs(json.RawMessage(params)), runtimeTranscripts(json.RawMessage(params)),
-			runtimeCodexThreads(json.RawMessage(params)), unlisted, said}
+		each := rowExtras{resume: resumeArgvs(json.RawMessage(params)), transcripts: runtimeTranscripts(json.RawMessage(params)),
+			threads: runtimeCodexThreads(json.RawMessage(params)), unlisted: unlisted, unlistedSaid: said}
 		if !reflect.DeepEqual(got, each) {
 			t.Errorf("%s:\nread %+v\nwas  %+v", params, got, each)
 		}

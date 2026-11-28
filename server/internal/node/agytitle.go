@@ -52,8 +52,9 @@ func (n *Node) agyPaneTitle(s *proto.Session, conversation string) {
 		s.Title, s.TitleManual, s.TitleSource = title, false, proto.TitleSourceUnknown
 		return
 	}
-	if u, ok := n.agyTranscriptMeta(conversation); ok {
-		if title := promptTitle(u.first); title != "" {
+	if h, ok := n.agyTranscript(conversation); ok {
+		text, _ := h.FirstInput()
+		if title := promptTitle(text); title != "" {
 			s.Title, s.TitleManual, s.TitleSource = title, false, proto.TitleSourcePrompt
 		}
 	}
@@ -77,7 +78,7 @@ func (n *Node) agyNativeTitle(conversation string) string {
 	book := n.agyTitles
 	n.mu.Unlock()
 	// A file rewritten within the last second can keep its size and time through another write: read it again.
-	if book == nil || book.path != path || !sameAgyFile(info, book.file) || time.Since(info.ModTime()) <= time.Second {
+	if book == nil || book.path != path || (!os.SameFile(info, book.file) || info.Size() != book.file.Size() || !info.ModTime().Equal(book.file.ModTime())) || time.Since(info.ModTime()) <= time.Second {
 		if book = readAgyTitles(path); book == nil {
 			return ""
 		}

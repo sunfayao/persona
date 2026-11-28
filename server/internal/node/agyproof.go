@@ -1,20 +1,17 @@
 package node
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
-	"io"
 	"log"
 	"net/url"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/node/harness/agy"
 )
 
 // An agy pane's conversation is herdr's to report (reportedAgyConversation, agypane.go), and the node never guesses
@@ -24,7 +21,7 @@ import (
 // exactly (#13463). It is the one, and only, conversation that
 //   - an agy terminal opened after the start: its presence/<id>.lock is no older than the start;
 //   - began with that message, no earlier than the start: the first USER_INPUT the user typed, from
-//     transcript_full.jsonl (the compact transcript cuts long messages), compared without whitespace (shownText);
+//     transcript_full.jsonl, compared without whitespace (shownText);
 //   - agy places in the start's directory: cache/last_conversations.json names it for the directory, or its metadata's
 //     WorkspaceURIs has it;
 //   - no herdr report or other pane's proof claims.
@@ -38,8 +35,6 @@ type agyProof struct{ row, conversation string }
 // agyProofWait bounds how long a start looks for its conversation, agyProofPoll how often; agyProofLines how many
 // lines of a transcript the first message is looked for in. Tests shorten the waits.
 var agyProofWait, agyProofPoll = 2 * time.Minute, time.Second
-
-const agyProofLines = 64
 
 // proveAgyPane looks, in the background, for the conversation of the agy start that typed its command into pane at
 // began, in directory cwd, with first message prompt; row is the pane's agent row. It stops once herdr reports a
@@ -70,7 +65,7 @@ func (n *Node) proveAgyPane(pane, row, cwd, prompt string, began time.Time) {
 			if !ok || a.Agent != agyAgent || a.PaneID != pane || reportedAgyConversation(a) != "" {
 				return // the agent left, or herdr's hook names its conversation
 			}
-			found := agyProofCandidates(n.agyDataRoot(), cwd, want, began)
+			found := n.agyProofCandidates(n.agyDataRoot(), cwd, want, began)
 			if len(found) != 1 {
 				continue // none yet, or more than one: never a guess
 			}
@@ -154,7 +149,8 @@ func (n *Node) pruneAgyProofsLocked(heard map[string]bool) {
 
 // agyProofCandidates are the conversations under agy's data directory dir that the start in cwd which typed its
 // command at began, with first message want (shownText), can be (the package comment's rules but the claims).
-func agyProofCandidates(dir, cwd, want string, began time.Time) []string {
+func (n *Node) agyProofCandidates(dir, cwd, want string, began time.Time) []string {
+	reader := n.agyReader()
 	floor := began.Truncate(time.Second) // agy writes created_at to the second
 	entries, err := os.ReadDir(filepath.Join(dir, "presence"))
 	if err != nil {
@@ -171,8 +167,12 @@ func agyProofCandidates(dir, cwd, want string, began time.Time) []string {
 		if err != nil || info.ModTime().Before(floor) {
 			continue
 		}
-		text, at, ok := agyFirstInput(dir, id)
-		if !ok || at.Before(floor) || shownText(agyUserText(text)) != want {
+		h, err := reader.Read(agy.Ref{Root: dir, Conversation: id})
+		if err != nil || h.Kind() != agy.Normal {
+			continue
+		}
+		text, at := h.FirstInput()
+		if at.Before(floor) || shownText(text) != want {
 			continue
 		}
 		if where == nil {
@@ -183,60 +183,6 @@ func agyProofCandidates(dir, cwd, want string, began time.Time) []string {
 		}
 	}
 	return out
-}
-
-// agyFirstInput is the text and time of conversation id's first message the user typed (its first USER_INPUT step
-// whose source is USER_EXPLICIT or none): from transcript_full.jsonl, else transcript.jsonl when it kept the whole text.
-// false while there is none yet, or only a cut one.
-func agyFirstInput(dir, id string) (string, time.Time, bool) {
-	root, err := agyBrain(dir, id)
-	if err != nil {
-		return "", time.Time{}, false
-	}
-	defer root.Close()
-	for _, rel := range []string{agyFullTranscriptPath, agyTranscriptPath} {
-		f, err := root.Open(rel)
-		if err != nil {
-			continue
-		}
-		text, at, found, cut := firstAgyUserInput(f)
-		f.Close()
-		if found && !cut {
-			return text, at, true
-		}
-	}
-	return "", time.Time{}, false
-}
-
-// firstAgyUserInput reads the first USER_INPUT the user typed from a transcript's first agyProofLines complete lines;
-// cut says the record kept only part of its text.
-func firstAgyUserInput(r io.Reader) (text string, at time.Time, found, cut bool) {
-	br := bufio.NewReaderSize(r, 64<<10)
-	for range agyProofLines {
-		line, err := br.ReadBytes('\n')
-		if err != nil {
-			return "", time.Time{}, false, false // a line still being written: the next look reads it
-		}
-		var step struct {
-			Type            string   `json:"type"`
-			Source          string   `json:"source"`
-			CreatedAt       string   `json:"created_at"`
-			Content         string   `json:"content"`
-			TruncatedFields []string `json:"truncated_fields"`
-		}
-		if json.Unmarshal(bytes.TrimSpace(line), &step) != nil || step.Type != "USER_INPUT" {
-			continue
-		}
-		if step.Source != "" && step.Source != "USER_EXPLICIT" {
-			continue
-		}
-		created, err := time.Parse(time.RFC3339Nano, step.CreatedAt)
-		if err != nil {
-			return "", time.Time{}, false, false
-		}
-		return step.Content, created, true, slices.Contains(step.TruncatedFields, "content")
-	}
-	return "", time.Time{}, false, false
 }
 
 // agyWorkspaces is where agy says its conversations are: cache/last_conversations.json (a directory -> the last

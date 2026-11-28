@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/sunfayao/persona/server/internal/node/harness/agy"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
 )
@@ -259,4 +261,121 @@ func (n *Node) mergeRuntimeTranscript(s *proto.Session) string {
 	s.Loop, s.Goal, s.Plan = m.loop, m.goal, m.plan
 	s.Subagents = n.subagents(s.SessionID)
 	return t
+}
+
+const agyDesktopRuntimeID = "antigravity-desktop"
+
+// runtimeAgyFields never enters proto.Session: neither the hub nor daemons can name a local brain.
+type runtimeAgyFields struct {
+	Conversation json.RawMessage `json:"agy_conversation"`
+	Root         json.RawMessage `json:"agy_root"`
+}
+
+func (f runtimeAgyFields) ref(h *runtimeConn, home string) agy.Ref {
+	var id string
+	if h.isDaemon() || json.Unmarshal(f.Conversation, &id) != nil || id == "" {
+		return agy.Ref{}
+	}
+	var dir string
+	switch h.id() {
+	case agyRuntimeID:
+		if len(f.Root) != 0 {
+			return agy.Ref{}
+		}
+		dir = agyDataRootFor(home)
+	case agyDesktopRuntimeID:
+		var root string
+		if json.Unmarshal(f.Root, &root) != nil || root != "desktop" {
+			return agy.Ref{}
+		}
+		dir = filepath.Join(home, ".gemini", "antigravity")
+	default:
+		return agy.Ref{}
+	}
+	ref := agy.Ref{Root: dir, Conversation: id}
+	if ref.Valid() {
+		return ref
+	}
+	return agy.Ref{}
+}
+
+func (h *runtimeConn) agyOf(id string) agy.Ref {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.agys[id]
+}
+
+func (b *runtimeRegistry) agyOf(id string) agy.Ref {
+	if owner, _, _ := b.belongs(id); owner != nil {
+		return owner.agyOf(id)
+	}
+	return agy.Ref{}
+}
+
+// setAgyRefs updates the names the runtime actually sent. A row dropping its reference returns to runtime content;
+// a row merely outside the recent list keeps its validated reference, just as it keeps its runtime ownership.
+func (h *runtimeConn) setAgyRefs(rows map[string]runtimeAgyFields, home string) (moved []string) {
+	refs := make(map[string]agy.Ref, len(rows))
+	for id, fields := range rows {
+		refs[id] = fields.ref(h, home)
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for id, ref := range refs {
+		if h.agys[id] != ref {
+			moved = append(moved, id)
+		}
+		h.setAgyRefLocked(id, ref)
+	}
+	return moved
+}
+
+func (h *runtimeConn) setAgyRefLocked(id string, ref agy.Ref) {
+	if ref.Conversation == "" {
+		delete(h.agys, id)
+		return
+	}
+	if h.agys == nil {
+		h.agys = make(map[string]agy.Ref)
+	}
+	h.agys[id] = ref
+}
+
+func (n *Node) mergeRuntimeAgy(s *proto.Session, ref agy.Ref) {
+	if ref.Conversation == "" {
+		if s.Agent == agyAgent {
+			s.ContextWindow = agy.ContextWindow
+		}
+		return
+	}
+	if h, err := n.agyReader().Read(ref); err == nil {
+		h.Apply(s, false)
+	}
+}
+
+func (n *Node) runtimeAgyCall(ctx context.Context, h *runtimeConn, method string, p runtimeCallParams, raw json.RawMessage,
+	call func(string, any) (json.RawMessage, error)) (any, error, bool) {
+	switch method {
+	case "session.items", "session.item", "session.image":
+		var page agy.PageParams
+		if err := json.Unmarshal(raw, &page); err != nil {
+			return nil, err, true
+		}
+		return n.agyContentCall(method, p.SessionID, "", page)
+	case "session.watch":
+		parent := rpc.ConnContext(ctx)
+		n.watchAgy(parent, p.SessionID, "", p.SinceSeq, p.History)
+		attempt := n.runtimes.watch(h, p.SessionID, p.SinceSeq, p.History, parent)
+		if _, err := call(method, map[string]any{"session_id": p.SessionID, "since_seq": 0, "transcript": true}); err != nil {
+			n.runtimes.watchFailed(h, p.SessionID, attempt.token)
+			n.logf("runtime %s: watch %s: %v", h.id(), p.SessionID, err)
+		}
+		return okResult(nil), nil, true
+	case "session.unwatch":
+		n.unwatch(p.SessionID)
+		n.runtimes.unwatch(p.SessionID)
+		_, _ = call(method, map[string]any{"session_id": p.SessionID, "transcript": true})
+		return okResult(nil), nil, true
+	}
+	return nil, nil, false
 }

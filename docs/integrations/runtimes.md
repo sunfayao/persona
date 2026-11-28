@@ -270,17 +270,33 @@ Codex home its rollout is. A daemon can't do this: its threads are on another co
 While the runtime's session is `offline`, another program may take the thread up (the Codex App runs it, a shared app-server has it loaded). That program's row is then listed
 as well, with the thread's sub-Agents under it, so a message from the phone goes where the thread is open. Once the runtime's session runs again, the chat is that session alone.
 
-## Runtimes that run Antigravity (optional)
+## Runtimes that run Antigravity CLI
 
-A local Antigravity row names its native brain directory with `agy_conversation` (the lowercase conversation UUID).
-The desktop companion also sets `agy_root: "desktop"`; without it the node uses the CLI data directory. These fields
-stay between the runtime and the node. Once the node can open the brain directory, it reads and watches the same
-transcript it would read for a herdr pane. The CLI companion keeps the controls and streams reply text until it sees the
-exported reply or reaches its settle timeout. It does not publish items.
+The local `antigravity` and `antigravity-desktop` runtimes put `agy_conversation` (the lowercase native UUID) on
+ordinary, assistant and subagent rows. The CLI omits `agy_root` and uses `$ANTIGRAVITY_CLI_CONFIG_DIR` or
+`~/.gemini/antigravity-cli`; the desktop companion sets `agy_root: "desktop"` for `~/.gemini/antigravity`.
+The node validates and opens `brain/<uuid>` within that root. Neither field leaves the node.
 
-The CLI companion writes a private `.persona-overlay.json` alongside the native export for facts that are not yet
-exported (such as a verified rewind or a branch whose export has not arrived). The node applies the overlay in both
-modes. Neither mode relies on runtime-only wake markers or history epochs.
+The node reads `.system_generated/logs/transcript_full.jsonl`, just as it does for a herdr pane. A missing full
+export means there is no transcript yet. The node serves items, images, full text and the content fields of
+`session.info` and the row (usage, context, background, plan, loop and facets). It forwards watch and unwatch with
+`transcript: true`; the runtime does not append items and only streams live replies. Status, title, model, modes,
+queue, turn errors and controls stay with the runtime.
+
+The companion writes `<brain>/.persona-overlay.json` as UTF-8 JSON with `version: 1`. It writes a 0600 temporary file
+without following symlinks, atomically renames it, and removes the overlay when empty. The reader applies it in both
+modes. Unknown keys are ignored; invalid or unreadable files are ignored as a whole.
+
+| Optional key | Effect |
+| --- | --- |
+| `cut: {limit, first: {step_index, type, created_at}}` | Hide steps at or after `limit` only while that step still matches the recorded identity. |
+| `hidden: [{step_index, created_at}]` | Hide retried inputs only while their identities match. |
+| `notices: [{at, created_at, code, text}]` | Insert a `mode_switched` notice before step `at` or the next step, or at the end. |
+| `errors: [{after, created_at, text}]` | Add an `api_error` notice after the named step while no user input follows it. |
+| `fork: {source, through}` | Serve the named conversation's steps through `through` until this branch has a native export. |
+
+All indices are zero-based native step indices; times use RFC3339. Changes to the applied overlay change the history
+identity. Wakes come from native task and timer messages followed by planner work, not from separate receipt files.
 
 ## Sub-Agents and background tasks (optional)
 

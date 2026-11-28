@@ -427,7 +427,7 @@ func traexModelList(out []byte) ([]proto.AgentModel, error) {
 		if win <= 0 && m.Meta != nil && m.Meta.Trae != nil {
 			win = m.Meta.Trae.ContextWindow
 		}
-		if win >= agyMinCatalogWindow {
+		if win >= 1024 {
 			windows[strings.ToLower(m.ID)] = win
 			if base, _, ok := splitTraexEffortModel(m.ID); ok && windows[strings.ToLower(base)] == 0 {
 				windows[strings.ToLower(base)] = win
@@ -465,7 +465,7 @@ func discoverAgyModels(ctx context.Context, cmd *exec.Cmd, name string) ([]proto
 	}
 	stopReading := context.AfterFunc(ctx, func() { _ = stdout.Close() })
 	defer stopReading()
-	models, windows, parseErr := agyModelListWithWindows(io.TeeReader(stdout, &stdoutTail))
+	models, parseErr := agyModelList(io.TeeReader(stdout, &stdoutTail))
 	if parseErr != nil && ctx.Err() == nil {
 		_ = cmd.Cancel()
 	}
@@ -485,39 +485,25 @@ func discoverAgyModels(ctx context.Context, cmd *exec.Cmd, name string) ([]proto
 	if len(models) == 0 {
 		return nil, fmt.Errorf("%s models returned no models", name)
 	}
-	recordAgyModelWindows(windows)
 	return models, nil
 }
 
-// agyModelListWithWindows parses `agy models` rows and also extracts any explicit context window token counts
-// declared in extra tab-separated columns without guessing when omitted.
-func agyModelListWithWindows(r io.Reader) ([]proto.AgentModel, map[string]int, error) {
+// agyModelList parses the model and label columns of agy's model catalog.
+func agyModelList(r io.Reader) ([]proto.AgentModel, error) {
 	var models []proto.AgentModel
 	seen := map[string]bool{}
-	var windows map[string]int
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		id, rest, ok := strings.Cut(strings.TrimSpace(scanner.Text()), "\t")
 		if !ok || id == "" || strings.IndexFunc(id, unicode.IsSpace) >= 0 || seen[id] {
 			continue
 		}
-		name, extra, hasExtra := strings.Cut(strings.TrimLeft(rest, "\t"), "\t")
+		name, _, _ := strings.Cut(strings.TrimLeft(rest, "\t"), "\t")
 		if name == "" {
 			name = id
 		}
 		seen[id] = true
 		models = append(models, proto.AgentModel{ID: id, Name: name})
-		if hasExtra {
-			for col := range strings.SplitSeq(extra, "\t") {
-				if w := parseAgyModelWindow(col); w > 0 {
-					if windows == nil {
-						windows = map[string]int{}
-					}
-					windows[strings.ToLower(id)] = w
-					break
-				}
-			}
-		}
 	}
 	for i := range models {
 		model := &models[i]
@@ -534,7 +520,7 @@ func agyModelListWithWindows(r io.Reader) ([]proto.AgentModel, map[string]int, e
 			}
 		}
 	}
-	return models, windows, scanner.Err()
+	return models, scanner.Err()
 }
 
 // claudeModelList asks a headless claude (stream-json both ways) for the models of its /model menu.

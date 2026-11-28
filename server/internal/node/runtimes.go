@@ -18,6 +18,7 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/identity"
 	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/node/harness/agy"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
 )
@@ -137,6 +138,7 @@ type runtimeConn struct {
 	panes        map[string]string
 	resume       map[string][]string
 	transcripts  map[string]string
+	agys         map[string]agy.Ref
 	codexThreads map[string]string
 	// daemon is its id in daemons.json when the node dialed it (daemons.go), "" for a runtime on the socket.
 	daemon string
@@ -259,7 +261,7 @@ func runtimeWork(s *proto.Session, agy bool) {
 	}
 	s.Background = tasks(s.Background, maxRuntimeBackground)
 	if agy {
-		s.SetBackgroundEnded(tasks(s.BackgroundEnded(), agyBackgroundEndedLimit))
+		s.SetBackgroundEnded(tasks(s.BackgroundEnded(), 8))
 	}
 }
 

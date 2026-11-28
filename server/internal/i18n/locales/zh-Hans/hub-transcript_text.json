@@ -1,4 +1,10 @@
 {
+  "compacted": "上下文已压缩",
+  "api_error": "API 错误：{error}",
+  "mode_switched": "权限模式已更改。",
+  "model_switched": "模型已更改。",
+  "model_switched_to": "模型已切换为 {model}。",
+  "server_restart": "代理服务已重启，后台任务已停止。",
   "interrupted": "已中断",
   "stopped_from_phone": "在手机上点了停止",
   "loop_fired": "/loop 到点，开始新一轮",

@@ -154,10 +154,6 @@ func TestAgyPaneSwitchModelAndEffortEndToEnd(t *testing.T) {
 	// 5. A newer transcript reply with another model supersedes the pending switch.
 	later := time.Now().UTC().Add(time.Minute).Format(time.RFC3339)
 	agyTestAppend(t, transcriptFile, `{"step_index":1,"type":"PLANNER_RESPONSE","created_at":"`+later+`","model":"gemini-4-neon-low","input_tokens":1200,"output_tokens":40}`+"\n")
-	// Force fresh stat past the 1s cache window by clearing agyMetas.
-	n.mu.Lock()
-	n.agyMetas = nil
-	n.mu.Unlock()
 	row = listed(t, n)[agyTestRow]
 	if row.Model != "gemini-4-neon-low" || row.Effort != "low" {
 		t.Fatalf("after newer transcript step: model=%q effort=%q", row.Model, row.Effort)

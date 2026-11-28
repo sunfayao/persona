@@ -633,8 +633,12 @@ func (n *Node) readEcho(ctx context.Context, id, clientMsgID string) echoCheck {
 	if r.In != echoInTranscript || time.Since(r.SentAt) > echoWithin {
 		return unknown
 	}
-	if a, live := n.agent(id); live && a.Agent == agyAgent && a.PaneID != "" {
-		n.agyEchoBase(id, a.PaneID)
+	pane := ""
+	if a, live := n.agent(id); live && a.Agent == agyAgent {
+		pane = a.PaneID
+	}
+	if pane != "" || n.runtimes.agyOf(id).Conversation != "" {
+		n.agyEchoBase(id, pane)
 		if current, ok := n.echoes.record(id, clientMsgID); ok && current.SentAt.Equal(r.SentAt) && current.Line != "" {
 			return echoCheck{state: proto.EchoSeen}
 		}
@@ -740,12 +744,12 @@ func (l *echoLog) known(id string) bool {
 // syncAgyConversation resets AfterSeq on still-expected records of an agy pane when the pane switched to another native
 // conversation (such as after /clear), since AfterSeq counted steps in the previous conversation.
 func (l *echoLog) syncAgyConversation(id, conversation, token string) {
-	prefix := "agy-pane:" + conversation + ":"
+	prefix, exact := "agy-native-v1:"+conversation+":", "agy-native-v1:"+conversation
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	for _, r := range l.recs[id] {
-		if r.Line == "" && r.In == echoInTranscript && strings.HasPrefix(r.History, "agy-pane:") &&
-			!strings.HasPrefix(r.History, prefix) && time.Since(r.SentAt) <= echoWithin {
+		if r.Line == "" && r.In == echoInTranscript && (strings.HasPrefix(r.History, "agy-pane:") || strings.HasPrefix(r.History, "agy-native-v1:")) &&
+			r.History != exact && !strings.HasPrefix(r.History, prefix) && time.Since(r.SentAt) <= echoWithin {
 			r.AfterSeq, r.scanned, r.History = 0, 0, token
 		}
 	}

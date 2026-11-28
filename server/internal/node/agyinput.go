@@ -43,7 +43,7 @@ import (
 //	tasks/task-N.log     the task's output as its pseudo-terminal wrote it, a prompt last and no newline after it
 //	messages/<id>.json   messages to the conversation: "Task id \"<conversation>/task-N\" finished with result: ..."
 //	                     from <conversation>/task-N when a task ends, a notice from "system" when a restart stopped them
-//	logs/transcript.jsonl the step that started a task ("... background task with task id: <conversation>/task-N",
+//	logs/transcript_full.jsonl the step that started a task ("... background task with task id: <conversation>/task-N",
 //	                     then "Task Description: <command>")
 
 const (
@@ -58,8 +58,6 @@ const (
 	agyInputOutputLines = 20
 	// agyInputMessageRead: a message file is read up to this many bytes (its sender and first words are at the start).
 	agyInputMessageRead = 4 << 10
-	// agyInputTranscriptTail: the transcript's end searched for a task's description.
-	agyInputTranscriptTail = 2 << 20
 	// agyInputStartKeep: how long a pane's agy start time is kept before it is read again.
 	agyInputStartKeep = 30 * time.Second
 	// agyInputSendWait bounds finding agy's language server and its answer to the line.
@@ -376,44 +374,11 @@ const agyLabel = "Antigravity"
 // agyTaskCommand is the command a task runs, as its start step describes it ("Task Description: …"), "" when the end
 // of the transcript does not say.
 func (n *Node) agyTaskCommand(conversation, task string) string {
-	path := filepath.Join(n.agyDataRoot(), "brain", conversation, agyTranscriptPath)
-	f, err := os.Open(path)
-	if err != nil {
-		return ""
-	}
-	defer f.Close()
-	info, err := f.Stat()
-	if err != nil {
-		return ""
-	}
-	from := max(info.Size()-agyInputTranscriptTail, 0)
-	buf := make([]byte, info.Size()-from)
-	if _, err := f.ReadAt(buf, from); err != nil && !errors.Is(err, io.EOF) {
-		return ""
-	}
-	mark := []byte("task id: " + conversation + "/" + task)
-	for _, line := range bytes.Split(buf, []byte("\n")) {
-		if !bytes.Contains(line, mark) {
-			continue
-		}
-		var step struct {
-			Content string `json:"content"`
-		}
-		if json.Unmarshal(line, &step) != nil {
-			continue
-		}
-		if !strings.Contains(step.Content, string(mark)+"\n") { // task-7, not task-70
-			continue
-		}
-		if m := agyTaskDescRe.FindStringSubmatch(step.Content); m != nil {
-			return agyClip(strings.TrimSpace(m[1]), 300)
-		}
+	if h, ok := n.agyTranscript(conversation); ok {
+		return agyClip(h.TaskCommand(conversation+"/"+task), 300)
 	}
 	return ""
 }
-
-// agyTaskDescRe is the description line of a task's start step.
-var agyTaskDescRe = lazyre.New(`(?m)^Task Description: (.+)$`)
 
 // agyClip is s cut to at most n characters, an ellipsis marking the cut.
 func agyClip(s string, n int) string {

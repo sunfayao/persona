@@ -77,7 +77,7 @@ func (n *Node) runtimeEvent(h *runtimeConn, event string, params json.RawMessage
 		if json.Unmarshal(params, &p) != nil || !n.runtimes.owns(h, p.SessionID) {
 			return
 		}
-		if n.runtimeTranscript(p.SessionID) != "" {
+		if h.agyOf(p.SessionID).Conversation != "" || n.runtimeTranscript(p.SessionID) != "" {
 			return // its items are the transcript's, which the node pushes itself (runtimetranscript.go)
 		}
 		last := 0
@@ -174,7 +174,7 @@ func normalizeRuntimeSessions(h *runtimeConn, list []proto.Session) []proto.Sess
 			s.Agent = agent
 		}
 		agy := rt == agyRuntimeID && s.Agent == agyAgent && !daemon
-		if agy && agyStopped(s.Status) {
+		if agy && agyPaneStopped(s.Status) {
 			s.Background = nil
 		}
 		if s.AgentLabel == "" && (s.Agent == rt || (agent != "" && s.Agent == agent && agent != "claude") || daemon && s.Agent != "claude") {
@@ -290,7 +290,12 @@ func (n *Node) runtimeWatch(h *runtimeConn, id string, since int) error {
 	if history != "" {
 		params["history"] = history
 	}
-	if n.runtimeTranscript(id) != "" {
+	if h.agyOf(id).Conversation != "" {
+		if parent := n.runtimes.watchParent(id); parent != nil {
+			n.watchAgy(parent, id, "", since, history)
+		}
+		params["since_seq"], params["transcript"] = 0, true
+	} else if n.runtimeTranscript(id) != "" {
 		params["since_seq"], params["transcript"] = 0, true
 	}
 	if err := h.peer.Call(ctx, "session.watch", params, nil); err != nil {

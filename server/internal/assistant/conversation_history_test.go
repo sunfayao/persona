@@ -131,3 +131,40 @@ func historyFixture(t *testing.T, logs ...func(string, ...any)) (*Service, *fake
 	})
 	return s, f, database, rt
 }
+
+func TestAgyConversationHistoryReplacesLegacyRuntimeIDs(t *testing.T) {
+	s, _, database, rt := historyFixture(t)
+	ctx := t.Context()
+	st := s.historyDB(ctx)
+	const machine, id = "server", "main-chat"
+	row := proto.Session{SessionID: id, Assistant: true, Rev: 6}
+	rt.history = "agy:legacy"
+	if err := s.historySync(ctx, st, machine, row); err != nil {
+		t.Fatal(err)
+	}
+	const canonical = "agy-native-v1:11111111-2222-4333-8444-555555555555"
+	rt.history, rt.after = canonical, nil
+	for i := range rt.items {
+		rt.items[i].ID = "native-" + rt.items[i].ID
+	}
+	row.Rev = 1 << 51
+	if err := s.historySync(ctx, st, machine, row); err != nil {
+		t.Fatal(err)
+	}
+	if len(rt.after) < 2 || rt.after[0] != 6 || rt.after[1] != 0 {
+		t.Fatalf("generation change did not re-read from the start: %v", rt.after)
+	}
+	stored, err := database.ConversationItems(ctx, machine, id, canonical, 0, 6, 20, false)
+	if err != nil || len(stored) != len(rt.items) {
+		t.Fatalf("durable items: %d rows, error %v", len(stored), err)
+	}
+	for i, item := range stored {
+		if item.Item.ID != rt.items[i].ID || item.Item.Text != rt.items[i].Text {
+			t.Fatalf("item %d duplicated or retained its old identity: %+v", i, item.Item)
+		}
+	}
+	old, err := database.ConversationItem(ctx, machine, id, canonical, "u1")
+	if err != nil || old != nil {
+		t.Fatalf("legacy item survived the generation replacement: %+v, %v", old, err)
+	}
+}

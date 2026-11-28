@@ -71,7 +71,7 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 		if agent.Agent == agyAgent {
 			if conversation := n.agyConversation(id, agent.PaneID); conversation != "" {
 				agyConversations[id] = conversation
-				if !agyStopped(agent.AgentStatus) {
+				if !agyPaneStopped(agent.AgentStatus) {
 					agyRuntimeIDs[id] = agyAgent + "-" + conversation
 				}
 			}
@@ -283,63 +283,30 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 				}
 				s.Capabilities = caps
 			}
-			hasRuntimeRow := false
 			if runtimeID := agyRuntimeIDs[id]; runtimeID != "" {
 				seen[runtimeID] = true
 				if runtimeRow, _, ok := n.runtimes.rowOf(runtimeID); ok {
-					hasRuntimeRow = true
 					if s.Model == "" {
 						s.Model = runtimeRow.Model
 					}
-					if s.Effort == "" && runtimeRow.Effort != "" {
+					if s.Effort == "" {
 						s.Effort = runtimeRow.Effort
 					}
-					if s.ContextTokens == 0 && runtimeRow.ContextTokens > 0 {
-						s.ContextTokens = runtimeRow.ContextTokens
+					if s.UpdatedAt.IsZero() {
+						s.UpdatedAt = runtimeRow.UpdatedAt
 					}
-					if s.ContextWindow == 0 && runtimeRow.ContextWindow > 0 {
-						s.ContextWindow = runtimeRow.ContextWindow
-					}
-					if s.OutputTokens == 0 && runtimeRow.OutputTokens > 0 {
-						s.OutputTokens = runtimeRow.OutputTokens
-					}
-					if s.UpdatedAt.IsZero() && !runtimeRow.UpdatedAt.IsZero() {
-						s.UpdatedAt = runtimeRow.UpdatedAt.UTC()
-					}
-					if s.LastText == "" && runtimeRow.LastText != "" {
+					if s.LastText == "" {
 						s.LastText = runtimeRow.LastText
 					}
-					background := agyBackgroundTasks{running: runtimeRow.Background, ended: runtimeRow.BackgroundEnded()}
-					// The live pane is authoritative even when its ACP mirror is only a history row.
-					if meta, ok := n.agyTranscriptMeta(agyConversations[id]); ok {
-						background = meta.background
-					}
-					background.apply(&s)
-					// Not its Rev: the companion's counts steps, the pane's is its transcript's size (agyPaneActivity).
 				}
 			}
 			if a.Agent == agyAgent {
 				var transcriptModelAt time.Time
-				if conv := agyConversations[id]; conv != "" {
-					if u, ok := n.agyTranscriptMeta(conv); ok {
-						transcriptModelAt = u.modelAt
-					}
+				if h, ok := n.agyTranscript(agyConversations[id]); ok {
+					h.Apply(&s, true)
+					_, transcriptModelAt = h.Model()
 				}
-				if hasRuntimeRow {
-					n.mergeAgyTranscriptActivity(&s, agyConversations[id])
-				} else {
-					n.mergeAgyTranscript(&s, agyConversations[id])
-				}
-				beforeModel := s.Model
 				n.applyAgyPaneModes(&s, transcriptModelAt)
-				if hasRuntimeRow || s.Model != beforeModel {
-					if s.Model != beforeModel {
-						s.ContextWindow = 0
-						s.SetContextBreakdown(nil)
-					}
-					n.resolveAgyContextWindow(&s)
-					n.applyAgyBreakdown(&s, agyConversations[id])
-				}
 				n.agyPaneTitle(&s, agyConversations[id]) // its conversation's title, not the terminal's (agytitle.go)
 				if s.Status == proto.StatusWorking || s.Status == proto.StatusBlocked {
 					liveBusyAgy[a.PaneID] = true
@@ -406,12 +373,9 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 				}
 				s.SetAliases(aliases)
 			}
-		} else if s.Agent == agyAgent {
-			n.resolveAgyContextWindow(s)
-			n.applyAgyBreakdown(s, strings.TrimPrefix(s.SessionID, agyAgent+"-"))
-			if s.SourceInstanceID == agyRuntimeID {
-				agyBackgroundTasks{running: s.Background, ended: s.BackgroundEnded()}.apply(s)
-				n.agyRuntimeTaskLogs(s)
+		} else {
+			n.mergeRuntimeAgy(s, n.runtimes.agyOf(s.SessionID))
+			if s.Agent == agyAgent && s.SourceInstanceID == agyRuntimeID {
 				n.markAgyExternalTerminal(s)
 			}
 		}

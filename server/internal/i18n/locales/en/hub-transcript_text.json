@@ -1,4 +1,10 @@
 {
+  "compacted": "Context compacted",
+  "api_error": "API Error: {error}",
+  "mode_switched": "Permission mode changed.",
+  "model_switched": "Model changed.",
+  "model_switched_to": "Model changed to {model}.",
+  "server_restart": "The agent server restarted and stopped its background tasks.",
   "interrupted": "Interrupted",
   "stopped_from_phone": "Stopped from the phone",
   "loop_fired": "/loop is due, starting a new round",

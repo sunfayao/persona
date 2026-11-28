@@ -75,7 +75,7 @@ func (n *Node) sessionsHistory(ctx context.Context, raw json.RawMessage) (sessio
 			if p.Runtime != "" && p.Runtime != id {
 				continue
 			}
-			part, state := runtimeHistory(ctx, h, q, after, n.listBlocked)
+			part, state := n.runtimeHistory(ctx, h, q, after, n.listBlocked)
 			parts = append(parts, part)
 			ans.Sources = append(ans.Sources, state)
 		}
@@ -117,7 +117,7 @@ func (n *Node) traexHistory(q sessionhistory.Query) []sessionhistory.Item[sessio
 
 // runtimeHistory asks one runtime for the page: not at all when it does not declare caps.history. A session the live
 // list leaves out for a blocked folder (blocked) is in no page either; it is dropped before paging, so a page stays full.
-func runtimeHistory(ctx context.Context, h *runtimeConn, q sessionhistory.Query, after *sessionhistory.Key, blocked func(sid, cwd string) bool) (sessionhistory.Part[sessionhistory.Row], sessionhistory.SourceState) {
+func (n *Node) runtimeHistory(ctx context.Context, h *runtimeConn, q sessionhistory.Query, after *sessionhistory.Key, blocked func(sid, cwd string) bool) (sessionhistory.Part[sessionhistory.Row], sessionhistory.SourceState) {
 	h.mu.Lock()
 	id, supported := h.hello.Runtime, h.hello.Caps.History
 	h.mu.Unlock()
@@ -141,6 +141,7 @@ func runtimeHistory(ctx context.Context, h *runtimeConn, q sessionhistory.Query,
 		// Keyed by the runtime's own ids and times, before normalizing: its order goes by them. A deleted session is
 		// in no history; a row that does not read is dropped, as a list drops it.
 		rows := map[string]sessionhistory.Row{}
+		refs := map[string]runtimeAgyFields{}
 		var sessions []proto.Session
 		for _, raw := range res.Rows {
 			r, deleted, err := sessionhistory.RuntimeRow(raw)
@@ -153,6 +154,12 @@ func runtimeHistory(ctx context.Context, h *runtimeConn, q sessionhistory.Query,
 				continue
 			}
 			rows[r.Session.SessionID] = r
+			if id == agyRuntimeID || id == agyDesktopRuntimeID {
+				var f runtimeAgyFields
+				if json.Unmarshal(raw, &f) == nil {
+					refs[r.Session.SessionID] = f
+				}
+			}
 			sessions = append(sessions, r.Session)
 		}
 		for _, s := range normalizeRuntimeSessions(h, sessions) {
@@ -163,6 +170,17 @@ func runtimeHistory(ctx context.Context, h *runtimeConn, q sessionhistory.Query,
 			}
 			if blocked(s.SessionID, s.Cwd) {
 				continue
+			}
+			if ref := refs[s.SessionID].ref(h, n.home); ref.Conversation != "" {
+				h.mu.Lock()
+				if current := h.agys[s.SessionID]; current.Conversation != "" {
+					ref = current
+				} else {
+					h.setAgyRefLocked(s.SessionID, ref)
+				}
+				h.mu.Unlock()
+				n.runtimes.claim(h, s.SessionID)
+				n.mergeRuntimeAgy(&s, ref)
 			}
 			s.Archived = r.Session.Archived
 			r.Session = s

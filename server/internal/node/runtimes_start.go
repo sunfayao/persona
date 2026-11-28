@@ -104,6 +104,7 @@ func (n *Node) runtimeStartOn(ctx context.Context, h *runtimeConn, p runtimeStar
 	var s proto.Session
 	var row struct {
 		Transcript string `json:"transcript"`
+		runtimeAgyFields
 	}
 	if len(res.Session) > 0 {
 		if err := json.Unmarshal(res.Session, &s); err != nil {
@@ -111,7 +112,7 @@ func (n *Node) runtimeStartOn(ctx context.Context, h *runtimeConn, p runtimeStar
 		}
 		_ = json.Unmarshal(res.Session, &row)
 	}
-	started, err := n.listStarted(h, s, row.Transcript)
+	started, err := n.listStarted(h, s, row.Transcript, row.runtimeAgyFields)
 	if err != nil {
 		return nil, err
 	}
@@ -127,13 +128,14 @@ func (n *Node) runtimeStartOn(ctx context.Context, h *runtimeConn, p runtimeStar
 // listed it already, keeps it. transcript: the Claude transcript the started row names as its conversation (a session
 // taken over keeps its own, runtimetranscript.go), taken as a list naming it would be: a watch right after the start
 // is the transcript's, and the next list naming it moves nothing (transcriptMoved).
-func (n *Node) listStarted(h *runtimeConn, started proto.Session, transcript string) (*proto.Session, error) {
+func (n *Node) listStarted(h *runtimeConn, started proto.Session, transcript string, fields runtimeAgyFields) (*proto.Session, error) {
 	list := normalizeRuntimeSessions(h, []proto.Session{started})
 	if len(list) == 0 {
 		return nil, fmt.Errorf("%s started a session without a valid id", h.label())
 	}
 	s := list[0]
 	known := !h.isDaemon() && namesTranscript(s.SessionID, transcript) && n.transcriptPath(transcript) != ""
+	ref := fields.ref(h, n.home)
 	b := n.runtimes
 	b.mu.Lock()
 	h.mu.Lock()
@@ -151,6 +153,9 @@ func (n *Node) listStarted(h *runtimeConn, started proto.Session, transcript str
 			h.transcripts = map[string]string{}
 		}
 		h.transcripts[s.SessionID] = transcript
+	}
+	if ref.Conversation != "" {
+		h.setAgyRefLocked(s.SessionID, ref)
 	}
 	h.mu.Unlock()
 	b.recomputeOwners()
@@ -180,6 +185,7 @@ func (n *Node) listStarted(h *runtimeConn, started proto.Session, transcript str
 		_ = tell.peer.Notify("runtime.driven", map[string]any{"session_id": s.SessionID})
 	}
 	n.publish(n.sessionList(context.Background(), false))
+	n.mergeRuntimeAgy(&s, n.runtimes.agyOf(s.SessionID))
 	return &s, nil
 }
 

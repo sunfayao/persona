@@ -1,17 +1,15 @@
 package node
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/sunfayao/persona/server/internal/node/harness/agy"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // herdr's agent.prompt acknowledges terminal input, not an agy turn. A follow-up is delivered only when agy appends
@@ -27,103 +25,62 @@ const agySendUnconfirmed = "消息已写进 agy 的终端，但没有在 agy 会
 // appear on the first turn, but then its input needs a timestamp at or after the send so an older identical request
 // cannot acknowledge it. Replacing or shrinking the transcript makes delivery unknowable rather than confirmed.
 type agySendWatch struct {
-	path        string
-	off         int64
-	rest        []byte
-	info        os.FileInfo
-	want        []rune
-	sent        string
-	after       time.Time
-	requireTime bool
-	lost        bool
-	seen        bool
+	reader                  agyContent
+	ref                     agy.Ref
+	before                  *agy.Projection
+	want                    []rune
+	sent                    string
+	after                   time.Time
+	requireTime, lost, seen bool
 }
 
 func (n *Node) watchAgySend(id, pane, text string, typedAt time.Time) *agySendWatch {
-	conversation := n.agyConversation(id, pane)
-	if conversation == "" {
+	ref := n.agyContentRef(id, pane)
+	if ref.Conversation == "" {
 		return nil
 	}
-	w := &agySendWatch{
-		path:  filepath.Join(n.agyDataRoot(), "brain", conversation, agyTranscriptPath),
-		want:  echoWords(text),
-		sent:  text,
-		after: typedAt,
-	}
-	info, err := os.Stat(w.path)
-	if errors.Is(err, os.ErrNotExist) {
-		w.requireTime = true
-		return w
-	}
-	if err != nil || !info.Mode().IsRegular() {
+	reader := n.agyReader()
+	h, err := reader.Read(ref)
+	if err != nil {
 		return nil
 	}
-	w.info, w.off = info, info.Size()
-	return w
+	return &agySendWatch{reader: reader, ref: ref, before: h, want: echoWords(text), sent: text, after: typedAt,
+		requireTime: h.Kind() == agy.Missing}
 }
 
-// took reports whether a complete, newly appended explicit USER_INPUT matches the sent text. Once seen it stays seen.
+// took reports whether a complete new explicit input matches the send, without parsing the transcript again.
 func (w *agySendWatch) took() bool {
-	if w == nil {
+	if w == nil || w.lost {
 		return false
 	}
 	if w.seen {
 		return true
 	}
-	f, err := os.Open(w.path)
-	if err != nil {
+	h, err := w.reader.Read(w.ref)
+	if err != nil || h == w.before {
 		return false
 	}
-	defer f.Close()
-	info, err := f.Stat()
-	if err != nil {
-		return false
+	var since int
+	if w.before != nil {
+		if !h.Follows(w.before) {
+			w.lost = true
+			return false
+		}
+		since = w.before.Seq()
 	}
-	if w.info != nil && !os.SameFile(info, w.info) || info.Size() < w.off {
-		w.lost = true
-		return false
-	}
-	w.info = info
-	if info.Size() == w.off {
-		return false
-	}
-	buf := make([]byte, info.Size()-w.off)
-	got, err := f.ReadAt(buf, w.off)
-	if err != nil && !errors.Is(err, io.EOF) {
-		return false
-	}
-	w.off += int64(got)
-	lines := bytes.Split(append(w.rest, buf[:got]...), []byte("\n"))
-	w.rest = append([]byte(nil), lines[len(lines)-1]...)
-	for _, line := range lines[:len(lines)-1] {
-		if w.isPrompt(line) {
+	items := h.Items()
+	for _, it := range items[agy.AfterIndex(items, since):] {
+		if it.Role != "user" || w.requireTime && it.TS.Before(w.after.Add(-time.Second)) {
+			continue
+		}
+		if len(w.want) == 0 && strings.TrimSpace(w.sent) != "" && (it.Kind == proto.KindImage || strings.Contains(it.Text, "<attached_images>")) ||
+			it.Kind == proto.KindText && agySendTextMatches(agyNativeInputText(it.Text, w.sent), w.want) {
 			w.seen = true
 			return true
 		}
 	}
+	w.before = h
 	return false
-}
-
-func (w *agySendWatch) isPrompt(line []byte) bool {
-	var step agyStep
-	if json.Unmarshal(line, &step) != nil || step.Type != "USER_INPUT" ||
-		step.Source != "" && step.Source != "USER_EXPLICIT" {
-		return false
-	}
-	if w.requireTime {
-		at, err := time.Parse(time.RFC3339Nano, step.CreatedAt)
-		if err != nil || at.Before(w.after.Add(-time.Second)) {
-			return false
-		}
-	}
-	if len(w.want) == 0 {
-		// echoWords intentionally drops attachment envelopes. An image-only message has no words to compare, but a
-		// newly appended explicit input with native media or attached image paths is still the matching user input.
-		var media []json.RawMessage
-		hasMedia := json.Unmarshal(step.Media, &media) == nil && len(media) != 0
-		return strings.TrimSpace(w.sent) != "" && (hasMedia || len(agyAttachedImagePaths(step.Content)) != 0)
-	}
-	return agySendTextMatches(agyNativeInputText(step.Content, w.sent), w.want)
 }
 
 func agySendTextMatches(text string, want []rune) bool {
@@ -136,7 +93,7 @@ func agySendTextMatches(text string, want []rune) bool {
 }
 
 func agyNativeInputText(text, sent string) string {
-	text = agyUserText(text)
+	text = agy.UserText(text)
 	if strings.HasPrefix(strings.TrimLeftFunc(sent, unicode.IsSpace), "/") {
 		return text
 	}
@@ -159,7 +116,7 @@ func (n *Node) confirmAgySend(ctx context.Context, id, pane, text string, typedA
 			_ = n.refreshHosts(ctx)
 			watch = n.watchAgySend(id, pane, text, typedAt)
 			if watch != nil {
-				watch.off, watch.info, watch.rest = 0, nil, nil
+				watch.before = nil
 				watch.requireTime = true
 			}
 		}
@@ -170,7 +127,7 @@ func (n *Node) confirmAgySend(ctx context.Context, id, pane, text string, typedA
 			return uncertain(errors.New(agySendUnconfirmed))
 		}
 		// While agy is busy, it buffers follow-ups in TUI memory and shows `<preview>... (alt+m to send immediately)`
-		// instead of appending USER_INPUT to transcript.jsonl immediately (#14871).
+		// instead of appending USER_INPUT to the full transcript immediately (#14871).
 		if screen, err := n.readPane(ctx, pane, "visible", 80); err == nil {
 			if lines := parseAgyQueuedLines(screen); agyScreenShowsQueued(lines, text, beforeQueued) {
 				n.recordAgyQueued(id, pane, text, watch, lines)

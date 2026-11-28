@@ -105,9 +105,12 @@ type TodoSendState struct {
 	At         time.Time `json:"at"`
 }
 
-const SlashCommandsFeature = "cli_slash_commands_v1"
+const (
+	SlashCommandsFeature = "cli_slash_commands_v1"
+	FeatureTurnModel     = "turn_model_v1"
+)
 
-func init() { Features = append(Features, SlashCommandsFeature) }
+func init() { Features = append(Features, SlashCommandsFeature, FeatureTurnModel) }
 
 type SlashCommand struct {
 	Name        string `json:"name"`

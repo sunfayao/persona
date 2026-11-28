@@ -1,4 +1,10 @@
 {
+  "compacted": "コンテキストを圧縮しました",
+  "api_error": "API エラー：{error}",
+  "mode_switched": "権限モードが変更されました。",
+  "model_switched": "モデルが変更されました。",
+  "model_switched_to": "モデルが {model} に変更されました。",
+  "server_restart": "エージェントサーバーが再起動し、バックグラウンドタスクが停止しました。",
   "interrupted": "中断しました",
   "stopped_from_phone": "スマホから停止しました",
   "loop_fired": "/loopの時間になり、新しいラウンドを開始しました",

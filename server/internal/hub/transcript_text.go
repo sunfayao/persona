@@ -17,8 +17,8 @@ import (
 // they match some of these lines (assistant/done.go's interrupted marker). The runtime bridges' own words in the items
 // they give (transcript.Runtime*: Paseo's, opencode's, pi's and Antigravity's runtime notices) are rewritten the same way.
 //
-// Kept in Chinese because the apps parse them: the compaction divider lines, the API error prefix
-// (the API error card), the truncation marker (cut text) and the /compact echo.
+// Untyped compaction dividers, API error prefixes, truncation markers and /compact echoes stay verbatim for
+// clients that still recognize them by their text.
 
 const transcriptNS = "hub-transcript_text."
 
@@ -34,7 +34,7 @@ func localizedItems(l i18n.Lang, items []proto.Item) []proto.Item {
 	}
 	var out []proto.Item
 	for i := range items {
-		if l == i18n.ZhHans && items[i].ModelRefusal == nil {
+		if l == i18n.ZhHans && items[i].ModelRefusal == nil && (items[i].Facets == nil || items[i].Facets.Notice == nil) {
 			continue
 		}
 		it, ok := localizedItem(l, items[i])
@@ -58,6 +58,12 @@ func localizedItem(l i18n.Lang, it proto.Item) (proto.Item, bool) {
 	set := func(dst *string, s string) {
 		if s != *dst {
 			*dst, changed = s, true
+		}
+	}
+	if it.Kind == proto.KindNotice && it.Facets != nil && it.Facets.Notice != nil {
+		if text, ok := typedNoticeText(l, it); ok {
+			set(&it.Text, text)
+			return it, changed
 		}
 	}
 	switch {
@@ -101,6 +107,47 @@ func modelRefusalText(l i18n.Lang, r *proto.ModelRefusal) string {
 		}
 	}
 	return text
+}
+
+// typedNoticeText localizes canonical codes independently of their producer. An unknown code keeps the legacy path.
+func typedNoticeText(l i18n.Lang, it proto.Item) (string, bool) {
+	n := it.Facets.Notice
+	switch n.Code {
+	case proto.NoticeCodeCompacted:
+		return tt(l, "compacted"), true
+	case proto.NoticeCodeAPIError:
+		cause := n.Args["error"]
+		if cause == "" {
+			cause = it.Text
+		}
+		return tt(l, "api_error", i18n.Args{"error": cause}), true
+	case proto.NoticeCodeModeSwitched:
+		return tt(l, "mode_switched"), true
+	case proto.NoticeCodeModelSwitched:
+		if model := n.Args["model"]; model != "" {
+			return tt(l, "model_switched_to", i18n.Args{"model": model}), true
+		}
+		return tt(l, "model_switched"), true
+	case proto.NoticeCodeTaskUpdate:
+		if it.Task != nil {
+			if key, args := taskNoteHead(it.Task); key != "" {
+				text := tt(l, key, args)
+				if it.Task.Title != "" {
+					text += " · " + it.Task.Title
+				}
+				return text, true
+			}
+		}
+		return tt(l, "task_updated"), true
+	case proto.NoticeCodeTimerFired:
+		if prompt := n.Args["prompt"]; prompt != "" {
+			return tt(l, "schedule_fired_what", i18n.Args{"what": prompt}), true
+		}
+		return tt(l, "schedule_fired"), true
+	case proto.NoticeCodeServerRestart:
+		return tt(l, "server_restart"), true
+	}
+	return "", false
 }
 
 // ---- notices ----

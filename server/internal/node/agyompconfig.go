@@ -22,11 +22,13 @@ var agySettings = []ClaudeSetting{
 	{Key: "showFeedbackSurvey", Title: "显示反馈问卷", Detail: "在终端里偶尔弹出反馈调查", Type: "bool", Default: true},
 }
 
-func (n *Node) agyDataRoot() string {
+func (n *Node) agyDataRoot() string { return agyDataRootFor(n.home) }
+
+func agyDataRootFor(home string) string {
 	if dir := os.Getenv("ANTIGRAVITY_CLI_CONFIG_DIR"); dir != "" {
 		return dir
 	}
-	return filepath.Join(n.home, ".gemini", "antigravity-cli")
+	return filepath.Join(home, ".gemini", "antigravity-cli")
 }
 
 func (n *Node) agyConfigPath() string {

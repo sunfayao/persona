@@ -1,23 +1,15 @@
 package node
 
 import (
-	"bufio"
-	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
-	"sort"
-	"strings"
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/host"
 	"github.com/sunfayao/persona/server/internal/i18n"
-	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/node/harness/agy"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
 	"github.com/sunfayao/persona/server/internal/transcript"
@@ -28,16 +20,6 @@ type agyPaneBinding struct {
 	verified     bool
 }
 
-type agyTranscriptKind uint8
-
-const (
-	agyTranscriptMissing agyTranscriptKind = iota
-	agyTranscriptUnreadable
-	agyTranscriptEmpty
-	agyTranscriptNormal
-	agyTranscriptSubagent
-)
-
 type agyCandidateDecision uint8
 
 const (
@@ -46,15 +28,6 @@ const (
 	agyCandidateNormal
 	agyCandidateUnverified
 )
-
-type agyParentSubagentInfo struct {
-	file      os.FileInfo
-	path      string
-	hasInvoke bool
-	children  map[string]bool
-}
-
-var agyEmbeddedUUIDRe = lazyre.New(`(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b`)
 
 func reportedAgyConversation(a host.Agent) string {
 	s := a.AgentSession
@@ -106,265 +79,56 @@ func (n *Node) agyConversationClaimedElsewhereLocked(pane, conversation string) 
 	return false
 }
 
-// isAgySubagentHead reports whether a conversation's opening step indicates a built-in
-// subagent conversation rather than a user-initiated or system-wake session.
-func isAgySubagentHead(stepType, stepSource string) bool {
-	typ := strings.ToUpper(strings.TrimSpace(stepType))
-	src := strings.ToUpper(strings.TrimSpace(stepSource))
-	if typ == "SYSTEM_MESSAGE" || typ == "CORTEX_STEP_TYPE_SYSTEM_MESSAGE" {
-		return true
-	}
-	// Do not classify source=="SYSTEM" alone (e.g. SYSTEM-sourced USER_INPUT wake/background
-	// steps or ERROR_MESSAGE steps) as a subagent: only explicit non-user, non-system
-	// USER_INPUT sources (such as SUBAGENT) qualify without a SYSTEM_MESSAGE header.
-	if typ == "USER_INPUT" && src != "" && src != "USER_EXPLICIT" && src != "SYSTEM" {
-		return true
-	}
-	return false
+// agyContent is the reader surface shared by pane and runtime routes.
+type agyContent interface {
+	Read(agy.Ref) (*agy.Projection, error)
+	Placeholder(id, text string) *agy.Projection
 }
 
-func probeAgyTranscriptFile(root *os.Root, rel string) agyTranscriptKind {
-	info, err := root.Stat(rel)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return agyTranscriptMissing
-		}
-		return agyTranscriptUnreadable
-	}
-	if !info.Mode().IsRegular() {
-		return agyTranscriptMissing
-	}
-	f, err := root.Open(rel)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return agyTranscriptMissing
-		}
-		return agyTranscriptUnreadable
-	}
-	defer f.Close()
+type agyClock struct{}
 
-	r := bufio.NewReader(f)
-	for range 64 {
-		line, err := r.ReadBytes('\n')
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				// Ignore any trailing line without a newline so in-progress writes wait for completion.
-				return agyTranscriptEmpty
-			}
-			return agyTranscriptUnreadable
-		}
-		line = bytes.TrimSpace(line)
-		if len(line) == 0 || line[0] != '{' {
-			continue
-		}
-		var head struct {
-			Type   string `json:"type"`
-			Source string `json:"source"`
-		}
-		if json.Unmarshal(line, &head) != nil {
-			continue
-		}
-		if head.Type == "" && head.Source == "" {
-			continue
-		}
-		if isAgySubagentHead(head.Type, head.Source) {
-			return agyTranscriptSubagent
-		}
-		return agyTranscriptNormal
-	}
-	return agyTranscriptEmpty
+func (agyClock) Now() time.Time { return time.Now() }
+
+func (n *Node) agyReader() agyContent {
+	n.agyOnce.Do(func() { n.agy = agy.New(agy.Dependencies{Clock: agyClock{}}) })
+	return n.agy
 }
 
-func probeAgyConversation(dir, conversation string) agyTranscriptKind {
-	if dir == "" || conversation == "" || !uuidRe.MatchString(conversation) {
-		return agyTranscriptMissing
-	}
-	root, err := agyBrain(dir, conversation)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return agyTranscriptMissing
-		}
-		return agyTranscriptUnreadable
-	}
-	defer root.Close()
-
-	kind := probeAgyTranscriptFile(root, agyTranscriptPath)
-	if kind == agyTranscriptMissing || kind == agyTranscriptEmpty {
-		if full := probeAgyTranscriptFile(root, agyFullTranscriptPath); full == agyTranscriptSubagent || full == agyTranscriptNormal {
-			return full
-		}
-	}
-	return kind
+func (n *Node) agyRef(conversation string) agy.Ref {
+	return agy.Ref{Root: n.agyDataRoot(), Conversation: conversation}
 }
 
-func extractAgyParentSubagents(root *os.Root, raw []byte, parent string) (bool, map[string]bool) {
-	if !bytes.Contains(raw, []byte("invoke_subagent")) &&
-		!bytes.Contains(raw, []byte("send_message")) &&
-		!bytes.Contains(raw, []byte("manage_subagents")) {
-		return false, nil
+func (n *Node) agyTranscript(conversation string) (*agy.Projection, bool) {
+	if conversation == "" {
+		return nil, false
 	}
-	steps, _ := parseAgySteps(raw, parent)
-	var hasInvoke bool
-	var children map[string]bool
-	addChild := func(id string) {
-		id = strings.ToLower(strings.TrimSpace(id))
-		if !uuidRe.MatchString(id) {
-			return
-		}
-		if children == nil {
-			children = make(map[string]bool)
-		}
-		children[id] = true
-	}
-
-	var pending []string
-	var plannerCalls []string
-	var plannerSeq int
-	var sawSystemBetween bool
-	for _, step := range steps {
-		switch step.Type {
-		case "PLANNER_RESPONSE":
-			pending = pending[:0]
-			plannerCalls = plannerCalls[:0]
-			plannerSeq = step.seq
-			sawSystemBetween = false
-			for _, tc := range step.ToolCalls {
-				if tc == nil {
-					pending = append(pending, "")
-					plannerCalls = append(plannerCalls, "")
-					continue
-				}
-				pending = append(pending, tc.Name)
-				plannerCalls = append(plannerCalls, tc.Name)
-				switch tc.Name {
-				case "invoke_subagent":
-					hasInvoke = true
-				case "send_message":
-					var args struct {
-						Recipient string `json:"Recipient"`
-					}
-					if json.Unmarshal(tc.Args, &args) == nil && args.Recipient != "" {
-						hasInvoke = true
-						addChild(args.Recipient)
-					}
-				case "manage_subagents":
-					var args struct {
-						ConversationIds []string `json:"ConversationIds"`
-					}
-					if json.Unmarshal(tc.Args, &args) == nil && len(args.ConversationIds) > 0 {
-						hasInvoke = true
-						for _, cid := range args.ConversationIds {
-							addChild(cid)
-						}
-					}
-				}
-			}
-		case "SYSTEM_MESSAGE":
-			sawSystemBetween = true
-		case "USER_INPUT", "ERROR_MESSAGE":
-			pending = pending[:0]
-			plannerCalls = plannerCalls[:0]
-		case "GENERIC":
-			callName := ""
-			if !sawSystemBetween && len(plannerCalls) > 0 && step.seq > plannerSeq {
-				if idx := step.seq - plannerSeq - 1; idx >= 0 && idx < len(plannerCalls) {
-					callName = plannerCalls[idx]
-				}
-			}
-			if len(pending) > 0 {
-				popped := pending[0]
-				pending = pending[1:]
-				if callName == "" {
-					callName = popped
-				}
-			}
-			if callName != "invoke_subagent" {
-				continue
-			}
-			for _, match := range agyEmbeddedUUIDRe.FindAllString(step.Content, -1) {
-				addChild(match)
-			}
-			if root != nil && step.Error == "" {
-				for _, field := range step.TruncatedFields {
-					if field == "content" {
-						path := filepath.Join(".system_generated", "steps", fmt.Sprint(step.seq-1), "output.txt")
-						if output, err := agyReadFile(root, path); err == nil {
-							for _, match := range agyEmbeddedUUIDRe.FindAllString(string(output), -1) {
-								addChild(match)
-							}
-						}
-						break
-					}
-				}
-			}
-		}
-	}
-	return hasInvoke, children
+	h, err := n.agyReader().Read(n.agyRef(conversation))
+	return h, err == nil
 }
 
-func (n *Node) agyParentSubagents(dir, parent string) agyParentSubagentInfo {
-	if dir == "" || parent == "" || !uuidRe.MatchString(parent) {
-		return agyParentSubagentInfo{}
+func (n *Node) probeAgyConversation(conversation string) agy.Kind {
+	if h, ok := n.agyTranscript(conversation); ok {
+		return h.Kind()
 	}
-	root, err := agyBrain(dir, parent)
-	if err != nil {
-		return agyParentSubagentInfo{}
-	}
-	defer root.Close()
-
-	rel := agyTranscriptPath
-	info, err := root.Stat(rel)
-	if err != nil || !info.Mode().IsRegular() {
-		rel = agyFullTranscriptPath
-		info, err = root.Stat(rel)
-		if err != nil || !info.Mode().IsRegular() {
-			return agyParentSubagentInfo{}
-		}
-	}
-
-	key := filepath.Join(dir, parent)
-	n.mu.Lock()
-	if n.agyParentSubs != nil {
-		if cached, ok := n.agyParentSubs.get(key); ok && cached.path == rel && sameAgyFile(info, cached.file) && time.Since(info.ModTime()) > time.Second {
-			n.mu.Unlock()
-			return cached
-		}
-	}
-	n.mu.Unlock()
-
-	raw, err := root.ReadFile(rel)
-	if err != nil {
-		return agyParentSubagentInfo{}
-	}
-	raw = raw[:bytes.LastIndexByte(raw, '\n')+1]
-	hasInvoke, children := extractAgyParentSubagents(root, raw, parent)
-	entry := agyParentSubagentInfo{file: info, path: rel, hasInvoke: hasInvoke, children: children}
-
-	n.mu.Lock()
-	if n.agyParentSubs == nil {
-		n.agyParentSubs = newLRU[string, agyParentSubagentInfo](256)
-	}
-	n.agyParentSubs.put(key, entry)
-	n.mu.Unlock()
-	return entry
+	return agy.Unreadable
 }
 
-func (n *Node) classifyAgyCandidate(dir, parent, candidate string) agyCandidateDecision {
-	kind := probeAgyConversation(dir, candidate)
-	if kind == agyTranscriptSubagent {
+func (n *Node) classifyAgyCandidate(parent, candidate string) agyCandidateDecision {
+	kind := n.probeAgyConversation(candidate)
+	if kind == agy.Subagent {
 		return agyCandidateSubagent
 	}
-	parentInfo := n.agyParentSubagents(dir, parent)
-	if parentInfo.children[strings.ToLower(candidate)] {
+	p, ok := n.agyTranscript(parent)
+	if ok && p.HasChild(candidate) {
 		return agyCandidateSubagent
 	}
 	switch kind {
-	case agyTranscriptNormal:
+	case agy.Normal:
 		return agyCandidateNormal
-	case agyTranscriptEmpty, agyTranscriptUnreadable:
+	case agy.Empty, agy.Unreadable:
 		return agyCandidatePending
-	default: // agyTranscriptMissing
-		if parentInfo.hasInvoke {
+	default:
+		if ok && p.InvokesChild() {
 			return agyCandidatePending
 		}
 		return agyCandidateUnverified
@@ -393,17 +157,16 @@ func (n *Node) agyConversation(id, pane string) string {
 		}
 		n.mu.Unlock()
 
-		dir := n.agyDataRoot()
 		var next agyPaneBinding
 		var result string
 		var keepBound bool
 
 		if bound.conversation == "" || bound.conversation == raw {
-			switch probeAgyConversation(dir, raw) {
-			case agyTranscriptSubagent:
+			switch n.probeAgyConversation(raw) {
+			case agy.Subagent:
 				next = agyPaneBinding{}
 				result = ""
-			case agyTranscriptNormal:
+			case agy.Normal:
 				next = agyPaneBinding{conversation: raw, verified: true}
 				result = raw
 			default:
@@ -411,7 +174,7 @@ func (n *Node) agyConversation(id, pane string) string {
 				result = raw
 			}
 		} else {
-			switch n.classifyAgyCandidate(dir, bound.conversation, raw) {
+			switch n.classifyAgyCandidate(bound.conversation, raw) {
 			case agyCandidateSubagent, agyCandidatePending:
 				keepBound = true
 				next = bound
@@ -449,259 +212,15 @@ func (n *Node) agyConversation(id, pane string) string {
 	return ""
 }
 
-// agyNotice is a pane's history while its conversation is not known: one notice, in the node's own language like its
-// other lines (one watch serves every client of the session); the hub says it in each client's (transcript_text.go).
-func agyNotice(id string) agyHistory {
-	return agyHistory{token: "agy-pane:" + id, seq: 1, items: []proto.Item{{
-		ID: "agy#0", Seq: 1, Role: "system", Kind: "notice", Text: i18n.T(i18n.Default, "node-engine.agy_pane_integration"), TS: time.Now().UTC(),
-	}}}
+// agyNotice is shown only until the pane has a verified conversation to read.
+func (n *Node) agyNotice(id string) *agy.Projection {
+	return n.agyReader().Placeholder(id, i18n.T(i18n.Default, "node-engine.agy_pane_integration"))
 }
 
 type agyWatch struct {
 	pane, history, conversation string
 	since                       int
-	file                        *agyPaneFiles
-	stepHashes                  map[int][32]byte
-}
-
-type agyPaneFiles struct{ transcript, full, receipts os.FileInfo }
-
-func sameAgyFile(a, b os.FileInfo) bool {
-	if a == nil || b == nil {
-		return a == nil && b == nil
-	}
-	return os.SameFile(a, b) && a.Size() == b.Size() && a.ModTime() == b.ModTime()
-}
-
-func agyStepsHistory(conversation string) agyHistory {
-	return agyHistory{token: "agy-pane:" + conversation + ":steps:context-resources-v1:lazy-media:checkpoints:wakes:file-links:full-replies"}
-}
-
-// agyRead loads the compact export for pages and live updates, hydrating
-// truncated prose steps from transcript_full.jsonl when present. The revision
-// memo distinguishes a rewrite of complete records from an append or partial write.
-func (n *Node) agyRead(root *os.Root, key, conversation string, previous *agyPaneFiles) (agyHistory, *agyPaneFiles, error) {
-	empty := agyStepsHistory(conversation)
-	info, err := root.Stat(agyTranscriptPath)
-	if err != nil {
-		return empty, nil, err
-	}
-	if !info.Mode().IsRegular() {
-		return empty, nil, os.ErrNotExist
-	}
-	fullInfo, _ := root.Stat(agyFullTranscriptPath)
-	if fullInfo != nil && !fullInfo.Mode().IsRegular() {
-		fullInfo = nil
-	}
-	receiptsFile, _ := root.Lstat(agyWakeReceipts)
-	if receiptsFile != nil && !receiptsFile.Mode().IsRegular() {
-		receiptsFile = nil
-	}
-	files := &agyPaneFiles{transcript: info, full: fullInfo, receipts: receiptsFile}
-	if previous != nil && sameAgyFile(info, previous.transcript) && sameAgyFile(fullInfo, previous.full) && sameAgyFile(receiptsFile, previous.receipts) &&
-		time.Since(info.ModTime()) > time.Second && (fullInfo == nil || time.Since(fullInfo.ModTime()) > time.Second) {
-		return agyHistory{}, files, nil
-	}
-	raw, err := root.ReadFile(agyTranscriptPath)
-	if err != nil {
-		return empty, nil, err
-	}
-	raw = raw[:bytes.LastIndexByte(raw, '\n')+1]
-	steps, rev := n.agyParse(key, conversation, info, raw)
-	n.mu.Lock()
-	if n.agyRevisions == nil {
-		n.agyRevisions = newLRU[string, agyRevision](256)
-	}
-	if old, ok := n.agyRevisions.get(key); ok && old.branch == rev.branch {
-		if (len(raw) < old.length || sha256.Sum256(raw[:old.length]) != old.hash) && agyStepsRewritten(old.steps, rev.steps) {
-			rev.rewrite = fmt.Sprintf("%x", rev.hash[:10])
-		} else {
-			rev.rewrite = old.rewrite
-		}
-	}
-	n.agyRevisions.put(key, rev)
-	n.mu.Unlock()
-
-	var receipts map[string]bool
-	if receiptsFile != nil {
-		if data, err := root.ReadFile(agyWakeReceipts); err == nil {
-			receipts = make(map[string]bool)
-			for row := range strings.SplitSeq(string(data), "\n") {
-				row = strings.TrimRight(row, "\r")
-				if row != "" {
-					receipts[row] = true
-				}
-			}
-		}
-	}
-	if fullInfo != nil {
-		steps = agyHydrateFullSteps(root, steps)
-	}
-	h := mapAgySteps(steps, info.ModTime(), receipts)
-	h.token = empty.token
-	if rev.branch != "" || rev.native != "" || rev.rewrite != "" {
-		h.token += ":" + rev.branch + ":" + rev.native + ":" + rev.rewrite
-	}
-	if h.observedWakeRevision != "" {
-		h.token += ":wake:" + h.observedWakeRevision
-	}
-	return h, files, nil
-}
-
-// agyParsesKept is how many conversations' parses agyParse keeps to go on from: the panes being watched.
-const agyParsesKept = 8
-
-// agyParsed is how far agyParse read a conversation's transcript: the file, the length and SHA-256 of the complete
-// lines it parsed, and the fold after them.
-type agyParsed struct {
-	file   os.FileInfo
-	length int
-	hash   [32]byte
-	fold   agyFold
-}
-
-// agyParse is parseAgySteps(raw, conversation) for transcript file info at key. When the file is the one it parsed last
-// time, only grew, and the bytes parsed then hash the same, only the lines after them are parsed, going on from that
-// fold: a watched pane re-parsed the whole transcript four times a second while agy wrote to it (#13470). A truncated,
-// rewritten or replaced file is parsed whole, as before.
-func (n *Node) agyParse(key, conversation string, info os.FileInfo, raw []byte) ([]agyStep, agyRevision) {
-	n.mu.Lock()
-	if n.agyParses == nil {
-		n.agyParses = newLRU[string, *agyParsed](agyParsesKept)
-	}
-	last, _ := n.agyParses.get(key)
-	n.agyParses.put(key, nil) // taken: a reader meanwhile parses on its own
-	n.mu.Unlock()
-
-	h := sha256.New()
-	fold, from := agyFold{conversation: conversation}, 0
-	if last != nil && last.fold.conversation == conversation && os.SameFile(info, last.file) && len(raw) >= last.length {
-		h.Write(raw[:last.length])
-		if [32]byte(h.Sum(nil)) == last.hash {
-			fold, from = last.fold, last.length
-		} else {
-			h.Reset()
-		}
-	}
-	fold.add(raw[from:])
-	h.Write(raw[from:])
-	sum := [32]byte(h.Sum(nil))
-
-	n.mu.Lock()
-	n.agyParses.put(key, &agyParsed{file: info, length: len(raw), hash: sum, fold: fold})
-	n.mu.Unlock()
-	return fold.steps, fold.revision(len(raw), sum)
-}
-
-type agyPageParams struct {
-	ItemID     string `json:"item_id"`
-	SinceSeq   int    `json:"since_seq"`
-	BeforeSeq  int    `json:"before_seq"`
-	AfterSeq   *int   `json:"after_seq"`
-	Limit      int    `json:"limit"`
-	Turns      int    `json:"turns"`
-	FromSeq    int    `json:"from_seq"`
-	ThroughSeq int    `json:"through_seq"`
-	UserInputs bool   `json:"user_inputs"`
-	FoldWork   bool   `json:"fold_work"`
-}
-
-func agyLightItems(items []proto.Item) []proto.Item {
-	out := make([]proto.Item, 0, len(items))
-	for _, it := range items {
-		out = append(out, transcript.LightItem(it))
-	}
-	return out
-}
-
-func agyIndex(items []proto.Item, seq int) int {
-	return sort.Search(len(items), func(i int) bool { return items[i].Seq >= seq })
-}
-
-func agyAfter(items []proto.Item, seq int) int {
-	return sort.Search(len(items), func(i int) bool { return items[i].Seq > seq })
-}
-
-func (h agyHistory) after(since int) (items []proto.Item, span transcript.Span, more bool) {
-	items = h.items[agyAfter(h.items, since):]
-	span = transcript.Span{History: h.token, From: since, To: max(since, h.seq)}
-	if len(items) > 500 {
-		// Keep every item from the same native step on the same page.
-		end := agyAfter(items, items[499].Seq)
-		more = end < len(items)
-		items = items[:end]
-		if more {
-			span.To = items[end-1].Seq
-		}
-	}
-	return agyLightItems(items), span, more
-}
-
-func agyUserInput(it proto.Item) bool {
-	return it.Role == "user" && (it.Kind == proto.KindText || (it.Kind == proto.KindImage && it.ToolUseID == ""))
-}
-
-func (h agyHistory) page(p agyPageParams) any {
-	if p.UserInputs {
-		index := proto.UserInputIndex{History: h.token, Inputs: []proto.UserInputPosition{}}
-		for _, it := range h.items {
-			if agyUserInput(it) && (len(index.Inputs) == 0 || index.Inputs[len(index.Inputs)-1].Seq != it.Seq) {
-				index.Inputs = append(index.Inputs, proto.UserInputPosition{ID: it.ID, Seq: it.Seq})
-			}
-		}
-		index.Total = len(index.Inputs)
-		return index
-	}
-	items := h.items
-	if p.ThroughSeq > 0 {
-		from, to := agyIndex(items, p.FromSeq), agyAfter(items, p.ThroughSeq)
-		items = items[min(from, to):to]
-		if len(items) > 1000 {
-			end := agyAfter(items, items[999].Seq)
-			return map[string]any{"items": agyLightItems(items[:end]), "more": end < len(items)}
-		}
-		return map[string]any{"items": agyLightItems(items), "more": false}
-	}
-	if p.AfterSeq != nil {
-		page, span, more := h.after(*p.AfterSeq)
-		return withSpan(map[string]any{"items": page, "has_more": false, "more_after": more}, span, true)
-	}
-	span := transcript.Span{History: h.token, To: h.seq}
-	if p.BeforeSeq > 0 {
-		items = items[:agyIndex(items, p.BeforeSeq)]
-		span.To = 0
-		if len(items) > 0 {
-			span.To = items[len(items)-1].Seq
-		}
-	}
-	limit := p.Limit
-	if limit <= 0 {
-		limit = 80
-	}
-	start := max(0, len(items)-min(limit, 500))
-	if p.Turns > 0 {
-		turns := min(p.Turns, 10)
-		start = max(0, len(items)-2000)
-		lastSeq := -1
-		for i := len(items) - 1; i >= start; i-- {
-			if agyUserInput(items[i]) && items[i].Seq != lastSeq {
-				lastSeq = items[i].Seq
-				turns--
-				if turns == 0 {
-					start = i
-					break
-				}
-			}
-		}
-	}
-	if start > 0 {
-		start = agyIndex(items, items[start].Seq)
-	}
-	items = agyLightItems(items[start:])
-	if p.FoldWork {
-		items = transcript.FoldWork(items)
-	}
-	return withSpan(map[string]any{"items": nonNil(items), "has_more": start > 0}, span, false)
+	last                        *agy.Projection
 }
 
 func (n *Node) agyPaneCall(ctx context.Context, method, id, pane string, raw json.RawMessage) (any, error, bool) {
@@ -715,71 +234,51 @@ func (n *Node) agyPaneCall(ctx context.Context, method, id, pane string, raw jso
 	default:
 		return nil, nil, false
 	}
-	var p agyPageParams
+	var p agy.PageParams
 	if err := json.Unmarshal(raw, &p); err != nil {
 		return nil, err, true
 	}
 	if method == "session.watch" {
-		n.watchAgyPane(rpc.ConnContext(ctx), id, pane, p.SinceSeq)
+		n.watchAgy(rpc.ConnContext(ctx), id, pane, p.SinceSeq, p.History)
 		return okResult(nil), nil, true
 	}
+	return n.agyContentCall(method, id, pane, p)
+}
 
-	mu := n.pushLock(id)
-	mu.Lock()
-	defer mu.Unlock()
-	h := agyNotice(id)
-	conversation := n.agyConversation(id, pane)
-	if conversation != "" {
-		h = agyStepsHistory(conversation)
-		dir := n.agyDataRoot()
-		root, err := agyBrain(dir, conversation)
-		if err == nil {
-			defer root.Close()
-			h, _, err = n.agyRead(root, filepath.Join(dir, conversation), conversation, nil)
+func (n *Node) agyContentRef(id, pane string) agy.Ref {
+	if pane != "" {
+		return n.agyRef(n.agyConversation(id, pane))
+	}
+	return n.runtimes.agyOf(id)
+}
+
+func (n *Node) agyContentCall(method, id, pane string, p agy.PageParams) (any, error, bool) {
+	ref := n.agyContentRef(id, pane)
+	projection := n.agyNotice(id)
+	if ref.Conversation != "" {
+		h, err := n.agyReader().Read(ref)
+		if err != nil {
+			return nil, fmt.Errorf("read conversation transcript: %w", err), true
 		}
-		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("read Antigravity transcript: %w", err), true
+		if n.agyContentRef(id, pane) == ref {
+			projection = n.agyEchoed(id, ref.Conversation, h)
 		}
-		if err == nil && n.agyConversation(id, pane) == conversation {
-			h = n.agyEchoed(id, conversation, h)
-		}
-		if method == "session.image" {
-			media, found := h.media[p.ItemID]
-			if found && n.agyConversation(id, pane) == conversation {
-				image, err := media.image(root)
-				if n.agyConversation(id, pane) == conversation {
-					return image, err, true
-				}
-			}
-		}
+	}
+	switch method {
+	case "session.item", "session.image":
+		var out any
+		var err error
 		if method == "session.item" {
-			for _, it := range h.items {
-				if it.ID != p.ItemID {
-					continue
-				}
-				if step, ok := h.outputs[it.ID]; ok {
-					path := filepath.Join(".system_generated", "steps", fmt.Sprint(step), "output.txt")
-					if output, err := agyReadFile(root, path); err == nil {
-						it.Text = agyToolOutput(string(output))
-					}
-				}
-				if n.agyConversation(id, pane) == conversation {
-					return it, nil, true
-				}
-				break
-			}
+			out, err = projection.Item(p.ItemID)
+		} else {
+			out, err = projection.Image(p.ItemID)
 		}
-		if n.agyConversation(id, pane) != conversation {
-			h = agyNotice(id)
+		if n.agyContentRef(id, pane) != ref || errors.Is(err, agy.ErrNotFound) {
+			return nil, &rpc.Error{Code: codeNotFound, Message: "no item"}, true
 		}
+		return out, err, true
 	}
-	if method == "session.item" {
-		return nil, &rpc.Error{Code: codeNotFound, Message: "no item"}, true // 404, not a gateway failure (#13470)
-	}
-	if method == "session.image" {
-		return nil, &rpc.Error{Code: codeNotFound, Message: "no image"}, true
-	}
-	return h.page(p), nil, true
+	return projection.Page(p), nil, true
 }
 
 func (n *Node) agyPaneSessionInfo(id, pane string) map[string]any {
@@ -811,25 +310,11 @@ func (n *Node) agyPaneSessionInfo(id, pane string) map[string]any {
 			if runtimeRow.Effort != "" {
 				info["effort"] = runtimeRow.Effort
 			}
-			if runtimeRow.ContextTokens > 0 || runtimeRow.OutputTokens > 0 {
-				info["context_tokens"] = int(runtimeRow.ContextTokens)
-				info["output_tokens"] = runtimeRow.OutputTokens
-				delete(info, "usage_unknown")
-				if u, ok := n.agyTranscriptMeta(conversation); ok {
-					info["turns"] = u.turns
-					info["compactions"] = u.compactions
-				}
-			}
-		} else if u, ok := n.agyTranscriptMeta(conversation); ok {
-			if u.model != "" {
-				info["model"] = u.model
-			}
-			info["compactions"] = u.compactions
-			info["turns"] = u.turns
-			if u.hasUsage {
-				info["context_tokens"] = u.contextTokens
-				info["output_tokens"] = u.outputTokens
-				delete(info, "usage_unknown")
+		}
+		if h, ok := n.agyTranscript(conversation); ok {
+			h.FillInfo(info)
+			if model, _ := h.Model(); info["model"] == nil && model != "" {
+				info["model"] = model
 			}
 		}
 	}
@@ -837,14 +322,14 @@ func (n *Node) agyPaneSessionInfo(id, pane string) map[string]any {
 	return info
 }
 
-func (n *Node) watchAgyPane(parent context.Context, id, pane string, since int) {
+func (n *Node) watchAgy(parent context.Context, id, pane string, since int, history string) {
 	n.mu.Lock()
 	if cur := n.watches[id]; cur != nil {
 		n.mu.Unlock()
 		return
 	}
 	ctx, cancel := context.WithCancel(parent)
-	w := &watch{cancel: cancel, ctx: ctx, parent: parent, id: id, agy: &agyWatch{pane: pane, since: since}}
+	w := &watch{cancel: cancel, ctx: ctx, parent: parent, id: id, agy: &agyWatch{pane: pane, since: since, history: history}}
 	n.watches[id] = w
 	if !n.pumping {
 		n.pumping = true
@@ -864,115 +349,77 @@ func (n *Node) pollAgyPane(w *watch) {
 		return
 	}
 	a := w.agy
-	h := agyNotice(w.id)
-	conversation := n.agyConversation(w.id, a.pane)
-	var info *agyPaneFiles
-	if conversation != "" {
-		h = agyStepsHistory(conversation)
-		dir := n.agyDataRoot()
-		root, err := agyBrain(dir, conversation)
-		if err == nil {
-			defer root.Close()
-			var previous *agyPaneFiles
-			if a.conversation == conversation {
-				previous = a.file
-			}
-			h, info, err = n.agyRead(root, filepath.Join(dir, conversation), conversation, previous)
-		}
-		if err != nil && (!errors.Is(err, os.ErrNotExist) || a.file != nil && a.conversation == conversation) {
+	ref := n.agyContentRef(w.id, a.pane)
+	var h *agy.Projection
+	if ref.Conversation != "" {
+		var err error
+		h, err = n.agyReader().Read(ref)
+		if err != nil || n.agyContentRef(w.id, a.pane) != ref || h == a.last {
 			return
 		}
-		if h.token == "" || n.agyConversation(w.id, a.pane) != conversation {
-			return
-		}
-		h = n.agyEchoed(w.id, conversation, h)
+	} else if a.pane != "" {
+		h = n.agyNotice(w.id)
+	} else {
+		return
 	}
 	since := a.since
-	reset := a.history != "" && a.history != h.token || since > h.seq
-	initial := a.history == ""
-	if initial && since == 0 {
-		a.since = h.seq // the first page is the subscriber's backlog
-		since = h.seq
+	reset := a.history != "" && a.history != h.History() || since > h.Seq()
+	initial := a.last == nil
+	if initial && since == 0 && !reset {
+		since = h.Seq() // the first page is the subscriber's backlog
 	}
+	echoed := n.agyEchoed(w.id, ref.Conversation, h)
 	if reset {
 		since = 0
-		a.stepHashes = nil
-	} else if !initial && len(a.stepHashes) > 0 && len(h.stepHashes) > 0 {
-		// Push in-place updates for steps at or before `since` (such as a RUNNING step
-		// finishing with new content) without bumping the history token or resetting the watcher.
-		var updated []proto.Item
-		for _, it := range h.items {
-			if it.Seq > since {
-				break
-			}
-			curHash, ok := h.stepHashes[it.Seq]
-			if !ok {
-				continue
-			}
-			if prevHash, seen := a.stepHashes[it.Seq]; !seen || prevHash != curHash {
-				updated = append(updated, it)
-			}
-		}
-		if len(updated) > 0 {
-			if n.agyConversation(w.id, a.pane) != conversation {
-				return
-			}
-			if n.peer != nil {
-				span := transcript.Span{History: h.token, From: since, To: since}
-				err := n.peer.NotifyContext(w.ctx, "session.items", withSpan(map[string]any{"session_id": w.id, "items": agyLightItems(updated)}, span, true))
-				if err != nil {
-					return
-				}
-			}
-		}
-	}
-	for reset || since < h.seq {
-		items, span, more := h.after(since)
-		if n.agyConversation(w.id, a.pane) != conversation {
+	} else if updated := echoed.Updates(a.last, since); len(updated) > 0 {
+		span := transcript.Span{History: h.History(), From: since, To: since}
+		if !n.pushAgy(w, ref, agy.LightItems(updated), span) {
 			return
 		}
-		if n.peer != nil {
-			err := n.peer.NotifyContext(w.ctx, "session.items", withSpan(map[string]any{"session_id": w.id, "items": items}, span, true))
-			if err != nil {
-				return
-			}
+	}
+	for reset || since < h.Seq() {
+		items, span, more := echoed.After(since)
+		if !n.pushAgy(w, ref, items, span) {
+			return
 		}
 		a.since, since, reset = span.To, span.To, false
-		a.history = h.token
+		a.history = h.History()
 		if !more {
 			break
 		}
 	}
-	if len(h.stepHashes) > 0 {
-		hashes := make(map[int][32]byte, len(h.stepHashes))
-		for seq, sum := range h.stepHashes {
-			if seq <= a.since {
-				hashes[seq] = sum
-			}
-		}
-		a.stepHashes = hashes
-	} else {
-		a.stepHashes = nil
-	}
-	a.history, a.file, a.conversation = h.token, info, conversation
+	a.history, a.last, a.conversation, a.since = h.History(), h, ref.Conversation, since
 }
 
-func (n *Node) agyEchoed(id, conversation string, h agyHistory) agyHistory {
-	if !n.echoes.known(id) || len(h.items) == 0 {
+func (n *Node) pushAgy(w *watch, ref agy.Ref, items []proto.Item, span transcript.Span) bool {
+	if n.agyContentRef(w.id, w.agy.pane) != ref || w.ctx.Err() != nil {
+		return false
+	}
+	if n.peer != nil {
+		if err := n.peer.NotifyContext(w.ctx, "session.items", withSpan(map[string]any{"session_id": w.id, "items": items}, span, true)); err != nil {
+			return false
+		}
+	}
+	if w.agy.pane == "" {
+		n.runtimes.pushed(w.id, span.To, span.History, span.From == 0)
+	}
+	return true
+}
+
+func (n *Node) agyEchoed(id, conversation string, h *agy.Projection) *agy.Projection {
+	if !n.echoes.known(id) || len(h.Items()) == 0 {
 		return h
 	}
 	if conversation != "" {
-		n.echoes.syncAgyConversation(id, conversation, h.token)
+		n.echoes.syncAgyConversation(id, conversation, h.History())
 	}
 	if from, ok := n.echoes.waitingFrom(id, echoInTranscript); ok {
-		if idx := agyAfter(h.items, from); idx < len(h.items) {
-			for _, r := range n.echoes.match(id, echoInTranscript, h.items[idx:]) {
-				n.notifyEcho(r)
-			}
+		items := h.Items()
+		for _, r := range n.echoes.match(id, echoInTranscript, items[agy.AfterIndex(items, from):]) {
+			n.notifyEcho(r)
 		}
 	}
-	h.items = n.echoes.tag(id, echoInTranscript, h.items)
-	return h
+	return h.WithItems(n.echoes.tag(id, echoInTranscript, h.Items()))
 }
 
 func (n *Node) pollWatchedAgyPane(id string) {
@@ -989,20 +436,14 @@ func (n *Node) agyEchoBase(id, pane string) echoAfter {
 	mu := n.pushLock(id)
 	mu.Lock()
 	defer mu.Unlock()
-	conversation := n.agyConversation(id, pane)
-	if conversation == "" {
+	ref := n.agyContentRef(id, pane)
+	if ref.Conversation == "" {
 		return echoAfter{in: echoInTranscript}
 	}
-	dir := n.agyDataRoot()
-	root, err := agyBrain(dir, conversation)
-	if err != nil {
+	h, err := n.agyReader().Read(ref)
+	if err != nil || n.agyContentRef(id, pane) != ref {
 		return echoAfter{in: echoInTranscript}
 	}
-	defer root.Close()
-	h, _, err := n.agyRead(root, filepath.Join(dir, conversation), conversation, nil)
-	if err != nil || n.agyConversation(id, pane) != conversation {
-		return echoAfter{in: echoInTranscript}
-	}
-	h = n.agyEchoed(id, conversation, h)
-	return echoAfter{seq: h.seq, in: echoInTranscript, history: h.token}
+	n.agyEchoed(id, ref.Conversation, h)
+	return echoAfter{seq: h.Seq(), in: echoInTranscript, history: h.History()}
 }

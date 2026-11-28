@@ -3,8 +3,10 @@ package node
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +15,9 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/host"
 	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/node/harness/agy"
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
@@ -34,7 +38,7 @@ func agyTestAgent(pane, cwd, id string) map[string]any {
 
 func agyTestFile(t *testing.T, root, id, contents string) string {
 	t.Helper()
-	file := filepath.Join(root, "brain", id, agyTranscriptPath)
+	file := filepath.Join(root, "brain", id, agy.TranscriptPath)
 	if err := os.MkdirAll(filepath.Dir(file), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -198,14 +202,16 @@ func TestAgyPanePagesAndFullItems(t *testing.T) {
 	const fixture = `{"step_index":0,"type":"USER_INPUT","source":"USER_EXPLICIT","created_at":"2026-11-01T00:00:00Z","content":"<USER_REQUEST>\n<persona-context>hidden</persona-context>\nCheck the files\n</USER_REQUEST><ADDITIONAL_METADATA>hidden</ADDITIONAL_METADATA>"}
 {"step_index":1,"type":"USER_INPUT","source":"SYSTEM","content":"hidden system input"}
 {"step_index":2,"type":"PLANNER_RESPONSE","created_at":"2026-11-01T00:00:01Z","thinking":"  First find the file. ","content":" I will check. ","tool_calls":[{"name":"run_command","args":{"CommandLine":"ls","toolSummary":"List files"}},{"name":"view_file","args":{"AbsolutePath":"sample.txt"}}]}
-{"step_index":3,"type":"GENERIC","content":"Created At: 2026-11-01\nOutput:\nsample.txt\n","truncated_fields":["content"]}
+{"step_index":3,"type":"GENERIC","content":%q}
 {"step_index":4,"type":"GENERIC","status":"ERROR","error":"Read failed"}
 {"step_index":5,"type":"PLANNER_RESPONSE","content":%q}
 {"step_index":6,"type":"UNKNOWN"}
 `
 	long := strings.Repeat("result ", 5000)
-	agyTestFile(t, n.agyDataRoot(), agyTestID, fmt.Sprintf(fixture, long))
 	output := filepath.Join(n.agyDataRoot(), "brain", agyTestID, ".system_generated", "steps", "3", "output.txt")
+	uri := (&url.URL{Scheme: "file", Path: filepath.ToSlash(output)}).String()
+	preview := "This tool's output was truncated due to being too long. You can find the full output in a file at " + uri + "\n\nsample.txt\n"
+	agyTestFile(t, n.agyDataRoot(), agyTestID, fmt.Sprintf(fixture, preview, long))
 	if err := os.MkdirAll(filepath.Dir(output), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -226,7 +232,7 @@ func TestAgyPanePagesAndFullItems(t *testing.T) {
 		t.Fatalf("planner page: %+v", page)
 	}
 	results, _ := agyTestItems(t, n, agyTestRow, map[string]any{"from_seq": 4, "through_seq": 5})
-	if len(results) != 2 || results[0].Kind != "tool_result" || results[0].Text != "sample.txt\n" ||
+	if len(results) != 2 || results[0].Kind != "tool_result" || results[0].Text != preview ||
 		results[0].ToolUseID != items[2].ToolUseID || results[1].ToolUseID != items[3].ToolUseID ||
 		results[1].Text != "Read failed" || !results[1].IsError {
 		t.Fatalf("tool results: %+v", results)
@@ -346,45 +352,6 @@ func TestAgyPaneWatchFromTheEndPastAnInvisibleStep(t *testing.T) {
 	waitFor(t, "the visible step", func() bool { return len(hub.spans()) >= 2 })
 	if got := hub.spans(); len(got) != 2 || got[1].n != 1 || got[1].fromSeq != 3 || got[1].toSeq != 4 || hub.got()[0].Text != "Visible" {
 		t.Fatalf("after the visible step: %+v, items %+v", got, hub.got())
-	}
-}
-
-func TestAgyPaneReplaysOnlyTheMatchingObservedWake(t *testing.T) {
-	n, f, home := herdrNode(t)
-	t.Setenv("ANTIGRAVITY_CLI_CONFIG_DIR", "")
-	seedAgents(t, n, f, agyTestAgent(agyTestPane, home, agyTestID))
-	const fixtures = "../../../integrations/antigravity/test/fixtures/"
-	raw, err := os.ReadFile(fixtures + "autonomous-wake.jsonl")
-	if err != nil {
-		t.Fatal(err)
-	}
-	lines := strings.SplitAfter(string(raw), "\n")
-	background := strings.Replace(lines[5], `"step_index":5`, `"step_index":3`, 1)
-	file := agyTestFile(t, n.agyDataRoot(), agyTestID, strings.Join(lines[:3], "")+background)
-	prior, page := agyTestItems(t, n, agyTestRow, nil)
-	if len(prior) != 3 || prior[2].Wake {
-		t.Fatalf("ordinary adjacent replies: %+v", prior)
-	}
-	hub := withHub(t, n)
-	agyTestCall(t, n, "session.watch", agyTestRow, map[string]any{"since_seq": page["to_seq"]})
-	t.Cleanup(func() { n.unwatch(agyTestRow) })
-
-	// This is the file the registered companion produces in the markerless ACP test.
-	receipt, err := os.ReadFile(fixtures + "observed-wake.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	agyTestWrite(t, filepath.Join(n.agyDataRoot(), "brain", agyTestID, agyWakeReceipts), string(receipt))
-	waitFor(t, "the same native export gains its observed wake", func() bool { return len(hub.spans()) > 0 })
-	rows, matchedPage := agyTestItems(t, n, agyTestRow, nil)
-	if len(rows) != 4 || rows[1].ID != prior[1].ID || rows[3].ID != prior[2].ID || !rows[2].Wake ||
-		rows[2].Seq != rows[3].Seq || matchedPage["history"] == page["history"] || hub.spans()[0].fromSeq != 0 {
-		t.Fatalf("observed wake: %+v, span %+v", rows, hub.spans())
-	}
-	agyTestAppend(t, file, lines[2]+background)
-	other, _ := agyTestItems(t, n, agyTestRow, nil)
-	if len(other) != 3 || other[1].ID == prior[1].ID {
-		t.Fatalf("receipt crossed a rewind: %+v", other)
 	}
 }
 
@@ -531,31 +498,30 @@ func TestAgySubagentDetection(t *testing.T) {
 	agyTestFile(t, root, emptyID, "")
 	agyTestFile(t, root, partID, `{"step_index":0,"type":"USER_INPUT","source":"USER_EXPLICIT","content":"still writing"}`)
 
-	// Empty transcript.jsonl falls back to transcript_full.jsonl.
-	agyTestFile(t, root, fullSub, "")
-	fullPath := filepath.Join(root, "brain", fullSub, agyFullTranscriptPath)
-	agyTestWrite(t, fullPath, `{"step_index":0,"type":"SYSTEM_MESSAGE","source":"SYSTEM","content":"Full subagent"}`+"\n")
+	agyTestFile(t, root, fullSub, `{"step_index":0,"type":"SYSTEM_MESSAGE","source":"SYSTEM","content":"Full subagent"}`+"\n")
+	t.Setenv("ANTIGRAVITY_CLI_CONFIG_DIR", root)
+	var n Node
 
 	for _, tc := range []struct {
 		name string
 		id   string
-		want agyTranscriptKind
+		want agy.Kind
 	}{
-		{"system_message_with_source", subSys, agyTranscriptSubagent},
-		{"system_message_without_source", subNoSrc, agyTranscriptSubagent},
-		{"cortex_system_message", subCort, agyTranscriptSubagent},
-		{"user_input_system_source_is_normal", wakeUserS, agyTranscriptNormal},
-		{"error_message_system_source_is_normal", errSys, agyTranscriptNormal},
-		{"user_input_subagent_source", subOther, agyTranscriptSubagent},
-		{"full_transcript_fallback", fullSub, agyTranscriptSubagent},
-		{"normal_explicit_user", normExp, agyTranscriptNormal},
-		{"normal_empty_source", normEmp, agyTranscriptNormal},
-		{"empty_file", emptyID, agyTranscriptEmpty},
-		{"partial_line_without_newline", partID, agyTranscriptEmpty},
-		{"missing_transcript", missID, agyTranscriptMissing},
+		{"system_message_with_source", subSys, agy.Subagent},
+		{"system_message_without_source", subNoSrc, agy.Subagent},
+		{"cortex_system_message", subCort, agy.Subagent},
+		{"user_input_system_source_is_normal", wakeUserS, agy.Normal},
+		{"error_message_system_source_is_normal", errSys, agy.Normal},
+		{"user_input_subagent_source", subOther, agy.Subagent},
+		{"full_transcript", fullSub, agy.Subagent},
+		{"normal_explicit_user", normExp, agy.Normal},
+		{"normal_empty_source", normEmp, agy.Normal},
+		{"empty_file", emptyID, agy.Empty},
+		{"partial_line_without_newline", partID, agy.Empty},
+		{"missing_transcript", missID, agy.Missing},
 	} {
 		t.Run("probe/"+tc.name, func(t *testing.T) {
-			if got := probeAgyConversation(root, tc.id); got != tc.want {
+			if got := n.probeAgyConversation(tc.id); got != tc.want {
 				t.Fatalf("probeAgyConversation(%s) = %v, want %v", tc.id, got, tc.want)
 			}
 		})
@@ -567,15 +533,14 @@ func TestAgySubagentDetection(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() { _ = os.Chmod(unrFile, 0o600) })
-		if got := probeAgyConversation(root, unrID); got != agyTranscriptUnreadable {
-			t.Fatalf("probeAgyConversation(unreadable) = %v, want %v", got, agyTranscriptUnreadable)
+		if got := n.probeAgyConversation(unrID); got != agy.Unreadable {
+			t.Fatalf("probeAgyConversation(unreadable) = %v, want %v", got, agy.Unreadable)
 		}
 	}
 
 	const (
 		refInvoke   = "eeeeeeee-1111-4222-8333-444444444441"
 		refOutOrder = "eeeeeeee-1111-4222-8333-444444444442"
-		refTrunc    = "eeeeeeee-1111-4222-8333-444444444443"
 		refSendMsg  = "eeeeeeee-1111-4222-8333-444444444444"
 		refManage   = "eeeeeeee-1111-4222-8333-444444444445"
 		mentioned   = "ffffffff-1111-4222-8333-444444444441"
@@ -589,25 +554,16 @@ func TestAgySubagentDetection(t *testing.T) {
 		// Parallel tool call where call 0 (run_command) has not landed yet and call 1 (invoke_subagent) arrives first at step 6.
 		`{"step_index":4,"type":"PLANNER_RESPONSE","tool_calls":[{"name":"run_command","args":{"CommandLine":"sleep 5"}},{"name":"invoke_subagent","args":{"Prompt":"parallel"}}]}`,
 		fmt.Sprintf(`{"step_index":6,"type":"GENERIC","content":"conversationId: %s"}`, strings.ToUpper(refOutOrder)),
-		// Truncated invoke_subagent result whose UUID lives in step output.txt.
-		`{"step_index":7,"type":"PLANNER_RESPONSE","tool_calls":[{"name":"invoke_subagent","args":{"Prompt":"truncated"}}]}`,
-		`{"step_index":8,"type":"GENERIC","content":"truncated preview","truncated_fields":["content"]}`,
+
 		// send_message and manage_subagents targeting subagents.
 		fmt.Sprintf(`{"step_index":9,"type":"PLANNER_RESPONSE","tool_calls":[{"name":"send_message","args":{"Recipient":%q,"Message":"hi"}},{"name":"manage_subagents","args":{"Action":"kill","ConversationIds":[%q]}}]}`, refSendMsg, refManage),
 	}, "\n") + "\n"
 	agyTestFile(t, root, parentID, parentTranscript)
-	step8Out := filepath.Join(root, "brain", parentID, ".system_generated", "steps", "8", "output.txt")
-	if err := os.MkdirAll(filepath.Dir(step8Out), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	agyTestWrite(t, step8Out, "Created At: 2026-11-01\nOutput:\nconversationId: "+refTrunc+"\n")
-
 	// Even if a referenced child transcript starts with USER_INPUT, the parent reference flags it as subagent.
 	agyTestFile(t, root, refInvoke, `{"step_index":0,"type":"USER_INPUT","source":"USER_EXPLICIT","content":"child"}`+"\n")
 	agyTestFile(t, root, mentioned, `{"step_index":0,"type":"USER_INPUT","source":"USER_EXPLICIT","content":"unrelated user conv"}`+"\n")
 	agyTestFile(t, root, viewedFile, `{"step_index":0,"type":"USER_INPUT","source":"USER_EXPLICIT","content":"unrelated viewed conv"}`+"\n")
 
-	var n Node
 	for _, tc := range []struct {
 		name      string
 		candidate string
@@ -616,7 +572,6 @@ func TestAgySubagentDetection(t *testing.T) {
 		{"subagent_header", subSys, agyCandidateSubagent},
 		{"referenced_by_invoke_subagent", refInvoke, agyCandidateSubagent},
 		{"referenced_out_of_order_parallel", refOutOrder, agyCandidateSubagent},
-		{"referenced_in_truncated_output", refTrunc, agyCandidateSubagent},
 		{"referenced_by_send_message", refSendMsg, agyCandidateSubagent},
 		{"referenced_by_manage_subagents", refManage, agyCandidateSubagent},
 		{"missing_during_invoke_subagent_race", missID, agyCandidatePending},
@@ -628,13 +583,13 @@ func TestAgySubagentDetection(t *testing.T) {
 		{"normal_new_conversation", normExp, agyCandidateNormal},
 	} {
 		t.Run("classify/"+tc.name, func(t *testing.T) {
-			if got := n.classifyAgyCandidate(root, parentID, tc.candidate); got != tc.want {
+			if got := n.classifyAgyCandidate(parentID, tc.candidate); got != tc.want {
 				t.Fatalf("classifyAgyCandidate(%s) = %v, want %v", tc.candidate, got, tc.want)
 			}
 		})
 	}
 	if os.Geteuid() != 0 {
-		if got := n.classifyAgyCandidate(root, parentID, unrID); got != agyCandidatePending {
+		if got := n.classifyAgyCandidate(parentID, unrID); got != agyCandidatePending {
 			t.Fatalf("classifyAgyCandidate(unreadable) = %v, want %v", got, agyCandidatePending)
 		}
 	}
@@ -808,7 +763,7 @@ func TestAgyPaneLegitimateConversationSwitches(t *testing.T) {
 	waitFor(t, "legitimate switch to new conversation", func() bool { return len(hub.spans()) >= 1 })
 	spans := hub.spans()
 	got := hub.got()
-	wantNextHistory := agyStepsHistory(nextID).token
+	wantNextHistory := "agy-native-v1:" + nextID
 	if len(spans) != 1 || spans[0].fromSeq != 0 || spans[0].toSeq != 1 || spans[0].history != wantNextHistory || len(got) != 1 || got[0].Text != "Fresh conversation" {
 		t.Fatalf("legitimate switch failed: spans=%+v items=%+v", spans, got)
 	}
@@ -831,7 +786,7 @@ func TestAgyPaneLegitimateConversationSwitches(t *testing.T) {
 	// First bind on an unbound pane (pane was cleared by ambiguity above).
 	seedAgents(t, n, f, agyTestAgent(agyTestPane, home, wakeID))
 	items, wakePage := agyTestItems(t, n, agyTestRow, nil)
-	if len(items) != 1 || items[0].Text != "Handled background wake." || wakePage["history"] != agyStepsHistory(wakeID).token {
+	if len(items) != 1 || items[0].Text != "Handled background wake." || wakePage["history"] != "agy-native-v1:"+wakeID {
 		t.Fatalf("first bind to SYSTEM-sourced USER_INPUT conversation failed: page=%+v items=%+v", wakePage, items)
 	}
 	info := agyTestCall(t, n, "session.info", agyTestRow, nil).(map[string]any)
@@ -858,7 +813,7 @@ func TestAgyPaneLegitimateConversationSwitches(t *testing.T) {
 	waitFor(t, "switch from parent to SYSTEM-sourced USER_INPUT conversation", func() bool { return len(hub.spans()) > beforeSwitch })
 	lastSpan := hub.spans()[len(hub.spans())-1]
 	lastItem := hub.got()[len(hub.got())-1]
-	if lastSpan.fromSeq != 0 || lastSpan.history != agyStepsHistory(wakeID).token || lastItem.Text != "Handled background wake." {
+	if lastSpan.fromSeq != 0 || lastSpan.history != "agy-native-v1:"+wakeID || lastItem.Text != "Handled background wake." {
 		t.Fatalf("switch to SYSTEM-sourced USER_INPUT conversation failed: span=%+v item=%+v", lastSpan, lastItem)
 	}
 }
@@ -927,8 +882,8 @@ func TestAgyPaneUpdatedAtAndOrdering(t *testing.T) {
 	rows = listSessions(t, n)
 	paneRow, paneIdx = findRow(rows, agyTestRow)
 	_, offlineIdx = findRow(rows, offlineID)
-	if !paneRow.UpdatedAt.Equal(fileTime) || paneRow.Rev != st.Size() {
-		t.Fatalf("companion fallback = UpdatedAt=%v Rev=%d, want %v / %d", paneRow.UpdatedAt, paneRow.Rev, fileTime, st.Size())
+	if !paneRow.UpdatedAt.Equal(fileTime) || paneRow.Rev != (1<<51)+st.ModTime().UnixMicro() {
+		t.Fatalf("companion fallback = UpdatedAt=%v Rev=%d, want %v / %d", paneRow.UpdatedAt, paneRow.Rev, fileTime, (1<<51)+st.ModTime().UnixMicro())
 	}
 	if paneIdx >= offlineIdx {
 		t.Fatalf("fallback agy pane ranked %d behind older offline row %d", paneIdx, offlineIdx)
@@ -939,8 +894,8 @@ func TestAgyPaneUpdatedAtAndOrdering(t *testing.T) {
 	rows = listSessions(t, n)
 	paneRow, paneIdx = findRow(rows, agyTestRow)
 	_, offlineIdx = findRow(rows, offlineID)
-	if !paneRow.UpdatedAt.Equal(fileTime) || paneRow.Rev != st.Size() {
-		t.Fatalf("standalone merge = UpdatedAt=%v Rev=%d, want %v / %d", paneRow.UpdatedAt, paneRow.Rev, fileTime, st.Size())
+	if !paneRow.UpdatedAt.Equal(fileTime) || paneRow.Rev != (1<<51)+st.ModTime().UnixMicro() {
+		t.Fatalf("standalone merge = UpdatedAt=%v Rev=%d, want %v / %d", paneRow.UpdatedAt, paneRow.Rev, fileTime, (1<<51)+st.ModTime().UnixMicro())
 	}
 	if paneIdx >= offlineIdx {
 		t.Fatalf("standalone agy pane ranked %d behind older offline row %d", paneIdx, offlineIdx)
@@ -957,8 +912,8 @@ func TestAgyPaneUpdatedAtAndOrdering(t *testing.T) {
 	n.runtimes.setSessions(rt, []proto.Session{companion, offline})
 	rows = listSessions(t, n)
 	paneRow, _ = findRow(rows, agyTestRow)
-	if paneRow.Rev != grown.Size() || paneRow.Rev <= standaloneRev || !paneRow.UpdatedAt.Equal(newer) {
-		t.Fatalf("companion back = Rev=%d UpdatedAt=%v, want %d (after %d) / %v", paneRow.Rev, paneRow.UpdatedAt, grown.Size(), standaloneRev, newer)
+	if paneRow.Rev != (1<<51)+grown.ModTime().UnixMicro() || paneRow.Rev <= standaloneRev || !paneRow.UpdatedAt.Equal(newer) {
+		t.Fatalf("companion back = Rev=%d UpdatedAt=%v, want %d (after %d) / %v", paneRow.Rev, paneRow.UpdatedAt, (1<<51)+grown.ModTime().UnixMicro(), standaloneRev, newer)
 	}
 
 	// 5. Unresolved pane with no companion row and no transcript keeps zero UpdatedAt and Rev.
@@ -1027,7 +982,7 @@ func TestAgyPaneSendSavesImagesAndTagsClientMsgID(t *testing.T) {
 	if len(prompted) != 1 {
 		t.Fatalf("prompted %d times for duplicate client_msg_id, want 1", len(prompted))
 	}
-	paths := agyAttachedImagePaths(prompted[0])
+	paths := agy.AttachedImagePaths(prompted[0])
 	if len(paths) != 2 {
 		t.Fatalf("prompt missing 2 saved <attached_images> paths: %q", prompted[0])
 	}
@@ -1038,16 +993,16 @@ func TestAgyPaneSendSavesImagesAndTagsClientMsgID(t *testing.T) {
 	}
 
 	items, _ := agyTestItems(t, n, agyTestRow, nil)
-	if len(items) != 1 || items[0].Role != "user" || items[0].ClientMsgID != "launch-msg-1" || len(agyAttachedImagePaths(items[0].Text)) != 2 {
+	if len(items) != 1 || items[0].Role != "user" || items[0].ClientMsgID != "launch-msg-1" || len(agy.AttachedImagePaths(items[0].Text)) != 2 {
 		t.Fatalf("session.items did not preserve images and client_msg_id: %+v", items)
 	}
 	full := agyTestCall(t, n, "session.item", agyTestRow, map[string]any{"item_id": items[0].ID}).(proto.Item)
-	if full.ClientMsgID != "launch-msg-1" || len(agyAttachedImagePaths(full.Text)) != 2 {
+	if full.ClientMsgID != "launch-msg-1" || len(agy.AttachedImagePaths(full.Text)) != 2 {
 		t.Fatalf("session.item lost client_msg_id or images: %+v", full)
 	}
 	waitFor(t, "watcher push carries client_msg_id and images", func() bool {
 		for _, it := range watchHub.got() {
-			if it.ID == items[0].ID && it.ClientMsgID == "launch-msg-1" && len(agyAttachedImagePaths(it.Text)) == 2 {
+			if it.ID == items[0].ID && it.ClientMsgID == "launch-msg-1" && len(agy.AttachedImagePaths(it.Text)) == 2 {
 				return true
 			}
 		}
@@ -1137,99 +1092,172 @@ func TestAgyPaneSendSavesImagesAndTagsClientMsgID(t *testing.T) {
 	}
 }
 
-func TestAgyPaneHydratesTruncatedStepsFromFullTranscript(t *testing.T) {
-	node, herdr, home := herdrNode(t)
+// An item or image a pane does not have is not_found (404), not an uncoded error the hub serves as 502 (#13470).
+func TestAgyPaneMissingItemIsNotFound(t *testing.T) {
+	n, f, home := herdrNode(t)
 	t.Setenv("ANTIGRAVITY_CLI_CONFIG_DIR", "")
-	seedAgents(t, node, herdr, agyTestAgent(agyTestPane, home, agyTestID))
-
-	fullReply := "Here is the code:\n\n```go\nif pool.IsDefault && pool.HasEndpoints && !pool.Legacy {\n\treturn true\n}\n```\n\n| Scenario | Before | Action | Breaks v1? |\n| --- | --- | --- | --- |\n| Scenario 1 | Pool B | Switch default | Yes |\n| Scenario 2 | Pool A | Add non-default | No |"
-	compactReply := "Here is the code:\n\n```go\nif pool.IsDefault && pool.HasEndpoints && !p\n<truncated 455 bytes>\ng v1? |\n| --- | --- | --- | --- |\n| Scenario 1 | Pool B | Switch default | Yes |\n| Scenario 2 | Pool A | Add non-default | No |"
-	fullThinking := "Full chain of reasoning across all pools and endpoints."
-	compactThinking := "Full chain <truncated 40 bytes> endpoints."
-	fullUser := "Explain why ValidateLegacySDKDefaults rejected Pool B allocation across all channels."
-	compactUser := "Explain why <truncated 55 bytes> channels."
-	fullErr := "API Error: upstream gateway returned detailed quota diagnostics for all pools."
-	compactErr := "API Error: upstream <truncated 45 bytes> pools."
-
-	compact := strings.Join([]string{
-		fmt.Sprintf(`{"step_index":0,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","created_at":"2026-11-27T09:39:50Z","content":%q,"truncated_fields":["content"]}`, compactUser),
-		`{"step_index":1,"type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-11-27T09:39:51Z","tool_calls":[{"name":"run_command","args":{"CommandLine":"cat big.log"}}]}`,
-		`{"step_index":2,"type":"GENERIC","status":"DONE","created_at":"2026-11-27T09:39:52Z","content":"head <truncated 9000 bytes> tail","truncated_fields":["content"]}`,
-		fmt.Sprintf(`{"step_index":3,"type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-11-27T09:39:57Z","thinking":%q,"content":%q,"truncated_fields":["thinking","content"]}`, compactThinking, compactReply),
-		fmt.Sprintf(`{"step_index":4,"type":"ERROR_MESSAGE","status":"ERROR","created_at":"2026-11-27T09:39:59Z","error":%q,"truncated_fields":["error"]}`, compactErr),
-	}, "\n") + "\n"
-	agyTestFile(t, node.agyDataRoot(), agyTestID, compact)
-
-	// Without transcript_full.jsonl, falls back gracefully to compact transcript.jsonl.
-	items, _ := agyTestItems(t, node, agyTestRow, nil)
-	if len(items) != 6 {
-		t.Fatalf("expected 6 items without full transcript, got %d: %+v", len(items), items)
-	}
-	if !strings.Contains(items[4].Text, "<truncated 455 bytes>") {
-		t.Fatalf("expected compact fallback reply, got %q", items[4].Text)
-	}
-
-	// Write transcript_full.jsonl with an earlier RUNNING step 3 followed by DONE step 3,
-	// plus a large GENERIC line that must remain lazy (not loaded into session.items).
-	fullPath := filepath.Join(node.agyDataRoot(), "brain", agyTestID, agyFullTranscriptPath)
-	full := strings.Join([]string{
-		fmt.Sprintf(`{"step_index":0,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","created_at":"2026-11-27T09:39:50Z","content":%q}`, fullUser),
-		`{"step_index":1,"type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-11-27T09:39:51Z","tool_calls":[{"name":"run_command","args":{"CommandLine":"cat big.log"}}]}`,
-		`{"step_index":2,"type":"GENERIC","status":"DONE","created_at":"2026-11-27T09:39:52Z","content":"HUGE_TOOL_OUTPUT_ONLY_FOR_LAZY_OUTPUT_TXT"}`,
-		`{"step_index":3,"type":"PLANNER_RESPONSE","status":"RUNNING","created_at":"2026-11-27T09:39:57Z","thinking":"partial thinking","content":"partial reply"}`,
-		fmt.Sprintf(`{"step_index":3,"type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-11-27T09:39:57Z","thinking":%q,"content":%q}`, fullThinking, fullReply),
-		fmt.Sprintf(`{"step_index":4,"type":"ERROR_MESSAGE","status":"ERROR","created_at":"2026-11-27T09:39:59Z","error":%q}`, fullErr),
-	}, "\n") + "\n"
-	agyTestWrite(t, fullPath, full)
-
-	// Start watcher before/after check: session.items and session.item should return untruncated prose,
-	// while GENERIC keeps its compact text (lazy output.txt handles full tool output).
-	items, _ = agyTestItems(t, node, agyTestRow, nil)
-	if len(items) != 6 {
-		t.Fatalf("expected 6 hydrated items, got %d: %+v", len(items), items)
-	}
-	if items[0].Text != fullUser {
-		t.Fatalf("user input not hydrated:\ngot:  %q\nwant: %q", items[0].Text, fullUser)
-	}
-	if items[2].Kind != proto.KindToolResult || strings.Contains(items[2].Text, "HUGE_TOOL_OUTPUT_ONLY_FOR_LAZY_OUTPUT_TXT") {
-		t.Fatalf("GENERIC tool result should stay compact in session.items, got %+v", items[2])
-	}
-	if items[3].Kind != proto.KindThinking || items[3].Text != fullThinking {
-		t.Fatalf("thinking not hydrated:\ngot:  %q\nwant: %q", items[3].Text, fullThinking)
-	}
-	if items[4].Kind != proto.KindText || items[4].Text != fullReply {
-		t.Fatalf("reply not hydrated:\ngot:  %q\nwant: %q", items[4].Text, fullReply)
-	}
-	if items[5].Kind != proto.KindText || items[5].Text != fullErr {
-		t.Fatalf("error not hydrated:\ngot:  %q\nwant: %q", items[5].Text, fullErr)
-	}
-
-	itemDetail := agyTestCall(t, node, "session.item", agyTestRow, map[string]any{"item_id": items[4].ID}).(proto.Item)
-	if itemDetail.Text != fullReply {
-		t.Fatalf("session.item reply not hydrated:\ngot:  %q\nwant: %q", itemDetail.Text, fullReply)
-	}
-
-	// Verify cached fold.steps in n.agyParses was not mutated in place: removing transcript_full.jsonl
-	// must cleanly revert to compact transcript.jsonl.
-	if err := os.Remove(fullPath); err != nil {
-		t.Fatal(err)
-	}
-	reverted, _ := agyTestItems(t, node, agyTestRow, nil)
-	if !strings.Contains(reverted[4].Text, "<truncated 455 bytes>") {
-		t.Fatalf("cached fold.steps was mutated in place; expected compact text after removing full transcript, got %q", reverted[4].Text)
-	}
-
-	// Verify live watcher pushes an in-place update when transcript_full.jsonl arrives after transcript.jsonl.
-	watchHub := withHub(t, node)
-	agyTestCall(t, node, "session.watch", agyTestRow, map[string]any{"since_seq": 0})
-	agyTestWrite(t, fullPath, full)
-	node.pollWatchedAgyPane(agyTestRow)
-	waitFor(t, "watcher pushes hydrated full reply in place", func() bool {
-		for _, it := range watchHub.got() {
-			if it.ID == items[4].ID && it.Text == fullReply {
-				return true
-			}
+	seedAgents(t, n, f, agyTestAgent(agyTestPane, home, agyTestID), agentOf(cursorAgent, "", proto.StatusIdle, "w1:p2", "w1:t1", "w1", home, "cursor"))
+	agyTestFile(t, n.agyDataRoot(), agyTestID, `{"step_index":0,"type":"USER_INPUT","content":"Hello"}`+"\n")
+	for _, c := range []struct{ method, session string }{
+		{"session.item", agyTestRow},
+		{"session.image", agyTestRow},
+		{"session.item", "cursor-w1-p2"},
+		{"session.image", "cursor-w1-p2"},
+	} {
+		raw, _ := json.Marshal(map[string]any{"session_id": c.session, "item_id": "missing#0"})
+		_, err := n.handle(t.Context(), c.method, raw)
+		var re *rpc.Error
+		if !errors.As(err, &re) || re.Code != proto.CodeNotFound {
+			t.Fatalf("%s of %s: %v, want %s", c.method, c.session, err, proto.CodeNotFound)
 		}
-		return false
-	})
+	}
+}
+
+func TestAgyReaderRefreshCompletesWhileNodeMutexIsHeld(t *testing.T) {
+	n := &Node{home: t.TempDir()}
+	t.Setenv("ANTIGRAVITY_CLI_CONFIG_DIR", "")
+	file := agyTestFile(t, n.agyDataRoot(), agyTestID, `{"step_index":0,"type":"USER_INPUT","content":"Start"}`+"\n")
+	if _, ok := n.agyTranscript(agyTestID); !ok {
+		t.Fatal("could not prime transcript")
+	}
+	agyTestAppend(t, file, `{"step_index":1,"type":"PLANNER_RESPONSE","content":"Latest"}`+"\n")
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	done := make(chan *agy.Projection, 1)
+	go func() {
+		h, _ := n.agyTranscript(agyTestID)
+		done <- h
+	}()
+	select {
+	case h := <-done:
+		if h == nil || len(h.Items()) != 2 || h.Items()[1].Text != "Latest" {
+			t.Fatalf("append did not reach the reader: %+v", h)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("shared reader was blocked by Node.mu")
+	}
+}
+
+func TestAgyPaneAndRuntimeServeIdenticalCorpusPages(t *testing.T) {
+	for _, name := range []string{"agy-tools", "agy-system"} {
+		t.Run(name, func(t *testing.T) {
+			n, herdr, home := herdrNode(t)
+			t.Setenv("ANTIGRAVITY_CLI_CONFIG_DIR", "")
+			data, err := os.ReadFile(filepath.Join("harness", "agy", "testdata", name+".jsonl"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			agyTestFile(t, n.agyDataRoot(), agyTestID, string(data))
+			seedAgents(t, n, herdr, agyTestAgent(agyTestPane, home, agyTestID))
+			n.runtimes = newRuntimeRegistry()
+			h := n.runtimes.add(nil)
+			h.ready, h.hello.Runtime, h.hello.Agent = true, agyRuntimeID, agyAgent
+			rh := &RuntimeHost{reg: n.runtimes, node: n}
+			const sid = "agy-" + agyTestID
+			raw, _ := json.Marshal(map[string]any{"sessions": []map[string]any{{"session_id": sid, "agy_conversation": agyTestID,
+				"cwd": home, "status": "working", "model": "runtime-model", "turn_error": "runtime-owned error", "context_tokens": 42,
+				"is_subagent": true, "parent_session_id": "parent"}}})
+			rh.event(h, "runtime.sessions", raw)
+			if n.runtimes.agyOf(sid).Conversation != agyTestID {
+				t.Fatal("runtime row did not authorize the conversation")
+			}
+			for _, params := range []map[string]any{nil, {"after_seq": 0}, {"limit": 7}, {"turns": 1, "fold_work": true}} {
+				pane := agyTestCall(t, n, "session.items", agyTestRow, params)
+				runtime := agyTestCall(t, n, "session.items", sid, params)
+				p, _ := json.Marshal(pane)
+				r, _ := json.Marshal(runtime)
+				if string(p) != string(r) {
+					t.Fatalf("page mismatch: %v", params)
+				}
+			}
+			pane := agyTestCall(t, n, "session.info", agyTestRow, nil).(map[string]any)
+			runtime := agyTestCall(t, n, "session.info", sid, nil).(map[string]any)
+			if runtime["model"] != "runtime-model" || runtime["context_tokens"] != pane["context_tokens"] || runtime["context_window"] != 512_000 || runtime["output_tokens"] != pane["output_tokens"] {
+				t.Fatalf("runtime info = %+v, pane info = %+v", runtime, pane)
+			}
+			row, _ := h.row(sid)
+			n.mergeRuntimeAgy(&row, h.agyOf(sid))
+			if row.Model != "runtime-model" || row.Status != "working" || row.TurnError != "runtime-owned error" || row.ContextTokens == 42 || row.Facets == nil {
+				t.Fatalf("runtime/control merge: %+v", row)
+			}
+			encoded, _ := json.Marshal(row)
+			if strings.Contains(string(encoded), `"agy_conversation"`) || strings.Contains(string(encoded), `"agy_root"`) {
+				t.Fatal("local brain reference escaped into a wire row")
+			}
+		})
+	}
+}
+
+func TestAgyRuntimeWatchForwardsOnlyLiveTextAndTagsDiskEchoes(t *testing.T) {
+	n, _, home := herdrNode(t)
+	t.Setenv("ANTIGRAVITY_CLI_CONFIG_DIR", "")
+	file := agyTestFile(t, n.agyDataRoot(), agyTestID, `{"step_index":0,"type":"USER_INPUT","content":"Earlier input"}`+"\n")
+	n.runtimes = newRuntimeRegistry()
+	h := n.runtimes.add(nil)
+	h.ready, h.hello.Runtime, h.hello.Agent = true, agyRuntimeID, agyAgent
+	const id = "agy-" + agyTestID
+	n.runtimes.setSessions(h, []proto.Session{{SessionID: id, Agent: agyAgent, Cwd: home}})
+	h.setAgyRefs(map[string]runtimeAgyFields{id: {Conversation: json.RawMessage(`"` + agyTestID + `"`)}}, home)
+	callCount := 0
+	call := func(method string, params any) (json.RawMessage, error) {
+		t.Helper()
+		p := params.(map[string]any)
+		if p["transcript"] != true || p["session_id"] != id || method != "session.watch" && method != "session.unwatch" {
+			t.Fatalf("runtime watch parameters: %s %v", method, p)
+		}
+		callCount++
+		return nil, nil
+	}
+	base := n.agyEchoBase(id, "")
+	if base.in != echoInTranscript || base.seq != 1 {
+		t.Fatalf("echo base: %+v", base)
+	}
+	if _, err, ok := n.runtimeAgyCall(t.Context(), h, "session.watch", runtimeCallParams{SessionID: id, SinceSeq: base.seq, History: base.history}, nil, call); !ok || err != nil {
+		t.Fatalf("watch: %v, handled %t", err, ok)
+	}
+	t.Cleanup(func() { n.unwatch(id) })
+	n.echoes.expect(echoRecord{SessionID: id, ClientMsgID: "message-id", Text: "New input", In: echoInTranscript,
+		SentAt: time.Now(), AfterSeq: base.seq, History: base.history})
+	agyTestAppend(t, file, fmt.Sprintf(`{"step_index":1,"type":"USER_INPUT","content":"New input","created_at":%q}`+"\n", time.Now().UTC().Format(time.RFC3339Nano)))
+	n.pollWatchedAgyPane(id)
+	items, _ := agyTestItems(t, n, id, nil)
+	if len(items) != 2 || items[1].ClientMsgID != "message-id" {
+		t.Fatalf("node did not tag the runtime row's disk echo: %+v", items)
+	}
+	if _, err, ok := n.runtimeAgyCall(t.Context(), h, "session.unwatch", runtimeCallParams{SessionID: id}, nil, call); !ok || err != nil || callCount != 2 {
+		t.Fatalf("unwatch: %v, handled %t, %d calls", err, ok, callCount)
+	}
+}
+
+func TestAgyRuntimeReferencesAreConfinedToSupportedLocalRoots(t *testing.T) {
+	n := &Node{home: t.TempDir()}
+	t.Setenv("ANTIGRAVITY_CLI_CONFIG_DIR", "")
+	desktop := filepath.Join(n.home, ".gemini", "antigravity")
+	agyTestFile(t, n.agyDataRoot(), agyTestID, "")
+	agyTestFile(t, desktop, agyTestID, "")
+	for _, c := range []struct {
+		runtime, root, id, want string
+		daemon                  bool
+	}{
+		{agyRuntimeID, "", agyTestID, n.agyDataRoot(), false},
+		{agyDesktopRuntimeID, `"desktop"`, agyTestID, desktop, false},
+		{agyRuntimeID, `"desktop"`, agyTestID, "", false},
+		{agyRuntimeID, `""`, agyTestID, "", false},
+		{agyDesktopRuntimeID, `"/tmp/example"`, agyTestID, "", false},
+		{agyDesktopRuntimeID, "", agyTestID, "", false},
+		{agyRuntimeID, "", "a1111111-2222-4333-8444-555555555555", "", false},
+		{agyRuntimeID, "", "A1111111-2222-4333-8444-555555555555", "", false},
+		{agyRuntimeID, "", "../escape", "", false},
+		{agyRuntimeID, "", agyTestID, "", true},
+		{"unrelated-runtime", "", agyTestID, "", false},
+	} {
+		h := &runtimeConn{hello: runtimeHello{Runtime: c.runtime}}
+		if c.daemon {
+			h.daemon = "remote"
+		}
+		fields := runtimeAgyFields{Conversation: json.RawMessage(fmt.Sprintf("%q", c.id)), Root: json.RawMessage(c.root)}
+		if got := fields.ref(h, n.home); got.Root != c.want {
+			t.Errorf("%v: got %q, want %q", c, got.Root, c.want)
+		}
+	}
 }

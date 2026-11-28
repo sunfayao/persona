@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/node/harness/agy"
 )
 
 // Antigravity CLI (agy) buffers follow-up prompts typed while busy in TUI memory and draws them above the prompt as
@@ -80,7 +81,7 @@ func cleanAgyQueuedPreview(s string) string {
 
 func normalizeAgyQueueText(s string) string {
 	s = agyAttachedImagesBlockRE.ReplaceAllString(s, " ")
-	s = agyUserText(s)
+	s = agy.UserText(s)
 	return strings.Join(strings.Fields(s), " ")
 }
 
@@ -166,7 +167,7 @@ func (n *Node) agyQueuedFor(id, pane string) []string {
 	for _, item := range trackedSnap {
 		if item.watch == nil {
 			if w := n.watchAgySend(id, pane, item.text, item.at); w != nil {
-				w.off, w.info, w.rest = 0, nil, nil
+				w.before = nil
 				w.requireTime = true
 				item.watch = w
 			}

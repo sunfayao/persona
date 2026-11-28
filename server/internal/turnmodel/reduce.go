@@ -56,6 +56,15 @@ func Reduce(items []proto.Item) Snapshot {
 				planAt = item.TS
 			}
 		}
+		if notice := item.Facets.Notice; notice != nil && notice.Code == proto.NoticeCodeServerRestart {
+			clear(timers)
+			clear(fired)
+			for _, running := range slices.SortedFunc(maps.Values(background), func(a, b backgroundTask) int { return cmp.Compare(a.order, b.order) }) {
+				task := proto.TaskFacet{ID: running.task.ID, Kind: running.task.Kind, Status: proto.TaskStatusCancelled}
+				out.BackgroundEnded = updateBackground(background, out.BackgroundEnded, i, item.TS, task)
+			}
+		}
+
 		if task := item.Facets.Task; task != nil {
 			switch task.Kind {
 			case proto.TaskKindTimer:
@@ -158,6 +167,20 @@ func updateBackground(active map[string]backgroundTask, ended []proto.Background
 	case proto.TaskStatusRunning, proto.TaskStatusWaiting, proto.TaskStatusEvent:
 		active[facet.ID] = work
 	case proto.TaskStatusCompleted, proto.TaskStatusFailed, proto.TaskStatusCancelled:
+		if !ok {
+			// A command can be stopped by a control call and then confirmed by a native notice.
+			for i := len(ended) - 1; i >= 0; i-- {
+				if ended[i].ID == facet.ID {
+					work.task.StartedAt = ended[i].StartedAt
+					work.task.Command = cmp.Or(work.task.Command, ended[i].Command)
+					work.task.Description = cmp.Or(work.task.Description, ended[i].Description)
+					work.task.OutputFile = cmp.Or(work.task.OutputFile, ended[i].OutputFile)
+					work.task.ExitCode = ended[i].ExitCode
+					ended = slices.Delete(ended, i, i+1)
+					break
+				}
+			}
+		}
 		delete(active, facet.ID)
 		work.task.Status = facet.Status
 		work.task.EndedAt = &at

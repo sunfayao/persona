@@ -171,6 +171,14 @@ func (n *Node) assistantHandoffRuntime(ctx context.Context, id string) (Handoff,
 	if host == nil {
 		return Handoff{}, refusal("gone", "The runtime conversation history is unavailable.", nil)
 	}
+	if ref := host.agyOf(id); ref.Conversation != "" {
+		h, err := n.agyReader().Read(ref)
+		if err != nil {
+			return Handoff{}, err
+		}
+		summary, after := h.Compaction()
+		return Handoff{Summary: clipHandoff(summary, handoffSummaryMax), Recent: recentTurns(h.Items(), after)}, nil
+	}
 	var page struct {
 		Items []proto.Item `json:"items"`
 	}

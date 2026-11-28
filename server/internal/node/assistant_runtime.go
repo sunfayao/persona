@@ -255,7 +255,14 @@ func (n *Node) assistantSendRuntime(ctx context.Context, h *runtimeConn, id, cwd
 	if !command {
 		n.ttft.arm(id, sentAt, "")
 	}
-	if err := h.peer.Call(cctx, "session.send", params, &said); err != nil {
+	send := func() error { return h.peer.Call(cctx, "session.send", params, &said) }
+	var sendErr error
+	if cm := clientMsgIDFrom(ctx); cm != "" && h.agyOf(id).Conversation != "" {
+		sendErr = n.sendEchoed(id, cm, text, len(images), n.agyEchoBase(id, ""), send)
+	} else {
+		sendErr = send()
+	}
+	if err := sendErr; err != nil {
 		if !command && !maybeDelivered(err) {
 			n.ttft.disarm(id, sentAt)
 		}
@@ -349,12 +356,18 @@ func (n *Node) runtimeStartWith(ctx context.Context, h *runtimeConn, params map[
 	cctx, cancel := context.WithTimeout(ctx, runtimeCallTimeout)
 	defer cancel()
 	var res struct {
-		Session proto.Session `json:"session"`
+		Session json.RawMessage `json:"session"`
 	}
 	if err := h.peer.Call(cctx, "session.start", params, &res); err != nil {
 		return nil, err
 	}
-	return n.listStarted(h, res.Session, "")
+	var row proto.Session
+	var fields runtimeAgyFields
+	if err := json.Unmarshal(res.Session, &row); err != nil {
+		return nil, err
+	}
+	_ = json.Unmarshal(res.Session, &fields)
+	return n.listStarted(h, row, "", fields)
 }
 
 // runtimeInstructions is the first message's instructions for an assistant on a runtime: the memory it shares with

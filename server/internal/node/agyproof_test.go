@@ -28,11 +28,12 @@ func writeAgyProofConv(t *testing.T, root string, c agyProofConv) {
 	content := "<USER_REQUEST>\n" + c.text + "\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\nlocal time\n</ADDITIONAL_METADATA>"
 	created := c.at.UTC().Format(time.RFC3339)
 	reply := fmt.Sprintf(`{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":%q,"content":"On it."}`+"\n", created)
-	compact := fmt.Sprintf(`{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","status":"DONE","created_at":%q,"content":%q,"truncated_fields":["content"]}`+"\n", created, content[:24])
-	agyTestFile(t, root, c.id, compact+reply)
-	if !c.cutOnly {
+	if c.cutOnly {
+		file := filepath.Join(root, "brain", c.id, ".system_generated", "logs", "transcript.jsonl")
+		writeFile(t, file, fmt.Sprintf(`{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","status":"DONE","created_at":%q,"content":%q}`+"\n", created, content)+reply)
+	} else {
 		full := fmt.Sprintf(`{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","status":"DONE","created_at":%q,"content":%q}`+"\n", created, content)
-		agyTestWrite(t, filepath.Join(root, "brain", c.id, agyFullTranscriptPath), full+reply)
+		agyTestFile(t, root, c.id, full+reply)
 	}
 	lock := filepath.Join(root, "presence", c.id+".lock")
 	writeFile(t, lock, "")
@@ -69,6 +70,7 @@ func writeAgyProofConv(t *testing.T, root string, c agyProofConv) {
 const agyProofPrompt = "Fix the flaky test.\n  Report what you changed."
 
 func TestAgyProofCandidates(t *testing.T) {
+	var n Node
 	began := time.Now().Add(-time.Minute)
 	after := began.Add(5 * time.Second)
 	want := shownText(agyProofPrompt)
@@ -114,14 +116,14 @@ func TestAgyProofCandidates(t *testing.T) {
 			for _, c := range tc.convs(cwd, other) {
 				writeAgyProofConv(t, root, c)
 			}
-			got := agyProofCandidates(root, cwd, want, began)
+			got := n.agyProofCandidates(root, cwd, want, began)
 			slices.Sort(got)
 			if !slices.Equal(got, tc.found) {
 				t.Fatalf("candidates %v, want %v", got, tc.found)
 			}
 		})
 	}
-	if got := agyProofCandidates(t.TempDir(), t.TempDir(), want, began); len(got) != 0 {
+	if got := n.agyProofCandidates(t.TempDir(), t.TempDir(), want, began); len(got) != 0 {
 		t.Fatalf("no agy data: %v", got)
 	}
 }

@@ -318,3 +318,18 @@ func TestLocalizedPaseoLines(t *testing.T) {
 		}
 	}
 }
+
+func TestCanonicalNoticeCodesLocalizeWithoutNativeText(t *testing.T) {
+	for _, lang := range []i18n.Lang{i18n.En, i18n.ZhHans, i18n.Ja} {
+		items := []proto.Item{
+			{Kind: proto.KindNotice, Text: "native line", Facets: &proto.ItemFacets{Notice: &proto.NoticeFacet{Code: proto.NoticeCodeAPIError, Args: map[string]string{"error": "network timeout"}}}},
+			{Kind: proto.KindNotice, Text: "native line", Facets: &proto.ItemFacets{Notice: &proto.NoticeFacet{Code: proto.NoticeCodeTaskUpdate}}, Task: &proto.TaskNote{Kind: "shell", Status: "completed", Title: "sample command"}},
+			{Kind: proto.KindNotice, Text: "unknown future wording", Facets: &proto.ItemFacets{Notice: &proto.NoticeFacet{Code: "future_notice"}}},
+		}
+		got := localizedItems(lang, items)
+		if got[0].Text != tt(lang, "api_error", i18n.Args{"error": "network timeout"}) ||
+			got[1].Text != tt(lang, "shell_completed")+" · sample command" || got[2].Text != items[2].Text || items[0].Text != "native line" {
+			t.Errorf("%s notices: %+v", lang, got)
+		}
+	}
+}

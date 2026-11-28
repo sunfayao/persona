@@ -38,20 +38,6 @@ func contextWindowOf(model string, recorded, used int) int {
 	return 0
 }
 
-// agyBuiltinContextWindow resolves built-in context windows for Antigravity (agy) models when neither the transcript
-// nor a managed launcher or agyModelList declares a window: Claude rules plus native 1M Gemini models. Generic
-// contextWindowOf stays Claude-only so undeclared gateway models routed through Claude CLI remain 0.
-func agyBuiltinContextWindow(model string, used int) int {
-	if w := contextWindowOf(model, 0, used); w > 0 {
-		return w
-	}
-	id := strings.ToLower(strings.TrimSpace(model))
-	if geminiID := geminiModelAfterRoute(id); geminiID != "" && geminiNative1M(geminiID) {
-		return claudeWindow1M
-	}
-	return 0
-}
-
 // lookupProviderModel finds model in l.Models, matching exact base IDs first, then "/" route suffixes from longest to
 // shortest, and finally proto.SameLauncherModel (where the declared ID carries a vendor prefix and the transcript
 // echoes the bare ID). Bracketed placeholders ("<synthetic>") match nothing.
@@ -148,54 +134,6 @@ func claudeModelAfterRoute(id string) string {
 		}
 	}
 	return ""
-}
-
-// geminiModelAfterRoute is id or, for a gateway's routed name ("google-antigravity/gemini-4-neon"), the Gemini model
-// after its last "/"; "" when neither names a Gemini model. id is lower case.
-func geminiModelAfterRoute(id string) string {
-	if strings.HasPrefix(id, "gemini-") {
-		return id
-	}
-	if i := strings.LastIndexByte(id, '/'); i >= 0 {
-		if tail := id[i+1:]; strings.HasPrefix(tail, "gemini-") {
-			return tail
-		}
-	}
-	return ""
-}
-
-// geminiNative1M reports Gemini models with a native 1M-token context window (Gemini 2.5+, 3.x, 4.x, and Antigravity's
-// gemini-pro-orchestrator variants). Unknown/opaque model IDs return false so callers still degrade honestly to 0.
-func geminiNative1M(id string) bool {
-	id, _, _ = strings.Cut(id, "@")
-	if strings.HasPrefix(id, "gemini-pro-orchestrator") {
-		return true
-	}
-	rest := strings.TrimPrefix(id, "gemini-")
-	if rest == id || rest == "" {
-		return false
-	}
-	sep := strings.IndexAny(rest, "-.")
-	ver := rest
-	if sep >= 0 {
-		ver = rest[:sep]
-	}
-	major, ok := modelVersionPart(ver)
-	if !ok {
-		return false
-	}
-	if major >= 3 {
-		return true
-	}
-	if major == 2 && sep >= 0 && rest[sep] == '.' {
-		tail := rest[sep+1:]
-		if end := strings.IndexAny(tail, "-."); end >= 0 {
-			tail = tail[:end]
-		}
-		minor, ok := modelVersionPart(tail)
-		return ok && minor >= 5
-	}
-	return false
 }
 
 // claudeNative1M reports a Claude model whose window is 1M without the "[1m]" opt-in, as Claude Code's own model list
@@ -509,7 +447,7 @@ func (n *Node) setRuntimeSessionContext(s *proto.Session, m quickMeta) {
 // applyLauncherContextWindow fills ContextWindow on a decorated non-Codex row (such as a cached offline Claude row)
 // whose transcript reported tokens without a recorded window before Launcher or the launcher catalog was available.
 func (n *Node) applyLauncherContextWindow(s *proto.Session) {
-	if n == nil || s == nil || s.ContextTokens == 0 || s.Launcher == "" || s.Agent == "codex" || s.ModelFallback != nil {
+	if n == nil || s == nil || s.ContextTokens == 0 || s.Launcher == "" || (s.Agent == "codex" || s.Agent == agyAgent) || s.ModelFallback != nil {
 		return
 	}
 	if s.ContextWindow != 0 && s.ContextWindow != claudeWindow {
@@ -525,18 +463,6 @@ func (n *Node) applyLauncherContextWindow(s *proto.Session) {
 	}
 	var w int
 	switch {
-	case s.Agent == agyAgent:
-		var candidates []string
-		if req != "" && req != s.Model {
-			candidates = agyModelCandidates(s.Model, req)
-		} else {
-			candidates = agyModelCandidates(s.Model)
-		}
-		if len(candidates) > 0 {
-			w = launcherContextWindow(l, candidates[0], candidates[1:]...)
-		} else if l.MaxContext > 0 {
-			w = l.MaxContext
-		}
 	case req != "" && req != s.Model:
 		w = launcherContextWindow(l, s.Model, req)
 	default:

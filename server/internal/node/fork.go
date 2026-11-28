@@ -168,32 +168,40 @@ func (n *Node) forkOnRuntime(ctx context.Context, h *runtimeConn, source proto.S
 	ctx, cancel := context.WithTimeout(ctx, runtimeCallTimeout)
 	defer cancel()
 	var out struct {
-		ID      string         `json:"session_id"`
-		Session *proto.Session `json:"session"`
+		ID      string          `json:"session_id"`
+		Session json.RawMessage `json:"session"`
 	}
 	assistant := n.runtimeAssistant(source.SessionID)
 	if err := h.peer.Call(ctx, "session.fork", map[string]any{"session_id": source.SessionID, "at_item_id": at, "assistant": assistant}, &out); err != nil {
 		return "", err
 	}
-	if !runtimeIDRe.MatchString(out.ID) || out.ID == source.SessionID || out.Session != nil && out.Session.SessionID != out.ID {
+	var row *proto.Session
+	var fields runtimeAgyFields
+	if len(out.Session) > 0 {
+		if err := json.Unmarshal(out.Session, &row); err != nil {
+			return "", err
+		}
+		_ = json.Unmarshal(out.Session, &fields)
+	}
+	if !runtimeIDRe.MatchString(out.ID) || out.ID == source.SessionID || row != nil && row.SessionID != out.ID {
 		return "", errors.New("runtime returned an invalid forked session")
 	}
 	n.runtimes.claim(h, out.ID)
-	if assistant || out.Session != nil && identity.IsAssistantDir(out.Session.Cwd) {
+	if assistant || row != nil && identity.IsAssistantDir(row.Cwd) {
 		st, _ := n.state.get(source.SessionID)
 		st.Cwd = firstNonEmpty(st.Cwd, source.Cwd)
 		st.Launcher = firstNonEmpty(st.Launcher, source.Launcher)
 		st.Model = firstNonEmpty(st.Model, source.Model)
-		if out.Session != nil {
-			st.Cwd = firstNonEmpty(st.Cwd, out.Session.Cwd)
-			st.Launcher = firstNonEmpty(st.Launcher, out.Session.Launcher)
+		if row != nil {
+			st.Cwd = firstNonEmpty(st.Cwd, row.Cwd)
+			st.Launcher = firstNonEmpty(st.Launcher, row.Launcher)
 		}
 		n.state.put(out.ID, sessionState{Cwd: st.Cwd, Launcher: st.Launcher, Model: st.Model,
 			ModelFingerprint: st.ModelFingerprint, ModelEffort: st.ModelEffort, AppMode: st.AppMode, AppEffort: st.AppEffort,
 			Origin: st.Origin, OriginKnown: true, StartedAt: time.Now().UTC()})
 	}
-	if out.Session != nil {
-		if _, err := n.listStarted(h, *out.Session, ""); err != nil {
+	if row != nil {
+		if _, err := n.listStarted(h, *row, "", fields); err != nil {
 			return "", err
 		}
 	}

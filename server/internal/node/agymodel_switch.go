@@ -35,6 +35,23 @@ func agyModelEffort(model string) string {
 	return ""
 }
 
+// trimAgyEffortSuffix strips one trailing Antigravity effort suffix (-low, -medium, -high, -xhigh, -max)
+// so catalog/provider lookups match base model IDs (e.g. gemini-4-carbon-high -> gemini-4-carbon).
+func trimAgyEffortSuffix(model string) string {
+	trimmed := strings.TrimSpace(model)
+	if trimmed == "" {
+		return ""
+	}
+	base := proto.TrimModelWindow(trimmed)
+	lower := strings.ToLower(base)
+	for _, level := range proto.EffortLevels {
+		if strings.HasSuffix(lower, "-"+level) && len(base) > len(level)+1 {
+			return base[:len(base)-len(level)-1]
+		}
+	}
+	return ""
+}
+
 func agyModelWithEffort(model, effort string) string {
 	effort = strings.TrimSpace(effort)
 	if effort == "" {
@@ -198,8 +215,9 @@ func (n *Node) agyObservedModel(id, pane string) string {
 		if runtimeRow, _, ok := n.runtimes.rowOf(agyAgent + "-" + conversation); ok && runtimeRow.Model != "" {
 			return runtimeRow.Model
 		}
-		if u, ok := n.agyTranscriptMeta(conversation); ok && u.model != "" {
-			return u.model
+		if h, ok := n.agyTranscript(conversation); ok {
+			model, _ := h.Model()
+			return model
 		}
 	}
 	return ""
@@ -209,8 +227,8 @@ func (n *Node) agyCurrentModel(id, pane string) string {
 	observed := n.agyObservedModel(id, pane)
 	var observedAt time.Time
 	if conversation := n.agyConversation(id, pane); conversation != "" {
-		if u, ok := n.agyTranscriptMeta(conversation); ok {
-			observedAt = u.modelAt
+		if h, ok := n.agyTranscript(conversation); ok {
+			_, observedAt = h.Model()
 		}
 	}
 	s := proto.Session{SessionID: id, Model: observed}
@@ -320,8 +338,8 @@ func (n *Node) applyAgyPaneModes(s *proto.Session, transcriptModelAt time.Time) 
 func (n *Node) applyAgyPaneInfo(id, conversation string, info map[string]any) {
 	var transcriptModelAt time.Time
 	if conversation != "" {
-		if u, ok := n.agyTranscriptMeta(conversation); ok {
-			transcriptModelAt = u.modelAt
+		if h, ok := n.agyTranscript(conversation); ok {
+			_, transcriptModelAt = h.Model()
 		}
 	}
 	model, _ := info["model"].(string)
@@ -331,8 +349,8 @@ func (n *Node) applyAgyPaneInfo(id, conversation string, info map[string]any) {
 	if conversation != "" {
 		if runtimeRow, _, ok := n.runtimes.rowOf(agyAgent + "-" + conversation); ok && runtimeRow.Model != "" {
 			observed = runtimeRow.Model
-		} else if u, ok := n.agyTranscriptMeta(conversation); ok && u.model != "" {
-			observed = u.model
+		} else if h, ok := n.agyTranscript(conversation); ok {
+			observed, _ = h.Model()
 		}
 	}
 	row := proto.Session{SessionID: id, Model: observed, Effort: effort}

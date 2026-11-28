@@ -180,6 +180,13 @@ func (n *Node) runtimeHandle(ctx context.Context, h *runtimeConn, method string,
 	}
 	var p runtimeCallParams
 	_ = json.Unmarshal(params, &p)
+	agyRef := h.agyOf(p.SessionID)
+	if agyRef.Conversation != "" {
+		if out, err, handled := n.runtimeAgyCall(ctx, h, method, p, params, call); handled {
+			return out, err, true
+		}
+	}
+
 	// A session whose conversation is a Claude transcript here (runtimetranscript.go): its content is the node's.
 	if n.runtimeTranscript(p.SessionID) != "" {
 		if transcriptCalls[method] {
@@ -276,7 +283,9 @@ func (n *Node) runtimeHandle(ctx context.Context, h *runtimeConn, method string,
 			var after echoAfter
 			if opts.ClientMsgID != "" {
 				after = echoAfter{seq: n.runtimes.lastPushed(p.SessionID), in: echoInRuntime}
-				if n.runtimeTranscript(p.SessionID) != "" { // its items are the transcript's: its copy comes after its end
+				if agyRef.Conversation != "" {
+					after = n.agyEchoBase(p.SessionID, "")
+				} else if n.runtimeTranscript(p.SessionID) != "" {
 					after = n.echoBase(p.SessionID)
 				}
 			}
@@ -392,6 +401,13 @@ func (n *Node) runtimeHandle(ctx context.Context, h *runtimeConn, method string,
 					delete(info, "usage_unknown")
 				}
 			}
+		}
+		if agyRef.Conversation != "" {
+			history, err := n.agyReader().Read(agyRef)
+			if err != nil {
+				return nil, err, true
+			}
+			history.FillInfo(info)
 		}
 		// Not in its list (an older session it still has): what the node knows without the list.
 		return info, nil, true

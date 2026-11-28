@@ -1,9 +1,8 @@
-package node
+package agy
 
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -11,64 +10,18 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
-func TestAgyQuotedReadTargetOpensPreview(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "fixture notes.md")
-	const body = "# Example file\nPreview payload"
-	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	quoted, _ := json.Marshal(path)
-	raw, _ := json.Marshal(map[string]string{"Path": string(quoted)})
-	name, input := agyTool("view_file", raw)
-	var f struct {
-		Path string `json:"file_path"`
-	}
-	if err := json.Unmarshal(input, &f); err != nil || name != "Read" || f.Path != path {
-		t.Fatalf("preview target = %s %s (%v), want Read %q", name, input, err, path)
-	}
-	n := &Node{home: dir}
-	preview, err := n.fileService().Read(f.Path, dir, 0, true)
-	if err != nil || preview.Path != path || preview.Name != filepath.Base(path) || preview.Text != body {
-		t.Fatalf("preview = %+v, %v", preview, err)
-	}
-}
-
-func TestAgyNativeFilePathsOnlyDecodeCompleteAbsoluteWrappers(t *testing.T) {
-	dir := t.TempDir()
-	abs := filepath.Join(dir, "notes.md")
-	withQuotes := filepath.Join(dir, `keep".md`)
-	quoted, _ := json.Marshal(withQuotes)
-	incomplete := `"` + abs
-	for _, example := range []struct {
-		tool, field, path, want string
-	}{
-		{"read_file", "AbsolutePath", string(quoted), withQuotes},
-		{"write_to_file", "TargetFile", "'" + abs + "'", abs},
-		{"edit_file", "Path", withQuotes, withQuotes},
-		{"view_file", "Path", `"relative.md"`, `"relative.md"`},
-		{"view_file", "Path", incomplete, incomplete},
-		{"view_file", "file_path", string(quoted), string(quoted)},
-	} {
-		raw, _ := json.Marshal(map[string]string{example.field: example.path})
-		_, input := agyTool(example.tool, raw)
-		var got map[string]any
-		if err := json.Unmarshal(input, &got); err != nil || got["file_path"] != example.want {
-			t.Errorf("%s %s=%q became %s (%v), want %q", example.tool, example.field, example.path, input, err, example.want)
-		}
-	}
-}
-
-func TestAgyPaneTranscriptMapping(t *testing.T) {
-	// The JSONL example from issue #10236.
+func TestAgyTranscriptMapping(t *testing.T) {
+	t.Parallel()
+	// A conversation that reads one file.
 	const issue = `{"step_index":0,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","created_at":"2026-01-01T00:00:00Z","content":"Show the example file"}
 {"step_index":1,"type":"PLANNER_RESPONSE","source":"MODEL","status":"DONE","created_at":"2026-01-01T00:00:01Z","content":"I will read the example.","tool_calls":[{"name":"view_file","args":{"AbsolutePath":"/example/notes.txt"}}]}
 {"step_index":2,"type":"GENERIC","status":"DONE","created_at":"2026-01-01T00:00:02Z","content":"sample content"}
 {"step_index":3,"type":"PLANNER_RESPONSE","source":"MODEL","status":"DONE","created_at":"2026-01-01T00:00:03Z","content":"The file contains sample content."}
 `
-	// The ordered-steps fixture from integrations/antigravity/test/map.test.js, serialized as JSONL.
+	// A reply with thought, commentary and a single command.
 	const companion = `{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","status":"DONE","created_at":"2026-11-05T10:00:00Z","content":"<USER_REQUEST>\nCheck files\n</USER_REQUEST>"}
 {"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-11-05T10:00:01Z","thinking":"Listing files first","content":"I will list the directory.","tool_calls":[{"name":"run_command","args":{"CommandLine":"ls -la","toolSummary":"List files"}}]}
 {"step_index":2,"source":"MODEL","type":"GENERIC","status":"DONE","created_at":"2026-11-05T10:00:02Z","content":"Created At: 2026-11-05T10:00:02Z\nOutput:\ntotal 0\n"}
@@ -115,7 +68,7 @@ func TestAgyPaneTranscriptMapping(t *testing.T) {
 			{seq: 3, role: "user", kind: "tool_result", text: "multi-edited", pair: 2},
 			{seq: 4, role: "user", kind: "tool_result", text: "listed", pair: 3},
 			{seq: 5, role: "user", kind: "tool_result", text: "delegated", pair: 4},
-			{seq: 6, role: "assistant", kind: "text", text: "API Error: quota"},
+			{seq: 6, role: "system", kind: "notice", text: "quota"},
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -125,16 +78,7 @@ func TestAgyPaneTranscriptMapping(t *testing.T) {
 			if err := os.Chtimes(file, mtime, mtime); err != nil {
 				t.Fatal(err)
 			}
-			brain, err := agyBrain(root, agyTestID)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer brain.Close()
-			var n Node
-			history, _, err := n.agyRead(brain, file, agyTestID, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
+			history := readFixture(t, New(Dependencies{Clock: testClock{}}), Ref{root, agyTestID})
 			if history.seq != tc.toSeq || len(history.items) != len(tc.want) {
 				t.Fatalf("to_seq %d, items %+v", history.seq, history.items)
 			}
@@ -159,6 +103,7 @@ func TestAgyPaneTranscriptMapping(t *testing.T) {
 }
 
 func TestAgyUserText(t *testing.T) {
+	t.Parallel()
 	older := compat.ContextNames()[0] // the older context tag name, kept in compat
 	for _, tc := range []struct{ input, want string }{
 		{"<USER_REQUEST>\n<persona-context>\nsnapshot\n</persona-context>\n\nHello world\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\ntime\n</ADDITIONAL_METADATA>", "Hello world"},
@@ -169,14 +114,15 @@ func TestAgyUserText(t *testing.T) {
 		{"A<persona-context>x</" + older + ">B", "A<persona-context>x</" + older + ">B"},
 		{"</perſona-context>Keep this", "</perſona-context>Keep this"},
 	} {
-		if got := agyUserText(tc.input); got != tc.want {
-			t.Errorf("agyUserText(%q) = %q, want %q", tc.input, got, tc.want)
+		if got := UserText(tc.input); got != tc.want {
+			t.Errorf("UserText(%q) = %q, want %q", tc.input, got, tc.want)
 		}
 	}
 }
 
 // Match the companion's projection using a synthetic native first USER_INPUT record.
 func TestAgyContextResourceHistory(t *testing.T) {
+	t.Parallel()
 	const user = "Please reply OK.\nKeep this second line."
 	const label = "Content of persona-context:///snapshot.txt:\n"
 	const context = "<persona-context>Attached context with /compact</persona-context>"
@@ -198,17 +144,8 @@ func TestAgyContextResourceHistory(t *testing.T) {
 				t.Fatal(err)
 			}
 			root := t.TempDir()
-			file := agyTestFile(t, root, agyTestID, `{"step_index":0,"type":"USER_INPUT","source":"USER_EXPLICIT","content":`+string(content)+"}\n")
-			brain, err := agyBrain(root, agyTestID)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer brain.Close()
-			var n Node
-			history, _, err := n.agyRead(brain, file, agyTestID, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
+			agyTestFile(t, root, agyTestID, `{"step_index":0,"type":"USER_INPUT","source":"USER_EXPLICIT","content":`+string(content)+"}\n")
+			history := readFixture(t, New(Dependencies{Clock: testClock{}}), Ref{root, agyTestID})
 			if len(history.items) != 1 || history.items[0].Role != "user" || history.items[0].Text != tc.want {
 				t.Fatalf("history = %+v, want user text %q", history.items, tc.want)
 			}
@@ -218,6 +155,7 @@ func TestAgyContextResourceHistory(t *testing.T) {
 
 // Array tool arguments are bounded like any other tool input (review on #10364).
 func TestAgyToolArrayArgsAreClipped(t *testing.T) {
+	t.Parallel()
 	big := `["` + strings.Repeat("x", 1<<20) + `"]`
 	_, input := agyTool("view_file", json.RawMessage(big))
 	if len(input) >= len(big) {
@@ -231,6 +169,7 @@ func TestAgyToolArrayArgsAreClipped(t *testing.T) {
 // The pane reader follows the companion's rules (integrations/antigravity/lib/map.js): a parallel call that fails at
 // once is exported before its sibling's result, and a call that never got a result must not take a later one.
 func TestAgyParallelResultsOutOfOrderPairWithTheirOwnCalls(t *testing.T) {
+	t.Parallel()
 	const early = `{"step_index":0,"type":"USER_INPUT","source":"USER_EXPLICIT","created_at":"2026-01-01T00:00:00Z","content":"go"}
 {"step_index":1,"type":"PLANNER_RESPONSE","created_at":"2026-01-01T00:00:01Z","tool_calls":[{"name":"run_command","args":{"CommandLine":"tail log"}},{"name":"manage_task","args":{"Action":"status"}}]}
 {"step_index":3,"type":"GENERIC","status":"INVALID","created_at":"2026-01-01T00:00:02Z","content":"Error invalid tool call","error":"invalid arguments"}
@@ -282,6 +221,7 @@ func TestAgyParallelResultsOutOfOrderPairWithTheirOwnCalls(t *testing.T) {
 }
 
 func TestAgyCallWithoutResultDoesNotShiftLaterResults(t *testing.T) {
+	t.Parallel()
 	step := func(i int, typ, extra string) string {
 		return `{"step_index":` + strconv.Itoa(i) + `,"type":"` + typ + `","status":"DONE","created_at":"2026-01-01T00:00:00Z"` + extra + "}\n"
 	}
@@ -322,6 +262,7 @@ func TestAgyCallWithoutResultDoesNotShiftLaterResults(t *testing.T) {
 }
 
 func TestAgyAssistantTextNormalizesLocalFileLinks(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct{ name, input, want string }{
 		{"unix_file_link", "See [notes.md](file:///work/repo/notes.md).", "See [notes.md](/work/repo/notes.md)."},
 		{"line_fragment", "Check [app.go](file:///work/repo/app.go#L10-L20).", "Check [app.go](/work/repo/app.go#L10-L20)."},
@@ -375,6 +316,7 @@ func TestAgyAssistantTextNormalizesLocalFileLinks(t *testing.T) {
 }
 
 func TestAgyInterruptedErrorNoteIsDropped(t *testing.T) {
+	t.Parallel()
 	const afterSystem = `{"step_index":0,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","created_at":"2026-01-01T00:00:00Z","content":"run task"}
 {"step_index":1,"type":"PLANNER_RESPONSE","source":"MODEL","status":"DONE","created_at":"2026-01-01T00:00:01Z","content":"Working on it."}
 {"step_index":2,"type":"SYSTEM_MESSAGE","status":"DONE","created_at":"2026-01-01T00:00:02Z","content":"background notice"}
@@ -419,15 +361,21 @@ func TestAgyInterruptedErrorNoteIsDropped(t *testing.T) {
 		if it.Kind == "tool_result" {
 			results[it.ToolUseID] = it.Text
 		}
-		if it.Kind == "text" {
+		if it.Kind == "text" || it.Kind == "notice" {
 			texts = append(texts, it.Text)
 		}
 	}
-	wantTexts := []string{"run task", "try again", "API Error: The stream was interrupted: 503 unavailable"}
+	wantTexts := []string{"run task", "try again", "The stream was interrupted: 503 unavailable"}
 	if !slices.Equal(texts, wantTexts) {
 		t.Fatalf("text items = %q, want %q", texts, wantTexts)
 	}
 	if len(uses) != 2 || results[uses[0]] != "" || results[uses[1]] != "file body" {
 		t.Fatalf("tool call pairing after interrupt = uses:%v results:%v", uses, results)
 	}
+}
+
+func agyTool(name string, raw json.RawMessage) (string, json.RawMessage) {
+	it := proto.Item{Facets: &proto.ItemFacets{Native: &proto.NativeRef{}}}
+	mapCall(&nativeCall{Name: name, Args: raw}, &it)
+	return it.ToolName, it.ToolInput
 }

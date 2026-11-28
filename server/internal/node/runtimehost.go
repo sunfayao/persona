@@ -353,6 +353,9 @@ func (rh *RuntimeHost) request(ctx context.Context, h *runtimeConn, method strin
 			if hello.Caps.Assistant {
 				features = append(features, "assistant_pids")
 			}
+			if hello.Runtime == agyRuntimeID || hello.Runtime == agyDesktopRuntimeID {
+				features = append(features, "agy_conversation")
+			}
 		}
 		res := map[string]any{"protocol": RuntimeProtocol, "node_version": rh.version, "hub": rh.current() != nil,
 			"features": features}
@@ -499,7 +502,8 @@ func (rh *RuntimeHost) event(h *runtimeConn, event string, params json.RawMessag
 		}
 		var moved []string
 		if !h.isDaemon() { // a daemon's offline sessions are not resumed in this machine's terminal engine
-			x := runtimeRowExtras(params, len(p.Sessions))
+			rt := h.id()
+			x := runtimeRowExtras(params, len(p.Sessions), rt == agyRuntimeID || rt == agyDesktopRuntimeID)
 			h.setResume(x.resume)
 			// …nor read from this machine's transcripts: a daemon names none (runtimetranscript.go).
 			ts := x.transcripts
@@ -507,6 +511,15 @@ func (rh *RuntimeHost) event(h *runtimeConn, event string, params json.RawMessag
 				ts = n.foundTranscripts(ts)
 			}
 			moved = h.setTranscripts(ts)
+			if rt == agyRuntimeID || rt == agyDesktopRuntimeID {
+				var home string
+				if n == nil {
+					home, _ = os.UserHomeDir()
+				} else {
+					home = n.home
+				}
+				moved = append(moved, h.setAgyRefs(x.agys, home)...)
+			}
 			h.setCodexThreads(x.threads) // …nor are its Codex threads this machine's (runtimecodex.go)
 			if x.unlistedSaid && rh.reg.setUnlisted(h, x.unlisted) {
 				forgetOfflineScan() // …nor its past sessions' transcripts (runtimeunlisted.go): the next list reads them again
@@ -547,7 +560,8 @@ func (rh *RuntimeHost) event(h *runtimeConn, event string, params json.RawMessag
 type rowExtras struct {
 	resume      map[string][]string // session → resume_argv (resumeArgvs)
 	transcripts map[string]string   // session → the Claude transcript its conversation is (runtimeTranscripts)
-	threads     map[string]string   // session → the Codex thread its conversation is (runtimeCodexThreads)
+	agys        map[string]runtimeAgyFields
+	threads     map[string]string // session → the Codex thread its conversation is (runtimeCodexThreads)
 	// Claude transcripts of sessions of its own it does not list (unlistedTranscripts), when the push says: one
 	// without the field leaves what the runtime named before.
 	unlisted     map[string]bool
@@ -558,12 +572,13 @@ type rowExtras struct {
 // runtime.sessions push, read in one pass rather than one each, its rows into a slice of rows rows (the size the
 // push's sessions were decoded into, so it is not grown row by row). A push one of them cannot read (a field of the
 // wrong type) has each read on its own, as before: the others may still read.
-func runtimeRowExtras(params json.RawMessage, rows int) rowExtras {
+func runtimeRowExtras(params json.RawMessage, rows int, readAgy bool) rowExtras {
 	type extras struct {
 		SessionID   string   `json:"session_id"`
 		ResumeArgv  []string `json:"resume_argv"`
 		Transcript  string   `json:"transcript"`
 		CodexThread string   `json:"codex_thread"`
+		runtimeAgyFields
 	}
 	var p struct {
 		Sessions []extras `json:"sessions"`
@@ -572,10 +587,35 @@ func runtimeRowExtras(params json.RawMessage, rows int) rowExtras {
 	p.Sessions = make([]extras, 0, rows)
 	if json.Unmarshal(params, &p) != nil {
 		unlisted, said := unlistedTranscripts(params)
-		return rowExtras{resumeArgvs(params), runtimeTranscripts(params), runtimeCodexThreads(params), unlisted, said}
+		var fallback struct {
+			Sessions []struct {
+				SessionID string `json:"session_id"`
+				runtimeAgyFields
+			} `json:"sessions"`
+		}
+		var agys map[string]runtimeAgyFields
+		if readAgy && json.Unmarshal(params, &fallback) == nil {
+			agys = make(map[string]runtimeAgyFields, len(fallback.Sessions))
+			for _, row := range fallback.Sessions {
+				if runtimeIDRe.MatchString(row.SessionID) {
+					if _, seen := agys[row.SessionID]; !seen {
+						agys[row.SessionID] = row.runtimeAgyFields
+					}
+				}
+			}
+		}
+		return rowExtras{resume: resumeArgvs(params), transcripts: runtimeTranscripts(params), agys: agys, threads: runtimeCodexThreads(params), unlisted: unlisted, unlistedSaid: said}
 	}
 	x := rowExtras{resume: map[string][]string{}, transcripts: map[string]string{}, unlisted: unlistedSet(p.Unlisted), unlistedSaid: p.Unlisted != nil}
+	if readAgy {
+		x.agys = make(map[string]runtimeAgyFields, len(p.Sessions))
+	}
 	for _, s := range p.Sessions {
+		if readAgy && runtimeIDRe.MatchString(s.SessionID) {
+			if _, seen := x.agys[s.SessionID]; !seen {
+				x.agys[s.SessionID] = s.runtimeAgyFields
+			}
+		}
 		if resumable(s.SessionID, s.ResumeArgv) {
 			x.resume[s.SessionID] = s.ResumeArgv
 		}
