@@ -105,7 +105,7 @@ async function run(agent, width, theme, typed = true) {
       const ask = page.locator("[data-tool-use=question] > button").first();
       if (await ask.count()) await ask.click();
       await page.locator("[data-step-detail='ask-user']").getByText("Where should this run?").waitFor({ state: "visible" });
-      await page.locator('[role=progressbar][aria-valuenow="25"]').first().waitFor({ state: "visible" });
+      await page.getByRole("button", { name: /25%.*75%/ }).first().waitFor({ state: "visible" });
       await page.locator("[data-loop-mark]").click();
       await page.locator("[data-bg-loop]").getByText("Review the release").waitFor({ state: "visible" });
       await page.getByText("Build the release", { exact: true }).waitFor({ state: "visible" });
