@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type AgentMutes, awaitsReply, finishedUnopened, isQuiet, justFinished, replyAsk, sessionHost, splitAgentSessions } from "./agent-groups";
+import { type AgentMutes, awaitsReply, buildSpaces, finishedUnopened, isQuiet, justFinished, replyAsk, sessionHost, splitAgentSessions } from "./agent-groups";
 import { byAttention } from "./format";
 import type { AgentState, Machine, Session } from "./types";
 
@@ -133,3 +133,17 @@ describe("Finished, not opened (#14447)", () => {
   });
 });
 
+
+it("joins directory-named spaces in the full sidebar from the same verified folder", () => {
+  const cwd = "/home/example/work", physical = "/data00/home/example/work";
+  const live = [
+    session("runtime", "idle", { cwd, workspace_cwd: physical, space_name: "work", space_id: cwd }),
+    session("history", "idle", { cwd, space_name: "work", space_id: "old-codex" }),
+    session("terminal", "working", { cwd: physical, space_name: "work", space_id: "w1" }),
+    session("named", "idle", { cwd: physical, space_name: "Release", space_id: "w2" }),
+    session("other", "idle", { cwd: physical, space_name: "work", space_id: "w1", machine_id: "machine-b" }),
+  ];
+  const { spaces } = buildSpaces(live, machines);
+  expect(spaces).toHaveLength(3);
+  expect(ids(spaces.find((sp) => sp.machineId === "machine-a" && sp.name === "work")!.sessions)).toEqual(["history", "runtime", "terminal"]);
+});

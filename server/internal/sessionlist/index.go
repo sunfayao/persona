@@ -131,6 +131,9 @@ type Options struct {
 	// every pair with a machine.
 	Places []Place
 	Spaces []Place
+	// Directory is resolved by the hub against one machine's retained spaces.
+	Directory       string
+	DirectorySpaces []Place
 	// Todo (todo=<id>) selects the items on that to-do; TodoNone (todo=none) the items on none. Both bind a cursor as
 	// the other filters do (#6662).
 	Todo string
@@ -228,6 +231,7 @@ type filters struct {
 	// Places and Spaces are Options' as placesKey spells them, Providers as
 	// providersKey spells the set: filters stay comparable.
 	Places, Spaces, Providers                   string
+	Directory, DirectorySpaces                  string
 	Roots, NoPrivate, IncludeHidden, AgentsOnly bool
 }
 

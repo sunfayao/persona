@@ -194,7 +194,7 @@ function GroupSection<T>({ group, first, startsOpen, dimension, kind, scope, sou
         </>}>
         {!folded && <>
           {dimension === "project" && <GroupPlaces group={group} machineName={machineName} />}
-          <GroupRows group={group} dimension={dimension} scope={scope} source={source} renderRow={renderRow} onExcluded={setExcluded} />
+          <GroupRows key={group.filters.directory ? JSON.stringify([...group.members!].sort()) : undefined} group={group} dimension={dimension} scope={scope} source={source} renderRow={renderRow} onExcluded={setExcluded} />
         </>}
       </Section>
     </div>

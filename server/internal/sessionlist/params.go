@@ -15,7 +15,7 @@ import (
 // machine_id filtering. Presence matters: malformed new parameters must be
 // parsed and rejected rather than silently falling back to the legacy API.
 func Enabled(v url.Values) bool {
-	for _, key := range []string{"search", "limit", "cursor", "since", "summary", "state", "project", "group", "counts", "pane_source", "roots", "parent_session_id", "place", "space", "catalog", "todo", "waiting", "exclude_pane_source", "include_hidden", "agents_only", "just_finished"} {
+	for _, key := range []string{"search", "limit", "cursor", "since", "summary", "state", "project", "group", "counts", "pane_source", "roots", "parent_session_id", "place", "space", "catalog", "todo", "waiting", "exclude_pane_source", "include_hidden", "agents_only", "just_finished", "directory_groups", "directory"} {
 		if _, exists := v[key]; exists {
 			return true
 		}
@@ -52,7 +52,7 @@ func parse(v url.Values, providerSet bool) (Options, error) {
 			}
 		}
 	}
-	for _, key := range []string{"search", "limit", "cursor", "since", "summary", "state", "machine_id", "project", "group", "source", "provider", "q", "counts", "with_counts", "pane_source", "roots", "parent_session_id", "catalog", "todo", "waiting", "exclude_pane_source", "include_hidden", "agents_only", "just_finished"} {
+	for _, key := range []string{"search", "limit", "cursor", "since", "summary", "state", "machine_id", "project", "group", "source", "provider", "q", "counts", "with_counts", "pane_source", "roots", "parent_session_id", "catalog", "todo", "waiting", "exclude_pane_source", "include_hidden", "agents_only", "just_finished", "directory_groups", "directory"} {
 		if values, exists := v[key]; exists && len(values) != 1 && (key != "provider" || !providerSet) {
 			return Options{}, failure("invalid_query", key+" must have exactly one value")
 		}
@@ -71,7 +71,7 @@ func parse(v url.Values, providerSet bool) (Options, error) {
 		}
 		o.Summary = b
 	}
-	for _, key := range []string{"counts", "with_counts", "catalog"} {
+	for _, key := range []string{"counts", "with_counts", "catalog", "directory_groups"} {
 		if values, exists := v[key]; exists {
 			if _, err := boolean(values[0]); err != nil {
 				return Options{}, err
@@ -114,6 +114,7 @@ func parse(v url.Values, providerSet bool) (Options, error) {
 	}
 	o.State, o.Machine = v.Get("state"), v.Get("machine_id")
 	o.Project, o.Group = v.Get("project"), v.Get("group")
+	o.Directory = v.Get("directory")
 	o.Source, o.Provider, o.Q = v.Get("source"), v.Get("provider"), v.Get("q")
 	if providerSet {
 		if values, exists := v["provider"]; exists && !(len(values) == 1 && values[0] == "") {
@@ -248,6 +249,9 @@ func validate(o Options) (Options, error) {
 	if err := validPlaces("place", o.Places); err != nil {
 		return Options{}, err
 	}
+	if o.Directory != "" && o.Machine == "" {
+		return Options{}, failure("invalid_query", "directory requires machine_id")
+	}
 	if err := validPlaces("space", o.Spaces); err != nil {
 		return Options{}, err
 	}
@@ -306,7 +310,7 @@ func normalizeQ(s string) string { return strings.ToLower(s) }
 
 func (o Options) filters() filters {
 	return filters{ID: o.ID, State: o.State, Machine: o.Machine, Project: o.Project, Group: o.Group, Source: o.Source, Provider: o.Provider, Providers: providersKey(o.Providers), Q: o.Q, PaneSource: o.PaneSource, Manager: o.Manager,
-		Roots: o.Roots, IncludeHidden: o.IncludeHidden, Under: o.Under, NoPrivate: o.NoPrivate, AgentsOnly: o.AgentsOnly, Places: placesKey(o.Places), Spaces: placesKey(o.Spaces), Todo: o.Todo, Waiting: o.Waiting, ExcludePaneSource: o.ExcludePaneSource, JustFinished: o.JustFinished}
+		Directory: o.Directory, DirectorySpaces: placesKey(o.DirectorySpaces), Roots: o.Roots, IncludeHidden: o.IncludeHidden, Under: o.Under, NoPrivate: o.NoPrivate, AgentsOnly: o.AgentsOnly, Places: placesKey(o.Places), Spaces: placesKey(o.Spaces), Todo: o.Todo, Waiting: o.Waiting, ExcludePaneSource: o.ExcludePaneSource, JustFinished: o.JustFinished}
 }
 
 func (o Options) binding() binding {

@@ -292,7 +292,7 @@ func projectOf(path, origin string) (id, name string) {
 // view), only of the machines in it. repositories: the directories' computers are asked what repository each holds.
 // Without it every project goes by its folder's name: that answer is the Git routes', which take full credentials,
 // so an extension's token neither gets it nor has a computer asked for it.
-func (h *Hub) sessionCatalogOf(ctx context.Context, index *sessionlist.Index, opts sessionlist.Options, own []string, limited, repositories bool) (sessionCatalog, error) {
+func (h *Hub) sessionCatalogOf(ctx context.Context, index *sessionlist.Index, opts sessionlist.Options, own []string, limited, repositories, directoryGroups bool) (sessionCatalog, error) {
 	opts.Cursor = "" // the current membership, as counts=1 reads it without a cursor
 	counts, err := index.PlaceCounts(opts)
 	if err != nil {
@@ -358,7 +358,7 @@ func (h *Hub) sessionCatalogOf(ctx context.Context, index *sessionlist.Index, op
 			cmp.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name)), cmp.Compare(a.ID, b.ID))
 	})
 
-	attrs := h.spaceAttrs(machines, counts.Group)
+	attrs := h.spaceAttrs(machines, counts.Group, directoryGroups)
 	for p, n := range counts.Group {
 		if !seen(p.Machine) {
 			continue
@@ -422,7 +422,7 @@ func (t *folderTally) most() string {
 // in its machine's list order, then among the archived rows told apart (Machine.archived), which named it in the list
 // too. Its folder (workspace_cwd, else cwd): the one most of its listed rows are in, the first in the list's order
 // among equals; the archived rows' only when no listed row says one.
-func (h *Hub) spaceAttrs(machines map[string]bool, counted map[sessionlist.Place]sessionlist.PlaceCount) map[sessionlist.Place]spaceAttr {
+func (h *Hub) spaceAttrs(machines map[string]bool, counted map[sessionlist.Place]sessionlist.PlaceCount, directoryGroups bool) map[sessionlist.Place]spaceAttr {
 	attrs := map[sessionlist.Place]spaceAttr{}
 	folders := map[sessionlist.Place]*[2]folderTally{} // the listed rows' folders, then the archived rows'
 	for _, m := range h.machinesNow() {
@@ -430,21 +430,29 @@ func (h *Hub) spaceAttrs(machines map[string]bool, counted map[sessionlist.Place
 			continue
 		}
 		list, archived := m.keptWhole()
+		var aliases sessionlist.DirectoryAliases
+		if directoryGroups {
+			aliases = machineDirectoryAliases(m, list, archived)
+		}
 		for kept, rows := range [2][]proto.Session{list, archived} {
 			for i := range rows { // by index: a range value copies every (large) session it passes
 				s := &rows[i]
 				p := sessionlist.Place{Machine: m.cfg.ID, Key: cmp.Or(s.SpaceID, s.WorkspaceID)}
-				if p.Key == "" {
+				if _, ok := counted[p]; counted != nil && !ok {
 					continue
 				}
-				if _, ok := counted[p]; !ok {
+				if p.Key == "" {
 					continue
 				}
 				if a := attrs[p]; a.name == "" && s.SpaceName != "" {
 					a.name = s.SpaceName
 					attrs[p] = a
 				}
-				if dir := cmp.Or(s.WorkspaceCwd, s.Cwd); dir != "" {
+				dir := cmp.Or(s.WorkspaceCwd, s.Cwd)
+				if directoryGroups {
+					dir = aliases.Path(s.Cwd, s.WorkspaceCwd)
+				}
+				if dir != "" {
 					tally := folders[p]
 					if tally == nil {
 						tally = &[2]folderTally{}
@@ -467,4 +475,37 @@ func (h *Hub) spaceAttrs(machines map[string]bool, counted map[sessionlist.Place
 func catalogAsked(r *http.Request) bool {
 	v := r.URL.Query().Get("catalog")
 	return v == "1" || v == "true"
+}
+
+// Use the node's own report, including the last one retained while it is offline.
+func machineDirectoryAliases(m *Machine, batches ...[]proto.Session) sessionlist.DirectoryAliases {
+	m.mu.Lock()
+	home, real := m.info.Home, m.info.HomeReal
+	if home == "" && m.snap != nil {
+		home = m.snap.Home
+	}
+	m.mu.Unlock()
+	aliases := sessionlist.NewDirectoryAliases(home, real)
+	for _, rows := range batches {
+		for i := range rows {
+			aliases.Observe(rows[i].Cwd, rows[i].WorkspaceCwd)
+		}
+	}
+	return aliases
+}
+
+func directoryGroupsAsked(r *http.Request) bool {
+	v := r.URL.Query().Get("directory_groups")
+	return v == "1" || v == "true"
+}
+
+func (h *Hub) directorySpaces(machine, directory string) []sessionlist.Place {
+	key := proto.NodeKey(directory)
+	var places []sessionlist.Place
+	for p, attr := range h.spaceAttrs(map[string]bool{machine: true}, nil, true) {
+		if attr.path != "" && proto.NodeKey(attr.path) == key {
+			places = append(places, p)
+		}
+	}
+	return places
 }

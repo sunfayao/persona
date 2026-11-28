@@ -58,7 +58,8 @@ const (
 	// place=["<machine>","<project>"] and space=["<machine>","<group>"], both repeatable (the sessions at those
 	// directories, in those spaces), docs/protocol/protocol.md "Projects and spaces". An older hub reads none of the
 	// keys, so an app sends them only to a hub that says this.
-	featureSessionsCatalog = "sessions_catalog"
+	featureSessionsCatalog        = "sessions_catalog"
+	featureSessionDirectoryGroups = "session_directory_groups"
 	// featureSessionsAgentsOnly scopes pages, counts and deltas to the Agents sidebar view.
 	featureSessionsAgentsOnly = "sessions_agents_only"
 	// featureSessionsTodo: a paged GET /api/v1/sessions takes todo=<id> (the sessions on that open to-do) and
@@ -627,6 +628,13 @@ func (h *Hub) pagedSessions(w http.ResponseWriter, r *http.Request, manager stri
 		}
 		limited = opts.Machine == ""
 	}
+	if opts.Directory != "" {
+		if !proto.NodeAbs(opts.Directory) {
+			sessionListErr(w, errors.New("directory must be an absolute path"))
+			return
+		}
+		opts.DirectorySpaces = h.directorySpaces(opts.Machine, opts.Directory)
+	}
 	if opts.Search != "" {
 		// Search authorizes before matching and freezing totals/evidence. Never
 		// apply ownPage after pagination: foreign hits would already be counted.
@@ -660,7 +668,7 @@ func (h *Hub) pagedSessions(w http.ResponseWriter, r *http.Request, manager stri
 		return
 	}
 	if catalogAsked(r) {
-		catalog, err := h.sessionCatalogOf(r.Context(), index, opts, own, limited, !restrictedAgentData(r))
+		catalog, err := h.sessionCatalogOf(r.Context(), index, opts, own, limited, !restrictedAgentData(r), directoryGroupsAsked(r))
 		if err != nil {
 			sessionListErr(w, err)
 			return

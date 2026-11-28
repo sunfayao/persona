@@ -73,11 +73,13 @@ func TestFolderSpaceAgyRuntimeConversationJoinsTheHerdrWorkspace(t *testing.T) {
 	}
 	linked := filepath.Join(link, "code", "app")
 	conversation := "agy-" + agyOtherTestID
+	opaque := "agy-opaque"
 	n.runtimes = newRuntimeRegistry()
 	rt := n.runtimes.add(nil)
 	rt.ready, rt.hello.Runtime = true, agyAgent
 	n.runtimes.setSessions(rt, normalizeRuntimeSessions(rt, []proto.Session{
-		{SessionID: conversation, Agent: agyAgent, Cwd: app, Status: proto.StatusIdle, Title: "on the runtime", SpaceID: app, SpaceName: "app"},
+		{SessionID: conversation, Agent: agyAgent, Cwd: linked, Status: proto.StatusIdle, Title: "on the runtime", SpaceID: "~/linked/code/app", SpaceName: "app"},
+		{SessionID: opaque, Agent: agyAgent, Cwd: app, Status: proto.StatusIdle, SpaceID: "companion-project", SpaceName: "app"},
 	}))
 	herdr.reply("session.snapshot", snapshot(
 		[]any{map[string]any{"workspace_id": "w1", "label": "app", "number": 1, "cwd": linked}},
@@ -90,11 +92,14 @@ func TestFolderSpaceAgyRuntimeConversationJoinsTheHerdrWorkspace(t *testing.T) {
 	if !ok || pane.SpaceID != "w1" || pane.SpaceKind != host.Herdr {
 		t.Fatalf("the agy pane: %+v (listed %v)", pane, ok)
 	}
+	if s := rows[opaque]; s.SpaceID != "w1" || s.WorkspaceCwd != app || s.Cwd != app {
+		t.Fatalf("opaque runtime space did not join the physical workspace: %+v", s)
+	}
 	s, ok := rows[conversation]
 	if !ok {
 		t.Fatalf("%s is not listed", conversation)
 	}
-	if s.SpaceID != "w1" || s.SpaceName != "app" || s.SpaceIndex != 1 || s.SpaceKind != agyAgent || s.SourceKind != proto.SourceRuntime {
+	if s.WorkspaceCwd != app || s.Cwd != linked || s.SpaceID != "w1" || s.SpaceName != "app" || s.SpaceIndex != 1 || s.SpaceKind != agyAgent || s.SourceKind != proto.SourceRuntime {
 		t.Errorf("the runtime's conversation: space %q %q #%d (%s, %s), want w1 app #1 (agy, runtime)",
 			s.SpaceID, s.SpaceName, s.SpaceIndex, s.SpaceKind, s.SourceKind)
 	}

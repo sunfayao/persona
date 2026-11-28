@@ -2,10 +2,11 @@
 // (docs/protocol/protocol.md "Projects and spaces"): a repository checked out on several computers is one project with
 // a place for each directory, and a space is one computer's. Without it the groups are the count maps' keys, as before.
 import { t } from "../i18n";
-import { baseName, shortPath, WINDOWS_PATH } from "./format";
+import { baseName, pathSlashes, shortPath, WINDOWS_PATH } from "./format";
 import { LIST_PAIRS_MAX, listPair, type ListCounts, type ListFilters } from "./session-list";
 
 export const SESSIONS_CATALOG_FEATURE = "sessions_catalog";
+export const SESSION_DIRECTORY_GROUPS_FEATURE = "session_directory_groups";
 /** The hub selects the sidebar's quick filters on the paged list: `waiting=0|1` and `exclude_pane_source=<origin>`
  *  (docs/protocol/protocol.md "Quick filters", #6662). */
 export const SESSIONS_QUICK_FILTERS_FEATURE = "sessions_quick_filters";
@@ -96,7 +97,7 @@ function qualifySpaces(groups: SessionGroup[]): SessionGroup[] {
 }
 
 /** The projects or spaces of a hub's catalog, each with how many of its sessions need the user, as the hub counted. */
-export function catalogGroups(catalog: SessionCatalog, dimension: "project" | "group"): SessionGroup[] {
+export function catalogGroups(catalog: SessionCatalog, dimension: "project" | "group", directoryGroups = false): SessionGroup[] {
   if (dimension === "project") {
     return catalog.projects.filter((p) => p.total > 0).map((p): SessionGroup => {
       const members = p.places.map((x) => listPair(x.machine_id, x.path));
@@ -110,13 +111,16 @@ export function catalogGroups(catalog: SessionCatalog, dimension: "project" | "g
   }
   // A space and a computer's sessions in no space (No project) are that computer's: listed under it when the list is
   // on several computers (`computerSections`, #13522), the latter last among its spaces.
-  return qualifySpaces(catalog.spaces.filter((s) => s.total > 0).map((s): SessionGroup => {
-    const pair = listPair(s.machine_id, s.id);
-    return {
-      key: pair, name: s.id ? s.name || s.id : t("paged-agents.no_space"), count: s.total, needs: s.needs_you ?? 0, rest: !s.id || undefined,
-      members: [pair], filters: { space: [pair] }, places: [{ machine: s.machine_id, path: s.id ? s.path ?? "" : "", count: s.total, spaceId: s.id || undefined }],
-    };
-  })).sort(byGroupPlace);
+  if (directoryGroups) return directoryCatalogGroups(catalog);
+  return qualifySpaces(catalog.spaces.filter((s) => s.total > 0).map(catalogSpaceGroup)).sort(byGroupPlace);
+}
+
+function catalogSpaceGroup(s: CatalogSpace): SessionGroup {
+  const pair = listPair(s.machine_id, s.id);
+  return {
+    key: pair, name: s.id ? s.name || s.id : t("paged-agents.no_space"), count: s.total, needs: s.needs_you ?? 0, rest: !s.id || undefined,
+    members: [pair], filters: { space: [pair] }, places: [{ machine: s.machine_id, path: s.id ? s.path ?? "" : "", count: s.total, spaceId: s.id || undefined }],
+  };
 }
 
 /** One computer's groups in a list by space on several computers (#13522), as iOS's By Project lists them. */
@@ -168,4 +172,41 @@ export function holdsPlace(group: SessionGroup, dimension: GroupDimension, where
 /** How many computers the groups' places are on: a space or a directory names its computer only when there are several. */
 export function groupMachines(groups: readonly SessionGroup[]): number {
   return new Set(groups.flatMap((g) => g.places.map((p) => p.machine)).filter(Boolean)).size;
+}
+
+/** Windows paths compare without case and separator differences; POSIX paths keep their spelling. */
+function directoryKey(path: string): string {
+  const clean = pathSlashes(path).replace(/\/+$/, "") || "/";
+  return WINDOWS_PATH.test(path) ? clean.toUpperCase() : clean;
+}
+
+function directoryCatalogGroups(catalog: SessionCatalog): SessionGroup[] {
+  const groups = new Map<string, SessionGroup>();
+  const rest: CatalogSpace[] = [];
+  for (const s of catalog.spaces) {
+    if (s.total === 0) continue;
+    if (!s.id || !s.path) {
+      rest.push(s);
+      continue;
+    }
+    const key = `directory:${listPair(s.machine_id, directoryKey(s.path))}`;
+    const member = listPair(s.machine_id, s.id);
+    const group = groups.get(key);
+    if (group) {
+      group.members!.push(member);
+      group.count += s.total;
+      group.needs += s.needs_you ?? 0;
+      group.places[0].count = group.count;
+      delete group.places[0].spaceId;
+      group.name = baseName(group.places[0].path);
+      group.qualifier = shortPath(parentFolder(group.places[0].path));
+    } else {
+      groups.set(key, {
+        key, name: s.name || baseName(s.path), count: s.total, needs: s.needs_you ?? 0, members: [member],
+        filters: { machine_id: s.machine_id, directory: s.path },
+        places: [{ machine: s.machine_id, path: s.path, count: s.total, spaceId: s.id }],
+      });
+    }
+  }
+  return qualifySpaces([...groups.values(), ...rest.map(catalogSpaceGroup)]).sort(byGroupPlace);
 }

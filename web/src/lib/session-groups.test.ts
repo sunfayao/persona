@@ -173,3 +173,28 @@ describe("groups from a counts read", () => {
   });
 });
 
+
+it("groups retained runtime and terminal spaces by verified directory and machine", () => {
+  const physical = "/data00/home/example/work";
+  const catalog: SessionCatalog = {
+    revision: "one", total: 5, projects: [], spaces: [
+      { machine_id: "box", id: "/home/example/work", name: "work", path: physical, total: 1 },
+      { machine_id: "box", id: "old-codex", name: "work", path: physical, total: 1 },
+      { machine_id: "box", id: "w1", name: "work", path: physical, total: 1, needs_you: 1 },
+      { machine_id: "box", id: "w2", name: "work", path: "/srv/work", total: 1 },
+      { machine_id: "other", id: "w1", name: "work", path: physical, total: 1 },
+    ],
+  };
+  const groups = catalogGroups(catalog, "group", true);
+  expect(groups).toHaveLength(3);
+  const merged = groups.find((g) => g.count === 3)!;
+  expect(merged).toMatchObject({
+    name: "work", qualifier: "~", needs: 1, filters: { machine_id: "box", directory: physical },
+  });
+  expect(merged.places[0].spaceId).toBeUndefined();
+  for (const space of catalog.spaces.slice(0, 3)) {
+    expect(holdsPlace(merged, "group", { machine: space.machine_id, group: space.id, project: "" })).toBe(true);
+  }
+  expect(holdsPlace(merged, "group", { machine: "other", group: "w1", project: "" })).toBe(false);
+  expect(catalogGroups(catalog, "group")).toHaveLength(5);
+});
