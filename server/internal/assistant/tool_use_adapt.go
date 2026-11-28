@@ -21,7 +21,7 @@ const (
 	// agyCoreBudget: Antigravity's MCP proxy declares at most 44,000 bytes (AGY_DECLARE_BUDGET), 248 of them
 	// persona_call's.
 	agyCoreBudget = 43_750
-	// claudeCoreBudget: Claude Code sends every core tool in full with every request. The static list, as an assistant
+	// claudeCoreBudget: Claude Code sends every core tool in full with every request. The static list, as the main
 	// conversation lists it with computer use, the browser and the Lark CLI on, declares 57.6 KB (2026-11-27), so a
 	// ranked set costs a request no more than the static one did.
 	claudeCoreBudget = 58_000
@@ -37,9 +37,8 @@ func coreBudget(runtime string) int {
 	return 0
 }
 
-// coreRanks are the core tools of an assistant conversation's list, with their CoreRank: all the static coreTools
-// while the main chat's runtime has no ranking of its own (tooluse.Book.CoreOrder), else its ranking, cut to its
-// budget.
+// coreRanks are the core tools of a list withToolLoading ranks, with their CoreRank: all the static coreTools while
+// the main chat's runtime has no ranking of its own (tooluse.Book.CoreOrder), else its ranking, cut to its budget.
 func (s *Service) coreRanks(ctx context.Context, tools []proto.Tool) map[string]int {
 	order, budget := coreTools, 0
 	if s.toolUse != nil {
@@ -58,9 +57,9 @@ func (s *Service) coreRanks(ctx context.Context, tools []proto.Tool) map[string]
 	return tooluse.CoreRanks(order, listed, budget)
 }
 
-// coreToolsRevision is what an assistant conversation's tool-list revision (toolsCursor) adds for the adaptive core
-// tools: a digest of the main chat's runtime and its ranking; "" while the static list applies. A ranking that changes
-// unannounced thus reaches a running conversation at its watch's next heartbeat.
+// coreToolsRevision is what the tool-list revision (toolsCursor) of a list withToolLoading ranks adds for the adaptive
+// core tools: a digest of the main chat's runtime and its ranking; "" while the static list applies. A ranking that
+// changes unannounced thus reaches a running conversation at its watch's next heartbeat.
 func (s *Service) coreToolsRevision(ctx context.Context, assistant bool) string {
 	if !assistant || s.toolUse == nil {
 		return ""

@@ -103,6 +103,12 @@ func TestRankDoesNotDemoteAToolForCallsItCouldNotHaveHad(t *testing.T) {
 	if got := Rank(Ranking{Tools: static}, old); !slices.Equal(got.Tools, []string{"a"}) {
 		t.Fatalf("a whole Window without calls: %q, want only a", got.Tools)
 	}
+
+	moved := settled([]string{"new", "a", "b"}, map[string]int{"a": 300, "b": 100})
+	moved.Seen["new"] = rankNow.Add(-2 * 24 * time.Hour)
+	if got := Rank(Ranking{Tools: []string{"a", "b", "new"}}, moved); !slices.Equal(got.Tools, []string{"new", "a", "b"}) {
+		t.Fatalf("a joined tool moved up the static list: %q, want it at its new place", got.Tools)
+	}
 }
 
 // The list does not flap: counts that drift keep the last order, and only a clear overtaking reorders it; a core tool

@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// The adaptive core tools. An assistant conversation's core tools, the ones a runtime loads up front (the root's
+// The adaptive core tools. A conversation's core tools, the ones its runtime loads up front (the root's
 // withToolLoading), follow what the main chat's runtime calls: once it has made CoreStartCalls calls in Window, they
 // are its tools ranked by use (Rank), else the root's static list, as measured. A ranking is computed at most once
 // every CoreEvery, stored under CoreKey so that a restart keeps it, and moves only past thresholds: the list does not
@@ -87,8 +87,9 @@ type CoreInput struct {
 //
 // Order: by calls, ties by the static order, then by name; a static tool that joined the static list within Window
 // keeps at least its place in that list, which is the judgment of it there is until its calls can be compared. The last
-// ranking's order stays while its members are the same and no tool has clearly overtaken one above it (more than half
-// again as many calls, and at least overtakeMargin more), so counts that drift from day to day reorder nothing.
+// ranking's order stays while its members are the same, each such tool still holds its place, and no tool has clearly
+// overtaken one above it (more than half again as many calls, and at least overtakeMargin more), so counts that drift
+// from day to day reorder nothing.
 func Rank(prev Ranking, in CoreInput) Ranking {
 	next := Ranking{At: in.Now.UTC()}
 	for _, c := range in.Usage {
@@ -161,19 +162,22 @@ func Rank(prev Ranking, in CoreInput) Ranking {
 			order = slices.Insert(slices.Delete(order, i, i+1), at, name)
 		}
 	}
-	if ranked && sameMembers(prev.Tools, order) && !overtaken(prev.Tools, calls, joined) {
+	if ranked && sameMembers(prev.Tools, order) && !stale(prev.Tools, calls, place, joined) {
 		order = prev.Tools
 	}
 	next.Tools = order
 	return next
 }
 
-// overtaken: a tool of order has clearly more calls than one ranked above it. A static tool that joined the static list
-// within Window is left out: its place is that list's.
-func overtaken(order []string, calls func(string) int, joined func(string) bool) bool {
+// stale: order no longer stands. A tool has clearly overtaken one ranked above it, or a static tool that joined the
+// static list within Window sits below its place there (the static list changed).
+func stale(order []string, calls func(string) int, place map[string]int, joined func(string) bool) bool {
 	least := -1 // the fewest calls of a tool above
-	for _, name := range order {
+	for i, name := range order {
 		if joined(name) {
+			if i > place[name] {
+				return true
+			}
 			continue
 		}
 		c := calls(name)
