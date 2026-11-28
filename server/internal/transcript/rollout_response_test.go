@@ -1,6 +1,7 @@
 package transcript
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -19,7 +20,11 @@ func TestDecodeRolloutCallUsesNativeArguments(t *testing.T) {
 		{`{"type":"function_call","call_id":"native-id","name":"Read","arguments":"not JSON"}`, "", ""},
 		{`{"type":"function_call","name":"Read","arguments":{}}`, "", ""},
 	} {
-		call, ok := decodeRolloutCall([]byte(tc.record))
+		var record rolloutToolRecord
+		if err := json.Unmarshal([]byte(tc.record), &record); err != nil {
+			t.Fatal(err)
+		}
+		call, ok := record.decodeRolloutCall(record.callInput())
 		if ok != (tc.name != "") || call.Name != tc.name || string(call.Input) != tc.input || ok && call.ID != "native-id" {
 			t.Errorf("decodeRolloutCall(%s) = %+v, %t", tc.record, call, ok)
 		}

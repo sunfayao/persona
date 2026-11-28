@@ -4,14 +4,16 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/json"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/lazyre"
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
-// LoopDetector consumes complete transcript lines. It retains only hashes and bounded
+// LoopDetector tracks parsed tool items. It retains only hashes and bounded
 // metadata, never tool arguments or results. The caller owns one detector per file.
 type LoopDetector struct {
 	pending   []loopCall
@@ -21,10 +23,10 @@ type LoopDetector struct {
 }
 
 type loopCall struct {
-	id, tool       string
-	input, result  [32]byte
-	at, resultAt   time.Time
-	ready, polling bool
+	tool                   string
+	id, input, result      [32]byte
+	at, resultAt           time.Time
+	ready, polling, failed bool
 }
 
 // Clone makes an independent copy for an incremental file read.
@@ -61,109 +63,70 @@ func loopHash(raw json.RawMessage) [32]byte {
 	return sha256.Sum256(raw)
 }
 
-// Line reads message and response-item transcripts, avoiding duplicate
-// item_completed representations of the same calls.
+// Line feeds a complete line when the node has no current parsed transcript.
 func (d *LoopDetector) Line(line []byte) {
-	var l struct {
-		Type, Subtype                         string
-		Timestamp                             time.Time
-		IsSidechain, IsMeta, IsCompactSummary bool
-		Message                               *struct {
-			Role    string
-			Content json.RawMessage
+	ParseLine(0, line, &Meta{toolLoop: d})
+}
+
+// observeToolLoop consumes the canonical item identity with the complete source
+// payload, before clipping and without adding hashes to the item or the wire.
+func (m *Meta) observeToolLoop(it *proto.Item, raw json.RawMessage) {
+	if d := m.toolLoop; d != nil {
+		switch it.Kind {
+		case proto.KindToolUse:
+			d.call(it.ToolUseID, it.ToolName, raw, it.TS)
+		case proto.KindToolResult:
+			d.result(it.ToolUseID, raw, it.IsError, it.TS)
 		}
-		Attachment *struct {
-			Type, CommandMode string
-			Origin            struct{ Kind string }
-		}
-		Payload json.RawMessage
 	}
-	if json.Unmarshal(line, &l) != nil || l.IsSidechain {
+}
+
+func (m *Meta) resetToolLoop() {
+	if m.toolLoop != nil {
+		m.toolLoop.reset()
+	}
+}
+
+// A tool-result-only Claude user record is not a prompt. Even a prompt that
+// projects no visible item (or carries a tool result itself) breaks the loop.
+func (m *Meta) toolLoopUserBlocks(blocks []block) {
+	if m.toolLoop == nil {
 		return
 	}
-	switch l.Type {
-	case "system":
-		if l.Subtype == "turn_duration" {
-			d.reset()
-		}
-	case "attachment":
-		if l.Attachment != nil && l.Attachment.Type == "queued_command" && l.Attachment.CommandMode == "prompt" && l.Attachment.Origin.Kind == "human" {
-			d.reset()
-		}
-	case "user", "assistant":
-		if l.Message == nil || l.IsMeta || l.IsCompactSummary {
+	hasResult := false
+	for _, b := range blocks {
+		switch b.Type {
+		case "text", "image":
+			m.resetToolLoop()
 			return
-		}
-		var rawBlocks []json.RawMessage
-		if json.Unmarshal(l.Message.Content, &rawBlocks) != nil {
-			if l.Type == "user" {
-				d.reset()
-			}
-			return
-		}
-		hasResult, hasPrompt := false, false
-		for _, raw := range rawBlocks {
-			var b struct {
-				Type      string          `json:"type"`
-				ID        string          `json:"id"`
-				Name      string          `json:"name"`
-				ToolUseID string          `json:"tool_use_id"`
-				Input     json.RawMessage `json:"input"`
-				Content   json.RawMessage `json:"content"`
-				IsError   bool            `json:"is_error"`
-			}
-			if json.Unmarshal(raw, &b) != nil {
-				continue
-			}
-			switch b.Type {
-			case "text", "image":
-				hasPrompt = true
-			case "tool_use":
-				d.call(b.ID, b.Name, b.Input, l.Timestamp)
-			case "tool_result":
-				hasResult = true
-				r, _ := json.Marshal(struct {
-					Content json.RawMessage `json:"content"`
-					Error   bool            `json:"error"`
-				}{b.Content, b.IsError})
-				d.result(b.ToolUseID, r, l.Timestamp)
-			}
-		}
-		if l.Type == "user" && (!hasResult || hasPrompt) {
-			d.reset()
-		}
-	case "event_msg":
-		var p struct {
-			Type string
-			Item *struct{ Type string }
-		}
-		if json.Unmarshal(l.Payload, &p) == nil && (p.Type == "task_started" || p.Type == "task_complete" || p.Type == "turn_aborted" || p.Type == "user_message" || p.Type == "item_completed" && p.Item != nil && p.Item.Type == "UserMessage") {
-			d.reset()
-		}
-	case "response_item":
-		var p struct {
-			Type, Name               string
-			Arguments, Input, Output json.RawMessage
-			CallID                   string `json:"call_id"`
-		}
-		if json.Unmarshal(l.Payload, &p) != nil {
-			return
-		}
-		switch p.Type {
-		case "function_call", "custom_tool_call":
-			raw := p.Arguments
-			if p.Type == "custom_tool_call" {
-				raw = p.Input
-			}
-			var in string
-			if json.Unmarshal(raw, &in) == nil && json.Valid([]byte(in)) {
-				raw = json.RawMessage(in)
-			}
-			d.call(p.CallID, p.Name, raw, l.Timestamp)
-		case "function_call_output", "custom_tool_call_output":
-			d.result(p.CallID, p.Output, l.Timestamp)
+		case "tool_result":
+			hasResult = true
 		}
 	}
+	if !hasResult {
+		m.resetToolLoop()
+	}
+}
+
+func (f *File) enableToolLoop(m *Meta) {
+	if f.sources.ToolLoop && !m.Sidechain && m.toolLoop == nil {
+		m.toolLoop = &LoopDetector{}
+	}
+}
+
+// ToolLoopAt reuses normal ingestion only when it covers the observed file
+// revision. A missing snapshot or a busy reader leaves the bounded scan to the
+// caller; a session list never waits on a page read.
+func (f *File) ToolLoopAt(path string, st os.FileInfo) (LoopDetector, int64, bool) {
+	if !f.mu.TryLock() {
+		return LoopDetector{}, 0, false
+	}
+	defer f.mu.Unlock()
+	if f.meta.toolLoop == nil || f.Path != path || f.indexed != nil || compressedTranscript(path) ||
+		f.offset != st.Size() || !f.readMtime.Equal(st.ModTime()) || inode(st) != 0 && f.ino != inode(st) {
+		return LoopDetector{}, 0, false
+	}
+	return f.meta.toolLoop.Clone(), f.offset - int64(len(f.partial)), true
 }
 
 func safeToolName(name string) bool {
@@ -304,7 +267,8 @@ func (d *LoopDetector) call(id, name string, input json.RawMessage, at time.Time
 	if len(d.pending) >= 128 {
 		d.reset()
 	}
-	c := loopCall{id: id, tool: name, input: loopHash(input), at: at, polling: pollingTool(name, input)}
+	tool := turnmodel.NameOf(name)
+	c := loopCall{id: sha256.Sum256([]byte(id)), tool: tool, input: loopHash(input), at: at, polling: pollingTool(name, input)}
 	if d.candidate != nil {
 		expected := d.history[len(d.history)-d.period+len(d.pending)%d.period]
 		last := d.history[len(d.history)-1]
@@ -316,17 +280,18 @@ func (d *LoopDetector) call(id, name string, input json.RawMessage, at time.Time
 	d.pending = append(d.pending, c)
 }
 
-func (d *LoopDetector) result(id string, output json.RawMessage, at time.Time) {
+func (d *LoopDetector) result(id string, output json.RawMessage, failed bool, at time.Time) {
 	if at.IsZero() {
 		// Without a result time there is no way to exclude slow polling.
 		d.reset()
 		return
 	}
+	key := sha256.Sum256([]byte(id))
 	for i := range d.pending {
-		if d.pending[i].id == id {
+		if d.pending[i].id == key {
 			d.pending[i].result = loopHash(output)
 			d.pending[i].resultAt = at
-			d.pending[i].ready = true
+			d.pending[i].ready, d.pending[i].failed = true, failed
 			break
 		}
 	}
@@ -338,7 +303,7 @@ func (d *LoopDetector) result(id string, output json.RawMessage, at time.Time) {
 }
 
 func sameLoopCall(a, b loopCall) bool {
-	return a.tool == b.tool && a.input == b.input && a.result == b.result
+	return a.tool == b.tool && a.input == b.input && a.result == b.result && a.failed == b.failed
 }
 
 func (d *LoopDetector) add(c loopCall) {

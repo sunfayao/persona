@@ -10,7 +10,58 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
+
+type toolLoopTestReader struct{}
+
+func (toolLoopTestReader) DecodeLine(line []byte, out *transcript.ClaudeLine) error {
+	err := transcript.DecodeClaudeLine(line, out)
+	out.Type = strings.TrimPrefix(out.Type, "test-")
+	return err
+}
+
+func TestToolLoopReusesParsedCallsBeforeReadingPartialResult(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	var body strings.Builder
+	result := func(i int) string {
+		return fmt.Sprintf(`{"type":"user","timestamp":"2026-01-01T00:00:0%dZ","message":{"content":[{"type":"tool_result","tool_use_id":"%d","content":"ok"}]}}`+"\n", i, i)
+	}
+	for i := 0; i < 4; i++ {
+		// Only the configured reader can project these calls. A second native
+		// parse cannot reconstruct the candidate the cached detector saw.
+		fmt.Fprintf(&body, `{"type":"test-assistant","timestamp":"2026-01-01T00:00:0%dZ","message":{"content":[{"type":"tool_use","id":"%d","name":"Read","input":{}}]}}`+"\n", i, i)
+		if i < 3 {
+			body.WriteString(result(i))
+		}
+	}
+	last := result(3)
+	split := len(last) / 2
+	if err := os.WriteFile(path, []byte(body.String()+last[:split]), 0600); err != nil {
+		t.Fatal(err)
+	}
+	f := transcript.NewParsedFile(path, transcript.Sources{Claude: toolLoopTestReader{}, ToolLoop: true})
+	n := &Node{paths: map[string]string{"s": path}, files: map[string]*transcript.File{"s": f}, metas: map[string]quickMeta{}}
+	if _, err := f.Refresh(); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.toolLoopOf("s"); got != nil {
+		t.Fatalf("incomplete result counted: %+v", got)
+	}
+	// Leave the parsed file one append behind: fallback must start at the
+	// first byte of the partial result and retain the parsed pending call.
+	appendFile(t, path, last[split:])
+	if got := n.toolLoopOf("s"); got == nil || got.Count != 4 {
+		t.Fatalf("fallback lost ingested calls: %+v", got)
+	}
+	appendFile(t, path, `{"type":"system","subtype":"turn_duration"}`+"\n")
+	if _, err := f.Refresh(); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.toolLoopOf("s"); got != nil {
+		t.Fatalf("ingested turn end left a candidate: %+v", got)
+	}
+}
 
 func TestToolLoopIncrementalAndListPush(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "transcript.jsonl")

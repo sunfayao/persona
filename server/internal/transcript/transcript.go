@@ -141,6 +141,7 @@ type block struct {
 // Meta is session-level information collected while parsing.
 type Meta struct {
 	turnReducer        *turnmodel.Reducer
+	toolLoop           *LoopDetector
 	facetAgent         string
 	facetNative        string
 	facetTurn          string
@@ -637,6 +638,9 @@ func (m *Meta) observeActivity(it proto.Item) {
 func (m *Meta) endTurn(seq int, at time.Time) {
 	m.TurnOpen, m.TurnClosed = false, true
 	m.turnEndedAt, m.turnEndSeq, m.turnEndLine = at, seq, m.tree.uuid
+	if !m.tree.sidechain && !m.Sidechain {
+		m.resetToolLoop()
+	}
 	if m.tree.sidechain || m.Sidechain {
 		m.turnEndedAt = time.Time{}
 	}
@@ -780,6 +784,9 @@ func parseLine(seq int, line []byte, meta *Meta) []proto.Item {
 		}
 		if a == nil || a.Type != "queued_command" {
 			return nil
+		}
+		if a.CommandMode == "prompt" && a.Origin != nil && a.Origin.Kind == "human" {
+			meta.resetToolLoop()
 		}
 		notification := a.CommandMode == "task-notification"
 		// A subagent handing its report back while the session works (Claude Code 2.1.319): a queued command with a
@@ -937,6 +944,9 @@ func parseLine(seq int, line []byte, meta *Meta) []proto.Item {
 			return nil
 		}
 		if it, ok := meta.agentPeer(mk, e.Origin, e.Message.Content); ok {
+			if !e.IsMeta && !e.IsCompactSummary {
+				meta.resetToolLoop()
+			}
 			it.Wake = true
 			return []proto.Item{it}
 		}
@@ -963,6 +973,7 @@ func parseLine(seq int, line []byte, meta *Meta) []proto.Item {
 			if e.IsMeta {
 				return nil
 			}
+			meta.resetToolLoop()
 			items, paseo := paseoInput(mk, 0, s)
 			if !paseo {
 				items = userText(mk, s, meta)
@@ -977,7 +988,13 @@ func parseLine(seq int, line []byte, meta *Meta) []proto.Item {
 		}
 		var blocks []block
 		if unmarshalLine(e.Message.Content, &blocks) != nil {
+			if !e.IsMeta {
+				meta.resetToolLoop()
+			}
 			return nil
+		}
+		if !e.IsMeta {
+			meta.toolLoopUserBlocks(blocks)
 		}
 		var out []proto.Item
 		// The line's record of a call (toolUseResult, toolDenialKind) is its result's when it holds only one.
@@ -1029,6 +1046,9 @@ func parseLine(seq int, line []byte, meta *Meta) []proto.Item {
 				it := mk(i, "user", proto.KindToolResult)
 				it.ToolUseID = b.ToolUseID
 				it.IsError = b.IsError
+				if !e.IsMeta {
+					meta.observeToolLoop(&it, b.Content)
+				}
 				it.Text = clip(text)
 				it.Outcome = claudeOutcome(text, b.IsError, record, denial)
 				it.Task = meta.agentResult(it.ToolUseID, it.Text, it.IsError, taskEvidence)
@@ -1116,6 +1136,9 @@ func parseLine(seq int, line []byte, meta *Meta) []proto.Item {
 				it := mk(i, "assistant", proto.KindToolUse)
 				it.ToolUseID = b.ID
 				it.ToolName = b.Name
+				if b.Type == "tool_use" && !e.IsMeta && !e.IsCompactSummary {
+					meta.observeToolLoop(&it, b.Input)
+				}
 				it.ToolInput = clipJSON(b.Input)
 				out = append(out, it)
 				meta.trackBackground(b.ID, b.Name, b.Input, e.Timestamp)

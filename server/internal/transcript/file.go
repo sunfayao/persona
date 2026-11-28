@@ -72,6 +72,7 @@ type Sources struct {
 	RolloutTools RolloutToolDecoder
 	Sidechain    bool
 	Agent        string
+	ToolLoop     bool
 }
 
 // NewParsedFile sets the adapters for incremental and windowed reads.
@@ -299,6 +300,7 @@ func (f *File) appendLine(line []byte, at int64, fresh *[]proto.Item) {
 	if len(bytes.TrimSpace(line)) == 0 {
 		return
 	}
+	f.enableToolLoop(&f.meta)
 	items := f.parseLine(f.lines, line, &f.meta)
 	if f.tree == nil {
 		f.tree = &branchTree{}

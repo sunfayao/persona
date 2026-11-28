@@ -265,6 +265,55 @@ func TestToolLoopHashesWholeInputAndOutput(t *testing.T) {
 	}
 }
 
+func TestToolLoopParsedRolloutCountsOnlyCompleteNativePairs(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, callKind, outputKind, inputField, tool, input string
+		polling                                             bool
+	}{
+		{"shell", "function_call", "function_call_output", "arguments", "exec_command", `"{\"cmd\":\"go test\"}"`, false},
+		{"custom", "custom_tool_call", "custom_tool_call_output", "input", "apply_patch", `"plain patch"`, false},
+		{"wait", "function_call", "function_call_output", "arguments", "functions.write_stdin", `"{\"session_id\":1,\"chars\":\"\"}"`, true},
+		{"input", "function_call", "function_call_output", "arguments", "functions.write_stdin", `"{\"session_id\":1,\"chars\":\"submit\"}"`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var d LoopDetector
+			meta := Meta{toolLoop: &d, facetAgent: "auto"}
+			for i := 0; i < 4; i++ {
+				at := fmt.Sprintf("2026-01-01T00:00:0%dZ", i)
+				call := fmt.Sprintf(`{"timestamp":%q,"type":"response_item","payload":{"type":%q,"call_id":"%d","name":%q,%q:%s}}`, at, tc.callKind, i, tc.tool, tc.inputField, tc.input)
+				if items := ParseLine(3*i+1, []byte(call), &meta); len(items) != 0 {
+					t.Fatalf("private loop evidence reached display items: %+v", items)
+				}
+				display := fmt.Sprintf(`{"timestamp":%q,"type":"event_msg","payload":{"type":"item_completed","item":{"type":"CommandExecution","id":"display-%d","command":["go","test"],"status":"completed","aggregated_output":"same"}}}`, at, i)
+				ParseLine(3*i+2, []byte(display), &meta)
+				if got := d.Candidate(); got != nil {
+					t.Fatalf("display completion counted as a separate result: %+v", got)
+				}
+				result := fmt.Sprintf(`{"timestamp":%q,"type":"response_item","payload":{"type":%q,"call_id":"%d","output":[{"type":"input_text","text":"same"}]}}`, at, tc.outputKind, i)
+				ParseLine(3*i+3, []byte(result), &meta)
+			}
+			got := d.Candidate()
+			if tc.polling {
+				if got != nil {
+					t.Fatalf("native polling counted as a loop: %+v", got)
+				}
+				return
+			}
+			if got == nil || got.Count != 4 {
+				t.Fatalf("want four calls, got %+v", got)
+			}
+			for _, boundary := range []string{"task_started", "task_complete", "turn_aborted", "user_message"} {
+				copy := d.Clone()
+				ParseLine(13, []byte(fmt.Sprintf(`{"type":"event_msg","payload":{"type":%q}}`, boundary)), &Meta{Codex: true, toolLoop: &copy})
+				if next := copy.Candidate(); next != nil {
+					t.Fatalf("%s did not clear the candidate: %+v", boundary, next)
+				}
+			}
+		})
+	}
+}
+
 func TestToolLoopResponseItems(t *testing.T) {
 	var d LoopDetector
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)

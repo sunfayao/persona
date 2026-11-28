@@ -372,7 +372,11 @@ func parseCodexRecord(seq int, l CodexRecord, meta *Meta) []proto.Item {
 			}
 		}
 		return nil
+	case "user_message":
+		meta.resetToolLoop()
+		return nil
 	case "task_started":
+		meta.resetToolLoop()
 		meta.TurnOpen, meta.TurnClosed = true, false
 		meta.CodexClosedTurnID = ""
 		meta.codexTurnID, meta.codexUserID, meta.codexTurnModel = p.TurnID, "", ""
@@ -513,6 +517,7 @@ func codexItemLines(seq int, ts time.Time, turnID string, it *codexItem, meta *M
 			return []proto.Item{plan}
 		}
 	case "UserMessage":
+		meta.resetToolLoop()
 		var parts, images []string
 		for _, c := range it.Content {
 			switch {

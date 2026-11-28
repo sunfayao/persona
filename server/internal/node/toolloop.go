@@ -21,8 +21,8 @@ type toolLoopScan struct {
 // Bound both tail reconstruction and the largest complete line we parse.
 const toolLoopReadLimit = 8 << 20
 
-// toolLoopOf is called only for running sessions. Reads are incremental and
-// bounded; a gap too large to reconstruct safely starts a fresh tail scan.
+// toolLoopOf is called only for running sessions. Reuse an ingested file when
+// current; otherwise read incrementally or reconstruct from a bounded tail.
 func (n *Node) toolLoopOf(id string) *proto.ToolLoop {
 	path := n.transcriptPath(id)
 	if path == "" {
@@ -33,10 +33,20 @@ func (n *Node) toolLoopOf(id string) *proto.ToolLoop {
 		return nil
 	}
 	n.mu.Lock()
-	m := n.metas[path]
+	m, f := n.metas[path], n.files[id]
 	n.mu.Unlock()
 	if m.toolLoop.size != st.Size() || !m.toolLoop.mtime.Equal(st.ModTime()) {
-		updated := readToolLoop(path, st, m)
+		updated := m
+		var reused bool
+		if f != nil {
+			if detector, offset, ok := f.ToolLoopAt(path, st); ok {
+				updated.toolLoop = toolLoopScan{detector: detector, offset: offset, size: st.Size(), mtime: st.ModTime()}
+				reused = true
+			}
+		}
+		if !reused {
+			updated = readToolLoop(path, st, m)
+		}
 		n.mu.Lock()
 		current := n.metas[path]
 		if current.toolLoop.size == m.toolLoop.size && current.toolLoop.mtime.Equal(m.toolLoop.mtime) {

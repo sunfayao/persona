@@ -388,7 +388,7 @@ func (n *Node) transcriptFile(id string) (*transcript.File, error) {
 		if strings.HasPrefix(p, n.traexHome()+string(filepath.Separator)) {
 			agent = traexAgent
 		}
-		f = transcript.NewParsedFile(p, transcript.Sources{Claude: claude.Reader{}, RolloutTools: traex.RolloutTools{}, Agent: agent})
+		f = transcript.NewParsedFile(p, transcript.Sources{Claude: claude.Reader{}, RolloutTools: traex.RolloutTools{}, Agent: agent, ToolLoop: true})
 	}
 	n.mu.Lock()
 	if existing := n.files[id]; existing != nil {

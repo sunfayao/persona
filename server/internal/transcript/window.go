@@ -220,6 +220,7 @@ func (f *File) openWindow(fh *os.File, size int64) (fresh []proto.Item, ok bool,
 	// and then drop the notification that ended it as one already shown.
 	w.ids = seedTaskIDs(data)
 	meta := f.seeded(fh, w, b, lastNL, w.ids)
+	f.enableToolLoop(&meta)
 	var kept []proto.Item
 	f.refs = nil
 	f.tree = f.freshTree()
@@ -815,6 +816,7 @@ func (f *File) fullMeta() Meta {
 			return f.meta
 		}
 	}
+	m.toolLoop = f.meta.toolLoop
 	f.meta, f.partialMeta = m, false
 	if f.base == 0 {
 		f.win = nil
