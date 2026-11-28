@@ -40,7 +40,9 @@ class HubSwitchOnDeploy(unittest.TestCase):
 
     def run_script(self, **extra) -> subprocess.CompletedProcess:
         env = {**os.environ, 'HOME': str(self.home), 'XDG_CONFIG_HOME': str(self.home / '.config'),
-               'PATH': f'{self.fake}:{os.environ["PATH"]}', '_PERSONA_STATE_DIR': str(self.root)}
+               'PATH': f'{self.fake}:{os.environ["PATH"]}', 'PERSONA_HOME': str(self.root)}
+        # Recompute the deployment identity for the fixture, including when the test is run from a live session.
+        env.pop('_PERSONA_HUB_UNIT', None)
         env.pop('PERSONA_HUB_SOCKET', None)
         env.pop('PERSONA_HUB_EDGE', None)
         env.update(extra)
