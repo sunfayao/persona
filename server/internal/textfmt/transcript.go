@@ -14,8 +14,21 @@ import (
 // messages, tool calls in one line each, failed results, cut to at most the last 40 000 bytes at a rune boundary.
 // linkToItem optionally supplies a link beside each message.
 func Transcript(head string, items []proto.Item, linkToItem func(string) string) string {
-	var b strings.Builder
-	b.WriteString(head + "\n\n")
+	out := head + "\n\n" + strings.Join(TranscriptBlocks(items, linkToItem), "")
+	if len(out) > 40000 {
+		start := len(out) - 40000
+		for start < len(out) && !utf8.RuneStart(out[start]) {
+			start++
+		}
+		out = "…(earlier part cut)\n" + out[start:]
+	}
+	return out
+}
+
+// TranscriptBlocks is Transcript's body, one string per message or one-line item, so a caller can keep whole ones.
+func TranscriptBlocks(items []proto.Item, linkToItem func(string) string) []string {
+	var blocks []string
+	add := func(format string, args ...any) { blocks = append(blocks, fmt.Sprintf(format, args...)) }
 	for _, it := range items {
 		switch it.Kind {
 		case proto.KindText:
@@ -35,34 +48,26 @@ func Transcript(head string, items []proto.Item, linkToItem func(string) string)
 			if it.Role == "assistant" {
 				text = wire.AssistantCardText(text)
 			}
-			fmt.Fprintf(&b, "%s: %s\n\n", who, Clip(text, 4000))
+			add("%s: %s\n\n", who, Clip(text, 4000))
 		case proto.KindThinking:
 			if t := strings.TrimSpace(it.Text); t != "" {
-				fmt.Fprintf(&b, "(agent, progress summary) %s\n", Clip(OneLine(t), 400))
+				add("(agent, progress summary) %s\n", Clip(OneLine(t), 400))
 			}
 		case proto.KindToolUse:
-			fmt.Fprintf(&b, "→ %s %s\n", it.ToolName, Clip(OneLine(ToolSummary(it.ToolName, it.ToolInput)), 200))
+			add("→ %s %s\n", it.ToolName, Clip(OneLine(ToolSummary(it.ToolName, it.ToolInput)), 200))
 		case proto.KindToolResult:
 			if it.IsError {
-				fmt.Fprintf(&b, "  ✗ %s\n", Clip(OneLine(it.Text), 300))
+				add("  ✗ %s\n", Clip(OneLine(it.Text), 300))
 			}
 		case proto.KindNotice, proto.KindRecap:
 			if it.Text != "" {
-				fmt.Fprintf(&b, "(%s)\n", Clip(OneLine(it.Text), 300))
+				add("(%s)\n", Clip(OneLine(it.Text), 300))
 			}
 		case proto.KindImage:
-			b.WriteString("[image]\n")
+			add("[image]\n")
 		}
 	}
-	out := b.String()
-	if len(out) > 40000 {
-		start := len(out) - 40000
-		for start < len(out) && !utf8.RuneStart(out[start]) {
-			start++
-		}
-		out = "…(earlier part cut)\n" + out[start:]
-	}
-	return out
+	return blocks
 }
 
 // ToolSummary is the one-line gist of a tool call (command, file, url…).

@@ -199,3 +199,39 @@ func TestManageSubagentsKillCancelsRunningSubagent(t *testing.T) {
 		t.Fatalf("killed agy subagent = %+v, want cancelled", row.Subagents)
 	}
 }
+
+func TestRestartNoticeIsLowKeyWhenNothingRan(t *testing.T) {
+	t.Parallel()
+	restartLine := func(i int) string {
+		return agyParseLine(i, "SYSTEM_MESSAGE", "RUNNING", stamp, "[Message] timestamp="+stamp+" sender=system content=[Notice] "+serverRestart)
+	}
+	severities := func(t *testing.T, fixture func(Ref) string) []string {
+		ref := Ref{t.TempDir(), agyTestID}
+		agyTestFile(t, ref.Root, ref.Conversation, fixture(ref))
+		h := readFixture(t, New(Dependencies{Clock: testClock{}}), ref)
+		var out []string
+		for _, it := range h.items {
+			if n := it.Facets.Notice; it.Kind == proto.KindNotice && n != nil && n.Code == proto.NoticeCodeServerRestart {
+				out = append(out, n.Severity)
+			}
+		}
+		return out
+	}
+	idle := severities(t, func(Ref) string { return restartLine(1) + restartLine(2) })
+	if len(idle) != 2 || idle[0] != proto.NoticeSeverityInfo || idle[1] != proto.NoticeSeverityInfo {
+		t.Fatalf("an idle restart is a warning: %v", idle)
+	}
+	ran := severities(t, func(ref Ref) string {
+		call := `{"step_index":0,"type":"PLANNER_RESPONSE","tool_calls":[{"name":"run_command","args":{"CommandLine":"example"}}]}` + "\n"
+		return call + agyParseLine(1, "GENERIC", "RUNNING", stamp, taskPrefix+" "+ref.Conversation+"/task-1") + restartLine(2) + restartLine(3)
+	})
+	if len(ran) != 2 || ran[0] != proto.NoticeSeverityWarning || ran[1] != proto.NoticeSeverityInfo {
+		t.Fatalf("a restart that stopped a task is not kept, or a second one repeats: %v", ran)
+	}
+	sub := severities(t, func(Ref) string {
+		return `{"step_index":0,"type":"PLANNER_RESPONSE","tool_calls":[{"name":"invoke_subagent","args":{}}]}` + "\n" + restartLine(1)
+	})
+	if len(sub) != 1 || sub[0] != proto.NoticeSeverityWarning {
+		t.Fatalf("a restart that stopped a subagent: %v", sub)
+	}
+}

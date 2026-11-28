@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/readsize"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/lazyre"
 	"github.com/sunfayao/persona/server/internal/prompts"
@@ -1331,17 +1332,16 @@ func (s *Service) toolConversationRead(ctx context.Context, self string, args js
 	if err != nil {
 		return "", err
 	}
-	if a.Turns <= 0 {
-		a.Turns = 2
-	}
 	var res struct {
 		Items []proto.Item `json:"items"`
 	}
-	if err := s.call(ctx, c.MachineID, DeviceSessionItems, map[string]any{"session_id": c.SessionID, "turns": min(a.Turns, 10)}, &res); err != nil {
+	if err := s.call(ctx, c.MachineID, DeviceSessionItems, map[string]any{"session_id": c.SessionID, "turns": readsize.Turns(a.Turns)}, &res); err != nil {
 		return "", err
 	}
 	head := fmt.Sprintf("「%s」 %s (%s)", conversationName(c, s.settings(ctx).Main), c.SessionID, stateNames[c.State])
-	return transcriptText(head, sessionLink(s.webBase(ctx), c.MachineID, c.SessionID, true), res.Items), nil
+	return readsize.Transcript(head, res.Items, a.Turns, func(id string) string {
+		return itemLink(sessionLink(s.webBase(ctx), c.MachineID, c.SessionID, true), id)
+	}), nil
 }
 
 func (s *Service) toolConversationSend(ctx context.Context, self string, args json.RawMessage) (string, error) {
