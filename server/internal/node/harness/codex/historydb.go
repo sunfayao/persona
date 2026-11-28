@@ -18,7 +18,6 @@ type indexedRow struct {
 	DurationMS  int64  `json:"duration_ms"`
 	ErrorJSON   string `json:"error_json"`
 	CreatedAtMS int64  `json:"created_at_ms"`
-	ItemType    string `json:"item_type"`
 	ItemJSON    string `json:"item_json"`
 }
 
@@ -32,7 +31,7 @@ func ReadHistory(ctx context.Context, db string, thread AppThread, query History
 	const selectRows = `
 SELECT t.history_ordinal, t.turn_id, t.status, coalesce(t.duration_ms, -1) AS duration_ms,
        coalesce(t.error_json, '') AS error_json, coalesce(i.created_at_ms, 0) AS created_at_ms,
-       coalesce(i.item_type, '') AS item_type, coalesce(i.item_json, '') AS item_json
+       coalesce(i.item_json, '') AS item_json
 FROM history t
 LEFT JOIN thread_items i ON i.thread_id = t.thread_id AND i.turn_id = t.turn_id
 ORDER BY t.history_ordinal, i.rollout_ordinal
@@ -81,7 +80,7 @@ ORDER BY t.history_ordinal, i.rollout_ordinal
 			if row.CreatedAtMS > 0 {
 				cursor = time.UnixMilli(row.CreatedAtMS).UTC()
 			}
-			if record, ok := ThreadItemRecord(cursor, turn.TurnID, row.ItemType, []byte(row.ItemJSON)); ok {
+			if record, ok := ThreadItemRecord(cursor, turn.TurnID, "", []byte(row.ItemJSON)); ok {
 				records = append(records, record)
 			}
 		}

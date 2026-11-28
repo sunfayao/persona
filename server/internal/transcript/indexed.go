@@ -5,6 +5,7 @@ import (
 	"errors"
 	"hash/crc32"
 	"slices"
+	"time"
 
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -23,9 +24,24 @@ type indexedHistory struct {
 	full      map[string]proto.Item
 	pending   []CodexRecord
 	pendingAt string
+	failedAt  time.Time
+	failedRev string
+	failure   error
 }
 
 var ErrEmptyIndexedHistory = errors.New("indexed history has no readable records")
+
+func (h *indexedHistory) records(revision string) ([]CodexRecord, error) {
+	if h.pending != nil && revision == h.pendingAt {
+		return h.pending, nil
+	}
+	if h.failure != nil && revision == h.failedRev && time.Since(h.failedAt) < 5*time.Minute {
+		return nil, h.failure
+	}
+	records, err := h.source.Read()
+	h.failedAt, h.failedRev, h.failure = time.Now(), revision, err
+	return records, err
+}
 
 // NewIndexedFile provides the transcript paging interface for a source without an on-disk JSONL file.
 func NewIndexedFile(identity string, source IndexedSource, sources Sources) *File {
@@ -70,10 +86,7 @@ func (f *File) PrefetchIndexed() error {
 		}
 		return nil
 	}
-	if state.pending != nil && revision == state.pendingAt {
-		return nil
-	}
-	records, err := state.source.Read()
+	records, err := state.records(revision)
 	if err != nil {
 		return err
 	}
@@ -90,13 +103,9 @@ func (f *File) refreshIndexed() ([]proto.Item, Span, error) {
 	if state.read && revision == state.revision {
 		return nil, Span{History: f.history(), From: f.lines, To: f.lines}, nil
 	}
-	records := state.pending
-	if records == nil || revision != state.pendingAt {
-		var err error
-		records, err = state.source.Read()
-		if err != nil {
-			return nil, Span{}, err
-		}
+	records, err := state.records(revision)
+	if err != nil {
+		return nil, Span{}, err
 	}
 	state.pending = nil
 	digests := make([][32]byte, len(records))

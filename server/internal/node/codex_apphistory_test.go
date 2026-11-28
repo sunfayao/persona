@@ -502,6 +502,9 @@ func TestCodexAppChatReadsHistoryAfterTheDatabaseIsRepaired(t *testing.T) {
 	}
 	writeCodexHistory(t, home, []historyTurn{{thread: appChat, id: "t0", status: "completed", ordinal: 0,
 		items: [][2]string{userItem("u0", "rows now")}}})
+	if out, err := exec.Command(sqlite3WithJSON(t), db, "ALTER TABLE thread_items DROP COLUMN item_type;").CombinedOutput(); err != nil {
+		t.Fatalf("sqlite3: %v: %s", err, out)
+	}
 	if _, text := readChat(t, n, appChat); !strings.Contains(text, "rows now") {
 		t.Fatalf("after repairing the database: %s", text)
 	}

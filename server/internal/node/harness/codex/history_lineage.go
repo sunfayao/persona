@@ -100,6 +100,9 @@ func codexHistorySegments(home string, t AppThread) ([]codexHistorySegment, erro
 }
 
 func HistoryTurnsSQL(home string, t AppThread) (string, error) {
+	if !nodeclient.ValidSessionID(t.ID) {
+		return "", fmt.Errorf("invalid Codex history thread id")
+	}
 	if !t.Paginated {
 		return fmt.Sprintf("WITH history AS (SELECT *, rollout_ordinal AS history_ordinal FROM thread_turns WHERE thread_id = '%s') ", t.ID), nil
 	}

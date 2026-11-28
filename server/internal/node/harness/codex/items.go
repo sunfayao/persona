@@ -31,6 +31,7 @@ func shellArgv(command string) []string {
 func DecodeThreadItem(kind string, raw []byte) map[string]any {
 	var v struct {
 		ID      string `json:"id"`
+		Type    string `json:"type"`
 		Content []struct {
 			Type string `json:"type"`
 			Text string `json:"text"`
@@ -91,6 +92,9 @@ func DecodeThreadItem(kind string, raw []byte) map[string]any {
 	}
 	if json.Unmarshal(raw, &v) != nil || v.Status == "inProgress" {
 		return nil
+	}
+	if kind == "" {
+		kind = v.Type
 	}
 	item := map[string]any{"id": v.ID}
 	switch kind {
