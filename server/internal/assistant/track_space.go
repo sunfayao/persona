@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/rulefiles"
 	"github.com/sunfayao/persona/server/internal/compat"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/identity"
@@ -63,7 +64,7 @@ func (s *Service) trackSpaceNode(machine string) bool {
 func (s *Service) spaceClaudeMD(ctx context.Context, here string, e trackEntry) string {
 	hello := s.hello(ctx)
 	d := prompts.AssistantSpaceClaudeMD{Owner: strings.TrimSpace(hello.Owner), Title: oneLine(e.Title), DirName: e.DirName,
-		Notes: s.notes(ctx), Language: answerLanguage(hello.Locale)}
+		Notes: s.ruleFiles.Render(ctx, here, trackRel(e), rulefiles.Values{Notes: s.notes(ctx)}).Notes, Language: answerLanguage(hello.Locale)}
 	if d.Title == "" {
 		d.Title = e.Slug
 	}

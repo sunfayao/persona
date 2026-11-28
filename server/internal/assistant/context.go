@@ -9,8 +9,11 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/sunfayao/persona/server/internal/assistant/replylang"
+	"github.com/sunfayao/persona/server/internal/assistant/rulefiles"
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/textfmt"
@@ -23,6 +26,7 @@ import (
 // background supervisor's announcement.
 func (s *Service) Context(ctx context.Context, p ContextParams) ContextResult {
 	if len(p.Ack) > 0 {
+		p.Ack = s.ruleFiles.Delivered(ctx, p.MachineID, p.SessionID, p.Ack)
 		// The background supervisor's announcement is confirmed the same way (supervise_background.go).
 		if p.Ack = s.announcedBackground(ctx, p.SessionID, p.Ack); len(p.Ack) > 0 {
 			s.ackViewErrors(ctx, p)
@@ -38,7 +42,7 @@ func (s *Service) Context(ctx context.Context, p ContextParams) ContextResult {
 	if !cleanRound { // a granted schedule's round reads nothing from outside (schedule_grant.go)
 		if track := s.contextTrack(ctx, p, background); track != "" {
 			// a conversation in a track other than the main space: its own short context, not the snapshot (space_context.go)
-			return s.contextResult(ctx, p, s.spaceContext(ctx, track), "", false)
+			return s.withRuleNotice(ctx, p, track, s.contextResult(ctx, p, s.spaceContext(ctx, track), "", false))
 		}
 		snapshot = s.contextSnapshot(ctx, s.snapshotScope(ctx, p.SessionID), background)
 	}
@@ -48,7 +52,30 @@ func (s *Service) Context(ctx context.Context, p ContextParams) ContextResult {
 	case c.Main:
 		c.BackgroundStarted = s.announceBackground(ctx) // until a message carrying it is delivered: its tasks are followed up in the background now (supervise_background.go)
 	}
-	return s.contextResult(ctx, p, prompts.RenderAssistantContext(c), c.BackgroundStarted, cleanRound)
+	return s.withRuleNotice(ctx, p, "", s.contextResult(ctx, p, prompts.RenderAssistantContext(c), c.BackgroundStarted, cleanRound))
+}
+
+// withRuleNotice adds to out the one-off About me block a conversation of space's directory is owed when its standing
+// rule files say something else than the settings now, and ends the hold on those files once it was compacted (a
+// recovery id comes with its message) so they are written again (rulefiles). Only for a node that returns the
+// block's receipt; the others keep today's rewrite of the files.
+func (s *Service) withRuleNotice(ctx context.Context, p ContextParams, space string, out ContextResult) ContextResult {
+	nodes, ok := s.physicalDevices().(nodeAnnouncer)
+	if !ok || !nodes.NodeAnnounced(p.MachineID, nodeproto.RuleNotice) || p.SessionID == "" || s.cleanRoundSession(p.SessionID) || s.isWorkMachine(p.MachineID) || s.isGuest(ctx, p.MachineID, p.SessionID) {
+		return out
+	}
+	dir, cur := s.assistantRel(), rulefiles.Values{Notes: s.notes(ctx), Language: s.replyLang(ctx, s.hello(ctx).Locale), Fixed: replylang.Set(s.settings(ctx).ReplyLanguage)}
+	if space != "" {
+		e, ok := s.spaceTrack(ctx, space)
+		if !ok {
+			return out
+		}
+		dir, cur = trackRel(e), rulefiles.Values{Notes: cur.Notes} // a track's files carry no reply language
+	}
+	if text, receipt, owed := s.ruleFiles.Notice(ctx, p.MachineID, dir, p.SessionID, cur, p.RecoveryID != ""); owed {
+		out.RuleNotice, out.Receipts = text, append(out.Receipts, receipt)
+	}
+	return out
 }
 
 // contextResult is Context's answer with text as its <persona-context> text: with the view errors to report, the

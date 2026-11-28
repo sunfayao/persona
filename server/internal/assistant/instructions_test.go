@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/sunfayao/persona/server/internal/assistant/rulefiles"
 )
 
 // The CLAUDE.md of the assistant is written on the assistant's machine right after the hub
@@ -26,9 +28,7 @@ func TestRefreshInstructions(t *testing.T) {
 		t.Fatalf("unchanged, written again: %d", len(f.prepared))
 	}
 	// What the machine has is not what this hub renders (an older hub's prompts): only that one is written.
-	s.preparedMu.Lock()
-	s.prepared["server\x00"+s.assistantRel()] = preparedState{md: "old prompt"}
-	s.preparedMu.Unlock()
+	s.ruleFiles.Remember("server\x00"+s.assistantRel(), rulefiles.Given{MD: "old prompt"})
 	s.refreshInstructions(ctx)
 	if len(f.prepared) != 2 || f.prepared[1]["dir"] != s.assistantRel() {
 		t.Fatalf("changed: %v", f.prepared[1:])

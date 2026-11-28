@@ -20,6 +20,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
 	"github.com/sunfayao/persona/server/internal/assistant/quietturn"
 	"github.com/sunfayao/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/assistant/rulefiles"
 	"github.com/sunfayao/persona/server/internal/assistant/saved"
 	"github.com/sunfayao/persona/server/internal/assistant/toolnotes"
 	"github.com/sunfayao/persona/server/internal/assistant/tooluse"
@@ -176,8 +177,9 @@ type Service struct {
 	// prepared is what this hub last gave a machine's node for a directory (key: machine id NUL directory), the
 	// CLAUDE.md and the plugin skills, by prepareSpaceIf; refreshInstructions gives again what differs.
 	prepareLocks cardLocks
-	preparedMu   sync.Mutex
-	prepared     map[string]preparedState
+	// ruleFiles keeps what each directory's node was given and, for a directory with a live conversation, the About me
+	// and reply language its files say (rulefiles).
+	ruleFiles *rulefiles.Book
 
 	epoch string
 	// born is when this manager started: a background supervisor started before it may be in a profile with no login
@@ -362,6 +364,10 @@ func New(o Options) *Service {
 		s.logf = func(string, ...any) {}
 	}
 	s.agents = s.newAgentsDomain()
+	s.ruleFiles = rulefiles.New(rulefiles.Dependencies{Store: func() rulefiles.Store { return s.store() }, Logf: s.logf, Alive: func(ctx context.Context, machine, session string) bool {
+		c, ok, err := s.sessionNow(ctx, machine, session) // a node that cannot answer leaves it alive
+		return err != nil || ok && !c.Archived
+	}})
 	s.turns = s.newQuietTurns()
 	var knowledgeConfig string
 	if o.RepositoryConfig != "" {

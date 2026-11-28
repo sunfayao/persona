@@ -138,12 +138,16 @@ type ContextParams struct {
 // Receipts also carry what else the hub wants confirmed as delivered with the message (the background supervisor's
 // announcement, item_id "background_supervisor"): the node sends them all back as they are.
 type ContextResult struct {
-	RecoveryID          string             `json:"recovery_id,omitempty"`
-	Recovery            string             `json:"recovery,omitempty"`
-	CompactInstructions string             `json:"compact_instructions,omitempty"`
-	Text                string             `json:"text"`
-	ViewErrors          string             `json:"view_errors,omitempty"`
-	Receipts            []ViewErrorReceipt `json:"view_error_receipts,omitempty"`
+	RecoveryID          string `json:"recovery_id,omitempty"`
+	Recovery            string `json:"recovery,omitempty"`
+	CompactInstructions string `json:"compact_instructions,omitempty"`
+	// RuleNotice is a one-off <persona-context kind="about-me"> block for this message (nodeproto.RuleNotice): the
+	// conversation's standing rule files say something else of About me or the reply language than the owner's
+	// settings now. Its receipt (item_id "rule_change") is confirmed like the view errors'.
+	RuleNotice string             `json:"rule_notice,omitempty"`
+	Text       string             `json:"text"`
+	ViewErrors string             `json:"view_errors,omitempty"`
+	Receipts   []ViewErrorReceipt `json:"view_error_receipts,omitempty"`
 }
 
 // ViewErrorReceipt names the reported errors of one reply as they were read: an ack whose digest no longer matches
