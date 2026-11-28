@@ -1,7 +1,8 @@
-package assistant
+// Package modelcatalog is the built-in model catalog: what is known of the models gateways commonly serve to Claude Code.
+// It is built from the catalog file the caller embeds and imports neither the assistant root nor a sibling domain.
+package modelcatalog
 
 import (
-	_ "embed"
 	"encoding/json"
 	"slices"
 	"strings"
@@ -18,9 +19,6 @@ import (
 // An id the file does not list inherits the context window and thinking levels of the closest earlier generation of
 // the same family (the same leading name and the same size or variant suffix). It does not inherit the name.
 // Gateway-reported values still win. InheritedFrom names the catalog id that filled a gap.
-
-//go:embed models_catalog.json
-var modelCatalogJSON []byte
 
 // modelGeneration is one numbered generation. family is the leading name plus the non-numeric suffix (a size or a
 // variant such as "-27b" or "-flash"); version is the number between them, one component per dot or dash.
@@ -39,24 +37,39 @@ type catalogData struct {
 	gens []catalogGeneration
 }
 
-var modelCatalog = sync.OnceValue(func() catalogData {
-	var doc struct {
-		Models []proto.ProviderModel `json:"models"`
-	}
-	if err := json.Unmarshal(modelCatalogJSON, &doc); err != nil {
-		panic("models_catalog.json: " + err.Error())
-	}
-	out := catalogData{byID: make(map[string]proto.ProviderModel, len(doc.Models))}
-	for _, m := range doc.Models {
-		key := strings.ToLower(m.ID)
-		out.byID[key] = m
-		// Index the same key a lookup uses, so a dated or prefixed catalog row is still a source.
-		if g, ok := parseModelGeneration(catalogGenerationKey(m.ID)); ok {
-			out.gens = append(out.gens, catalogGeneration{model: m, gen: g})
+// Catalog is the catalog read from a catalog file: {"models": [...]}.
+type Catalog struct {
+	raw  []byte
+	once sync.Once
+	data catalogData
+}
+
+// New is the catalog of raw, read when it is first asked.
+func New(raw []byte) *Catalog { return &Catalog{raw: raw} }
+
+// All is every model the catalog lists, by lower-case id.
+func (c *Catalog) All() map[string]proto.ProviderModel { return c.load().byID }
+
+func (c *Catalog) load() catalogData {
+	c.once.Do(func() {
+		var doc struct {
+			Models []proto.ProviderModel `json:"models"`
 		}
-	}
-	return out
-})
+		if err := json.Unmarshal(c.raw, &doc); err != nil {
+			panic("models_catalog.json: " + err.Error())
+		}
+		out := catalogData{byID: make(map[string]proto.ProviderModel, len(doc.Models))}
+		for _, m := range doc.Models {
+			out.byID[strings.ToLower(m.ID)] = m
+			// Index the same key a lookup uses, so a dated or prefixed catalog row is still a source.
+			if g, ok := parseModelGeneration(catalogGenerationKey(m.ID)); ok {
+				out.gens = append(out.gens, catalogGeneration{model: m, gen: g})
+			}
+		}
+		c.data = out
+	})
+	return c.data
+}
 
 var modelDateSuffix = lazyre.New(`-\d{8}$`)
 
@@ -97,13 +110,13 @@ func idHas1M(id string) bool {
 	return strings.HasSuffix(modelDateSuffix.ReplaceAllString(key, ""), "[1m]")
 }
 
-// catalogModel looks a model id up: as given, then without a vendor prefix ("anthropic/…"), the "[1m]" marker and a
+// Model looks a model id up: as given, then without a vendor prefix ("anthropic/…"), the "[1m]" marker and a
 // date suffix ("-20250929"), case-insensitively. The same generation written with the other separator (glm-5-3 and
 // glm-5.3) is that catalog entry. Anything else the catalog does not list inherits capabilities from the closest
 // earlier generation of the same family. InheritedFrom is set only then, and the name is left empty.
-func catalogModel(id string) (proto.ProviderModel, bool) {
+func (c *Catalog) Model(id string) (proto.ProviderModel, bool) {
 	key := normalizeCatalogID(id)
-	cat := modelCatalog()
+	cat := c.load()
 	if m, ok := cat.byID[key]; ok {
 		return m, true
 	}
@@ -215,9 +228,9 @@ func closestGeneration(key string, gens []catalogGeneration) (catalogGeneration,
 // A name is filled only from an exact entry (a listed id, or the same generation written with the other separator).
 // InheritedFrom is set only when a missing capability was copied from an earlier generation. An unlisted "[1m]" id is
 // a 1M window, ahead of an inherited window; an exact entry keeps the window the catalog states.
-func enrichModel(m proto.ProviderModel) proto.ProviderModel {
+func (cat *Catalog) Enrich(m proto.ProviderModel) proto.ProviderModel {
 	m.Price = nil
-	if c, ok := catalogModel(m.ID); ok {
+	if c, ok := cat.Model(m.ID); ok {
 		if m.Name == "" && c.InheritedFrom == "" {
 			m.Name = c.Name
 		}

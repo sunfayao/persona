@@ -320,21 +320,21 @@ func orStr(a, b string) string {
 
 func TestCatalogLookup(t *testing.T) {
 	for _, id := range []string{"claude-opus-4-8", "anthropic/claude-opus-4-8", "Claude-Opus-4-8[1m]", "claude-opus-4-8-20260101"} {
-		if m, ok := catalogModel(id); !ok || m.ContextWindow != 1000000 {
+		if m, ok := builtinModels.Model(id); !ok || m.ContextWindow != 1000000 {
 			t.Errorf("%s: %+v %v", id, m, ok)
 		}
 	}
-	if _, ok := catalogModel("nobody-knows"); ok {
+	if _, ok := builtinModels.Model("nobody-knows"); ok {
 		t.Fatal("unknown model found")
 	}
 	// What the gateway said wins; a [1m] id unknown to the catalog is 1M.
-	if m := enrichModel(proto.ProviderModel{ID: "glm-5.3", ContextWindow: 128000}); m.ContextWindow != 128000 || m.DefaultEffort != "high" {
+	if m := builtinModels.Enrich(proto.ProviderModel{ID: "glm-5.3", ContextWindow: 128000}); m.ContextWindow != 128000 || m.DefaultEffort != "high" {
 		t.Fatalf("enrich: %+v", m)
 	}
-	if m := enrichModel(proto.ProviderModel{ID: "own[1m]"}); m.ContextWindow != 1000000 {
+	if m := builtinModels.Enrich(proto.ProviderModel{ID: "own[1m]"}); m.ContextWindow != 1000000 {
 		t.Fatalf("1m: %+v", m)
 	}
-	for id, m := range modelCatalog().byID {
+	for id, m := range builtinModels.All() {
 		if m.ID == "" || m.Name == "" || m.ContextWindow < 0 {
 			t.Errorf("catalog %s: %+v", id, m)
 		}

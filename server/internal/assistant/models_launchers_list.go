@@ -602,7 +602,7 @@ func (s *Service) askLauncherModels(ctx context.Context, machine, name string, r
 			id = m.Resolved
 		}
 		res.Models[i].Price = nil
-		if c, ok := catalogModel(id); ok && c.InheritedFrom == "" {
+		if c, ok := builtinModels.Model(id); ok && c.InheritedFrom == "" {
 			res.Models[i].Price = c.Price
 		}
 	}

@@ -1,17 +1,26 @@
 package assistant
 
 import (
+	_ "embed"
 	"net/http"
 	"strings"
 
 	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistant/modelcatalog"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // POST /api/v1/launchers/catalog (#4975): the built-in catalog's metadata for model ids typed by hand, so a provider
 // form can show a name, a context window and thinking levels without fetching the gateway's model list. It is the
-// lookup discovery fills its models with (enrichModel); nothing is fetched, stored or keyed.
+// lookup discovery fills its models with (builtinModels.Enrich); nothing is fetched, stored or keyed.
+
+//go:embed models_catalog.json
+var modelCatalogJSON []byte
+
+// builtinModels is the built-in model catalog (assistant/modelcatalog): what is known of the models gateways commonly
+// serve to Claude Code. A model a gateway lists is filled in from it.
+var builtinModels = modelcatalog.New(modelCatalogJSON)
 
 const (
 	catalogLookupMaxIDs   = 100
@@ -38,7 +47,7 @@ func (s *Service) providerCatalogRoutes() {
 	})
 }
 
-// catalogLookup answers each trimmed, nonempty id once, in request order, with what enrichModel fills in for it; an id
+// catalogLookup answers each trimmed, nonempty id once, in request order, with what builtinModels.Enrich fills in for it; an id
 // it fills nothing for is left out. The answer is never nil.
 func catalogLookup(ids []string) ([]proto.ProviderModel, error) {
 	if len(ids) > catalogLookupMaxIDs {
@@ -55,7 +64,7 @@ func catalogLookup(ids []string) ([]proto.ProviderModel, error) {
 			continue
 		}
 		seen[id] = true
-		m := enrichModel(proto.ProviderModel{ID: id})
+		m := builtinModels.Enrich(proto.ProviderModel{ID: id})
 		if m.Name == "" && m.ContextWindow == 0 && len(m.Efforts) == 0 && m.DefaultEffort == "" {
 			continue
 		}

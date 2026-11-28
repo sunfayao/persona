@@ -954,10 +954,10 @@ func mergeDiscoveredMetadata(first, next proto.ProviderModel) proto.ProviderMode
 // thinking levels it reported (settleDiscoveredEfforts), its output limit and what it takes.
 func enrichDiscoveredModel(m proto.ProviderModel) proto.ProviderModel {
 	m = settleDiscoveredEfforts(m)
-	if c, ok := catalogModel(m.ID); ok && c.InheritedFrom == "" && c.ContextWindow > 0 {
+	if c, ok := builtinModels.Model(m.ID); ok && c.InheritedFrom == "" && c.ContextWindow > 0 {
 		m.ContextWindow = c.ContextWindow
 	}
-	return enrichModel(m)
+	return builtinModels.Enrich(m)
 }
 
 // parseModelsList reads the three shapes of a model list (cindy's parseModelsListResponse): {"data":[…]},
