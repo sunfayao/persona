@@ -358,9 +358,9 @@ func TestAComputerThatDoesNotTakeTheSkillSavesNothing(t *testing.T) {
 		f    *fake
 		want string
 	}{
-		{"an old node", &fake{previewErr: &rpc.Error{Code: "node_outdated"}}, "node_outdated: Persona on the assistant's computer is too old"},
+		{"an old node", &fake{previewErr: &rpc.Error{Code: "node_outdated"}}, "node_outdated: Persona on the main conversation's computer is too old"},
 		{"busy", &fake{previewErr: &rpc.Error{Code: "skill_import_busy"}}, "skill_import_busy: "},
-		{"another refusal", &fake{previewErr: &rpc.Error{Code: "skill_import_io", Message: "/private/path"}}, "skill_import_io: the assistant's computer did not take the skill; nothing was saved"},
+		{"another refusal", &fake{previewErr: &rpc.Error{Code: "skill_import_io", Message: "/private/path"}}, "skill_import_io: the main conversation's computer did not take the skill; nothing was saved"},
 		{"unreachable", &fake{previewErr: errors.New("dial: private address")}, "skill_save_unavailable: "},
 		{"another skill read", &fake{previewAs: "other-skill"}, "skill_save_changed: "},
 	} {

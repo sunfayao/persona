@@ -117,7 +117,7 @@ func TestSkillSaveToolChangesNothingUnlessTheUserApproves(t *testing.T) {
 	}{
 		{"declined", &proto.Resolution{Allow: &deny}, "The user declined the change: nothing changed."},
 		{"closed", &proto.Resolution{Dismiss: true}, prompts.RenderSettingUnanswered()},
-		{"approved by the assistant", &proto.Resolution{Allow: &allow, AnsweredBy: "assistant"}, prompts.RenderSettingUnanswered()},
+		{"approved by a model, not the user", &proto.Resolution{Allow: &allow, AnsweredBy: "assistant"}, prompts.RenderSettingUnanswered()},
 		{"expired", nil, prompts.RenderSettingUnanswered()},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -160,7 +160,7 @@ func TestSkillSaveToolRefusesANameInUseNamingTheSkill(t *testing.T) {
 			t.Fatal(err)
 		}
 		res := skillImportCall(context.Background(), s, "skill_save", releaseNotes)
-		if !res.IsError || !strings.HasPrefix(res.Content[0].Text, `skill_conflict: the assistant's computer already has the user's skill "release-notes" ("The user's own release steps"); nothing was saved`) {
+		if !res.IsError || !strings.HasPrefix(res.Content[0].Text, `skill_conflict: the main conversation's computer already has the user's skill "release-notes" ("The user's own release steps"); nothing was saved`) {
 			t.Fatalf("result %+v", res)
 		}
 		if b, _ := os.ReadFile(existing); string(b) != kept || len(s.pendingQuestions()) != 0 {

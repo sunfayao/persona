@@ -14,7 +14,7 @@ import (
 )
 
 // toolSkillSave is skill_save (assistant/skillsave): a procedure worked out in a conversation kept as a skill of the
-// assistant's computer, through the importer and the permission card skill_import uses.
+// main conversation's computer, through the importer and the permission card skill_import uses.
 func (s *Service) toolSkillSave(ctx context.Context, machine, self string, raw json.RawMessage) (string, error) {
 	return skillsave.New(skillsave.Host{
 		Importer: func(ctx context.Context) (skillsave.Importer, error) {
@@ -49,8 +49,8 @@ func (s *Service) skillSaveNames(ctx context.Context) []string {
 	return names
 }
 
-// skillSaveImporter is the node's importer on the assistant's computer as one save found it: runSkillImport refuses a
-// call once that target changed.
+// skillSaveImporter is the node's importer on the main conversation's computer as one save found it: runSkillImport
+// refuses a call once that target changed.
 type skillSaveImporter struct {
 	s      *Service
 	target skillImportTarget
@@ -76,7 +76,7 @@ func (i skillSaveImporter) run(ctx context.Context, in skillImportInput) (skills
 	return skillsave.Receipt{ImportResult: out.ImportResult, Environment: out.Environment, Machine: out.Machine}, err
 }
 
-// Skill is name in the computer's list of the assistant's skills (skills.list: the user's, built-in and extensions').
+// Skill is name in the computer's list of skills (skills.list: the user's, built-in and extensions').
 func (i skillSaveImporter) Skill(ctx context.Context, name string) (assistantskills.Skill, bool) {
 	d, ok := i.s.device(ctx, i.target.machine)
 	if !ok {

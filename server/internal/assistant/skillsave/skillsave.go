@@ -1,9 +1,9 @@
-// Package skillsave keeps a short procedure that an assistant conversation worked out as one of the assistant's skills
-// (the skill_save tool). It checks the text, refuses text that would keep a secret, an address, a home-directory path
-// or a machine name, writes the rest as a skill archive holding one file, <name>/SKILL.md, and installs that with the
-// node's skill importer, the preview and install skill_import uses (skills.import), only after the user approved it on
-// a permission card. The node gains nothing, so every computer that takes skill_import takes it. It never overwrites:
-// the importer refuses a name in use. The assistant Service lends it what it needs through Host.
+// Package skillsave keeps a short procedure that a conversation worked out as a skill on the main conversation's
+// computer (the skill_save tool). It checks the text, refuses text that would keep a secret, an address, a
+// home-directory path or a machine name, writes the rest as a skill archive holding one file, <name>/SKILL.md, and
+// installs that with the node's skill importer, the preview and install skill_import uses (skills.import), only after
+// the user approved it on a permission card. The node gains nothing, so every computer that takes skill_import takes
+// it. It never overwrites: the importer refuses a name in use. The Service lends it what it needs through Host.
 package skillsave
 
 import (
@@ -54,8 +54,8 @@ type Receipt struct {
 	Machine     string `json:"machine"`
 }
 
-// Importer is the node's skill importer on the assistant's computer (skills.import). Each call goes to the computer the
-// save began with and fails once that changed; each bounds its own wait.
+// Importer is the node's skill importer on the main conversation's computer (skills.import). Each call goes to the
+// computer the save began with and fails once that changed; each bounds its own wait.
 type Importer interface {
 	// Preview checks archive on the computer and keeps a receipt for it there; it installs nothing.
 	Preview(ctx context.Context, archive []byte) (Receipt, error)
@@ -67,9 +67,9 @@ type Importer interface {
 	Skill(ctx context.Context, name string) (assistantskills.Skill, bool)
 }
 
-// Host is what the package takes from the assistant Service.
+// Host is what the package takes from the Service.
 type Host struct {
-	// Importer is the importer of the assistant's computer as of now; an error says why there is none.
+	// Importer is the importer of the main conversation's computer as of now; an error says why there is none.
 	Importer func(ctx context.Context) (Importer, error)
 	// Confirm shows the calling conversation's user a permission card with summary and details until expires, and says
 	// whether they approved it. When they did not, text says what happened and that nothing changed.
@@ -93,9 +93,9 @@ func New(h Host) *Saver {
 	return &Saver{h: h}
 }
 
-// Save keeps the procedure raw describes (skill_save's arguments) as a skill on the assistant's computer once the user
-// approved it, and returns the importer's receipt with how to undo it. A refusal is an error that says what to change;
-// a decline, or a card left unanswered, is text that says nothing changed.
+// Save keeps the procedure raw describes (skill_save's arguments) as a skill on the main conversation's computer once
+// the user approved it, and returns the importer's receipt with how to undo it. A refusal is an error that says what to
+// change; a decline, or a card left unanswered, is text that says nothing changed.
 func (s *Saver) Save(ctx context.Context, raw json.RawMessage) (string, error) {
 	in, err := parse(raw)
 	if err != nil {
@@ -151,7 +151,7 @@ func (s *Saver) notTaken(ctx context.Context, importer Importer, name string, er
 	case "skill_conflict":
 		skill, ok := importer.Skill(ctx, name)
 		if !ok {
-			return fmt.Errorf("skill_conflict: the assistant's computer already has a skill or skill folder named %q; nothing was saved. Choose another name", name)
+			return fmt.Errorf("skill_conflict: the main conversation's computer already has a skill or skill folder named %q; nothing was saved. Choose another name", name)
 		}
 		owner := map[string]string{"user": "the user's skill", "builtin": "Persona's built-in skill", "plugin": "an extension's skill"}[skill.Source]
 		if owner == "" {
@@ -161,13 +161,13 @@ func (s *Saver) notTaken(ctx context.Context, importer Importer, name string, er
 		if d := textfmt.Shorten(skill.Description, MaxDescription); d != "" {
 			what = fmt.Sprintf(" (%q)", d)
 		}
-		return fmt.Errorf("skill_conflict: the assistant's computer already has %s %q%s; nothing was saved. Choose another name", owner, skill.Name, what)
+		return fmt.Errorf("skill_conflict: the main conversation's computer already has %s %q%s; nothing was saved. Choose another name", owner, skill.Name, what)
 	case "node_outdated":
-		return errors.New("node_outdated: Persona on the assistant's computer is too old to import skills; nothing was saved. The user can update it there")
+		return errors.New("node_outdated: Persona on the main conversation's computer is too old to import skills; nothing was saved. The user can update it there")
 	case "skill_import_busy":
 		return errors.New("skill_import_busy: the computer is importing another skill; nothing was saved. Try again shortly")
 	default:
-		return fmt.Errorf("%s: the assistant's computer did not take the skill; nothing was saved", code)
+		return fmt.Errorf("%s: the main conversation's computer did not take the skill; nothing was saved", code)
 	}
 }
 
