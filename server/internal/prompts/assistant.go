@@ -77,9 +77,10 @@ type AssistantClaudeMD struct {
 	LarkCLI bool
 	// Language is the language the user reads, by its own name ("English", or Japanese written in Japanese); "" is Chinese, as before i18n.
 	Language string
-	// BackgroundSupervisor: the background supervisor follows up the tasks no leader supervises (#4927), so the main
-	// conversation is told it no longer reviews them itself. False keeps the text as it was.
-	BackgroundSupervisor bool
+	// Mail: a mailbox is added, so mail_* are in the conversation's list. InboxTwin: the Inbox's AI twin is on
+	// (inbox_folders, inbox_move); InboxPost: assistant.inbox_post is (inbox_post). Subscriptions: subscription_* are
+	// listed. Each says what the instructions name, as the tool gates list it (fleet_tools.go toolGates).
+	Mail, InboxTwin, InboxPost, Subscriptions bool
 	// Runtime is the agent that reads the file: RuntimeClaude ("" too) for CLAUDE.md; RuntimeCodex, whose wording
 	// holds for any agent but Claude, or RuntimeAgy for AGENTS.md.
 	Runtime string

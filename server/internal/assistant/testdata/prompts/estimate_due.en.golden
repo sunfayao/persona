@@ -6,3 +6,6 @@
 )
    Acceptance criteria: PR merged to main; a test covers landscape
    Original request (2026-11-03, the user's own words): please fix the login crash before Friday
+
+How to handle this signal:
+- `estimate_due`: the automatic estimate is due for review, not overdue. Check evidence; use `task_review`, guide the Agent, or revise `expect_minutes`. A finished task past the settle window with no owner card is refused: give `task_review` (`accepted`/`rework`/`cancelled`; `needs_user` or `accepted`+`user_check` if the owner must act).
