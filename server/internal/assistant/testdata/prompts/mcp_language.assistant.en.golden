@@ -69,7 +69,7 @@
         }
       }
     },
-    "core_rank": 22
+    "core_rank": 19
   },
   {
     "name": "notify_user",
@@ -101,7 +101,7 @@
         }
       }
     },
-    "core_rank": 38
+    "core_rank": 33
   },
   {
     "name": "supervision_finish",
@@ -210,7 +210,7 @@
         }
       }
     },
-    "core_rank": 39
+    "core_rank": 34
   },
   {
     "name": "schedule_routine",
@@ -332,7 +332,7 @@
         }
       }
     },
-    "core_rank": 40
+    "defer_loading": true
   },
   {
     "name": "schedule_state_set",
@@ -377,7 +377,7 @@
       "type": "object",
       "properties": {}
     },
-    "core_rank": 36
+    "core_rank": 31
   },
   {
     "name": "cancel_followup",
@@ -393,7 +393,7 @@
         }
       }
     },
-    "core_rank": 25
+    "defer_loading": true
   },
   {
     "name": "machines_list",
@@ -727,7 +727,7 @@
         }
       }
     },
-    "core_rank": 19
+    "defer_loading": true
   },
   {
     "name": "agent_start",
@@ -815,7 +815,7 @@
         }
       }
     },
-    "core_rank": 20
+    "defer_loading": true
   },
   {
     "name": "agent_supervise",
@@ -859,7 +859,7 @@
         }
       }
     },
-    "core_rank": 21
+    "defer_loading": true
   },
   {
     "name": "agent_archive",
@@ -960,7 +960,7 @@
         }
       }
     },
-    "core_rank": 29
+    "defer_loading": true
   },
   {
     "name": "ask_escalate",
@@ -1195,7 +1195,7 @@
       "properties": {},
       "additionalProperties": false
     },
-    "core_rank": 37
+    "core_rank": 32
   },
   {
     "name": "model_profile_get",
@@ -1417,7 +1417,7 @@
         }
       }
     },
-    "core_rank": 28
+    "core_rank": 24
   },
   {
     "name": "conversation_read",
@@ -1437,7 +1437,7 @@
         }
       }
     },
-    "core_rank": 26
+    "core_rank": 22
   },
   {
     "name": "conversation_send",
@@ -1466,7 +1466,7 @@
         }
       }
     },
-    "core_rank": 27
+    "core_rank": 23
   },
   {
     "name": "task_plan",
