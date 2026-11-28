@@ -32,6 +32,7 @@ type codexPayload struct {
 	Type       string          `json:"type"`
 	TurnID     string          `json:"turn_id"`
 	DurationMS json.RawMessage `json:"duration_ms"`
+	TTFTMS     *int64          `json:"time_to_first_token_ms"`
 	// task_complete: what failed the turn, null when it ended well ({message, codex_error_info}, CodexTurnError)
 	Error json.RawMessage `json:"error"`
 	// session_meta
@@ -156,6 +157,15 @@ type codexItem struct {
 	ReceiverThreadIDs []string        `json:"receiver_thread_ids"`
 	ReceiverAgents    json.RawMessage `json:"receiver_agents"`
 	AgentsStates      json.RawMessage `json:"agents_states"`
+	// TaskNotification
+	TaskNotification *struct {
+		Kind       string `json:"type"`
+		ID         string `json:"taskId"`
+		Status     string `json:"status"`
+		Summary    string `json:"summary"`
+		OutputFile string `json:"outputFile"`
+		ExitCode   *int   `json:"exitCode"`
+	} `json:"task_notification"`
 }
 
 // isCodexLine tells a rollout line from a Claude transcript line: only rollouts wrap everything in "payload" under a
@@ -266,6 +276,16 @@ func parseCodexLine(seq int, line []byte, meta *Meta) []proto.Item {
 	if l.Type == "response_item" {
 		return parseTraexResponse(seq, l, meta)
 	}
+	if l.Type == "token_usage_record" {
+		var record struct {
+			Usage  tokenuse.CodexCounts `json:"usage"`
+			Thread tokenuse.CodexCounts `json:"thread_token_usage"`
+		}
+		if json.Unmarshal(l.Payload, &record) == nil && record.Thread.Total > meta.codexTotal.Last() {
+			meta.observeCodexUsage(record.Thread, record.Usage)
+		}
+		return nil
+	}
 	if l.Type == "history_mutation" {
 		var h historyMutation
 		if json.Unmarshal(l.Payload, &h) != nil {
@@ -325,14 +345,15 @@ func parseCodexLine(seq int, line []byte, meta *Meta) []proto.Item {
 	switch p.Type {
 	case "token_count":
 		if p.Info != nil {
-			meta.ContextTokens, meta.OutputTokens = int(p.Info.Last.Input), int(p.Info.Total.Output)
+			if p.Info.Total.Total >= meta.codexTotal.Last() {
+				meta.observeCodexUsage(p.Info.Total, p.Info.Last)
+			}
 			if p.Info.ModelContextWindow > 0 {
 				meta.ContextWindow = p.Info.ModelContextWindow
 			}
 			if p.Info.AutoCompactTokenLimit > 0 {
 				meta.AutoCompactThreshold = p.Info.AutoCompactTokenLimit
 			}
-			meta.codexRequest(p.Info.Total.Total, p.Info.Last)
 		}
 		if p.RateLimits != nil { // none: the provider gave none this time, the last ones stand
 			if until, ok := p.RateLimits.fullUntil(); ok {
@@ -375,6 +396,9 @@ func parseCodexLine(seq int, line []byte, meta *Meta) []proto.Item {
 		}
 		it := mk(0, "", "system", proto.KindTurnDuration)
 		it.TurnDuration = &proto.TurnDuration{DurationMS: ms, Source: "codex_task_complete", TurnID: p.TurnID, UserItemID: meta.codexUserID}
+		if p.TTFTMS != nil && *p.TTFTMS >= 0 {
+			it.TTFTMS = p.TTFTMS
+		}
 		it.Usage = usage // the turn's requests, summed (item_usage.go)
 		return []proto.Item{it}
 	case "turn_aborted":
@@ -402,6 +426,11 @@ func parseCodexLine(seq int, line []byte, meta *Meta) []proto.Item {
 	out := codexItemLines(seq, l.Timestamp, p.TurnID, p.Item, meta)
 	meta.codexWorked(out)
 	return meta.codexModel(out)
+}
+
+func (m *Meta) observeCodexUsage(total, last tokenuse.CodexCounts) {
+	m.ContextTokens, m.OutputTokens = int(last.Input), int(total.Output)
+	m.codexRequest(total.Total, last)
 }
 
 // codexModel marks the agent's items with the model of the turn they came in (Item.Model): none before the turn's
@@ -646,6 +675,17 @@ func codexItemLines(seq int, ts time.Time, turnID string, it *codexItem, meta *M
 		return codexSubagentActivity(meta, mk, it)
 	case "CollabAgentToolCall":
 		return codexCollabCall(meta, mk, it)
+	case "TaskNotification":
+		if record := it.TaskNotification; record != nil && record.ID != "" {
+			n := mk(0, it.ID, "system", proto.KindNotice)
+			n.Wake = true
+			n.Task = &proto.TaskNote{
+				Kind: record.Kind, TaskID: record.ID, Status: record.Status,
+				Title: oneLine(record.Summary, noteTitleLen), OutputFile: record.OutputFile, ExitCode: record.ExitCode,
+			}
+			n.Text = noteText(n.Task)
+			return []proto.Item{n}
+		}
 	case "ContextCompaction":
 		meta.Compactions++
 		meta.ContextTokens, meta.ContextCompacted = 0, true

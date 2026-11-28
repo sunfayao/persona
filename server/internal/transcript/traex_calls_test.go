@@ -2,6 +2,8 @@ package transcript_test
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/sunfayao/persona/server/internal/node/harness/traex"
@@ -66,6 +68,34 @@ func TestTraexCallDoesNotRenameShellCommands(t *testing.T) {
 	items := feedTraexCommand(t, &meta, 2, "call-1", "unified_exec_startup", "shell output")
 	if len(items) != 2 || items[0].ToolName != "Bash" {
 		t.Fatalf("shell command = %+v", items)
+	}
+}
+
+func TestTraexRolloutJoinsCallsAcrossRefreshes(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "rollout.jsonl")
+	const call = `{"timestamp":"2026-01-01T00:00:01Z","type":"response_item","payload":{"type":"function_call","call_id":"read-1","name":"Read","arguments":{"file_path":"example.txt"}}}` + "\n"
+	const result = `{"timestamp":"2026-01-01T00:00:02Z","type":"event_msg","payload":{"type":"item_completed","turn_id":"turn-1","item":{"type":"CommandExecution","id":"read-1","source":"agent","command":["Read"],"status":"completed","aggregated_output":"A line of text"}}}` + "\n"
+	if err := os.WriteFile(path, []byte(call), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f := transcript.NewFileWithRolloutTools(path, traex.RolloutTools{})
+	if items, err := f.Refresh(); err != nil || len(items) != 0 {
+		t.Fatalf("call refresh = %+v, %v", items, err)
+	}
+	out, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := out.WriteString(result); err != nil {
+		_ = out.Close()
+		t.Fatal(err)
+	}
+	if err := out.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if items, err := f.Refresh(); err != nil || len(items) != 2 || items[0].ToolName != "Read" || items[1].Text != "A line of text" {
+		t.Fatalf("result refresh = %+v, %v", items, err)
 	}
 }
 
