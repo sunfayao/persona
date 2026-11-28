@@ -8,6 +8,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/criteria"
 	"github.com/sunfayao/persona/server/internal/connectorwire"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -202,11 +203,8 @@ type OwnerWait struct {
 	NotifiedAt  *time.Time `json:"notified_at,omitempty"`
 }
 
-type ReviewCheck struct {
-	Criterion string `json:"criterion"`
-	Met       bool   `json:"met"`
-	Evidence  string `json:"evidence,omitempty"`
-}
+// ReviewCheck is a supervisor's reading of one criterion (criteria.Check).
+type ReviewCheck = criteria.Check
 
 func (v *Supervision) clone() *Supervision {
 	if v == nil {
@@ -414,16 +412,7 @@ func (v *Supervision) row(todoID string) db.TodoSupervisionRow {
 }
 
 // cleanDoneWhen is a task's criteria as kept: trimmed, no empty or repeated ones, at most 6 of at most 200 characters.
-func cleanDoneWhen(list []string) []string {
-	out := []string{}
-	for _, c := range list {
-		c = clip(oneLine(c), 200)
-		if c != "" && !slices.Contains(out, c) && len(out) < 6 {
-			out = append(out, c)
-		}
-	}
-	return out
-}
+var cleanDoneWhen = criteria.Clean
 
 // superviseTodo makes todo id a supervised task of conversation supervisor. A persistence failure leaves its in-memory
 // ledger untouched; callers that must not start untracked work check the returned error.

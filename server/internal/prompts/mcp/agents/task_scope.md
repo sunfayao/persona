@@ -1,4 +1,4 @@
-Change what a supervised task is to do, or what done means, after it started (its todo id). The brief is never rewritten: this adds a brief-log entry (what changed and why), applies the new done_when/expect_minutes, restarts overdue, estimate_due only on a new estimate; the owner reads it in the next digest. It is the only way done_when changes after start (agent_supervise and agent_send on a task use the same log). Give done_when as the whole list after the change: a criterion you leave out is logged as dropped and named in the completion report. A change adding an owner-only step (deploying, merging, releasing, public sends/comments, deleting, spending, production changes) not in the original task is refused unless the owner's own message started this turn: ask first (ask_user, or task_review needs_user), then call again. Only its supervisor may call it; the Agent is not told — send the change with agent_send. estimate_due/overdue: revise expect_minutes here, but a finished task past the settle window with no owner card is refused: give task_review first (accepted/rework/cancelled; needs_user with options if the owner must decide); chat-only asks never reach Needs you.
+Change a supervised task's work or what done means after it started (its todo id): adds a brief-log entry, applies the new criteria or expect_minutes and restarts overdue; the owner reads it in the next digest. It is the only way done_when changes after start. Use add, drop and edit by criterion number (an edit keeps its place, never a drop) or the whole done_when list (a criterion left out is logged as dropped), not both. A criterion is one checkable result of at most 200 characters. A change adding an owner-only step (deploying, merging, releasing, public sends, deleting, spending, production changes) is refused unless the owner's own message started this turn: ask first (ask_user, or task_review needs_user). Only its supervisor may call it; the Agent is not told: use agent_send. A finished task past the settle window with no owner card is refused: give task_review first. Details: persona-work references/task-review.md.
 
 ```json
 {
@@ -11,7 +11,7 @@ Change what a supervised task is to do, or what done means, after it started (it
     },
     "change": {
       "type": "string",
-      "description": "what changes, in one sentence the owner can read ({{lang .Lang}}), e.g. require verification in the test environment only, instead of a staged production rollout"
+      "description": "what changes, in one sentence the owner can read ({{lang .Lang}})"
     },
     "why": {
       "type": "string",
@@ -22,7 +22,23 @@ Change what a supervised task is to do, or what done means, after it started (it
       "minItems": 1,
       "maxItems": 6,
       "items": { "type": "string" },
-      "description": "the criteria after the change, the whole list; leave it out to keep them as they are"
+      "description": "the whole list after the change; not with add, drop or edit"
+    },
+    "add": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "drop": {
+      "type": "array",
+      "items": {"type": "integer"}
+    },
+    "edit": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["number", "text"],
+        "properties": {"number": {"type": "integer"}, "text": {"type": "string"}}
+      }
     },
     "expect_minutes": {
       "type": "integer",

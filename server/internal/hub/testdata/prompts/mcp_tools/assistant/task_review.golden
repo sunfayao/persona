@@ -1,6 +1,6 @@
 {
   "name": "task_review",
-  "description": "Record a verdict on a supervised task, judged on its scoped brief and criteria, not the Agent's claims.\n- accepted: outcome=done closes verified work. Give one met check with evidence per current done_when criterion.\n- rework: a concrete next step in note; accept with a note rather than bounce nitpicks.\n- parked: an outside wait, with reason, waiting_on and evidence.\n- needs_user: only what the owner alone can decide, with why_owner, reason, options, recommend and cost_of_waiting.\n- cancelled: duplicate or unwanted tasks only.\nOn another supervisor's task only accept or cancel; send gaps with agent_send.\n\nDetails: read .claude/skills/persona-work/references/task-review.md in your working directory.",
+  "description": "Record a verdict on a supervised task, judged on its brief and criteria, not on claims.\n- accepted: outcome=done closes verified work: one met check with evidence per done_when criterion, by number or text.\n- rework: a concrete next step in note; do not bounce nitpicks.\n- parked: an outside wait, with reason, waiting_on and evidence.\n- needs_user: only what the owner alone can decide, with why_owner, reason, options, recommend and cost_of_waiting.\n- cancelled: duplicate or unwanted tasks only.\nOn another supervisor's task only accept or cancel; send gaps with agent_send.\n\nDetails: read .claude/skills/persona-work/references/task-review.md in your working directory.",
   "input_schema": {
     "type": "object",
     "required": [
@@ -36,10 +36,12 @@
         "items": {
           "type": "object",
           "required": [
-            "criterion",
             "met"
           ],
           "properties": {
+            "number": {
+              "type": "integer"
+            },
             "criterion": {
               "type": "string"
             },

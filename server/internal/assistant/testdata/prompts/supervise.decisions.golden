@@ -22,7 +22,8 @@
    Acceptance criteria: not recorded
 
 4. Task “Finish the migration” (todo_1, signal=recheck): a decision that needs the user's call has waited more than a day with no answer and was handed back to supervision
-   Acceptance criteria: old table gone
+   Acceptance criteria:
+   1. old table gone
    Decision sent to the user at the time (why_owner=irreversible, never taken by default): Drop the old table?
    - Task background (as the hub recorded it): From the main conversation, 2026-11-07: “Finish the migration” · Now: migrated, old table still there
    - Option “Drop it”: the old rows cannot be restored

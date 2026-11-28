@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/criteria"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -107,14 +108,15 @@ type BriefEvent struct {
 	EstimateEvidence *TaskEstimateEvidence `json:"estimate_evidence,omitempty"`
 	// Dispatch records one task_plan round (source is task_plan; round_id names it); completion records its first
 	// active completion report (source is report_to_supervisor, task_review or judge) and wall-clock actual_minutes.
-	Source        string        `json:"source,omitempty"`
-	PlanID        string        `json:"plan_id,omitempty"`
-	RoundID       string        `json:"round_id,omitempty"`
-	ActualMinutes int           `json:"actual_minutes,omitempty"`
-	Added         []string      `json:"added,omitempty"`
-	Dropped       []string      `json:"dropped,omitempty"`
-	Approval      *BriefRequest `json:"approval,omitempty"`
-	eventID       string        // process-local continuation rollback identity; never part of the wire or stored schema
+	Source        string            `json:"source,omitempty"`
+	PlanID        string            `json:"plan_id,omitempty"`
+	RoundID       string            `json:"round_id,omitempty"`
+	ActualMinutes int               `json:"actual_minutes,omitempty"`
+	Added         []string          `json:"added,omitempty"`
+	Dropped       []string          `json:"dropped,omitempty"`
+	Edited        []criteria.Change `json:"edited,omitempty"` // criteria whose text changed in place (task_scope edit)
+	Approval      *BriefRequest     `json:"approval,omitempty"`
+	eventID       string            // process-local continuation rollback identity; never part of the wire or stored schema
 }
 
 // BriefCriterion is one criterion's result when the work ended: met, not_met, unchecked (nobody checked it), or dropped
@@ -840,7 +842,7 @@ func (s *Service) continueBriefFor(ctx context.Context, self, supervisor string,
 	if current, _, ok := s.briefSnapshotByID(brief.ID); ok {
 		for _, ev := range current.Log {
 			if ev.eventID == rollback.eventID {
-				rollback.criteriaChanged = len(ev.Added)+len(ev.Dropped) > 0
+				rollback.criteriaChanged = len(ev.Added)+len(ev.Dropped)+len(ev.Edited) > 0
 				break
 			}
 		}

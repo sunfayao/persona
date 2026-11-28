@@ -40,7 +40,8 @@
    Acceptance criteria: not recorded
 
 7. Task “升级依赖” (todo_10, signal=orphaned): no Agent is working on it: its Agent was interrupted by a model service error, its tab was closed afterwards, and the hub will not retry by itself (API Error: 400 prompt is too long); on box session_id=c3d4e5f6
-   Acceptance criteria: CI 通过
+   Acceptance criteria:
+   1. CI 通过
    What the Agent said last:
    API Error: 400 prompt is too long
 
@@ -53,7 +54,9 @@
    Acceptance criteria: not recorded
 
 10. Task “修登录崩溃” (todo_1, signal=review, link https://hub.example.com/todos?id=todo_1): awaiting item-by-item review; this does not mean it is done (PR 已合并); on box session_id=a1b2c3d4
-   Acceptance criteria: PR 合并到 master; 浅色 / 深色截图贴进 PR
+   Acceptance criteria:
+   1. PR 合并到 master
+   2. 浅色 / 深色截图贴进 PR
    What the Agent said last:
    修好了，PR https://github.com/o/r/pull/901 已合并
    Independent review (the reviewer saw only the task requirements and the change, not the Agent's reasoning): no blocking issues, 1 non-blocking findings

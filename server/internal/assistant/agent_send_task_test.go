@@ -569,7 +569,7 @@ func TestAgentSendTaskWithAnyFieldIsAHandOff(t *testing.T) {
 			t.Fatalf("%s: %q %v, %+v", task, res, err, todo)
 		}
 		if want := fmt.Sprintf("Sent to %s on box. It is now your task %s (%q, its card is in the conversation): you get a "+
-			"supervision message (📋) when it needs you, and close it with task_review. done_when %s.", free, todo.ID, todo.Title,
+			"supervision message (📋) when it needs you, and close it with task_review. done_when:%s", free, todo.ID, todo.Title,
 			criteriaWords(nil, todo.Supervision)); res != want {
 			t.Fatalf("%s: receipt %q, want %q", task, res, want)
 		}

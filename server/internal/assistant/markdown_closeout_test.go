@@ -28,9 +28,9 @@ func TestWorkReportNegotiatedForEachRecipient(t *testing.T) {
 		}
 	}
 	for _, tc := range []struct{ locale, heading, instruction string }{
-		{"en", "Persona work report", "first three required fields"},
-		{"ja", "Persona 作業報告", "first three required fields"},
-		{"zh-Hans", "Persona 工作报告", "first three required fields"},
+		{"en", "Persona work report", "first three fields"},
+		{"ja", "Persona 作業報告", "first three fields"},
+		{"zh-Hans", "Persona 工作报告", "first three fields"},
 	} {
 		setAgentLanguage(f, tc.locale)
 		prompt := s.closeoutStart(t.Context(), "box", assistantwire.CloseoutBriefRequest{SessionID: "sample", Cwd: "/work"}).Context

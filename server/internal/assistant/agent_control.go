@@ -9,11 +9,11 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/criteria"
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/devicewire"
 	"github.com/sunfayao/persona/server/internal/i18n"
@@ -254,13 +254,13 @@ func (s *Service) toolAgentSupervise(ctx context.Context, self string, args json
 		if err := s.call(ctx, am.ID, DeviceSessionSendOnce, params, nil); err != nil {
 			return "", fmt.Errorf("task %s has its leader, but delivery of the leader instructions was not confirmed: %w. Retry agent_supervise with the same role", todo.ID, err)
 		}
-		return fmt.Sprintf("%s leads task %s (%q), supervised by %s. Its leader instructions were sent. done_when %s.", agentLabel(c), todo.ID, todo.Title, todo.Supervision.Supervisor, criteriaWords(nil, todo.Supervision)), nil
+		return fmt.Sprintf("%s leads task %s (%q), supervised by %s. Its leader instructions were sent. done_when:%s", agentLabel(c), todo.ID, todo.Title, todo.Supervision.Supervisor, criteriaWords(nil, todo.Supervision)), nil
 	}
 	if !made {
-		return fmt.Sprintf("%s already works for your task %s (%q): you supervise it, done_when %s.", agentLabel(c), todo.ID, todo.Title,
+		return fmt.Sprintf("%s already works for your task %s (%q): you supervise it, done_when:%s", agentLabel(c), todo.ID, todo.Title,
 			criteriaWords(nil, todo.Supervision)), nil
 	}
-	return fmt.Sprintf("%s on %s is now your task %s (%q, its card is in the conversation): %s. done_when %s. The agent was not told: "+
+	return fmt.Sprintf("%s on %s is now your task %s (%q, its card is in the conversation): %s. done_when:%s The agent was not told: "+
 		"if it should work to these criteria or report to its supervisor (report_to_supervisor), tell it with agent_send.",
 		agentLabel(c), am.Name, todo.ID, todo.Title, s.followUpWords(ctx, self), criteriaWords(nil, todo.Supervision)), nil
 }
@@ -297,6 +297,9 @@ func (s *Service) adoptAgentFor(ctx context.Context, self, supervisor string, am
 	expect int, opts adoptionOptions) (Todo, bool, error) {
 	if s.assistantsConversation(ctx, am.ID, c) {
 		return Todo{}, false, errors.New("that is an assistant conversation, not a coding agent")
+	}
+	if err := criteria.TooLong("done_when", doneWhen); err != nil {
+		return Todo{}, false, err
 	}
 	if err := s.ensureTodosLoaded(ctx); err != nil {
 		return Todo{}, false, err
@@ -454,6 +457,9 @@ func (s *Service) sendTaskAllowed(ctx context.Context, self string, am Device, c
 	if exitText(text) {
 		return fmt.Errorf("%s closes the agent, it hands it no work: send it without task", strings.TrimSpace(text))
 	}
+	if err := criteria.TooLong("done_when", task.DoneWhen); err != nil {
+		return err
+	}
 	if err := s.ensureTodosLoaded(ctx); err != nil {
 		return err
 	}
@@ -573,7 +579,7 @@ func (h *handedTask) sent(ctx context.Context, s *Service, text string) string {
 			"machine_id": h.run.MachineID, "session_id": h.run.SessionID}); err != nil {
 			s.logf("task %s: routed feed: %v", h.todo.ID, err)
 		}
-		return fmt.Sprintf(" It is now worker %s (%q) of to-do %s, supervised by its supervisor Agent, with done_when %s. "+
+		return fmt.Sprintf(" It is now worker %s (%q) of to-do %s, supervised by its supervisor Agent, with done_when:%s "+
 			"Tell the supervisor with agent_send (no task) that it has a new worker and why.", h.todo.ID, h.todo.Title, h.attached.ID,
 			criteriaWords(nil, h.todo.Supervision))
 	}
@@ -599,10 +605,10 @@ func (h *handedTask) sent(ctx context.Context, s *Service, text string) string {
 		s.logf("task %s: routed feed: %v", h.todo.ID, err)
 	}
 	if !h.made {
-		return fmt.Sprintf(" It already works for your task %s (%q): no new task was made, done_when %s.", h.todo.ID, h.todo.Title,
+		return fmt.Sprintf(" It already works for your task %s (%q): no new task was made, done_when:%s", h.todo.ID, h.todo.Title,
 			criteriaWords(nil, h.todo.Supervision)) + refused
 	}
-	return fmt.Sprintf(" It is now your task %s (%q, its card is in the conversation): %s. done_when %s.", h.todo.ID, h.todo.Title,
+	return fmt.Sprintf(" It is now your task %s (%q, its card is in the conversation): %s. done_when:%s", h.todo.ID, h.todo.Title,
 		s.followUpWords(ctx, h.self), criteriaWords(nil, h.todo.Supervision))
 }
 
@@ -754,9 +760,9 @@ func criteriaWords(list []string, v *Supervision) string {
 		list = v.DoneWhen
 	}
 	if len(list) == 0 {
-		return "not set (judge by what the task is for; set it with task_scope)"
+		return " not set (judge by what the task is for; set it with task_scope)"
 	}
-	return strconv.Quote(strings.Join(list, "; "))
+	return "\n" + criteria.Numbered(list) + "\n"
 }
 
 // reportBody is a report feed item's body (feedReport).
@@ -932,7 +938,7 @@ func (s *Service) reportToSupervisor(ctx context.Context, machine, session strin
 			}
 		}
 	}
-	reports, err := cleanCriterionReports(a.Criteria, t.Supervision.DoneWhen)
+	reports, err := criteria.CleanReports(a.Criteria, t.Supervision.DoneWhen)
 	if err != nil {
 		return "", err
 	}

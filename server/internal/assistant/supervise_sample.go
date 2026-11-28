@@ -2,7 +2,8 @@ package assistant
 
 import (
 	"context"
-	"strings"
+
+	"github.com/sunfayao/persona/server/internal/assistant/criteria"
 )
 
 // Spot-check reviews (#3128): with
@@ -38,13 +39,13 @@ type autoCheckItem struct {
 // autoCheckOf is the judge's checks matched to criteria: one per criterion in order, the criterion as the ledger has
 // it. A check counts only when the judge gave exactly one per criterion and copied each criterion where it belongs;
 // otherwise every criterion is left unchecked (not met): a list that is off by one must not pass.
-func autoCheckOf(criteria []string, got []autoCheckItem, delivery string) *taskAutoCheck {
+func autoCheckOf(list []string, got []autoCheckItem, delivery string) *taskAutoCheck {
 	c := &taskAutoCheck{Delivery: delivery}
-	aligned := len(got) == len(criteria)
+	aligned := len(got) == len(list)
 	for i := 0; aligned && i < len(got); i++ {
-		aligned = sameCriterion(got[i].Criterion, criteria[i])
+		aligned = criteria.Same(got[i].Criterion, list[i])
 	}
-	for i, crit := range criteria {
+	for i, crit := range list {
 		x := autoCheckItem{ReviewCheck: ReviewCheck{Criterion: crit}}
 		if aligned {
 			x.Checkable, x.Met, x.Evidence = got[i].Checkable, got[i].Met, clip(oneLine(got[i].Evidence), 300)
@@ -52,9 +53,4 @@ func autoCheckOf(criteria []string, got []autoCheckItem, delivery string) *taskA
 		c.Checks = append(c.Checks, x)
 	}
 	return c
-}
-
-// sameCriterion: the judge copied criterion want as got (spacing aside).
-func sameCriterion(got, want string) bool {
-	return strings.Join(strings.Fields(got), " ") == strings.Join(strings.Fields(want), " ")
 }

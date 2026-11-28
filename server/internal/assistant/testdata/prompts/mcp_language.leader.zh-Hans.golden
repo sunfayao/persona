@@ -124,7 +124,7 @@
   },
   {
     "name": "task_review",
-    "description": "Review a direct worker of your to-do. accepted with outcome done closes verified work: give one met check with nonblank evidence per current done_when. rework needs a concrete gap. Repeated or omitted rework kinds cap at two stalled rounds; substantive changes cap at ten total. needs_user sends a decision up with reason and recommendation. cancelled closes an unwanted worker.",
+    "description": "Review a direct worker of your to-do. accepted (outcome done) closes verified work: one met check with evidence per done_when, by number or text. rework needs a concrete gap. Repeated or omitted rework kinds cap at two stalled rounds; substantive ones at ten. needs_user sends a decision up (reason, recommend). cancelled closes an unwanted one.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -172,11 +172,13 @@
           "items": {
             "type": "object",
             "required": [
-              "criterion",
               "met"
             ],
             "additionalProperties": false,
             "properties": {
+              "number": {
+                "type": "integer"
+              },
               "criterion": {
                 "type": "string",
                 "description": "one of the task's done_when"
@@ -250,7 +252,7 @@
   },
   {
     "name": "task_scope",
-    "description": "Change a worker's done_when or expect_minutes after it started, or the expect_minutes of your own to-do: when an estimate runs out (estimate_due, overdue) or what a worker must deliver changes. It is logged on the to-do's brief with what changes and why; the worker is not told, so send it the change with agent_send. Give done_when as the whole list after the change. Your own to-do's done_when is the main conversation's to change: ask it with report_to_supervisor (kind question). A step only the owner takes (deploying, merging, releasing, public sends, deleting, spending) is refused.",
+    "description": "Change a worker's criteria or expect_minutes after it started, or your own to-do's expect_minutes. Logged on the brief; the worker is not told: send it the change with agent_send. Use add, drop and edit by number (an edit keeps its place) or done_when whole; a criterion is one result of at most 200 characters. Your own to-do's done_when is the main conversation's (report_to_supervisor, kind question). A step only the owner takes (deploying, merging, releasing, public sends, deleting, spending) is refused.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -262,11 +264,11 @@
       "properties": {
         "todo_id": {
           "type": "string",
-          "description": "a worker's to-do id, or your own to-do's (expect_minutes only)"
+          "description": "a worker's to-do id, or your own (expect_minutes only)"
         },
         "change": {
           "type": "string",
-          "description": "what changes, in a sentence the owner can read"
+          "description": "what changes, one sentence"
         },
         "why": {
           "type": "string"
@@ -277,7 +279,33 @@
           "items": {
             "type": "string"
           },
-          "description": "a worker's criteria as they are after the change, the whole list"
+          "description": "the whole list after the change"
+        },
+        "add": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "drop": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "edit": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "integer"
+              },
+              "text": {
+                "type": "string"
+              }
+            }
+          }
         },
         "expect_minutes": {
           "type": "integer",

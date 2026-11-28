@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistant/criteria"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -120,6 +121,9 @@ func (s *Service) taskPlanFrom(ctx context.Context, machine, sessionID string, a
 		}
 		if t.ExpectMinutes < 0 {
 			return "", fmt.Errorf("task %d: expect_minutes must be zero or a positive number of minutes", i+1)
+		}
+		if err := criteria.TooLong("done_when", t.DoneWhen); err != nil {
+			return "", fmt.Errorf("task %d: %w", i+1, err)
 		}
 		t.DoneWhen, t.ExpectMinutes = cleanDoneWhen(t.DoneWhen), min(t.ExpectMinutes, 24*60)
 		if t.Title == "" || t.Prompt == "" || t.Cwd == "" && !t.backendWorkspace() && !s.canInferContainerWorkspace(ctx, *t) {
