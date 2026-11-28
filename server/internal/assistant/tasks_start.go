@@ -369,7 +369,8 @@ func (s *Service) taskTodoForConversation(conversation, id string) (Todo, error)
 	switch {
 	case !ok:
 		return Todo{}, notReusable(id, "there is no such todo")
-	case conversation == "" || t.Origin != conversation && (t.Supervision == nil || t.Supervision.Supervisor != conversation):
+	case conversation == "" || t.Origin != conversation && (t.Supervision == nil || t.Supervision.Supervisor != conversation) &&
+		!s.leadersPiece(conversation, t): // a task leader hands out the pieces of its own to-do (task_leader.go)
 		return Todo{}, notReusable(id, "it was not opened from this conversation, nor is it supervised by it")
 	}
 	return t, nil

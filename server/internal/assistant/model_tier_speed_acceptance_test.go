@@ -147,7 +147,7 @@ func TestSpeedToolSchemas11141(t *testing.T) {
 			t.Fatalf("MCP did not list %s", name)
 		}
 	}
-	tools["leader_task_plan"] = leaderPlanTool()
+	tools["leader_task_plan"] = leaderToolList()[0]
 	for _, name := range []string{"agent_start", "task_plan", "leader_task_plan"} {
 		t.Run(name, func(t *testing.T) {
 			tool := tools[name]

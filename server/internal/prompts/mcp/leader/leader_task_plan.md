@@ -1,4 +1,4 @@
-Hand part of your own task to workers: each task you give this starts a new coding agent on a computer, beneath the task you lead, at once, with no card for the user to start it. You get this tool only because your task was handed out as a leader task. Workers belong to this task only: you cannot pick another to-do (todo_id is refused, and every task sets role=worker), a worker cannot hand work on, and at most 8 workers of this task run at a time. A worker that changes files takes the default permission mode unless you set one; a task that only reads sets readonly true and gets the read-only constraint in its first message. Claude-family launchers always start in bypassPermissions mode; Codex read-only tasks keep the plan-mode sandbox. Leave machine and cwd out to start the worker where you run. What a worker reports, and when it stops, stalls or waits for review, reaches you as a message that starts with "Persona · supervision"; your own reports still go to whoever handed your task to you. You supervise each worker: give it done_when, and review it with task_review when its supervision message comes. Returns at once, with each worker's to-do; it does not confirm the agent started.
+Hand a part of your to-do to a worker: each task starts a new coding Agent at once, beneath your to-do, with no card for the owner. Workers belong to your to-do only: every task sets role=worker, todo_id names only a piece of your to-do (part_of it) that has no Agent yet, a worker cannot hand work on, and at most 8 of your workers are open at a time. Give each worker machine and cwd, the computer and the project directory it works in: you run in a home directory, and a worker left without them starts there. Give it done_when (results you can check); a task that only reads sets readonly true and gets the read-only constraint in its first message, which makes it an independent check of another worker's result. Claude-family launchers always start in bypassPermissions mode; Codex read-only tasks keep the plan-mode sandbox. What a worker reports, and when it stops, stalls, runs past its estimate or waits for review, reaches you in a message that starts with "Persona · supervision". Returns at once, with each worker's to-do; it does not confirm the Agent started.
 
 ```json
 {
@@ -22,6 +22,10 @@ Hand part of your own task to workers: each task you give this starts a new codi
         ],
         "additionalProperties": false,
         "properties": {
+          "todo_id": {
+            "type": "string",
+            "description": "a piece of your to-do with no Agent yet, to run this worker on; omitted: a new worker to-do"
+          },
           "title": {
             "type": "string",
             "description": "the worker's task in a short line"
@@ -37,7 +41,7 @@ Hand part of your own task to workers: each task you give this starts a new codi
           },
           "machine": {
             "type": "string",
-            "description": "machine id; empty: the computer you run on"
+            "description": "machine id: where the worker works; empty: the computer you run on"
           },
           "machine_policy": {
             "type": "string",
@@ -46,7 +50,7 @@ Hand part of your own task to workers: each task you give this starts a new codi
           },
           "cwd": {
             "type": "string",
-            "description": "the project directory: absolute path or ~/…; empty: your own directory when the worker runs on your computer"
+            "description": "the project directory: absolute path or ~/…; empty: your own directory, which is no project"
           },
           "launcher": {
             "type": "string",

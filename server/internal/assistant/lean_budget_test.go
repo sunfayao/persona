@@ -23,11 +23,15 @@ const (
 	agentToolsBudget = 4
 	// coreToolBytesBudget: the static core tools declared up front, in wire bytes ({name, description, input_schema}
 	// as JSON), the extensions' and the Lark tools aside.
-	coreToolBytesBudget = 41_600
+	coreToolBytesBudget = 41_576
 	// readonlyRulesBudget and writeRulesBudget: the framework rules an Agent with the Persona tools gets with a
 	// read-only task, and with a task that changes things and has no delivery standard, in bytes.
 	readonlyRulesBudget = 1_050
 	writeRulesBudget    = 1_560
+	// leaderToolsBudget and leaderToolBytesBudget: a to-do supervisor's own tools (leaderToolList), which it lists
+	// beside the Agents' own in every request, and their wire bytes.
+	leaderToolsBudget     = 5
+	leaderToolBytesBudget = 9_539
 )
 
 func TestLeanBudgets(t *testing.T) {
@@ -55,6 +59,17 @@ func TestLeanBudgets(t *testing.T) {
 		core += len(b)
 	}
 	check("static core tools (wire bytes)", core, coreToolBytesBudget)
+
+	leader := 0
+	for _, tool := range leaderToolList() {
+		b, err := json.Marshal(map[string]any{"name": tool.Name, "description": tool.Description, "input_schema": tool.InputSchema})
+		if err != nil {
+			t.Fatal(err)
+		}
+		leader += len(b)
+	}
+	check("a to-do supervisor's own tools", len(leaderToolList()), leaderToolsBudget)
+	check("a to-do supervisor's own tools (wire bytes)", leader, leaderToolBytesBudget)
 
 	handoff := prompts.RenderTaskHandoff(prompts.TaskHandoff{MCP: true, Language: "English"})
 	readonly := handoff + "\n\n" + prompts.RenderAgentCloseoutBrief(prompts.AgentCloseoutBrief{

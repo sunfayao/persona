@@ -138,6 +138,16 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 	if t.Origin == "" || !allowed {
 		return "", fmt.Errorf("task %s was not handed out from this conversation", t.ID)
 	}
+	if lead, ok := t.supervisorAgent(); ok && a.Verdict == reviewAccepted && t.DoneAt == nil {
+		if open := s.openLeaderWorkers(t); len(open) > 0 { // its supervisor closes them first (task_leader.go)
+			ids := make([]string, 0, len(open))
+			for _, w := range open {
+				ids = append(ids, w.ID)
+			}
+			return "", fmt.Errorf("to-do %s has %d open worker(s) (%s): its supervisor Agent %s closes them before it reports the "+
+				"to-do done; ask it with agent_send, or cancel the to-do", t.ID, len(open), strings.Join(ids, ", "), short(lead.SessionID))
+		}
+	}
 	if t.DoneAt != nil && (a.Verdict == reviewRework || a.Verdict == reviewNeedsUser || a.Verdict == reviewParked) {
 		return "", fmt.Errorf("task %s is done already (%s): hand out a new task for what is left", t.ID, cmp.Or(t.DoneReason, "closed"))
 	}

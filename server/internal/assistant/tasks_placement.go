@@ -410,7 +410,9 @@ func (s *Service) startTaskAgent(ctx context.Context, t *PlanTask, retry bool) (
 	var entry prompts.TaskHandoff // none verified: a work machine, no to-do
 	if t.TodoID != "" && !s.isWorkMachine(m.ID) {
 		entry = s.taskEntry(ctx, m.ID, fit)
-		rules = append(rules, prompts.RenderTaskHandoff(entry))
+		if t.Role != roleLeader || entry.Terminal() { // a supervisor with the Persona tools hands parts out with task_plan, never task_spawn
+			rules = append(rules, prompts.RenderTaskHandoff(entry))
+		}
 	}
 	switch {
 	case t.Role == roleLeader: // what it may hand out, and how its workers reach it (task_leader.go)

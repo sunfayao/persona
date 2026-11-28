@@ -2167,6 +2167,11 @@ func (s *Service) toolAgentRead(ctx context.Context, machine, id string, turns i
 	if err != nil {
 		return "", err
 	}
+	return s.agentTranscript(ctx, m, c, turns)
+}
+
+// agentTranscript is agent c's recent exchanges on machine m (turns of them, 2 when 0, at most 10), as agent_read gives them.
+func (s *Service) agentTranscript(ctx context.Context, m Device, c proto.Session, turns int) (string, error) {
 	if turns <= 0 {
 		turns = 2
 	}

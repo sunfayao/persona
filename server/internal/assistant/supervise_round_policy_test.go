@@ -151,7 +151,7 @@ func roundMessage(lang string) string {
 		}
 		entries = append(entries, e)
 	}
-	return prompts.RenderSupervise(prompts.Supervise{Entries: sortEntries(entries), Background: true, Fresh: true,
+	return prompts.RenderSupervise(prompts.Supervise{Entries: sortEntries(entries), Fresh: true,
 		Overdue: true, ParkedDue: true, ParkDecided: true, Decisions: true, Inbox: true, Asked: true, AskMinutes: 5, PushGrading: true})
 }
 

@@ -40,12 +40,10 @@ func (s *Service) renderQueuedDigest(ctx context.Context, to string, list []prom
 	if len(list) > 0 && !slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind != sigParkedSummary }) {
 		level = supervisionInfo
 	}
-	return prompts.RenderSupervise(prompts.Supervise{Level: level, Entries: sortEntries(list), Background: background,
-		Fresh: fresh, Side: to != here.Main, Escalated: escalatedIn(list),
-		BackgroundEscalated: slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigEscalated && e.Background }),
-		Overdue:             slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigOverdue }),
-		ParkedDue:           slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigParkedDue }),
-		ParkDecided:         slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigParkDecided }),
+	return prompts.RenderSupervise(prompts.Supervise{Level: level, Entries: sortEntries(list), Fresh: fresh,
+		Overdue:     slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigOverdue }),
+		ParkedDue:   slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigParkedDue }),
+		ParkDecided: slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigParkDecided }),
 		Decisions: slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool {
 			return e.Kind == sigRecheck || e.Kind == sigUndecidable || e.Kind == sigOwnerCannot || e.Kind == sigCardlessWait
 		}),

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/taskleader"
 	"github.com/sunfayao/persona/server/internal/closeout"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -176,6 +177,7 @@ func (s *Service) sendDigest(ctx context.Context) {
 	leaders := map[[2]string][]superviseSignal{} // leader agent (machine, session) → the signals of its workers (task_leader.go)
 	var leaderOrder []TodoAgent
 	var wait []superviseSignal     // with no main conversation, what nobody else can be told either (routeTo)
+	var absorbed []superviseSignal // a supervised to-do's own signals that wake nobody (taskleader.Absorbed)
 	s.rehomeLeaderlessWorkers(ctx) // a worker whose leader's task closed gets a supervisor that can act, before routing
 	if s.backgroundNeeded(ctx, here, list) {
 		// Only an explicitly addressed legacy notice selects the existing background conversation. One that is gone or
@@ -215,6 +217,20 @@ func (s *Service) sendDigest(ctx context.Context) {
 			g = next
 		}
 		original := g
+		// A to-do its own supervisor Agent runs: the main conversation hears only its completion and what needs
+		// aligning (taskleader.Route); the rest goes to the supervisor, or wakes nobody.
+		if lead, dest, ok := s.supervisorRoute(g); ok && (dest == taskleader.ToSupervisor || dest == taskleader.Absorbed) {
+			if dest == taskleader.Absorbed {
+				absorbed = append(absorbed, g)
+				continue
+			}
+			key := [2]string{lead.MachineID, lead.SessionID}
+			if _, seen := leaders[key]; !seen {
+				leaderOrder = append(leaderOrder, lead)
+			}
+			leaders[key] = append(leaders[key], g)
+			continue
+		}
 		if lead, handled, reachable := s.leaderRoute(g); handled { // never digestTo: a session is no conversation
 			if reachable {
 				key := [2]string{lead.MachineID, lead.SessionID}
@@ -257,6 +273,11 @@ func (s *Service) sendDigest(ctx context.Context) {
 		} else {
 			groups[to] = append(groups[to], g)
 		}
+	}
+	if len(absorbed) > 0 { // handled: nobody is told, and they are not told again
+		s.ackSupervisePending(absorbed)
+		s.turnsTold(ctx, absorbed)
+		s.logf("supervise: %d signal(s) of to-dos their supervisor Agent runs wake nobody", len(absorbed))
 	}
 	if gating {
 		order = s.gateDigestBatches(order, groups, now, batch, cooldown)
@@ -1058,10 +1079,13 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 		e.Review = &prompts.SuperviseReviewed{State: a.State, Count: a.Count, Blocking: a.Blocking, Findings: a.Findings, Error: a.Error}
 	}
 	s.briefEntry(ctx, t.ID, &e) // what was asked, in the owner's words (task_brief_digest.go)
+	// Its supervisor Agent's completion (task_leader.go), with the workers as the hub has them.
+	if g.Kind == sigReview && g.Report == taskleader.ReportCompletion {
+		e.Completion, e.Workers = true, s.completionWorkers(ctx, t)
+	}
 	if g.Kind == sigEscalated {
 		e.Recommend = g.Ask // the leader's recommendation (escalate)
 		e.Asks = g.Cards
-		e.Background = true // only the background supervisor escalates
 	}
 	if g.Kind == sigDecide {
 		e.Recommend = g.Ask // the task leader's recommendation

@@ -757,16 +757,6 @@ func RenderAskLater(a AskLater) string { return render("assistant/ask_later", a)
 type Supervise struct {
 	Level   string
 	Entries []SuperviseEntry
-	// Escalated: an entry is a needs_user the background supervisor passed up, told the main conversation.
-	Escalated bool
-	// Background: it goes to the background supervisor (#4927), for tasks other conversations handed out, whose cards
-	// go from it to the user.
-	Background bool
-	// BackgroundEscalated: with Escalated, one of those entries is the background supervisor's needs_user (#4927): no
-	// leader is named for it.
-	BackgroundEscalated bool
-	// Side: a legacy route to an ordinary side conversation for tasks it supervised before universal main supervision.
-	Side bool
 	// Overdue: an entry is a task past its brief's clock (#3822).
 	Overdue bool
 	// ParkedDue: an entry is a parked task whose time came (#3804).
@@ -806,7 +796,6 @@ type SuperviseEntry struct {
 	Ask             string              // needs_you: what it asks
 	Recommend       string              // escalated: the option the leader recommends
 	LeaderGone      bool                // decide: its task leader agent cannot be reached, so the supervisor takes the task over
-	Background      bool                // escalated: by the background supervisor, not a leader conversation (#4927)
 	DoneWhen        []string            // what done means
 	Round           int                 // reworks so far
 	Machine         string              // where its agent runs (a name)
@@ -861,6 +850,21 @@ type SuperviseEntry struct {
 	ExternalInfo *NeedsUserExternalInfo
 	// ParentCloseout: localized closeout guidance when all part_of children of an open parent to-do are done (#13100).
 	ParentCloseout string
+	// Own: in a supervisor Agent's message (agents/worker_supervise), the entry is about its own to-do, not a worker's.
+	Own bool
+	// Completion: a review that is the to-do's supervisor Agent's verified completion, with its workers as the hub has
+	// them (the supervisor checked each criterion and closed every worker).
+	Completion bool
+	Workers    []SuperviseWorker
+}
+
+// SuperviseWorker is one worker of a supervisor Agent as its completion lists it: the hub's facts, not the
+// supervisor's words.
+type SuperviseWorker struct {
+	ID, Title, Machine string
+	Verdict            string // accepted, cancelled, or the state it is in
+	PR                 string // its pull request, "" when it named none
+	Merged             bool
 }
 
 // SuperviseTodoReady describes an open, unstarted to-do ready to advance once all of its after prerequisites are met.

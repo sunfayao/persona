@@ -154,7 +154,7 @@ func TestTaskLeaderGetsRestrictedTaskPlanAndWorkersDoNot(t *testing.T) {
 	if v := todo.Supervision; v == nil || v.Supervisor != "conv1" {
 		t.Fatalf("the leader's own task is supervised by the conversation that handed it out: %+v", v)
 	}
-	if prompt, _ := f.starts[0]["prompt"].(string); !strings.Contains(prompt, "you are the leader of this task") {
+	if prompt, _ := f.starts[0]["prompt"].(string); !strings.Contains(prompt, "you are the supervisor of this to-do") {
 		t.Fatalf("the leader's first message does not say it leads: %s", prompt)
 	}
 
@@ -164,8 +164,8 @@ func TestTaskLeaderGetsRestrictedTaskPlanAndWorkersDoNot(t *testing.T) {
 			restricted = append(restricted, tl)
 		}
 	}
-	if len(restricted) != 1 || !strings.Contains(restricted[0].Description, "Hand part of your own task to workers") ||
-		strings.Contains(string(restricted[0].InputSchema), "todo_id") || !strings.Contains(string(restricted[0].InputSchema), `"role"`) ||
+	if len(restricted) != 1 || !strings.Contains(restricted[0].Description, "Hand a part of your to-do to a worker") ||
+		!strings.Contains(string(restricted[0].InputSchema), "a piece of your to-do") || !strings.Contains(string(restricted[0].InputSchema), `"role"`) ||
 		!strings.Contains(string(restricted[0].InputSchema), `"worker"`) {
 		t.Fatalf("the leader's tools: %+v", restricted)
 	}
@@ -174,7 +174,7 @@ func TestTaskLeaderGetsRestrictedTaskPlanAndWorkersDoNot(t *testing.T) {
 	}
 
 	for _, session := range []string{"", "s1"} {
-		if got := leaderToolNames(s.runtimeLeaderTools(ctx, "box", session, false)); !slices.Equal(got, []string{"task_plan", "task_review"}) {
+		if got := leaderToolNames(s.runtimeLeaderTools(ctx, "box", session, false)); !slices.Equal(got, []string{"task_plan", "task_review", "agent_read", "agent_send", "task_scope"}) {
 			t.Fatalf("runtime leader tools for %q: %v", session, got)
 		}
 	}
@@ -592,7 +592,7 @@ func TestTaskLeaderListRefreshesAfterItsLink(t *testing.T) {
 
 // The messages the leader and its workers are given.
 func TestTaskLeaderMessages(t *testing.T) {
-	for _, want := range []string{"you are the leader of this task", "task_plan", "default permission mode", "Persona · supervision", "task_review", "stop and ask the user"} {
+	for _, want := range []string{"you are the supervisor of this to-do", "task_plan", "agent_read", "agent_send", "task_scope", "Persona · supervision", "task_review", "report_to_supervisor", "needs the user"} {
 		if !strings.Contains(prompts.RenderTaskLeader(prompts.TaskLeader{}), want) {
 			t.Errorf("the leader's brief lacks %q", want)
 		}
@@ -605,8 +605,8 @@ func TestTaskLeaderMessages(t *testing.T) {
 	entries := []prompts.SuperviseEntry{{ID: "todo_1", Title: "改登录页", Kind: "report", Report: "question", Said: "用哪个分支？", Step: 2, Steps: 5,
 		DoneWhen: []string{"测试通过"}, Round: 1}}
 	got := prompts.RenderWorkerSupervise(entries)
-	for _, want := range []string{"Persona · supervision: 1 of the worker tasks", `1. "改登录页" (todo_1): the worker reports a question for you (step 2 of 5)`,
-		"sent back 1 time(s)", "Done when: 测试通过", "It said:\n   用哪个分支？", "task_review", "You can review your own workers only"} {
+	for _, want := range []string{"Persona · supervision: 1 of your to-do's tasks", `1. Worker "改登录页" (todo_1, signal=report): the worker reports a question for you (step 2 of 5)`,
+		"sent back 1 time(s)", "Done when: 测试通过", "It said:\n   用哪个分支？", "agent_send", "on your own workers only"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the worker supervision message lacks %q:\n%s", want, got)
 		}
@@ -806,7 +806,7 @@ func TestTaskLeaderNeedsUserGoesToItsOwnSupervisor(t *testing.T) {
 	}
 	waitFor(t, "the decision to reach the main conversation", func() bool { return len(f.notices()) == 1 })
 	n := f.notices()[0]
-	for _, want := range []string{"改登录页", "要不要顺手改注册页", "Leader recommendation: 先只改登录页", "its leader (a coding Agent"} {
+	for _, want := range []string{"改登录页", "要不要顺手改注册页", "Its supervisor Agent recommends: 先只改登录页", "its leader (a coding Agent"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("the main conversation's message lacks %q:\n%s", want, n)
 		}
@@ -1017,7 +1017,10 @@ func TestLeaderResumeFailureEscalatesAndRetries(t *testing.T) {
 	f.mu.Lock()
 	f.failSend = nil
 	f.mu.Unlock()
-	waitFor(t, "the retry to reach the leader", func() bool { return slices.Contains(deliveredTo(f, "s1"), text) })
+	// It goes as a supervision message (its message source says so), with the text as rendered.
+	waitFor(t, "the retry to reach the leader", func() bool {
+		return slices.ContainsFunc(deliveredTo(f, "s1"), func(m string) bool { return strings.HasSuffix(m, text) })
+	})
 }
 
 // With nobody above the leader nothing is lost either: no conversation to tell, so the leader itself is retried.

@@ -12,7 +12,7 @@ const (
 )
 
 func background(fresh bool, entries ...SuperviseEntry) Supervise {
-	return Supervise{Background: true, Fresh: fresh, Entries: entries}
+	return Supervise{Fresh: fresh, Entries: entries}
 }
 
 // A Fresh round is the same message as the one that is not Fresh plus its header line, marker and last reviews: the
@@ -62,8 +62,6 @@ func TestSuperviseNotFreshIsUnchanged(t *testing.T) {
 		data Supervise
 	}{
 		{"main", Supervise{}},
-		{"side", Supervise{Side: true}},
-		{"background", Supervise{Background: true}},
 	} {
 		t.Run(role.name, func(t *testing.T) {
 			data := role.data
@@ -88,7 +86,7 @@ func TestSuperviseNotFreshIsUnchanged(t *testing.T) {
 // A Fresh message says where earlier rounds' decisions are, carries the marker line after its level tag and each
 // entry's last review; IsSuperviseRound is true only for such a supervision message.
 func TestSuperviseRoundMarker(t *testing.T) {
-	text := RenderSupervise(Supervise{Level: "info", Background: true, Fresh: true, Entries: []SuperviseEntry{
+	text := RenderSupervise(Supervise{Level: "info", Fresh: true, Entries: []SuperviseEntry{
 		{ID: "t1", Title: "Example task", Kind: "review", LastReview: &SuperviseLastReview{Verdict: "rework", At: "11-14 10:20", Note: "add the tests"}},
 		{ID: "t2", Title: "Other task", Kind: "idle"},
 	}})

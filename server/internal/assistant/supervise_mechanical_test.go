@@ -342,7 +342,7 @@ func TestScreenMechanicalSignalsDeferredIdleLeavesDigestBatch(t *testing.T) {
 	sess := proto.Session{SessionID: sid, MachineID: "box", Cwd: "/code/app", Agent: "claude", Status: proto.StatusDone,
 		State: proto.StateUnread, LastText: "waiting for the scheduled wakeup", UpdatedAt: now.Add(-time.Minute),
 		Loop: &proto.LoopInfo{Kind: "wakeup", NextAt: now.Add(10 * time.Minute)}}
-	other := Todo{ID: "todo-other", Title: "other work", Agents: []TodoAgent{{MachineID: "box", SessionID: "other-session", Source: "leader"}},
+	other := Todo{ID: "todo-other", Title: "other work", Agents: []TodoAgent{{MachineID: "box", SessionID: "other-session", Source: "manual"}},
 		Supervision: &Supervision{Supervisor: "conv1", DoneWhen: []string{"finished"}, UpdatedAt: now.Add(-time.Hour)}}
 	s.todos.mu.Lock()
 	copy := copyTodoLocked(&other)

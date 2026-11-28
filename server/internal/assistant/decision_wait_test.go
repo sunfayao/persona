@@ -464,7 +464,7 @@ func TestBackgroundSupervisorsHeldDecisionEscalatesWhenItIsPushed(t *testing.T) 
 	}
 	waitFor(t, "main's escalation", func() bool { return len(f.noticesTo("conv1")) == 2 })
 	n := f.noticesTo("conv1")[1]
-	for _, want := range []string{"the background supervision conversation following it decided the user must decide", "Background supervision conversation recommendation: 先灰度 10%"} {
+	for _, want := range []string{"the background supervision conversation following it decided the user must decide", "Recommended: 先灰度 10%"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("the main conversation's message lacks %q:\n%s", want, n)
 		}

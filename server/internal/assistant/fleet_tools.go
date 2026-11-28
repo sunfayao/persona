@@ -174,13 +174,20 @@ func (s *Service) sessionMCPToolsChecked(ctx context.Context, machine, session s
 			tools = s.guardTools(ctx, machine, session, tools)
 			tools = append(tools, s.spaceTools(ctx, machine, session)...) // space_state_update (track_space_md.go)
 		}
+		// A to-do's supervisor (a task leader) lists only its own tools beside the Agents' own: it reaches its workers
+		// through them (task_leader.go), so neither task_spawn nor A2A is a side channel for it.
+		leads := false
 		if !assistant {
-			tools = append(tools, s.leaderTools(ctx, machine, session)...)
-			tools = append(tools, s.spawnTools(ctx, machine, session)...)
+			own := s.leaderTools(ctx, machine, session)
+			leads = len(own) > 0
+			tools = append(tools, own...)
+			if !leads {
+				tools = append(tools, s.spawnTools(ctx, machine, session)...)
+			}
 		}
 		// A2A is the Agents' channel to each other. An assistant conversation reaches the same sessions with its own
 		// agents_list, agent_read and agent_send, and is answered without the tools (prompts/agents/a2a_message).
-		if !assistant && s.agents.Discoverable(ctx, agents.Ref{Machine: s.canonical(machine), Session: session}) {
+		if !assistant && !leads && s.agents.Discoverable(ctx, agents.Ref{Machine: s.canonical(machine), Session: session}) {
 			tools = append(tools, toolsNamed(assistantwire.A2AToolNames)...)
 		}
 		if assistant && toolSetOf(ctx) == toolSetSupervise {
@@ -264,6 +271,11 @@ func (s *Service) mcpCallRun(ctx context.Context, machine, session, name string,
 		return s.toolSecretStore(ctx, machine, session, args)
 	}
 	if assistantwire.IsA2ATool(name) {
+		if !assistant {
+			if _, _, leads := s.leaderTask(ctx, machine, session); leads { // as its list says: not a supervisor's channel
+				return proto.TextResult("unknown tool "+name, true)
+			}
+		}
 		return s.agents.Tool(ctx, agents.Ref{Machine: s.canonical(machine), Session: session}, name, args)
 	}
 	if s.ext != nil { // the connectors', Cua's, ego's: ctx is the node's call (its caller going away withdraws a card)
@@ -289,6 +301,9 @@ func (s *Service) mcpCallRun(ctx context.Context, machine, session, name string,
 	}
 	if !assistant && name == "task_review" {
 		return s.leaderTaskReview(ctx, machine, session, args)
+	}
+	if !assistant && isLeaderTool(name) { // agent_read, agent_send, task_scope: a task leader's own (task_leader.go)
+		return s.leaderScopedTool(ctx, machine, session, name, args)
 	}
 	if !assistant && isDispatchTool(name) {
 		return s.dispatchTool(ctx, machine, session, name, args)

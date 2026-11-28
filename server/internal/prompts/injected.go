@@ -35,6 +35,12 @@ var (
 	leadContextRe        = lazyre.New(`^(?s)\s*<persona-context\b[^>]*>.*?</persona-context>`)
 )
 
+// A to-do supervisor's own supervision message (agents/worker_supervise); the earlier shape named "the worker tasks".
+var (
+	leaderSuperviseRe       = lazyre.New(`^Persona · supervision: (\d+) of your to-do's tasks need you\. This message is not from the user\.$`)
+	legacyLeaderSuperviseRe = lazyre.New(`^Persona · supervision: (\d+) of the worker tasks you handed out with task_plan need you\. This message is not from the user\.$`)
+)
+
 // noticeMarker is in every task notice (assistant/task_notice): a first line alone could be the user's.
 const (
 	noticeMarker       = "This is a Persona task notice"
@@ -181,7 +187,17 @@ func ParseInjected(text string) *proto.Injected {
 				break
 			}
 		}
-		return &proto.Injected{Kind: proto.InjectedSystem, State: "supervise", Level: level, Line: "督办：" + m[1] + " 个派出去的任务要处理"}
+		return &proto.Injected{Kind: proto.InjectedSystem, State: "supervise", Level: level, Line: superviseLine(m[1])}
+	case strings.HasPrefix(head, "Persona · supervision: "):
+		// Only hubs that write it mark it: it is not in the shared fixtures the apps' own recognition runs.
+		m := leaderSuperviseRe.FindStringSubmatch(head)
+		if m == nil {
+			m = legacyLeaderSuperviseRe.FindStringSubmatch(head)
+		}
+		if m == nil {
+			return nil
+		}
+		return &proto.Injected{Kind: proto.InjectedSystem, State: "supervise", Level: "triage", Line: superviseLine(m[1])}
 	case strings.HasPrefix(head, "📥 收件箱事件「"):
 		// Only hubs that write it mark it: it is not in the shared fixtures the apps' own recognition runs.
 		m := inboxHeadRe.FindStringSubmatch(head)
@@ -315,3 +331,6 @@ func followupDetail(rest string) string {
 	}
 	return strings.TrimSpace(body)
 }
+
+// superviseLine is the apps' line for a supervision message of n entries, a conversation's or a to-do supervisor's.
+func superviseLine(n string) string { return "督办：" + n + " 个派出去的任务要处理" }

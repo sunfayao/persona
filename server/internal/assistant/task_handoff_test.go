@@ -536,11 +536,12 @@ func TestGoldenTaskLeaderEntries(t *testing.T) {
 				s, f, h := taskHandoffTestFixture(t, agent)
 				f.hello.Locale = locale
 				prompt := taskLeaderTestStart(t, s, f)
-				if !strings.Contains(prompt, "you are the leader of this task") {
+				if !strings.Contains(prompt, "you are the supervisor of this to-do") {
 					t.Fatalf("not started as a leader: %s", prompt)
 				}
 				terminal := taskHandoffTestExecutable(t, prompt) == h.info["box"].Executable
-				if terminal != (entry == "terminal") || strings.Contains(prompt, "only with `task_spawn`") == terminal {
+				// A supervisor hands parts out with task_plan: the task_spawn handoff note is the terminal entry's only.
+				if terminal != (entry == "terminal") || strings.Contains(prompt, "only with `task_spawn`") {
 					t.Fatalf("%s leader got the other entry: %s", entry, prompt)
 				}
 				golden(t, "task_leader."+entry+"."+locale, prompt)

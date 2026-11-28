@@ -88,10 +88,8 @@ func Tool(name string, language ...string) MCPTool {
 func LocalizeTool(t MCPTool, lang string) MCPTool {
 	names := []string{t.Name}
 	switch t.Name {
-	case "task_plan":
-		names = append(names, "leader_task_plan")
-	case "task_review":
-		names = append(names, "leader_task_review")
+	case "task_plan", "task_review", "agent_read", "agent_send", "task_scope":
+		names = append(names, "leader_"+t.Name)
 	}
 	for _, name := range names {
 		if _, ok := mcpTools()[name]; !ok {

@@ -34,6 +34,9 @@ func (s *Service) taskSpawn(ctx context.Context, machine, session string, args j
 		return "", errors.New("task_spawn requires title and prompt; nothing was started")
 	}
 	machine = s.canonical(machine)
+	if _, _, leads := s.leaderTask(ctx, machine, session); leads {
+		return "", errors.New("you supervise this to-do: hand a part of it to a new worker with task_plan; nothing was started")
+	}
 	t, ok := s.spawnTask(ctx, machine, session)
 	if !ok {
 		return "", errors.New("task_spawn requires an active Agent on an open supervised task; ask your supervisor to assign one")

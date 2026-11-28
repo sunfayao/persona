@@ -103,6 +103,14 @@ func (s *Service) taskPlanFrom(ctx context.Context, machine, sessionID string, a
 		if err := t.checkRole(scope != nil); err != nil {
 			return "", fmt.Errorf("task %d: %w", i+1, err)
 		}
+		if scope == nil {
+			if err := s.supervisedWorkRefusal(*t); err != nil { // the work of a supervised to-do is its supervisor's (task_leader.go)
+				return "", fmt.Errorf("task %d: %w", i+1, err)
+			}
+			if t.Role == roleLeader {
+				s.leaderDefaults(ctx, t)
+			}
+		}
 		if m, ok := s.machineByName(ctx, t.Machine); ok && t.Role == roleLeader && s.isWorkMachine(m.ID) {
 			return "", fmt.Errorf("task %d: role \"leader\" cannot run on %s: a work-trust computer gives its agents only the "+
 				"reporting tools, so it could not supervise workers. Put the task leader on a computer you own", i+1, m.Name)

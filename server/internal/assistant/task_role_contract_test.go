@@ -300,7 +300,7 @@ func TestTaskPlanRoleContractMCPSchemas(t *testing.T) {
 		enum []string
 	}{
 		{name: "general", tool: toolsNamed([]string{"task_plan"})[0], enum: []string{"worker", "leader"}},
-		{name: "leader", tool: leaderPlanTool(), enum: []string{"worker"}},
+		{name: "leader", tool: leaderToolList()[0], enum: []string{"worker"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			var schema struct {

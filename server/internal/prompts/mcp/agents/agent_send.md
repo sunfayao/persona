@@ -1,6 +1,6 @@
 Send what the user asked for to a coding Agent. Follow-up on an Agent's own work (same computer and directory) goes to it as agents_list's reuse= says; unrelated work: agent_start; unsure: ask_user. Give task for new work, so you supervise it, and say its done_when in text too; omit task for a reply, nudge or decision.
 
-`wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, with known input/session ids. Observation never answers questions, accepts tasks, resends or cancels work; normal supervision/`task_review` applies. Older nodes may time out rather than return an unrelated reply.
+`wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, with known input/session ids. Observation never answers questions, accepts tasks, resends or cancels work; normal supervision/`task_review` applies. Older nodes may time out instead of an unrelated reply.
 
 Details: read .claude/skills/persona-work/references/agent-send.md in your working directory.
 
@@ -67,6 +67,9 @@ Details: read .claude/skills/persona-work/references/agent-send.md in your worki
         },
         "expect_minutes": {
           "type": "integer"
+        },
+        "todo_id": {
+          "type": "string"
         }
       }
     }

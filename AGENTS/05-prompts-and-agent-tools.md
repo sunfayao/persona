@@ -119,9 +119,14 @@ some turns need behind a skill (`server/internal/assistantskills/builtin/`) or a
 rule once, and delete a sentence before you add one.
 
 `TestLeanBudgets` (`assistant/lean_budget_test.go`) holds shrink-only ceilings for what every request carries: the
-static supervision instructions, the tool counts, the core tools' bytes and the rules an Agent gets with a task. A
-signal's handling rule travels with the supervision message that carries the signal (`assistant/supervise_signal.md`),
-never in the static instructions.
+static supervision instructions, the tool counts, the core tools' bytes, the rules an Agent gets with a task and a to-do
+supervisor's own tools. A signal's handling rule travels with the supervision message that carries the signal
+(`assistant/supervise_signal.md`, and `agents/worker_supervise_signal.md` for a to-do's supervisor Agent), never in the
+static instructions.
+
+A narrower kind gets a narrower list, never a second copy of the catalog: a to-do's supervisor Agent (a task leader)
+lists only its own tools (`leaderToolList`, under the names the model calls, each with its `mcp/leader/` description and
+its own scope check) beside the Agents' own, and a test keeps every tool its texts name inside that list.
 
 A tool description keeps what a call needs: what the tool does, when to use it, its required fields and the mistakes
 calls make. Its long tail goes into a reference of `persona-work`, which every Assistant directory has under

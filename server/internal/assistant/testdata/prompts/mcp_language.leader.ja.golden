@@ -1,7 +1,7 @@
 [
   {
     "name": "task_plan",
-    "description": "Hand part of your own task to workers: each task you give this starts a new coding agent on a computer, beneath the task you lead, at once, with no card for the user to start it. You get this tool only because your task was handed out as a leader task. Workers belong to this task only: you cannot pick another to-do (todo_id is refused, and every task sets role=worker), a worker cannot hand work on, and at most 8 workers of this task run at a time. A worker that changes files takes the default permission mode unless you set one; a task that only reads sets readonly true and gets the read-only constraint in its first message. Claude-family launchers always start in bypassPermissions mode; Codex read-only tasks keep the plan-mode sandbox. Leave machine and cwd out to start the worker where you run. What a worker reports, and when it stops, stalls or waits for review, reaches you as a message that starts with \"Persona · supervision\"; your own reports still go to whoever handed your task to you. You supervise each worker: give it done_when, and review it with task_review when its supervision message comes. Returns at once, with each worker's to-do; it does not confirm the agent started.",
+    "description": "Hand a part of your to-do to a worker: each task starts a new coding Agent at once, beneath your to-do, with no card for the owner. Workers belong to your to-do only: every task sets role=worker, todo_id names only a piece of your to-do (part_of it) that has no Agent yet, a worker cannot hand work on, and at most 8 of your workers are open at a time. Give each worker machine and cwd, the computer and the project directory it works in: you run in a home directory, and a worker left without them starts there. Give it done_when (results you can check); a task that only reads sets readonly true and gets the read-only constraint in its first message, which makes it an independent check of another worker's result. Claude-family launchers always start in bypassPermissions mode; Codex read-only tasks keep the plan-mode sandbox. What a worker reports, and when it stops, stalls, runs past its estimate or waits for review, reaches you in a message that starts with \"Persona · supervision\". Returns at once, with each worker's to-do; it does not confirm the Agent started.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -23,6 +23,10 @@
             ],
             "additionalProperties": false,
             "properties": {
+              "todo_id": {
+                "type": "string",
+                "description": "a piece of your to-do with no Agent yet, to run this worker on; omitted: a new worker to-do"
+              },
               "title": {
                 "type": "string",
                 "description": "the worker's task in a short line"
@@ -40,7 +44,7 @@
               },
               "machine": {
                 "type": "string",
-                "description": "machine id; empty: the computer you run on"
+                "description": "machine id: where the worker works; empty: the computer you run on"
               },
               "machine_policy": {
                 "type": "string",
@@ -52,7 +56,7 @@
               },
               "cwd": {
                 "type": "string",
-                "description": "the project directory: absolute path or ~/…; empty: your own directory when the worker runs on your computer"
+                "description": "the project directory: absolute path or ~/…; empty: your own directory, which is no project"
               },
               "launcher": {
                 "type": "string",
@@ -189,6 +193,90 @@
         "recommend": {
           "type": "string",
           "description": "needs_user: the option you recommend"
+        }
+      }
+    }
+  },
+  {
+    "name": "agent_read",
+    "description": "Read the recent exchanges of one of your workers' Agent: what it was told, what it said, and its tool calls in short form. Use it before you review a worker (check its evidence yourself), to see why it stopped or what it waits for, and before you message it. todo_id is the worker's to-do, as its supervision message and task_plan's answer name it; turns is how many recent exchanges (default 2, at most 10). It reaches your own workers only.",
+    "input_schema": {
+      "type": "object",
+      "required": [
+        "todo_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "todo_id": {
+          "type": "string",
+          "description": "the worker's to-do id"
+        },
+        "turns": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "description": "how many recent exchanges; omitted: 2"
+        }
+      }
+    }
+  },
+  {
+    "name": "agent_send",
+    "description": "Send a message to one of your open workers' Agent: the answer to its question, a nudge to finish or to report, what is still missing, \"continue\" with what was left after its turn was cut off or its computer restarted, or when to rebase and merge so the workers' changes go in one after another. A closed Agent is resumed by the message. It carries no new work: a new part of your to-do is a new worker (task_plan). It reaches your own workers only.",
+    "input_schema": {
+      "type": "object",
+      "required": [
+        "todo_id",
+        "text"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "todo_id": {
+          "type": "string",
+          "description": "the worker's to-do id"
+        },
+        "text": {
+          "type": "string",
+          "description": "the message, for the worker to act on"
+        }
+      }
+    }
+  },
+  {
+    "name": "task_scope",
+    "description": "Change a worker's done_when or expect_minutes after it started, or the expect_minutes of your own to-do: when an estimate runs out (estimate_due, overdue) or what a worker must deliver changes. It is logged on the to-do's brief with what changes and why; the worker is not told, so send it the change with agent_send. Give done_when as the whole list after the change. Your own to-do's done_when is the main conversation's to change: ask it with report_to_supervisor (kind question). A step only the owner takes (deploying, merging, releasing, public sends, deleting, spending) is refused.",
+    "input_schema": {
+      "type": "object",
+      "required": [
+        "todo_id",
+        "change",
+        "why"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "todo_id": {
+          "type": "string",
+          "description": "a worker's to-do id, or your own to-do's (expect_minutes only)"
+        },
+        "change": {
+          "type": "string",
+          "description": "what changes, in a sentence the owner can read"
+        },
+        "why": {
+          "type": "string"
+        },
+        "done_when": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {
+            "type": "string"
+          },
+          "description": "a worker's criteria as they are after the change, the whole list"
+        },
+        "expect_minutes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "minutes it should take from now; 0: as it is"
         }
       }
     }

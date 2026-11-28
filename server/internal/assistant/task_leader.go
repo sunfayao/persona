@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/taskleader"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -47,6 +48,17 @@ var leaderListWait = 8 * time.Second
 
 func (a TodoAgent) active() bool { return a.ReleasedAt == nil && a.DismissedAt == nil }
 
+// supervisorAgent is the to-do's supervisor Agent: its task leader's active row. A to-do has at most one
+// (linkPlanAgent); false for every other to-do. The rules of a supervised to-do are taskleader's.
+func (t Todo) supervisorAgent() (TodoAgent, bool) {
+	for _, a := range t.Agents {
+		if a.active() && a.Source == sourceLeader {
+			return a, true
+		}
+	}
+	return TodoAgent{}, false
+}
+
 // linkSource is the todo_agents source and via the agent of plan task t is linked with.
 func (t PlanTask) linkSource() (source, via string) {
 	switch {
@@ -66,6 +78,123 @@ func (s *Service) linkPlanAgent(ctx context.Context, t PlanTask, mid, sid string
 		s.estimateAdmitted(ctx, t, mid, sid)
 	}
 	return err
+}
+
+// leaderTier is the Agent preset a to-do's supervisor starts on when nothing else decides it (leaderDefaults): the
+// light everyday preset, where the owner's model profile has one.
+const leaderTier = "simple"
+
+// leaderDefaults fills in the start of a to-do's supervisor where the main conversation's task_plan left it open
+// (role "leader"): the assistant's own computer and its home directory, as it works on no project; the light preset
+// when the active model profile has one and neither the call nor a start-defaults rule decides a leader's start; and
+// always bypassPermissions without the read-only constraint. A read-only (plan) mode asks the owner before tool calls:
+// on agy every Persona tool call would wait on a card (integrations/antigravity handlePermissionRequest), so a
+// supervisor there could not supervise. It changes no files by its own rules (prompts/agents/task_leader.md).
+func (s *Service) leaderDefaults(ctx context.Context, t *PlanTask) {
+	cfg := s.settings(ctx)
+	if strings.TrimSpace(t.Machine) == "" && cfg.MachineID != "" {
+		t.Machine = cfg.MachineID
+	}
+	if strings.TrimSpace(t.Cwd) == "" {
+		t.Cwd = "~"
+		if m, ok := s.machineByName(ctx, t.Machine); ok && m.Home != "" {
+			t.Cwd = m.Home
+		}
+	}
+	t.Readonly, t.Permission = false, "bypassPermissions"
+	if t.Tier != "" || t.Launcher != "" || t.Model != "" {
+		return
+	}
+	if d, ruled, err := s.startDefaults(ctx, StartFacts{Machine: t.Machine, Role: roleLeader, Supervisor: "main",
+		DoneWhen: len(t.DoneWhen)}); err != nil || ruled && len(d.Presets) > 0 {
+		return // the owner's rule decides it at the start
+	}
+	s.models.mu.Lock()
+	p, _, err := s.activeModelProfile(ctx)
+	s.models.mu.Unlock()
+	if err == nil && p != nil {
+		if _, ok := p.Tiers[leaderTier]; ok {
+			t.Tier = leaderTier
+		}
+	}
+}
+
+// supervisedWorkRefusal refuses a task of the main conversation's plan that would run work of a to-do its
+// supervisor Agent runs: on that to-do itself (but a new supervisor for it, when its own has stopped), or on a piece of
+// it. That work goes to the supervisor, which hands it out itself.
+func (s *Service) supervisedWorkRefusal(t PlanTask) error {
+	check := func(id string, replace bool) error {
+		todo, ok := s.todoNow(id)
+		if id == "" || !ok || todo.DoneAt != nil {
+			return nil
+		}
+		lead, has := todo.supervisorAgent()
+		if !has || replace && t.Role == roleLeader {
+			return nil
+		}
+		return fmt.Errorf("to-do %s (%q) is run by its supervisor Agent %s on %s: send it new work or a new direction with "+
+			"agent_send (no task; a closed supervisor is resumed by the message); it hands out the to-do's pieces itself",
+			todo.ID, todo.Title, short(lead.SessionID), lead.MachineID)
+	}
+	if err := check(t.ReuseTodo, true); err != nil {
+		return err
+	}
+	if p, ok := s.todoNow(t.ReuseTodo); ok && p.PartOf != "" {
+		if err := check(p.PartOf, false); err != nil {
+			return err
+		}
+	}
+	return check(t.PartOf, false)
+}
+
+// attachWorker puts agent c of machine am, which works on no open task, under the supervisor Agent of to-do
+// task.TodoID as a new worker (agent_send with task.todo_id): a to-do of its own beneath that to-do, supervised by the
+// supervisor, with task's criteria; text is what it is told, its first instruction. Only the conversation that
+// supervises that to-do, or the main conversation, attaches; the supervisor's bound on open workers holds.
+func (s *Service) attachWorker(ctx context.Context, self string, am Device, c proto.Session, task sendTask, text string) (*handedTask, error) {
+	root, ok := s.todoNow(strings.TrimSpace(task.TodoID))
+	if !ok || root.DoneAt != nil {
+		return nil, fmt.Errorf("no open to-do %q; nothing was sent", task.TodoID)
+	}
+	lead, has := root.supervisorAgent()
+	if !has {
+		return nil, fmt.Errorf("to-do %s has no supervisor Agent: hand it this work with task_plan, or send without todo_id; nothing was sent", root.ID)
+	}
+	if root.Supervision == nil || root.Supervision.Supervisor != self && !s.isMain(ctx, self) {
+		return nil, fmt.Errorf("to-do %s is not supervised from this conversation; nothing was sent", root.ID)
+	}
+	if t, busy := s.openTodoOfAgent(am.ID, c.SessionID); busy {
+		return nil, fmt.Errorf("%s works for task %s (%q) already: only an Agent on no open task joins a to-do as a worker; nothing was sent",
+			agentLabel(c), t.ID, t.Title)
+	}
+	if len(cleanDoneWhen(task.DoneWhen)) == 0 {
+		return nil, errors.New("a worker needs done_when (results its supervisor can check); nothing was sent")
+	}
+	if err := s.checkLeaderRoom(ctx, &leaderScope{task: root, agent: lead}, 1); err != nil {
+		return nil, fmt.Errorf("to-do %s: %w", root.ID, err)
+	}
+	ref := leaderRef(lead.MachineID, lead.SessionID)
+	w, _, err := s.adoptAgentFor(ctx, ref, ref, am, c, task.Title, text, text, task.DoneWhen, task.ExpectMinutes, adoptionOptions{via: root.ID})
+	if err != nil {
+		return nil, fmt.Errorf("%w; nothing was sent", err)
+	}
+	return &handedTask{todo: w, made: true, self: self, supervisor: ref, attached: root,
+		run: SessionRef{MachineID: am.ID, SessionID: c.SessionID}}, nil
+}
+
+// leadersPiece: conversation is a task leader's ref and to-do t a piece of that leader's own to-do that nobody
+// supervises yet, which the leader may hand out with task_plan's todo_id (taskTodoForConversation).
+func (s *Service) leadersPiece(conversation string, t Todo) bool {
+	machine, session, ok := parseLeaderRef(conversation)
+	if !ok || t.PartOf == "" || t.Supervision.assigned() {
+		return false
+	}
+	root, found := s.todoNow(t.PartOf)
+	if !found || root.DoneAt != nil {
+		return false
+	}
+	lead, has := root.supervisorAgent()
+	return has && s.canonical(lead.MachineID) == s.canonical(machine) && lead.SessionID == session
 }
 
 // leaderTask is the open task agent machine/session leads, with the agent's own row; false for any other agent.
@@ -190,16 +319,29 @@ func (s *Service) leaderSupervisor(t Todo) (lead TodoAgent, supervised, ok bool)
 	return lead, true, ok
 }
 
-// leaderPlanTool is the restricted task_plan a task leader gets, under the name the model calls (prompts/mcp/leader).
-func leaderPlanTool() proto.Tool {
-	t := prompts.Tool("leader_task_plan")
-	return proto.Tool{Name: "task_plan", Description: t.Description, InputSchema: t.InputSchema}
+// leaderToolFiles are a task leader's own tools, the to-do supervisor's, under the names the model calls, each with
+// its description file (prompts/mcp/leader): task_plan and task_review reach the workers it hands out beneath its
+// to-do; agent_read, agent_send and task_scope reach those workers only (and task_scope its own to-do's time). With
+// the Agents' own tools (report_to_supervisor up to whoever handed it its to-do) they are all it lists: no A2A, no
+// task_spawn (sessionMCPToolsChecked), no machine_exec (an Agent never has it).
+var leaderToolFiles = [][2]string{
+	{"task_plan", "leader_task_plan"}, {"task_review", "leader_task_review"}, {"agent_read", "leader_agent_read"},
+	{"agent_send", "leader_agent_send"}, {"task_scope", "leader_task_scope"},
 }
 
-// leaderToolList are a task leader's own tools: the restricted task_plan and task_review, under the names the model calls.
+// leaderToolList are a task leader's own tools (leaderToolFiles).
 func leaderToolList() []proto.Tool {
-	r := prompts.Tool("leader_task_review")
-	return []proto.Tool{leaderPlanTool(), {Name: "task_review", Description: r.Description, InputSchema: r.InputSchema}}
+	out := make([]proto.Tool, 0, len(leaderToolFiles))
+	for _, n := range leaderToolFiles {
+		t := prompts.Tool(n[1])
+		out = append(out, proto.Tool{Name: n[0], Description: t.Description, InputSchema: t.InputSchema})
+	}
+	return out
+}
+
+// isLeaderTool: name is one of a task leader's own tools.
+func isLeaderTool(name string) bool {
+	return slices.ContainsFunc(leaderToolFiles, func(n [2]string) bool { return n[0] == name })
 }
 
 // runtimeLeaderTools supplies plugin registration schemas and checks individual sessions at tool activation.
@@ -271,9 +413,11 @@ type leaderScope struct {
 	agent TodoAgent
 }
 
-// leaderTaskIn is a worker task as a task leader may plan it: nothing else (no todo_id, attachments, project,
-// user_requested…) is read, an unknown field is refused. Every new worker declares role "worker".
+// leaderTaskIn is a worker task as a task leader may plan it: nothing else (attachments, project, user_requested…) is
+// read, an unknown field is refused. Every new worker declares role "worker". todo_id names a piece of the leader's own
+// to-do (part_of it) that nobody supervises yet, to run on that piece's to-do (leadersPiece); any other is refused.
 type leaderTaskIn struct {
+	TodoID        string   `json:"todo_id"`
 	Title         string   `json:"title"`
 	Prompt        string   `json:"prompt"`
 	Role          string   `json:"role"`
@@ -301,14 +445,15 @@ func (l *leaderScope) workerTasks(args json.RawMessage) ([]PlanTask, error) {
 	dec := json.NewDecoder(bytes.NewReader(args))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&in); err != nil {
-		return nil, fmt.Errorf("a task leader's task_plan takes only the fields its schema lists; todo_id, attachments and "+
-			"any other are refused, and workers can only be new tasks beneath your own task (%v)", err)
+		return nil, fmt.Errorf("a task leader's task_plan takes only the fields its schema lists; attachments and any other "+
+			"are refused, and workers can only be new tasks beneath your own task or its pieces (%v)", err)
 	}
 	out := make([]PlanTask, 0, len(in.Tasks))
 	for _, t := range in.Tasks {
 		pt := PlanTask{Title: t.Title, Prompt: t.Prompt, Role: t.Role, Machine: t.Machine, MachinePolicy: t.MachinePolicy, Cwd: t.Cwd,
 			Launcher: t.Launcher, Model: t.Model, Tier: t.Tier, Effort: t.Effort, Speed: t.Speed, Permission: t.Permission, Readonly: t.Readonly,
-			DoneWhen: t.DoneWhen, Goal: t.Goal, ExpectMinutes: t.ExpectMinutes, Why: t.Why, Parent: l.task.ID, Project: l.task.Project}
+			DoneWhen: t.DoneWhen, Goal: t.Goal, ExpectMinutes: t.ExpectMinutes, Why: t.Why, Parent: l.task.ID, Project: l.task.Project,
+			ReuseTodo: strings.TrimSpace(t.TodoID)}
 		if strings.TrimSpace(pt.Machine) == "" {
 			pt.Machine = l.agent.MachineID
 			if strings.TrimSpace(pt.Cwd) == "" {
@@ -401,19 +546,47 @@ func (s *Service) escalateLeaderSignalAs(ctx context.Context, g superviseSignal,
 		return superviseSignal{}
 	}
 	up, sid := s.supervisorAboveTask(ctx, t)
+	if lead, own := t.supervisorAgent(); up == "" && own && t.Supervision != nil && !s.isLeaderRef(t.Supervision.Supervisor) {
+		up, sid = t.Supervision.Supervisor, lead.SessionID // the supervisor's own to-do: its own supervisor decides
+	}
 	if up == "" {
 		s.logf("supervise: %s of task %s: its task leader %s is unreachable and nothing is above it; trying again later", g.Kind, g.Todo, short(sid))
 		return superviseSignal{}
 	}
-	why, key := fmt.Sprintf("Its task leader %s cannot be reached, so what its worker reported could not be delivered (%s: %s).",
-		short(sid), g.Kind, clip(oneLine(g.Detail), 300)), "leader-unreachable@"
+	options := "Resume it with agent_send (a message resumes a closed Agent), take its workers over with task_review on them, " +
+		"or cancel the to-do with task_review."
+	why, key := fmt.Sprintf("Its supervisor Agent %s cannot be reached, so what it was to handle could not be delivered (%s: %s). %s",
+		short(sid), g.Kind, clip(oneLine(g.Detail), 300), options), "leader-unreachable@"
 	if uncertain {
-		why, key = fmt.Sprintf("Its task leader %s may not have received what its worker reported: its computer took the message, but "+
-			"the session was not seen taking it (it may wait for approval there, or have been dropped) (%s: %s).",
-			short(sid), g.Kind, clip(oneLine(g.Detail), 300)), "leader-unconfirmed@"
+		why, key = fmt.Sprintf("Its supervisor Agent %s may not have received what it was to handle: its computer took the message, but "+
+			"the session was not seen taking it (it may wait for approval there, or have been dropped) (%s: %s). %s",
+			short(sid), g.Kind, clip(oneLine(g.Detail), 300), options), "leader-unconfirmed@"
 	}
 	return superviseSignal{Todo: g.Todo, Kind: sigDecide, To: up, Key: key + g.Todo + "@" + g.Kind + "@" + g.Key,
 		Detail: why, At: g.At, Unreachable: true}
+}
+
+// supervisorRoute is where signal g about a to-do run by a supervisor Agent goes (taskleader.Route: the to-do's own
+// signals; its workers' go to the supervisor through leaderRoute), with that supervisor. ok false for a to-do with no
+// supervisor. A piece of such a to-do that no Agent works on yet is its supervisor's to start: the piece's readiness
+// goes to the supervisor too. A signal's explicit target (g.To) is decided by Route as well: a card's rung and a
+// decision sent up keep theirs (AsBefore, ToMain); readiness and closeout wakes go to the supervisor.
+func (s *Service) supervisorRoute(g superviseSignal) (lead TodoAgent, dest taskleader.Destination, ok bool) {
+	t, found := s.todoNow(g.Todo)
+	if !found || t.DoneAt != nil {
+		return TodoAgent{}, "", false
+	}
+	if lead, ok = t.supervisorAgent(); ok {
+		return lead, taskleader.Route(g.Kind, g.Report), true
+	}
+	if g.Kind == sigTodoReady && t.PartOf != "" && (t.Supervision == nil || !s.agentSupervised(t)) {
+		if root, found := s.todoNow(t.PartOf); found && root.DoneAt == nil {
+			if lead, ok = root.supervisorAgent(); ok {
+				return lead, taskleader.ToSupervisor, true
+			}
+		}
+	}
+	return TodoAgent{}, "", false
 }
 
 // leaderRoute says where signal g of a task goes when its supervisor is a leader agent: handled false for any other
@@ -439,12 +612,17 @@ func (s *Service) leaderRoute(g superviseSignal) (lead TodoAgent, handled, reach
 func (s *Service) deliverToLeaderAgent(ctx context.Context, lead TodoAgent, list []superviseSignal, web string, now, prev time.Time) bool {
 	var entries []prompts.SuperviseEntry
 	var kept, moot, retry []superviseSignal
+	own := "" // the leader's own to-do: its signals come with its workers' (supervisorRoute)
+	if lt, ok := s.leaderTaskOf(ctx, lead); ok {
+		own = lt.ID
+	}
 	// An earlier offline resume owns its in-flight signals until its real delivery callback. Keep them out of this
 	// batch's acknowledgements as well as its text: a second digest may carry new signals, but must not ack the first
 	// batch before that first batch reaches the leader (#5732, #9701). dedupMu is held throughout this selection.
 	batch := make([]superviseSignal, 0, len(list))
 	for _, g := range list {
 		e, ok, deferRetry := s.digestEntryChecked(ctx, g, web)
+		e.Own = ok && own != "" && g.Todo == own
 		if deferRetry {
 			retry = append(retry, g)
 			continue
@@ -679,6 +857,239 @@ func (s *Service) leaderTaskReview(ctx context.Context, machine, session string,
 	return proto.TextResult(res, false)
 }
 
+// ---- the supervisor's agent_read, agent_send and task_scope ----
+
+// leaderScopedTool is agent_read, agent_send or task_scope called by agent machine/session through its MCP server: a
+// task leader's own versions (prompts/mcp/leader), which reach the workers it handed out and nothing else (and, for
+// task_scope, the time its own to-do should take). Any other agent is refused as if the tool did not exist.
+func (s *Service) leaderScopedTool(ctx context.Context, machine, session, name string, args json.RawMessage) proto.ToolResult {
+	root, lead, ok := s.leaderTask(ctx, machine, session)
+	if !ok {
+		return proto.TextResult("unknown tool "+name, true)
+	}
+	var res string
+	var err error
+	switch name {
+	case "agent_read":
+		res, err = s.leaderAgentRead(ctx, lead, args)
+	case "agent_send":
+		res, err = s.leaderAgentSend(ctx, lead, args)
+	case "task_scope":
+		res, err = s.leaderTaskScope(ctx, root, lead, args)
+	default:
+		return proto.TextResult("unknown tool "+name, true)
+	}
+	if err != nil {
+		return proto.TextResult(err.Error(), true)
+	}
+	return proto.TextResult(res, false)
+}
+
+// leaderWorker is to-do id when it is a worker of task leader lead (its ledger names lead's session now), else an
+// error the model can act on.
+func (s *Service) leaderWorker(lead TodoAgent, id string) (Todo, error) {
+	t, ok := s.todoNow(id)
+	if !ok {
+		return Todo{}, fmt.Errorf("no task %q", id)
+	}
+	if cur, supervised, reachable := s.leaderSupervisor(t); !supervised || !reachable || cur.MachineID != lead.MachineID || cur.SessionID != lead.SessionID {
+		return Todo{}, fmt.Errorf("task %s is not one of your workers: you reach the workers you handed out with task_plan, nothing else", t.ID)
+	}
+	return t, nil
+}
+
+// workerAgent is the agent of worker task t to read: its newest active one, else its newest.
+func workerAgent(t Todo) (TodoAgent, bool) {
+	var pick TodoAgent
+	found := false
+	for _, a := range t.Agents {
+		if a.SessionID == "" {
+			continue
+		}
+		better := !found || a.active() && !pick.active() || a.active() == pick.active() && a.LinkedAt.After(pick.LinkedAt)
+		if better {
+			pick, found = a, true
+		}
+	}
+	return pick, found
+}
+
+// leaderAgentRead is the supervisor's agent_read: the recent exchanges of one of its workers' Agent.
+func (s *Service) leaderAgentRead(ctx context.Context, lead TodoAgent, args json.RawMessage) (string, error) {
+	a, err := taskleader.DecodeRead(args)
+	if err != nil {
+		return "", err
+	}
+	w, err := s.leaderWorker(lead, a.TodoID)
+	if err != nil {
+		return "", err
+	}
+	agent, ok := workerAgent(w)
+	if !ok {
+		return "", fmt.Errorf("worker %s has no Agent yet: its start is told to you when it fails", w.ID)
+	}
+	m, ok := s.device(ctx, agent.MachineID)
+	if !ok {
+		return "", fmt.Errorf("worker %s's computer %s is not connected now", w.ID, agent.MachineID)
+	}
+	c, ok := s.session(ctx, m.ID, agent.SessionID)
+	if !ok {
+		return "", fmt.Errorf("worker %s's Agent %s is not listed on %s now", w.ID, short(agent.SessionID), m.Name)
+	}
+	return s.agentTranscript(ctx, m, c, a.Turns)
+}
+
+// leaderAgentSend is the supervisor's agent_send: a message to one of its open workers' Agent (a nudge, an answer, a
+// resume after a restart, the order to merge in), never new work. A closed Agent is resumed by it (sendToTask), and
+// the message is kept on the worker's page.
+func (s *Service) leaderAgentSend(ctx context.Context, lead TodoAgent, args json.RawMessage) (string, error) {
+	a, err := taskleader.DecodeSend(args)
+	if err != nil {
+		return "", err
+	}
+	w, err := s.leaderWorker(lead, a.TodoID)
+	if err != nil {
+		return "", err
+	}
+	if w.DoneAt != nil {
+		return "", fmt.Errorf("task %s is closed (%s): plan a new worker for what is left", w.ID, cmp.Or(w.DoneReason, "done"))
+	}
+	sent, err := s.sendToTask(ctx, w, a.Text)
+	if errors.Is(err, errTaskAgentsStopped) {
+		return "", fmt.Errorf("worker %s's Agent was stopped by the owner and takes no message: plan a new worker with task_plan "+
+			"(put what it needs in the prompt) and cancel this one with task_review", w.ID)
+	}
+	if err != nil {
+		return "", fmt.Errorf("the message to worker %s did not go: %v", w.ID, err)
+	}
+	return fmt.Sprintf("Worker %s (%q): %s.", w.ID, w.Title, sent), nil
+}
+
+// leaderTaskScope is the supervisor's task_scope: a worker's done_when or expect_minutes, or the expect_minutes of its
+// own to-do (root), whose done_when is the main conversation's to change. Logged on the brief as task_scope is.
+func (s *Service) leaderTaskScope(ctx context.Context, root Todo, lead TodoAgent, args json.RawMessage) (string, error) {
+	a, err := taskleader.DecodeScope(args)
+	if err != nil {
+		return "", err
+	}
+	self := leaderRef(lead.MachineID, lead.SessionID)
+	if a.TodoID == root.ID {
+		if a.DoneWhen != nil {
+			return "", errors.New("your own to-do's done_when is the main conversation's to change: ask it with report_to_supervisor " +
+				"(kind question); on your own to-do you change only expect_minutes")
+		}
+		if a.ExpectMinutes == 0 {
+			return "", errors.New("give expect_minutes: on your own to-do you change only the time it should take")
+		}
+		return s.scopeTask(ctx, self, root, a.Change, a.Why, nil, a.ExpectMinutes)
+	}
+	w, err := s.leaderWorker(lead, a.TodoID)
+	if err != nil {
+		return "", err
+	}
+	return s.scopeTask(ctx, self, w, a.Change, a.Why, a.DoneWhen, a.ExpectMinutes)
+}
+
+// leaderWorkers are the worker to-dos of to-do root's task leaders (open and closed), oldest first: each worker's row
+// names root (via), or its ledger names one of root's leaders.
+func (s *Service) leaderWorkers(root Todo) []Todo {
+	refs := map[string]bool{}
+	for _, a := range root.Agents {
+		if a.Source == sourceLeader {
+			refs[leaderRef(s.canonical(a.MachineID), a.SessionID)] = true
+		}
+	}
+	s.todos.mu.RLock()
+	var out []Todo
+	for _, t := range s.todos.todos {
+		if t.ID == root.ID {
+			continue
+		}
+		belongs := t.Supervision != nil && refs[t.Supervision.Supervisor]
+		for _, a := range t.Agents {
+			belongs = belongs || a.Source == sourceWorker && a.Via == root.ID
+		}
+		if belongs {
+			out = append(out, copyTodoLocked(t))
+		}
+	}
+	s.todos.mu.RUnlock()
+	slices.SortFunc(out, func(a, b Todo) int { return cmp.Or(a.CreatedAt.Compare(b.CreatedAt), cmp.Compare(a.ID, b.ID)) })
+	return out
+}
+
+// openLeaderWorkers are root's workers still open.
+func (s *Service) openLeaderWorkers(root Todo) []Todo {
+	return slices.DeleteFunc(s.leaderWorkers(root), func(t Todo) bool { return t.DoneAt != nil })
+}
+
+// supervisorCompletion is a supervisor Agent's done report on its own to-do root (report_to_supervisor kind done):
+// the completion, once the hub's checks pass (taskleader.CompletionRefusal: every worker closed, every done_when met
+// with evidence). The report then goes as any report does, though it wakes nobody itself (taskleader.Route); the
+// to-do waits for review, and its supervisor (the main conversation) gets one review entry with the supervisor's
+// checks and its workers as the hub has them. Refused, nothing is told and the to-do stays as it is.
+func (s *Service) supervisorCompletion(ctx context.Context, root Todo, machine, session, text string, evidence []string, step, steps int, now time.Time) (string, error) {
+	cur, ok := s.todoNow(root.ID)
+	if !ok || cur.DoneAt != nil || cur.Supervision == nil {
+		return "", fmt.Errorf("task %s is closed already", root.ID)
+	}
+	var criteria []taskleader.Criterion
+	for i, c := range cur.Supervision.DoneWhen {
+		cr := taskleader.Criterion{Text: c}
+		if i < len(cur.Supervision.Criteria) && cur.Supervision.Criteria[i].Criterion == c {
+			cr.State, cr.Evidence = cur.Supervision.Criteria[i].State, cur.Supervision.Criteria[i].Evidence
+		}
+		criteria = append(criteria, cr)
+	}
+	var workers []taskleader.WorkerState
+	for _, w := range s.leaderWorkers(cur) {
+		workers = append(workers, taskleader.WorkerState{ID: w.ID, Title: w.Title, Open: w.DoneAt == nil})
+	}
+	if why := taskleader.CompletionRefusal(criteria, workers); why != "" {
+		return "", fmt.Errorf("not reported, and nothing went to the main conversation: %s", why)
+	}
+	if _, err := s.reportNow(ctx, cur, machine, session, upReportDone, text, evidence, step, steps, now); err != nil {
+		return "", err
+	}
+	v, _, err := s.updateSupervision(ctx, cur.ID, func(v *Supervision) bool {
+		if v.State == reviewPending && v.Waits == nil {
+			return false
+		}
+		v.State, v.Waits = reviewPending, nil
+		return true
+	})
+	if err != nil {
+		return "", err
+	}
+	s.signal(superviseSignal{Todo: cur.ID, Kind: sigReview, Report: taskleader.ReportCompletion, Key: reviewKey(&v),
+		Detail: clip(oneLine(text), 300)})
+	s.logf("task %s: its supervisor %s reports it complete; it waits for review", cur.ID, short(session))
+	return "Reported as complete: the main conversation reviews your to-do now, and its acceptance closes it. Do nothing more " +
+		"unless it writes to you.", nil
+}
+
+// completionWorkers are the workers of to-do root as a completion entry lists them (prompts.SuperviseWorker).
+func (s *Service) completionWorkers(ctx context.Context, root Todo) []prompts.SuperviseWorker {
+	var out []prompts.SuperviseWorker
+	for _, w := range s.leaderWorkers(root) {
+		e := prompts.SuperviseWorker{ID: w.ID, Title: w.Title, Verdict: cmp.Or(w.Supervision.state(w), "open"), PR: w.PRURL}
+		if w.Cancelled() {
+			e.Verdict = reviewCancelled
+		} else if w.DoneAt != nil && w.Supervision.state(w) != reviewCancelled {
+			e.Verdict = reviewAccepted
+		}
+		if a, ok := workerAgent(w); ok {
+			e.Machine = a.MachineID
+			if d, ok := s.device(ctx, a.MachineID); ok {
+				e.Machine = d.Name
+			}
+		}
+		e.Merged = w.PRStatus != nil && w.PRStatus.URL == w.PRURL && w.PRStatus.State == "merged"
+		out = append(out, e)
+	}
+	return out
+}
+
 // leaderReview is the leader agent's task_review on one of its direct workers: accepted closes it, cancelled closes and
 // stops it, rework sends what is missing back to the worker (two rounds, then it goes up), needs_user sends the
 // question to whoever handed the leader its task. No conclusion card, "Please verify" or other card goes to the user,
@@ -884,8 +1295,12 @@ func (s *Service) rehomeWorker(ctx context.Context, t Todo) (cur Todo, cancelled
 		return t, false
 	}
 	up, _ := s.supervisorAboveTask(ctx, t)
-	if up == "" || s.isLeaderRef(up) {
+	cancelledRoot := lead.ID != "" && lead.Cancelled() // its whole to-do was called off: its workers go with it
+	if up == "" || s.isLeaderRef(up) || cancelledRoot {
 		reason := "its task leader is gone, and there is no conversation above it to take it over" // i18n-ignore: done_reason
+		if cancelledRoot {
+			reason = "its to-do was cancelled" // i18n-ignore: done_reason
+		}
 		s.logf("task %s: %s; cancelled", t.ID, reason)
 		if _, _, err := s.updateSupervision(ctx, t.ID, func(v *Supervision) bool { v.State = reviewCancelled; return true }); err != nil {
 			s.logf("task %s: rehome: %v", t.ID, err)

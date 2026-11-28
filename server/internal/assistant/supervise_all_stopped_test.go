@@ -263,12 +263,16 @@ func TestAllStoppedDeliveryAndDedup(t *testing.T) {
 			s.signal(g)
 		}
 	}
+	// The leader is the to-do's supervisor: its own to-do's all_stopped goes to it too, never to the main
+	// conversation (taskleader.Route); delivering it resumes a closed supervisor.
 	waitFor(t, "the leader agent's supervision message", func() bool { return len(sendsTo(f, "box", agents[0].SessionID)) > 0 })
-	waitFor(t, "the supervisor above the leader", func() bool { return len(f.notices()) > 0 })
-	for _, text := range []string{sendsTo(f, "box", agents[0].SessionID)[0], f.notices()[0]} {
+	for _, text := range []string{sendsTo(f, "box", agents[0].SessionID)[0]} {
 		if !strings.Contains(text, "all participants") || !strings.Contains(text, "box/"+agents[0].SessionID) || !strings.Contains(text, "box/"+agents[1].SessionID) {
 			t.Fatalf("recipient did not receive the whole group: %s", text)
 		}
+	}
+	if got := f.notices(); len(got) != 0 {
+		t.Fatalf("the main conversation was told of a supervised to-do's stop: %q", got)
 	}
 	for _, task := range tasks {
 		g, _ := allStoppedSignal(task, tasks, agents, now)

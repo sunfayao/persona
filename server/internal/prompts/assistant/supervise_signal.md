@@ -1,5 +1,5 @@
 {{- if eq .Kind "review"}}
-- `review`: verify the evidence and give a `task_review` verdict.
+- `review`: verify the evidence and give a `task_review` verdict. A supervisor Agent's completion brings its checks and the hub's worker record as that evidence: accept with them unless something contradicts them.
 {{- else if eq .Kind "draft_pr"}}
 - `draft_pr`: make it ready if appropriate, or record the concrete reason it must remain draft; this grants no new permission.
 {{- else if eq .Kind "unjudged"}}
@@ -35,7 +35,7 @@
 {{- else if eq .Kind "escalated"}}
 - `escalated`: the card or conclusion already reached the owner, whose card answer reaches the Agent and is recorded. Do not ask again. Record an answer given in chat with `task_review`; ownership stays with the original supervisor. Use `notify_user` only if a reminder is needed.
 {{- else if eq .Kind "decide"}}
-- `decide`: decide within authority or ask the owner, then review the worker. If its task leader is unreachable, take over the worker's review and verify before giving a verdict.
+- `decide`: decide within authority or ask the owner, then send the answer to its supervisor Agent with `agent_send` (or review the worker yourself). If the supervisor is unreachable, resume it with `agent_send`, take its workers over with `task_review`, or cancel the to-do.
 {{- else if eq .Kind "recheck"}}
 - `recheck`: recheck the decision's facts (version, branch, PR, responsible Agent). Reissue a still-needed owner decision with current facts; else decide and resume or verify and close. The hub returns it only once.
 {{- else if eq .Kind "park_decided"}}

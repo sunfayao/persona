@@ -13,4 +13,4 @@
 
 How to handle these signals:
 - `overdue`: one-time. Verify and close, revise scope with `task_scope`, or set a new `expect_minutes`; never ignore.
-- `review`: verify the evidence and give a `task_review` verdict.
+- `review`: verify the evidence and give a `task_review` verdict. A supervisor Agent's completion brings its checks and the hub's worker record as that evidence: accept with them unless something contradicts them.

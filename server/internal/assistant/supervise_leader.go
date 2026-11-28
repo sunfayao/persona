@@ -344,11 +344,6 @@ func (s *Service) digestTarget(ctx context.Context, cfg Settings, g superviseSig
 	return s.digestRuntimeTarget(ctx, cfg, g, s.digestTo(ctx, cfg, g))
 }
 
-// escalatedIn: one of the entries is a leader's needs_user.
-func escalatedIn(list []prompts.SuperviseEntry) bool {
-	return slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigEscalated })
-}
-
 // askedIn: one of the entries is a card that came to the supervisor before the user (ask_route.go).
 func askedIn(list []prompts.SuperviseEntry) bool {
 	return slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigAsk })

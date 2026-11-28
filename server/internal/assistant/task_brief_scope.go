@@ -248,14 +248,20 @@ func (s *Service) toolTaskScope(ctx context.Context, self string, args json.RawM
 	if supervisor != self && !s.isMain(ctx, self) && !s.backgroundSupervises(ctx, self, t) {
 		return "", fmt.Errorf("task %s is supervised by another conversation: only its supervisor changes its scope", t.ID)
 	}
+	return s.scopeTask(ctx, self, t, a.Change, a.Why, a.DoneWhen, a.ExpectMinutes)
+}
+
+// scopeTask applies a scope change self may make to task t (task_scope, and a task leader's for its workers and its
+// own to-do's time): what changes and why, the new done_when (nil: as it is) and expect_minutes (0: as it is).
+func (s *Service) scopeTask(ctx context.Context, self string, t Todo, change, why string, doneWhen *[]string, expect int) (string, error) {
 	// A card-less owner wait must not be pushed further out by an estimate extension or scope change (#12648); the
 	// refusal happens before the brief is written.
 	if err := s.cardlessOwnerWaitGuard(ctx, t); err != nil {
 		return "", err
 	}
-	c := scopeChange{By: self, Change: a.Change, Why: a.Why, Expect: a.ExpectMinutes}
-	if a.DoneWhen != nil {
-		c.DoneWhen = cleanDoneWhen(*a.DoneWhen)
+	c := scopeChange{By: self, Change: change, Why: why, Expect: expect}
+	if doneWhen != nil {
+		c.DoneWhen = cleanDoneWhen(*doneWhen)
 		if len(c.DoneWhen) == 0 {
 			return "", errors.New("done_when: give the criteria as they are after the change (the whole list); a task is never left with none")
 		}

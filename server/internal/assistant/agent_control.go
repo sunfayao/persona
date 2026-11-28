@@ -241,7 +241,10 @@ func (s *Service) toolAgentSupervise(ctx context.Context, self string, args json
 	}
 	if a.Role == roleLeader {
 		entry := s.adoptedTaskEntry(ctx, am.ID, c)
-		note := strings.Join([]string{prompts.RenderTaskHandoff(entry), prompts.RenderTaskLeader(prompts.TaskLeader{Terminal: entry.Terminal()})}, "\n\n")
+		note := prompts.RenderTaskLeader(prompts.TaskLeader{Terminal: entry.Terminal()})
+		if entry.Terminal() { // its terminal entry; one with the Persona tools hands parts out with task_plan, never task_spawn
+			note = prompts.RenderTaskHandoff(entry) + "\n\n" + note
+		}
 		params := map[string]any{"session_id": c.SessionID, "text": note, "client_msg_id": "leader-note:" + todo.ID}
 		if err := s.call(ctx, am.ID, DeviceSessionSendOnce, params, nil); err != nil {
 			return "", fmt.Errorf("task %s has its leader, but delivery of the leader instructions was not confirmed: %w. Retry agent_supervise with the same role", todo.ID, err)
@@ -280,6 +283,7 @@ func (s *Service) adoptAgentAs(ctx context.Context, self string, am Device, c pr
 type adoptionOptions struct {
 	update, quiet bool
 	role          string
+	via           string // a worker of the supervisor of to-do via (attachWorker): linked as a task leader's worker
 }
 
 // adoptAgentFor is adoptAgentAs with the todo's origin and supervisor kept separate (#5732). A side conversation
@@ -361,7 +365,7 @@ func (s *Service) adoptAgentFor(ctx context.Context, self, supervisor string, am
 	}
 	s.restage(ctx, todo.ID, nil)
 	todo.Supervision = &v
-	source, via := (PlanTask{Role: opts.role}).linkSource()
+	source, via := (PlanTask{Role: opts.role, Parent: opts.via}).linkSource()
 	if err := s.linkTodoAgentWithSource(ctx, todo.ID, am.ID, c.SessionID, title, c.Cwd, c.Agent, "", source, via); err != nil {
 		if continuing {
 			s.dropContinuation(ctx, todo.ID, rollback, err)
@@ -394,6 +398,9 @@ type sendTask struct {
 	Title         string   `json:"title"`
 	DoneWhen      []string `json:"done_when"`
 	ExpectMinutes int      `json:"expect_minutes"`
+	// TodoID: a to-do its supervisor Agent runs: the Agent joins it as a worker of that supervisor instead of becoming
+	// a task of the caller's (attachWorker, task_leader.go).
+	TodoID string `json:"todo_id"`
 }
 
 // givenTask is agent_send's task as sent, nil for a reply (#3386): left out, null, or an object of only title,
@@ -416,7 +423,7 @@ func givenTask(raw json.RawMessage) *sendTask {
 // none: task has only blank fields (no title, no non-blank done_when, no expect_minutes above 0); any real value in one
 // of them makes it a hand-off.
 func (t sendTask) none() bool {
-	return strings.TrimSpace(t.Title) == "" && len(cleanDoneWhen(t.DoneWhen)) == 0 && t.ExpectMinutes <= 0
+	return strings.TrimSpace(t.Title) == "" && len(cleanDoneWhen(t.DoneWhen)) == 0 && t.ExpectMinutes <= 0 && strings.TrimSpace(t.TodoID) == ""
 }
 
 // handedTask is the task agent_send with a task put the agent on: made now, or self's own that it worked for already
@@ -430,6 +437,9 @@ type handedTask struct {
 	// wake: its card's (taskCard), wakeResumed when the agent was closed and the message resumes it
 	wake string
 	run  SessionRef // the agent the text goes to, which its routed line names (#10465)
+	// attached: the to-do its supervisor Agent runs that the agent joined as a worker (attachWorker): no card goes to
+	// the caller's conversation, and what it was told is kept on the worker's page.
+	attached Todo
 }
 
 // sendTaskAllowed refuses agent_send's task before anything is sent: an agent working for the user's own todo or
@@ -525,7 +535,9 @@ func (s *Service) adoptedTitle(ctx context.Context, c proto.Session, given, prom
 // todo's notes, and its title when task has none. An agent on a task of self's stays on it, unchanged until the send.
 func (s *Service) handTask(ctx context.Context, self string, am Device, c proto.Session, task sendTask, text string) (*handedTask, error) {
 	// Decided under adoptMu (adoptAgent): another hand-off may have put the agent on a task since sendTaskAllowed.
-
+	if strings.TrimSpace(task.TodoID) != "" {
+		return s.attachWorker(ctx, self, am, c, task, text)
+	}
 	supervisor := s.settings(ctx).Main
 	todo, made, err := s.adoptAgentFor(ctx, self, supervisor, am, c, task.Title, text, text, task.DoneWhen, task.ExpectMinutes, adoptionOptions{})
 	if err != nil {
@@ -550,6 +562,15 @@ func (s *Service) handTask(ctx context.Context, self string, am Device, c proto.
 func (h *handedTask) sent(ctx context.Context, s *Service, text string) string {
 	if h == nil {
 		return ""
+	}
+	if h.attached.ID != "" {
+		if _, err := s.appendFeed(ctx, h.supervisor, feedRouted, h.todo.ID, map[string]string{"text": text, "from": routedFromAssistant,
+			"machine_id": h.run.MachineID, "session_id": h.run.SessionID}); err != nil {
+			s.logf("task %s: routed feed: %v", h.todo.ID, err)
+		}
+		return fmt.Sprintf(" It is now worker %s (%q) of to-do %s, supervised by its supervisor Agent, with done_when %s. "+
+			"Tell the supervisor with agent_send (no task) that it has a new worker and why.", h.todo.ID, h.todo.Title, h.attached.ID,
+			criteriaWords(nil, h.todo.Supervision))
 	}
 	refused := ""
 	if h.made {
@@ -585,7 +606,7 @@ func (h *handedTask) sent(ctx context.Context, s *Service, text string) string {
 // caller to check the agent before sending the same words again.
 func (h *handedTask) sendFailed(ctx context.Context, s *Service, err error) error {
 	if sendUnknown(err) {
-		if h != nil && h.made {
+		if h != nil && h.made && h.attached.ID == "" { // an attached worker's page is its supervisor's (attachWorker)
 			s.taskCard(ctx, h.self, h.todo.ID, h.wake)
 			return fmt.Errorf("%w (task %s stays: the message may have arrived or may still arrive; check with agent_read before sending again)", err, h.todo.ID)
 		}
@@ -926,6 +947,11 @@ func (s *Service) reportToSupervisor(ctx context.Context, machine, session strin
 	step := max(0, min(a.Step, 1000))
 	if steps > 0 {
 		step = min(step, steps)
+	}
+	if a.Kind == upReportDone { // a supervisor Agent's done on its own to-do is its completion (task_leader.go)
+		if root, _, leads := s.leaderTask(ctx, machine, session); leads && root.ID == t.ID {
+			return s.supervisorCompletion(ctx, root, machine, session, text, evidence, step, steps, now)
+		}
 	}
 	// A task leader's worker has no owner briefing to wait for: its report goes to the leader at once, urgent or not.
 	notUrgent := a.Urgent != nil && !*a.Urgent && !s.agentSupervised(t)
