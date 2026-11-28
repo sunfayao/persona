@@ -14,6 +14,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/lazyre"
 	"github.com/sunfayao/persona/server/internal/modelretry"
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // What comes from the nodes is the manager's. The hub did all of this until the
@@ -334,7 +335,10 @@ func latestTurnError(sess proto.Session) (text, kind string) {
 	if text := strings.TrimSpace(sess.TurnError); text != "" {
 		return text, sess.TurnErrorKind
 	}
-	if text := strings.TrimSpace(sess.LastText); assistantwire.CutOff(text) {
+	if sess.Facets != nil && sess.Facets.Turn != nil {
+		return "", ""
+	}
+	if text := strings.TrimSpace(sess.LastText); turnmodel.LegacyTurnCutOff(text) {
 		return text, ""
 	}
 	return "", ""
@@ -355,11 +359,11 @@ func turnErrorCode(text string) string {
 		return proto.TurnErrorNotLoggedIn
 	case strings.Contains(t, "There's an issue with the selected model"):
 		return proto.TurnErrorModelRoute
-	case assistantwire.ToolSearchRefused(t):
+	case turnmodel.ToolSearchRefused(t):
 		// Before the classes below: a gateway's words for it may say "not supported" next to "model". The node resent
 		// the turn once with every tool loaded and starts the conversation that way from now on (#10365).
 		return proto.TurnErrorToolSearchUnsupported
-	case assistantwire.ImageLimitErrorText(t):
+	case turnmodel.ImageLimitErrorText(t):
 		// Accumulated pictures pushed the request past the model API's size or multi-image limit (#13045).
 		return proto.TurnErrorImagesTooLarge
 	case modelretry.AccountExhausted(t):

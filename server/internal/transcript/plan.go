@@ -73,6 +73,7 @@ func (m *Meta) trackPlan(it proto.Item) {
 		}
 		for _, snap := range foldTaskSnapshots([]proto.Item{it}, map[string]proto.Item{it.ToolUseID: use}) {
 			m.applyPlan(snap, activeForm)
+			m.facetPlanSeq++
 		}
 		m.countPlan(at)
 	}

@@ -141,3 +141,13 @@ func (h *Hub) resumeCodexInventory() {
 		}
 	}()
 }
+
+const sessionInventoryEvent = "codex.inventory"
+
+func (m *Machine) acceptSessionInventory(params json.RawMessage) {
+	if !m.codexInventoryHanded() {
+		m.hub.logf("[%s] Codex inventory from a connection the hub has not handed its own yet: not kept", m.cfg.ID)
+		return
+	}
+	m.rememberCodexInventory(params)
+}

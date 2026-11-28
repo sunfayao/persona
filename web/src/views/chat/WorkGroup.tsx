@@ -6,6 +6,7 @@ import { childSessionOf, isChildSessionStep } from "../../lib/child-cards";
 import { useSessionLive } from "../../lib/live";
 import { useStore } from "../../lib/store";
 import type { Item } from "../../lib/types";
+import { itemFacets } from "../../lib/turn-upcast";
 import { groupOpens, groupTitle, workLineOpen, isAgentStep, isPlanStep, isRowStep, isWorkflowStep, planTodos, workDuration, type AgentStatus, type ToolStep, type WorkGroupNode, type WorkNode } from "../../lib/work-groups";
 import type { WorkflowCalls } from "../../lib/workflows";
 import type { Step } from "../../lib/turns";
@@ -33,6 +34,17 @@ const ThinkingRow = lazy(() => import("./ThinkingRow").then((m) => ({ default: m
 const ChildSessionCard = lazy(() => import("./ChildSessionCard").then((m) => ({ default: m.ChildSessionCard })));
 // A Codex visualization fragment (#10321) the same way: its runtime is a lazy chunk off the first screen.
 const VisualizationCard = lazy(() => import("./VisualizationCard"));
+
+function ArtifactSummary({ item }: { item: Item }) {
+  const artifact = itemFacets(item).artifact;
+  if (!artifact) return null;
+  return (
+    <div data-artifact-card={artifact.kind} className="flex min-w-0 items-center gap-2 px-2 py-1 text-[13px] text-tool-ink">
+      <Icon name="file" size={14} />
+      <span className="min-w-0 truncate" title={artifact.path}>{artifact.title || artifact.path || artifact.id}</span>
+    </div>
+  );
+}
 
 export interface WorkProps {
   mid: string;
@@ -248,6 +260,7 @@ export const StepView = memo(function StepView({ step, p, live }: { step: Step; 
   switch (step.kind) {
     case "tool":
       if (p.trace) return <ActionRow step={step} running={live && !step.result} mid={p.mid} sid={p.sid} trace />;
+      if (step.result?.facets?.artifact) return <ArtifactSummary item={step.result} />;
       if (isChildSessionStep(step)) return <Suspense fallback={null}><ChildSessionCard mid={p.mid} sid={childSessionOf(step)} scope={p.scope} /></Suspense>;
       if (isAgentStep(step)) return <Suspense fallback={null}><SubagentCard step={step} status={p.agentStatus(step)} mid={p.mid} sid={p.sid} scope={p.scope} /></Suspense>;
       if (isPlanStep(step)) return <Suspense fallback={null}><PlanCard id={step.id} todos={planTodos(step)} live={live} /></Suspense>;

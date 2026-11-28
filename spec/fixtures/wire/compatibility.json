@@ -171,6 +171,48 @@
     }
   },
   {
+    "name": "item_future_facets",
+    "description": "Unknown facet fields and enum values leave the legacy item readable.",
+    "source": [
+      "docs/protocol/protocol.md: Turn model"
+    ],
+    "derived": true,
+    "decoder": "compat_event",
+    "input": {
+      "items": [
+        {
+          "facets": {
+            "future_facet": true,
+            "notice": {
+              "code": "future_notice",
+              "severity": "info"
+            },
+            "tool": {
+              "kind": "future_tool",
+              "name": "Example"
+            }
+          },
+          "id": "future",
+          "kind": "notice",
+          "role": "system",
+          "seq": 1,
+          "text": "A status update",
+          "ts": "2026-01-02T03:04:05Z"
+        }
+      ],
+      "machine_id": "m1",
+      "session_id": "s1",
+      "type": "items"
+    },
+    "expected": {
+      "accepted": true,
+      "fields": {
+        "/items/0/kind": "notice",
+        "/items/0/text": "A status update"
+      }
+    }
+  },
+  {
     "name": "hello_wrong_known_type",
     "description": "已知信封键类型错误会让整条握手被丢弃。",
     "source": [

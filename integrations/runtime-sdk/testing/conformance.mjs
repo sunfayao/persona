@@ -5,6 +5,7 @@
 // particular to it (its row, its cards' labels) on what this returns.
 
 import { randomUUID } from 'node:crypto'
+import { ToolKinds } from '../lib/turn-model.js'
 import { until } from './fake-node.js'
 
 /**
@@ -49,6 +50,9 @@ export async function conformance(t) {
   check('the approval reaches the phone with the command', approval.tool_name === 'Bash' && approval.tool_input?.command === 'echo PERSONA_E2E_ASK ran', JSON.stringify({ tool: approval.tool_name, input: approval.tool_input }))
   await until('the tool result', () => node.items(sid).some((i) => i.kind === 'tool_result' && /PERSONA_E2E_ASK ran/.test(i.text ?? '')), 60_000)
   check('the allowed command runs and its output comes back', true)
+  check('the command carries the shared execute kind', node.items(sid).some((i) =>
+    i.kind === 'tool_use' && i.tool_input?.command === 'echo PERSONA_E2E_ASK ran' &&
+    ToolKinds.includes(i.facets?.tool?.kind) && i.facets.tool.kind === 'execute'))
   await until('the follow-up reply', () => assistantText('The command ran'), 60_000)
   check('the turn goes on after the approval', true)
 
@@ -79,7 +83,7 @@ export async function conformance(t) {
   await until('live text', () => node.deltas(sid).some((x) => x.includes('a long slow')), 20_000)
   check('live text arrives as deltas while the reply streams', true)
   await node.call('session.interrupt', { session_id: sid })
-  await until('the interrupt notice', () => node.items(sid).some((i) => i.kind === 'notice' && i.text === '已中断'), 30_000)
+  await until('the interrupt notice', () => node.items(sid).some((i) => i.kind === 'notice' && i.facets?.notice?.code === 'interrupted'), 30_000)
   check('an interrupt from the phone stops the turn', true)
 
   check('pushed batches are continuous', node.gaps(sid).length === 0, `${node.batches(sid).length} batches`)

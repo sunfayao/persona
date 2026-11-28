@@ -8,6 +8,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // A message from a channel starts a run: the hub follows the conversation until the turn is over, then sends its
@@ -407,6 +408,8 @@ const StoppedMost = 300
 // writes for them, transcript.APIErrorPrefix / InterruptedNotice) rather than on words: StopReason of its text.
 // Compactions after it (an idle conversation compacted, Persona's /compact) are passed over; any other ending gives
 // "", other notices too (goals, a task reporting back, Codex events, command output).
+// Recognises the typed notice code first and falls back to the legacy text literals older nodes still send, through
+// turnmodel's single legacy decoder.
 func Stopped(items []proto.Item) string {
 	for i := len(items) - 1; i >= 0; i-- {
 		it := items[i]
@@ -418,8 +421,19 @@ func Stopped(items []proto.Item) string {
 		case compaction(it):
 			continue
 		}
+		// Prefer the typed notice code the node now writes on every notice.
+		if turnmodel.IsInterruptedNotice(it) {
+			return StopReason(strings.TrimSpace(it.Text))
+		}
+		if code := turnmodel.NoticeCode(it); code != "" {
+			switch code {
+			case proto.NoticeCodeAPIError, proto.NoticeCodeRuntimeError, proto.NoticeCodeUsageLimit:
+				return StopReason(strings.TrimSpace(it.Text))
+			}
+		}
+		// Legacy: older nodes still write just the text literals.
 		text := strings.TrimSpace(it.Text)
-		if text == transcript.InterruptedNotice || strings.HasPrefix(text, transcript.APIErrorPrefix) {
+		if strings.HasPrefix(text, transcript.APIErrorPrefix) {
 			return StopReason(text)
 		}
 		return ""

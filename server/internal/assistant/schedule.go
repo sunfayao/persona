@@ -16,12 +16,12 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/apierr"
-	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/devicewire"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/lazyre"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // What the assistant does on its own is one list of tasks, each with a schedule:
@@ -2777,21 +2777,9 @@ func (s *Service) lastTurnAPIError(ctx context.Context, machine, sid string) str
 	return ""
 }
 
-// apiErrorMarkers start what Claude Code answers when the model call itself failed (an error card in the app).
-var apiErrorMarkers = assistantwire.APIErrorMarkers
+func cutOff(answer string) bool { return turnmodel.LegacyTurnCutOff(answer) }
 
-// cutOff: an agent's answer is the model API error that ended its turn.
-func cutOff(answer string) bool { return assistantwire.CutOff(answer) }
-
-// apiErrorText: what Claude Code answers when the model call itself failed (an error card in the app).
-func apiErrorText(text string) bool {
-	for _, marker := range apiErrorMarkers {
-		if strings.Contains(text, marker) {
-			return true
-		}
-	}
-	return false
-}
+func apiErrorText(text string) bool { return turnmodel.LegacyAPIErrorText(text) }
 
 // begin marks task id as being sent; false when it already is. end clears the mark.
 func (sc *schedule) begin(id string) bool {

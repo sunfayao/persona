@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/modelretry"
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // A turn that ended on a model API error, as Claude Code's own record says it (Meta.TurnError…, #1710): the reply it
@@ -56,7 +56,7 @@ func (m *Meta) clearTurnError() {
 func (m *Meta) claudeReply(e *entry, blocks []block, shown bool) {
 	if !e.IsAPIErrorMessage {
 		if shown && e.Message.Model != "<synthetic>" {
-			if len(blocks) > 0 && blocks[0].Type == "text" && assistantwire.CutOff(blocks[0].Text) {
+			if len(blocks) > 0 && blocks[0].Type == "text" && turnmodel.LegacyTurnCutOff(blocks[0].Text) {
 				allText := true
 				var parts []string
 				for _, b := range blocks {

@@ -38,5 +38,12 @@
   "status_running": "実行中",
   "status_error": "エラー",
   "status_done": "完了",
-  "no_content": "内容がありません"
+  "no_content": "内容がありません",
+  "status_background": "バックグラウンドで実行中",
+  "status_interrupted": "中断",
+  "status_denied": "拒否",
+  "status_timed_out": "タイムアウト",
+  "status_no_match": "一致なし",
+  "exit_code": "終了コード {code}",
+  "thought_duration": "思考時間 {duration}"
 }

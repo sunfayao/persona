@@ -16,6 +16,7 @@ import { composing } from "../../lib/send-history";
 import { getSession, useStore } from "../../lib/store";
 import { backgroundDurationMs, backgroundStatus, backgroundTitle, loopCadence, loopNext, loopTask } from "../../lib/tasks";
 import { compactTokens } from "../../lib/tokens";
+import { sessionTimer } from "../../lib/turn-upcast";
 import type { BackgroundTask, LoopInfo, Session, Workflow } from "../../lib/types";
 import { mediaMatches, NARROW } from "../../lib/viewport";
 import { workDuration, type AgentStatus } from "../../lib/work-groups";
@@ -39,7 +40,7 @@ export function backgroundSections(s: Session | undefined, now: number): { loop?
   const ended = s?.background_ended ?? [];
   const endedIDs = new Set(ended.map((task) => task.id));
   return {
-    loop: s?.loop,
+    loop: sessionTimer(s),
     running: recent.filter((w) => w.running).sort((a, b) => startOf(a) - startOf(b)),
     tasks: otherBackground(s).filter((task) => !endedIDs.has(task.id)),
     completed: recent.filter((w) => !w.running).sort((a, b) => endOf(b) - endOf(a)),
@@ -182,7 +183,7 @@ export function BackgroundList({ session, mid, sid, onOpenRun, onOpenTask, inOve
 }) {
   const owner = credentialOwner();
   // an ended run leaves the list a day after it ended (recentWorkflows): the list's clock moves while something runs
-  const busy = Boolean(session?.loop) || (session?.background?.length ?? 0) > 0 || (session?.workflows ?? []).some((w) => w.running);
+  const busy = Boolean(sessionTimer(session)) || (session?.background?.length ?? 0) > 0 || (session?.workflows ?? []).some((w) => w.running);
   const now = useNow(60_000, busy);
   const { loop, running, tasks: allTasks, completed, completedTasks } = backgroundSections(session, now);
   const subagentIds = inOverview ? new Set(session?.subagents?.map((agent) => agent.id)) : undefined;

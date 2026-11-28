@@ -55,6 +55,58 @@
     }
   },
   {
+    "name": "items_turn_facets",
+    "description": "An item event relays the tool kind and outcome, including an exit code of zero.",
+    "source": [
+      "server/internal/hub/http.go: Hub.itemsToSubscribers"
+    ],
+    "derived": true,
+    "decoder": "event",
+    "input": {
+      "items": [
+        {
+          "id": "example_call",
+          "seq": 1,
+          "ts": "2026-01-02T03:04:05Z",
+          "role": "assistant",
+          "kind": "tool_use",
+          "tool_use_id": "check",
+          "tool_name": "Bash",
+          "facets": {
+            "tool": {
+              "kind": "execute",
+              "name": "Bash"
+            }
+          }
+        },
+        {
+          "id": "example_result",
+          "seq": 2,
+          "ts": "2026-01-02T03:04:05Z",
+          "role": "user",
+          "kind": "tool_result",
+          "tool_use_id": "check",
+          "outcome": {
+            "status": "ok",
+            "exit_code": 0,
+            "duration_ms": 125
+          }
+        }
+      ],
+      "machine_id": "m1",
+      "session_id": "s1",
+      "type": "items"
+    },
+    "expected": {
+      "accepted": true,
+      "fields": {
+        "/items/0/facets/tool/kind": "execute",
+        "/items/1/outcome/duration_ms": 125,
+        "/items/1/outcome/exit_code": 0
+      }
+    }
+  },
+  {
     "name": "items_empty_advance",
     "description": "没有内容块的行仍发送空数组和连续性范围。",
     "source": [

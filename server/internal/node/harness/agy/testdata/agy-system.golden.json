@@ -906,6 +906,10 @@
         "used": 67465,
         "auto_compact_at": 512000,
         "source": "rule"
+      },
+      "progress": {
+        "phase": "thinking",
+        "at": "2026-01-04T10:37:30Z"
       }
     },
     "background_ended": [

@@ -16,6 +16,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/lazyre"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/tokenuse"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // Limits keep huge tool outputs and images from flooding the phone. Parsing keeps up to maxTextLen of any text, what
@@ -31,16 +32,17 @@ const (
 
 // ClaudeLine is the typed source record for the shared transcript projection.
 type ClaudeLine struct {
-	Type             string          `json:"type"`
-	Subtype          string          `json:"subtype"`
-	UUID             string          `json:"uuid"`
-	ParentUUID       string          `json:"parentUuid"`
-	DurationMS       json.RawMessage `json:"durationMs"`
-	Timestamp        time.Time       `json:"timestamp"`
-	IsSidechain      bool            `json:"isSidechain"`
-	IsMeta           bool            `json:"isMeta"`
-	IsCompactSummary bool            `json:"isCompactSummary"`
-	CompactMetadata  *struct {
+	Type               string          `json:"type"`
+	Subtype            string          `json:"subtype"`
+	UUID               string          `json:"uuid"`
+	ParentUUID         string          `json:"parentUuid"`
+	DurationMS         json.RawMessage `json:"durationMs"`
+	Timestamp          time.Time       `json:"timestamp"`
+	IsSidechain        bool            `json:"isSidechain"`
+	IsMeta             bool            `json:"isMeta"`
+	IsCompactSummary   bool            `json:"isCompactSummary"`
+	ThinkingDurationMs int64           `json:"thinkingDurationMs"`
+	CompactMetadata    *struct {
 		Trigger   string `json:"trigger"`
 		PreTokens int    `json:"preTokens"`
 	} `json:"compactMetadata"`
@@ -138,6 +140,12 @@ type block struct {
 
 // Meta is session-level information collected while parsing.
 type Meta struct {
+	facetAgent      string
+	facetNative     string
+	facetTurn       string
+	facetTools      map[string]proto.ToolFacet
+	facetArtifacts  map[string]*proto.ArtifactFacet
+	facetPlanSeq    uint64
 	shareProjection bool // sanitize the complete bounded publication source before display clipping
 	ClaudeReader    ClaudeLineReader
 	// Developer info for the chat header (all from fields Claude Code writes on each line).
@@ -493,7 +501,7 @@ var ViewErrorsRe = lazyre.New(`(?s)<persona-view-errors\b[^>]*>.*?</persona-view
 var tagRe = lazyre.New(`(?s)<(command-name|command-message|command-args|local-command-stdout|local-command-stderr|task-notification|system-reminder)>(.*?)</(command-name|command-message|command-args|local-command-stdout|local-command-stderr|task-notification|system-reminder)>`)
 
 // APIRetrying ends an API error notice Claude Code is still retrying: the turn goes on.
-const APIRetrying = "（正在重试）"
+const APIRetrying = turnmodel.LegacyRetrying
 
 // OmpStoppedNotice is what a stopped omp session (listed from omp's own session files, node/ompdisk.go) shows in
 // place of its conversation. The hub puts it into the reader's language (hub/transcript_text.go noticeText).
@@ -503,7 +511,7 @@ const OmpStoppedNotice = "这个 omp 会话已停止。发一条消息会在电�
 // the notice of a turn the model service failed. The channels read them as why a turn ended without words
 // (channel.Stopped).
 const (
-	InterruptedNotice = "已中断"
+	InterruptedNotice = turnmodel.LegacyInterrupted
 	APIErrorPrefix    = "API 错误："
 	// CompactedNotice marks where the context was compacted (Claude Code's compact_boundary, Codex's
 	// ContextCompaction); CompactSummaryNotice stands for the summary a compacted conversation goes on from.
@@ -565,7 +573,11 @@ func finishParsedItems(items []proto.Item, line []byte, meta *Meta) []proto.Item
 			meta.observeActivity(*it)
 		}
 		meta.trackActivity(*it)
+		planSeq := meta.facetPlanSeq
 		meta.trackPlan(*it)
+		if meta.facetAgent != "" {
+			meta.projectItemFacets(it, meta.facetPlanSeq != planSeq)
+		}
 		if it.Wake || it.Role == "user" && !it.Queued && (it.Kind == proto.KindText || it.Kind == proto.KindImage) {
 			// A new turn's words start afresh (TurnAnswer): a photo with no caption and a command that runs the model
 			// start one too, though they do not reach ClaudeTurnStarted.
@@ -641,6 +653,10 @@ func parseLine(seq int, line []byte, meta *Meta) []proto.Item {
 	}
 	if err := decode(line, &e); err != nil {
 		return nil
+	}
+	meta.facetNative = e.Type
+	if e.Subtype != "" {
+		meta.facetNative += "/" + e.Subtype
 	}
 	meta.tree = treeLine{uuid: e.UUID, parent: e.ParentUUID, sidechain: e.IsSidechain, assistant: e.Type == "assistant",
 		system: e.Type == "system", turnEnd: e.Type == "system" && e.Subtype == "turn_duration", raw: line}
@@ -997,6 +1013,9 @@ func parseLine(seq int, line []byte, meta *Meta) []proto.Item {
 				it.Text = clip(text)
 				it.Outcome = claudeOutcome(text, b.IsError, record, denial)
 				it.Task = meta.agentResult(it.ToolUseID, it.Text, it.IsError, taskEvidence)
+				if meta.facetAgent != "" && !it.IsError {
+					meta.projectBackgroundResult(&it, taskEvidence)
+				}
 				out = append(out, it)
 				for j, img := range imgs {
 					im := mk(i*100+j+1, "user", proto.KindImage)
@@ -1046,13 +1065,18 @@ func parseLine(seq int, line []byte, meta *Meta) []proto.Item {
 				it.Text = clip(b.Text)
 				meta.said(withoutBotmuxSentinel(b.Text), e.Timestamp)
 				out = append(out, it)
-			case "thinking":
-				if strings.TrimSpace(b.Thinking) == "" {
+			case "thinking", "redacted_thinking":
+				redacted := strings.TrimSpace(b.Thinking) == ""
+				if redacted && (meta.facetAgent == "" || e.ThinkingDurationMs <= 0) {
 					continue
 				}
 				meta.ContextStats.ConversationBytes += estimateWeightedBytes(b.Thinking)
 				it := mk(i, "assistant", proto.KindThinking)
 				it.Text = clip(b.Thinking)
+				if meta.facetAgent != "" {
+					itemFacets(&it).Progress = &proto.ProgressFacet{Phase: proto.ProgressPhaseThinking,
+						DurationMs: e.ThinkingDurationMs, Redacted: redacted}
+				}
 				out = append(out, it)
 			case "tool_use", "server_tool_use":
 				meta.ContextStats.ToolOutputBytes += int64(len(b.Name)) + estimateWeightedBytes(string(b.Input))

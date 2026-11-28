@@ -15,5 +15,6 @@
   "actions_run_one": "Ran {count} command",
   "actions_run_other": "Ran {count} commands",
   "actions_search_one": "Searched {count} time",
-  "actions_search_other": "Searched {count} times"
+  "actions_search_other": "Searched {count} times",
+  "dur_milliseconds": "{ms} ms"
 }

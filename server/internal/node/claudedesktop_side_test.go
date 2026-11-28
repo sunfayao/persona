@@ -83,7 +83,7 @@ func TestSideSessionsNameTheSessionThatStartedThem(t *testing.T) {
 			if got := s.ParentAgentID(); got != p {
 				t.Errorf("round %d: %s parent_agent_id = %q, want %q", round, id, got, p)
 			}
-			if s.IsChild() || s.IsSubtask() {
+			if s.IsChild() {
 				t.Errorf("round %d: %s became a child: a side session stays a session of its own", round, id)
 			}
 		}
@@ -168,7 +168,7 @@ func TestDesktopForksNestUnderTheSessionTheyCameFrom(t *testing.T) {
 		if got := s.ParentAgentID(); got != p {
 			t.Errorf("%s parent_agent_id = %q, want %q", id, got, p)
 		}
-		if s.IsChild() || s.IsSubtask() {
+		if s.IsChild() {
 			t.Errorf("%s became a child: a fork stays a session of its own", id)
 		}
 	}

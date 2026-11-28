@@ -1235,12 +1235,6 @@ func (h *Hub) startEnded(mid, resume string, params map[string]any, err error) {
 	h.asstOf(h.machineOwner(mid)).notify(assistantwire.EventStartEnded, r)
 }
 
-// startsAsync: a start the app asked to have answered at once is, when the node can acknowledge it before the session
-// is ready (only Claude can, and not a resume).
-func startsAsync(asked bool, resume, launcher, agentType string) bool {
-	return asked && resume == "" && (agentType == "claude" || (agentType == "" && launcher != "agy"))
-}
-
 // startBudget is how long a start may take: one acknowledged before the session is ready a moment, one answered only
 // after startup (a sync one, Codex, a compatible CLI) as long as a busy machine needs.
 func startBudget(async bool) time.Duration {
@@ -1248,10 +1242,6 @@ func startBudget(async bool) time.Duration {
 		return 15 * time.Second
 	}
 	return 100 * time.Second
-}
-
-func desktopStartLauncher(launcher string) bool {
-	return launcher == "claude-desktop" || launcher == "codex-app"
 }
 
 func startBudgetForLauncher(async bool, launcher string) time.Duration {

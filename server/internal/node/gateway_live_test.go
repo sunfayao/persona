@@ -32,9 +32,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/nodeclient"
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // edgeRefusal is what the gateway edge answered (#10365).
@@ -328,7 +328,7 @@ func TestGatewayToolSearchLive(t *testing.T) {
 	t.Logf("tool search on: is_error=%v, %d requests, %d refused", failed(r), len(seen), refused)
 	if refused == 0 {
 		t.Log("claude sent no deferred tool here (no tool server: set GATEWAYLIVE_MCP); the refusal words are not checked")
-	} else if !failed(r) || !assistantwire.ToolSearchRefused(text(r)) {
+	} else if !failed(r) || !turnmodel.ToolSearchRefused(text(r)) {
 		t.Fatalf("tool search on: is_error=%v, result %q is not a tool-search refusal", failed(r), text(r))
 	}
 

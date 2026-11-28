@@ -10,6 +10,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/channel"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // The turns channels wait on: one copy for every channel. A message from a channel
@@ -128,20 +129,23 @@ func (p *chanLive) liveNote(l i18n.Lang, it proto.Item, now time.Time) {
 			FilePath     string `json:"file_path"`
 			NotebookPath string `json:"notebook_path"`
 			Description  string `json:"description"`
-			SubagentType string `json:"subagent_type"`
 		}
 		_ = json.Unmarshal(it.ToolInput, &in)
 		file := in.FilePath
 		if file == "" {
 			file = in.NotebookPath
 		}
-		switch it.ToolName {
-		case "Read":
+		switch turnmodel.ToolKind(it) {
+		case proto.ToolKindRead:
 			p.read = noteFile(p.read, file)
-		case "Edit", "MultiEdit", "Write", "NotebookEdit":
+		case proto.ToolKindEdit, proto.ToolKindWrite, proto.ToolKindDelete:
 			p.edited = noteFile(p.edited, file)
-		case "Task", "Agent":
-			p.subs = append(p.subs, subtask{id: it.ToolUseID, desc: clip(oneLine(in.Description), 60), kind: clip(oneLine(in.SubagentType), 30)})
+		case proto.ToolKindAgent, proto.ToolKindTask:
+			p.subs = append(p.subs, subtask{
+				id:   it.ToolUseID,
+				desc: clip(oneLine(in.Description), 60),
+				kind: clip(oneLine(turnmodel.SubagentAgentType(it)), 30),
+			})
 			if len(p.subs) > liveSubsMost {
 				p.subsMore += len(p.subs) - liveSubsMost
 				p.subs = p.subs[len(p.subs)-liveSubsMost:]

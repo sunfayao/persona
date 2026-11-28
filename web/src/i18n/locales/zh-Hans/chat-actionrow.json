@@ -38,5 +38,12 @@
   "status_running": "进行中",
   "status_error": "出错",
   "status_done": "完成",
-  "no_content": "没有内容"
+  "no_content": "没有内容",
+  "status_background": "后台运行中",
+  "status_interrupted": "已中断",
+  "status_denied": "已拒绝",
+  "status_timed_out": "已超时",
+  "status_no_match": "无匹配",
+  "exit_code": "退出码 {code}",
+  "thought_duration": "思考了 {duration}"
 }

@@ -127,7 +127,7 @@ func (h *Projection) Apply(s *proto.Session, pane bool) {
 	u := &h.usage
 	s.ContextTokens, s.ContextWindow = proto.Tokens32(u.contextTokens), ContextWindow
 	s.OutputTokens, s.Rev = u.outputTokens, h.rev
-	s.Background, s.Plan, s.Loop = h.row.Background, h.row.Plan, h.row.Loop
+	h.row.Apply(s)
 	ended := h.row.BackgroundEnded
 	for i, task := range h.row.BackgroundEnded {
 		if task.Status == proto.TaskStatusCancelled {
@@ -138,11 +138,11 @@ func (h *Projection) Apply(s *proto.Session, pane bool) {
 		}
 	}
 	s.SetBackgroundEnded(ended)
-	s.Facets = &proto.SessionFacets{Timers: h.row.Timers, Context: &proto.ContextMeter{
+	if s.Facets == nil {
+		s.Facets = &proto.SessionFacets{}
+	}
+	s.Facets.Context = &proto.ContextMeter{
 		Used: int64(u.contextTokens), AutoCompactAt: ContextWindow, Source: proto.ContextSourceRule,
-	}}
-	if h.row.Plan != nil {
-		s.Facets.Plan = &proto.SessionPlan{Entries: h.row.PlanEntries, At: h.row.Plan.At}
 	}
 	s.SetContextBreakdown(transcript.BuildContextBreakdown(u.contextStats, u.contextTokens, ContextWindow, ContextWindow, true))
 	if s.UpdatedAt.IsZero() {

@@ -1,3 +1,4 @@
+import { toolKindFor } from "./tool-registry";
 // The pictures an agent looked at in one turn (#1540; iOS / Mac draw the same strip): images its tools brought back
 // (a Read or Codex view_image of a picture, screenshots of the screen or a browser, an MCP tool's image) and pictures it named by reading
 // a file whose image did not come back with it. The user's own pictures are in their bubble, not here. Each picture
@@ -34,7 +35,7 @@ function inputPath(use: Item): string | undefined {
 /** What kind of tool brought a picture, from its name (Read, mcp__cua__screenshot, browser_look, computer_state…). */
 export function sourceOf(tool: string): TurnImage["source"] {
   const t = tool.toLowerCase();
-  if (t === "read" || t.endsWith("__read") || t === "view" || t === "view_image" || t.endsWith("read_file")) return "read"; // view_image: Codex
+  if (toolKindFor(tool) === "read" || toolKindFor(tool) === "image" || t.endsWith("__read") || t === "view") return "read";
   if (/browser|playwright|page_screenshot|look/.test(t)) return "browser";
   if (/screenshot|screen|computer|cua|capture|snap/.test(t)) return "screenshot";
   if (t.startsWith("mcp__")) return "mcp";

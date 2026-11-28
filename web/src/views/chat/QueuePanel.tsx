@@ -1,3 +1,4 @@
+import { editQueue, runtimeQueue, sendQueuedNow } from "../../lib/turn-upcast";
 // The queued messages (Session.queued) at the top of the composer's card, as cindy's pending queue (#5327; the owner
 // asked this part of the chat to follow cindy): rows in send order, the top one next, no numbers (the labels carry
 // them). A row is one line, the marks of what it carries before its words; on hover or focus it shows a drag handle
@@ -75,11 +76,10 @@ export function QueuePanel({ session, draftKey, canEdit, persona, onWithdrawn, p
   // the user's own come first; the rest came from other conversations and are only shown (#4342)
   const own = queued.length - Math.min(Math.max(session.queued_relayed ?? 0, 0), queued.length);
   const agent = persona ?? agentLabel(session);
-  const runtimeSource = session.source_kind === "runtime";
-  const runtime = persona === undefined && runtimeSource;
-  const editable = canEdit && (session.capabilities?.queue_edit ?? (!runtime && session.agent !== "agy"));
+  const runtimeSource = runtimeQueue(session);
+  const editable = canEdit && editQueue(session, persona !== undefined);
   // a Claude or agy takes queued messages at its next step, and can be given them now (#6088, #14871); so does a Persona chat's (#4342)
-  const takesNow = canEdit && (session.capabilities?.queue_send_now ?? (!runtime && (session.agent === "claude" || session.agent === "agy" || (persona !== undefined && own > 0))));
+  const takesNow = canEdit && sendQueuedNow(session, persona !== undefined, own);
   const path = sessionPath(session.machine_id, session.session_id);
   const listId = useId();
   const explainId = useId();

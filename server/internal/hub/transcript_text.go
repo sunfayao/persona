@@ -88,6 +88,8 @@ func modelRefusalText(l i18n.Lang, r *proto.ModelRefusal) string {
 func typedNoticeText(l i18n.Lang, it proto.Item) (string, bool) {
 	n := it.Facets.Notice
 	switch n.Code {
+	case proto.NoticeCodeInterrupted:
+		return tt(l, "interrupted"), true
 	case proto.NoticeCodeCompacted:
 		return tt(l, "compacted"), true
 	case proto.NoticeCodeAPIError:
@@ -121,6 +123,34 @@ func typedNoticeText(l i18n.Lang, it proto.Item) (string, bool) {
 		return tt(l, "schedule_fired"), true
 	case proto.NoticeCodeServerRestart:
 		return tt(l, "server_restart"), true
+	case proto.NoticeCodeRetrying:
+		return tt(l, "retrying"), true
+	case proto.NoticeCodeUsageLimit:
+		return tt(l, "usage_limit"), true
+	case proto.NoticeCodeModelFallback:
+		if it.ModelRefusal != nil {
+			return modelRefusalText(l, it.ModelRefusal), true
+		}
+		return tt(l, "fallback_notice"), true
+	case proto.NoticeCodeCheckpoint:
+		return tt(l, "checkpoint"), true
+	case proto.NoticeCodeWake:
+		return tt(l, "wake"), true
+	case proto.NoticeCodeLoopFired:
+		if prompt := n.Args["prompt"]; prompt != "" {
+			return tt(l, "loop_fired_prompt", i18n.Args{"prompt": prompt}), true
+		}
+		return tt(l, "loop_fired"), true
+	case proto.NoticeCodeRuntimeError:
+		if n.Args["reason"] == "transcript_unlinked" {
+			return tt(l, "transcript_unlinked"), true
+		}
+		if cause := n.Args["error"]; cause != "" {
+			return tt(l, "runtime_error_cause", i18n.Args{"error": cause}), true
+		}
+		return tt(l, "runtime_error"), true
+	case proto.NoticeCodeUnknownEvent:
+		return tt(l, "unknown_event", i18n.Args{"type": n.Args["type"]}), true
 	}
 	return "", false
 }

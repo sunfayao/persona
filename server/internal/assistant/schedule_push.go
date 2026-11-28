@@ -12,6 +12,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // A scheduled task's "Push when done" (#2396): each run is a turn in a conversation, and the
@@ -112,11 +113,11 @@ func (s *Service) quietConversation(ctx context.Context, session string) bool {
 }
 
 // quietTaskTurn: session is a quiet task's own conversation whose turn may go unpushed now
-// (assistantwire.QuietTaskFinish): the channels' mirror leaves it out, as the hub's finished push does.
+// (turnmodel.QuietTaskFinish): the channels' mirror leaves it out, as the hub's finished push does.
 func (s *Service) quietTaskTurn(ctx context.Context, machine, session string) bool {
 	if s.supervising(session) { // a supervision message started its turn (supervise_digest.go): as the hub's finished push leaves it out
 		sess, ok := s.session(ctx, machine, session)
-		return ok && assistantwire.SupervisedFinish(sess, true)
+		return ok && turnmodel.SupervisedFinish(sess, true)
 	}
 	sess, ok := s.session(ctx, machine, session)
 	if ok && s.quietScheduledInput(ctx, machine, sess) {
@@ -129,7 +130,7 @@ func (s *Service) quietTaskTurn(ctx context.Context, machine, session string) bo
 	if !known {
 		return false // which conversation is the main one is not known: mirrored as ever
 	}
-	return ok && assistantwire.QuietTaskFinish(sess, main)
+	return ok && turnmodel.QuietTaskFinish(sess, main)
 }
 
 // quietScheduledInput: sess's turn that just ended normally was started by an asked scheduled input and carries
@@ -140,7 +141,7 @@ func (s *Service) quietScheduledInput(ctx context.Context, machine string, sess 
 		return false
 	}
 	main, known := s.knownMain(ctx)
-	if !known || !assistantwire.QuietTaskFinish(sess, main) {
+	if !known || !turnmodel.QuietTaskFinish(sess, main) {
 		return false
 	}
 	items, read := s.lastTurnItems(ctx, machine, sess.SessionID)

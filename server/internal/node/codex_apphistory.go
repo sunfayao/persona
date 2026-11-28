@@ -109,7 +109,11 @@ func (n *Node) indexedCodexFile(id string) (*transcript.File, bool) {
 	n.mu.Lock()
 	file := n.files[id]
 	if file == nil {
-		file = transcript.NewIndexedFile(identity, source, transcript.Sources{RolloutTools: traex.RolloutTools{}})
+		agent := "codex"
+		if thread.IncludeRunning {
+			agent = traexAgent
+		}
+		file = transcript.NewIndexedFile(identity, source, transcript.Sources{RolloutTools: traex.RolloutTools{}, Agent: agent})
 		n.files[id] = file
 	}
 	n.used(id)

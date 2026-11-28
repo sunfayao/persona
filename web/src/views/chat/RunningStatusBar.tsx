@@ -1,3 +1,4 @@
+import { toolKindFor } from "../../lib/tool-registry";
 // The bar above the composer while an Agent works, as cindy's RunningStatusBar (#1963; the owner asked on 2026-11-12
 // that it follow cindy, #5312). Left, a short state: in an Agent session cindy's words for what the turn is doing
 // ("Thinking…", "Editing files…", "Bash running…", "Spawning a subagent…", "Compacting context…"), worked out from its
@@ -53,9 +54,6 @@ function useSpeed(want: boolean): SpeedType | undefined {
 /** The tick in the bar's time ("1m 5s"): the work summary's format with cindy's status bar options. */
 const elapsedText = (seconds: number) => workDuration(seconds * 1000, TICKING_DURATION);
 
-const EDIT_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit", "apply_patch"]);
-const READ_TOOLS = new Set(["Read", "NotebookRead"]);
-const SEARCH_TOOLS = new Set(["Grep", "Glob", "LS"]);
 const START: RunStep = { kind: "start" };
 
 /** The left side's words, and whether they say the context is being compacted (cindy's Layers mark). `plain`: the
@@ -76,8 +74,9 @@ function agentWord(step: RunStep): string {
       return t("chat-runningstatusbar.working");
     case "tool": {
       const tool = step.tool ?? "";
-      if (EDIT_TOOLS.has(tool)) return t("chat-runningstatusbar.editing_files");
-      if (tool === "WebSearch") return t("chat-runningstatusbar.searching_web");
+      const kind = toolKindFor(tool);
+      if (kind === "edit" || kind === "write") return t("chat-runningstatusbar.editing_files");
+      if (kind === "web_search") return t("chat-runningstatusbar.searching_web");
       if (step.spawning) return t("chat-runningstatusbar.spawning_agent");
       return t("chat-runningstatusbar.running_tool", { tool: toolDisplayName(tool) });
     }
@@ -98,11 +97,12 @@ function plainWord(step: RunStep): string {
       return t("chat-runningstatusbar.processing");
     case "tool": {
       const tool = step.tool ?? "";
-      if (READ_TOOLS.has(tool)) return t("chat-runningstatusbar.reading_files");
-      if (EDIT_TOOLS.has(tool)) return t("chat-runningstatusbar.updating_files");
-      if (SEARCH_TOOLS.has(tool)) return t("chat-runningstatusbar.searching_files");
-      if (tool === "WebSearch") return t("chat-runningstatusbar.searching_web");
-      if (tool === "WebFetch") return t("chat-runningstatusbar.reading_web");
+      const kind = toolKindFor(tool);
+      if (kind === "read") return t("chat-runningstatusbar.reading_files");
+      if (kind === "edit" || kind === "write") return t("chat-runningstatusbar.updating_files");
+      if (kind === "search") return t("chat-runningstatusbar.searching_files");
+      if (kind === "web_search") return t("chat-runningstatusbar.searching_web");
+      if (kind === "fetch") return t("chat-runningstatusbar.reading_web");
       return t("chat-runningstatusbar.processing");
     }
     default:

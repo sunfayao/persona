@@ -1,3 +1,5 @@
+import { nativePermissionReason } from "./turn-upcast";
+import { toolKindFor } from "./tool-registry";
 // What an opened step shows besides its raw input (iOS ToolViews.swift ToolDetail, Android ToolDetails.kt /
 // ContentPresentation.kt): a Codex patch as a diff, the questions an AskUserQuestion or the assistant's ask_user asked
 // (with what the user picked), and the hub's cut texts (full_size) with the mark it adds where it cut them.
@@ -171,10 +173,8 @@ export interface PermissionField {
 export function permissionDetail(tool: string | undefined, input: Record<string, unknown> | undefined): { note?: string; fields: PermissionField[] } | null {
   const inp = input ?? {};
   const note = s(inp.description) || undefined;
-  switch (tool) {
-    case "Bash":
-    case "exec_command":
-    case "shell": {
+  switch (toolKindFor(tool ?? "") === "execute" ? "Bash" : tool) {
+    case "Bash": {
       // an argv array: quote the parts with spaces so it reads as the one command it is
       const cmd = Array.isArray(inp.command) ? (inp.command as unknown[]).map((a) => (/\s/.test(String(a)) ? `'${String(a)}'` : String(a))).join(" ") : s(inp.command) || s(inp.cmd);
       return cmd ? { note, fields: [{ label: "command", value: cmd }] } : note ? { note, fields: [] } : null;
@@ -215,5 +215,5 @@ export function summaryExtra(summary: string | undefined, fields: PermissionFiel
 /** Why another agent asks, shown above what it will do (iOS AgentPermissionForm, Android InteractionPanel): only a
  *  card with another agent shows it, as on iOS and Android (a Claude Code card's hook reason stays hidden). "" when there is none. */
 export function permissionReason(agent: string | undefined, reason: string | undefined): string {
-  return agent && agent !== "claude" ? s(reason) : "";
+  return nativePermissionReason(agent) ? s(reason) : "";
 }

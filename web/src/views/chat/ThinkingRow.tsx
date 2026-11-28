@@ -1,3 +1,6 @@
+import { itemFacets } from "../../lib/turn-upcast";
+import { workDuration } from "../../lib/work-groups";
+import { t } from "../../i18n";
 // A thought in a work group, as cindy draws it (WorkGroupBlock.tsx ThinkingActivityRow / ExpandedThinkingRow, #5155):
 // one row in the tool rows' chrome, the sparkle in the status slot and its words in italic on one line, `**strong**`
 // and backtick code read as such (ThinkingText.tsx); it opens in place to the whole thought when they do not fit or
@@ -19,7 +22,10 @@ import { ThinkingText } from "./ThinkingText";
 const NONE: string[] = [];
 
 export function ThinkingRow({ item, scope = "" }: { item: Item; scope?: string }) {
-  const raw = item.text?.trim() ?? "";
+  const progress = itemFacets(item).progress;
+  const duration = progress?.duration_ms;
+  const raw = item.text?.trim() || (progress?.redacted && typeof duration === "number"
+    ? t("chat-actionrow.thought_duration", { duration: workDuration(duration) }) : "");
   const words = raw.replace(/\s+/g, " ");
   const lineBreak = /[\r\n]/.test(raw);
   const [open, setOpen] = useExpanded(`${scope}thinking:${item.id}`);

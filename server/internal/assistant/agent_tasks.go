@@ -5,6 +5,7 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/identity"
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // Assistant-dispatched Agents belong to tasks supervised by their planning lead, or by main for other conversations. The older assistant.agent_tasks switch still
@@ -129,19 +130,15 @@ func (s *Service) assistantsConversation(ctx context.Context, machine string, c 
 	return s.originNoted(ctx, machine, c.SessionID)
 }
 
-// workTools are the tools that edit files, run commands or hand work to subagents, by the names Claude Code and
-// Codex write them: a turn that calls one did work (turnDidWork).
-var workTools = map[string]bool{
-	"Edit": true, "MultiEdit": true, "Write": true, "NotebookEdit": true, "apply_patch": true,
-	"Bash": true, "shell": true, "exec_command": true, "local_shell": true, "shell_command": true,
-	"Task": true, "Agent": true,
-}
-
-// turnDidWork: the turn's items have an edit, a command or a subagent (workTools). A turn that only read, searched
-// and answered is a question and its answer.
+// turnDidWork: the turn's items have an edit, a command or a subagent. A turn that only read, searched and answered
+// is a question and its answer. The canonical tool kind is read first; the legacy names older nodes still send are
+// the fallback in turnmodel.IsEditLike / IsShellLike / IsTaskOrAgentTool.
 func turnDidWork(items []proto.Item) bool {
 	for _, it := range items {
-		if it.Kind == proto.KindToolUse && workTools[it.ToolName] {
+		if it.Kind != proto.KindToolUse {
+			continue
+		}
+		if turnmodel.IsEditLike(it) || turnmodel.IsShellLike(it) || turnmodel.ToolKind(it) == proto.ToolKindAgent {
 			return true
 		}
 	}

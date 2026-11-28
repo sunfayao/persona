@@ -204,7 +204,7 @@ func (f *File) openWindow(fh *os.File, size int64) (fresh []proto.Item, ok bool,
 	// The window starts at the line windowBytes before the end (Codex: the turn starting there or before).
 	from := sort.Search(n, func(i int) bool { return starts[i] >= size-windowBytes })
 	b := max(from, 1)
-	if w.codex {
+	if w.codex || f.sources.Agent != "" {
 		b = f.findTurn(fh, w, b, lastNL, size-4*windowBytes)
 	}
 	if b <= 1 {
@@ -337,9 +337,21 @@ func (f *File) findTurn(fh *os.File, w *window, at int, end, floor int64) int {
 	return 0
 }
 
-// startsTurn says whether a Codex rollout's line starts a task (a turn).
-func (f *File) startsTurn(_ int, line []byte, _ bool) bool {
-	return bytes.Contains(line, []byte(`"type":"task_started"`))
+// startsTurn finds a source boundary that can be projected independently.
+func (f *File) startsTurn(seq int, line []byte, codex bool) bool {
+	if codex {
+		return bytes.Contains(line, []byte(`"type":"task_started"`))
+	}
+	if !bytes.Contains(line, []byte(`"type":"user"`)) || bytes.Contains(line, []byte(`"type":"tool_result"`)) {
+		return false
+	}
+	meta := Meta{Sidechain: f.meta.Sidechain}
+	for _, item := range ParseLine(seq, line, &meta) {
+		if item.Role == "user" && (item.Kind == proto.KindText || item.Kind == proto.KindImage) && item.From == "" && !item.Queued && !meta.localTurn {
+			return true
+		}
+	}
+	return false
 }
 
 // seeded is the parser state for a window starting at line b naming the tasks ids: what the earlier lines leave
@@ -576,7 +588,7 @@ func (f *File) loadOlder() int64 {
 	end := w.starts[f.base] // where the parsed lines start
 	from := sort.Search(f.base, func(i int) bool { return w.starts[i] >= end-windowBytes })
 	b := max(min(from+1, f.base), 1)
-	if w.codex {
+	if w.codex || f.sources.Agent != "" {
 		if b = f.findTurn(fh, w, b, end, 0); b == 0 {
 			b = 1 // the first line starts everything
 		}
@@ -786,7 +798,7 @@ func (f *File) fullMeta() Meta {
 		return m
 	}
 	end, lines, gen, path := f.offset-int64(len(f.partial)), f.lines, f.gen, f.Path
-	m := Meta{Sidechain: f.meta.Sidechain, ClaudeReader: f.sources.Claude, RolloutTools: f.sources.RolloutTools}
+	m := Meta{Sidechain: f.meta.Sidechain, ClaudeReader: f.sources.Claude, RolloutTools: f.sources.RolloutTools, facetAgent: f.sources.Agent}
 	f.mu.Unlock()
 	if parseRange(path, 0, end, 1, &m) != nil {
 		f.mu.Lock()

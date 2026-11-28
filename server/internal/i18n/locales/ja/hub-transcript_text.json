@@ -127,5 +127,12 @@
   "card_of_goal": "{done} {value} / 目標 {goal}",
   "card_over": "超過",
   "card_other": "その他",
-  "omp_stopped": "この omp セッションは停止しています。メッセージを送ると、コンピューターの新しいターミナルタブで続きを再開します（omp --resume）。"
+  "omp_stopped": "この omp セッションは停止しています。メッセージを送ると、コンピューターの新しいターミナルタブで続きを再開します（omp --resume）。",
+  "retrying": "モデルへのリクエストを再試行しています",
+  "usage_limit": "モデルの利用上限に達しました",
+  "fallback_notice": "代替モデルに切り替えました",
+  "checkpoint": "チェックポイントを保存しました",
+  "wake": "セッションを再開しました",
+  "unknown_event": "不明なイベント：{type}",
+  "transcript_unlinked": "ターミナルはまだ読み取れる会話に接続されていません。"
 }

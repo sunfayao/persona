@@ -28,10 +28,11 @@ type Dialog struct {
 	Risk string `json:"risk,omitempty"`
 	// DeadlineAction is what the countdown does when it runs out: DeadlineDeny or DeadlineAllow; DeadlineIn how long
 	// it had left when the screen was read. The hub dates it: DeadlineAt, by its clock.
-	DeadlineAction string    `json:"deadline_action,omitempty"`
-	DeadlineIn     int       `json:"-"` // seconds
-	DeadlineAt     time.Time `json:"deadline_at,omitzero"`
-	Options        []Option  `json:"options"`
+	DeadlineAction      string    `json:"deadline_action,omitempty"`
+	DeadlineIn          int       `json:"-"` // seconds
+	DeadlineAt          time.Time `json:"deadline_at,omitzero"`
+	Options             []Option  `json:"options"`
+	QuestionDismissible *bool     `json:"question_dismissible,omitempty"`
 	// Multi: a multi-select question (AskUserQuestion's multiSelect, Claude Code 2.1.316): its options are check
 	// boxes ("[ ]" / "[✔]") that enter or their number toggles, and the row under them sends what is checked —
 	// Submit, which opens the review tab, or Next when another question follows.

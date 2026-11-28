@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/lazyre"
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // Subscription usage limits in Claude Code's words. Its own record
@@ -18,7 +18,7 @@ import (
 // UsageLimitText: text is Claude Code's line for a subscription usage limit (only as the start of the text: a reply
 // may quote one). The pattern lives in assistantwire, which CutOff shares; a contract package cannot import this one.
 func UsageLimitText(text string) bool {
-	return assistantwire.UsageLimitText(text)
+	return turnmodel.UsageLimitText(text)
 }
 
 // usageLimitReset is how Claude Code says when a limit resets: "resets 4:20pm (Area/City)", "resets at 4pm (UTC)"; past
@@ -47,7 +47,7 @@ var months = map[string]time.Month{"jan": time.January, "feb": time.February, "m
 // fiveHourWindow, so when tomorrow's is further off the time is the reset that has just passed (the line was read a
 // little after it, #9386), returned as it is: past, the limit is over.
 func UsageLimitReset(text string, at time.Time) (time.Time, bool) {
-	if assistantwire.GatewayQuotaText(text) {
+	if turnmodel.GatewayQuotaText(text) {
 		return GatewayAvailableAgain(text, at)
 	}
 	m := usageLimitReset.FindStringSubmatch(text)
@@ -125,11 +125,11 @@ func GatewayAvailableAgain(text string, at time.Time) (time.Time, bool) {
 
 // GatewayErrorKind classifies only the two known gateway 429 shapes. Other rate limits keep their existing policy.
 func GatewayErrorKind(text string, at time.Time) (string, time.Time) {
-	if assistantwire.GatewayQuotaText(text) {
+	if turnmodel.GatewayQuotaText(text) {
 		reset, _ := GatewayAvailableAgain(text, at)
 		return proto.TurnErrorUsageLimit, reset
 	}
-	if assistantwire.GatewayCapacityText(text) {
+	if turnmodel.GatewayCapacityText(text) {
 		return proto.TurnErrorTransient, time.Time{}
 	}
 	return "", time.Time{}

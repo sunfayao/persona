@@ -38,5 +38,12 @@
   "status_running": "In progress",
   "status_error": "Error",
   "status_done": "Done",
-  "no_content": "No content"
+  "no_content": "No content",
+  "status_background": "Running in background",
+  "status_interrupted": "Interrupted",
+  "status_denied": "Denied",
+  "status_timed_out": "Timed out",
+  "status_no_match": "No matches",
+  "exit_code": "Exit {code}",
+  "thought_duration": "Thought for {duration}"
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/feishubot"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // botStep is one line of the progress card for a tool call, in l: the verb, then what it works on (code when it is a
@@ -48,7 +49,9 @@ type step struct {
 	plain              bool
 }
 
-// stepOf reads a tool call into a step. Codex's calls arrive mapped to Claude's tools (internal/transcript/codex.go).
+// stepOf reads a tool call into a step. The canonical tool kind is read from facets.Tool.Kind when present;
+// the exact tool name (classified by turnmodel.KindOf) is the legacy fallback older nodes still send. Codex's calls
+// were already mapped to Claude's names by the transcript layer.
 func stepOf(l i18n.Lang, it proto.Item) step {
 	if it.Kind != proto.KindToolUse {
 		return step{}
@@ -65,44 +68,17 @@ func stepOf(l i18n.Lang, it proto.Item) step {
 		return ""
 	}
 	var s step
-	switch name := it.ToolName; name {
-	case "Bash":
-		s.verb = t("step_run")
-		if b, _ := in["run_in_background"].(bool); b {
-			s.verb = t("step_run_background")
-		}
-		if d := str("description"); d != "" {
-			s.target, s.plain = d, true
-		} else {
-			s.target = firstLine(str("command"))
-		}
-	case "Read":
-		s.verb, s.target = t("step_read"), base("file_path")
-		if from, n := num("offset"), num("limit"); from > 0 || n > 0 {
-			from = max(from, 1)
-			if n > 0 {
-				s.note = t("step_lines", i18n.Args{"from": from, "to": from + n - 1})
-			} else {
-				s.note = t("step_lines_from", i18n.Args{"from": from})
-			}
-		}
-	case "Edit", "MultiEdit", "NotebookEdit":
-		s.verb, s.target = t("step_edit"), base("file_path")
-		if s.target == "" {
-			s.target = base("notebook_path")
-		}
-		switch str("change") { // Codex's file changes
-		case "add":
-			s.verb = t("step_create")
-		case "delete":
-			s.verb = t("step_delete")
-		}
-	case "Write":
-		s.verb, s.target = t("step_write"), base("file_path")
+	// Exact-name cases that still need their own input keys (TodoWrite's todos, Skill's skill name, Grep/Glob's
+	// path/glob distinction, tool kinds the registry groups like "mcp__*"). Everything else routes by canonical kind.
+	switch it.ToolName {
+	case "TodoWrite":
+		s.verb, s.target, s.plain = t("step_todos"), stepNow(in), true
+	case "Skill":
+		s.verb, s.target = t("step_skill"), str("skill")
 	case "Grep", "Glob":
 		s.verb, s.target = t("step_search"), str("pattern")
 		where, glob := str("path"), ""
-		if name == "Grep" {
+		if it.ToolName == "Grep" {
 			glob = str("glob")
 		}
 		switch {
@@ -113,36 +89,70 @@ func stepOf(l i18n.Lang, it proto.Item) step {
 		case glob != "":
 			s.note = t("step_glob", i18n.Args{"glob": glob})
 		}
-	case "WebFetch":
-		s.verb, s.target = t("step_open_web"), str("url")
-	case "WebSearch":
-		s.verb, s.target = t("step_search_web"), str("query")
-	case "Task", "Agent":
-		s.verb, s.target, s.plain = t("step_subtask"), str("description"), true
-		if a := str("subagent_type"); a != "" {
-			s.note = t("step_agent_type", i18n.Args{"type": a})
-		}
-	case "TodoWrite":
-		s.verb, s.target, s.plain = t("step_todos"), stepNow(in), true
-	case "Skill":
-		s.verb, s.target = t("step_skill"), str("skill")
 	default:
-		tool := name
-		if strings.HasPrefix(tool, "mcp__") {
-			if i := strings.LastIndex(tool, "__"); i > 4 {
+		switch turnmodel.ToolKind(it) {
+		case proto.ToolKindExecute:
+			s.verb = t("step_run")
+			if b, _ := in["run_in_background"].(bool); b {
+				s.verb = t("step_run_background")
+			}
+			if d := str("description"); d != "" {
+				s.target, s.plain = d, true
+			} else {
+				s.target = firstLine(str("command"))
+			}
+		case proto.ToolKindRead:
+			s.verb, s.target = t("step_read"), base("file_path")
+			if from, n := num("offset"), num("limit"); from > 0 || n > 0 {
+				from = max(from, 1)
+				if n > 0 {
+					s.note = t("step_lines", i18n.Args{"from": from, "to": from + n - 1})
+				} else {
+					s.note = t("step_lines_from", i18n.Args{"from": from})
+				}
+			}
+		case proto.ToolKindEdit, proto.ToolKindWrite, proto.ToolKindDelete:
+			s.verb, s.target = t("step_edit"), base("file_path")
+			if s.target == "" {
+				s.target = base("notebook_path")
+			}
+			switch str("change") { // Codex's file changes, still written as-is in the legacy adapter
+			case "add":
+				s.verb = t("step_create")
+			case "delete":
+				s.verb = t("step_delete")
+			}
+			if turnmodel.ToolKind(it) == proto.ToolKindWrite && str("change") == "" {
+				s.verb = t("step_write")
+			}
+		case proto.ToolKindFetch:
+			s.verb, s.target = t("step_open_web"), str("url")
+		case proto.ToolKindWebSearch:
+			s.verb, s.target = t("step_search_web"), str("query")
+		case proto.ToolKindAgent, proto.ToolKindTask:
+			s.verb, s.target, s.plain = t("step_subtask"), str("description"), true
+			if a := turnmodel.SubagentAgentType(it); a != "" {
+				s.note = t("step_agent_type", i18n.Args{"type": a})
+			}
+		case proto.ToolKindMcp, proto.ToolKindOther:
+			tool := it.ToolName
+			if _, mcp, ok := turnmodel.SplitMCP(tool); ok {
+				tool = mcp
+			} else if i := strings.LastIndex(tool, "__"); i > 4 && strings.HasPrefix(tool, "mcp__") {
 				tool = tool[i+2:]
 			}
-		}
-		s.verb = tool // an unknown tool goes by its name
-		key := stepMCP[tool]
-		if key != "" {
-			s.verb = t(key)
-		}
-		for _, k := range []string{"query", "q", "title", "to", "subject", "command", "cmd", "path", "file_path", "url", "name", "id"} {
-			if v := str(k); v != "" {
-				s.target = firstLine(v)
-				break
+			s.verb = tool
+			if key := stepMCP[tool]; key != "" {
+				s.verb = t(key)
 			}
+			for _, k := range []string{"query", "q", "title", "to", "subject", "command", "cmd", "path", "file_path", "url", "name", "id"} {
+				if v := str(k); v != "" {
+					s.target = firstLine(v)
+					break
+				}
+			}
+		default:
+			s.verb = it.ToolName
 		}
 	}
 	s.target = clip(oneLine(s.target), 60)

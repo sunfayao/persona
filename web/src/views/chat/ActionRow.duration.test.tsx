@@ -47,6 +47,16 @@ const row = () => host.querySelector<HTMLButtonElement>("[data-action-row] > but
 const suffix = () => host.querySelector("[data-tool-duration]");
 
 describe("ActionRow per-call duration (#8163)", () => {
+  it("shows a reported exit code of zero and subsecond duration on a narrow row", () => {
+    narrow = true;
+    const reported = step("t0", 0, 5);
+    reported.result = { ...result("t0", 5), outcome: { status: "ok", exit_code: 0, duration_ms: 125 } };
+    render(reported);
+    expect(host.querySelector("[data-tool-exit-code='0']")?.textContent).toContain("0");
+    expect(host.querySelector("[data-tool-outcome='ok']")).not.toBeNull();
+    expect(suffix()?.textContent).toBe("125 ms");
+    expect(suffix()?.className).not.toContain("max-lg:hidden");
+  });
   it("a real span renders the suffix on a wide row, without changing the row's own title", () => {
     render(step("t1", 0, 30));
     expect(suffix()?.textContent).toBe("30s");

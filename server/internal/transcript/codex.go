@@ -282,6 +282,7 @@ func parseCodexLine(seq int, line []byte, meta *Meta) []proto.Item {
 }
 
 func parseCodexRecord(seq int, l CodexRecord, meta *Meta) []proto.Item {
+	meta.facetNative = l.Type
 	if l.Type == "response_item" {
 		return parseRolloutResponse(seq, l, meta)
 	}
@@ -432,6 +433,7 @@ func parseCodexRecord(seq int, l CodexRecord, meta *Meta) []proto.Item {
 	if p.Item == nil {
 		return nil
 	}
+	meta.facetNative = p.Item.Type
 	out := codexItemLines(seq, l.Timestamp, p.TurnID, p.Item, meta)
 	meta.codexWorked(out)
 	return meta.codexModel(out)
@@ -724,6 +726,10 @@ func codexItemLines(seq int, ts time.Time, turnID string, it *codexItem, meta *M
 	}
 	n := mk(0, it.ID, "system", proto.KindNotice)
 	n.Text = "Codex 事件：" + it.Type + "（完整记录在原会话中）"
+	if meta.facetAgent != "" {
+		itemFacets(&n).Notice = &proto.NoticeFacet{Code: proto.NoticeCodeUnknownEvent, Severity: proto.NoticeSeverityInfo,
+			Args: map[string]string{"type": it.Type}}
+	}
 	return []proto.Item{n}
 }
 
@@ -812,6 +818,10 @@ func codexCommandLines(seq int, ts time.Time, it *codexItem, meta *Meta) []proto
 		meta.observeToolContext(name, input, "")
 		use := mk(0, it.ID, "assistant", proto.KindToolUse)
 		use.ToolUseID, use.ToolName, use.ToolInput = it.ID, name, meta.projectCodexInput(input)
+		if meta.facetAgent != "" && it.ProcessID != "" {
+			itemFacets(&use).Task = &proto.TaskFacet{ID: it.ProcessID, Kind: proto.TaskKindShell,
+				Status: proto.TaskStatusRunning, Command: shellCommand(it.Command)}
+		}
 		return []proto.Item{use}
 	}
 	out := it.AggregatedOutput
@@ -828,6 +838,13 @@ func codexCommandLines(seq int, ts time.Time, it *codexItem, meta *Meta) []proto
 		res := mk(1, it.ID, "user", proto.KindToolResult)
 		res.ToolUseID, res.Text, res.IsError = it.ID, meta.projectCodexText(out), failed
 		res.Outcome = &proto.ToolOutcome{Status: codexStatus(it.Status, failed), ExitCode: it.ExitCode, DurationMS: it.Duration.ms, Tail: outputTail(out)}
+		if meta.facetAgent != "" && it.ProcessID != "" {
+			status := proto.TaskStatusCompleted
+			if failed {
+				status = proto.TaskStatusFailed
+			}
+			itemFacets(&res).Task = &proto.TaskFacet{ID: it.ProcessID, Kind: proto.TaskKindShell, Status: status, ExitCode: it.ExitCode}
+		}
 		meta.codexSeenAdd(it.ID) // a repeat of this terminal record is dropped
 		return []proto.Item{res}
 	}
@@ -995,7 +1012,19 @@ func codexSubagentActivity(meta *Meta, mk func(int, string, string, string) prot
 		Model           string `json:"model,omitempty"`
 		ReasoningEffort string `json:"reasoning_effort,omitempty"`
 	}{name, it.Kind, it.AgentPath, it.AgentThreadID, derefString(it.Model), derefString(it.ReasoningEffort)})
-	return codexTool(meta, mk, it.ID, "subagent", raw, "", false)
+	items := codexTool(meta, mk, it.ID, "subagent", raw, "", false)
+	if meta.facetAgent != "" && it.AgentThreadID != "" {
+		relation, status := proto.SubagentRelationMessageFrom, ""
+		switch it.Kind {
+		case "started":
+			relation, status = proto.SubagentRelationSpawn, proto.SubagentStatusRunning
+		case "completed":
+			relation, status = proto.SubagentRelationResult, proto.SubagentStatusCompleted
+		}
+		itemFacets(&items[0]).Subagent = &proto.SubagentFacet{ID: it.AgentThreadID, Name: name, Model: derefString(it.Model),
+			Relation: relation, Status: status}
+	}
+	return items
 }
 
 // codexCollabCall shows a call that coordinates subagents (CollabAgentToolCall): wait is Codex's wait_agent, the

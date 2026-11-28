@@ -29,6 +29,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/shellcmd"
 	"github.com/sunfayao/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // The assistant (the app's "Chat" tab) runs Claude Code headless — `<launcher> -p --input-format stream-json
@@ -1834,9 +1835,9 @@ func (n *Node) notifyList(list []proto.Session) {
 // assistantAnswer is what a conversation's row says it last said: its latest turn's answer from the first words on
 // (transcript.Meta.TurnAnswer), the push body when the turn ends, so a report written before a tool call is not left
 // out for the line after it. Its last words when those are an error notice (the push marks the turn cut off by
-// their start, assistantwire.CutOff) or the tail read held none of the turn's words.
+// their start, turnmodel.LegacyTurnCutOff) or the tail read held none of the turn's words.
 func assistantAnswer(m quickMeta) string {
-	if m.answer == "" || assistantwire.CutOff(m.lastText) {
+	if m.answer == "" || turnmodel.LegacyTurnCutOff(m.lastText) {
 		return m.lastText
 	}
 	return m.answer

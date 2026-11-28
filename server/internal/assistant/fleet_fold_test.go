@@ -107,7 +107,7 @@ func TestFoldSessionsBlockedRuntimeChild(t *testing.T) {
 	if c := lead.Children(); c != (proto.SessionChildren{Total: 2, Working: 1, NeedsYou: 1}) || lead.FoldedState() != proto.StateNeedsYou {
 		t.Fatalf("rollup %+v, state %s", c, lead.FoldedState())
 	}
-	if asks := rowNamed(list, "asks"); asks.IsSubtask() {
+	if asks := rowNamed(list, "asks"); asks.State != proto.StateNeedsYou || asks.IsSubagent {
 		t.Fatal("folding changed what counts as a subtask")
 	}
 }
@@ -277,7 +277,7 @@ func TestFoldSessionsTabTeam(t *testing.T) {
 	if lead.FoldedUnder() != "" || lead.FoldedAs() != "" {
 		t.Fatalf("the lead folds: %+v", lead.Hierarchy)
 	}
-	if busy := rowNamed(list, "busy"); busy.IsSubtask() || busy.Children() != (proto.SessionChildren{}) {
+	if busy := rowNamed(list, "busy"); busy.IsChild() || busy.Children() != (proto.SessionChildren{}) {
 		t.Fatalf("a worker is a subtask or carries a rollup: %+v", busy.Hierarchy)
 	}
 }

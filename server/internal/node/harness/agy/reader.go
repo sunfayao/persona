@@ -142,6 +142,8 @@ func (h *Projection) Updates(previous *Projection, since int) []proto.Item {
 func (r *Reader) Placeholder(id, text string) *Projection {
 	return &Projection{token: "agy-pane:" + id, seq: 1, items: []proto.Item{{
 		ID: "agy#0", Seq: 1, Role: "system", Kind: proto.KindNotice, Text: text, TS: r.clock.Now().UTC(),
+		Facets: &proto.ItemFacets{Notice: &proto.NoticeFacet{Code: proto.NoticeCodeRuntimeError,
+			Severity: proto.NoticeSeverityWarning, Args: map[string]string{"reason": "transcript_unlinked"}}},
 	}}}
 }
 

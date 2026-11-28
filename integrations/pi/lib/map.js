@@ -1,3 +1,4 @@
+import { runtimeToolFacet } from '../../runtime-sdk/lib/items.js'
 // Pure mapping from pi session entries to Persona items. No I/O: the runtime (pi.js) hands in the
 // session's entries (file order) and its current branch; the tests feed recorded shapes.
 //
@@ -112,7 +113,7 @@ export function entryItems(entry, seq) {
           add({ role: 'assistant', kind: 'tool_use', tool_name: callName(b.name, b.arguments), tool_use_id: b.id, tool_input: toolInput(b.name, b.arguments) })
         }
       }
-      if (m.stopReason === 'aborted') add({ role: 'system', kind: 'notice', text: '已中断' })
+      if (m.stopReason === 'aborted') add({ role: 'system', kind: 'notice', text: '已中断', facets: { notice: { code: 'interrupted', severity: 'info' } } })
       else if (m.stopReason === 'error') add({ role: 'system', kind: 'notice', text: m.errorMessage ? `出错了：${snippet(m.errorMessage)}` : '出错了' })
       // The output limit stopped the turn mid-way: say so, or the phone shows half a sentence (or nothing) as the answer.
       else if (m.stopReason === 'length') add({ role: 'system', kind: 'notice', text: '输出达到上限，这一轮停了' })

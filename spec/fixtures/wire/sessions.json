@@ -200,6 +200,70 @@
     }
   },
   {
+    "name": "session_turn_facets",
+    "description": "A session relays the typed checklist, context meter, and subagent state.",
+    "source": [
+      "server/internal/proto/session.go: Session",
+      "server/internal/proto/turnmodel_gen.go: SessionFacets"
+    ],
+    "derived": true,
+    "decoder": "sessions",
+    "input": {
+      "sessions": [
+        {
+          "machine_id": "m1",
+          "session_id": "typed",
+          "started_by_persona": false,
+          "assistant": false,
+          "title": "",
+          "cwd": "",
+          "status": "",
+          "state": "",
+          "seen_at": "0001-01-01T00:00:00Z",
+          "state_since": "0001-01-01T00:00:00Z",
+          "subagents": [
+            {
+              "id": "example-child",
+              "session_id": "",
+              "running": false,
+              "started_at": "0001-01-01T00:00:00Z",
+              "updated_at": "0001-01-01T00:00:00Z",
+              "status": "completed"
+            }
+          ],
+          "updated_at": "2026-01-02T03:04:05Z",
+          "pending_interactions": 0,
+          "facets": {
+            "plan": {
+              "entries": [
+                {
+                  "id": "check",
+                  "title": "Review the example",
+                  "status": "completed"
+                }
+              ],
+              "at": "2026-01-02T03:04:05Z"
+            },
+            "context": {
+              "used": 250,
+              "window": 1000,
+              "source": "reported"
+            }
+          },
+          "started_by_jarvis": false
+        }
+      ]
+    },
+    "expected": {
+      "accepted": true,
+      "fields": {
+        "/sessions/0/facets/context/used": 250,
+        "/sessions/0/facets/plan/entries/0/status": "completed",
+        "/sessions/0/subagents/0/status": "completed"
+      }
+    }
+  },
+  {
     "name": "session_native_slash_commands",
     "description": "A terminal-backed Codex session advertises native slash-command routing.",
     "source": [

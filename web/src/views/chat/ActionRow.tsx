@@ -9,7 +9,8 @@ import { openPanel } from "../../lib/panel";
 import { getSession } from "../../lib/store";
 import { taskBadge } from "../../lib/tasks";
 import { ownEntry, personaToolVerb, SUBJECT_KEYS, toolChip, toolDisplayName, toolLabel } from "../../lib/turns";
-import type { Item } from "../../lib/types";
+import type { Item, ToolOutcome } from "../../lib/types";
+import { commandText, itemFacets } from "../../lib/turn-upcast";
 import { toolDurationLabel, toolDurationMs, type ToolStep } from "../../lib/work-groups";
 import { cx, Spinner } from "../../ui/atoms";
 import { Disclosure, DisclosurePanel } from "../../ui/Disclosure";
@@ -36,8 +37,7 @@ const ROW = `${ROW_CHROME} items-center ${ROW_HOVER}`;
 export const CHEVRON_SLOT = "inline-flex size-[18px] shrink-0 items-center justify-center text-tool-ink/75 transition-[color,transform] duration-150 ease-(--ease-out-strong) group-hover:translate-x-[1.5px] group-hover:text-ink motion-reduce:transition-none motion-reduce:group-hover:translate-x-0";
 export const STATUS_SLOT = "inline-flex h-[18px] w-4 shrink-0 items-center justify-center text-tool-ink";
 
-const COMMAND_TOOLS = new Set(["Bash", "exec_command", "shell", "PowerShell"]);
-const FILE_TOOLS = new Set(["Read", "Edit", "Write", "MultiEdit", "NotebookEdit"]);
+const FILE_KINDS = new Set(["read", "edit", "write"]);
 export const DIFF_TOOLS = new Set(["Edit", "Write", "MultiEdit"]);
 
 /** cindy's verbAggregator (its Chinese wording is the zh-Hans text). */
@@ -47,8 +47,6 @@ const VERB: Record<string, string> = {
   NotebookEdit: t("chat-actionrow.verb_edit"),
   Write: t("chat-actionrow.verb_create"),
   Bash: t("chat-actionrow.verb_run"),
-  exec_command: t("chat-actionrow.verb_run"),
-  shell: t("chat-actionrow.verb_run"),
   Read: t("chat-actionrow.verb_read"),
   TodoWrite: t("chat-actionrow.verb_update"),
   Glob: t("chat-actionrow.verb_search"),
@@ -99,9 +97,6 @@ export function truncateParam(text: string, max = PARAM_MAX): string {
 }
 
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
-/** A command call's command (Codex sends it as an argv array). */
-const commandOf = (inp: Record<string, unknown>) => (Array.isArray(inp.command) ? (inp.command as unknown[]).join(" ") : str(inp.command) || str(inp.cmd));
-
 export interface ActionPresentation {
   /** Localized action verb, except for commands which lead directly with their command. */
   verb?: string;
@@ -112,14 +107,15 @@ export interface ActionPresentation {
 
 /** How a call reads in its row (cindy's describeToolUse + extractDisplayParam). */
 export function presentAction(use: Item): ActionPresentation {
-  const name = use.tool_name ?? "";
+  const tool = itemFacets(use).tool;
+  const name = tool?.name ?? use.tool_name ?? "";
   const inp = (use.tool_input ?? {}) as Record<string, unknown>;
-  if (COMMAND_TOOLS.has(name)) {
-    const cmd = commandOf(inp);
+  if (tool?.kind === "execute") {
+    const cmd = commandText(inp);
     const desc = str(inp.description);
     return { param: { text: cmd || desc || t("chat-actionrow.verb_run_command"), title: desc || cmd || undefined } };
   }
-  if (FILE_TOOLS.has(name)) {
+  if (FILE_KINDS.has(tool?.kind ?? "")) {
     const path = toolFile(name, inp)?.path ?? "";
     return { verb: VERB[name], ...(path ? { file: path, param: { text: truncateParam(fileName(path)), title: path } } : {}) };
   }
@@ -130,7 +126,7 @@ export function presentAction(use: Item): ActionPresentation {
   if (name === "WebFetch") return { verb: VERB[name], param: { text: truncateParam(str(inp.url)), title: str(inp.url) } };
   if (name === "WebSearch") return { verb: VERB[name], param: { text: truncateParam(str(inp.query)) } };
   if (name === "LS") return { verb: VERB[name], param: { text: truncateParam(str(inp.path)) } };
-  if (name.startsWith("mcp__")) {
+  if (tool?.kind === "mcp") {
     // Persona's own tools read as what they do ("Read Agent chat"), then what they were given
     const own = personaToolVerb(name, inp);
     if (own) {
@@ -158,9 +154,10 @@ export function lineDiff(oldText: string, newText: string): Op[] {
 }
 
 /** An edit's changes, one diff per change (MultiEdit has several; Write is all new). */
-export function editDiffs(use: Item): Op[][] | null {
+export function editDiffs(use: Item, outcome?: ToolOutcome): Op[][] | null {
+  if (outcome?.patch) return patchDiffs(outcome.patch);
   const inp = (use.tool_input ?? {}) as Record<string, unknown>;
-  switch (use.tool_name) {
+  switch (itemFacets(use).tool?.name) {
     case "Edit":
       // Codex: the patch as a unified diff (the hub maps a file change to an Edit with `diff`); Claude: old / new
       if (typeof inp.diff === "string") {
@@ -186,10 +183,11 @@ export function diffStats(diffs: Op[][]): { add: number; del: number } {
 
 /** What a call opens to in place: its input as text. */
 export function inlineInput(use: Item): string {
-  const name = use.tool_name ?? "";
+  const tool = itemFacets(use).tool;
+  const name = tool?.name ?? use.tool_name ?? "";
   const inp = (use.tool_input ?? {}) as Record<string, unknown>;
-  if (COMMAND_TOOLS.has(name)) {
-    return [commandOf(inp), str(inp.cwd) && `cwd: ${str(inp.cwd)}`].filter(Boolean).join("\n");
+  if (tool?.kind === "execute") {
+    return [commandText(inp), str(inp.cwd) && `cwd: ${str(inp.cwd)}`].filter(Boolean).join("\n");
   }
   if (name === "Grep") return [`pattern: ${str(inp.pattern)}`, ...["path", "glob", "type", "output_mode"].filter((k) => str(inp[k])).map((k) => `${k}: ${str(inp[k])}`)].join("\n");
   if (name === "Glob") return str(inp.path) ? `${str(inp.pattern)}\nin: ${str(inp.path)}` : str(inp.pattern);
@@ -231,17 +229,28 @@ export const ActionRow = memo(function ActionRow({
   enterIndex?: number;
 }) {
   const { use, result, images } = step;
-  const name = use.tool_name ?? "";
+  const tool = itemFacets(use).tool;
+  const name = tool?.name ?? use.tool_name ?? "";
   const { tasks, scope } = useChatContext();
   const p = useMemo(() => presentAction(use), [use]);
-  const diffs = useMemo(() => (DIFF_TOOLS.has(name) ? editDiffs(use) : null), [name, use]);
+  const diffs = useMemo(() => ((DIFF_TOOLS.has(name) || result?.outcome?.patch) ? editDiffs(use, result?.outcome) : null), [name, use, result?.outcome]);
   const stats = diffs ? diffStats(diffs) : null;
   // kept by the chat, not the row (expanded.ts): a row drawn again (a group regrouped, a line rebuilt) stays as the reader left it
   const [open, setOpen] = useExpanded(`${scope}act:${use.id}`);
-  const inPlace = trace || !FILE_TOOLS.has(name);
+  const inPlace = trace || !FILE_KINDS.has(tool?.kind ?? "");
   const call = use.tool_use_id;
   const bg = call && (tasks.started.has(call) || tasks.notes.has(call)) ? taskBadge(tasks.notes.get(call) ?? []) : null;
-  const error = Boolean(result?.is_error);
+  const outcome = result?.outcome;
+  const outcomeStatus = outcome?.status ?? (result ? itemFacets(result).tool?.status : undefined);
+  const error = Boolean(result?.is_error || outcomeStatus === "failed" || outcomeStatus === "denied" || outcomeStatus === "blocked" || outcomeStatus === "timed_out");
+  const statusLabel = running ? t("chat-actionrow.status_running")
+    : outcomeStatus === "background" ? t("chat-actionrow.status_background")
+    : outcomeStatus === "interrupted" ? t("chat-actionrow.status_interrupted")
+    : outcomeStatus === "denied" || outcomeStatus === "blocked" ? t("chat-actionrow.status_denied")
+    : outcomeStatus === "timed_out" ? t("chat-actionrow.status_timed_out")
+    : outcomeStatus === "no_match" ? t("chat-actionrow.status_no_match")
+    : error ? t("chat-actionrow.status_error") : t("chat-actionrow.status_done");
+  const exitCode = typeof outcome?.exit_code === "number" ? outcome.exit_code : undefined;
   // state-change completion choreography (running: true -> false): warm sheen + spring status morph
   const prevRunning = useRef(Boolean(running));
   const [settled, setSettled] = useState(false);
@@ -291,7 +300,7 @@ export const ActionRow = memo(function ActionRow({
   const full = useFullText(result, mid, sid);
   const output = result && (trace || showsResult(name, result)) ? full.text : "";
   const hasStats = Boolean(stats && (stats.add > 0 || stats.del > 0));
-  const hasTrailingMeta = Boolean(hasStats || duration || bg);
+  const hasTrailingMeta = Boolean(hasStats || duration || bg || exitCode !== undefined);
   return (
     <div
       className={cx(
@@ -317,7 +326,9 @@ export const ActionRow = memo(function ActionRow({
       >
         <span
           role="img"
-          aria-label={running ? t("chat-actionrow.status_running") : error ? t("chat-actionrow.status_error") : t("chat-actionrow.status_done")}
+          aria-label={statusLabel}
+          title={statusLabel}
+          data-tool-outcome={outcomeStatus}
           className={cx(
             STATUS_SLOT,
             running ? "text-accent" : error ? "text-red" : "transition-colors duration-150 group-hover:text-ink motion-reduce:transition-none",
@@ -367,8 +378,13 @@ export const ActionRow = memo(function ActionRow({
                 <span className="text-diff-del-fg">-{stats.del}</span>
               </span>
             )}
+            {exitCode !== undefined && (
+              <span data-tool-exit-code={exitCode} className="shrink-0 whitespace-nowrap font-mono text-label text-tool-ink">
+                {t("chat-actionrow.exit_code", { code: exitCode })}
+              </span>
+            )}
             {duration && (
-              <span data-tool-duration className="max-lg:hidden shrink-0 font-mono text-label text-tool-ink tabular-nums">
+              <span data-tool-duration className={cx(outcome?.duration_ms == null ? "max-lg:hidden" : "whitespace-nowrap", "shrink-0 font-mono text-label text-tool-ink tabular-nums")}>
                 {duration}
               </span>
             )}
@@ -400,7 +416,7 @@ export const ActionRow = memo(function ActionRow({
                   <StepDetail use={use} result={result} />
                 </div>
               )}
-              {COMMAND_TOOLS.has(name) && str((use.tool_input as Record<string, unknown> | undefined)?.description) && <div className="mb-2 font-sans">{str((use.tool_input as Record<string, unknown>).description)}</div>}
+              {tool?.kind === "execute" && str((use.tool_input as Record<string, unknown> | undefined)?.description) && <div className="mb-2 font-sans">{str((use.tool_input as Record<string, unknown>).description)}</div>}
               {input && <pre className="m-0 whitespace-pre-wrap [overflow-wrap:anywhere]">{input}</pre>}
               {output && (
                 <>

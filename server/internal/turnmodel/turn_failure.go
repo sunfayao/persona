@@ -1,4 +1,4 @@
-package assistantwire
+package turnmodel
 
 import (
 	"regexp"
@@ -31,7 +31,7 @@ func ErrorOnlyText(answer string) bool {
 	if t == "" || strings.Contains(t, "\n") || utf8.RuneCountInString(t) > errorOnlyMax {
 		return false
 	}
-	if CutOff(t) {
+	if LegacyTurnCutOff(t) {
 		return true
 	}
 	return AuthErrorText(t) || containsAny(strings.ToLower(t), upstreamErrorWords)

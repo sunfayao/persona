@@ -127,5 +127,12 @@
   "card_of_goal": "{done} {value} / 目标 {goal}",
   "card_over": "超出",
   "card_other": "其他",
-  "omp_stopped": "这个 omp 会话已停止。发一条消息会在电脑上新开一个终端标签页，用 omp --resume 接着它。"
+  "omp_stopped": "这个 omp 会话已停止。发一条消息会在电脑上新开一个终端标签页，用 omp --resume 接着它。",
+  "retrying": "正在重试模型请求",
+  "usage_limit": "已达到模型用量上限",
+  "fallback_notice": "已切换到备用模型",
+  "checkpoint": "已保存检查点",
+  "wake": "会话已恢复",
+  "unknown_event": "未知事件：{type}",
+  "transcript_unlinked": "终端尚未关联到可读取的会话。"
 }

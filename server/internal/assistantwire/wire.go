@@ -7,7 +7,6 @@ package assistantwire
 import (
 	"encoding/json"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -382,44 +381,6 @@ type TaskView struct {
 
 // PushAsked is a scheduled task's push that sends only what its runs push themselves (TaskView.Push).
 const PushAsked = "asked"
-
-// FinishedText is the words the finished push carries for s's turn, chosen as hub/machine.go notifyFinished chooses
-// them: the work line it ended on (done or stuck), else its last words; "" when it said nothing (the push then says a
-// localised "done", which is never a cut-off). NormalFinish judges a cut-off on them.
-func FinishedText(s proto.Session) string {
-	if w := s.Work; w != nil && w.Line != "" && (w.Phase == proto.WorkDone || w.Phase == proto.WorkBlocked) {
-		return w.Line
-	}
-	return s.LastText
-}
-
-// NormalFinish: s's turn ended normally, as the finished push would tell it: no model error, no cut-off answer, not
-// stuck on something. A quiet task's conversation (PushAsked) pushes nothing then; an error, a cut-off or a stuck
-// turn is told as ever.
-func NormalFinish(s proto.Session) bool {
-	return strings.TrimSpace(s.TurnError) == "" && !CutOff(FinishedText(s)) && !(s.Work != nil && s.Work.Phase == proto.WorkBlocked)
-}
-
-// QuietTaskFinish: s, the own conversation of a task that pushes only what its runs send, may go unpushed now. Only
-// when it runs on an agent whose failed turn is told on the session (reportsFailures), so that NormalFinish can tell
-// "nothing new" from an error. Never the main conversation (main: its session id), which the user may have made of
-// the task's. And only a normal finish (NormalFinish).
-func QuietTaskFinish(s proto.Session, main string) bool {
-	return reportsFailures(s) && (main == "" || s.SessionID != main) && NormalFinish(s)
-}
-
-// SupervisedFinish: s, a conversation whose current turn a supervision message started (SessionView.Supervising), may go
-// unpushed now: a normal finish (NormalFinish); an error, a cut-off or a stuck turn is pushed as ever.
-func SupervisedFinish(s proto.Session, supervising bool) bool {
-	return supervising && reportsFailures(s) && NormalFinish(s)
-}
-
-// reportsFailures: s's agent tells a turn that failed on the model service. Claude Code (Agent "") writes the error
-// in its last words (CutOff); a headless Codex's node reports the failed turn/completed as TurnError (#2571). A
-// runtime's (Agent: its id, DSH…) is not known to, so its quiet task is pushed as ever.
-func reportsFailures(s proto.Session) bool {
-	return s.Agent == "" || s.Agent == "codex"
-}
 
 // SessionView is what the assistant reports about one of its conversations, put on the session lists the apps get.
 type SessionView struct {

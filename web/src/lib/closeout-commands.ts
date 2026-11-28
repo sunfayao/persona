@@ -3,11 +3,11 @@
 // narrower test selection does not stand for the claimed one. The result restates the record; it never judges the claim.
 import { buildTaskIndex } from "./tasks";
 import { exchangeSteps, type Segment } from "./turns";
+import { describeTool } from "./tool-registry";
 import type { Item } from "./types";
 
 const MAX_CLAIMS = 8;
 const MAX_RUNES = 300;
-const COMMAND_TOOLS = new Set(["Bash", "exec_command", "shell", "PowerShell"]);
 const HEAD = /^(?:(?:go|bun|bunx|npm|npx|pnpm|yarn|pytest|cargo|make|swift)(?:\s|$)|python3?\s|node\s|\.\/gradlew(?:\s|$)|\.\/scripts\/)/;
 const START = /(?:^|(?<=[\s，。；;、：:（(]))(?=(?:go|bun|bunx|npm|npx|pnpm|yarn|pytest|cargo|make|swift|python3?\s|node\s|\.\/gradlew|\.\/scripts\/))/g;
 const STOP = /[\p{Script=Han}，。；;、（）()：:→`",]/u;
@@ -423,7 +423,7 @@ export function closeoutCommandEvidence(verified: string, segment: Segment | und
   if (!segment) return claims.map((claim) => ({ claim, state: "unavailable" }));
   if (segment.folds.length) return claims.map((claim) => ({ claim, state: "unavailable" }));
   const steps = exchangeSteps(segment);
-  const calls = steps.flatMap((step) => step.kind === "tool" && COMMAND_TOOLS.has(step.use.tool_name ?? "") && commandText(step.use.tool_input) ? [{ use: step.use, result: step.result, command: commandText(step.use.tool_input), segments: commandSegments(commandText(step.use.tool_input)) }] : []);
+  const calls = steps.flatMap((step) => step.kind === "tool" && describeTool(step.use.tool_name ?? "").isCommand && commandText(step.use.tool_input) ? [{ use: step.use, result: step.result, command: commandText(step.use.tool_input), segments: commandSegments(commandText(step.use.tool_input)) }] : []);
   const items = steps.flatMap((step) => step.kind === "tool" ? [step.use, ...(step.result ? [step.result] : [])] : [step.item]);
   const tasks = buildTaskIndex(items);
   return claims.map((claim) => {

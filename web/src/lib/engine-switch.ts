@@ -1,3 +1,4 @@
+import { engineHandoffSupported } from "./turn-upcast";
 // A conversation that moved between Claude Code and Codex (#5054). The first message the new engine got carries the
 // handoff in a `<persona-context kind="engine-switch" …>` block (the chat draws the switch divider from it, never a
 // context chip), and the row running the conversation now names the sessions that ran it before (Session.engine_history),
@@ -18,9 +19,6 @@ export interface EngineSwitch {
   text: string;
 }
 
-/** The engines a conversation moves between. */
-const ENGINES = ["claude", "codex"];
-
 /** The switch a parsed `<persona-context>` block stands for (lib/turns.ts Context, its attributes already unescaped):
  *  only an engine-switch block from one known engine to the other. Any other block, a pasted one naming something else
  *  included, is undefined (it stays an ordinary context). */
@@ -29,7 +27,7 @@ export function engineSwitchOf(c: { kind: string; text: string; attrs?: Record<s
   const a = c.attrs ?? {};
   const from = a.from?.trim() ?? "";
   const to = a.to?.trim() ?? "";
-  if (from === to || !ENGINES.includes(from) || !ENGINES.includes(to)) return undefined;
+  if (from === to || !engineHandoffSupported(from) || !engineHandoffSupported(to)) return undefined;
   return { from, to, model: a.model?.trim() || undefined, resumed: a.resumed === "1", text: c.text };
 }
 

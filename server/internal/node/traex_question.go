@@ -23,6 +23,7 @@ func (n *Node) traeQuestionDialog(id, text string) *screen.Dialog {
 	}
 	if q := screen.ReadTraeQuestion(text); q != nil {
 		d := q.Dialog
+		d.QuestionDismissible = new(false)
 		d.Rev = traeQuestionRevision(id, a.PaneID, q)
 		if q.FreeText != "" || host.ParsePane(a.PaneID).Kind != host.Herdr {
 			d.Options = nil // typed text and a host without guarded key readback stay in the terminal

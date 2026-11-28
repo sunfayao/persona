@@ -13,6 +13,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/sessionorigin"
 	"github.com/sunfayao/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // When a "finished" push is worth sending, and the pushes of the cards. Borrowed from Ovis
@@ -310,7 +311,7 @@ func (s *Service) notifyFinishedNow(machine, id string, gen int, t fleetTimings)
 		return
 	}
 	// A turn a follow-up (supervision) message started, finished normally (#3124): what the user needs to know went out with notify_user.
-	if s.supervising(id) && assistantwire.SupervisedFinish(sess, true) {
+	if s.supervising(id) && turnmodel.SupervisedFinish(sess, true) {
 		return
 	}
 	if s.quietBackgroundReply(machine, sess) {
@@ -358,7 +359,7 @@ func (s *Service) notifyFinishedNow(machine, id string, gen int, t fleetTimings)
 }
 
 func (s *Service) quietBackgroundReply(machine string, sess proto.Session) bool {
-	if !sess.Assistant || !assistantwire.SupervisedFinish(sess, true) || sess.AwaitsReply {
+	if !sess.Assistant || !turnmodel.SupervisedFinish(sess, true) || sess.AwaitsReply {
 		return false
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -485,7 +486,7 @@ func doneAlertIn(l i18n.Lang, sess proto.Session, redact bool) (head, text strin
 		head, text = "⚠️ "+title, e // the hub's sentence for it, in l: it says the turn had no output (silent_turns.go)
 	} else if e != "" {
 		head, text = "⚠️ "+title, interruptedSummary+"："+e
-	} else if assistantwire.CutOff(text) {
+	} else if turnmodel.LegacyTurnCutOff(text) {
 		head, text = "⚠️ "+title, interruptedSummary+"："+strings.TrimSpace(text)
 	}
 	return head, text
@@ -615,7 +616,7 @@ func (s *Service) supervisedTurn(machine, session string, start time.Time) bool 
 
 // chatBridgeFinish: sess runs in a Lark chat bridge (sessionorigin.ChatBridge: its own pane, the Agents rows' "Lark
 // group", or a pane of the herdr session it runs its agents in, #8845), which answers in the topic the turn was asked
-// in, and its turn ended normally (assistantwire.NormalFinish, the host reporting no failure of its own). Only on
+// in, and its turn ended normally (turnmodel.NormalFinish, the host reporting no failure of its own). Only on
 // Claude Code, Codex and TRAE CLI, which tell a failed turn on the session (TRAE CLI's conversation is a Codex rollout, read
 // as Codex's: task_complete's error is TurnError); another agent's is pushed as ever.
 func chatBridgeFinish(sess proto.Session) bool {
@@ -624,13 +625,13 @@ func chatBridgeFinish(sess proto.Session) bool {
 	}
 	switch sess.Agent {
 	case "", "claude", "codex", "traex":
-		return assistantwire.NormalFinish(sess)
+		return turnmodel.NormalFinish(sess)
 	}
 	return false
 }
 
 // quietTaskFinish: sess's finished turn is not pushed: a quiet task's own conversation (quietTaskConversation) that
-// may go unpushed now (assistantwire.QuietTaskFinish: Claude Code, not the main conversation, a normal finish).
+// may go unpushed now (turnmodel.QuietTaskFinish: Claude Code, not the main conversation, a normal finish).
 func (s *Service) quietTaskFinish(sess proto.Session) bool {
 	r := &s.fleet.rep
 	r.mu.RLock()
@@ -639,5 +640,5 @@ func (s *Service) quietTaskFinish(sess proto.Session) bool {
 	if p == nil {
 		return false // the assistant's settings (its main conversation) not known yet: pushed as ever
 	}
-	return s.quietTaskConversation(sess.SessionID) && assistantwire.QuietTaskFinish(sess, p.Main)
+	return s.quietTaskConversation(sess.SessionID) && turnmodel.QuietTaskFinish(sess, p.Main)
 }

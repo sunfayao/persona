@@ -1,3 +1,4 @@
+import { archiveClosesSession, runtimeQueue } from "../../lib/turn-upcast";
 import { useEffect, useState } from "react";
 import { t } from "../../i18n";
 import { appArchiveDeps, archiveAgent, closeBusyReason, closeOffer, type CloseBusyReason, type CloseOffer } from "../../lib/agent-archives";
@@ -64,7 +65,7 @@ export function CloseAgentDialog({ open, onClose, onClosed, session, machineName
   const row = live ?? session;
   const detail = shown.offer === "archive"
     ? archiveCloseText(row, machineName)
-    : t(row.source_kind === "runtime" ? "close-agent.close_runtime_detail" : "close-agent.close_agent_detail", { machine: machineName, title: sessionTitle(row), where: [row.space_name, tabLabel(row)].filter(Boolean).join(" › ") || sessionTitle(row) });
+    : t(runtimeQueue(row) ? "close-agent.close_runtime_detail" : "close-agent.close_agent_detail", { machine: machineName, title: sessionTitle(row), where: [row.space_name, tabLabel(row)].filter(Boolean).join(" › ") || sessionTitle(row) });
   return (
     <Dialog
       open={open}
@@ -95,7 +96,7 @@ export function CloseAgentDialog({ open, onClose, onClosed, session, machineName
  *  other agent's tab and process close, and it comes back with Resume on its terminal page. */
 function archiveCloseText(row: Session, machine: string): string {
   const title = sessionTitle(row);
-  if (row.agent !== "agy") return t("close-agent.archive_close_detail", { title, machine });
+  if (!archiveClosesSession(row)) return t("close-agent.archive_close_detail", { title, machine });
   return row.source_kind ? t("close-agent.archive_close_agy_detail", { title, machine }) : t("close-agent.archive_close_agy_pane_detail", { title, machine });
 }
 

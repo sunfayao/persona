@@ -19,6 +19,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // hostTextSlack: the transcript's words this long after the host's record of the answer still belong to that turn.
@@ -479,8 +480,22 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 	linkAgyChildren(out, agyConversations)   // agy's subagents under the pane row that lists their parent (agychildren.go)
 	placeClaudeDesktop(out, origins, n.home) // and in their projects (#8521)
 	n.joinFolderSpaces(out)                  // one folder, one space, whichever app placed a session there (folderspace.go)
+	n.applyTurnSnapshots(out)
 	sortNewestFirst(out)
 	return out
+}
+
+func (n *Node) applyTurnSnapshots(rows []proto.Session) {
+	for i := range rows {
+		row := &rows[i]
+		n.mu.Lock()
+		source := n.files[row.SessionID]
+		n.mu.Unlock()
+		if source != nil {
+			source.TurnSnapshot().Apply(row)
+		}
+		turnmodel.ApplyContext(row)
+	}
 }
 
 // sortNewestFirst sorts list by UpdatedAt, newest first, rows that tie in the order they came (a stable sort): it sorts

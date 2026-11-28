@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/closeout"
 	"github.com/sunfayao/persona/server/internal/identity"
 	"github.com/sunfayao/persona/server/internal/modelretry"
@@ -15,6 +14,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/node/transcripttail"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // quickMeta is a cheap summary of a transcript read from its head and tail only.
@@ -391,14 +391,14 @@ func readQuickMetaSince(path string, st os.FileInfo, prev quickMeta) quickMeta {
 	// Words read from before the tail are checked whatever error the tail holds; the tail's own words or the last read's
 	// only when the tail holds none and no turn in it was gone back over.
 	succeeded := tm.TurnSucceeded()
-	if !succeeded && off > 0 && assistantwire.CutOff(m.lastText) && (words || !rewound && tm.TurnError == "") {
+	if !succeeded && off > 0 && turnmodel.LegacyTurnCutOff(m.lastText) && (words || !rewound && tm.TurnError == "") {
 		end := st.Size()
 		if rewound {
 			end = off
 		}
 		_, succeeded = transcripttail.LastWordsBefore(f, end)
 	}
-	if succeeded && assistantwire.CutOff(m.lastText) {
+	if succeeded && turnmodel.LegacyTurnCutOff(m.lastText) {
 		// The newest closed turn succeeded, but its visible reply was only botmux's sentinel (or tools and thinking):
 		// LastText still names an older failure. Do not let the manager's legacy preview fallback revive that failure.
 		// The old reply and its error remain untouched in the transcript.

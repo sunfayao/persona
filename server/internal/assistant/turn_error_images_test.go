@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // #13045: accumulated pictures exceeding the model API's size, count or multi-image dimension limit are classified
@@ -42,10 +42,10 @@ func TestImageLimitTurnErrorCodeAndContinueSuppression(t *testing.T) {
 	}
 
 	// Bare "Request too large" (from a custom gateway) is recognized by CutOff; prose mentioning it is not.
-	if !assistantwire.CutOff(samples[0]) {
+	if !turnmodel.LegacyTurnCutOff(samples[0]) {
 		t.Fatalf("CutOff did not recognize bare Request too large line")
 	}
-	if assistantwire.CutOff("I fixed the Request too large error by scaling the screenshots.") {
+	if turnmodel.LegacyTurnCutOff("I fixed the Request too large error by scaling the screenshots.") {
 		t.Fatalf("CutOff misclassified an ordinary reply mentioning Request too large")
 	}
 

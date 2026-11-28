@@ -9,6 +9,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // serveJSON is a request as the hub relays it, in lang ("": none said), and its answer's body.
@@ -113,7 +114,7 @@ func TestTurnErrorCodes(t *testing.T) {
 // turn error the user must fix, with its code, and the Agents business asks the user rather than sending "continue".
 func TestNotLoggedInIsTheUsersTurnError(t *testing.T) {
 	const text = "Not logged in · Please run /login"
-	if !assistantwire.CutOff(text) || assistantwire.CutOff("修好了 Not logged in · Please run /login 时的崩溃") {
+	if !turnmodel.LegacyTurnCutOff(text) || turnmodel.LegacyTurnCutOff("修好了 Not logged in · Please run /login 时的崩溃") {
 		t.Fatal("CutOff reads the answer by its start")
 	}
 	ft := newFleetTestNoStore(t)

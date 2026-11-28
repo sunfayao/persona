@@ -10,9 +10,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // Live replies of the Claude sessions Persona starts (#1309).
@@ -511,7 +511,7 @@ func endsTurn(it proto.Item) bool {
 	case it.TurnDuration != nil:
 		return true
 	case it.Role == "assistant" && it.Kind == proto.KindText:
-		return assistantwire.CutOff(it.Text) // "API Error: …", Claude Code's answer when the model call failed
+		return turnmodel.LegacyTurnCutOff(it.Text) // "API Error: …", Claude Code's answer when the model call failed
 	case it.Role == "system" && it.Kind == proto.KindNotice:
 		t := strings.TrimSpace(it.Text)
 		return t == transcript.InterruptedNotice || strings.HasPrefix(t, transcript.APIErrorPrefix) && !strings.HasSuffix(t, transcript.APIRetrying)

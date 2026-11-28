@@ -6,7 +6,13 @@
       "ts": "2026-01-01T00:00:00.854Z",
       "role": "user",
       "kind": "text",
-      "text": "/clear"
+      "text": "/clear",
+      "facets": {
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        }
+      }
     },
     {
       "id": "4e9466a5-ccea-fb17-04d8-5f5ef5f9ec43#0",
@@ -14,7 +20,13 @@
       "ts": "2026-01-01T00:00:08.161Z",
       "role": "user",
       "kind": "text",
-      "text": "/model"
+      "text": "/model",
+      "facets": {
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        }
+      }
     },
     {
       "id": "7941be55-5b1a-19f8-074e-e150979d703d#0",
@@ -22,7 +34,13 @@
       "ts": "2026-01-01T00:00:08.161Z",
       "role": "system",
       "kind": "notice",
-      "text": "Mzf model to `Djcdwd 5.5` blf nyadz vv nbbq lnpiwzx for yde jxbvnlls"
+      "text": "Mzf model to `Djcdwd 5.5` blf nyadz vv nbbq lnpiwzx for yde jxbvnlls",
+      "facets": {
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        }
+      }
     },
     {
       "id": "638c86c6-6767-21fb-eb38-6500322a2737#0",
@@ -30,7 +48,13 @@
       "ts": "2026-01-01T00:00:13.565Z",
       "role": "user",
       "kind": "text",
-      "text": "/model"
+      "text": "/model",
+      "facets": {
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        }
+      }
     },
     {
       "id": "4175bbc8-5b8e-b2ff-59a1-a1c7e9584b8a#0",
@@ -38,7 +62,13 @@
       "ts": "2026-01-01T00:00:13.565Z",
       "role": "system",
       "kind": "notice",
-      "text": "Mzf model to `Xhqr 5.5` blf nyadz vv nbbq lnpiwzx for yde jxbvnlls"
+      "text": "Mzf model to `Xhqr 5.5` blf nyadz vv nbbq lnpiwzx for yde jxbvnlls",
+      "facets": {
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        }
+      }
     },
     {
       "id": "312541e1-a5d4-cf20-702b-cafd2493b17d#0",
@@ -46,7 +76,46 @@
       "ts": "2026-01-01T00:00:42.478Z",
       "role": "user",
       "kind": "text",
-      "text": "xzksc 甲辛 puiso://btwuht.agk/iquxub/jfcqsc，丁甲己，丙丙丁壬己乙甲戊癸壬乙丁庚癸 kifhtzsrzt 丙丁。"
+      "text": "xzksc 甲辛 puiso://btwuht.agk/iquxub/jfcqsc，丁甲己，丙丙丁壬己乙甲戊癸壬乙丁庚癸 kifhtzsrzt 丙丁。",
+      "facets": {
+        "turn_id": "t15",
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        },
+        "input": {
+          "via": "typed"
+        }
+      }
+    },
+    {
+      "id": "f4942f71-63c1-3517-c604-5c0b6f3c73ee#0",
+      "seq": 30,
+      "ts": "2026-01-01T00:00:48.557Z",
+      "role": "assistant",
+      "kind": "thinking",
+      "model": "claude-opus-5-5",
+      "usage": [
+        {
+          "model": "claude-opus-5-5",
+          "in": 2,
+          "out": 278,
+          "cache_write": 21987,
+          "cache_write_1h": 21987
+        }
+      ],
+      "facets": {
+        "turn_id": "t15",
+        "native": {
+          "agent": "claude",
+          "type": "assistant"
+        },
+        "progress": {
+          "phase": "thinking",
+          "duration_ms": 1305,
+          "redacted": true
+        }
+      }
     },
     {
       "id": "4e165de8-a2f6-aa2c-ac32-52ae38729fcf#0",
@@ -61,15 +130,21 @@
         "description": "Dpmqe jfcqsc gxtn blf bwin slkaucbc"
       },
       "model": "claude-opus-5-5",
-      "usage": [
-        {
-          "model": "claude-opus-5-5",
-          "in": 2,
-          "out": 278,
-          "cache_write": 21987,
-          "cache_write_1h": 21987
+      "facets": {
+        "turn_id": "t15",
+        "native": {
+          "agent": "claude",
+          "type": "assistant",
+          "name": "Bash"
+        },
+        "tool": {
+          "kind": "execute",
+          "name": "Bash",
+          "title": "Dpmqe jfcqsc gxtn blf bwin slkaucbc",
+          "status": "running",
+          "language": "shell"
         }
-      ]
+      }
     },
     {
       "id": "1221df17-2adb-6918-7ebb-75a39ca4ebcc#0",
@@ -82,7 +157,20 @@
       "tool_input": {
         "skill": "vjm-kifhtzsrzt"
       },
-      "model": "claude-opus-5-5"
+      "model": "claude-opus-5-5",
+      "facets": {
+        "turn_id": "t15",
+        "native": {
+          "agent": "claude",
+          "type": "assistant",
+          "name": "Skill"
+        },
+        "tool": {
+          "kind": "skill",
+          "name": "Skill",
+          "status": "running"
+        }
+      }
     },
     {
       "id": "9bec9fe1-2190-e0c9-2391-f4c4d6e27cae#0",
@@ -94,6 +182,21 @@
       "tool_use_id": "toolu_M2DQ5830VaXCroWecR0yBT2L",
       "outcome": {
         "status": "ok"
+      },
+      "facets": {
+        "turn_id": "t15",
+        "parent_id": "toolu_M2DQ5830VaXCroWecR0yBT2L",
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        },
+        "tool": {
+          "kind": "execute",
+          "name": "Bash",
+          "title": "Dpmqe jfcqsc gxtn blf bwin slkaucbc",
+          "status": "completed",
+          "language": "shell"
+        }
       }
     },
     {
@@ -106,6 +209,19 @@
       "tool_use_id": "toolu_0gwZNT32MLDs7ocr76GpY9TR",
       "outcome": {
         "status": "ok"
+      },
+      "facets": {
+        "turn_id": "t15",
+        "parent_id": "toolu_0gwZNT32MLDs7ocr76GpY9TR",
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        },
+        "tool": {
+          "kind": "skill",
+          "name": "Skill",
+          "status": "completed"
+        }
       }
     },
     {
@@ -114,7 +230,14 @@
       "ts": "2026-01-01T00:08:44.041Z",
       "role": "system",
       "kind": "recap",
-      "text": "壬庚甲丙 Nwspyg 戊庚癸甲 XgsnLdrjbi，Kkswvi ID 丁丙癸己丁，丙丁丙戊壬戊丙戊。庚戊乙乙癸甲己 Tsq Iqnpc Ayjcksc 戊乙丁壬乙 Tsq 壬乙（Kkswvi ID 乙 xgh.lrfpwell.jfcqsc，MEV 丙己癸），戊丁庚庚壬，丙辛丙戊甲丙壬。"
+      "text": "壬庚甲丙 Nwspyg 戊庚癸甲 XgsnLdrjbi，Kkswvi ID 丁丙癸己丁，丙丁丙戊壬戊丙戊。庚戊乙乙癸甲己 Tsq Iqnpc Ayjcksc 戊乙丁壬乙 Tsq 壬乙（Kkswvi ID 乙 xgh.lrfpwell.jfcqsc，MEV 丙己癸），戊丁庚庚壬，丙辛丙戊甲丙壬。",
+      "facets": {
+        "turn_id": "t15",
+        "native": {
+          "agent": "claude",
+          "type": "system/away_summary"
+        }
+      }
     },
     {
       "id": "d7129139-312e-58e3-506e-8cabc1f9b894#0",
@@ -122,7 +245,17 @@
       "ts": "2026-01-01T00:12:53.377Z",
       "role": "user",
       "kind": "text",
-      "text": "[Ffeut #2]戊甲，戊戊壬戊戊甲辛癸：己庚癸辛己壬，己甲丁"
+      "text": "[Ffeut #2]戊甲，戊戊壬戊戊甲辛癸：己庚癸辛己壬，己甲丁",
+      "facets": {
+        "turn_id": "t44",
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        },
+        "input": {
+          "via": "typed"
+        }
+      }
     },
     {
       "id": "d7129139-312e-58e3-506e-8cabc1f9b894#1",
@@ -137,15 +270,24 @@
         "size": 72,
         "width": 1,
         "height": 1
+      },
+      "facets": {
+        "turn_id": "t44",
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        },
+        "input": {
+          "via": "typed"
+        }
       }
     },
     {
-      "id": "1f85101f-10cc-7bc2-1fbd-6406623fb022#0",
-      "seq": 51,
-      "ts": "2026-01-01T00:13:07.31Z",
+      "id": "5366fbe2-c349-f957-0db0-d2496bcd9325#0",
+      "seq": 50,
+      "ts": "2026-01-01T00:13:02.789Z",
       "role": "assistant",
-      "kind": "text",
-      "text": "「Xubh Rfkljl」丁丁戊戊丁丙壬辛，甲 Tsq Iqnpc Ayjcksc 乙乙丁乙庚丙癸，辛乙丙辛庚丙壬，庚庚己丁庚癸戊丁庚。Njeptt 丙辛丙甲癸，乙己甲庚甲甲癸庚庚甲庚。甲辛丁己癸己壬癸乙。\n\n丙辛甲庚丙己戊丁：\n\n1. **癸戊庚「Kxug Rfkljl」丙辛戊己**，丙庚辛己丁丁辛。戊丙庚癸庚庚壬庚庚丙壬。\n2. **庚庚己庚辛**，癸丁辛丁癸丁己丙甲壬丁戊，丙壬丁庚乙戊丙丙癸辛丙甲壬壬乙戊甲。Xntnrw 戊 Wagpuw 丁戊丙戊甲己辛。乙戊己辛丁壬己 Xntnrw 丙丁乙癸乙。\n3. 甲癸己戊戊，**癸己丁己己**（⌘ 庚乙）壬癸甲己庚壬戊。甲甲甲丁壬辛戊庚己丙乙戊戊庚丙壬丁壬丙庚庚。\n4. 乙癸戊丙**丁 Kkswvi ID 乙壬丁甲己**。丁癸甲辛乙丙丙丁癸癸乙甲，癸乙甲丙戊丙丁戊辛乙辛辛。\n\n乙 **Kxug Rfkljl** 乙丁，丙辛丁 Njeptt。乙癸己乙癸甲，辛庚癸己戊壬甲戊丁乙丙壬，庚己戊壬戊甲甲癸、壬甲。",
+      "kind": "thinking",
       "model": "claude-opus-5-5",
       "usage": [
         {
@@ -156,7 +298,35 @@
           "cache_write": 3045,
           "cache_write_1h": 3045
         }
-      ]
+      ],
+      "facets": {
+        "turn_id": "t44",
+        "native": {
+          "agent": "claude",
+          "type": "assistant"
+        },
+        "progress": {
+          "phase": "thinking",
+          "duration_ms": 4818,
+          "redacted": true
+        }
+      }
+    },
+    {
+      "id": "1f85101f-10cc-7bc2-1fbd-6406623fb022#0",
+      "seq": 51,
+      "ts": "2026-01-01T00:13:07.31Z",
+      "role": "assistant",
+      "kind": "text",
+      "text": "「Xubh Rfkljl」丁丁戊戊丁丙壬辛，甲 Tsq Iqnpc Ayjcksc 乙乙丁乙庚丙癸，辛乙丙辛庚丙壬，庚庚己丁庚癸戊丁庚。Njeptt 丙辛丙甲癸，乙己甲庚甲甲癸庚庚甲庚。甲辛丁己癸己壬癸乙。\n\n丙辛甲庚丙己戊丁：\n\n1. **癸戊庚「Kxug Rfkljl」丙辛戊己**，丙庚辛己丁丁辛。戊丙庚癸庚庚壬庚庚丙壬。\n2. **庚庚己庚辛**，癸丁辛丁癸丁己丙甲壬丁戊，丙壬丁庚乙戊丙丙癸辛丙甲壬壬乙戊甲。Xntnrw 戊 Wagpuw 丁戊丙戊甲己辛。乙戊己辛丁壬己 Xntnrw 丙丁乙癸乙。\n3. 甲癸己戊戊，**癸己丁己己**（⌘ 庚乙）壬癸甲己庚壬戊。甲甲甲丁壬辛戊庚己丙乙戊戊庚丙壬丁壬丙庚庚。\n4. 乙癸戊丙**丁 Kkswvi ID 乙壬丁甲己**。丁癸甲辛乙丙丙丁癸癸乙甲，癸乙甲丙戊丙丁戊辛乙辛辛。\n\n乙 **Kxug Rfkljl** 乙丁，丙辛丁 Njeptt。乙癸己乙癸甲，辛庚癸己戊壬甲戊丁乙丙壬，庚己戊壬戊甲甲癸、壬甲。",
+      "model": "claude-opus-5-5",
+      "facets": {
+        "turn_id": "t44",
+        "native": {
+          "agent": "claude",
+          "type": "assistant"
+        }
+      }
     },
     {
       "id": "ef011eea-45c7-0c2c-4d29-cdbc1a4521b6#0",
@@ -168,6 +338,13 @@
         "duration_ms": 14835,
         "source": "claude_turn_duration",
         "parent_uuid": "1f85101f-10cc-7bc2-1fbd-6406623fb022"
+      },
+      "facets": {
+        "turn_id": "t44",
+        "native": {
+          "agent": "claude",
+          "type": "system/turn_duration"
+        }
       }
     },
     {
@@ -176,7 +353,17 @@
       "ts": "2026-01-01T00:14:23.836Z",
       "role": "user",
       "kind": "text",
-      "text": "[Ffeut #3] 乙丁己"
+      "text": "[Ffeut #3] 乙丁己",
+      "facets": {
+        "turn_id": "t54",
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        },
+        "input": {
+          "via": "typed"
+        }
+      }
     },
     {
       "id": "d50bfbee-6fd1-2b44-8b01-2e57b6788286#1",
@@ -191,6 +378,16 @@
         "size": 72,
         "width": 1,
         "height": 1
+      },
+      "facets": {
+        "turn_id": "t54",
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        },
+        "input": {
+          "via": "typed"
+        }
       }
     },
     {
@@ -210,7 +407,18 @@
           "cache_write": 423,
           "cache_write_1h": 423
         }
-      ]
+      ],
+      "facets": {
+        "turn_id": "t54",
+        "native": {
+          "agent": "claude",
+          "type": "assistant"
+        },
+        "progress": {
+          "phase": "thinking",
+          "duration_ms": 212
+        }
+      }
     },
     {
       "id": "5fd0808f-86c7-6d4b-1ea5-26f804fd2044#0",
@@ -225,7 +433,22 @@
         "description": "Tges dhgxy blf gdfzbl-xzksc fekpcfit-yq ckymqhnm",
         "timeout": 600000
       },
-      "model": "claude-opus-5-5"
+      "model": "claude-opus-5-5",
+      "facets": {
+        "turn_id": "t54",
+        "native": {
+          "agent": "claude",
+          "type": "assistant",
+          "name": "Bash"
+        },
+        "tool": {
+          "kind": "execute",
+          "name": "Bash",
+          "title": "Tges dhgxy blf gdfzbl-xzksc fekpcfit-yq ckymqhnm",
+          "status": "running",
+          "language": "shell"
+        }
+      }
     },
     {
       "id": "3f2fb1d7-dba2-1ee2-b77f-cf21b22f6b54#0",
@@ -237,6 +460,21 @@
       "tool_use_id": "toolu_ye6E82ynJ0Uq6TsF594r1GKc",
       "outcome": {
         "status": "timed_out"
+      },
+      "facets": {
+        "turn_id": "t54",
+        "parent_id": "toolu_ye6E82ynJ0Uq6TsF594r1GKc",
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        },
+        "tool": {
+          "kind": "execute",
+          "name": "Bash",
+          "title": "Tges dhgxy blf gdfzbl-xzksc fekpcfit-yq ckymqhnm",
+          "status": "failed",
+          "language": "shell"
+        }
       }
     },
     {
@@ -253,6 +491,47 @@
         "task_id": "zv0385923",
         "tool_use_id": "toolu_mVzUcMWTwtWVMWPgsnyqzyRQ",
         "output_file": "/xdjsirj/tpq/rjehin-331/-Oabyo-wrmd/659e57bb-322f-34a5-b54e-77163220b4d5/knvzu/zv0385923.output"
+      },
+      "facets": {
+        "turn_id": "t54",
+        "native": {
+          "agent": "claude",
+          "type": "attachment"
+        },
+        "notice": {
+          "code": "task_update",
+          "severity": "info"
+        }
+      }
+    },
+    {
+      "id": "eccd35b3-b9b5-ce0f-4f0f-addee40753f6#0",
+      "seq": 68,
+      "ts": "2026-01-01T00:40:12.685Z",
+      "role": "assistant",
+      "kind": "thinking",
+      "model": "claude-opus-5-5",
+      "usage": [
+        {
+          "model": "claude-opus-5-5",
+          "in": 2,
+          "out": 905,
+          "cache_read": 90337,
+          "cache_write": 2045,
+          "cache_write_1h": 2045
+        }
+      ],
+      "facets": {
+        "turn_id": "t54",
+        "native": {
+          "agent": "claude",
+          "type": "assistant"
+        },
+        "progress": {
+          "phase": "thinking",
+          "duration_ms": 6701,
+          "redacted": true
+        }
       }
     },
     {
@@ -268,16 +547,21 @@
         "description": "Zkknd gdfzbl hohyuaky blf swwjop TgcksrtkSG rnvf"
       },
       "model": "claude-opus-5-5",
-      "usage": [
-        {
-          "model": "claude-opus-5-5",
-          "in": 2,
-          "out": 905,
-          "cache_read": 90337,
-          "cache_write": 2045,
-          "cache_write_1h": 2045
+      "facets": {
+        "turn_id": "t54",
+        "native": {
+          "agent": "claude",
+          "type": "assistant",
+          "name": "Bash"
+        },
+        "tool": {
+          "kind": "execute",
+          "name": "Bash",
+          "title": "Zkknd gdfzbl hohyuaky blf swwjop TgcksrtkSG rnvf",
+          "status": "running",
+          "language": "shell"
         }
-      ]
+      }
     },
     {
       "id": "1dcf641b-8f59-1c73-98e3-3fc948647203#0",
@@ -289,6 +573,51 @@
       "tool_use_id": "toolu_qadsCEk3s5nBySMwrwdqSPZh",
       "outcome": {
         "status": "ok"
+      },
+      "facets": {
+        "turn_id": "t54",
+        "parent_id": "toolu_qadsCEk3s5nBySMwrwdqSPZh",
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        },
+        "tool": {
+          "kind": "execute",
+          "name": "Bash",
+          "title": "Zkknd gdfzbl hohyuaky blf swwjop TgcksrtkSG rnvf",
+          "status": "completed",
+          "language": "shell"
+        }
+      }
+    },
+    {
+      "id": "a380cb36-bf95-287e-2537-ab1d91a00af5#0",
+      "seq": 72,
+      "ts": "2026-01-01T00:40:18.987Z",
+      "role": "assistant",
+      "kind": "thinking",
+      "model": "claude-opus-5-5",
+      "usage": [
+        {
+          "model": "claude-opus-5-5",
+          "in": 2,
+          "out": 212,
+          "cache_read": 92382,
+          "cache_write": 1046,
+          "cache_write_1h": 1046
+        }
+      ],
+      "facets": {
+        "turn_id": "t54",
+        "native": {
+          "agent": "claude",
+          "type": "assistant"
+        },
+        "progress": {
+          "phase": "thinking",
+          "duration_ms": 228,
+          "redacted": true
+        }
       }
     },
     {
@@ -304,16 +633,21 @@
         "description": "Read TgcksrtkSG 2.4.1 wscrsstltsal"
       },
       "model": "claude-opus-5-5",
-      "usage": [
-        {
-          "model": "claude-opus-5-5",
-          "in": 2,
-          "out": 212,
-          "cache_read": 92382,
-          "cache_write": 1046,
-          "cache_write_1h": 1046
+      "facets": {
+        "turn_id": "t54",
+        "native": {
+          "agent": "claude",
+          "type": "assistant",
+          "name": "Bash"
+        },
+        "tool": {
+          "kind": "execute",
+          "name": "Bash",
+          "title": "Read TgcksrtkSG 2.4.1 wscrsstltsal",
+          "status": "running",
+          "language": "shell"
         }
-      ]
+      }
     },
     {
       "id": "b1e815d2-ecd4-b0a8-eaf8-e5e79d959419#0",
@@ -325,6 +659,51 @@
       "tool_use_id": "toolu_xXZXsWB6e0q1ULF7TKiTfznn",
       "outcome": {
         "status": "ok"
+      },
+      "facets": {
+        "turn_id": "t54",
+        "parent_id": "toolu_xXZXsWB6e0q1ULF7TKiTfznn",
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        },
+        "tool": {
+          "kind": "execute",
+          "name": "Bash",
+          "title": "Read TgcksrtkSG 2.4.1 wscrsstltsal",
+          "status": "completed",
+          "language": "shell"
+        }
+      }
+    },
+    {
+      "id": "86dd7f1d-ba2c-0808-550f-9d3f0e098846#0",
+      "seq": 75,
+      "ts": "2026-01-01T00:40:28.24Z",
+      "role": "assistant",
+      "kind": "thinking",
+      "model": "claude-opus-5-5",
+      "usage": [
+        {
+          "model": "claude-opus-5-5",
+          "in": 2,
+          "out": 719,
+          "cache_read": 93428,
+          "cache_write": 366,
+          "cache_write_1h": 366
+        }
+      ],
+      "facets": {
+        "turn_id": "t54",
+        "native": {
+          "agent": "claude",
+          "type": "assistant"
+        },
+        "progress": {
+          "phase": "thinking",
+          "duration_ms": 4014,
+          "redacted": true
+        }
       }
     },
     {
@@ -340,16 +719,21 @@
         "description": "Uwar fdoaoszljo rnvf blf fxyhet wscrsstltsal"
       },
       "model": "claude-opus-5-5",
-      "usage": [
-        {
-          "model": "claude-opus-5-5",
-          "in": 2,
-          "out": 719,
-          "cache_read": 93428,
-          "cache_write": 366,
-          "cache_write_1h": 366
+      "facets": {
+        "turn_id": "t54",
+        "native": {
+          "agent": "claude",
+          "type": "assistant",
+          "name": "Bash"
+        },
+        "tool": {
+          "kind": "execute",
+          "name": "Bash",
+          "title": "Uwar fdoaoszljo rnvf blf fxyhet wscrsstltsal",
+          "status": "running",
+          "language": "shell"
         }
-      ]
+      }
     },
     {
       "id": "11d1e88e-2a3d-fdbd-15fe-e7023c069894#0",
@@ -361,15 +745,29 @@
       "tool_use_id": "toolu_mu0p2jxcN7e5ebP8MCMh2H9b",
       "outcome": {
         "status": "ok"
+      },
+      "facets": {
+        "turn_id": "t54",
+        "parent_id": "toolu_mu0p2jxcN7e5ebP8MCMh2H9b",
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        },
+        "tool": {
+          "kind": "execute",
+          "name": "Bash",
+          "title": "Uwar fdoaoszljo rnvf blf fxyhet wscrsstltsal",
+          "status": "completed",
+          "language": "shell"
+        }
       }
     },
     {
-      "id": "d0b98124-c1df-2c04-0b86-dab24da529f4#0",
-      "seq": 83,
-      "ts": "2026-01-01T00:40:50.631Z",
+      "id": "b4fc4c7f-68b9-e521-34a6-4e09708e63a6#0",
+      "seq": 82,
+      "ts": "2026-01-01T00:40:50.624Z",
       "role": "assistant",
-      "kind": "text",
-      "text": "`git xzksc` 丁辛庚戊（86 戊辛辛辛乙 32OD）。辛丙癸辛癸壬甲辛癸乙辛丁庚丁丁，丁辛癸丁癸 git 庚己，己甲己癸丁丙丁乙甲庚，己己己乙己庚：",
+      "kind": "thinking",
       "model": "claude-opus-5-5",
       "usage": [
         {
@@ -380,7 +778,35 @@
           "cache_write": 1991,
           "cache_write_1h": 1991
         }
-      ]
+      ],
+      "facets": {
+        "turn_id": "t54",
+        "native": {
+          "agent": "claude",
+          "type": "assistant"
+        },
+        "progress": {
+          "phase": "thinking",
+          "duration_ms": 3951,
+          "redacted": true
+        }
+      }
+    },
+    {
+      "id": "d0b98124-c1df-2c04-0b86-dab24da529f4#0",
+      "seq": 83,
+      "ts": "2026-01-01T00:40:50.631Z",
+      "role": "assistant",
+      "kind": "text",
+      "text": "`git xzksc` 丁辛庚戊（86 戊辛辛辛乙 32OD）。辛丙癸辛癸壬甲辛癸乙辛丁庚丁丁，丁辛癸丁癸 git 庚己，己甲己癸丁丙丁乙甲庚，己己己乙己庚：",
+      "model": "claude-opus-5-5",
+      "facets": {
+        "turn_id": "t54",
+        "native": {
+          "agent": "claude",
+          "type": "assistant"
+        }
+      }
     },
     {
       "id": "8fe335e0-210b-d619-53cc-77a59b02b677#0",
@@ -395,7 +821,22 @@
         "description": "Vdiglfvw fdoaoszljo difs blf vknz wbnwvv zpfmg qprkc",
         "timeout": 600000
       },
-      "model": "claude-opus-5-5"
+      "model": "claude-opus-5-5",
+      "facets": {
+        "turn_id": "t54",
+        "native": {
+          "agent": "claude",
+          "type": "assistant",
+          "name": "Bash"
+        },
+        "tool": {
+          "kind": "execute",
+          "name": "Bash",
+          "title": "Vdiglfvw fdoaoszljo difs blf vknz wbnwvv zpfmg qprkc",
+          "status": "running",
+          "language": "shell"
+        }
+      }
     },
     {
       "id": "c6260c1b-0db8-13ba-6aae-a5c02f3c43a3#0",
@@ -407,6 +848,21 @@
       "tool_use_id": "toolu_SjQPzvfEjyEMxe9rB8H8kJeD",
       "outcome": {
         "status": "ok"
+      },
+      "facets": {
+        "turn_id": "t54",
+        "parent_id": "toolu_SjQPzvfEjyEMxe9rB8H8kJeD",
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        },
+        "tool": {
+          "kind": "execute",
+          "name": "Bash",
+          "title": "Vdiglfvw fdoaoszljo difs blf vknz wbnwvv zpfmg qprkc",
+          "status": "completed",
+          "language": "shell"
+        }
       }
     },
     {
@@ -423,6 +879,17 @@
         "task_id": "aolsum42w",
         "tool_use_id": "toolu_ye6E82ynJ0Uq6TsF594r1GKc",
         "output_file": "/xdjsirj/tpq/rjehin-331/-Oabyo-wrmd/659e57bb-322f-34a5-b54e-77163220b4d5/knvzu/aolsum42w.output"
+      },
+      "facets": {
+        "turn_id": "t54",
+        "native": {
+          "agent": "claude",
+          "type": "attachment"
+        },
+        "notice": {
+          "code": "task_update",
+          "severity": "info"
+        }
       }
     },
     {
@@ -431,7 +898,18 @@
       "ts": "2026-01-01T02:49:31.014Z",
       "role": "system",
       "kind": "notice",
-      "text": "已中断"
+      "text": "已中断",
+      "facets": {
+        "turn_id": "t54",
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        },
+        "notice": {
+          "code": "interrupted",
+          "severity": "info"
+        }
+      }
     },
     {
       "id": "854ab526-ed17-464e-0495-c0babaafc517#0",
@@ -439,7 +917,14 @@
       "ts": "2026-01-01T02:52:41.551Z",
       "role": "system",
       "kind": "recap",
-      "text": "Nwspyg 己癸辛丁丁 XgsnLdrjbi 己，mem 丁戊 Tsabya 戊甲壬乙，癸乙 Dijipwedz HGXHF、丙丙、戊壬乙辛 tlc-6.1-zlgem 乙 KD 甲丁戊。辛癸乙：丁丁甲庚 Dijipwedz，丁己 `! lmh qfkvqp@192.0.2.2 ~/.jfcqsc/bin/zwhixul mem goot`，辛乙 Tsq 丙丙丙甲。"
+      "text": "Nwspyg 己癸辛丁丁 XgsnLdrjbi 己，mem 丁戊 Tsabya 戊甲壬乙，癸乙 Dijipwedz HGXHF、丙丙、戊壬乙辛 tlc-6.1-zlgem 乙 KD 甲丁戊。辛癸乙：丁丁甲庚 Dijipwedz，丁己 `! lmh qfkvqp@192.0.2.2 ~/.jfcqsc/bin/zwhixul mem goot`，辛乙 Tsq 丙丙丙甲。",
+      "facets": {
+        "turn_id": "t54",
+        "native": {
+          "agent": "claude",
+          "type": "system/away_summary"
+        }
+      }
     },
     {
       "id": "15341832-e866-e2ff-d15b-32af345a095e#0",
@@ -447,7 +932,47 @@
       "ts": "2026-01-01T03:21:44.753Z",
       "role": "user",
       "kind": "text",
-      "text": "@/Oabyo/wrmd/.pyqj/mpxkb-10697088-654208-6n3e96rl.pdr 癸辛壬，乙己庚庚癸戊壬辛甲己甲，丙癸乙戊 jfcqsc 丁丙己庚丁丁辛甲甲，辛乙甲甲丙 wdzcwzbdbu pytz"
+      "text": "@/Oabyo/wrmd/.pyqj/mpxkb-10697088-654208-6n3e96rl.pdr 癸辛壬，乙己庚庚癸戊壬辛甲己甲，丙癸乙戊 jfcqsc 丁丙己庚丁丁辛甲甲，辛乙甲甲丙 wdzcwzbdbu pytz",
+      "facets": {
+        "turn_id": "t95",
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        },
+        "input": {
+          "via": "typed"
+        }
+      }
+    },
+    {
+      "id": "943a198c-b85b-42c6-9d78-650c368b21b7#0",
+      "seq": 96,
+      "ts": "2026-01-01T03:21:53.116Z",
+      "role": "assistant",
+      "kind": "thinking",
+      "model": "claude-opus-5-5",
+      "usage": [
+        {
+          "model": "claude-opus-5-5",
+          "in": 4,
+          "out": 93,
+          "cache_read": 224395,
+          "cache_write": 92,
+          "cache_write_1h": 92
+        }
+      ],
+      "facets": {
+        "turn_id": "t95",
+        "native": {
+          "agent": "claude",
+          "type": "assistant"
+        },
+        "progress": {
+          "phase": "thinking",
+          "duration_ms": 250,
+          "redacted": true
+        }
+      }
     },
     {
       "id": "7202ef61-0dd8-7042-f39a-a0521ad097e4#0",
@@ -461,16 +986,24 @@
         "file_path": "/work/project/f6.png"
       },
       "model": "claude-opus-5-5",
-      "usage": [
-        {
-          "model": "claude-opus-5-5",
-          "in": 4,
-          "out": 93,
-          "cache_read": 224395,
-          "cache_write": 92,
-          "cache_write_1h": 92
+      "facets": {
+        "turn_id": "t95",
+        "native": {
+          "agent": "claude",
+          "type": "assistant",
+          "name": "Read"
+        },
+        "tool": {
+          "kind": "read",
+          "name": "Read",
+          "status": "running",
+          "locations": [
+            {
+              "path": "/work/project/f6.png"
+            }
+          ]
         }
-      ]
+      }
     },
     {
       "id": "8fb625b9-673a-86ff-e730-886219e090de#0",
@@ -481,6 +1014,24 @@
       "tool_use_id": "toolu_vzSf5BYEGMKMHHMDgMrxEFAb",
       "outcome": {
         "status": "ok"
+      },
+      "facets": {
+        "turn_id": "t95",
+        "parent_id": "toolu_vzSf5BYEGMKMHHMDgMrxEFAb",
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        },
+        "tool": {
+          "kind": "read",
+          "name": "Read",
+          "status": "completed",
+          "locations": [
+            {
+              "path": "/work/project/f6.png"
+            }
+          ]
+        }
       }
     },
     {
@@ -497,6 +1048,16 @@
         "size": 72,
         "width": 1,
         "height": 1
+      },
+      "facets": {
+        "turn_id": "t95",
+        "native": {
+          "agent": "claude",
+          "type": "user"
+        },
+        "input": {
+          "via": "typed"
+        }
       }
     }
   ],

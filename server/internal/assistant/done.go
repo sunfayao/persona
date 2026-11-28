@@ -18,7 +18,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/textfmt"
-	"github.com/sunfayao/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // Closing a finished task (#1092). When a task's agents have all stopped and its receipt
@@ -1053,7 +1053,7 @@ func turnReplyText(text string, clipped bool) string {
 
 // userStoppedNotice is the notice the transcript reader puts where the user stopped a turn (Claude Code's "[Request
 // interrupted by user]", Codex's turn_aborted; transcript/user_text.go, codex.go).
-const userStoppedNotice = transcript.InterruptedNotice
+const userStoppedNotice = turnmodel.LegacyInterrupted
 
 // silentTurn: a turn the node could read (it has items, at least the prompt) in which the agent neither replied nor
 // called a tool. Claude Code ends a turn so, without an error, when the model service answers 200 with nothing in it
@@ -1072,7 +1072,7 @@ func turnWithoutOutput(items []proto.Item) (none, stopped bool) {
 		return false, false // nothing to go by (an older node, a runtime that does not page items): not judged silent
 	}
 	for _, it := range items {
-		if it.Kind == proto.KindNotice && it.Text == userStoppedNotice {
+		if turnmodel.IsInterruptedNotice(it) {
 			stopped = true
 		}
 		if it.Role != "assistant" {

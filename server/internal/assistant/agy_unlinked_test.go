@@ -39,7 +39,7 @@ func TestJudgeTaskDoneNamesAnUnlinkedAgyPane(t *testing.T) {
 		proto.Session{SessionID: "agy-w2-p1", Agent: "agy", PaneID: "w2:p1", Cwd: "/code/app", UpdatedAt: linked.Add(7 * time.Minute)},
 		proto.Session{SessionID: "claude-1", Agent: "claude", Cwd: "/code/app", Status: proto.StatusIdle, UpdatedAt: linked.Add(8 * time.Minute)},
 	)
-	f.setItems(proto.Item{ID: agyPaneNoticeID, Seq: 1, Role: "system", Kind: proto.KindNotice, Text: "placeholder"})
+	f.setItems(proto.Item{ID: "agy#0", Seq: 1, Role: "system", Kind: proto.KindNotice, Text: "placeholder"})
 	putTodo(s, Todo{ID: "other", Title: "Another task", Origin: "conv1", CreatedAt: linked,
 		Agents: []TodoAgent{{MachineID: "box", SessionID: "agy-taken", LinkedAt: linked, Agent: "agy"}}})
 	task := Todo{ID: "task", Title: "Fix the login page", Origin: "conv1", CreatedAt: linked,
@@ -97,7 +97,7 @@ func TestJudgeTaskDoneUnlinkedAgyPaneWithoutCandidates(t *testing.T) {
 	s := newServiceOn(t, f, nil)
 	linked := time.Now().Add(-time.Minute).UTC()
 	f.setSessions("box", proto.Session{SessionID: "agy-w1-p1", Agent: "agy", PaneID: "w1:p1", Cwd: "/code/app", UpdatedAt: linked})
-	f.setItems(proto.Item{ID: agyPaneNoticeID, Seq: 1, Role: "system", Kind: proto.KindNotice, Text: "placeholder"})
+	f.setItems(proto.Item{ID: "agy#0", Seq: 1, Role: "system", Kind: proto.KindNotice, Text: "placeholder"})
 	task := Todo{ID: "task", Title: "Fix the login page", Origin: "conv1", CreatedAt: linked,
 		Agents: []TodoAgent{{MachineID: "box", SessionID: "agy-w1-p1", LinkedAt: linked, Cwd: "/code/app", Agent: "agy"}}}
 	putTodo(s, task)

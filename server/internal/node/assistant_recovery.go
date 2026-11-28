@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/lazyre"
 	"github.com/sunfayao/persona/server/internal/modelretry"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // A failed Claude turn is recovered before its idle state reaches the manager and the scheduled-run watcher. The
@@ -194,7 +194,7 @@ func (n *Node) claudeResultKinds(id string) []string {
 	if f.text == "" {
 		return nil // no failed turn written (yet): the words decide
 	}
-	if f.kind == proto.TurnErrorUsageLimit && assistantwire.GatewayQuotaText(f.text) {
+	if f.kind == proto.TurnErrorUsageLimit && turnmodel.GatewayQuotaText(f.text) {
 		st, _ := n.state.get(id)
 		if !n.recoveryProtected(id) || st.TaskExecution {
 			// Workers and strict task turns keep their existing bounded same-model retry policy.
@@ -331,7 +331,7 @@ func (n *Node) recoverAssistantResultFor(p *assistantProc, expected *assistantTu
 	p.mu.Unlock()
 	if failed && (!strict || modelretry.Permanent(result)) &&
 		(modelretry.Temporary(result) || modelretry.Permanent(result) || slices.Contains(kinds, assistantModelServiceFailure) || len(kinds) > 0 && kinds[0] == proto.TurnErrorTransient) &&
-		!assistantSafeguardsRefusal(result) && !assistantModelUnavailable(result) && !assistantwire.ToolSearchRefused(result) && ModelRecoveryReason(result) != proto.ModelRecoveryReasonQuota {
+		!assistantSafeguardsRefusal(result) && !assistantModelUnavailable(result) && !turnmodel.ToolSearchRefused(result) && ModelRecoveryReason(result) != proto.ModelRecoveryReasonQuota {
 		// Ordinary service failures go to the manager's durable scheduler. Strict task turns keep their
 		// bounded same-model retry here, where the exact execution and existing retry budget are known.
 		return false
@@ -340,7 +340,7 @@ func (n *Node) recoverAssistantResultFor(p *assistantProc, expected *assistantTu
 	// The endpoint refused Claude Code's tool search (#10365): remembered for the launcher and model, so their next
 	// start loads every tool, and the turn resent once in such a process, unseen. A process that started that way and
 	// is refused again ends the turn on the refusal (nothing loops).
-	toolSearch := failed && p.agent == "claude" && !p.toolSearch.forceOff && assistantwire.ToolSearchRefused(result)
+	toolSearch := failed && p.agent == "claude" && !p.toolSearch.forceOff && turnmodel.ToolSearchRefused(result)
 	if toolSearch && n.noteToolSearchRefused(p.launcher, p.model.Model, p.endpoint) {
 		n.logger.Printf("assistant %s: %s refused tool search for model %q: remembered, its next start loads every tool", short(p.id), p.launcher, p.model.Model)
 	}

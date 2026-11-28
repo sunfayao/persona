@@ -115,6 +115,7 @@ export interface Subagent {
   model?: string;
   /** Its latest reply's context plus output tokens, as a workflow agent's `tokens` (newer nodes, #5030). */
   tokens?: number;
+  status?: string;
 }
 
 /** Session.model_pick (#5033): model absent is the launcher's default, effort absent the one it runs with. */
@@ -852,6 +853,7 @@ export interface ScreenDialog {
   options?: DialogOption[];
   rev?: string;
   multi?: boolean;
+  question_dismissible?: boolean;
   submit?: string;
   steps?: { label: string; done: boolean }[];
   review?: boolean;

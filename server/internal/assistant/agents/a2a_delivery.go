@@ -17,6 +17,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/rpc"
 	"github.com/sunfayao/persona/server/internal/textfmt"
 	"github.com/sunfayao/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 const a2aConfirmFor = 10 * time.Minute
@@ -132,7 +133,7 @@ func a2aReadTurn(items []proto.Item, current bool) a2aTurnView {
 		if item.Role == "assistant" && item.Kind == proto.KindText && !item.Narration && item.Text != "" {
 			out.reply = a2aCleanText(item.Text)
 		}
-		if closed && item.ID == end.Key && item.Kind == proto.KindNotice && item.Text == transcript.InterruptedNotice {
+		if closed && item.ID == end.Key && turnmodel.IsInterruptedNotice(item) {
 			out.interrupted = true
 		}
 	}

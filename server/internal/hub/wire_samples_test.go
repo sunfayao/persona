@@ -248,6 +248,17 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 	add("sessions", "sessions_event", "会话事件以信封中的机器标识为准。", "event", ws(map[string]any{"type": "sessions", "machine_id": "m1", "sessions": sessions}),
 		map[string]any{"/type": "sessions", "/machine_id": "m1", "/sessions/0/machine_id": "m1", "/sessions/1/status": "offline"},
 		"server/internal/hub/http.go: Hub.serveWS")
+	typed := proto.Session{MachineID: "m1", SessionID: "typed", UpdatedAt: now,
+		Facets: &proto.SessionFacets{
+			Plan:    &proto.SessionPlan{At: now, Entries: []proto.PlanEntry{{ID: "check", Title: "Review the example", Status: proto.PlanEntryStatusCompleted}}},
+			Context: &proto.ContextMeter{Used: 250, Window: 1000, Source: proto.ContextSourceReported},
+		},
+		Subagents: []proto.Subagent{{ID: "example-child", Status: proto.SubagentStatusCompleted}},
+	}
+	add("sessions", "session_turn_facets", "A session relays the typed checklist, context meter, and subagent state.",
+		"sessions", httpJSON(map[string]any{"sessions": []proto.Session{typed}}),
+		map[string]any{"/sessions/0/facets/plan/entries/0/status": "completed", "/sessions/0/facets/context/used": 250, "/sessions/0/subagents/0/status": "completed"},
+		"server/internal/proto/session.go: Session", "server/internal/proto/turnmodel_gen.go: SessionFacets")
 	nativeCLI := proto.Session{MachineID: "m1", SessionID: "cli", Agent: "codex", PaneID: "w1:p2",
 		Capabilities: &proto.SessionCapabilities{Read: true, Send: true, Terminal: true, NativeSlashCommands: true}}
 	add("sessions", "session_native_slash_commands", "A terminal-backed Codex session advertises native slash-command routing.",
@@ -607,6 +618,16 @@ func wireItemEvents(t *testing.T, add wireAdder, now time.Time, items []proto.It
 	h := &Hub{clients: map[*client]struct{}{c: {}}}
 	h.itemsToSubscribers("m1", "s1", items, itemSpan{History: "history_example", FromSeq: &from, ToSeq: &to}, false)
 	add("item_events", "items_live_lazy", "实时事件保留起点零值，并按订阅要求移除图片数据。", "event", wireReceive(t, c), map[string]any{"/type": "items", "/from_seq": 0, "/to_seq": 8, "/backlog": false, "/has_more": nil, "/more_after": false, "/items/1/image/lazy": true, "/items/1/image/data": ""}, "server/internal/hub/http.go: Hub.itemsToSubscribers")
+	typed := []proto.Item{
+		{ID: "example_call", Role: "assistant", Kind: proto.KindToolUse, Seq: 1, TS: now, ToolName: "Bash", ToolUseID: "check",
+			Facets: &proto.ItemFacets{Tool: &proto.ToolFacet{Kind: proto.ToolKindExecute, Name: "Bash"}}},
+		{ID: "example_result", Role: "user", Kind: proto.KindToolResult, Seq: 2, TS: now, ToolUseID: "check",
+			Outcome: &proto.ToolOutcome{Status: proto.OutcomeOK, ExitCode: new(0), DurationMS: new(int64(125))}},
+	}
+	h.itemsToSubscribers("m1", "s1", typed, itemSpan{}, false)
+	add("item_events", "items_turn_facets", "An item event relays the tool kind and outcome, including an exit code of zero.",
+		"event", wireReceive(t, c), map[string]any{"/items/0/facets/tool/kind": "execute", "/items/1/outcome/exit_code": 0,
+			"/items/1/outcome/duration_ms": 125}, "server/internal/hub/http.go: Hub.itemsToSubscribers")
 	from, to = 8, 10
 	h.itemsToSubscribers("m1", "s1", nil, itemSpan{History: "history_example", FromSeq: &from, ToSeq: &to}, false)
 	add("item_events", "items_empty_advance", "没有内容块的行仍发送空数组和连续性范围。", "event", wireReceive(t, c), map[string]any{"/items": []any{}, "/from_seq": 8, "/to_seq": 10}, "server/internal/hub/http.go: Hub.itemsToSubscribers", "docs/protocol/protocol.md: items 的连续性")
@@ -717,6 +738,13 @@ func wireCompatibility(t *testing.T, files map[string][]wireSample, add wireAdde
 	add("compatibility", "session_unknown_enums", "未知会话状态降级为 unknown。", "compat_session", httpJSON(proto.Session{SessionID: "s1", Status: "future_status", State: "future_state", UpdatedAt: now}), map[string]any{"/status": "unknown", "/state": "unknown"}, "docs/protocol/protocol.md")
 	add("compatibility", "session_missing_fields", "旧会话缺字段时使用当前 iOS 的默认值。", "compat_session", httpJSON(map[string]any{"session_id": "s1", "status": "blocked"}), map[string]any{"/machine_id": "", "/title": "", "/state": "needs_you", "/assistant": false, "/pending_interactions": 0}, "docs/protocol/protocol.md")
 	add("compatibility", "item_unknown_kind", "未知内容块类型降级为 unknown。", "compat_event", ws(map[string]any{"type": "items", "machine_id": "m1", "session_id": "s1", "items": []proto.Item{{ID: "entry_future#0", Seq: 1, TS: now, Role: "assistant", Kind: "future_kind"}}}), map[string]any{"/items/0/kind": "unknown"}, "docs/protocol/protocol.md")
+	add("compatibility", "item_future_facets", "Unknown facet fields and enum values leave the legacy item readable.",
+		"compat_event", ws(map[string]any{"type": "items", "machine_id": "m1", "session_id": "s1", "items": []any{
+			map[string]any{"id": "future", "kind": "notice", "role": "system", "seq": 1, "ts": now, "text": "A status update",
+				"facets": map[string]any{"future_facet": true, "notice": map[string]any{"code": "future_notice", "severity": "info"},
+					"tool": map[string]any{"kind": "future_tool", "name": "Example"}}},
+		}}), map[string]any{"/items/0/kind": "notice", "/items/0/text": "A status update"},
+		"docs/protocol/protocol.md: Turn model")
 	for _, bad := range []struct {
 		name, desc string
 		body       any

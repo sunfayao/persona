@@ -3,7 +3,6 @@ package assistantwire
 import (
 	"context"
 	"encoding/json"
-	"strings"
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -210,45 +209,9 @@ type MessageCard struct {
 	DismissalUpdatedAt *time.Time `json:"dismissal_updated_at,omitempty"`
 }
 
-// APIErrorMarkers start what Claude Code answers when the model call itself failed (an error card in the app). Both
-// sides read a turn by them: the hub's session lists say an agent's turn was cut off (proto.Session.TurnError), the
-// assistant's scheduled runs and tasks act on it. "Not logged in · Please run /login" is what Claude Code answers when
-// it has no credentials (a model of its own, "<synthetic>"): the turn did not run, the user must sign in.
-// Its separator is in the marker, so a reply that talks about being logged out is a reply.
-var APIErrorMarkers = []string{"API Error:", "There's an issue with the selected model", "Failed to authenticate",
-	"OAuth token has expired", "Invalid API key", "Not logged in ·", "Request too large"}
-
-// refusalMarkers start the other lines Claude Code writes itself instead of an answer when the request was refused
-// before the model ran: a sign-in that is gone ("Please run /login · API Error: 403", "Login expired · Please run
-// /login"); a subscription's usage limit is its own line (UsageLimitText). Newer versions mark every such
-// line in their record (isApiErrorMessage, read by the node into proto.Session.TurnError); these read an older node's
-// list. Only as the start of the answer, never inside one (a reply may quote them).
-var refusalMarkers = []string{"Please run /login", "Login expired ·", "OAuth token revoked ·", "Login reached its time limit ·"}
-
 // InterruptedSummary is what is said of a turn the model service cut off, instead of its last words (the error is no
 // conclusion, #1516): an interrupted task's receipt, the push.
 const InterruptedSummary = "模型服务出错，中断了"
-
-// CutOff: an agent's answer is the model API error that ended its turn (it starts with one, APIErrorMarkers or
-// refusalMarkers, or is Claude Code's usage-limit line).
-func CutOff(answer string) bool {
-	answer = strings.TrimSpace(answer)
-	const sealedPrefix = "this conversation was compacted natively by "
-	if len(answer) >= len(sealedPrefix) && strings.EqualFold(answer[:len(sealedPrefix)], sealedPrefix) &&
-		proto.UnrecoverableTurnErrorCode(answer) != "" {
-		return true
-	}
-	return startsWithAny(answer, APIErrorMarkers) || startsWithAny(answer, refusalMarkers) || UsageLimitText(answer)
-}
-
-func startsWithAny(s string, prefixes []string) bool {
-	for _, p := range prefixes {
-		if strings.HasPrefix(s, p) {
-			return true
-		}
-	}
-	return false
-}
 
 // StartEnded is session.start_ended's params: how an app's start that the node ran before answering went (a resume, a
 // Codex, an older app; one answered at once is followed in the session lists), for launcher health.

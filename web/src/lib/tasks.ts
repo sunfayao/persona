@@ -284,6 +284,14 @@ function agentNoteStatus(note: TaskNote | undefined): AgentStatus | undefined {
 }
 
 export function agentStatus(result: Item | undefined, meta: Subagent | undefined, live: boolean, notes?: TaskNote[]): AgentStatus {
+  switch (meta?.status) {
+    case "starting":
+    case "waiting":
+    case "running": return "running";
+    case "completed": return "completed";
+    case "failed": return "failed";
+    case "cancelled": return "stopped";
+  }
   if (result?.is_error) return "failed";
   const status = agentNoteStatus(notes?.at(-1)) ?? agentNoteStatus(result?.task);
   if (status) return status;
@@ -364,7 +372,8 @@ export function modelChipLabel(model: string | undefined): string {
 export const isNestedSubagentStep = (s: Step): boolean => s.kind === "tool" && s.use.id.startsWith(NESTED);
 
 /** How a nested subagent is going: only the session's list knows (no call result of the chat's says it). */
-export const nestedSubagentStatus = (a: Subagent | undefined): AgentStatus => (a?.running ? "running" : "completed");
+export const nestedSubagentStatus = (a: Subagent | undefined): AgentStatus =>
+  a?.status ? agentStatus(undefined, a, false) : a?.running ? "running" : "completed";
 
 /** An exchange's steps with the subagents its subagents launched (and theirs), each a card of its own (#5030, cindy:
  *  no tree), among the steps by when it started: after the last step that started before it, never before the call

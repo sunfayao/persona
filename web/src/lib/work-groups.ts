@@ -8,6 +8,7 @@ import { isChildSessionStep } from "./child-cards";
 import { wakeSummary } from "./tasks";
 import { toolLabel, type Step } from "./turns";
 import type { Item } from "./types";
+import { itemFacets } from "./turn-upcast";
 
 export type ToolStep = Extract<Step, { kind: "tool" }>;
 
@@ -42,15 +43,12 @@ interface WorkGroupOptions {
  *  starts a new run of work, and the time between is not counted. */
 const IDLE_GAP_MS = 30 * 60 * 1000;
 
-const AGENT_TOOLS = new Set(["Task", "Agent"]);
-const PLAN_TOOLS = new Set(["TodoWrite"]);
-
-export const isAgentStep = (s: Step): boolean => s.kind === "tool" && AGENT_TOOLS.has(s.use.tool_name ?? "");
-export const isPlanStep = (s: Step): boolean => s.kind === "tool" && PLAN_TOOLS.has(s.use.tool_name ?? "");
+export const isAgentStep = (s: Step): boolean => s.kind === "tool" && itemFacets(s.use).tool?.kind === "agent";
+export const isPlanStep = (s: Step): boolean => s.kind === "tool" && Boolean(s.result?.facets?.plan || itemFacets(s.use).plan);
 /** Claude Code's Workflow call (#3434): its run's card where the hub lists the run, else the row it always was. */
-export const isWorkflowStep = (s: Step): s is ToolStep => s.kind === "tool" && s.use.tool_name === "Workflow";
+export const isWorkflowStep = (s: Step): s is ToolStep => s.kind === "tool" && itemFacets(s.use).tool?.kind === "workflow";
 /** A tool call drawn as an action row (not a subagent card, not a plan card, not a workflow's call). */
-export const isRowStep = (s: Step): s is ToolStep => s.kind === "tool" && !isAgentStep(s) && !isPlanStep(s) && !isWorkflowStep(s);
+export const isRowStep = (s: Step): s is ToolStep => s.kind === "tool" && !s.result?.facets?.artifact && !isAgentStep(s) && !isPlanStep(s) && !isWorkflowStep(s);
 const isCompactStep = (s: Step) => s.kind === "notice" && Boolean(s.item.compact);
 /** A Codex visualize fragment is response content, like the words: it stands in the open where it was written. */
 const isVisualizationStep = (s: Step) => s.kind === "visualization";
@@ -187,14 +185,13 @@ export interface Todo {
 }
 
 export function planTodos(s: ToolStep): Todo[] {
-  const todos = (s.use.tool_input as { todos?: unknown } | undefined)?.todos;
-  if (!Array.isArray(todos)) return [];
-  return todos.flatMap((t) => {
-    if (!t || typeof t !== "object") return [];
-    const o = t as Record<string, unknown>;
-    const content = typeof o.content === "string" ? o.content : typeof o.activeForm === "string" ? o.activeForm : "";
-    const status = o.status === "completed" || o.status === "in_progress" ? o.status : "pending";
-    return content ? [{ content, status, ...(typeof o.activeForm === "string" ? { activeForm: o.activeForm } : {}) }] : [];
+  const plan = s.result?.facets?.plan ?? itemFacets(s.use).plan;
+  if (!plan) return [];
+  return plan.entries.flatMap((entry): Todo[] => {
+    if (!entry.title || entry.status === "cancelled") return [];
+    const status = entry.status === "in_progress" ? "in_progress"
+      : entry.status === "completed" || entry.status === "skipped" ? "completed" : "pending";
+    return [{ content: entry.title, status, activeForm: entry.active_form }];
   });
 }
 
@@ -267,6 +264,8 @@ export function workDuration(msValue: number, opts: { minimumSeconds?: number; a
 /** A tool call's own elapsed time, from its call timestamp to its result's (#8163). Both are transcript timestamps
  *  rather than provider-recorded timing; null when either is missing or unparseable, or the result predates the call. */
 export function toolDurationMs(s: ToolStep): number | null {
+  const reported = s.result?.outcome?.duration_ms;
+  if (typeof reported === "number" && Number.isFinite(reported) && reported >= 0) return reported;
   const start = tsMs(s.use.ts);
   const end = tsMs(s.result?.ts);
   return start !== null && end !== null && end >= start ? end - start : null;
@@ -275,7 +274,11 @@ export function toolDurationMs(s: ToolStep): number | null {
 /** Only reliable spans of at least 30 seconds warrant an action-row duration; unfinished calls do not guess. */
 export function toolDurationLabel(s: ToolStep): string | null {
   const ms = toolDurationMs(s);
-  return ms !== null && ms >= 30_000 ? workDuration(ms) : null;
+  if (ms === null) return null;
+  if (s.result?.outcome?.duration_ms === ms) {
+    return ms < 1000 ? t("lib-work-groups.dur_milliseconds", { ms }) : workDuration(ms);
+  }
+  return ms >= 30_000 ? workDuration(ms) : null;
 }
 
 /** A stretch's row in words: what it did by kind ("Ran 3 commands · Edited 2 files"); without tool calls, its
@@ -302,15 +305,17 @@ export function actionSummary(g: WorkGroupNode): { text: string; icon: string } 
   for (const child of g.children) {
     if (child.kind !== "step" || child.step.kind !== "tool") continue;
     const use = child.step.use;
-    const name = use.tool_name ?? "";
-    const kind = name === "Read" ? "read" : ["Edit", "Write", "MultiEdit", "NotebookEdit", "apply_patch"].includes(name) ? "edit" : ["Bash", "exec_command", "shell", "PowerShell"].includes(name) ? "run" : ["Grep", "Glob", "WebSearch"].includes(name) ? "search" : name;
+    const tool = itemFacets(use).tool;
+    const name = tool?.name ?? use.tool_name ?? "";
+    const kind = tool?.kind === "read" ? "read" : tool?.kind === "edit" || tool?.kind === "write" ? "edit"
+      : tool?.kind === "execute" ? "run" : tool?.kind === "search" || tool?.kind === "web_search" ? "search" : name;
     let entry = kinds.get(kind);
     if (!entry) {
       const known = ["read", "edit", "run", "search"].includes(kind);
       entry = { count: 0, paths: new Set(), icon: known ? kind === "edit" ? "write" : kind : "tool", ...(known ? { key: `lib-work-groups.actions_${kind}` } : { label: toolLabel(name) }) };
       kinds.set(kind, entry);
     }
-    const path = (use.tool_input as Record<string, unknown> | undefined)?.file_path;
+    const path = tool?.locations?.[0]?.path ?? use.tool_input?.file_path;
     if ((kind === "read" || kind === "edit") && typeof path === "string" && path) {
       if (entry.paths.has(path)) continue;
       entry.paths.add(path);

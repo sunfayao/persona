@@ -54,7 +54,7 @@ func (n *Node) subagentFile(id string) (*transcript.File, error) {
 			return nil, fmt.Errorf("subagent %s not found", agent)
 		}
 	}
-	return transcript.NewParsedFile(p, transcript.Sources{Claude: claude.Reader{}, Sidechain: true}), nil
+	return transcript.NewParsedFile(p, transcript.Sources{Claude: claude.Reader{}, Sidechain: true, Agent: "claude"}), nil
 }
 
 type subagentMeta struct {

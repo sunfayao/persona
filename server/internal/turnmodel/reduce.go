@@ -18,7 +18,12 @@ type Snapshot struct {
 	Background      []proto.BackgroundTask
 	BackgroundEnded []proto.BackgroundTask
 	Timers          []proto.TaskFacet
+	timersSeen      bool
 	Loop            *proto.LoopInfo
+	Subagents       []proto.Subagent
+	Artifacts       []proto.ArtifactFacet
+	Progress        *proto.SessionProgress
+	Turn            *proto.TurnState
 }
 
 type backgroundTask struct {
@@ -39,10 +44,13 @@ func Reduce(items []proto.Item) Snapshot {
 	background := make(map[string]backgroundTask)
 	timers := make(map[string]timerTask)
 	fired := make(map[string]int)
+	subagents := make(map[string]int)
+	artifacts := make(map[string]int)
 	for i, item := range items {
 		if item.Facets == nil {
 			continue
 		}
+		out.observePresentation(item, subagents, artifacts)
 		if plan := item.Facets.Plan; plan != nil {
 			switch plan.Mode {
 			case proto.TurnPlanModeReplace:
@@ -57,6 +65,7 @@ func Reduce(items []proto.Item) Snapshot {
 			}
 		}
 		if notice := item.Facets.Notice; notice != nil && notice.Code == proto.NoticeCodeServerRestart {
+			out.timersSeen = true
 			clear(timers)
 			clear(fired)
 			for _, running := range slices.SortedFunc(maps.Values(background), func(a, b backgroundTask) int { return cmp.Compare(a.order, b.order) }) {
@@ -68,6 +77,7 @@ func Reduce(items []proto.Item) Snapshot {
 		if task := item.Facets.Task; task != nil {
 			switch task.Kind {
 			case proto.TaskKindTimer:
+				out.timersSeen = true
 				updateTimer(timers, fired, i, *task)
 			case proto.TaskKindShell, proto.TaskKindMonitor, proto.TaskKindAgent, proto.TaskKindWorkflow:
 				out.BackgroundEnded = updateBackground(background, out.BackgroundEnded, i, item.TS, *task)

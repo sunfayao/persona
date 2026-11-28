@@ -1,3 +1,4 @@
+import { screenQuestionDismissible } from "../../lib/turn-upcast";
 // What the agent is waiting on (questions, plans, permissions, terminal dialogs, MCP forms and links), as Beautiful UI's Approval Card.
 import { Component, createContext, Fragment, Suspense, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ErrorInfo, type ReactNode, type RefObject } from "react";
 import { answerCard, usePendingLine } from "../../lib/card-answer";
@@ -889,8 +890,8 @@ function PlainScreenCard({ ix }: { ix: Interaction }) {
   }, []);
   const d = ix.dialog;
   const options = d?.options ?? [];
-  const trae = d?.rev?.startsWith("trae-question:") ?? false;
-  const terminalOnly = trae && !options.length;
+  const dismissible = screenQuestionDismissible(d);
+  const terminalOnly = !dismissible && !options.length;
   // a dialog read into its options is a question on the computer's screen: drawn as every question card is (option
   // rows, the write-in row, a pick sends it), with nothing beside its answers that puts it away or ends the Agent
   const choosing = options.length > 0;
@@ -926,7 +927,7 @@ function PlainScreenCard({ ix }: { ix: Interaction }) {
       cardKeys={keys}
       tapGuard={tapGuard}
       // only a screen read without options can be left to the computer: what it asks is not on the card
-      onDismiss={trae || choosing ? undefined : () => go({ dismiss: true }, "dismiss")}
+      onDismiss={!dismissible || choosing ? undefined : () => go({ dismiss: true }, "dismiss")}
       busy={busy !== null}
       footer={choosing ? null : <div className="flex w-full min-w-0 flex-col gap-2">
         <div className="flex min-w-0 items-center gap-2">
@@ -957,7 +958,7 @@ function PlainScreenCard({ ix }: { ix: Interaction }) {
         </div>
         {/* a screen the hub could not read into options may be a confirmation no card can answer: closing the Agent is
             the way out here. A question's card never offers it (the session's menu still does) */}
-        {!trae && <CloseBlockedAgent ix={ix} disabled={busy !== null} />}
+        {dismissible && <CloseBlockedAgent ix={ix} disabled={busy !== null} />}
       </div>}
     >
       {/* long words (a command the hub did not read as one, #6638) fold as the chat's long blocks do, so the choices

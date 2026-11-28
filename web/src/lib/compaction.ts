@@ -87,12 +87,12 @@ function isCompactedNote(it: Item): boolean {
 const isIdleNote = (it: Item) => (it.text ?? "").startsWith("Compacted while idle");
 
 function isBoundary(it: Item): boolean {
-  return it.kind === "notice" && (Boolean(it.compact) || isNotice(it, COMPACTED_TEXT));
+  return it.kind === "notice" && (it.facets?.notice?.code === "compacted" || Boolean(it.compact) || isNotice(it, COMPACTED_TEXT));
 }
 
 /** A notice that stands for a compaction (after `foldCompactions`): one divider. */
 export function isCompaction(it: Item): boolean {
-  return it.kind === "notice" && Boolean(it.compact);
+  return it.kind === "notice" && (it.facets?.notice?.code === "compacted" || Boolean(it.compact));
 }
 
 /**

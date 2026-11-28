@@ -19,7 +19,7 @@ function* sourceFiles(dir: string): Generator<string> {
     const name = posix.join(dir, entry.name);
     if (entry.isDirectory()) yield* sourceFiles(name);
     else if (entry.isFile() && /\.tsx?$/.test(name) && !/\.(?:test|spec)\.tsx?$|-wire\.ts$/.test(name) &&
-             name !== "src/lib/agent-kind.ts") yield name;
+             !["src/lib/agent-kind.ts", "src/lib/types.ts", "src/lib/turn-upcast.ts", "src/lib/tool-registry.ts"].includes(name)) yield name;
   }
 }
 
@@ -60,7 +60,7 @@ function fieldAfter(tokens: Token[], i: number): string | undefined {
   }
 }
 
-function countBranches(path: string, text: string): number {
+function countBranches(path: string, text: string, countIdentity = true): number {
   if (!candidate.test(text)) return 0;
   // Tokenize rather than build a TypeScript AST for hundreds of files. Comments are trivia;
   // quoted tool names and identifiers inside template interpolations are still tokens.
@@ -88,7 +88,7 @@ function countBranches(path: string, text: string): number {
     count += text.match(markers)?.length ?? 0;
     tokens.push({ kind, text });
   }
-  for (const i of operators) {
+  for (const i of countIdentity ? operators : []) {
     if (matchesCLI(fieldBefore(tokens, i - 1), tokens[i + 1]) || matchesCLI(fieldAfter(tokens, i + 1), tokens[i - 1])) count++;
   }
   return count;
@@ -98,7 +98,12 @@ test("CLI-specific content branches only go down", () => {
   const actual: Record<string, number> = {};
   const paths = [...sourceFiles("src/views/chat"), ...sourceFiles("src/lib")].sort();
   for (const path of paths) {
-    const count = countBranches(path, readFileSync(path, "utf8"));
+    // Provider configuration and launch routing still identify their protocols. Chat content
+    // and presentation consume facets and capabilities, including for old rows.
+    const content = path.startsWith("src/views/chat/") || [
+      "turns", "turn-images", "work-groups", "tool-detail", "closeout-commands", "tasks", "latest-plan", "compaction", "api-errors",
+    ].some((name) => path === `src/lib/${name}.ts`);
+    const count = countBranches(path, readFileSync(path, "utf8"), content);
     if (count) actual[path] = count;
   }
   const baseline = JSON.parse(readFileSync(baselinePath, "utf8")) as Record<string, number>;

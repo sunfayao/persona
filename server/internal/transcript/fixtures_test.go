@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/node/harness/traex"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -41,6 +42,14 @@ func fixtures(t *testing.T) []fixture {
 }
 
 func (fx fixture) open(path string) *File {
+	switch fx.name {
+	case "codex-0.171":
+		return NewParsedFile(path, Sources{Agent: "codex"})
+	case "traex-native-tools":
+		return NewParsedFile(path, Sources{Agent: "traex", RolloutTools: traex.RolloutTools{}})
+	case "claude-session":
+		return NewParsedFile(path, Sources{Agent: "claude"})
+	}
 	if fx.sub {
 		return NewSubagentFile(path)
 	}
@@ -248,11 +257,12 @@ func TestFixtureFullRestoresWhatPagesLeaveOut(t *testing.T) {
 			}
 			whole := map[string]proto.Item{}
 			meta := Meta{Sidechain: fx.sub}
+			parser := fx.open(fx.path)
 			for i, line := range bytes.Split(data, []byte("\n")) {
 				if len(bytes.TrimSpace(line)) == 0 {
 					continue
 				}
-				for _, it := range ParseLine(i+1, line, &meta) {
+				for _, it := range parser.parseLine(i+1, line, &meta) {
 					whole[it.ID] = it
 				}
 			}

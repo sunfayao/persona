@@ -6,7 +6,17 @@
       "ts": "2026-01-01T00:00:05.739Z",
       "role": "user",
       "kind": "text",
-      "text": "Please inspect the sample project."
+      "text": "Please inspect the sample project.",
+      "facets": {
+        "turn_id": "31dcf780-a0cc-2a37-4685-ee4830b54b7d",
+        "native": {
+          "agent": "codex",
+          "type": "UserMessage"
+        },
+        "input": {
+          "via": "typed"
+        }
+      }
     },
     {
       "id": "msg_t3mMsmSB0s1UwxjwYPoLJN4wS6ypi3evgKNuHZp5v33b0pRWeR#0",
@@ -16,7 +26,17 @@
       "kind": "text",
       "text": "U’zo teqes tulow IFK Cihcwgx’l uajnsrf wmmjofy rafxpbue the mdamhqeh bftsm, hdrn mvs the kvufjdx gyv wyrzmp od with j glye bftsm elhkjvw. U’zo use the Dvixzribv bgwqv to sajfv the jqmkoaliot xfaakrix xutoi.",
       "narration": true,
-      "model": "gpt-5-codex"
+      "model": "gpt-5-codex",
+      "facets": {
+        "turn_id": "31dcf780-a0cc-2a37-4685-ee4830b54b7d",
+        "native": {
+          "agent": "codex",
+          "type": "AgentMessage"
+        },
+        "progress": {
+          "phase": "commentary"
+        }
+      }
     },
     {
       "id": "exec-0c1245a7-038f-8ea2-b358-ea84af466ae9#0",
@@ -29,7 +49,21 @@
       "tool_input": {
         "command": "cat /peqy/kekcpieg/jpnla_bxx/tbiaayfx/yycboti/fffiut/qurpsk/iztpbslcc/NXZRE.ns"
       },
-      "model": "gpt-5-codex"
+      "model": "gpt-5-codex",
+      "facets": {
+        "turn_id": "31dcf780-a0cc-2a37-4685-ee4830b54b7d",
+        "native": {
+          "agent": "codex",
+          "type": "CommandExecution",
+          "name": "Bash"
+        },
+        "tool": {
+          "kind": "execute",
+          "name": "Bash",
+          "status": "running",
+          "language": "shell"
+        }
+      }
     },
     {
       "id": "exec-0c1245a7-038f-8ea2-b358-ea84af466ae9#1",
@@ -43,6 +77,20 @@
         "status": "ok",
         "exit_code": 0,
         "duration_ms": 0
+      },
+      "facets": {
+        "turn_id": "31dcf780-a0cc-2a37-4685-ee4830b54b7d",
+        "parent_id": "exec-0c1245a7-038f-8ea2-b358-ea84af466ae9",
+        "native": {
+          "agent": "codex",
+          "type": "CommandExecution"
+        },
+        "tool": {
+          "kind": "execute",
+          "name": "Bash",
+          "status": "completed",
+          "language": "shell"
+        }
       }
     },
     {
@@ -56,7 +104,21 @@
       "tool_input": {
         "command": "rg -m -i 'uajnsrf wmmjofy|丙庚癸乙|yygzk_qrtmuv|庚丙甲丁|bftsm.{0,93}qwcweay|qwcweay.{0,93}bftsm' /vckc91/peqy/kekcpieg/.btbsk/eueaazet/FAULPY.ns"
       },
-      "model": "gpt-5-codex"
+      "model": "gpt-5-codex",
+      "facets": {
+        "turn_id": "31dcf780-a0cc-2a37-4685-ee4830b54b7d",
+        "native": {
+          "agent": "codex",
+          "type": "CommandExecution",
+          "name": "Bash"
+        },
+        "tool": {
+          "kind": "execute",
+          "name": "Bash",
+          "status": "running",
+          "language": "shell"
+        }
+      }
     },
     {
       "id": "exec-94f27d8d-42a5-eadb-deae-7784cfd5f606#1",
@@ -70,6 +132,20 @@
         "status": "ok",
         "exit_code": 0,
         "duration_ms": 0
+      },
+      "facets": {
+        "turn_id": "31dcf780-a0cc-2a37-4685-ee4830b54b7d",
+        "parent_id": "exec-94f27d8d-42a5-eadb-deae-7784cfd5f606",
+        "native": {
+          "agent": "codex",
+          "type": "CommandExecution"
+        },
+        "tool": {
+          "kind": "execute",
+          "name": "Bash",
+          "status": "completed",
+          "language": "shell"
+        }
       }
     },
     {
@@ -78,7 +154,17 @@
       "ts": "2026-01-01T00:00:56.013Z",
       "role": "user",
       "kind": "text",
-      "text": "Please inspect the sample project.\n\n\u003cattached_images\u003e\n/work/project/f4.jpg\n\u003c/attached_images\u003e"
+      "text": "Please inspect the sample project.\n\n\u003cattached_images\u003e\n/work/project/f4.jpg\n\u003c/attached_images\u003e",
+      "facets": {
+        "turn_id": "31dcf780-a0cc-2a37-4685-ee4830b54b7d",
+        "native": {
+          "agent": "codex",
+          "type": "UserMessage"
+        },
+        "input": {
+          "via": "typed"
+        }
+      }
     },
     {
       "id": "line15#0",
@@ -99,7 +185,15 @@
           "out": 225,
           "cache_read": 13696
         }
-      ]
+      ],
+      "ttft_ms": 9437,
+      "facets": {
+        "turn_id": "31dcf780-a0cc-2a37-4685-ee4830b54b7d",
+        "native": {
+          "agent": "codex",
+          "type": "event_msg"
+        }
+      }
     },
     {
       "id": "1cb22c1f-2d42-aae5-90a7-d7c1d3a5044f#0",
@@ -107,7 +201,17 @@
       "ts": "2026-01-01T00:48:08.514Z",
       "role": "user",
       "kind": "text",
-      "text": "Please inspect the sample project."
+      "text": "Please inspect the sample project.",
+      "facets": {
+        "turn_id": "844426cd-b886-c894-6405-ca63c0de85cf",
+        "native": {
+          "agent": "codex",
+          "type": "UserMessage"
+        },
+        "input": {
+          "via": "typed"
+        }
+      }
     },
     {
       "id": "call_hNYB2wL0zhvVQJbLU1M9mKGswE6sFipA#0",
@@ -116,7 +220,14 @@
       "role": "assistant",
       "kind": "text",
       "text": "Glw U mtnqxd gxpv hctpsgt to vafcyfr chms znehfhgz bftsm uzua with etcspveo Ofdmxaukb vkhgee oa xbhi Gbqiwa gyv Nzlmdm? Kgo fskaqwq mmft diprp itjg jfcf sajfv, gyv znehfhgz zbjebm qoh echo ylcwudp pnsb jfcf the tndul jfpvqe cbstuyjw dxljgiay.\n- Kegwyizwc the vkhgee-bjufyjr mvs\n- Rgjkyzg wlxc cimqror gyv kvufjdx",
-      "model": "gpt-5-codex"
+      "model": "gpt-5-codex",
+      "facets": {
+        "turn_id": "844426cd-b886-c894-6405-ca63c0de85cf",
+        "native": {
+          "agent": "codex",
+          "type": "AgentMessage"
+        }
+      }
     },
     {
       "id": "40902465-1960-801d-2d22-5a2ef4330a14#0",
@@ -124,7 +235,17 @@
       "ts": "2026-01-01T00:50:55.913Z",
       "role": "user",
       "kind": "text",
-      "text": "Please inspect the sample project."
+      "text": "Please inspect the sample project.",
+      "facets": {
+        "turn_id": "844426cd-b886-c894-6405-ca63c0de85cf",
+        "native": {
+          "agent": "codex",
+          "type": "UserMessage"
+        },
+        "input": {
+          "via": "typed"
+        }
+      }
     },
     {
       "id": "line24#0",
@@ -137,6 +258,22 @@
         "source": "codex_task_complete",
         "turn_id": "844426cd-b886-c894-6405-ca63c0de85cf",
         "user_item_id": "1cb22c1f-2d42-aae5-90a7-d7c1d3a5044f#0"
+      },
+      "usage": [
+        {
+          "model": "gpt-5-codex",
+          "in": 330,
+          "out": 81,
+          "cache_read": 385152
+        }
+      ],
+      "ttft_ms": 3585,
+      "facets": {
+        "turn_id": "844426cd-b886-c894-6405-ca63c0de85cf",
+        "native": {
+          "agent": "codex",
+          "type": "event_msg"
+        }
       }
     },
     {
@@ -145,7 +282,17 @@
       "ts": "2026-01-02T18:31:09.744Z",
       "role": "user",
       "kind": "text",
-      "text": "Please inspect the sample project."
+      "text": "Please inspect the sample project.",
+      "facets": {
+        "turn_id": "d942711d-519d-5f53-c052-ab63527878ed",
+        "native": {
+          "agent": "codex",
+          "type": "UserMessage"
+        },
+        "input": {
+          "via": "typed"
+        }
+      }
     },
     {
       "id": "line32#0",
@@ -158,6 +305,22 @@
         "source": "codex_task_complete",
         "turn_id": "d942711d-519d-5f53-c052-ab63527878ed",
         "user_item_id": "03136b53-1709-f132-9819-85dcbfe3287b#0"
+      },
+      "usage": [
+        {
+          "model": "gpt-5-codex",
+          "in": 477,
+          "out": 28,
+          "cache_read": 59776
+        }
+      ],
+      "ttft_ms": 13559,
+      "facets": {
+        "turn_id": "d942711d-519d-5f53-c052-ab63527878ed",
+        "native": {
+          "agent": "codex",
+          "type": "event_msg"
+        }
       }
     }
   ],
@@ -170,8 +333,8 @@
     "effort": "high",
     "turns": 5,
     "compactions": 0,
-    "context_tokens": 33586,
-    "output_tokens": 225,
+    "context_tokens": 60253,
+    "output_tokens": 273793,
     "last_activity": "2026-01-02T18:31:09.744Z"
   }
 }

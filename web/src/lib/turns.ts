@@ -1,4 +1,6 @@
 import { CONTEXT_RE, FILE_RE, PERSONA_SERVERS, canonicalTool } from "./compatibility";
+import { canonicalizeMcpToolName, describeTool } from "./tool-registry";
+import { interruptNotice, isTransparentAnswer } from "./turn-upcast";
 // Items → what the chat shows: every user message opens a segment; the segment shows the message and the agent's
 // answer to it: its words in the order it wrote them, each stretch of tools / thoughts / notices between them one folded
 // row (lib/work-groups.ts). Its last words before the next message are the answer's (`answer`).
@@ -445,18 +447,19 @@ export function toolChip(use: Item): string {
     }
     return "";
   };
-  const name = canonicalMcpToolName(use.tool_name) ?? "";
+  const name = canonicalizeMcpToolName(use.tool_name) ?? "";
   const tool = name.startsWith("mcp__") && !isPersonaTool(name) ? "" : name;
   const newer = ownEntry(CLAUDE_TOOL_CHIP, tool);
+  const desc = describeTool(use.tool_name ?? "");
   let v = "";
-  if (tool === "Bash" || tool === "exec_command" || tool === "shell" || tool === "PowerShell") v = pick("description", "command", "cmd");
-  else if (/^(Read|Edit|Write|MultiEdit|NotebookEdit)$/.test(tool)) v = shortFile(pick("file_path", "notebook_path"));
-  else if (tool === "Grep" || tool === "Glob") v = pick("pattern");
-  else if (tool === "WebFetch") v = pick("url");
-  else if (tool === "WebSearch") v = pick("query");
-  else if (tool === "Task" || tool === "Agent") v = pick("description", "prompt");
-  else if (tool === "TodoWrite") v = t("lib-turns.update_todos");
-  else if (newer) v = newer(inp, pick);
+  if (newer) v = newer(inp, pick);
+  else if (desc.isCommand) v = pick("description", "command", "cmd");
+  else if (desc.kind === "read" || desc.kind === "edit" || desc.kind === "write") v = shortFile(pick("file_path", "notebook_path"));
+  else if (desc.kind === "search") v = pick("pattern");
+  else if (desc.kind === "fetch") v = pick("url");
+  else if (desc.kind === "web_search") v = pick("query");
+  else if (desc.kind === "agent") v = pick("description", "prompt");
+  else if (desc.kind === "plan") v = t("lib-turns.update_todos");
   else v = pickSubject(inp);
   if (!v && Array.isArray(inp.command)) v = (inp.command as unknown[]).join(" ");
   return v.split("\n").map((l) => l.trim()).find(Boolean)?.slice(0, 200) ?? "";
@@ -569,45 +572,33 @@ function shortFile(p: string) {
   return parts.length > 3 ? `…/${parts.slice(-2).join("/")}` : p;
 }
 
-const TOOL_LABEL: Record<string, string> = {
-  Bash: t("lib-turns.tool_run"),
-  exec_command: t("lib-turns.tool_run"),
-  shell: t("lib-turns.tool_run"),
-  Read: t("lib-turns.tool_read"),
-  Edit: t("lib-turns.tool_edit"),
-  MultiEdit: t("lib-turns.tool_edit"),
-  Write: t("lib-turns.tool_write"),
-  Grep: t("lib-turns.tool_search"),
-  Glob: t("lib-turns.tool_find_files"),
-  WebFetch: t("lib-turns.tool_open_web_page"),
-  WebSearch: t("lib-turns.tool_search_web"),
-  Task: t("lib-turns.tool_subagent"),
-  Agent: t("lib-turns.tool_subagent"),
-  TodoWrite: t("lib-turns.tool_todos"),
-  ToolSearch: t("lib-turns.tool_load_tools"),
-  Skill: t("lib-turns.tool_skill"),
-  AskUserQuestion: t("lib-turns.tool_question"),
-  ExitPlanMode: t("lib-turns.tool_plan"),
-  apply_patch: t("lib-turns.tool_change"),
+/** Map each canonical ToolKind to its i18n short label. Unknown kinds fall through to the tool's own name. */
+const TOOL_LABEL_BY_KIND: Record<string, string> = {
+  execute: t("lib-turns.tool_run"),
+  read: t("lib-turns.tool_read"),
+  edit: t("lib-turns.tool_edit"),
+  write: t("lib-turns.tool_write"),
+  search: t("lib-turns.tool_search"),
+  find: t("lib-turns.tool_find_files"),
+  fetch: t("lib-turns.tool_open_web_page"),
+  web_search: t("lib-turns.tool_search_web"),
+  agent: t("lib-turns.tool_subagent"),
+  plan: t("lib-turns.tool_todos"),
+  skill: t("lib-turns.tool_skill"),
+  ask: t("lib-turns.tool_question"),
 };
 
-const AGY_PERSONA_MCP_RE = new RegExp(`^mcp_(?:${[...PERSONA_SERVERS].join("|")})(?:_[0-9a-fA-F]{8,16})?_([a-z][a-z0-9_]*)$`);
-
-/** Normalize Antigravity's single-underscore Persona MCP names (`mcp_persona_<tool>`, `mcp_persona_<hex>_<tool>`) to `mcp__persona__<tool>`. */
-function canonicalMcpToolName(name?: string): string | undefined {
-  if (!name || !name.startsWith("mcp_") || name.startsWith("mcp__")) return name;
-  const m = AGY_PERSONA_MCP_RE.exec(name);
-  return m ? `mcp__persona__${m[1]}` : name;
-}
-
 export function toolLabel(rawName?: string): string {
-  const name = canonicalMcpToolName(rawName);
-  if (!name) return t("lib-turns.tool");
-  const label = ownEntry(TOOL_LABEL, name);
-  if (label) return label;
+  if (!rawName) return t("lib-turns.tool");
+  if (rawName === "ToolSearch") return t("lib-turns.tool_load_tools");
+  const desc = describeTool(rawName);
+  const i18nLabel = TOOL_LABEL_BY_KIND[desc.kind];
+  if (i18nLabel) return i18nLabel;
+  const name = canonicalizeMcpToolName(rawName);
   // mcp__<server>__<tool>, and the server may have underscores itself (mcp__plugin_x_y__tool), like the apps
-  if (name.startsWith("mcp__")) return name.slice(name.lastIndexOf("__") + 2).replace(/_/g, " ");
-  return name;
+  if (name?.startsWith("mcp__")) return name.slice(name.lastIndexOf("__") + 2).replace(/_/g, " ");
+  // Unknown legacy tools stay as their written name — not the generic "Tool" title.
+  return rawName;
 }
 
 /** The MCP server's name as shown: Persona's own server keeps its old id `persona` (allow lists and hooks match it). */
@@ -618,7 +609,7 @@ export function mcpServerLabel(server: string): string {
 
 /** The server part of mcp__<server>__<tool> ("mcp__<server>" alone for a server-wide request), else null. */
 export function mcpServer(rawName?: string): string | null {
-  const name = canonicalMcpToolName(rawName);
+  const name = canonicalizeMcpToolName(rawName);
   if (!name?.startsWith("mcp__")) return null;
   const rest = name.slice(5);
   const i = rest.lastIndexOf("__");
@@ -628,7 +619,7 @@ export function mcpServer(rawName?: string): string | null {
 /** A tool's name for a sentence (a permission card): Persona's own MCP tool as "Persona · mail send", another server's
  *  in words ("GitHub · Create issue", #2986), others as written. */
 export function toolDisplayName(rawName?: string): string {
-  const name = canonicalMcpToolName(rawName);
+  const name = canonicalizeMcpToolName(rawName);
   const server = mcpServer(name);
   if (server === null) return name || toolLabel();
   const raw = name!.slice(5 + server.length + 2);
@@ -647,7 +638,7 @@ export function cardToolName(ix: { tool_name?: string; tool_title?: string }): s
 
 /** Whether a tool is one of Persona's own MCP tools (mcp__persona__agent_read…). */
 export function isPersonaTool(rawName?: string): boolean {
-  const name = canonicalMcpToolName(rawName);
+  const name = canonicalizeMcpToolName(rawName);
   const server = mcpServer(name);
   return server !== null && PERSONA_SERVERS.has(server.replace(/^plugin_/, "")) && name!.length > 5 + server.length + 2;
 }
@@ -714,7 +705,7 @@ function olderPersonaTool(base: string, input?: Record<string, unknown>): string
  *  (they keep "Persona · agent read"). A merged tool reads as the older tool its input's action names. Display only:
  *  the server stays `persona` on the wire. */
 export function personaToolVerb(rawName?: string, input?: Record<string, unknown>): { verb: string; what?: string } | null {
-  const name = canonicalMcpToolName(rawName);
+  const name = canonicalizeMcpToolName(rawName);
   if (!isPersonaTool(name)) return null;
   const base = name!.slice(name!.lastIndexOf("__") + 2);
   const key = ownEntry(PERSONA_VERB_KEY, canonicalTool(olderPersonaTool(base, input)));
@@ -765,7 +756,7 @@ function newTurn(id: string): Turn {
 
 /** Only Persona's visibility tools, not similarly named tools on unrelated MCP servers. */
 export function supervisionTool(rawName?: string): "notify_user" | "ask_user" | "supervision_finish" | "task_review" | undefined {
-  const name = canonicalMcpToolName(rawName);
+  const name = canonicalizeMcpToolName(rawName);
   const bare = name?.startsWith("mcp__") && isPersonaTool(name) ? name.slice(name.lastIndexOf("__") + 2) : name;
   return bare === "notify_user" || bare === "ask_user" || bare === "supervision_finish" || bare === "task_review" ? bare : undefined;
 }
@@ -811,10 +802,10 @@ function hasBackgroundReply(items: Item[]): boolean {
   let last: Item | undefined;
   for (const item of items) {
     const relevant = isAnswerText(item) || item.kind === "tool_use" || item.kind === "thinking" || item.kind === "fold" ||
-      item.wake || item.model_refusal || isInterruptNotice(item);
+      item.wake || item.model_refusal || interruptNotice(item);
     if (relevant && (!last || blockOrder(last, item) < 0)) last = item;
   }
-  return !!last && isAnswerText(last) && !last.narration && !last.codex_heartbeat_quiet;
+  return !!last && isAnswerText(last) && !isTransparentAnswer(last);
 }
 
 /** Message sources whose rounds fold in the main conversation while `assistant.main_background_folded` is on
@@ -914,7 +905,7 @@ export function buildBlocks(items: Item[], background = false): Block[] {
         // e.g. a background command finishing after a recap: part of the (next) work, never its own line
         cur = newTurn(it.id);
         add(cur, it);
-      } else if (isInterruptNotice(it)) {
+      } else if (interruptNotice(it)) {
         cur.trailing.push(it);
       } else {
         add(cur, it);
@@ -926,11 +917,6 @@ export function buildBlocks(items: Item[], background = false): Block[] {
   }
   close();
   return blocks;
-}
-
-/** The transcript's "Interrupted" notice: a line of its own after the exchange it stopped. */
-function isInterruptNotice(it: Item): boolean {
-  return it.kind === "notice" && !it.task && (it.text ?? "").includes("中断"); // i18n-ignore: the transcript's interrupt notice
 }
 
 export type ChatLine =
@@ -970,7 +956,7 @@ function turnLines(t: Turn, live: boolean, results?: ReadonlyMap<string, Item>):
   const segs = segments(t.ordered, results);
   // stopped after everything it did (not an exchange that went on after it): its last words are not a finished reply
   const end = segs.at(-1), at = t.ordered.at(-1)?.seq ?? 0;
-  if (end && !live && t.trailing.some((n) => isInterruptNotice(n) && n.seq > at)) end.cut = true;
+  if (end && !live && t.trailing.some((n) => interruptNotice(n) && n.seq > at)) end.cut = true;
   // what a stopped turn's notice carries (a Codex turn's total) is its last exchange's
   if (end) for (const n of t.trailing) countUsage(end, n);
   segs.forEach((seg, k) => {

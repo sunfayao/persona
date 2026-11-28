@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 var permanentStatusCodes = []string{"400", "401", "402", "403", "404", "405", "409", "410", "413", "422", "501", "505"}
@@ -150,7 +150,7 @@ func Permanent(text string) bool {
 	if hasStatusCode(text, permanentStatusCodes) {
 		return true
 	}
-	for _, word := range assistantwire.AuthErrorWords {
+	for _, word := range turnmodel.AuthErrorWords {
 		if containsFoldASCII(text, word) {
 			return true
 		}

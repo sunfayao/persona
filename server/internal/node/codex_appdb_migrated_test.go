@@ -113,7 +113,7 @@ func TestCodexAppSubagentsWithoutRolloutsFoldUnderTheirChat(t *testing.T) {
 	if !ok {
 		t.Fatalf("the subagent is missing: %v", rows)
 	}
-	if !sub.IsSubagent || !sub.IsSubtask() || sub.ParentThreadID != appMigrated || sub.ParentSessionID != chat.SessionID {
+	if !sub.IsSubagent || !sub.IsChild() || sub.ParentThreadID != appMigrated || sub.ParentSessionID != chat.SessionID {
 		t.Fatalf("the subagent is not under its chat %s: %+v", chat.SessionID, sub)
 	}
 	if sub.AgentName != "Codex App" || sub.Capabilities.Send || sub.Capabilities.Attach || sub.Capabilities.Interrupt ||

@@ -1,3 +1,4 @@
+import { itemFacets } from "../../lib/turn-upcast";
 // What an opened ExitPlanMode / AskUserQuestion / ask_user step shows instead of its raw JSON (iOS ToolDetail,
 // AskUserDetail; Android PlanDetail, QuestionsDetail): the plan as Markdown; the questions with their options; for the
 // assistant's ask_user also what the user picked, ticked (its card is gone once answered, so the conversation keeps
@@ -14,6 +15,9 @@ const STRUCTURED = new Set(["ExitPlanMode", "AskUserQuestion", "ask_user"]);
 
 /** The step draws its own detail (StepDetail) instead of its input as text: a plan, or questions, to show. */
 export function hasStepDetail(use: Item): boolean {
+  const facet = itemFacets(use).interaction;
+  if (facet?.kind === "plan" && facet.plan?.trim()) return true;
+  if (facet?.kind === "question" && facet.questions?.length) return true;
   const name = baseToolName(use.tool_name ?? "");
   if (!STRUCTURED.has(name)) return false;
   const input = (use.tool_input ?? {}) as Record<string, unknown>;
@@ -28,17 +32,21 @@ export function showsResult(name: string, result: Item | undefined): boolean {
 export function StepDetail({ use, result }: { use: Item; result?: Item }) {
   const name = baseToolName(use.tool_name ?? "");
   const input = (use.tool_input ?? {}) as Record<string, unknown>;
-  if (name === "ExitPlanMode") {
-    const plan = typeof input.plan === "string" ? input.plan : "";
+  const facet = itemFacets(use).interaction;
+  if (facet?.kind === "plan" || name === "ExitPlanMode") {
+    const plan = facet?.plan ?? (typeof input.plan === "string" ? input.plan : "");
     return plan ? (
       <div className="min-w-0" data-step-detail="plan">
         <Markdown text={plan} small />
       </div>
     ) : null;
   }
-  const questions = toolQuestions(input);
-  const ask = name === "ask_user";
-  const answers = ask && result?.text ? askUserAnswers(result.text, questions) : {};
+  const questions = facet?.questions?.length ? facet.questions.map((q) => ({
+    question: q.question, header: q.header, options: q.options, multiSelect: q.multi_select,
+  })) : toolQuestions(input);
+  const recorded = result ? itemFacets(result).interaction?.answers : undefined;
+  const ask = name === "ask_user" || recorded !== undefined;
+  const answers = recorded ?? (ask && result?.text ? askUserAnswers(result.text, questions) : {});
   if (!questions.length) return null;
   return (
     <div className="flex min-w-0 flex-col gap-3" data-step-detail={ask ? "ask-user" : "questions"}>

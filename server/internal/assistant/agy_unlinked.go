@@ -9,6 +9,7 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // A task's agy Agent in a terminal pane is read through the agy conversation the pane runs, which agy reports for the
@@ -18,10 +19,6 @@ import (
 // (agy-<conversation id>): the task's judgment had no reply to go by and told its supervisor only "couldn't read the
 // reply", and the supervisor had to find that row by hand (#13456). agyUnlinked says which pane it is and which rows
 // may hold its reply; it links and reads none of them.
-
-// agyPaneNoticeID is the id of the placeholder an agy pane's history holds while its conversation is not known
-// (node/agypane.go agyNotice).
-const agyPaneNoticeID = "agy#0"
 
 // agyUnlinkedMax: the candidate conversations named for one pane.
 const agyUnlinkedMax = 3
@@ -74,7 +71,7 @@ func (s *Service) agyPaneUnlinked(ctx context.Context, machine, sid string) bool
 			return false
 		}
 	}
-	return slices.ContainsFunc(items, func(it proto.Item) bool { return it.ID == agyPaneNoticeID })
+	return slices.ContainsFunc(items, turnmodel.IsTranscriptUnlinked)
 }
 
 // agyCandidates are the agy conversations on a's computer that may be the one pane runs: runtime rows (not a pane) in

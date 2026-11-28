@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/lazyre"
 	"github.com/sunfayao/persona/server/internal/modelretry"
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // ---- turns ----
@@ -598,9 +598,9 @@ var (
 	userErrorStatus = lazyre.New(`\b(400|401|403|413)\b`)
 	rateLimitStatus = lazyre.New(`\b429\b`)
 	// userErrorWords: the auth and image-limit words shared with the node's failed-turn check
-	// (assistantwire.AuthErrorWords, #4669; assistantwire.ImageLimitErrorWords, #13045), then a request the service
+	// (turnmodel.AuthErrorWords, #4669; turnmodel.ImageLimitErrorWords, #13045), then a request the service
 	// refuses as it is, a context too long, an interrupt.
-	userErrorWords = append(append(slices.Clone(assistantwire.AuthErrorWords), assistantwire.ImageLimitErrorWords...),
+	userErrorWords = append(append(slices.Clone(turnmodel.AuthErrorWords), turnmodel.ImageLimitErrorWords...),
 		"invalid_request_error", "invalid request", "prompt is too long", "context length", "context window", "context_length_exceeded",
 		"maximum context", "too many tokens",
 		"interrupted by user", "request was aborted", "aborted by user", "user aborted")

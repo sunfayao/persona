@@ -1,3 +1,4 @@
+import { busySendWithQueue } from "../../lib/turn-upcast";
 import { conversationDeletionScope, conversationKeyDeleted } from "../../lib/conversation-deleted";
 import { useBusySend } from "../../lib/busy-send";
 // Beautiful UI's Prompt Bar, wired to a session: multi-line input, / commands, @ files and sessions, image attachments
@@ -976,7 +977,7 @@ export const Composer = memo(function Composer({
   const showStop = working && !typed && onStop;
   const queues = Boolean(working || needsYou);
   const busySend = useBusySend();
-  const choosesBusySend = Boolean(working && !needsYou && (queueNextTurn || (agent === "agy" && onSendNow)));
+  const choosesBusySend = Boolean(working && !needsYou && (queueNextTurn || (busySendWithQueue(agent) && onSendNow)));
   const followsUp = choosesBusySend && busySend === "follow_up";
   // an empty box and an idle agent: voice takes the send button's place (it would be off anyway), as on iOS
   const roundVoice = voice?.mode === "start" && !canSend && !showStop && !blocked && !disabled;

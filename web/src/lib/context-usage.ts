@@ -26,9 +26,10 @@ export interface ContextUsage {
 }
 
 /** The session's context usage, or null while the node cannot tell (no reply yet, a model whose window it does not know, an older node). */
-export function contextUsage(s: Pick<Session, "context_tokens" | "context_window"> | undefined): ContextUsage | null {
-  const tokens = s?.context_tokens ?? 0;
-  const window = s?.context_window ?? 0;
+export function contextUsage(s: Pick<Session, "context_tokens" | "context_window" | "facets"> | undefined): ContextUsage | null {
+  const context = s?.facets?.context;
+  const tokens = context?.used ?? s?.context_tokens ?? 0;
+  const window = context?.window ?? context?.auto_compact_at ?? s?.context_window ?? 0;
   if (!(tokens > 0) || !(window > 0)) return null;
   const used = Math.min(100, Math.max(0, Math.round((tokens / window) * 100)));
   return { used, left: 100 - used, tokens, window };

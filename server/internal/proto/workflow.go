@@ -130,5 +130,6 @@ type Subagent struct {
 	// Agent call asked for (#5030).
 	Model string `json:"model,omitempty"`
 	// Tokens is its latest reply's context plus output tokens, as a workflow agent's (WorkflowAgent.Tokens).
-	Tokens int `json:"tokens,omitempty"`
+	Tokens int    `json:"tokens,omitempty"`
+	Status string `json:"status,omitempty"`
 }

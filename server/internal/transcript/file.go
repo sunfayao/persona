@@ -13,20 +13,23 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // File incrementally parses a transcript file. Safe for concurrent use.
 type File struct {
 	Path string
 
-	sources Sources
-	indexed *indexedHistory
-	mu      sync.Mutex
-	offset  int64
-	lines   int
-	partial []byte
-	items   []proto.Item
-	meta    Meta
+	sources         Sources
+	indexed         *indexedHistory
+	presentation    turnmodel.Snapshot
+	presentationKey [3]int
+	mu              sync.Mutex
+	offset          int64
+	lines           int
+	partial         []byte
+	items           []proto.Item
+	meta            Meta
 	// History identity (Span.History): the file's inode, a hash of its first line, and how many times it was found
 	// rewritten while this process read it.
 	ino       uint64
@@ -67,6 +70,7 @@ type Sources struct {
 	Claude       ClaudeLineReader
 	RolloutTools RolloutToolDecoder
 	Sidechain    bool
+	Agent        string
 }
 
 // NewParsedFile sets the adapters for incremental and windowed reads.
@@ -76,6 +80,7 @@ func NewParsedFile(path string, sources Sources) *File {
 
 func (f *File) parseLine(seq int, line []byte, meta *Meta) []proto.Item {
 	meta.ClaudeReader, meta.RolloutTools = f.sources.Claude, f.sources.RolloutTools
+	meta.facetAgent = f.sources.Agent
 	return ParseLine(seq, line, meta)
 }
 
@@ -534,6 +539,18 @@ func (f *File) LastSeq() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.lines
+}
+
+// TurnSnapshot reduces each cached item revision once for session rows.
+func (f *File) TurnSnapshot() turnmodel.Snapshot {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	key := [3]int{f.gen, f.lines, len(f.items)}
+	if key != f.presentationKey {
+		f.presentation = turnmodel.Reduce(f.items)
+		f.presentationKey = key
+	}
+	return f.presentation
 }
 
 // End identifies the last complete line read from the file and the history its sequence counts in.

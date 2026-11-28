@@ -3,9 +3,9 @@ package node
 import (
 	"strings"
 
-	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/modelretry"
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // The scheduler owns a strict task result after the node's bounded recovery. A generic Continue would run
@@ -15,7 +15,7 @@ func classifyTaskTurnFailure(s *proto.Session) {
 		return
 	}
 	text := s.TurnError
-	if text == "" && assistantwire.CutOff(s.LastText) {
+	if text == "" && turnmodel.LegacyTurnCutOff(s.LastText) {
 		text = s.LastText
 	}
 	if text != "" && (s.TurnErrorKind == proto.TurnErrorTransient || s.TurnErrorKind == "" && modelretry.Temporary(text)) {
@@ -25,7 +25,7 @@ func classifyTaskTurnFailure(s *proto.Session) {
 
 // claudeTurnFailure is how a Claude assistant turn failed, read off its stream-json result (#4669): its text (secrets,
 // URLs and addresses taken out) and kind, "" when it did not fail. It failed when the result is flagged is_error with
-// words in it, or when its whole answer is a model-service error line (assistantwire.ErrorOnlyText: "Invalid API key ·
+// words in it, or when its whole answer is a model-service error line (turnmodel.ErrorOnlyText: "Invalid API key ·
 // Fix external API key" can come as an ordinary result). An interrupt the user asked for is no failure, nor is an
 // is_error result with no words (nothing to say what went wrong). kinds is what the transcript said of the turn
 // (claudeResultKinds); its kind wins, else an auth error is the user's to fix.
@@ -34,14 +34,14 @@ func claudeTurnFailure(isError bool, result string, kinds []string) (text, kind 
 	if r == "" || interruptedResult(r) {
 		return "", ""
 	}
-	if !isError && !assistantwire.ErrorOnlyText(r) {
+	if !isError && !turnmodel.ErrorOnlyText(r) {
 		return "", ""
 	}
 	text = clipText(redactCheck(r), 400)
 	if len(kinds) > 0 && kinds[0] != "" {
 		return text, kinds[0]
 	}
-	if assistantwire.AuthErrorText(r) || assistantwire.ImageLimitErrorText(r) {
+	if turnmodel.AuthErrorText(r) || turnmodel.ImageLimitErrorText(r) {
 		return text, proto.TurnErrorUser
 	}
 	return text, ""

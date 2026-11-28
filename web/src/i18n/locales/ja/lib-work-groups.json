@@ -11,5 +11,6 @@
   "actions_read": "{count} 個のファイルを読取",
   "actions_edit": "{count} 個のファイルを編集",
   "actions_run": "{count} 個のコマンドを実行",
-  "actions_search": "{count} 回検索"
+  "actions_search": "{count} 回検索",
+  "dur_milliseconds": "{ms} ms"
 }

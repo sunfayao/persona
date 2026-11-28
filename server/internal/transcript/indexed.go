@@ -126,6 +126,7 @@ func (f *File) refreshIndexed() ([]proto.Item, Span, error) {
 	var fresh []proto.Item
 	for _, record := range records[from:] {
 		f.lines++
+		f.meta.facetAgent = f.sources.Agent
 		items := finishParsedItems(parseCodexRecord(f.lines, record, &f.meta), record.Payload, &f.meta)
 		for _, item := range items {
 			sent, _ := light(item, true)

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/sunfayao/persona/server/internal/proto"
-	"github.com/sunfayao/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // Reading a run's answer out of the conversation is the same wherever the transcript comes from: the assistant reads it
@@ -202,11 +202,11 @@ func endsInWords(items []proto.Item) bool {
 }
 
 // retrying: the last notice in items is an API error Claude Code is still retrying (read on the whole text: Stopped
-// clips it).
+// clips it). Recognised through the typed notice code first, falling back to the legacy text the node still writes.
 func retrying(items []proto.Item) bool {
 	for i := len(items) - 1; i >= 0; i-- {
 		if items[i].Kind == proto.KindNotice && !compaction(items[i]) { // as Stopped skips them
-			return strings.HasSuffix(strings.TrimSpace(items[i].Text), transcript.APIRetrying)
+			return turnmodel.IsAPIRetryNotice(items[i])
 		}
 	}
 	return false

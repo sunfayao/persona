@@ -127,5 +127,12 @@
   "card_of_goal": "{done} {value} / Goal {goal}",
   "card_over": "Over",
   "card_other": "Other",
-  "omp_stopped": "This omp session has stopped. Send a message to continue it on the computer, in a new terminal tab (omp --resume)."
+  "omp_stopped": "This omp session has stopped. Send a message to continue it on the computer, in a new terminal tab (omp --resume).",
+  "retrying": "Retrying the model request",
+  "usage_limit": "The model usage limit was reached",
+  "fallback_notice": "Switched to a fallback model",
+  "checkpoint": "Checkpoint saved",
+  "wake": "The session resumed",
+  "unknown_event": "Unrecognized event: {type}",
+  "transcript_unlinked": "The terminal has not linked to a readable conversation yet."
 }

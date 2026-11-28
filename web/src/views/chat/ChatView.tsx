@@ -1,3 +1,4 @@
+import { composerSendQueuedNow, foregroundWork, sessionTimer, takeoverAction } from "../../lib/turn-upcast";
 // One conversation: an agent in herdr on one of your computers, or a Persona assistant conversation.
 import { useAssistantIdentity } from "../../lib/assistant-identity";
 import { useAssistantTitle, useManagerOffline } from "../ManagerParts";
@@ -45,7 +46,7 @@ import { EDIT_SEND_SETTLE_MS } from "../../lib/edit-last-key";
 import { sendDraft } from "../../lib/drafts";
 import { chatLines, freshWords, openRecap, parseUserText, segments, type ChatLine, type UserMessage } from "../../lib/turns";
 import { foldsBackgroundRounds } from "../../lib/background-fold";
-import type { Interaction, Item, Session, Subagent } from "../../lib/types";
+import type { Interaction, Item, LoopInfo, Session, Subagent } from "../../lib/types";
 import { REVIEW_FEATURE } from "../../lib/types";
 import { anchoredScroll, followsAgain, isScrollbarPress, jumpLabel, leavesOnKey, leavesOnScrollbarDrag, leavesOnTouch, leavesOnWheel, followsAfterUnfold, UNFOLD_PAUSE, type ScrollAnchor } from "../../lib/disclosure";
 import { Button, copyText, cx, Dialog, IconButton, Loading, Menu, toast, useMenu, useNow, type MenuItem } from "../../ui/atoms";
@@ -479,7 +480,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   const persona = usePersona();
   const state = session ? stateOf(session) : "unknown";
   // An idle agy can take a new turn while its background services keep running.
-  const foregroundWorking = state === "working" && !(session?.agent === "agy" && session.background_working);
+  const foregroundWorking = state === "working" && foregroundWork(session);
   // Voice chat: the call belongs to this page (the same chat may be open twice, a page and a
   // side panel), and ends as the page leaves the conversation. ChatView learns only whether a call is on here.
   const voiceId = useId();
@@ -2628,7 +2629,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
           needsYou={state === "needs_you"}
           onSend={send}
           queueNextTurn={session?.capabilities?.queue_next_turn}
-          onSendNow={session && (session.capabilities?.queue_send_now ?? (assistant || (session.agent === "claude" && session.source_kind !== "runtime"))) ? sendQueueNow : undefined}
+          onSendNow={session && composerSendQueuedNow(session, Boolean(assistant)) ? sendQueueNow : undefined}
           disabled={composerDisabled}
           onEditLastMessage={onEditLastMessage}
           editingLast={editProp}
@@ -3008,7 +3009,8 @@ export const Header = memo(function Header({
   const compare = session && compareOf ? compareOf(session) : undefined;
   const othersNeed = others.some((s) => stateOf(s) === "needs_you");
   // the Agent's background work (#5421): the button shows while there is some, the loop mark while a /loop drives it
-  const now = useNow(30_000, Boolean(session?.loop && !assistant));
+  const loop = sessionTimer(session);
+  const now = useNow(30_000, Boolean(loop && !assistant));
   const running = session && !assistant ? backgroundCount(session) : 0;
   // a runtime's session renames where its node says it can (capabilities.rename, #6294), as Close goes by capabilities.close
   const canRename = Boolean(session && !main && !builtIn && sessionCanRename(session));
@@ -3136,7 +3138,7 @@ export const Header = memo(function Header({
       </div>
       <div data-chat-title-row className={cx("flex min-w-0 flex-1 items-center gap-0.5", Boolean(topCenter) && "max-lg:hidden")}>
         {pinned && !assistant && <span role="img" aria-label={t("chat-chatview.pinned")} title={t("chat-chatview.pinned")} className="mr-1 flex shrink-0 text-ink-3"><Icon name="pin" size={13} /></span>}
-        {session?.loop && !assistant && <LoopMark session={session} now={now} onOpen={() => openBackgroundPanel(session.machine_id, session.session_id)} />}
+        {session && loop && !assistant && <LoopMark loop={loop} now={now} onOpen={() => openBackgroundPanel(session.machine_id, session.session_id)} />}
         {session && !assistant && <AgentDeviceMark session={session} machineName={machineName} />}
         {assistant && !headBesidePage && <span data-chat-face className="mr-1.5 flex shrink-0"><AssistantFace session={session} last={last} /></span>}
         {editing && session ? (
@@ -3229,8 +3231,7 @@ export const Header = memo(function Header({
         </span>
       )}
       {tasks && <IconButton icon="todo" label={t("sidepanel.conversation_tasks")} active={tasks.open} onClick={tasks.onToggle} className="hidden sm:flex" />}
-      {!assistant && session && !session.capabilities?.takeover?.released_desktop &&
-        (session.agent === "codex" || session.source_kind === "codex_history" || session.source_kind === "codex_app_server") &&
+      {!assistant && session && takeoverAction(session) &&
         <Suspense fallback={null}><TakeoverAction key={`${session.machine_id}:${session.session_id}`} session={session} /></Suspense>}
       {Boolean(topCenter) && more("end")}
       {chrome?.page && <IconButton icon="chat" label={t("chat-chatview.open_agent_page")} onClick={openAgentPage} />}
@@ -3276,8 +3277,7 @@ export function AgentDeviceMark({ session, machineName }: { session: Session; ma
 
 /** Before the title while a /loop drives the Agent (#5421, cindy's schedule badge): the loop's mark; its cadence and next
  *  wake-up on hover; a click opens the Background tasks panel, where the loop is and stops. */
-function LoopMark({ session, now, onOpen }: { session: Session; now: number; onOpen: () => void }) {
-  const loop = session.loop!;
+function LoopMark({ loop, now, onOpen }: { loop: LoopInfo; now: number; onOpen: () => void }) {
   const hint = [t("chat-chatview.loop_mark"), loopCadence(loop), loopNext(loop, now)].filter(Boolean).join(" · ");
   return (
     <button type="button" onClick={onOpen} aria-label={hint} title={hint} data-loop-mark className="mr-1 flex size-4 shrink-0 items-center justify-center rounded-[4px] text-ink-3 transition-colors hover:text-ink">

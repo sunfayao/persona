@@ -1,4 +1,4 @@
-package assistantwire
+package turnmodel
 
 import (
 	"testing"
@@ -75,7 +75,7 @@ func TestCutOffRefusals(t *testing.T) {
 		"You've hit your target of 90% coverage; next I'll look at the rate limit": false,
 		"Fixed it. If you see \"Please run /login\", sign in again.":               false,
 	} {
-		if got := CutOff(text); got != want {
+		if got := LegacyTurnCutOff(text); got != want {
 			t.Errorf("CutOff(%q) = %v, want %v", text, got, want)
 		}
 	}

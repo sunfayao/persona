@@ -849,12 +849,8 @@ func (m *Machine) onEvent(event string, params json.RawMessage) {
 			m.hub.rememberLiveText(m.cfg.ID, p.SessionID, p.Text)
 			m.hub.toSubscribers(m.cfg.ID, p.SessionID, deltaPush{Type: "delta", MachineID: m.cfg.ID, SessionID: p.SessionID, Text: p.Text})
 		}
-	case "codex.inventory":
-		if !m.codexInventoryHanded() {
-			m.hub.logf("[%s] Codex inventory from a connection the hub has not handed its own yet: not kept", m.cfg.ID)
-			return
-		}
-		m.rememberCodexInventory(params)
+	case sessionInventoryEvent:
+		m.acceptSessionInventory(params)
 	case "session.echo":
 		m.recordEcho(params)
 	case "hook.event": // what it says of the session's turn is the manager's (assistant/fleet.go); the apps see it
