@@ -133,7 +133,7 @@ func (s *Service) recheckQueuedDigest(ctx context.Context, to string, msg relayM
 		}
 		if g.Kind == sigParentCloseout {
 			if t, ok := s.todoNow(g.Todo); ok && t.DoneAt == nil {
-				if _, _, _, err := s.checkParentCloseoutReady(ctx, t); err != nil {
+				if _, _, _, err := s.closeoutPrepare(ctx, t); err != nil {
 					return msg, false, true
 				}
 			}

@@ -1679,7 +1679,7 @@ function TodoDetail({
         </p>
       )}
       {isAutoDone(todo) && (
-        <p className="mt-2 text-[12.5px] leading-[1.6] text-ink-3">
+        <p className="mt-2 whitespace-pre-line text-[12.5px] leading-[1.6] text-ink-3">
           {todo.done_reason ? t("todos.auto_done_reason", { reason: todo.done_reason }) : t("todos.auto_done")}
         </p>
       )}

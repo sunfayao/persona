@@ -149,6 +149,10 @@ type TodoStepCount struct {
 	Done int `json:"done"`
 	// All its steps.
 	Total int `json:"total"`
+	// Only on an open to-do whose steps are all closed: closing, the hub closes it by itself shortly; awaiting, its
+	// conversation was asked to close it or plan what is missing. Absent when nothing is arranged. Open: a newer hub may
+	// send other values.
+	Closeout string `json:"closeout,omitempty"`
 }
 
 // TodoRunRef: an Agent session working for the to-do (a run), by its ids and its title; never its runtime, engine,

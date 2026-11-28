@@ -286,6 +286,8 @@ export type OwnerNeed = OwnerWait | "unattended";
  *  2. one of its own Agents is on it (agentOnIt)                                    → does not count
  *  3. its pieces carry it: a to-do under it (`part_of`, at any depth) has an Agent on it or waits on the owner,
  *     and a piece that waits counts by itself, so the request is not counted twice   → does not count
+ *  3b. every piece is finished and the hub says it is closing the request or has asked its conversation to
+ *     (`view.steps.closeout`)                                                       → does not count
  *  4. anything else: a personal to-do no Agent was ever on, and whatever has no sign of an Agent on it (its Agents
  *     stopped, finished work nobody has looked at, a PR waiting on others)           → counts, `unattended`
  *
@@ -322,7 +324,7 @@ export function ownerNeeds(todos: Todo[], lookup: SessionLookup | undefined, now
     if (td.quiet || !countsAsOpen(td, t)) continue;
     const wait = waitsOnOwner(td, t);
     if (wait) counted.set(td.id, wait);
-    else if (!agentOnIt(t) && !carried(td.id)) counted.set(td.id, "unattended");
+    else if (!agentOnIt(t) && !carried(td.id) && !td.view?.steps?.closeout) counted.set(td.id, "unattended"); // closing out: nothing for the owner to do
   }
   return counted;
 }

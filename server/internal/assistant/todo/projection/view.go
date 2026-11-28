@@ -666,6 +666,9 @@ func (r *reading) withSteps(own placement) placement {
 			steps = append(steps, part{placement: sr.place(), step: s, last: sr.last})
 		}
 	}
+	if own.Steps.Done == own.Steps.Total && !f.closed() {
+		own.Steps.Closeout = f.Closeout // every step finished: closing or awaiting its closeout
+	}
 	// The parts on the row: the one that leads it, then, on a row that lists asks, the others that are in Needs you or
 	// Can wait.
 	parts := []part{{placement: own, last: r.last}}

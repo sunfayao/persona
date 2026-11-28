@@ -15,6 +15,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/compat"
 
 	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistant/parentcloseout"
 	"github.com/sunfayao/persona/server/internal/assistant/repository"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/i18n"
@@ -251,10 +252,10 @@ type todoBook struct {
 	prMergeWakes       map[string]prMergeWakeMarker
 	prMergeWakesLoaded bool
 
-	// parentCloseoutWakes persists idempotent parent_closeout wake markers per open parent to-do (todo_parent_closeout.go).
-	parentCloseoutMu          sync.Mutex
-	parentCloseoutWakes       map[string]parentCloseoutWakeMarker
-	parentCloseoutWakesLoaded bool
+	// closeoutDom: the rules and wake markers for closing parent to-dos (todo_parent_closeout.go); closeoutNow is its clock in tests.
+	closeoutOnce sync.Once
+	closeoutDom  *parentcloseout.Domain
+	closeoutNow  func() time.Time
 }
 
 // spaceKey computes the unified space key string ("machineID/space").

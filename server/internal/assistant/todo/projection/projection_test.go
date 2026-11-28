@@ -106,6 +106,26 @@ func TestClosedParentKeepsItsStepsApart(t *testing.T) {
 	}
 }
 
+// A parent whose steps are all closed carries the manager's closeout state on its step count; one with an open step,
+// or one that is closed itself, carries none.
+func TestFinishedStepsCarryTheCloseoutState(t *testing.T) {
+	parent, step := askingStep(at(hours(-2)))
+	done := hours(-1)
+	step.DoneAt = &done
+	parent.DoneAt, parent.Closeout = nil, "closing"
+	if v := Views([]Facts{parent, step}, testNow)[0]; v.Steps == nil || v.Steps.Done != 1 || v.Steps.Closeout != "closing" {
+		t.Fatalf("finished steps: %+v", v.Steps)
+	}
+	step.DoneAt = nil
+	if v := Views([]Facts{parent, step}, testNow)[0]; v.Steps == nil || v.Steps.Closeout != "" {
+		t.Fatalf("an open step: %+v", v.Steps)
+	}
+	step.DoneAt, parent.DoneAt = &done, &done
+	if v := Views([]Facts{parent, step}, testNow)[0]; v.Steps == nil || v.Steps.Closeout != "" {
+		t.Fatalf("a closed parent: %+v", v.Steps)
+	}
+}
+
 // A part of a list reads a failed start as the whole list does once Superseded, worked out over the whole list, is set
 // on it: the related to-do that finished need not be in the part.
 func TestSupersededFromTheWholeList(t *testing.T) {

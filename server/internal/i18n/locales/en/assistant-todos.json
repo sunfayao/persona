@@ -11,5 +11,11 @@
   "not_found": "This to-do no longer exists",
   "agent_link_conflict": "This Agent is already linked to another to-do.",
   "agent_not_listed": "This Agent isn't listed on its computer yet. Try again in a moment.",
-  "images_forbidden": "This device can’t read to-do images"
+  "images_forbidden": "This device can’t read to-do images",
+  "closeout_head": "Closed automatically: every piece is finished ({accepted} accepted, {cancelled} cancelled).",
+  "closeout_accepted": "- {title}: accepted",
+  "closeout_accepted_criteria": "- {title}: accepted, {met}/{total} criteria met",
+  "closeout_prs": " (delivery: {links})",
+  "closeout_cancelled": "- {title}: cancelled",
+  "closeout_cancelled_reason": "- {title}: cancelled ({reason})"
 }

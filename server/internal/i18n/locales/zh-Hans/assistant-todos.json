@@ -11,5 +11,11 @@
   "not_found": "这个待办已不存在",
   "agent_link_conflict": "这个 Agent 已关联到其他待办。",
   "agent_not_listed": "这台电脑还没有列出这个 Agent，请稍后再试。",
-  "images_forbidden": "此设备无法读取待办图片"
+  "images_forbidden": "此设备无法读取待办图片",
+  "closeout_head": "已自动关闭：所有分项均已结束（{accepted} 项通过，{cancelled} 项取消）。",
+  "closeout_accepted": "- {title}：已通过",
+  "closeout_accepted_criteria": "- {title}：已通过，达成 {met}/{total} 条验收标准",
+  "closeout_prs": "（交付：{links}）",
+  "closeout_cancelled": "- {title}：已取消",
+  "closeout_cancelled_reason": "- {title}：已取消（{reason}）"
 }

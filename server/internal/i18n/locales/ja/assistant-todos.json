@@ -11,5 +11,11 @@
   "not_found": "このToDoはもうありません",
   "agent_link_conflict": "このエージェントは別の ToDo にリンクされています。",
   "agent_not_listed": "このエージェントはまだコンピュータに表示されていません。少し待ってからもう一度お試しください。",
-  "images_forbidden": "このデバイスではToDoの画像を読み込めません"
+  "images_forbidden": "このデバイスではToDoの画像を読み込めません",
+  "closeout_head": "自動でクローズしました：すべての項目が完了しました（承認 {accepted} 件、取り消し {cancelled} 件）。",
+  "closeout_accepted": "- {title}：承認済み",
+  "closeout_accepted_criteria": "- {title}：承認済み、受け入れ基準 {met}/{total} 件を達成",
+  "closeout_prs": "（成果物：{links}）",
+  "closeout_cancelled": "- {title}：取り消し",
+  "closeout_cancelled_reason": "- {title}：取り消し（{reason}）"
 }
