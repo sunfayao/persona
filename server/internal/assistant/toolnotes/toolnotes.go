@@ -52,6 +52,9 @@ const (
 	// and this many bytes of "Field notes:" block, so Antigravity's tool budget is not spent on notes.
 	MaxPerTool = 3
 	MaxBlock   = 600
+	// MaxTotal bounds what all the blocks of one conversation's list add together, so field notes never push a
+	// runtime's declarations past its budget (the ranking keeps this much room, tool_use_adapt.go).
+	MaxTotal = 600
 	// ReviewDays is how long an approved note stays before it is due for review.
 	ReviewDays = 90
 	// maxActive bounds the notes that are not retired; maxRetired and keepRetired the retired ones kept as a record.

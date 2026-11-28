@@ -78,6 +78,10 @@ type Event struct {
 	Serial int64 `json:"-"`
 }
 
+// WorkerRuntime is the runtime the calls of Agents (not the main conversation's) are counted under: their use is
+// counted, and nothing else of them is kept (no friction, no retry pairing).
+const WorkerRuntime = "agent"
+
 // notFriction are the failures that say nothing of how a tool is used: the user declined, a rate limit, the computer
 // or the connector away.
 var notFriction = []string{"declined", "rate_limited", "unavailable"}
@@ -189,6 +193,9 @@ func (b *Book) Record(c Call) {
 	}
 	b.add(now.UTC().Format(time.DateOnly), c.Runtime, c.Tool, counts)
 	b.changes++
+	if c.Runtime == WorkerRuntime {
+		return
+	}
 	key := pairKey{c.Machine, c.Session, c.Tool}
 	if c.OK {
 		if f, ok := b.last[key]; ok {

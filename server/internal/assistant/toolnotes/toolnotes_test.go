@@ -712,3 +712,39 @@ func TestPruneDropsOldRetiredNotes(t *testing.T) {
 		t.Fatal("a second prune dropped more")
 	}
 }
+
+// One conversation's notes add at most MaxTotal bytes, the ranked core tools first, and a block that does not fit is
+// passed over; a tool left to tool search (DeferLoading) gets none, since its description is not sent up front.
+func TestNotesStayWithinTheConversationsCap(t *testing.T) {
+	t.Parallel()
+	f := newFake()
+	d := New(f.host(t))
+	long := strings.Repeat("word ", 38) + "end." // 194 characters, 196 with its number: two make a block of over 400 bytes
+	for _, tool := range []string{"agent_send", "todo_create"} {
+		for i := range 2 {
+			mustRun(t, d, fmt.Sprintf(`{"action":"propose","tool":"%s","text":"%d %s"}`, tool, i, long))
+			f.set(func(f *fake) { f.now = f.now.Add(time.Minute) })
+		}
+	}
+	mustRun(t, d, `{"action":"propose","tool":"computer_run","text":"Open apps with a script."}`)
+	f.set(func(f *fake) {
+		f.tools[0].DeferLoading = true                  // computer_run: left to tool search
+		f.tools[1].CoreRank, f.tools[2].CoreRank = 2, 1 // todo_create ranks above agent_send
+	})
+	got := descriptions(d, f)
+	if !strings.Contains(got["todo_create"], "Field notes:") || strings.Contains(got["agent_send"], "Field notes:") ||
+		strings.Contains(got["computer_run"], "Field notes:") {
+		t.Fatalf("descriptions = %q", got)
+	}
+	added := 0
+	for _, tool := range f.tools {
+		added += len(got[tool.Name]) - len(tool.Description)
+	}
+	if added > MaxTotal {
+		t.Fatalf("the notes add %d bytes, more than %d", added, MaxTotal)
+	}
+	f.set(func(f *fake) { f.tools[1].CoreRank, f.tools[2].CoreRank = 1, 2 })
+	if got := descriptions(d, f); !strings.Contains(got["agent_send"], "Field notes:") || strings.Contains(got["todo_create"], "Field notes:") {
+		t.Fatalf("with agent_send ranked first: %q", got)
+	}
+}

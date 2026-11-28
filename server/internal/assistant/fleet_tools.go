@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/sunfayao/persona/server/internal/assistant/agents"
+	"github.com/sunfayao/persona/server/internal/assistant/tooluse"
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/compat"
 	"github.com/sunfayao/persona/server/internal/connector"
@@ -134,8 +135,12 @@ func (s *Service) mcpCall(ctx context.Context, machine, session, name string, ar
 // the manager's origin book is written from the returned session afterwards. An assistant conversation's call is
 // recorded (tool_use.go).
 func (s *Service) mcpCallWithOrigin(ctx context.Context, machine, session, name string, args json.RawMessage, assistant bool, origin string) proto.ToolResult {
-	if !assistant {
-		return s.mcpCallRun(ctx, machine, session, name, args, assistant, origin)
+	if !assistant { // an Agent's call: counted, no more (its runtime is tooluse.WorkerRuntime)
+		res := s.mcpCallRun(ctx, machine, session, name, args, assistant, origin)
+		if s.toolUse != nil {
+			s.toolUse.Record(tooluse.Call{Tool: compat.Tool(name), Runtime: tooluse.WorkerRuntime, OK: !res.IsError})
+		}
+		return res
 	}
 	r := &callRecord{}
 	res := s.mcpCallRun(withCallRecord(ctx, r), machine, session, name, args, assistant, origin)

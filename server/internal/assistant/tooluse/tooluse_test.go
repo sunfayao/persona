@@ -232,3 +232,23 @@ func TestNormalizeCode(t *testing.T) {
 		t.Errorf("a long code is %d bytes", len(got))
 	}
 }
+
+// An Agent's calls are counted under WorkerRuntime and nothing more: no friction, no retry pairing, and the main
+// conversation's runtimes do not see them.
+func TestWorkerCallsAreCountedOnly(t *testing.T) {
+	t.Parallel()
+	f := newFakeHost()
+	b := New(f.host())
+	b.Record(Call{Tool: "a2a_send", Runtime: WorkerRuntime, OK: true})
+	b.Record(Call{Tool: "a2a_send", Runtime: WorkerRuntime, Machine: "m", Session: "s", Code: "x"})
+	b.Record(Call{Tool: "a2a_send", Runtime: WorkerRuntime, Machine: "m", Session: "s", OK: true, Skeleton: "{other:str}"})
+	if got := b.Usage(WorkerRuntime, f.now.Add(-time.Hour))["a2a_send"]; got != (Counts{Calls: 3, Errors: 1}) {
+		t.Fatalf("worker usage = %+v", got)
+	}
+	if got := b.Usage("agy", f.now.Add(-time.Hour)); len(got) != 0 {
+		t.Fatalf("agy usage = %+v", got)
+	}
+	if events := b.Friction(time.Time{}); len(events) != 0 {
+		t.Fatalf("an Agent's failure was kept as friction: %+v", events)
+	}
+}

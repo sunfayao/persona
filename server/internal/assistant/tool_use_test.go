@@ -8,13 +8,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/tooluse"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // An assistant conversation's tool calls are recorded through the path every call takes (mcpCall): the tool, the
-// failure's code and the shape of the arguments, never a value of them. Another caller's calls are not.
+// failure's code and the shape of the arguments, never a value of them. An Agent's calls are only counted.
 func TestAssistantToolCallsAreRecordedWithoutValues(t *testing.T) {
 	s, _, _ := roleContractStoredService(t)
 	before := time.Now().Add(-time.Minute)
@@ -48,8 +49,12 @@ func TestAssistantToolCallsAreRecordedWithoutValues(t *testing.T) {
 			}
 		}
 	}
-	if got := s.toolUse.Usage("", before)["no_such_tool"]; got.Calls != 1 || got.Errors != 1 {
-		t.Errorf("no_such_tool usage = %+v, want the assistant's call only", got)
+	// The Agent's call is counted, under the workers' runtime, and kept as nothing more.
+	if got := s.toolUse.Usage(tooluse.WorkerRuntime, before)["no_such_tool"]; got.Calls != 1 || got.Errors != 1 {
+		t.Errorf("the Agent's no_such_tool usage = %+v", got)
+	}
+	if got := s.toolUse.Usage(s.callerRuntime(context.Background()), before)["no_such_tool"]; got.Calls != 1 {
+		t.Errorf("the main conversation's no_such_tool usage = %+v", got)
 	}
 }
 

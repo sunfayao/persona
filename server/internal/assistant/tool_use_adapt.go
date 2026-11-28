@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"strings"
 
+	"github.com/sunfayao/persona/server/internal/assistant/toolnotes"
 	"github.com/sunfayao/persona/server/internal/assistant/tooluse"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -30,7 +31,7 @@ const (
 func coreBudget(runtime string) int {
 	switch runtime {
 	case "agy":
-		return agyCoreBudget
+		return agyCoreBudget - toolnotes.MaxTotal // room for the field notes added after the marks (withToolNotes)
 	case "claude":
 		return claudeCoreBudget
 	}

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"maps"
+	"math"
 	"slices"
 
 	"github.com/sunfayao/persona/server/internal/prompts"
@@ -23,23 +24,36 @@ func Digest(t proto.Tool) string {
 
 // Annotate is tools with the notes that hold for the main conversation appended to their descriptions, as a "Field
 // notes:" block: approved, before their review date, for every runtime or the one it runs on, and proposed on the
-// description the tool still has. A note whose tool's description changed is left out here and
-// retired by Sweep. The list is copied, not changed.
+// description the tool still has. A note whose tool's description changed is left out here and retired by Sweep.
+// Only a tool the list declares up front gets notes (not one left to tool search), the core tools by rank first, and
+// all the blocks of the list together take at most MaxTotal bytes: a block that does not fit what is left is passed
+// over for the next. The list is copied, not changed.
 func (d *Domain) Annotate(ctx context.Context, tools []proto.Tool) []proto.Tool {
 	shown := d.shown(ctx)
 	if len(shown) == 0 {
 		return tools
 	}
 	out := slices.Clone(tools)
+	var order []int
 	for i, t := range out {
-		notes := shown[t.Name]
-		if len(notes) == 0 {
-			continue
+		if len(shown[t.Name]) > 0 && !t.DeferLoading {
+			order = append(order, i)
 		}
-		digest := Digest(t)
-		notes = slices.DeleteFunc(slices.Clone(notes), func(n Note) bool { return n.PromptDigest != digest })
-		if block := d.block(notes); block != "" {
+	}
+	rank := func(t proto.Tool) int { // ranked core tools first, by rank; then the rest in list order
+		if t.CoreRank > 0 {
+			return t.CoreRank
+		}
+		return math.MaxInt
+	}
+	slices.SortStableFunc(order, func(a, b int) int { return cmp.Compare(rank(out[a]), rank(out[b])) })
+	left := MaxTotal
+	for _, i := range order {
+		digest := Digest(out[i])
+		notes := slices.DeleteFunc(slices.Clone(shown[out[i].Name]), func(n Note) bool { return n.PromptDigest != digest })
+		if block := d.block(notes); block != "" && len(block)+2 <= left {
 			out[i].Description += "\n\n" + block
+			left -= len(block) + 2
 		}
 	}
 	return out
