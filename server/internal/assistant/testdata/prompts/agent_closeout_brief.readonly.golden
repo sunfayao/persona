@@ -11,4 +11,4 @@ End your final reply with this record; it tells the hub where the task stands:
 
 ---
 
-Copy the heading and field names exactly, one "- " line each, ending with --- alone; no code fence. Status: done, not_done or blocked. Did: what you found, in up to three sentences. Artifact: a file you made for the user as `file <absolute path>`; leave the line out otherwise. Verified: what you ran or read to check it. Write the content in English.
+Copy the heading and field names exactly, one "- " line each, ending with --- alone; no code fence. Status: done when every criterion is met, else not_done or blocked. Did: what you found, in up to three sentences. Artifact: a file you made for the user as `file <absolute path>`; else omit it. Verified: what you ran or read. Write it in English.

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/criteria"
 	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/prompts"
@@ -171,9 +172,18 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 			return "", reworkCapError(t.ID, safetyCap, count)
 		}
 	}
+	var current []string
+	if t.Supervision != nil {
+		current = t.Supervision.DoneWhen
+	}
+	resolved, byNumber, err := criteria.ResolveChecks(current, a.Checks)
+	if err != nil {
+		return "", err
+	}
+	a.Checks = resolved
 	checks := make([]ReviewCheck, 0, len(a.Checks))
 	for _, c := range a.Checks {
-		c.Criterion, c.Evidence = clip(oneLine(c.Criterion), 200), clip(strings.TrimSpace(c.Evidence), 600)
+		c.Criterion, c.Evidence = criteria.Fit(c.Criterion), clip(strings.TrimSpace(c.Evidence), 600)
 		if c.Criterion != "" {
 			checks = append(checks, c)
 		}
@@ -187,7 +197,7 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 			return "", ownerWaitError(t.ID, &w)
 		}
 		if a.Outcome != outcomeCannot && t.Supervision != nil {
-			if err := completeReviewCriteriaError(t.Supervision.DoneWhen, a.Checks); err != nil {
+			if err := criteria.Complete(t.Supervision.DoneWhen, a.Checks); err != nil {
 				return "", err
 			}
 		}
@@ -199,9 +209,16 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 	// can describe an earlier failure or a valid negative result. The criteria, owner wait and delivery gates above
 	// apply to explicit acceptance before any task state is written.
 	if verdict == reviewAccepted && a.Outcome == "" {
-		evidence := s.acceptGuardEvidence(ctx, t, note, strings.TrimSpace(a.Reason), checks)
-		if matched, _ := acceptGuardBlock(evidence); matched != "" {
-			return "", errors.New(acceptGuardRefusal(matched))
+		signals := criteria.Guard(s.acceptGuardEvidence(ctx, t, note, strings.TrimSpace(a.Reason), checks))
+		switch {
+		case len(signals) == 1 && signals[0] == criteria.SignalCloseout && t.Supervision != nil && len(t.Supervision.DoneWhen) > 0:
+			// Every criterion has a met check (criteria.Complete above): only the worker's own status disagrees.
+			if note == "" {
+				return "", errors.New(criteria.SettledByCriteria)
+			}
+			deliveryNote += " The worker's closeout Status disagreed with the criteria, all met; your note records what it left outside them."
+		case len(signals) > 0:
+			return "", errors.New(criteria.Refusal(signals[0]))
 		}
 	}
 	// Retire a stored owner check even if the supervisor reviewed it before the startup sweep.
@@ -251,13 +268,17 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 	var reviewedAt time.Time
 	if ledger {
 		v, _, err = s.updateSupervision(ctx, t.ID, func(v *Supervision) bool {
+			if byNumber && !slices.Equal(v.DoneWhen, current) {
+				criteriaErr = criteria.ErrChanged
+				return false
+			}
 			if verdict == reviewAccepted && t.DoneAt == nil && v.Waits != nil {
 				w := *v.Waits
 				waiting = &w
 				return false
 			}
 			if verdict == reviewAccepted && a.Outcome != outcomeCannot {
-				if criteriaErr = completeReviewCriteriaError(v.DoneWhen, a.Checks); criteriaErr != nil {
+				if criteriaErr = criteria.Complete(v.DoneWhen, a.Checks); criteriaErr != nil {
 					return false
 				}
 			}

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sunfayao/persona/server/internal/assistant/criteria"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -94,13 +95,13 @@ func TestAcceptGuardRefusesInconclusiveResult(t *testing.T) {
 func TestAcceptGuardRefusesNonDoneCloseout(t *testing.T) {
 	s, _, todo := guardedReviewTask(t, "### Persona 工作报告\n- Status: not_done\n- Did: reproduced the crash, no fix yet")
 	ctx := context.Background()
-	raw := reviewRaw(t, todo.ID, map[string]any{"verdict": "accepted", "note": "closing it", "checks": metChecks()})
+	raw := reviewRaw(t, todo.ID, map[string]any{"verdict": "accepted", "checks": metChecks()})
 	_, err := s.runTool(ctx, "server", "conv1", "task_review", raw)
 	if err == nil || !strings.Contains(err.Error(), "closeout") || !strings.Contains(err.Error(), "rework") {
 		t.Fatalf("a not_done closeout was accepted: %v", err)
 	}
 
-	if matched, _ := acceptGuardBlock("### Persona 工作报告\n- Status: done\n- Did: fixed and merged"); matched != "" {
+	if matched := criteria.Guard("### Persona 工作报告\n- Status: done\n- Did: fixed and merged"); len(matched) != 0 {
 		t.Fatalf("a done closeout tripped the guard: %s", matched)
 	}
 }

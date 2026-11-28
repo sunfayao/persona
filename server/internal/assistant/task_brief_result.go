@@ -1,11 +1,13 @@
 package assistant
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/criteria"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/feishubot"
 	"github.com/sunfayao/persona/server/internal/i18n"
@@ -79,19 +81,17 @@ func (r *BriefResult) words() string {
 		return ""
 	}
 	var parts []string
+	n := 0
 	for _, c := range r.Criteria {
-		switch c.State {
-		case criterionMet:
-			parts = append(parts, fmt.Sprintf("%q met", c.Criterion))
-		case criterionNotMet:
-			parts = append(parts, fmt.Sprintf("%q NOT met", c.Criterion))
-		case criterionDropped:
-			parts = append(parts, fmt.Sprintf("%q dropped (%s)", c.Criterion, c.Change))
-		default:
-			parts = append(parts, fmt.Sprintf("%q not checked", c.Criterion))
+		if c.State == criterionDropped {
+			parts = append(parts, fmt.Sprintf("- %q dropped (%s)", c.Criterion, c.Change))
+			continue
 		}
+		verdict := map[string]string{criterionMet: "met", criterionNotMet: "NOT met"}[c.State]
+		n++
+		parts = append(parts, fmt.Sprintf("%d. %q %s", n, c.Criterion, cmp.Or(verdict, "not checked")))
 	}
-	out := " Against its brief: " + strings.Join(parts, "; ") + "."
+	out := " Against its brief:\n" + strings.Join(parts, "\n") + "\n"
 	if len(r.AlsoDone) > 0 {
 		out += " Also done: " + strings.Join(r.AlsoDone, "; ") + "."
 	}
@@ -133,7 +133,7 @@ func (s *Service) briefCriteriaNow(t Todo) []BriefCriterion {
 	for _, c := range brief.Criteria {
 		row := BriefCriterion{Criterion: c, State: criterionUnchecked}
 		for _, k := range ledger {
-			if !sameCriterion(k.Criterion, c) {
+			if !criteria.Same(k.Criterion, c) {
 				continue
 			}
 			switch k.State {

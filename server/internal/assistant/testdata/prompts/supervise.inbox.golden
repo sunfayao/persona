@@ -3,7 +3,8 @@
 <persona-supervision level="triage" />
 
 1. Task “修登录崩溃” (todo_1, signal=inbox): new messages from other people in the Inbox mention it (3 messages); on box session_id=s1
-   Acceptance criteria: PR 合并到 master
+   Acceptance criteria:
+   1. PR 合并到 master
    Inbox event lark:f1:12 “客户端发版群”, newest message sent by 陈晓: “登录那个崩溃今天能修好吗？下午要发版”
    What the Agent said last:
    在跑测试

@@ -1,6 +1,6 @@
-Record a verdict on a supervised task, judged on its scoped brief and criteria, not the Agent's claims.
-- accepted: outcome=done closes verified work. Give one met check with evidence per current done_when criterion.
-- rework: a concrete next step in note; accept with a note rather than bounce nitpicks.
+Record a verdict on a supervised task, judged on its brief and criteria, not on claims.
+- accepted: outcome=done closes verified work: one met check with evidence per done_when criterion, by number or text.
+- rework: a concrete next step in note; do not bounce nitpicks.
 - parked: an outside wait, with reason, waiting_on and evidence.
 - needs_user: only what the owner alone can decide, with why_owner, reason, options, recommend and cost_of_waiting.
 - cancelled: duplicate or unwanted tasks only.
@@ -29,8 +29,9 @@ Details: read .claude/skills/persona-work/references/task-review.md in your work
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["criterion", "met"],
+        "required": ["met"],
         "properties": {
+          "number": {"type": "integer"},
           "criterion": {"type": "string"},
           "met": {"type": "boolean"},
           "evidence": {"type": "string"}

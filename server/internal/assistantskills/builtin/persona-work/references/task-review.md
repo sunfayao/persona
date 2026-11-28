@@ -11,8 +11,9 @@ The main conversation, the conversation that supervises the task, and a task lea
 ## accepted
 
 - Give `outcome` (`done`, the default, when the work is complete or the answer is yes; `cannot` when it proved impossible), `reason` (one sentence; it defaults to the note's first line), `link` (one evidence link; it defaults to the task's PR, a link in the note or checks, or the Agent's chat) and `note` (the result in a line).
-- With `outcome: done`, `checks` lists every current `done_when` criterion exactly once, with `met: true` and non-empty `evidence`. `outcome: cannot`, a cancelled task and a task without criteria need no checks. Other verdicts may leave checks out, or record progress with them: each check updates the stored state, its evidence, its time and its supervisor, and criteria left out keep their progress.
+- With `outcome: done`, `checks` lists every current `done_when` criterion exactly once, with `met: true` and non-empty `evidence`. Name a criterion by `number` (its one-based position in the current `done_when`, as digests and `todo_get` print them), by `criterion` text, or both, which must name the same one. A review whose numbers were read from a list that has changed since is refused: read the task and review again. `outcome: cannot`, a cancelled task and a task without criteria need no checks. Other verdicts may leave checks out, or record progress with them: each check updates the stored state, its evidence, its time and its supervisor, and criteria left out keep their progress.
 - The delivery gate (`delivery_gate=merged` by default) keeps PR and issue work open until the PR is merged and its linked issues are closed. Accepting an open PR is refused: park it until the merge (`waiting_on` `external_event` with `evidence.kind` `external_event`, its `url` and `pr_event: terminal`, or `merge_review`), send what is missing with rework, or accept it with `outcome: cannot` when nothing could be delivered. A brief that asks only for a PR or a draft, a read-only task without a merge or close criterion, and `outcome: cannot` skip the gate.
+- Without `outcome`, a wording guard reads your note, reason, the checks' evidence and the Agent's last replies (never the criteria's own text) and refuses a result that looks blocked on the owner or inconclusive. When only the worker's closeout `Status` is not done while every criterion has a met check, the acceptance goes through if `note` says what the worker left outside the criteria; the receipt says the status disagreed.
 - Acceptance closes verified work. Use `ask_user` with options for an interactive choice in the conversation, or record an actionable task decision with `needs_user`.
 - `also_done`: up to 6 lines on what was done beyond the brief; the task's page lists them after the criteria.
 - When the owner opted in at Start, an accepted `done` task closes its idle Agent's tab. Report whether it was closed, skipped or still pending; never close the tab yourself.
@@ -53,3 +54,10 @@ Ask the owner only what they alone can decide, and decide anything else yourself
 ## cancelled
 
 Only for duplicate or unwanted tasks. The task closes, its pending decision ends, and its Agents are stopped and archived (`agent_archive` with `restore` brings one back), and their waiting cards end.
+
+## Changing criteria with `task_scope`
+
+A criterion is one checkable result of at most 200 characters, written as it is to be checked; procedure and context belong in the prompt. A longer one is refused wherever criteria are written (`task_plan`, `task_scope`, `agent_send` with `task`, `agent_supervise`), and nothing is written.
+
+- `add`: new criteria, appended. `drop`: numbers of criteria to remove, recorded as dropped. `edit`: a list of `{number, text}` that rewrites a criterion in place; it keeps its position and what was reported on it, and is recorded as an edit, never as dropped. These cannot be combined with `done_when`, the whole list after the change, which records as dropped every criterion it leaves out. Numbers are the one-based positions in the current list; a task keeps 1 to 6 criteria.
+- A call that changes only `expect_minutes` answers in one line. Any other call answers with the original and the effective criteria, numbered, and what was dropped.

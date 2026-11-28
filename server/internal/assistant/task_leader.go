@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sunfayao/persona/server/internal/assistant/criteria"
 	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
 	"slices"
 	"strings"
@@ -981,20 +982,24 @@ func (s *Service) leaderTaskScope(ctx context.Context, root Todo, lead TodoAgent
 	}
 	self := leaderRef(lead.MachineID, lead.SessionID)
 	if a.TodoID == root.ID {
-		if a.DoneWhen != nil {
+		if a.DoneWhen != nil || len(a.Add)+len(a.Drop)+len(a.Edit) > 0 {
 			return "", errors.New("your own to-do's done_when is the main conversation's to change: ask it with report_to_supervisor " +
 				"(kind question); on your own to-do you change only expect_minutes")
 		}
 		if a.ExpectMinutes == 0 {
 			return "", errors.New("give expect_minutes: on your own to-do you change only the time it should take")
 		}
-		return s.scopeTask(ctx, self, root, a.Change, a.Why, nil, a.ExpectMinutes)
+		return s.scopeTask(ctx, self, root, a.Change, a.Why, nil, criteria.Ops{}, a.ExpectMinutes)
 	}
 	w, err := s.leaderWorker(lead, a.TodoID)
 	if err != nil {
 		return "", err
 	}
-	return s.scopeTask(ctx, self, w, a.Change, a.Why, a.DoneWhen, a.ExpectMinutes)
+	ops := criteria.Ops{Add: a.Add, Drop: a.Drop}
+	for _, e := range a.Edit {
+		ops.Edit = append(ops.Edit, criteria.Edit{Number: e.Number, Text: e.Text})
+	}
+	return s.scopeTask(ctx, self, w, a.Change, a.Why, a.DoneWhen, ops, a.ExpectMinutes)
 }
 
 // leaderWorkers are the worker to-dos of to-do root's task leaders (open and closed), oldest first: each worker's row
@@ -1153,9 +1158,18 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 	if a.Verdict == reviewNeedsUser && up == "" {
 		return "", errors.New("your own task has nobody to hand a decision to: decide it yourself, or review the worker with the other verdicts")
 	}
+	var current []string
+	if t.Supervision != nil {
+		current = t.Supervision.DoneWhen
+	}
+	resolved, byNumber, err := criteria.ResolveChecks(current, a.Checks)
+	if err != nil {
+		return "", err
+	}
+	a.Checks = resolved
 	checks := make([]ReviewCheck, 0, len(a.Checks))
 	for _, c := range a.Checks {
-		c.Criterion, c.Evidence = clip(oneLine(c.Criterion), 200), clip(strings.TrimSpace(c.Evidence), 600)
+		c.Criterion, c.Evidence = criteria.Fit(c.Criterion), clip(strings.TrimSpace(c.Evidence), 600)
 		if c.Criterion != "" {
 			checks = append(checks, c)
 		}
@@ -1164,8 +1178,12 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 	over, overSafetyCap, overCount := false, false, 0
 	var criteriaErr error
 	v, _, err := s.updateSupervision(ctx, t.ID, func(v *Supervision) bool {
+		if byNumber && !slices.Equal(v.DoneWhen, current) {
+			criteriaErr = criteria.ErrChanged
+			return false
+		}
 		if verdict == reviewAccepted {
-			if criteriaErr = completeReviewCriteriaError(v.DoneWhen, a.Checks); criteriaErr != nil {
+			if criteriaErr = criteria.Complete(v.DoneWhen, a.Checks); criteriaErr != nil {
 				return false
 			}
 		}

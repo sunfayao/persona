@@ -4,11 +4,14 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/criteria"
 	"github.com/sunfayao/persona/server/internal/db"
 )
+
+// criterionReport is an agent's reading of one criterion by its number (criteria.Report).
+type criterionReport = criteria.Report
 
 // applyChecks records only the criteria actually checked, without deriving any
 // task verdict from their count. Unmatched checks remain in the review history.
@@ -16,7 +19,7 @@ func (v *Supervision) applyChecks(checks []ReviewCheck, at time.Time, by string)
 	v.Criteria = db.AlignTodoCriteria(v.DoneWhen, v.Criteria)
 	for _, check := range checks {
 		for i, text := range v.DoneWhen {
-			if !sameCriterion(check.Criterion, text) {
+			if !criteria.Same(check.Criterion, text) {
 				continue
 			}
 			state := "not_met"
@@ -27,76 +30,6 @@ func (v *Supervision) applyChecks(checks []ReviewCheck, at time.Time, by string)
 			break
 		}
 	}
-}
-
-// completeReviewCriteriaError refuses an ordinary acceptance whose checks do not prove every current criterion.
-// Callers use it only for accepted/done reviews: cannot, cancelled, criteria-free tasks and the judge keep their rules.
-func completeReviewCriteriaError(doneWhen []string, checks []ReviewCheck) error {
-	if len(doneWhen) == 0 {
-		return nil
-	}
-	matched := make([]int, len(doneWhen))
-	for i, check := range checks {
-		criterion := clip(oneLine(check.Criterion), 200)
-		at, matches := -1, 0
-		for j, current := range doneWhen {
-			if sameCriterion(criterion, current) {
-				at, matches = j, matches+1
-			}
-		}
-		switch {
-		case matches == 0:
-			return fmt.Errorf("accepted: check %d names unknown current done_when %q; use the current criteria and exactly one met check with non-empty evidence for each; nothing was written", i+1, criterion)
-		case matches > 1:
-			return fmt.Errorf("accepted: check %d criterion %q matches more than one current done_when entry; nothing was written", i+1, criterion)
-		case matched[at] != 0:
-			return fmt.Errorf("accepted: current done_when %q has duplicate checks; supply exactly one met check with non-empty evidence for every criterion; nothing was written", doneWhen[at])
-		case !check.Met:
-			return fmt.Errorf("accepted: current done_when %q is not met; use rework for what is missing; nothing was written", doneWhen[at])
-		case strings.TrimSpace(check.Evidence) == "":
-			return fmt.Errorf("accepted: current done_when %q needs non-empty evidence; nothing was written", doneWhen[at])
-		}
-		matched[at] = i + 1
-	}
-	for i, current := range doneWhen {
-		if matched[i] == 0 {
-			return fmt.Errorf("accepted: current done_when %q has no check; supply exactly one met check with non-empty evidence for every criterion; nothing was written", current)
-		}
-	}
-	return nil
-}
-
-// criterionReport uses the one-based position the agent saw in done_when. Text
-// matching remains the persisted identity, so later reordering cannot move evidence.
-type criterionReport struct {
-	Number   int    `json:"number"`
-	State    string `json:"state"`
-	Evidence string `json:"evidence"`
-}
-
-func cleanCriterionReports(reports []criterionReport, doneWhen []string) ([]criterionReport, error) {
-	out := make([]criterionReport, 0, len(reports))
-	seen := map[int]bool{}
-	for _, r := range reports {
-		if r.Number < 1 || r.Number > len(doneWhen) {
-			return nil, fmt.Errorf("criteria: number must be between 1 and %d", len(doneWhen))
-		}
-		if seen[r.Number] {
-			return nil, fmt.Errorf("criteria: number %d appears twice", r.Number)
-		}
-		seen[r.Number] = true
-		switch r.State {
-		case "pending", "met", "not_met":
-		default:
-			return nil, fmt.Errorf("criteria: state must be pending, met or not_met")
-		}
-		r.Evidence = clip(strings.TrimSpace(r.Evidence), 600)
-		if r.State != "pending" && r.Evidence == "" {
-			return nil, fmt.Errorf("criteria: number %d needs evidence", r.Number)
-		}
-		out = append(out, r)
-	}
-	return out, nil
 }
 
 func (s *Service) recordCriterionReports(ctx context.Context, t Todo, machine, session string, reports []criterionReport, at time.Time) error {

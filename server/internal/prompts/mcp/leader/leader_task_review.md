@@ -1,4 +1,4 @@
-Review a direct worker of your to-do. accepted with outcome done closes verified work: give one met check with nonblank evidence per current done_when. rework needs a concrete gap. Repeated or omitted rework kinds cap at two stalled rounds; substantive changes cap at ten total. needs_user sends a decision up with reason and recommendation. cancelled closes an unwanted worker.
+Review a direct worker of your to-do. accepted (outcome done) closes verified work: one met check with evidence per done_when, by number or text. rework needs a concrete gap. Repeated or omitted rework kinds cap at two stalled rounds; substantive ones at ten. needs_user sends a decision up (reason, recommend). cancelled closes an unwanted one.
 
 ```json
 {
@@ -32,9 +32,10 @@ Review a direct worker of your to-do. accepted with outcome done closes verified
       "maxItems": 6,
       "items": {
         "type": "object",
-        "required": ["criterion", "met"],
+        "required": ["met"],
         "additionalProperties": false,
         "properties": {
+          "number": {"type": "integer"},
           "criterion": {"type": "string", "description": "one of the task's done_when"},
           "met": {"type": "boolean"},
           "evidence": {"type": "string", "description": "what shows it, or what is missing"}

@@ -608,7 +608,7 @@ func TestTaskLeaderMessages(t *testing.T) {
 		DoneWhen: []string{"测试通过"}, Round: 1}}
 	got := prompts.RenderWorkerSupervise(entries)
 	for _, want := range []string{"Persona · supervision: 1 of your to-do's tasks", `1. Worker "改登录页" (todo_1, signal=report): the worker reports a question for you (step 2 of 5)`,
-		"sent back 1 time(s)", "Done when: 测试通过", "It said:\n   用哪个分支？", "agent_send", "on your own workers only"} {
+		"sent back 1 time(s)", "Done when:\n   1. 测试通过", "It said:\n   用哪个分支？", "agent_send", "on your own workers only"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the worker supervision message lacks %q:\n%s", want, got)
 		}
