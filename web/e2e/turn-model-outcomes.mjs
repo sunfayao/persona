@@ -1,12 +1,19 @@
 // Exercise typed turns against a mock hub at phone and desktop widths.
 // Usage: node web/e2e/turn-model-outcomes.mjs <web-origin> [chromium-executable]
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { chromium } from "playwright-core";
 
 const [origin, executablePath] = process.argv.slice(2);
 if (!origin) throw new Error("A web preview origin is required");
 const base = new URL(origin);
 const browser = await chromium.launch(executablePath ? { executablePath } : {});
+const corpora = {
+  agy: "../../server/internal/node/harness/agy/testdata/agy-tools.golden.json",
+  codex: "../../server/internal/transcript/testdata/codex-0.171.golden.json",
+  traex: "../../server/internal/transcript/testdata/traex-native-tools.golden.json",
+  claude: "../../server/internal/transcript/testdata/claude-session.golden.json",
+};
 const at = (seq) => new Date(Date.UTC(2026, 0, 1, 0, 0, seq)).toISOString();
 const entries = [
   { id: "read", title: "Review the input", status: "completed" },
@@ -46,7 +53,7 @@ function timeline(typed) {
   ];
 }
 
-async function run(agent, width, theme, typed = true) {
+async function run(agent, width, theme, typed = true, corpus = false) {
   const id = `fixture-${agent}`;
   const timer = { id: "timer", kind: "timer", status: "scheduled",
     timer: { interval_s: 600, prompt: "Review the release", next_at: new Date(Date.now() + 600_000).toISOString() } };
@@ -57,7 +64,11 @@ async function run(agent, width, theme, typed = true) {
       subagents: [{ id: "child-agent", session_id: "example-child", tool_use_id: "child", status: "completed" }],
       background: [{ id: "job", kind: "shell", description: "Build the release", started_at: at(3) }],
     } : {}) };
-  const items = timeline(typed);
+  const items = corpus ? JSON.parse(readFileSync(new URL(corpora[agent], import.meta.url), "utf8")).items.map((item) => {
+    if (typed) return item;
+    const { facets, ...legacy } = item;
+    return legacy;
+  }) : timeline(typed);
   const context = await browser.newContext({
     viewport: { width, height: 900 }, colorScheme: theme, serviceWorkers: "block", hasTouch: width === 390,
   });
@@ -89,6 +100,14 @@ async function run(agent, width, theme, typed = true) {
     });
     const page = await context.newPage();
     await page.goto(new URL(`/s/demo/${id}`, base).href);
+    if (corpus) {
+      const plain = items.findLast((i) => i.kind === "text" && (i.role === "assistant" || i.role === "user") && i.text?.trim() && !i.narration);
+      assert.ok(plain?.text, `${agent} corpus has displayable output`);
+      const words = plain.text.trim().split(/\s+/).slice(0, 4).join(" ");
+      await page.getByText(words, { exact: false }).first().waitFor({ timeout: 15_000, state: "visible" });
+      console.log(`${agent} ${width}px ${theme} ${typed ? "typed" : "legacy"}: native corpus renders`);
+      return;
+    }
     await page.getByText("The checks passed.", { exact: true }).waitFor({ timeout: 15_000 });
     const group = page.locator("[data-work-group] button[aria-expanded='false']").first();
     if (await group.count()) await group.click();
@@ -121,6 +140,8 @@ try {
     for (const width of [390, 1440]) {
       for (const theme of ["light", "dark"]) await run(agent, width, theme);
     }
+    await run(agent, 390, "light", true, true);
+    await run(agent, 1440, "dark", false, true);
   }
   await run("claude", 390, "light", false);
 } finally {

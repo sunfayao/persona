@@ -208,7 +208,8 @@ export function planProgress(todos: Todo[]): { done: number; total: number; curr
 export function groupsHolding(nodes: WorkNode[], call: string): string[] | null {
   for (const n of nodes) {
     if (n.kind === "step") {
-      if (n.step.kind === "tool" && n.step.use.tool_use_id === call) return [];
+      const id = n.step.kind === "child_session" ? n.step.id : n.step.kind === "tool" ? n.step.use.tool_use_id : undefined;
+      if (id === call) return [];
       continue;
     }
     const inner = groupsHolding(n.children, call);
