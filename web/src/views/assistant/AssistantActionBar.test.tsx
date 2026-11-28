@@ -135,7 +135,7 @@ describe("Assistant Needs you / In progress trays", () => {
     expect(section).toBeDefined();
     expect(section!.textContent).toContain(held.title);
     expect(section!.textContent).toContain(merging.title);
-    expect(section!.querySelectorAll("button")).toHaveLength(4); // Each task's open and existing remove actions.
+    expect(section!.querySelectorAll("button")).toHaveLength(2); // Each task opens for reading.
     expect(section!.querySelector(".text-green")).toBeNull();
   });
 
@@ -308,7 +308,7 @@ describe("Assistant Needs you / In progress trays", () => {
     delete getFeedState().plans[reuse.id];
   });
 
-  it("offers a failed start's other launcher first in Needs you, with its code's short line, where the hub takes it (#10365)", async () => {
+  it("shows a failed start's coded reason with only a link to the task", async () => {
     const reuse: TaskPlan = { id: "launcher-plan", conversation, state: "started", created_at: at, tasks: [{ title: "Reused", prompt: "Go on", cwd: "/demo", machine: "demo",
       todo_id: "launcher-todo", error: "terminal", error_code: "launcher_missing", error_args: { where: "terminal", launcher: "work" }, retry_with: ["claude"] }] };
     getFeedState().plans[reuse.id] = reuse;
@@ -325,9 +325,8 @@ describe("Assistant Needs you / In progress trays", () => {
       const row = host.querySelector<HTMLElement>("[data-failed-task=launcher-todo]")!;
       expect(row.textContent).toContain(t("lib-start-retry.start_code_launcher_terminal", { launcher: "work" }));
       const buttons = [...row.querySelectorAll("button")].map((b) => b.textContent);
-      expect(buttons.slice(1)).toEqual([t("assistant-task-actions.use_launcher_instead", { launcher: "claude" }), t("assistant-tasks.retry"), t("assistant-tasks.remove")]);
-      await act(async () => row.querySelector<HTMLButtonElement>("[data-retry-launcher=claude]")!.click());
-      expect(writes).toContain("/api/v1/todos/launcher-todo/retry");
+      expect(buttons).toEqual(["Carry on the work"]);
+      expect(writes).toEqual([]);
     } finally {
       getState().features = features;
       delete getFeedState().plans[reuse.id];
@@ -551,7 +550,7 @@ describe("Assistant Needs you / In progress trays", () => {
     expect(finished.querySelector("[data-task-status]")?.textContent).toBe(stateName("just_finished"));
   });
 
-  it("lists what finished in the last day under Finished, seen or not, newest first; opening a new one marks it seen and keeps it (#10922)", async () => {
+  it("lists what finished in the last day under Finished, seen or not, newest first; opening a new one leaves its status unchanged", async () => {
     const done = (id: string, title: string, doneAt: string, extra: Partial<Todo> = {}): Todo => ({ id, title, origin: conversation, created_at: "2026-11-09T07:00:00Z", updated_at: doneAt, done_at: doneAt, agents: [], ...extra });
     moreTodos = [
       done("f-seen", "Fix the export button", "2026-11-10T08:10:00Z", { seen_at: "2026-11-10T08:20:00Z" }),
@@ -569,18 +568,11 @@ describe("Assistant Needs you / In progress trays", () => {
     expect(rows().map((row) => row.dataset.taskSlot)).toEqual(["task:f-new", "task:f-seen"]);
     expect(rows().map((row) => row.querySelector("[data-task-status]")!.getAttribute("data-task-status"))).toEqual(["just_finished", "done"]);
     expect(rows()[0].querySelector('[data-state="just_finished"]')).not.toBeNull();
-    Object.assign(getState() as unknown as Record<string, unknown>, { features: ["todo_seen"] });
-    const answer = vi.mocked(fetch).getMockImplementation()!;
-    vi.mocked(fetch).mockImplementation(async (url, init) => {
-      if (!String(url).includes("/todos/f-new/seen")) return answer(url, init);
-      writes.push(`${init?.method} ${String(url)}`);
-      return new Response(JSON.stringify({ todo: { ...moreTodos[1], seen_at: now.toISOString() } }), { headers: { "Content-Type": "application/json" } });
-    });
     await act(async () => rows()[0].click());
     expect(getPanel()).toEqual({ kind: "task", todo: "f-new" });
-    expect(writes.filter((path) => path.includes("/seen"))).toEqual([expect.stringMatching(/^PUT .*\/todos\/f-new\/seen$/)]);
+    expect(writes).toEqual([]);
     expect(rows().map((row) => row.dataset.taskSlot)).toEqual(["task:f-new", "task:f-seen"]);
-    expect(rows().map((row) => row.querySelector("[data-task-status]")!.getAttribute("data-task-status"))).toEqual(["done", "done"]);
+    expect(rows().map((row) => row.querySelector("[data-task-status]")!.getAttribute("data-task-status"))).toEqual(["just_finished", "done"]);
     expect(entry("finished").textContent).toBe(`${label.finished}2`);
   });
 
@@ -601,61 +593,16 @@ describe("Assistant Needs you / In progress trays", () => {
     expect(concern.querySelector("[data-task-mark]")?.getAttribute("data-task-mark")).toBe("not_started");
   });
 
-  it("reuses round-bound owner acceptance and deduplicates its supervision decision", async () => {
-    const firstRound = { outcome: "decide" as const, verdict: "Choose the rollout", recommend: "Use the demo rollout", asked_at: at };
-    todo = { ...todo, ask: firstRound, supervision: { ...todo.supervision!, state: "needs_user" } };
-    await act(async () => putTodo(todo));
-    await act(async () => { entry("needs").click(); await import("./TaskDecision"); });
-    await openRows();
-    // A lazy card can commit after its module import resolves.
-    await expect.poll(() => host.querySelectorAll('[data-brief-row="accept"]')).toHaveLength(1);
-    expect(host.textContent).not.toContain(t("assistant-tasks.review_needs_user"));
-    const first = [...host.querySelectorAll("button")].find((button) => button.textContent?.trim() === t("assistant-brief.take"))!;
-    const nextRound = "2026-11-10T08:20:00Z";
-    await act(async () => {
-      first.click();
-      todo = { ...todo, ask: { ...firstRound, asked_at: nextRound } };
-      putTodo(todo);
-    });
-    await openRows(); // the next round asks folded again
-    await expect.poll(() => {
-      const button = [...host.querySelectorAll("button")].find((b) => b.textContent?.trim() === t("assistant-brief.take"));
-      return button !== undefined && button !== first;
-    }).toBe(true);
-    const second = [...host.querySelectorAll("button")].find((button) => button.textContent?.trim() === t("assistant-brief.take"))!;
-    expect(second).not.toBe(first);
-    await act(async () => second.click());
-    const rounds = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("/accept")).map(([, init]) => JSON.parse(String(init?.body)).asked_at);
-    expect(rounds).toEqual([at, nextRound]);
-    expect(writes.filter((path) => path.includes("message"))).toEqual([]);
-  });
-
-  it("removes a directly finished decision from Needs you without sending or accepting anything", async () => {
-    const ask = { outcome: "decide" as const, verdict: "Choose the demo rollout", recommend: "Use the demo rollout", asked_at: at };
+  it("shows a to-do decision once with navigation and no write controls", async () => {
+    const ask = { outcome: "decide" as const, verdict: "Choose the rollout", recommend: "Use the demo rollout", asked_at: at };
     todo = { ...todo, ask, supervision: { ...todo.supervision!, state: "needs_user" } };
     await act(async () => putTodo(todo));
     await act(async () => { entry("needs").click(); await import("./TaskDecision"); });
     await openRows();
-    expect(host.textContent!.split(todo.title).length - 1, "an opened row names its task once").toBe(1);
-    const row = host.querySelector('[data-brief-row="accept"]')!;
-    expect([...row.querySelectorAll("button")].map((b) => b.textContent?.trim())).toEqual([t("assistant-brief.open"), t("assistant-brief.finish"), t("assistant-task-actions.later"), t("assistant-task-actions.dismiss_draft"), t("assistant-brief.take")]);
-    const read = vi.mocked(fetch).getMockImplementation()!;
-    vi.mocked(fetch).mockImplementation(async (url, init) => {
-      if (init?.method === "PATCH") {
-        writes.push(String(url));
-        todo = { ...todo, ask: undefined, done_at: at };
-        return new Response(JSON.stringify({ todo }), { headers: { "Content-Type": "application/json" } });
-      }
-      return read(url, init);
-    });
-    await act(async () => [...row.querySelectorAll("button")][1].click());
-    expect(host.querySelector('[data-brief-row="accept"]')).toBeNull();
-    expect(host.textContent).toContain(t("assistant-tasks.tray_empty_pending"));
-    expect(writes).toHaveLength(1);
-    expect(writes[0]).toMatch(/\/todos\/tray-task$/);
-    const request = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === "PATCH")!;
-    expect(JSON.parse(String(request[1]?.body))).toEqual({ done: true });
-    expect(writes.filter((path) => /accept|message|resume/.test(path))).toEqual([]);
+    expect(host.textContent!.split(ask.verdict).length - 1).toBe(1);
+    const row = host.querySelector('[data-needs-row]')!;
+    expect(row.querySelectorAll("textarea, input")).toHaveLength(0);
+    expect(writes).toEqual([]);
   });
 
   it("lists a task waiting for its supervisor's review under Persona reviewing, never Needs you, however long it waits (#8678)", async () => {

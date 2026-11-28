@@ -69,7 +69,6 @@ describe("compactResendSupport", () => {
     expect(compactResendSupport(s, { assistant: true, hubSupportsAssistantCompact: false })).toEqual({ supported: false, mode: null });
     expect(compactResendSupport(s, { assistant: true, hubSupportsAssistantCompact: true, blocked: true })).toEqual({ supported: false, mode: null });
     expect(compactResendSupport(s, { assistant: true, hubSupportsAssistantCompact: true, offline: true })).toEqual({ supported: false, mode: null });
-    expect(compactResendSupport(s, { assistant: true, hubSupportsAssistantCompact: true, routed: true })).toEqual({ supported: false, mode: null });
     expect(compactResendSupport(baseSession({ assistant: true, capabilities: { send: false } }), { assistant: true, hubSupportsAssistantCompact: true })).toEqual({ supported: false, mode: null });
   });
 

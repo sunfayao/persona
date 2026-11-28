@@ -81,6 +81,5 @@
   "subscriptions": "订阅来源",
   "sources": "收件箱来源",
   "merge": "合并",
-  "merged_from": "由 {count} 行合并",
-  "todo_add_short": "加入待办"
+  "merged_from": "由 {count} 行合并"
 }

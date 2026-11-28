@@ -518,15 +518,15 @@ export function summarizeStepTelemetry(
 
 /**
  * Determines whether one-click context compaction is supported for the session.
- * - Blocked (setup gate / offline / read-only composer) or routed (active task route): never offered.
+ * - Blocked (setup gate / offline / read-only composer): never offered.
  * - Assistant chats: requires hub `assistant_compact` feature (uses POST …/compact).
  * - Agent chats: requires a terminal-command agent (`!source_kind`), send capability, and a send callback.
  */
 export function compactActionSupport(
   session: Session | undefined,
-  opts: { assistant?: boolean; hubSupportsAssistantCompact?: boolean; hasSendCompact?: boolean; blocked?: boolean; routed?: boolean },
+  opts: { assistant?: boolean; hubSupportsAssistantCompact?: boolean; hasSendCompact?: boolean; blocked?: boolean },
 ): CompactSupport {
-  if (!session || opts.blocked || opts.routed) return { supported: false, mode: null, running: false };
+  if (!session || opts.blocked) return { supported: false, mode: null, running: false };
   const isAssistant = Boolean(opts.assistant || session.assistant);
   if (isAssistant) {
     const supported = Boolean(opts.hubSupportsAssistantCompact);

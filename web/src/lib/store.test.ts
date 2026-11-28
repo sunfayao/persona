@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { managerHeaderFor } from "./manager-choice";
-import { applyMachine, dropAnswered, endInteraction, getState, hubHas, larkOn, putTodo, refresh, refreshAssistant, refreshTodos, reset, setSpacesSupported } from "./store";
+import { applyMachine, dropAnswered, endInteraction, getState, hubHas, larkOn, putTodo, refresh, refreshAssistant, refreshTodos, reset } from "./store";
 
 describe("待办 store 与 404 兼容 (C2)", () => {
   beforeEach(() => {
@@ -80,28 +80,6 @@ describe("待办 store 与 404 兼容 (C2)", () => {
     await refreshTodos();
     expect(getState().todosSupported).toBe(false);
     expect(getState().spacesSupported).toBe(false);
-  });
-
-  it("支持主动标记 spacesSupported=false（例如收到 /spaces 404 时）(#874 item 1)", () => {
-    expect(getState().spacesSupported).toBe(true);
-    setSpacesSupported(false);
-    expect(getState().spacesSupported).toBe(false);
-  });
-
-  it("spacesSupported 被置成 false 后，通过 refreshTodos 重新计算恢复为 true (#881 review)", async () => {
-    setSpacesSupported(false);
-    expect(getState().spacesSupported).toBe(false);
-
-    const fetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes("/todos")) {
-        return Promise.resolve(new Response(JSON.stringify({ todos: [] }), { status: 200 }));
-      }
-      return Promise.resolve(new Response(JSON.stringify({}), { status: 200 }));
-    });
-    vi.stubGlobal("fetch", fetch);
-
-    await refreshTodos();
-    expect(getState().spacesSupported).toBe(true);
   });
 
   it("当现代 hub 返回空待办列表时，spacesSupported 保持原样为 true，且 todosLoaded 为 true (#881 review)", async () => {

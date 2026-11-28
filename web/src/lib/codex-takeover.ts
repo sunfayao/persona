@@ -15,9 +15,9 @@ export function takeoverBody(plan: Pick<CodexTakeoverPlan, "token" | "running">,
   return { token: plan.token, confirm_stop: plan.running && confirmed };
 }
 
-export function continuationLaunch(plan: CodexTakeoverPlan, machineId: string, todoId?: string) {
+export function continuationLaunch(plan: CodexTakeoverPlan, machineId: string) {
   return {
     machineId, cwd: plan.cwd, launcher: "codex", agentType: "codex", inlinePrompt: true,
-    text: plan.continuation_prompt, attachments: [] as never[], todoId,
+    text: plan.continuation_prompt, attachments: [] as never[],
   };
 }

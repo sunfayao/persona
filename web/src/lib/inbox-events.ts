@@ -167,8 +167,6 @@ export function suggestionButtons(s: InboxSuggestion): { confirm: string; edit: 
       return { confirm: t("lib-inbox-events.start"), edit: true };
     case "conclusion":
       return { confirm: t("lib-inbox-events.got_it"), edit: false };
-    case "todo":
-      return { confirm: t("lib-inbox-events.add_todo"), edit: false };
     default:
       return { confirm: t("lib-inbox-events.confirm"), edit: true };
   }

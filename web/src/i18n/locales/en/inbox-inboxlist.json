@@ -92,6 +92,5 @@
   "sources": "Inbox Sources",
   "merge": "Merge",
   "merged_from_one": "Merged",
-  "merged_from_other": "Merged from {count} rows",
-  "todo_add_short": "Add to to-dos"
+  "merged_from_other": "Merged from {count} rows"
 }

@@ -62,14 +62,14 @@ export default function TakeoverAction({ session }: { session: Session }) {
     try {
       const result = await api<CodexTakeoverPlan>(path);
       if (!result.can_resume) { setPlan(result); return; }
-      launchAgent(continuationLaunch(result, session.machine_id, session.todo?.id));
+      launchAgent(continuationLaunch(result, session.machine_id));
     } catch (e) { toast(errorText(e), "error"); }
     finally { setLoading(false); }
   };
 
   const continueElsewhere = () => {
     if (!plan) return;
-    launchAgent(continuationLaunch(plan, session.machine_id, session.todo?.id));
+    launchAgent(continuationLaunch(plan, session.machine_id));
     setPlan(null); setConfirmStop(false);
   };
 

@@ -1,17 +1,6 @@
-// A planned task whose Agent did not start (#10365): the plan task it runs as, which says why by its code (`error_code`,
-// `error_args`; a short line read before the hub's words of lib/start-failure.ts) and names the other launchers of its
-// computer a Retry may start it on (`retry_with`), and that Retry, "Use … instead". Only a failed start's own views read
-// these (its Needs you row, the task panel, the to-do's page), all loaded after the first screen, so they are apart
-// from lib/feed.ts and lib/start-failure.ts (startup-preload's budget).
 import { t } from "../i18n";
-import { getFeedState, retryKey, retryTask, type PlanTask, type TaskPlan } from "./feed";
-import { getState, hubHas } from "./store";
+import { type PlanTask, type TaskPlan } from "./feed";
 import type { Todo } from "./todos";
-
-/** The hub starts a failed task again on another launcher of its computer when a Retry names one (hello `features`,
- *  #10365). An older hub ignores the body and starts the launcher that just failed again, so "Use … instead" is offered
- *  only where it is listed. */
-export const TASK_RETRY_LAUNCHER_FEATURE = "task_retry_launcher";
 
 /** The plan task a to-do runs as: its plan's (`plan_id`), else the plan that took it over through todo_id (a to-do
  *  such a plan runs keeps no `plan_id`, #8770); undefined while no plan the page has holds it. A failed start's carries
@@ -45,20 +34,4 @@ export function startFailureCodeLine(coded: StartFailureCode | undefined): strin
       return t("lib-start-retry.start_code_worktree_path_taken");
   }
   return undefined;
-}
-
-/** Another launcher a task whose Agent did not start may start with (`task`'s `retry_with`, the first suggested), when the
- *  hub takes it; undefined otherwise. */
-export function retryLauncher(task: PlanTask | undefined, features: string[]): string | undefined {
-  const launcher = task?.retry_with?.[0];
-  return launcher && hubHas(features, TASK_RETRY_LAUNCHER_FEATURE) ? launcher : undefined;
-}
-
-/** "Use … instead": the Retry (lib/feed retryTask) on `launcher` (and `model`) of the same computer, sent only to a hub
- *  that takes it; to any other the call is refused here rather than starting the launcher that failed again. A tap
- *  while a Retry is on its way does nothing, as there. */
-export async function retryOnLauncher(todo: Todo, launcher: string, model?: string): Promise<void> {
-  if (getFeedState().busy[retryKey(todo.id)]) return;
-  if (!hubHas(getState().features, TASK_RETRY_LAUNCHER_FEATURE)) throw new Error(t("lib-start-retry.retry_launcher_unsupported"));
-  await retryTask(todo, { launcher, ...(model ? { model } : {}) });
 }

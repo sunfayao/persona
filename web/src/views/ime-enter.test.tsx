@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// The Enter that picks an input-method candidate belongs to the input method, not the box (#2733): creating a todo
-// in "Link to-do" and adding a blocked Claude config directory wait for the composition to end. Safari sends that Enter with
+// The Enter that picks an input-method candidate belongs to the input method. A blocked Claude config directory waits
+// for the composition to end. Safari sends that Enter with
 // isComposing false and keyCode 229 (#4667): "Search in chat", a question card's own answer, a plan's "Send back" reason and the
 // Agents page composer ignore it too, and so do the code views' find-in-file and composer and the provider wizard's
 // model ID (#4937).
@@ -18,17 +18,9 @@ import type { Interaction, Item, Session } from "../lib/types";
 import { AgentComposer } from "./agents/AgentsView";
 import { ChatSearch } from "./chat/ChatSearch";
 import { InteractionCard } from "./chat/Interactions";
-import { LinkTodoDialog } from "./LinkTodoDialog";
 import { ProviderWizard } from "./settings/ProviderWizard";
 import { INERT, ViewSections } from "./extensions/ViewBody";
 import { SHOWCASE } from "../showcase/snapshots";
-
-const createTodo = vi.fn(async (title: string) => ({ id: "t1", title }));
-vi.mock("../lib/todos", async (orig) => ({
-  ...(await orig<typeof import("../lib/todos")>()),
-  createTodo: (title: string) => createTodo(title),
-  linkAgentToTodo: vi.fn(async () => {}),
-}));
 
 const api = vi.fn(async (path: string, _init?: unknown) =>
   path.endsWith("/blocked") ? { dirs: [], blocked: ["~/.work"], home: "/home/me" } : { dirs: [], blocked: [], home: "/home/me" },
@@ -45,7 +37,6 @@ let root: Root;
 
 beforeEach(() => {
   apiOp.mockClear();
-  createTodo.mockClear();
   api.mockClear();
   host = document.createElement("div");
   document.body.append(host);
@@ -80,32 +71,6 @@ const typeArea = (area: HTMLTextAreaElement, value: string) =>
     area.dispatchEvent(new Event("input", { bubbles: true }));
   });
 
-const session = { machine_id: "m1", session_id: "s1" } as Session;
-
-describe("LinkTodoDialog's new todo", () => {
-  const openCreate = async () => {
-    await act(async () => root.render(<LinkTodoDialog open session={session} onClose={() => {}} />));
-    const button = [...document.querySelectorAll("button")].find((b) => b.textContent?.includes("新建待办"))!;
-    act(() => button.click());
-    return document.querySelector<HTMLInputElement>('input[type="text"]')!;
-  };
-
-  it("is not created by the Enter that confirms a composition", async () => {
-    const input = await openCreate();
-    type(input, "会議");
-    await press(input, "Enter", true);
-    expect(createTodo).not.toHaveBeenCalled();
-    await press(input, "Escape", true);
-    expect(document.querySelector('input[type="text"]')).toBe(input); // the row stays open
-  });
-
-  it("is created by a plain Enter", async () => {
-    const input = await openCreate();
-    type(input, " 会議の準備 ");
-    await press(input, "Enter");
-    expect(createTodo).toHaveBeenCalledExactlyOnceWith("会議の準備");
-  });
-});
 
 describe("Safari's candidate Enter (isComposing false, keyCode 229)", () => {
   it("does not pick a 会话内搜索 hit", async () => {

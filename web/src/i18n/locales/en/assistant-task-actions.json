@@ -18,9 +18,7 @@
   "board_section": "{title} · {count}",
   "board_empty_title": "No tasks yet",
   "board_empty_body": "Say what needs doing in the conversation and Persona turns it into a task.",
-  "board_remove": "Remove “{title}”",
   "auto_review_title": "Independent review",
   "auto_review_show": "Show report",
-  "auto_review_hide": "Hide report",
-  "use_launcher_instead": "Use {launcher} instead"
+  "auto_review_hide": "Hide report"
 }

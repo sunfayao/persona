@@ -14,7 +14,7 @@ import { t } from "../../i18n";
 import { closePanel, getPanel, openPanel, type Panel } from "../../lib/panel";
 import { href } from "../../lib/router";
 import { handoffFrom } from "../../lib/handoff";
-import { applyCompleteSessions, getState, refreshTodos, reset } from "../../lib/store";
+import { applyCompleteSessions, refreshTodos, reset } from "../../lib/store";
 import { TODO_STATUS_INFO, type Todo } from "../../lib/todos";
 import type { Session } from "../../lib/types";
 import { loadFeed, type TaskPlan } from "../../lib/feed";
@@ -136,18 +136,7 @@ describe("Agent panel new-window destination", () => {
     expect(newWindow).toHaveBeenCalledExactlyOnceWith(href({ name: "todos", id: "example-task" }), "_blank", "noopener");
   });
 
-  it("keeps the separate linked-task menu item pointing to the task", async () => {
-    const before = location.href;
-    await open({ kind: "task", todo: "example-task" });
-    try {
-      await clickMore();
-      await clickMenu(t("chat-chatview.todo_label", { title: "Example task" }));
-      expect(location.pathname + location.search).toBe("/todos?id=example-task");
-      expect(newWindow).not.toHaveBeenCalled();
-    } finally {
-      history.replaceState({}, "", before);
-    }
-  });
+
 });
 
 describe("Open Agent page button", () => {
@@ -281,7 +270,7 @@ describe("task panel dispatch feedback (#7552)", () => {
     expect(host.querySelector("aside header")?.textContent).toContain(t("assistant-tasks.status_starting"));
   });
 
-  it.each(["todo", "legacy-plan"] as const)("keeps the %s start failure and retry action", async (source) => {
+  it.each(["todo", "legacy-plan"] as const)("keeps the %s start failure as read-only feedback", async (source) => {
     const todo = emptyTask(`failed-${source}`);
     const plan = planFor(todo, "started", "Synthetic start failure");
     if (source === "todo") todo.start_error = "Synthetic start failure";
@@ -289,53 +278,9 @@ describe("task panel dispatch feedback (#7552)", () => {
     await open({ kind: "task", todo: todo.id }, todo, [], source === "legacy-plan" ? { [plan.id]: plan } : undefined);
     expect(panelText()).toContain(t("assistant-taskpanel.start_failed"));
     expect(panelText()).toContain("Synthetic start failure");
-    expect(panelText()).toContain(t("assistant-taskpanel.retry"));
+    expect(host.querySelector("[data-testid=task-retry-launcher], [data-testid^=shell-choice]")).toBeNull();
     expect(panelText()).not.toContain(t("assistant-taskpanel.starting"));
     expect(panelText()).not.toContain(t("assistant-taskpanel.no_agent"));
-  });
-
-  it("offers the computer's other launcher before Retry when its own can't start there, where the hub takes it (#10365)", async () => {
-    const todo = emptyTask("failed-launcher", { start_error: "Synthetic terminal refusal", done_at: at });
-    const plan = planFor(todo, "started", "Synthetic terminal refusal");
-    plan.tasks[0] = { ...plan.tasks[0], error_code: "launcher_missing", error_args: { where: "terminal", launcher: "work" }, retry_with: ["claude"] };
-    const features = getState().features;
-    getState().features = ["task_retry_launcher"];
-    try {
-      await open({ kind: "task", todo: todo.id }, todo, [], { [plan.id]: plan });
-      const instead = host.querySelector<HTMLButtonElement>("[data-testid=task-retry-launcher]");
-      expect(instead?.textContent).toBe(t("assistant-task-actions.use_launcher_instead", { launcher: "claude" }));
-      expect(panelText()).toContain(t("assistant-taskpanel.retry"));
-      await act(async () => instead!.click());
-      await settle();
-      const post = vi.mocked(fetch).mock.calls.find(([url, init]) => String(url).endsWith("/todos/failed-launcher/retry") && init?.method === "POST");
-      expect(post?.[1]?.body).toBe(JSON.stringify({ launcher: "claude" }));
-    } finally {
-      getState().features = features;
-    }
-  });
-
-  it("answers the question its tab's shell stopped on beside Retry, where the hub takes it (#10365)", async () => {
-    const todo = emptyTask("failed-question", { start_error: "Synthetic shell question", done_at: at });
-    const plan = planFor(todo, "started", "Synthetic shell question");
-    plan.tasks[0] = { ...plan.tasks[0], error_code: "shell_waiting", error_args: { line: "Press Enter to continue", pane: "w1:p2", kind: "press_key",
-      choices: "enter", kept_until: new Date(Date.now() + 5 * 60_000).toISOString() } };
-    const features = getState().features;
-    getState().features = ["todo_start_answer"];
-    try {
-      await open({ kind: "task", todo: todo.id }, todo, [], { [plan.id]: plan });
-      const choice = () => host.querySelector<HTMLButtonElement>("[data-testid=shell-choice-enter]");
-      await vi.waitFor(async () => {
-        await settle();
-        expect(choice()).not.toBeNull();
-      }, { timeout: 5000, interval: 20 });
-      expect(panelText()).toContain(t("assistant-taskpanel.retry"));
-      await act(async () => choice()!.click());
-      await settle();
-      const post = vi.mocked(fetch).mock.calls.find(([url, init]) => String(url).endsWith("/todos/failed-question/start/answer") && init?.method === "POST");
-      expect(post?.[1]?.body).toBe(JSON.stringify({ choice: "enter" }));
-    } finally {
-      getState().features = features;
-    }
   });
 
   it("does not describe released or completed work as a new Agent start", async () => {

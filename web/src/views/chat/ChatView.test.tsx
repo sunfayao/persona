@@ -3,7 +3,6 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import type { Outgoing } from "./Composer";
 import type { MentionSource } from "./ComposerPanel";
 import type { Item, Session } from "../../lib/types";
-import { getFeedState, setRoute } from "../../lib/feed";
 import { loadPages } from "../../lib/lazy-page";
 import { outboxKey, type OutboxEntry } from "../../lib/outbox";
 import { toast } from "../../ui/atoms";
@@ -107,7 +106,6 @@ function sender(assistant = true) {
 const image = { mime: "image/png", data: "aW1hZ2U=" };
 let fetcher: ReturnType<typeof vi.fn>;
 beforeEach(() => {
-  setRoute("c1", null);
   captured.onSend = undefined;
   captured.mention = undefined;
   delete captured.session.manager;
@@ -124,7 +122,6 @@ beforeEach(() => {
   vi.stubGlobal("fetch", fetcher);
 });
 afterEach(() => {
-  setRoute("c1", null);
   vi.unstubAllGlobals();
 });
 
@@ -138,26 +135,7 @@ describe("ChatView composer task routing", () => {
     expect(JSON.parse(fetcher.mock.calls[0][1].body).text).toContain('ref="opaque-session-skill"');
     expect(JSON.parse(fetcher.mock.calls[0][1].body).text).toContain("Review this");
   });
-  it.each(["Look at this", ""])("rejects a routed image with text %j without delivering to Persona or dropping the route", async (text) => {
-    setRoute("c1", "task1");
-    const out = { text, images: [image] };
-    expect(await sender()(out)).toBe(false);
-    expect(fetcher).not.toHaveBeenCalled();
-    expect(getFeedState().routes.c1).toBe("task1");
-    expect(out).toEqual({ text, images: [image] });
-    expect(toast).toHaveBeenCalledWith(t("chat-chatview.route_no_images"), "error");
-  });
-
-  it("sends a text-only message to the selected task", async () => {
-    setRoute("c1", "task1");
-    expect(await sender()({ text: "Continue", images: [] })).toBe(true);
-    expect(fetcher).toHaveBeenCalledTimes(1);
-    const [url, init] = fetcher.mock.calls[0];
-    expect(url).toBe("/api/v1/assistant/conversations/c1/route");
-    expect(JSON.parse(init.body)).toEqual({ todo_id: "task1", text: "Continue" });
-  });
-
-  it.each([true, false])("still delivers an unrouted image to its conversation (assistant=%j)", async (assistant) => {
+  it.each([true, false])("delivers an image to its conversation (assistant=%j)", async (assistant) => {
     expect(await sender(assistant)({ text: "Look at this", images: [image] })).toBe(true);
     expect(fetcher).toHaveBeenCalledTimes(1);
     const [url, init] = fetcher.mock.calls[0];

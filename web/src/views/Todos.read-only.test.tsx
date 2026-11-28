@@ -6,6 +6,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "../lib/api";
 import type { Todo } from "../lib/todos";
 
 vi.hoisted(() => {
@@ -35,7 +36,9 @@ const iso = (agoMs: number) => new Date(Date.now() - agoMs).toISOString();
 const todo = (id: string, title: string, patch: Partial<Todo> = {}): Todo => ({ id, title, created_at: iso(7_200_000), updated_at: iso(600_000), ...patch });
 
 const planned = todo("planned", "Renew the certificate", {
-  notes: "Checked the **staging** host first.",
+  notes: "Checked the **staging** host first. [Result](https://example.com/report)",
+  ask: { outcome: "decide", verdict: "Choose a rollout", asked_at: iso(600_000), recommend: "Use staging" },
+  pr_url: "https://github.com/example/project/pull/42",
   due_at: iso(86_400_000),
   priority: "high",
   remind_at: iso(-3_600_000),
@@ -50,7 +53,10 @@ const before = { ...getState() };
 const detail = () => host.querySelector<HTMLElement>("[data-testid=todo-detail]")!;
 const sections = () => [...detail().querySelectorAll<HTMLElement>("[data-todo-section]")];
 const heading = (section: HTMLElement) => section.querySelector("h3")?.textContent;
-const writes = () => api.mock.calls.filter(([, init]) => (init as { method?: string } | undefined)?.method);
+const writes = () => api.mock.calls.filter(([, init]) => {
+  const method = (init as { method?: string } | undefined)?.method;
+  return method && method !== "GET";
+});
 const open = async (id: string) => {
   await act(async () => root.render(<TodosView selectedId={id} />));
   await act(async () => { await vi.dynamicImportSettled(); });
@@ -61,6 +67,7 @@ beforeEach(() => {
   api.mockReset();
   api.mockImplementation(async (path: string) => {
     const repositories = /^\/todos\/([^/]+)\/repositories$/.exec(path);
+    if (repositories?.[1] === "planned") throw new ApiError(404, "Repository store is unavailable", {});
     if (repositories) return { schema_version: 1, manager: "assistant", todo_id: repositories[1], revision: 0, repositories: [] };
     if (path.endsWith("/decisions?all=1")) return { decisions: [] };
     return {};
@@ -109,6 +116,11 @@ describe("a to-do's page", () => {
     // the notes, rendered as Markdown under the brief
     const notes = page.querySelector("[data-testid=todo-notes]")!;
     expect(notes.querySelector("strong")?.textContent).toBe("staging");
+    expect(page.querySelector('a[href="https://example.com/report"]')).not.toBeNull();
+    expect(page.querySelector('a[href="https://github.com/example/project/pull/42"]')).not.toBeNull();
+    const ask = page.querySelector("[data-testid=todo-ask-panel]")!;
+    expect(ask.textContent).toContain("Choose a rollout");
+    expect(ask.querySelector("button, a")).toBeNull();
     // the old page's ⋯ menu, Hand to agent, Complete, Link existing agents, Add repository, Record one
     expect(page.querySelector("[aria-label='更多选项']")).toBeNull();
     const labels = [...page.querySelectorAll("button")].map((b) => b.textContent?.trim());

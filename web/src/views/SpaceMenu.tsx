@@ -1,14 +1,12 @@
 // The logical Agent space's menu, loaded when the user opens it.
 import { flipSpaceMute, flipSpacePin } from "../lib/agent-actions";
 import { isSpaceMuted, unreadOf, type SpaceLike } from "../lib/agent-filter";
-import { errorText } from "../lib/api";
 import { isSpacePinned } from "../lib/pins";
-import { getState, refresh, refreshTodos, setSpacesSupported, useStore } from "../lib/store";
-import { findTodoForSpace, isLegacySpacesRouteError, unlinkSpaceFromTodo } from "../lib/todos";
+import { getState, refresh, useStore } from "../lib/store";
 import type { Session } from "../lib/types";
 import type { MenuNode } from "../lib/node-actions";
 import { navigate } from "../lib/router";
-import { toast, type MenuItem } from "../ui/atoms";
+import { type MenuItem } from "../ui/atoms";
 import type { MenuAt } from "../ui/menu-model";
 import { NodeMenu } from "./NodeMenu";
 import { t } from "../i18n";
@@ -25,7 +23,6 @@ export function SpaceMenu({
   onClose,
   onRename,
   onMarkSeen,
-  onLinkTodo,
   openPage = true,
 }: {
   sp: SpaceLike;
@@ -37,16 +34,11 @@ export function SpaceMenu({
   onClose: () => void;
   onRename: (s: Session) => void;
   onMarkSeen: (list: Session[]) => void;
-  onLinkTodo?: (sp: SpaceLike) => void;
   /** "Open space page" (/space/…) leads the menu; the space's own page leaves it out. */
   openPage?: boolean;
 }) {
   const pins = useStore((st) => st.pins);
   const mutes = useStore((st) => st.mutes);
-  const todos = useStore((st) => st.todos);
-  const todosSupported = useStore((st) => st.todosSupported);
-  const todosLoaded = useStore((st) => st.todosLoaded);
-  const spacesSupported = useStore((st) => st.spacesSupported);
   const pinned = isSpacePinned(sp.machineId, sp.name, pins);
   const muted = isSpaceMuted(sp, mutes);
   const unread = unreadOf(sp.sessions);
@@ -62,52 +54,12 @@ export function SpaceMenu({
     openChildWorktree(target, { changed: () => { void refresh(); void refreshWorkspaceCatalog(); } });
   };
 
-  const supportSpaces = todosLoaded && todosSupported !== false && spacesSupported !== false;
-  const linkedTodo = supportSpaces ? findTodoForSpace(todos, sp.machineId, sp.name) : undefined;
 
   const page = { name: "space" as const, mid: sp.machineId, space: sp.name };
   const items: MenuItem[] = [
     ...(openPage && first?.space_id ? [{ key: "open", label: t("agentmenus.open_space"), icon: "layers" as const, onSelect: () => navigate(page) }] : []),
     ...(unread.length ? [{ key: "seen", label: markAllSeenLabel(unread.length), icon: "check" as const, onSelect: () => onMarkSeen(unread) }] : []),
     ...(first?.space_id && !first.source_kind ? [{ key: "rename", label: t("agentmenus.rename_space"), icon: "pencil" as const, onSelect: () => onRename(first) }] : []),
-    ...(supportSpaces
-      ? linkedTodo
-        ? [
-            {
-              key: "relink-todo",
-              label: t("agentmenus.move_to_other_todo"),
-              icon: "todo" as const,
-              onSelect: () => onLinkTodo?.(sp),
-            },
-            {
-              key: "unlink-todo",
-              label: t("agentmenus.remove_from_todo"),
-              icon: "x" as const,
-              onSelect: async () => {
-                try {
-                  await unlinkSpaceFromTodo(linkedTodo.id, sp.machineId, sp.name);
-                  await refreshTodos();
-                  await refresh();
-                  toast(t("agentmenus.removed_from_todo"), "ok");
-                } catch (e) {
-                  if (isLegacySpacesRouteError(e)) {
-                    setSpacesSupported(false);
-                  }
-                  toast(t("agentmenus.remove_failed", { error: errorText(e) }), "error");
-                  void refreshTodos();
-                }
-              },
-            },
-          ]
-        : [
-            {
-              key: "link-todo",
-              label: t("agentmenus.attach_to_todo"),
-              icon: "todo" as const,
-              onSelect: () => onLinkTodo?.(sp),
-            },
-          ]
-      : []),
     { key: "pin", label: pinned ? t("agentmenus.unpin_space") : t("agentmenus.pin_space"), icon: "pin", onSelect: () => void flipSpacePin(sp.machineId, sp.name) },
     { key: "mute", label: muted ? t("agentmenus.unmute_space") : t("agentmenus.mute_space"), icon: muted ? "bell" : "bellOff", onSelect: () => void flipSpaceMute(sp.machineId, sp.name) },
     ...(first?.cwd ? [{ key: "new-worktree", label: t("worktree-actions.new_child"), icon: "git" as const, divider: true,

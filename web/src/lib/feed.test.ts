@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { t } from "../i18n";
 import {
   answeredItems,
   cardFiled,
@@ -15,21 +14,14 @@ import {
   mergeInto,
   quickResult,
   receiptState,
-  removeTask,
-  retryKey,
-  retryTask,
   sendMessage,
-  sendRouted,
-  setRoute,
   startFailure,
   startInFlight,
   type FeedItem,
   type TaskPlan,
 } from "./feed";
 import { conversationCards } from "./assistant-views";
-import { retryOnLauncher, TASK_RETRY_LAUNCHER_FEATURE } from "./start-retry";
-import { getPanel, openPanel } from "./panel";
-import { getState, markConversationDeleted, refreshTodos, reset } from "./store";
+import { markConversationDeleted, reset } from "./store";
 import type { Todo } from "./todos";
 import type { ChatLine, Segment } from "./turns";
 import type { Item } from "./types";
@@ -160,171 +152,6 @@ describe("a task whose agent did not start (#1077, #1142)", () => {
     expect(startInFlight(own, { p2: { ...taking.p2, state: "dismissed" } })).toBe(false);
   });
 
-  describe("removing it", () => {
-    const ok = (body: unknown) => ({ ok: true, status: 200, text: async () => JSON.stringify(body) });
-    afterEach(() => vi.unstubAllGlobals());
-    const stub = () => {
-      const fetcher = vi.fn().mockResolvedValue(ok({ ok: true, todos: [] }));
-      vi.stubGlobal("localStorage", { getItem: () => "jd_test" });
-      vi.stubGlobal("fetch", fetcher);
-      return fetcher;
-    };
-
-    it("deletes a task that never had an agent at once, and drops its route and its panel", async () => {
-      const fetcher = stub();
-      setRoute("c1", "t1");
-      openPanel({ kind: "task", todo: "t1" });
-      const ask = vi.fn((_message: string) => true);
-      expect(await removeTask(todo({ start_error: "x", done_at: "2026-11-04T10:00:05Z" }), ask)).toBe(true);
-      expect(ask).not.toHaveBeenCalled();
-      expect(fetcher.mock.calls.some(([url, init]) => String(url).endsWith("/todos/t1") && init?.method === "DELETE")).toBe(true);
-      expect(getFeedState().routes.c1).toBeUndefined();
-      expect(getPanel()).toBeNull();
-    });
-
-    it("retries it in place: one POST however many taps, the todo the hub answers put in at once (#1396)", async () => {
-      let answer: (v: unknown) => void = () => {};
-      const fetcher = vi.fn((_url: string, init?: RequestInit) =>
-        init?.method === "POST" ? new Promise((r) => (answer = r)) : Promise.resolve(ok({ todos: [] })),
-      );
-      vi.stubGlobal("localStorage", { getItem: () => "jd_test" });
-      vi.stubGlobal("fetch", fetcher);
-      const failed = todo({ start_error: "claude did not become ready within 1m0s", done_at: "2026-11-04T10:00:05Z" });
-      const first = retryTask(failed);
-      const second = retryTask(failed);
-      expect(getFeedState().busy[retryKey("t1")]).toBe(true);
-      answer(ok({ todo: { ...failed, start_error: "", done_at: null } }));
-      await Promise.all([first, second]);
-      const posts = fetcher.mock.calls.filter(([, init]) => init?.method === "POST");
-      expect(posts).toHaveLength(1);
-      expect(String(posts[0][0])).toMatch(/\/todos\/t1\/retry$/);
-      expect(getFeedState().busy[retryKey("t1")]).toBe(false);
-    });
-
-    it("starts it on another launcher only with a hub that takes it: the body names it, else nothing is sent (#10365)", async () => {
-      const fetcher = vi.fn((_url: string, init?: RequestInit) => Promise.resolve(ok(init?.method === "POST" ? { todo: todo() } : { todos: [] })));
-      vi.stubGlobal("localStorage", { getItem: () => "jd_test" });
-      vi.stubGlobal("fetch", fetcher);
-      const failed = todo({ start_error: "x", done_at: "2026-11-04T10:00:05Z" });
-      const posts = () => fetcher.mock.calls.filter(([, init]) => init?.method === "POST");
-      const features = getState().features;
-      Object.assign(getState(), { features: ["todo_seen"] });
-      // an older hub ignores the body and would start the launcher that failed again: refused here, nothing sent
-      await expect(retryOnLauncher(failed, "claude")).rejects.toThrow(t("lib-start-retry.retry_launcher_unsupported"));
-      expect(posts()).toHaveLength(0);
-      expect(getFeedState().busy[retryKey("t1")]).toBeFalsy();
-      Object.assign(getState(), { features: [TASK_RETRY_LAUNCHER_FEATURE] });
-      await retryOnLauncher(failed, "claude");
-      await retryTask(failed);
-      expect(posts().map(([, init]) => init?.body ?? null)).toEqual([JSON.stringify({ launcher: "claude" }), null]);
-      Object.assign(getState(), { features });
-    });
-
-    it("says why when the hub refuses the retry, and can be tapped again", async () => {
-      vi.stubGlobal("localStorage", { getItem: () => "jd_test" });
-      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 409, text: async () => JSON.stringify({ error: "「公司 Mac」现在离线，等它连上再重试" }) }));
-      await expect(retryTask(todo({ start_error: "x", done_at: "2026-11-04T10:00:05Z" }))).rejects.toThrow("离线");
-      expect(getFeedState().busy[retryKey("t1")]).toBe(false);
-    });
-
-    it("asks first when its agents ran, and keeps it when the user says no", async () => {
-      const fetcher = stub();
-      const ran = todo({ agents: [{ machine_id: "box", session_id: "s1", linked_at: "" }] });
-      expect(await removeTask(ran, () => false)).toBe(false);
-      expect(fetcher).not.toHaveBeenCalled();
-      const ask = vi.fn((_message: string) => true);
-      expect(await removeTask(ran, ask)).toBe(true);
-      expect(ask.mock.calls[0][0]).toContain("Agents 页");
-      expect(fetcher.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(true);
-    });
-  });
-});
-
-describe("routing the next message to a task", () => {
-  const ok = () => ({ ok: true, status: 200, text: async () => "{}" });
-  afterEach(() => vi.unstubAllGlobals());
-  // A route is only ever set from a task's card, so the task is in the store.
-  const tasks = async (...ids: string[]) => {
-    const todos = ids.map((id) => ({ id, title: id, created_at: ago(1), updated_at: ago(1), origin: "c1", agents: [] }));
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ todos }) }));
-    vi.stubGlobal("localStorage", { getItem: () => "test" });
-    await refreshTodos();
-  };
-
-  it("addresses the original decision round and refreshes its card after a chat answer", async () => {
-    await tasks("task-decision");
-    const fetcher = vi.fn()
-      .mockResolvedValueOnce(ok())
-      .mockResolvedValue({ ok: true, status: 200, text: async () => JSON.stringify({ todos: [] }) });
-    vi.stubGlobal("fetch", fetcher);
-    setRoute("decision-chat", "task-decision", "2026-11-10T12:00:00.123456Z");
-    expect(await sendRouted("decision-chat", "Use the alternative, but keep the current limits.")).toBe(true);
-    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({
-      todo_id: "task-decision", asked_at: "2026-11-10T12:00:00.123456Z",
-      text: "Use the alternative, but keep the current limits.",
-    });
-    expect(getFeedState().routes["decision-chat"]).toBeUndefined();
-    expect(fetcher.mock.calls.some(([url]) => url === "/api/v1/todos")).toBe(true);
-  });
-
-  it("keeps the decision round attached when its answer fails to send", async () => {
-    await tasks("task-decision");
-    const fetcher = vi.fn().mockResolvedValue({ ok: false, status: 409, text: async () => JSON.stringify({ error: "offline" }) });
-    vi.stubGlobal("fetch", fetcher);
-    setRoute("decision-retry", "task-decision", "2026-11-10T12:00:00Z");
-    await expect(sendRouted("decision-retry", "Use the alternative.")).rejects.toThrow("offline");
-    expect(getFeedState().routes["decision-retry"]).toEqual({ todoId: "task-decision", askedAt: "2026-11-10T12:00:00Z" });
-    setRoute("decision-retry", null);
-  });
-
-  it("keeps the route after a 503 so the retry still goes to the task", async () => {
-    const fetcher = vi.fn()
-      .mockResolvedValueOnce({ ok: false, status: 503, text: async () => JSON.stringify({ error: "temporarily unavailable" }) })
-      .mockResolvedValueOnce(ok());
-    await tasks("task-one");
-    vi.stubGlobal("fetch", fetcher);
-    setRoute("route-retry", "task-one");
-
-    await expect(sendRouted("route-retry", "继续")).rejects.toThrow("temporarily unavailable");
-    expect(getFeedState().routes["route-retry"]).toBe("task-one");
-    expect(await sendRouted("route-retry", "继续")).toBe(true);
-    expect(getFeedState().routes["route-retry"]).toBeUndefined();
-    expect(fetcher.mock.calls.map(([url, init]) => [url, JSON.parse(init.body)])).toEqual([
-      ["/api/v1/assistant/conversations/route-retry/route", { todo_id: "task-one", text: "继续" }],
-      ["/api/v1/assistant/conversations/route-retry/route", { todo_id: "task-one", text: "继续" }],
-    ]);
-  });
-
-  it("keeps a different route chosen while the previous message is being sent", async () => {
-    let answer!: (value: ReturnType<typeof ok>) => void;
-    const fetcher = vi.fn().mockReturnValueOnce(new Promise<ReturnType<typeof ok>>((resolve) => { answer = resolve; }));
-    await tasks("task-one", "task-two");
-    vi.stubGlobal("fetch", fetcher);
-    setRoute("route-switch", "task-one");
-
-    const sending = sendRouted("route-switch", "继续");
-    setRoute("route-switch", "task-two");
-    answer(ok());
-    expect(await sending).toBe(true);
-    expect(getFeedState().routes["route-switch"]).toBe("task-two");
-    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ todo_id: "task-one", text: "继续" });
-    setRoute("route-switch", null);
-  });
-
-  it("gives the conversation back to Persona once the kept task is gone", async () => {
-    const fetcher = vi.fn()
-      .mockResolvedValueOnce({ ok: false, status: 409, text: async () => JSON.stringify({ error: "这个任务没有在跑的 Agent" }) })
-      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ todos: [] }) });
-    await tasks("task-gone");
-    vi.stubGlobal("fetch", fetcher);
-    setRoute("route-gone", "task-gone");
-
-    await expect(sendRouted("route-gone", "继续")).rejects.toThrow("这个任务没有在跑的 Agent");
-    await refreshTodos(); // removed elsewhere: the hub's list no longer has it, so its chip is not drawn
-    expect(await sendRouted("route-gone", "继续")).toBe(false);
-    expect(getFeedState().routes["route-gone"]).toBeUndefined();
-    expect(fetcher).toHaveBeenCalledTimes(2);
-  });
 });
 
 describe("an answered record (#1231)", () => {

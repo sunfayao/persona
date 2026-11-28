@@ -1,89 +1,18 @@
-// What a to-do waits on from the user (#2056), where the to-do is shown:
-// the verdict line its Lark card says, the option a decision recommends, and, on a task's card, one button that answers
-// it through POST /todos/{id}/accept, the route the briefing's Accept takes (Brief.tsx) — OK takes a decision's
-// recommendation, Got it acknowledges a conclusion, Accept verifies a deployed to-do. A decision that recommends nothing
-// has no button: it is answered in the conversation the task came from. The To-dos page only reads it: its rows show the
-// line without the button, and the to-do's page names the conversation where it is answered.
-import { useState } from "react";
 import { t } from "../i18n";
-import { errorText } from "../lib/api";
-import { acceptBrief, setRoute } from "../lib/feed";
-import { navigate } from "../lib/router";
 import { stateName } from "../lib/state-labels";
-import { refreshTodos } from "../lib/store";
-import { askTake, askTone, openAsk, type AskTake, type Todo, type TodoAsk } from "../lib/todos";
-import { Button, cx, toast } from "../ui/atoms";
+import { askTone, openAsk, type Todo, type TodoAsk } from "../lib/todos";
+import { cx } from "../ui/atoms";
 import { Icon, type IconName } from "../ui/icons";
-
-/** Where answering one round stands: not yet, sent, the hub took it, or that round was already answered (409). */
-type AskTaking = "idle" | "busy" | "taken" | "recorded" | "handled";
 
 const TONE: Record<ReturnType<typeof askTone>, string> = { attention: "text-attention", red: "text-red", green: "text-green" };
 const ICON: Record<ReturnType<typeof askTone>, IconName> = { attention: "hand", red: "info", green: "check" };
 
-/** The button's word, short, as on a card. */
-function takeLabel(what: AskTake): string {
-  switch (what) {
-    case "take":
-      return t("todos.ask_ok");
-    case "ack":
-      return t("assistant-brief.got_it");
-    case "accept":
-      return t("assistant-brief.accept");
-  }
-}
-
-/** What the button says it does, for a screen reader and a hover. */
-function takeTitle(what: AskTake, title: string): string {
-  return what === "take" ? t("assistant-brief.take_row", { title }) : t("assistant-brief.accept_row", { title });
-}
-
-/** What stands in for the button once the round is answered. */
-function takenText(what: AskTake, taking: AskTaking): string {
-  if (taking === "handled") return t("assistant-brief.handled");
-  if (taking === "recorded") return t("assistant-brief.recorded_not_delivered");
-  return what === "take" ? t("assistant-brief.taken") : what === "ack" ? t("assistant-brief.noted") : t("assistant-brief.accepted");
-}
-
-/**
- * Answers one round of a to-do's ask, once. A round already answered (here, on another device, on its Lark card) is
- * "handled", and the to-dos are read again so its stale ask goes; a failure (the recommendation did not reach the agent,
- * the hub could not save) says why and leaves the button to try again. A newer round starts over.
- */
-function useTakeAsk(todo: Pick<Todo, "id">, ask: TodoAsk): { taking: AskTaking; take: () => void } {
-  const [state, setState] = useState<{ round: string; taking: AskTaking }>({ round: "", taking: "idle" });
-  const taking = state.round === ask.asked_at ? state.taking : "idle";
-  const what = askTake(ask);
-  const take = () => {
-    if (taking !== "idle" || !what) return;
-    const round = ask.asked_at;
-    setState({ round, taking: "busy" });
-    acceptBrief(todo.id, round).then(
-      (res) => {
-        setState({ round, taking: res === "accepted" ? "taken" : res });
-        toast(takenText(what, res === "accepted" ? "taken" : res), "ok");
-        if (res === "handled") void refreshTodos(); // acceptBrief reads them again only when it took it
-      },
-      (e) => {
-        setState({ round, taking: "idle" });
-        toast(t("todos.ask_failed", { error: errorText(e) }), "error");
-      },
-    );
-  };
-  return { taking, take };
-}
-
-/** The ask on a to-do's row, a task's card or the task panel's banner: its verdict, the recommendation, the mark of a
- *  decision held for the briefing (#5803), and the button as a link. Its clicks never open the row. `readOnly`: without
- *  the button, as the To-dos page's rows show it. Nothing when the to-do waits on nothing. */
-export function TodoAskLine({ todo, className, readOnly }: { todo: Todo; className?: string; readOnly?: boolean }) {
+export function TodoAskLine({ todo, className }: { todo: Todo; className?: string }) {
   const ask = openAsk(todo);
-  return ask ? <AskLine todo={todo} ask={ask} className={className} readOnly={readOnly} /> : null;
+  return ask ? <AskLine ask={ask} className={className} /> : null;
 }
 
-function AskLine({ todo, ask, className, readOnly }: { todo: Todo; ask: TodoAsk; className?: string; readOnly?: boolean }) {
-  const { taking, take } = useTakeAsk(todo, ask);
-  const what = readOnly ? undefined : askTake(ask);
+function AskLine({ ask, className }: { ask: TodoAsk; className?: string }) {
   const tone = askTone(ask);
   const recommend = ask.recommend ? t("assistant-brief.recommend", { option: ask.recommend }) : "";
   return (
@@ -106,40 +35,17 @@ function AskLine({ todo, ask, className, readOnly }: { todo: Todo; ask: TodoAsk;
           </span>
         )}
       </span>
-      {what &&
-        (taking === "taken" || taking === "recorded" || taking === "handled" ? (
-          <span data-ask-done={taking} className="shrink-0 whitespace-nowrap text-ink-2">
-            {takenText(what, taking)}
-          </span>
-        ) : (
-          <button
-            type="button"
-            disabled={taking === "busy"}
-            aria-busy={taking === "busy" || undefined}
-            aria-label={takeTitle(what, todo.title)}
-            title={takeTitle(what, todo.title)}
-            onClick={(e) => {
-              e.stopPropagation();
-              take();
-            }}
-            className="touch-hit inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-accent hover:underline disabled:opacity-50 disabled:hover:no-underline"
-          >
-            <Icon name="check" size={11} stroke={2.4} />
-            {takeLabel(what)}
-          </button>
-        ))}
     </div>
   );
 }
 
-/** The ask on a to-do's page, to read: what it waits on in full, and the conversation it came from, where it is
- *  answered. */
+/** The ask on a to-do's page, to read: what it waits on in full. */
 export function TodoAskPanel({ todo }: { todo: Todo }) {
   const ask = openAsk(todo);
-  return ask ? <AskPanel todo={todo} ask={ask} /> : null;
+  return ask ? <AskPanel ask={ask} /> : null;
 }
 
-function AskPanel({ todo, ask }: { todo: Todo; ask: TodoAsk }) {
+function AskPanel({ ask }: { ask: TodoAsk }) {
   const tone = askTone(ask);
   const decide = ask.outcome === "decide";
   return (
@@ -155,17 +61,6 @@ function AskPanel({ todo, ask }: { todo: Todo; ask: TodoAsk }) {
       </div>
       <p className={cx("mt-2 text-[13.5px] font-medium leading-[1.55] select-text [overflow-wrap:anywhere]", TONE[tone])}>{ask.verdict}</p>
       {ask.recommend && <p className="mt-1 text-[13px] leading-[1.55] text-ink select-text [overflow-wrap:anywhere]">{t("assistant-brief.recommend", { option: ask.recommend })}</p>}
-      {todo.origin && (
-        <div className="mt-3">
-          {/* the conversation the task came from: the to-do's manager's, whichever assistant is current */}
-          <Button icon="chat" onClick={() => {
-            setRoute(todo.origin!, todo.id, ask.asked_at);
-            navigate({ name: "persona" });
-          }}>
-            {t("todos.ask_answer")}
-          </Button>
-        </div>
-      )}
     </section>
   );
 }

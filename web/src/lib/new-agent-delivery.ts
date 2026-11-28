@@ -52,7 +52,7 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
       machine_id: launch.machineId, cwd: launch.cwd, workspace_id: launch.workspaceId || undefined,
       desktop_project_id: launch.desktopProjectId || undefined,
       launcher: launch.launcher || undefined, agent_type: launch.agentType,
-      model: launch.model || undefined, todo_id: launch.todoId || undefined,
+      model: launch.model || undefined,
       launcher_default_effort: launch.launcherDefaultEffort,
       permission_mode: launch.permissionMode || undefined,
     };
@@ -156,7 +156,7 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
     const out = launch.outgoing!;
     if (out.text || out.images.length) {
       update({ phase: "sending", promptSentAt: launch.promptSentAt ?? Date.now() });
-      const payload = { ...out, client_msg_id: launch.messageId, clear_draft: clearDraft, todo_id: launch.todoId || undefined };
+      const payload = { ...out, client_msg_id: launch.messageId, clear_draft: clearDraft };
       if (new TextEncoder().encode(JSON.stringify(payload)).byteLength > 32 * 1024 * 1024) throw new Error(t("lib-new-agent.attachments_too_large_retry"));
       await launchOp(`${sessionPath(launch.machineId, launch.session!.session_id)}/messages`, launch.messageId, controller.signal, payload);
     }

@@ -18,9 +18,7 @@
   "board_section": "{title} · {count}",
   "board_empty_title": "タスクはまだありません",
   "board_empty_body": "会話でやることを伝えると、Personaがタスクにします。",
-  "board_remove": "「{title}」を削除",
   "auto_review_title": "独立レビュー",
   "auto_review_show": "レポートを表示",
-  "auto_review_hide": "レポートを隠す",
-  "use_launcher_instead": "{launcher} で開始"
+  "auto_review_hide": "レポートを隠す"
 }

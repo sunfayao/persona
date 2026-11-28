@@ -75,15 +75,15 @@ describe("the space page", () => {
     expect(html).toContain("agent task");
     expect(html).toContain('href="/todos?id=t1"');
     expect(html).toContain("空间关联");
-    expect(html).toContain("改挂");
+    expect(html).not.toContain("改挂");
     expect(html).toContain('data-testid="todo-concern">关注点<');
     expect(html.match(/data-testid="todo-concern"/g)).toHaveLength(1);
   });
 
-  it("offers to link a todo when the space has none", () => {
+  it("shows an empty state when the space has no linked to-do", () => {
     const html = render([agent("idle")]);
     expect(html).toContain("这个空间还没有关联待办。");
-    expect(html).toContain("关联到待办");
+    expect(html).not.toContain("关联到待办");
   });
 
   it("says so when the space is gone, with a way back to the machine", () => {

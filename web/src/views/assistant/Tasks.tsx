@@ -1,7 +1,7 @@
 // The unified entry in the assistant's conversation (iOS Views/Assistant/Tasks): the plan card,
 // task cards that follow their agents, the hub's lines (answered, routed; receipts, reviews and reports are not drawn,
 // #8237), the "Today" card, message cards about
-// a task, quick results, the dock above the composer, the tasks' questions, the route chip, and a task's detail in the
+// a task, quick results, the dock above the composer, the tasks' questions, and a task's detail in the
 // side panel.
 import { lazy, memo, Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import { taskMeter, type TaskCardMetadata } from "../../lib/task-cards";
@@ -19,13 +19,8 @@ import {
   getFeedState,
   sentByPersona,
   planUltracodeToSend,
-  removeTask,
-  retryKey,
-  retryTask,
-  routeTodoId,
   startFailure,
   startInFlight,
-  setRoute,
   askRow,
   startPlan,
   todayFailedRow,
@@ -38,7 +33,7 @@ import {
 } from "../../lib/feed";
 import { backgroundWorkLine, type BackgroundWork } from "../../lib/background-work";
 import { workflowCounts } from "../../lib/workflows";
-import { acceptedAtRest, dockAgents, type DockAgent, isRemovable, mostUrgentAgent, openAsk, orphanedLine, stoppedReason, taskNow, todoStatus, TODO_STATUS_INFO, waitingLine, type SessionLookup, type Todo, type TodoStatus } from "../../lib/todos";
+import { acceptedAtRest, dockAgents, type DockAgent, mostUrgentAgent, openAsk, orphanedLine, stoppedReason, taskNow, todoStatus, TODO_STATUS_INFO, waitingLine, type SessionLookup, type Todo, type TodoStatus } from "../../lib/todos";
 import { usageLimitLabel } from "../../lib/usage-limit";
 import { openAgent, openTask } from "../../lib/handoff";
 import { navigate } from "../../lib/router";
@@ -47,10 +42,10 @@ import { LiveCard } from "../../ui/AssistantCard";
 import type { AssistantView } from "../../lib/extension-wire";
 import { getState, hubHas, taskSessionLookup, useStore, type State } from "../../lib/store";
 import type { AgentState, Interaction, Machine, Session } from "../../lib/types";
-import { Button, Collapse, cx, IconButton, Loading, Menu, toast, useNow } from "../../ui/atoms";
+import { Button, Collapse, cx, IconButton, Loading, toast, useNow } from "../../ui/atoms";
 import { StatusMark } from "../../ui/StatusMark";
 import { Icon, type IconName } from "../../ui/icons";
-import { AcceptRow, BriefCard } from "./Brief";
+import { TaskReviewRow, BriefCard } from "./Brief";
 
 // A plan task's brief (#3822) comes with the first plan card that has one, as the decision row does.
 const PlanBrief = lazy(() => import("./TaskBrief").then((m) => ({ default: m.PlanBrief })));
@@ -158,14 +153,6 @@ export function statusOf(todo: Todo, lookup: SessionLookup, plans: Record<string
   return st === "not_started" && startFailure(todo, plans) ? "failed" : st;
 }
 
-/** Removes a task (lib/feed removeTask), saying so when it did not go. */
-export function removeTaskNow(todo: Todo) {
-  removeTask(todo).then(
-    (gone) => gone && toast(t("assistant-tasks.removed", { title: todo.title }), "ok"),
-    (e) => toast(t("assistant-tasks.remove_failed", { error: String(e instanceof Error ? e.message : e) }), "error"),
-  );
-}
-
 /** The task's state as an agent state, for its dot and tone. `starting`: a not-started task's Agent is being started
  *  (startInFlight); one nobody dispatched is still, as on the To-dos page (#7552). */
 function dotState(st: TodoStatus, starting = true): AgentState {
@@ -234,18 +221,6 @@ export function taskAsk(ix: Interaction | undefined): string | undefined {
   return ask ? `${t("todos.kicker_line", { kicker })}${ask}` : kicker;
 }
 
-
-/** "Retry" on a task that did not start, or "Continue" on one the model service cut off (lib/feed retryTask), saying why when the
- *  hub refused (the machine offline…). */
-export function retryTaskNow(todo: Todo, verb: "retry" | "continue" = "retry") {
-  retryTask(todo).catch((e) => toast(verb === "continue" ? t("assistant-tasks.continue_failed", { error: String(e instanceof Error ? e.message : e) }) : t("assistant-tasks.retry_failed", { error: String(e instanceof Error ? e.message : e) }), "error"));
-}
-
-
-/** A task's "Retry" is on its way to the hub. */
-export function useRetrying(todoId: string | undefined): boolean {
-  return useFeed((s) => (todoId ? Boolean(s.busy[retryKey(todoId)]) : false));
-}
 
 // ── the plan card ──
 
@@ -800,7 +775,7 @@ function TaskHandoffs({ item }: { item: FeedItem }) {
 
 /** One slot, one row: live task/session state wins over historical feed metadata. `fresh`: a Finished row the owner has
  *  not opened since it finished (#10922), drawn as new with Just finished's mark and word, as the To-dos page names it. */
-export function ProgressTaskRow({ card, conversation, activity, countsOpen, supervisorReview, fresh = false, onOpen }: { card: TaskCardMetadata; conversation: string; activity?: BackgroundWork; countsOpen: boolean; supervisorReview?: boolean; fresh?: boolean; onOpen?: () => void }) {
+export function ProgressTaskRow({ card, conversation, activity, countsOpen, supervisorReview, fresh = false }: { card: TaskCardMetadata; conversation: string; activity?: BackgroundWork; countsOpen: boolean; supervisorReview?: boolean; fresh?: boolean }) {
   const todo = useTodo(card.todo_id);
   const task = useTaskNow(todo);
   const plans = useFeed((s) => s.plans);
@@ -852,7 +827,6 @@ export function ProgressTaskRow({ card, conversation, activity, countsOpen, supe
     : limit ?? liveLine ?? parked ?? waits ?? nobody ?? stopped ?? progressLine(todo?.supervision) ?? ask ?? task?.lead?.plan?.current ?? progressOf(task?.lead)?.text ?? (report && field(report, "text"));
   return (
     <button type="button" data-task-slot={card.id} data-counts-open={countsOpen ? "true" : "false"} disabled={!todo && !card.plan_id} onClick={() => {
-      onOpen?.();
       if (card.todo_id) openTask(card.todo_id);
       else window.dispatchEvent(new CustomEvent("persona:task-start", { detail: conversation }));
     }} className="flex w-full min-w-0 items-center gap-3 px-3 py-2.5 text-left hover:bg-hover disabled:cursor-default">
@@ -1053,7 +1027,7 @@ export function NeedsYouBody({ item, nested = false }: { item: NeedsYouItem; nes
         <NeedsYouPart key={todo.id + (todo.supervision?.reviews?.at(-1)?.at || todo.decision_review?.review_at || ask?.asked_at)} rowKey={rowKey} hideTitle={nested} decision={todo} />
       </Suspense>
     );
-  if (ask) return <div data-needs-row={rowKey} {...taskOpenAttr} className="min-w-0 rounded-control bg-field px-3 py-2.5"><AcceptRow stacked hideTitle={nested} key={todo.id + ask.asked_at} row={askRow(todo, ask)} /></div>;
+  if (ask) return <div data-needs-row={rowKey} {...taskOpenAttr} className="min-w-0 rounded-control bg-field px-3 py-2.5"><TaskReviewRow stacked hideTitle={nested} key={todo.id + ask.asked_at} row={askRow(todo, ask)} /></div>;
   if (status === "failed")
     return (
       <Suspense fallback={<div data-needs-row={item.key} {...taskOpenAttr} className="truncate rounded-control bg-danger-wash px-3 py-2 text-sm">{todo.title}</div>}>
@@ -1136,7 +1110,7 @@ export const AssistantActionBar = memo(function AssistantActionBar({ conversatio
   const answered = useStore((s) => s.answered);
   const main = useStore((s) => s.assistant?.main);
   const lookup = useTaskLookup();
-  const [restored] = useRestoredTodos();
+  const restored = useRestoredTodos();
   // a minute's tick moves tasks across the 48 h shelving line while nothing else changes, as on the To-dos page
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -1323,7 +1297,6 @@ export const AssistantActionBar = memo(function AssistantActionBar({ conversatio
 
 export const TaskDock = memo(function TaskDock({ conversation }: { conversation: string }) {
   const plans = useFeed((s) => s.plans);
-  const [menuFor, setMenuFor] = useState<{ todo: Todo; el: HTMLElement } | null>(null);
   const [board, setBoard] = useState(false);
   // rows of strings and the store's own objects: a push about an agent or a card none of them shows draws nothing
   const agents = useStoreRows<DockAgent>((s) => dockAgents(answeredSessions(Object.values(s.sessions).flat(), s.interactions, s.answered), s.todos, conversation, s.assistant?.main));
@@ -1358,11 +1331,6 @@ export const TaskDock = memo(function TaskDock({ conversation }: { conversation:
               title={label}
               aria-label={label}
               onClick={() => openTask(todo.id)}
-              onContextMenu={(e) => {
-                if (!isRemovable(st)) return;
-                e.preventDefault();
-                setMenuFor({ todo, el: e.currentTarget });
-              }}
               className={cx(pill, st === "needs_you" || st === "interrupted" ? "bg-field text-attention" : "bg-field text-ink hover:bg-hover")}
             >
               <TaskMark status={st} size={8} />
@@ -1389,35 +1357,7 @@ export const TaskDock = memo(function TaskDock({ conversation }: { conversation:
           ))}
         </div>
       )}
-      {menuFor && (
-        <Menu
-          anchor={menuFor.el}
-          side="top"
-          onClose={() => setMenuFor(null)}
-          items={[{ key: "remove", label: t("assistant-tasks.remove_ellipsis"), icon: "trash", danger: true, onSelect: () => removeTaskNow(menuFor.todo) }]}
-        />
-      )}
       {board && <Suspense fallback={null}><TaskBoard open conversation={conversation} onClose={() => setBoard(false)} /></Suspense>}
-    </div>
-  );
-});
-
-/** "Talking to "xx"" while the next message goes straight to a task; × gives it back to Persona. */
-export const RouteChip = memo(function RouteChip({ conversation }: { conversation: string }) {
-  const route = useFeed((s) => s.routes[conversation]);
-  const todoId = routeTodoId(route);
-  const todo = useTodo(todoId);
-  if (!todo) return null;
-  return (
-    <div className="flex flex-col items-start gap-1">
-      <span title={typeof route === "object" ? t("todos.ask_chat_hint") : undefined} className="inline-flex h-7 max-w-full items-center gap-1.5 rounded-full bg-accent-tint pl-3 pr-1 text-[12.5px] font-semibold text-accent">
-        <Icon name="send" size={12} />
-        <span className="min-w-0 truncate">{t(typeof route === "object" ? "todos.ask_chat_route" : "assistant-tasks.say_to", { title: todo.title })}</span>
-        <button type="button" aria-label={t("assistant-tasks.give_back")} onClick={() => setRoute(conversation, null)} className="flex size-5 items-center justify-center rounded-full hover:bg-hover">
-          <Icon name="x" size={11} />
-        </button>
-      </span>
-      {typeof route === "object" && <span className="text-xs text-ink-2">{t("todos.ask_chat_hint")}</span>}
     </div>
   );
 });

@@ -85,16 +85,17 @@ describe("on the decision's card in Needs you", () => {
     expect(marks()).toHaveLength(1);
     expect(marks()[0].textContent).toBe(`With the next briefing · ${HINT}`);
     expect(marks()[0].closest("[data-decision-row]")).not.toBeNull();
-    // its options are answerable all the same
-    expect([...host.querySelectorAll("[data-decision-option]")].map((o) => o.textContent)).toEqual(["Keep it", "Replace it"]);
+    // The options are readable.
+    expect(host.querySelectorAll("[data-decision-option]")).toHaveLength(2);
+    expect(host.querySelectorAll("[data-decision-row] button")).toHaveLength(1);
     await render(<TaskDecision todo={todo(decision)} rowKey="task:t1" />);
     expect(marks()).toHaveLength(0);
   });
 
-  it("a held decision without options on its row keeps the card it had, with the caption", async () => {
+  it("a held decision without options still shows the caption", async () => {
     const plain = { ...held, options: undefined };
     await render(<TaskDecision todo={todo(plain)} rowKey="task:t1" />);
-    expect(host.querySelector('[data-brief-row="accept"]')).not.toBeNull();
+    expect(host.querySelector("[data-decision-row]")).not.toBeNull();
     expect(marks()).toHaveLength(1);
     expect(marks()[0].dataset.forBriefing).toBe("caption");
   });

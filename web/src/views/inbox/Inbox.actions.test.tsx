@@ -19,16 +19,6 @@ vi.mock("../../lib/api", async (orig) => ({
       const [first, ...rest] = (calls.items as InboxItem[]).filter((x) => ids.includes(x.id));
       return Promise.resolve({ item: { ...first, merged_from: rest.map((x) => ({ id: x.id, source: x.source })), count: 2 }, members: rest.map((x) => x.id), undo: { id: first.id } });
     }
-    if (path === "/inbox/todo") {
-      const ids = new Set((init?.json?.items ?? []).map((x) => x.id));
-      const changed = (calls.items as { id: string }[]).filter((x) => ids.has(x.id)).map((x) => ({ ...x, done_at: "2026-11-09T05:00:00Z", done_by: "todo" }));
-      return Promise.resolve({ changed, todos: changed.map((x) => ({ item: x, todo: { id: `t-${x.id}` } })), undo: { items: changed.map((x) => ({ id: x.id, todo_id: `t-${x.id}` })) } });
-    }
-    if (path === "/inbox/bulk") {
-      const ids = new Set((init?.json?.items ?? []).map((x) => x.id));
-      const changed = (calls.items as { id: string }[]).filter((x) => ids.has(x.id)).map((x) => ({ ...x, done_at: "2026-11-09T05:00:00Z", done_by: "user" }));
-      return Promise.resolve({ changed, unchanged: [], skipped: [] });
-    }
     return Promise.resolve({});
   },
 }));
@@ -83,18 +73,11 @@ afterEach(() => {
 });
 
 
-describe("inbox merge and add to to-dos (#6480)", () => {
-  const pickTwo = async () => {
+describe("inbox merge (#6480)", () => {
+  it("the phone's icon-only Merge is named for screen readers and hover", async () => {
     await click(button("选择"));
-    await click(boxes()[0]);
-    await click(boxes()[1]);
-  };
-  it("the phone's icon-only Merge and Add to to-dos are named for screen readers and hover", async () => {
-    await click(button("选择"));
-    for (const name of ["合并", "加入待办"]) {
-      const b = host.querySelector(`[role="toolbar"] button[aria-label="${name}"]`);
-      expect(b?.getAttribute("title")).toBe(name);
-    }
+    const merge = host.querySelector('[role="toolbar"] button[aria-label="合并"]');
+    expect(merge?.getAttribute("title")).toBe("合并");
   });
   it("Merge needs two rows; it merges them into one row that says so, and ends selecting", async () => {
     await click(button("选择"));
@@ -110,12 +93,5 @@ describe("inbox merge and add to to-dos (#6480)", () => {
     expect(bar()).toBeNull();
     expect(host.querySelectorAll("[data-merged]")).toHaveLength(1);
     expect(host.querySelector("[data-merged]")?.textContent).toBe("由 2 行合并");
-  });
-  it("Add to to-dos makes one to-do per row at once, without a due date, and ends selecting", async () => {
-    await pickTwo();
-    await click(button("加入待办"));
-    const json = calls.list.find((c) => c.path === "/inbox/todo")?.json as Record<string, unknown>;
-    expect(json).toEqual({ items: [expect.anything(), expect.anything()] });
-    expect(bar()).toBeNull();
   });
 });

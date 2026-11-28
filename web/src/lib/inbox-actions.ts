@@ -1,6 +1,4 @@
-// Merge and "Add to to-dos" on the Inbox (#6480): the requests and the toasts with Undo. A merge and a to-do each go to one
-// manager (the hub sends them to the manager named); rows of several managers cannot be merged, but each manager's rows make
-// their own to-dos.
+// Merge inbox rows within one manager, with Undo.
 import { api, errorText } from "./api";
 import { applyInboxChange, reloadInbox, type InboxItem } from "./inbox";
 import { itemHeaders, otherManager } from "./manager-choice";
@@ -54,54 +52,5 @@ async function unmergeItems(id: string, manager: string | undefined): Promise<vo
     toast(t("lib-inbox-actions.unmerged"), "ok");
   } catch (e) {
     toast(t("lib-inbox-actions.unmerge_failed", { error: errorText(e) }), "error");
-  }
-}
-
-interface TodoAnswer {
-  changed: InboxItem[];
-  skipped?: { id: string; reason: string }[];
-  failed?: { id: string }[];
-  todos?: { item: InboxItem; todo: { id: string } }[];
-  undo?: { items: { id: string; todo_id: string }[] };
-}
-
-/** "Add to to-dos": one to-do per row, without a due date, each titled like its row. The rows count as handled; the toast has
- * Undo. Resolves to how many were added. */
-export async function addTodos(items: InboxItem[]): Promise<number> {
-  let added = 0;
-  const undo: { manager: string | undefined; items: { id: string; todo_id: string }[] }[] = [];
-  let failure: unknown;
-  for (const [m, list] of byManager(items)) {
-    const manager = m || undefined;
-    try {
-      const body = { items: list.map((it) => ({ id: it.id, version: it.version })) };
-      const r = await api<TodoAnswer>("/inbox/todo", { method: "POST", json: body, headers: itemHeaders(manager) });
-      applyInboxChange(r.changed ?? [], [], manager);
-      added += r.todos?.length ?? 0;
-      if (r.undo?.items?.length) undo.push({ manager, items: r.undo.items });
-    } catch (e) {
-      failure = e;
-    }
-  }
-  if (failure !== undefined) {
-    toast(added ? t("lib-inbox-actions.todo_partly", { count: added, error: errorText(failure) }) : t("lib-inbox-actions.todo_failed", { error: errorText(failure) }), "error");
-    void reloadInbox();
-  }
-  if (added && failure === undefined) {
-    toast(t("lib-inbox-actions.todo_added", { count: added }), "ok", { label: t("lib-inbox-actions.undo"), run: () => void undoTodos(undo) });
-  }
-  return added;
-}
-
-async function undoTodos(groups: { manager: string | undefined; items: { id: string; todo_id: string }[] }[]): Promise<void> {
-  try {
-    for (const g of groups) {
-      const r = await api<{ changed: InboxItem[] }>("/inbox/todo/undo", { method: "POST", json: { items: g.items }, headers: itemHeaders(g.manager) });
-      applyInboxChange(r.changed ?? [], [], g.manager);
-    }
-    toast(t("lib-inbox-actions.todo_undone"), "ok");
-  } catch (e) {
-    toast(t("lib-inbox-actions.todo_undo_failed", { error: errorText(e) }), "error");
-    void reloadInbox();
   }
 }

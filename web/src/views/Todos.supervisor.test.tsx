@@ -114,6 +114,24 @@ describe("a to-do a supervisor Agent runs", () => {
     expect(tree.querySelector('[data-worker-step="accepted"]')?.textContent).toContain("Write the parser");
   });
 
+  it("keeps the worker hierarchy under the former supervisor after release", async () => {
+    seed({ todos: [{ ...release, done_at: iso(1000), agents: [{ ...release.agents![0], released_at: iso(1000) }] }, tests, parser] });
+    await open("root");
+    const first = document.querySelector("[data-testid=todo-agent-roster] li")!;
+    expect(first.querySelector("[data-testid=todo-agent-title]")?.textContent).toBe("Supervise the release");
+    expect(first.querySelector("[data-testid=todo-workers]")).not.toBeNull();
+    await act(async () => first.querySelector<HTMLButtonElement>("button")!.click());
+    expect(location.pathname).toBe("/s/m1/s-lead");
+  });
+
+  it("opens the worker's conversation from the supervisor's to-do", async () => {
+    await open("root");
+    const workerChat = document.querySelector<HTMLButtonElement>('[aria-label="查看 Tests worker 的 Agent 会话"]')!;
+    await act(async () => workerChat.click());
+    expect(location.pathname).toBe("/s/m2/s-tests");
+    expect(api.mock.calls.some(([, init]) => (init as { method?: string } | undefined)?.method === "POST")).toBe(false);
+  });
+
   it("logs the supervision between the criteria and the sessions, today open and newest first", async () => {
     await open("root");
     expect(sections().map((s) => s.querySelector("h3")?.textContent)).toEqual(["任务简报", "验收标准", "督办记录", "关联的 Agent 会话", "仓库与关联事项", "决策"]);

@@ -1,19 +1,4 @@
 {
   "region": "关联的待办：{title}",
-  "expand": "展开待办详情和操作",
-  "collapse": "收起待办详情",
-  "open": "打开待办",
-  "no_detail": "这里读不到详情",
-  "next_criterion": "下一步：{text}",
-  "all_met": "完成标准都已满足",
-  "in_progress": "进行中",
-  "unattended": "现在没人在做",
-  "wait_review": "等待审查",
-  "wait_merge": "等待合入",
-  "wait_deploy": "等待部署确认",
-  "owner_failed_start": "Agent 没有启动",
-  "owner_agent_asks": "有 Agent 在问你",
-  "owner_decides": "等你决定",
-  "owner_decides_text": "等你决定：{text}",
-  "owner_delivery_ok": "等你同意上线"
+  "no_detail": "这里读不到详情"
 }

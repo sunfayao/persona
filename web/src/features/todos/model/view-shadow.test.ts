@@ -2,7 +2,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEV_MODE_KEY } from "../../../lib/dev-probe";
-import { resetRestoredCache, restoreTodo } from "../../../lib/todo-restore";
 import * as todoTriage from "../../../lib/todo-triage";
 import type { TodoSummary } from "../../../lib/todo-view-wire";
 import type { Todo } from "../../../lib/todos";
@@ -56,7 +55,6 @@ afterEach(() => {
   stop?.();
   stop = undefined;
   localStorage.clear();
-  resetRestoredCache();
   vi.useRealTimers();
 });
 
@@ -183,8 +181,8 @@ describe("comparing", () => {
     expect(lines("todo_view")).toEqual([{ errors: 1 }, { errors: 2 }]);
   });
 
-  it("reads this browser's restores as lib/todo-restore.ts writes them", () => {
-    restoreTodo("todo_r1", START - 1000);
+  it("reads historical restore timestamps from this browser", () => {
+    localStorage.setItem("persona.todos.restored", JSON.stringify({ todo_r1: START - 1000 }));
     expect(localRestores()).toEqual(new Map([["todo_r1", START - 1000]]));
   });
 });

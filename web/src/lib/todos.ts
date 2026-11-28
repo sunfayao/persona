@@ -1,5 +1,4 @@
 import { t } from "../i18n";
-import { currentHeaders, noteItemManager } from "./manager-choice";
 import { acceptanceStands, decisionDismissed, linkedParkInteraction, linkedParkOwnerAsk, parkInteractionID, reviewState, type Supervision } from "./supervision";
 import type { LineageStep, TaskBrief } from "./brief";
 import type { RuleSuggestion } from "./rule-suggestion";
@@ -125,7 +124,7 @@ export interface Todo {
   cancelled_reason?: string;
   /** When the user last reopened it after it was done. */
   reopened_at?: string | null;
-  /** When the owner last looked at it in Just finished: Got it, or opening it (#5707, lib/todo-seen.ts); a to-do seen
+  /** The last read receipt recorded by the hub. A to-do seen
    *  since it got there is filed under Done (lib/todo-triage.ts). Unset when never seen, and from hubs before it. */
   seen_at?: string | null;
   /** Opened from the main conversation while "notify tasks the main chat dispatched only in the main chat" was on (#1731). */
@@ -223,7 +222,7 @@ export interface TodoAsk {
   /** `default` "taken": the recommendation is taken at `deadline` when nobody answers; "never": it never is. */
   deadline?: string;
   default?: "taken" | "never" | string;
-  /** The fixed answers besides the options: the owner cannot answer this as asked (lib/feed `acceptBrief`). */
+  /** The fixed answers supported alongside the decision's options. */
   responses?: string[];
   /** The fixed answer already given while the decision still waits (`explain_first`: Persona is to ask again with the
    *  background; the options stay answerable meanwhile). */
@@ -245,32 +244,21 @@ export interface AskOption {
 /** The fixed answers of a decision the web app knows (`TodoAsk.responses`); views/assistant/DecisionRow lists them. */
 export type AskResponse = "decide_yourself" | "not_what_i_asked" | "explain_first";
 
-/** The options of a decision that can be answered on its row: a decision with at least two of them, each with a label.
- *  None for any other ask, which keeps its one button (askTake). */
+/** The options of a decision with at least two labelled choices.
+ *  None for any other ask. */
 export function askOptions(ask: TodoAsk): AskOption[] {
   if (ask.outcome !== "decide" || !Array.isArray(ask.options)) return [];
   const list = ask.options.filter((o) => o && typeof o.label === "string" && o.label.trim());
   return list.length >= 2 ? list : [];
 }
 
-/** What the one button of an ask does: take a decision's recommendation, acknowledge a conclusion that only tells, or
- *  accept a deployed to-do as verified. */
-export type AskTake = "take" | "ack" | "accept";
-
-/** The ask a to-do waits on, when the hub sent a whole one (a verdict line and a round to answer). */
+/** The ask a to-do waits on, when the hub supplied its verdict and round. */
 export function openAsk(todo: Pick<Todo, "ask">): TodoAsk | undefined {
-  const a = todo.ask;
-  return a && a.verdict && a.asked_at ? a : undefined;
+  const ask = todo.ask;
+  return ask?.verdict && ask.asked_at ? ask : undefined;
 }
 
-/** What the ask's button does; none for a decision that recommends nothing: nothing for one tap to take, so it is
- *  answered in its conversation (or on its Lark card). */
-export function askTake(ask: TodoAsk): AskTake | undefined {
-  if (ask.outcome === "decide") return ask.recommend ? "take" : undefined;
-  return ask.outcome ? "ack" : "accept";
-}
-
-/** The tone of an ask's verdict: a decision waits on the user, what cannot be done is red, done (or deployed) is green. */
+/** The tone of the ask's verdict. */
 export function askTone(ask: TodoAsk): "attention" | "red" | "green" {
   return ask.outcome === "decide" ? "attention" : ask.outcome === "cannot" ? "red" : "green";
 }
@@ -385,11 +373,6 @@ export const TODO_STATUS_INFO: Record<TodoStatus, { label: string; tone: TodoTon
   not_started: { label: stateName("not_started"), tone: "off" },
   failed: { label: stateName("failed"), tone: "red" },
 };
-
-/** Nothing of the task runs (it ended, stopped, or never started): the user may remove it (#1142). */
-export function isRemovable(status: TodoStatus): boolean {
-  return status !== "working" && status !== "needs_you";
-}
 
 export type SessionLookup = ((mid: string, sid: string) => Session | undefined) & {
   /** Exact pending-card lookup, present when the caller supplied its current interaction list. */
@@ -713,69 +696,6 @@ export function shownDecisions<T>(list: readonly T[], view: DecisionsView): T[] 
 export async function fetchTodoDecisions(todoId: string): Promise<TodoDecision[]> {
   const r = await api<{ decisions: TodoDecision[] }>(`/todos/${enc(todoId)}/decisions?all=1`);
   return r.decisions ?? [];
-}
-
-// ── API helpers ──────────────────────────────────────────────
-
-type TodoCreateResponse = { todo?: Todo; state?: string };
-
-/** A new to-do with this title, the current assistant's (the list shows only its own). A 202 receipt is not a created
- *  to-do: it is said so, never called a success. */
-export async function createTodo(title: string): Promise<Todo> {
-  const r = await api<TodoCreateResponse>("/todos", { method: "POST", headers: currentHeaders(), json: { title: title.trim() } });
-  const todo = r.todo;
-  if (r.state === "pending" || r.state === "unknown" || !todo || typeof todo.id !== "string" || !todo.id) throw new Error(t("lib-todos.create_unconfirmed"));
-  return todo;
-}
-
-/** A todo change as PATCH takes it; due_at / due_date / remind_at null clears them (#1683). */
-export interface TodoPatch {
-  title?: string;
-  notes?: string;
-  done?: boolean;
-  due_at?: string | null;
-  due_date?: string | null;
-  remind_at?: string | null;
-  priority?: string;
-  /** A knowledge-base project's slug; "" takes it out of its project. */
-  project?: string;
-  /** A responsible party that is not a Persona-started agent (#12712); null clears it. */
-  responsible?: TodoResponsible | null;
-}
-
-export async function updateTodo(id: string, patch: TodoPatch): Promise<Todo> {
-  const r = await api<{ todo: Todo }>(`/todos/${enc(id)}`, {
-    method: "PATCH",
-    json: patch,
-  });
-  return r.todo;
-}
-
-export async function deleteTodo(id: string): Promise<void> {
-  await api(`/todos/${enc(id)}`, { method: "DELETE" });
-  noteItemManager(`/todos/${encodeURIComponent(id)}`, undefined);
-}
-
-export async function linkAgentToTodo(todoId: string, mid: string, sid: string): Promise<void> {
-  await api(`/todos/${enc(todoId)}/agents/${enc(mid)}/${enc(sid)}`, { method: "PUT" });
-}
-
-export async function unlinkAgentFromTodo(todoId: string, mid: string, sid: string): Promise<void> {
-  await api(`/todos/${enc(todoId)}/agents/${enc(mid)}/${enc(sid)}`, { method: "DELETE" });
-}
-
-export async function linkSpaceToTodo(
-  todoId: string,
-  mid: string,
-  space: string,
-): Promise<{ ok: boolean; linked: number }> {
-  return await api<{ ok: boolean; linked: number }>(`/todos/${enc(todoId)}/spaces/${enc(mid)}/${enc(space)}`, {
-    method: "PUT",
-  });
-}
-
-export async function unlinkSpaceFromTodo(todoId: string, mid: string, space: string): Promise<void> {
-  await api(`/todos/${enc(todoId)}/spaces/${enc(mid)}/${enc(space)}`, { method: "DELETE" });
 }
 
 /**

@@ -96,18 +96,15 @@ describe("the drawer's page grid", () => {
 });
 
 describe("a sidebar row's ⋯", () => {
-  const items = (s: Session) => agentRowMenuItems(s, { pinned: false, muted: false, onRename: () => {}, onDelete: () => {}, onLinkTodo: () => {} }).map((i) => i.key);
+  const items = (s: Session) => agentRowMenuItems(s, { pinned: false, muted: false, onRename: () => {}, onDelete: () => {} }).map((i) => i.key);
   it("has what used to be only on right click: 关联到待办, 解除关联 and 删除对话", () => {
     const offline = session({ state: "offline", status: "offline" });
-    expect(items(offline)).toEqual(expect.arrayContaining(["pin", "link-todo", "delete"]));
-    expect(items(offline)).not.toContain("unlink-todo");
-    expect(items(session({ todo: { id: "t1", title: "发版" } } as Partial<Session>))).toEqual(expect.arrayContaining(["link-todo", "unlink-todo"]));
+    expect(items(offline)).toEqual(expect.arrayContaining(["pin", "delete"]));
+    const linked = items(session({ todo: { id: "t1", title: "Release" } }));
+    expect(linked).not.toContain("link-todo");
+    expect(linked).not.toContain("unlink-todo");
   });
-  it("says 改挂到其他待办… on an agent that already works for a todo (#2348)", () => {
-    const label = (s: Session) => agentRowMenuItems(s, { pinned: false, muted: false, onRename: () => {}, onDelete: () => {}, onLinkTodo: () => {} }).find((i) => i.key === "link-todo")?.label;
-    expect(label(session())).toBe("关联到待办…");
-    expect(label(session({ todo: { id: "t1", title: "发版" } } as Partial<Session>))).toBe("改挂到其他待办…");
-  });
+
   it("offers Delete on idle chats and keeps live attach independent (#3405, #7125)", () => {
     const keys = (s: Session) => agentRowMenuItems(s, { pinned: false, muted: false, onRename: () => {}, onDelete: () => {} }).map((i) => i.key);
     expect(keys(session())).toContain("delete");

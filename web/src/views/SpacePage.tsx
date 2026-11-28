@@ -1,6 +1,6 @@
 // Space page (`/space/<machine>/<space name>`, iOS SpaceView, Android #89): one space of one machine — its
 // running agents (a row opens the chat), the todos it and its agents hang on, and what the space's ⋯ in the sidebar
-// offers (mark all seen, rename, link to a todo, pin, mute, then "New agent" / Git / copy the path). Reached from a space's
+// offers (mark all seen, rename, pin, mute, then "New agent" / Git / copy the path). Reached from a space's
 // name on the machine page and from "Open space page" in a space's menu of the Agents list.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { isSpaceMuted, unreadOf } from "../lib/agent-filter";
@@ -20,7 +20,6 @@ import { Icon } from "../ui/icons";
 import { MarkSeenDialog, SpaceMenu } from "./AgentMenus";
 import { Tag } from "./assistant/parts";
 import { RenameSpaceDialog } from "./chat/SessionDialogs";
-import { LinkTodoDialog, type LinkTargetSpace } from "./LinkTodoDialog";
 import { AgentRow } from "./machines/AgentRow";
 import { Empty } from "./session/files/parts";
 import { t } from "../i18n";
@@ -45,9 +44,7 @@ export function SpacePage({ mid, space, onToggleSidebar }: { mid: string; space:
   const pins = useStore((s) => s.pins);
   const mutes = useStore((s) => s.mutes);
   const todos = useStore((s) => s.todos);
-  const todosLoaded = useStore((s) => s.todosLoaded);
   const todosSupported = useStore((s) => s.todosSupported);
-  const spacesSupported = useStore((s) => s.spacesSupported);
   const m = machines.find((x) => x.id === mid);
   const online = m?.online !== false;
   const machineName = m ? machineWithHub(mid, machines) : mid;
@@ -70,7 +67,6 @@ export function SpacePage({ mid, space, onToggleSidebar }: { mid: string; space:
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const [renaming, setRenaming] = useState<Session | null>(null);
   const [confirmSeen, setConfirmSeen] = useState<Session[] | null>(null);
-  const [linkTarget, setLinkTarget] = useState<LinkTargetSpace | undefined>();
 
   const machineRoute: Route = { name: "machine", mid };
   const header = (
@@ -130,8 +126,6 @@ export function SpacePage({ mid, space, onToggleSidebar }: { mid: string; space:
   }
 
   const first = view.first;
-  const supportSpaces = todosLoaded && todosSupported !== false && spacesSupported !== false;
-  const spaceTodo = linked.find((x) => x.via === "space");
   const counts = [
     view.counts.needs && stateCount("needs_you", view.counts.needs),
     view.counts.working && stateCount("working", view.counts.working),
@@ -188,12 +182,9 @@ export function SpacePage({ mid, space, onToggleSidebar }: { mid: string; space:
               <Heading
                 title={t("space-page.todos")}
                 count={linked.length || undefined}
-                right={supportSpaces ? (
-                  <Button tone="quiet" icon="todo" onClick={() => setLinkTarget({ machineId: mid, space })}>{spaceTodo ? t("space-page.relink_todo") : t("space-page.link_todo")}</Button>
-                ) : undefined}
               />
               {linked.length === 0 ? (
-                <p className="rounded-card bg-surface px-4 py-3 text-[12.5px] text-ink-3 shadow-card">{spacesSupported === false ? t("space-page.todos_unsupported") : t("space-page.no_todo")}</p>
+                <p className="rounded-card bg-surface px-4 py-3 text-[12.5px] text-ink-3 shadow-card">{t("space-page.no_todo")}</p>
               ) : (
                 <div className="divide-y divide-line overflow-hidden rounded-card bg-surface shadow-card">
                   {linked.map((x) => {
@@ -239,12 +230,10 @@ export function SpacePage({ mid, space, onToggleSidebar }: { mid: string; space:
           onClose={() => setMenu(null)}
           onRename={setRenaming}
           onMarkSeen={setConfirmSeen}
-          onLinkTodo={() => setLinkTarget({ machineId: mid, space })}
         />
       )}
       {renaming && <RenameSpaceDialog open session={renaming} onClose={() => setRenaming(null)} />}
       <MarkSeenDialog list={confirmSeen} onClose={() => setConfirmSeen(null)} />
-      <LinkTodoDialog open={Boolean(linkTarget)} space={linkTarget} onClose={() => setLinkTarget(undefined)} />
     </div>
   );
 }

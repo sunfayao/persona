@@ -33,7 +33,7 @@ const SLICE = 50;
 /** Where lib/todo-restore.ts keeps this browser's restores; view-shadow.test.ts checks the two read alike. */
 const RESTORED_KEY = "persona.todos.restored";
 
-/** This browser's own restores (to-do id → when), read as lib/todo-restore.ts writes them. */
+/** This browser's own restores (to-do id → when), from earlier web clients. */
 export function localRestores(): ReadonlyMap<string, number> {
   const out = new Map<string, number>();
   try {

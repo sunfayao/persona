@@ -1665,10 +1665,6 @@ export function computeSpacesSupported(todos: Todo[]): boolean {
   return todos.length > 0 ? isSpacesSupported(todos) : true;
 }
 
-export function setSpacesSupported(supported: boolean) {
-  set({ spacesSupported: supported });
-}
-
 /** Puts a todo the hub just answered in place of the one we have (a retried task shows starting at once). */
 export function putTodo(todo: Todo) {
   // A confirmed write is newer than every list read that is still in flight.

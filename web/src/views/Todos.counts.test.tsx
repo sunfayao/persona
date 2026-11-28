@@ -131,19 +131,12 @@ describe("the To-dos header's counts", () => {
     expect(host.querySelector("[data-todo=p2]")?.closest("[data-testid=todo-group]")).toBeFalsy();
   });
 
-  it("file an ordinary unsupervised finished turn from its folder with Got it, and say a failed start needs you", async () => {
+  it("shows recently finished work and flags a failed start without filing either", async () => {
     const review = { ...todos[2], done_at: undefined, ask: { outcome: "done", verdict: "Finished", asked_at: iso(3_600_000) } };
     seed({ features: ["todo_seen"] });
     await render("folder", [...todos.slice(0, 2), review, ...todos.slice(3)] as unknown as Todo[]);
-    const fresh = host.querySelector<HTMLElement>("[data-todo=fresh]")!;
-    const got = fresh.querySelector<HTMLButtonElement>("[data-testid=todo-seen]");
-    expect(got?.textContent).toBe(t("todos.seen"));
-    // only a Just finished row has it: not the open ones, not the failed start that waits on the owner
-    expect(host.querySelector("[data-todo=own] [data-testid=todo-seen]")).toBeNull();
-    expect(host.querySelector("[data-todo=failed] [data-testid=todo-seen]")).toBeNull();
-    await act(async () => got!.click());
-    await flush();
-    expect(api.mock.calls.some(([path, init]) => path === "/todos/fresh/seen" && (init as { method?: string })?.method === "PUT")).toBe(true);
+    expect(host.querySelector("[data-todo=fresh] [data-testid=todo-seen]")).toBeNull();
+    expect(api.mock.calls.some(([, init]) => (init as { method?: string })?.method === "PUT")).toBe(false);
     // the folder of the failed start: Needs you, as the status grouping files it, not Done
     const folder = host.querySelector<HTMLElement>("[data-todo=failed]")!.closest<HTMLElement>("[data-testid=todo-group]")!;
     const head = folder.querySelector("button")!.textContent ?? "";

@@ -81,6 +81,5 @@
   "subscriptions": "購読",
   "sources": "受信箱のソース",
   "merge": "まとめる",
-  "merged_from": "{count}件をまとめ済み",
-  "todo_add_short": "ToDoに追加"
+  "merged_from": "{count}件をまとめ済み"
 }

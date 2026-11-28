@@ -289,9 +289,10 @@ The shell, from 64 rem: sidebar column, main and optional side panel as rounded 
   into an Earlier group instead of hiding them.
 - A list keeps no standing search field beside the app's search (⌘K). A row found by what is inside it shows the
   matching sentence in place of its second line.
-- To-dos are filed by what the user should do next (Needs you, then unfinished work, then what just finished; only
-  Shelved and Done start folded). `useOwnerNeeds` supplies the "Up to you" mark so the sidebar badge and the rows never
-  disagree.
+- To-dos are a read-only progress view. The list groups tasks by status and supports search, folding and navigation.
+  Details show the brief, checked criteria, Agent sessions, supervision history and result links. The assistant and
+  Agents manage to-dos through their tools. `useOwnerNeeds` keeps the sidebar badge consistent with the list's status
+  markers.
 
 ### 3.4 Navigation
 

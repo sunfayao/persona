@@ -7,7 +7,6 @@ import { t } from "../../i18n";
 import { api, errorText } from "../../lib/api";
 import { COMPACT_FEATURE, compactBody, compactPath, formatTokens } from "../../lib/compaction";
 import { contextHint, contextTier, contextTooltip, type ContextTier } from "../../lib/context-usage";
-import { useFeed } from "../../lib/feed";
 import {
   buildSessionInsights,
   compactActionSupport,
@@ -248,7 +247,6 @@ export function SessionInsightsPopover({
   const [compactingNow, setCompactingNow] = useState(false);
 
   const hubSupportsAssistantCompact = useStore((s) => hubHas(s.features, COMPACT_FEATURE));
-  const routed = useFeed((s) => Boolean(s.routes[session.session_id]));
   const insights = useMemo(
     () => buildSessionInsights(session, items, {
       ...(rateHistory !== undefined ? { rateHistory } : {}),
@@ -263,9 +261,8 @@ export function SessionInsightsPopover({
       hubSupportsAssistantCompact,
       hasSendCompact: Boolean(onCompact),
       blocked: compactBlocked,
-      routed,
     }),
-    [session, assistant, hubSupportsAssistantCompact, onCompact, compactBlocked, routed],
+    [session, assistant, hubSupportsAssistantCompact, onCompact, compactBlocked],
   );
 
   // Real keyboard Escape targets the focused element and is handled by UiPopover on document.

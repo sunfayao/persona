@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-// A to-do suggestion's card (#6480): the title is a field; one tap on "加入待办" sends it as it stands, without a due date.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -33,27 +32,12 @@ afterEach(() => {
 });
 
 const item = { id: "i1", source: "lark", title: "chat", suggestion: { version: 3, kind: "todo", text: "回复报价", due: "2026-11-20" } } as unknown as InboxItem;
-const typeInto = (el: HTMLInputElement, v: string) => {
-  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(el, v);
-  el.dispatchEvent(new Event("input", { bubbles: true }));
-};
-
 describe("to-do suggestion", () => {
-  it("shows the suggested title and confirms it as it stands, without the due an older suggestion carries", async () => {
-    act(() => root.render(<SuggestionCard item={item} suggestion={item.suggestion!} />));
-    expect(host.querySelector<HTMLInputElement>("[data-todo-title]")?.value).toBe("回复报价");
-    expect(host.querySelector('input[type="date"], input[type="time"], [role="switch"]')).toBeNull();
-    await act(async () => [...host.querySelectorAll("button")].find((b) => b.textContent?.trim() === "加入待办")?.click());
-    const body = sent.calls.find((c) => c.path.endsWith("/suggestion"))?.json;
-    expect(body).toMatchObject({ version: 3, action: "confirm" });
-    expect(body?.text).toBeUndefined();
-    expect(body?.due).toBeUndefined();
-  });
-  it("sends an edited title", async () => {
-    act(() => root.render(<SuggestionCard item={item} suggestion={item.suggestion!} />));
-    act(() => typeInto(host.querySelector<HTMLInputElement>("[data-todo-title]")!, "回复新报价"));
-    await act(async () => [...host.querySelectorAll("button")].find((b) => b.textContent?.trim() === "加入待办")?.click());
-    const body = sent.calls.find((c) => c.path.endsWith("/suggestion"))?.json;
-    expect(body).toMatchObject({ action: "confirm", text: "回复新报价" });
+  it("shows the title as text without offering to create a to-do", async () => {
+    await act(async () => root.render(<SuggestionCard item={item} suggestion={item.suggestion!} />));
+    const card = host.querySelector('[data-suggestion="todo"]')!;
+    expect(card.textContent).toContain(item.suggestion!.text);
+    expect(card.querySelector("input, textarea, button")).toBeNull();
+    expect(sent.calls).toEqual([]);
   });
 });

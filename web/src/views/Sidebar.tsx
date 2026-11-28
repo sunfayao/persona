@@ -38,8 +38,6 @@ import { SidebarUsage as SidebarUsageContent } from "./UsageBars";
 import "../lib/node-palette";
 import type { MenuNode } from "../lib/node-actions";
 import type { MenuAt } from "../ui/menu-model";
-import type { LinkTargetSpace } from "./LinkTodoDialog";
-import { lazyDialog } from "./LazyOverlay";
 import { FoldScope, useFolded } from "../lib/use-folded";
 import { clipsOverflow, glideBox, glideStyle, sameBox, type GlideBox, type Span } from "../lib/glide";
 import { AGENTS_FOLD, pagedAgentList } from "../lib/sidebar-api";
@@ -72,7 +70,6 @@ const HerdrNotices = memo(HerdrNoticesContent);
 const HubNoticeLine = memo(HubNoticeLineContent);
 const NodePrompt = memo(NodePromptContent);
 const SidebarUsage = memo(SidebarUsageContent);
-const LinkTodoDialog = memo(lazyDialog(() => import("./LinkTodoDialog").then((m) => m.LinkTodoDialog)));
 // Menus and edit controls load on intent; the ordinary sidebar keeps its first-screen budget (#12017).
 const MarkSeenDialog = memo(MarkSeenDialogContent);
 
@@ -541,8 +538,6 @@ function BoundedAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate,
   const [rowMenu, setRowMenu] = useState<{ s: Session; anchor: HTMLElement; at?: MenuAt } | null>(null);
   const [renaming, setRenaming] = useState<Session | null>(null);
   const [deleting, setDeleting] = useState<Session | null>(null);
-  const [linkTarget, setLinkTarget] = useState<Session>();
-  const closeLinkTarget = useCallback(() => setLinkTarget(undefined), []);
   // the ⋯ toggles the menu, as in the full list
   const onRowMenu = useCallback<RowMenuFn>((s, anchor, at) => setRowMenu((m) => (!at && m?.anchor === anchor ? null : { s, anchor, at })), []);
   const quickFilters = useStore((s) => s.features.includes(SESSIONS_QUICK_FILTERS_FEATURE));
@@ -609,10 +604,9 @@ function BoundedAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate,
         const where = [within === "group" && group?.places[0]?.machine ? "" : machineWithHub(s.machine_id, machines), within === "group" ? "" : s.space_name || baseName(s.cwd)];
         return <SessionRow s={s} k={k} reg={reg} hover={hover} active={activeKey === k} to={{ name: "session", mid: s.machine_id, sid: s.session_id }} go={go} onMenu={onRowMenu} hint={where.filter(Boolean).join(" · ")} showTodoTag />;
       }} />
-    {rowMenu && <AgentRowMenu s={rowMenu.s} anchor={rowMenu.anchor} at={rowMenu.at} onClose={() => setRowMenu(null)} onRename={setRenaming} onDelete={setDeleting} onLinkTodo={setLinkTarget} />}
+    {rowMenu && <AgentRowMenu s={rowMenu.s} anchor={rowMenu.anchor} at={rowMenu.at} onClose={() => setRowMenu(null)} onRename={setRenaming} onDelete={setDeleting} />}
     {renaming && <RenameDialog open session={renaming} onClose={() => setRenaming(null)} />}
     {deleting && <DeleteSessionDialog open session={deleting} machineName={machineWithHub(deleting.machine_id, machines)} onClose={() => setDeleting(null)} />}
-    <LinkTodoDialog open={Boolean(linkTarget)} session={linkTarget} onClose={closeLinkTarget} />
   </div>;
 }
 
@@ -762,10 +756,6 @@ function LegacyAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, 
       )}
     </>
   );
-  const [linkTargetSession, setLinkTargetSession] = useState<Session | undefined>();
-  const [linkTargetSpace, setLinkTargetSpace] = useState<LinkTargetSpace | undefined>();
-  const closeLinkSession = useCallback(() => setLinkTargetSession(undefined), []);
-  const closeLinkSpace = useCallback(() => setLinkTargetSpace(undefined), []);
   const closeMarkSeen = useCallback(() => setConfirmSeen(null), []);
   const clearKept = useCallback(() => setKept(new Set()), []);
 
@@ -906,9 +896,9 @@ function LegacyAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, 
       </Collapse>
       </FoldScope.Provider>
     </SidebarGroup>
-      {/* the row's ⋯ (and its right click): pin, rename, mute, the todo it hangs on, close, delete — a long press on iOS
+      {/* the row's ⋯ (and its right click): pin, rename, mute, close, delete — a long press on iOS
           Safari sends no contextmenu, so nothing lives only there */}
-      {rowMenu && <AgentRowMenu s={rowMenu.s} anchor={rowMenu.anchor} at={rowMenu.at} onClose={() => setRowMenu(null)} onRename={setRenaming} onDelete={setDeleting} onLinkTodo={setLinkTargetSession} />}
+      {rowMenu && <AgentRowMenu s={rowMenu.s} anchor={rowMenu.anchor} at={rowMenu.at} onClose={() => setRowMenu(null)} onRename={setRenaming} onDelete={setDeleting} />}
       {spaceMenu && (
         <SpaceMenu
           sp={spaceMenu.sp}
@@ -918,15 +908,12 @@ function LegacyAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, 
           onClose={() => setSpaceMenu(null)}
           onRename={setRenamingSpace}
           onMarkSeen={setConfirmSeen}
-          onLinkTodo={(sp) => setLinkTargetSpace({ machineId: sp.machineId, space: sp.name })}
         />
       )}
       {renaming && <RenameDialog open session={renaming} onClose={() => setRenaming(null)} />}
       {renamingSpace && <RenameSpaceDialog open session={renamingSpace} onClose={() => setRenamingSpace(null)} />}
       {deleting && <DeleteSessionDialog open session={deleting} machineName={machineWithHub(deleting.machine_id, machines)} onClose={() => setDeleting(null)} />}
       <MarkSeenDialog list={confirmSeen} onClose={closeMarkSeen} onDone={clearKept} />
-      <LinkTodoDialog open={Boolean(linkTargetSession)} session={linkTargetSession} onClose={closeLinkSession} />
-      <LinkTodoDialog open={Boolean(linkTargetSpace)} space={linkTargetSpace} onClose={closeLinkSpace} />
     </div>
   );
 }

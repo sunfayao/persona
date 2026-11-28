@@ -21,13 +21,6 @@ vi.mock("../lib/agent-groups", async (load) => {
   const real = await load<typeof import("../lib/agent-groups")>();
   return { ...real, buildSpaces: vi.fn(real.buildSpaces) };
 });
-vi.mock("./LinkTodoDialog", async (load) => {
-  const real = await load<typeof import("./LinkTodoDialog")>();
-  return { ...real, LinkTodoDialog: (props: Parameters<typeof real.LinkTodoDialog>[0]) => {
-    renders.set("link", (renders.get("link") ?? 0) + 1);
-    return <real.LinkTodoDialog {...props} />;
-  } };
-});
 vi.mock("./AgentMenus", async (load) => {
   const real = await load<typeof import("./AgentMenus")>();
   return { ...real, MarkSeenDialog: (props: Parameters<typeof real.MarkSeenDialog>[0]) => {
@@ -94,7 +87,7 @@ const clearCounts = () => {
   renders.clear();
   vi.mocked(buildSpaces).mockClear();
 };
-const shellReads = () => ["sidebar.quick_filters", "sidebar.theme_system", "link", "seen", "node", "usage"].map((key) => [key, renders.get(key) ?? 0]);
+const shellReads = () => ["sidebar.quick_filters", "sidebar.theme_system", "seen", "node", "usage"].map((key) => [key, renders.get(key) ?? 0]);
 const row = () => host.querySelector<HTMLAnchorElement>('a[href="/s/laptop/build"]');
 const filterBar = () => host.querySelector('[role="radiogroup"][aria-label="' + t("sidebar.quick_filters") + '"]')!;
 
@@ -146,9 +139,8 @@ async function mount() {
   expect(host.textContent).toContain("Build app");
   expect(host.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe("20");
   expect(buildSpaces).toHaveBeenCalled();
-  for (const [name, count] of shellReads()) {
-    if (name === "link") expect(count).toBe(0); // closed dialog code now loads only on intent
-    else expect(count).toBeGreaterThan(0);
+  for (const [, count] of shellReads()) {
+    expect(count).toBeGreaterThan(0);
   }
   clearCounts();
 }
@@ -196,29 +188,6 @@ describe("the sidebar shell across store pushes", () => {
     // captured replacement, not the old build session from the last time the bar rendered.
     expect(host.querySelector('a[href="/s/laptop/replacement"]')?.textContent).toContain("Build replacement");
     expect(row()).toBeNull();
-  });
-
-  it("opens and closes the memoized link dialog for the current row", async () => {
-    await mount();
-    const openLink = async () => {
-      act(() => row()!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 10, clientY: 10 })));
-      await flush();
-      const link = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find((b) => b.textContent?.includes(t("agentmenus.link_to_todo")))!;
-      expect(link).toBeTruthy();
-      await act(async () => {
-        link.click();
-        await import("./LinkTodoDialog"); // wait for the same chunk the click requested
-      });
-      await flush();
-      expect(renders.get("link")).toBeGreaterThan(0);
-      return document.querySelector('[role="dialog"][aria-modal="true"]');
-    };
-    expect((await openLink())?.textContent).toContain("Build app");
-    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
-    await flush();
-    expect(document.querySelector('[role="dialog"][aria-modal="true"]')).toBeNull();
-    await push({ type: "sessions", machine_id: "laptop", sessions: [{ ...agent, title: "Build changed" }] });
-    expect((await openLink())?.textContent).toContain("Build changed");
   });
 
   it("opens, cancels and completes mark seen through its stable callbacks", async () => {

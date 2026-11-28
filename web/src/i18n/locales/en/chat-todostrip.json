@@ -1,19 +1,4 @@
 {
   "region": "Linked to-do: {title}",
-  "expand": "Show the to-do's details and actions",
-  "collapse": "Hide the to-do's details",
-  "open": "Open to-do",
-  "no_detail": "Details aren't available here",
-  "next_criterion": "Next: {text}",
-  "all_met": "All criteria met",
-  "in_progress": "In progress",
-  "unattended": "Nobody is working on it",
-  "wait_review": "Waiting for a review",
-  "wait_merge": "Waiting for a merge",
-  "wait_deploy": "Waiting for a deploy check",
-  "owner_failed_start": "Its agent didn't start",
-  "owner_agent_asks": "An agent is asking you",
-  "owner_decides": "Waiting for your decision",
-  "owner_decides_text": "Your call: {text}",
-  "owner_delivery_ok": "Waiting for your OK to ship"
+  "no_detail": "Details aren't available here"
 }

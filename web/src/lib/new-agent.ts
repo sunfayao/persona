@@ -45,7 +45,6 @@ export interface AgentLaunch {
   nameHint?: string;
   text: string;
   attachments: LocalAttachment[];
-  todoId?: string;
   phase: "creating" | "uploading" | "sending" | "failed" | "ready";
   session?: Session;
   outgoing?: { text: string; images: { mime: string; data: string }[] };
@@ -74,7 +73,7 @@ export interface AgentLaunch {
 }
 
 /** `open: false` starts it without opening its conversation (Compare runs starts several and opens their page, #8916). */
-export function launchAgent(input: Pick<AgentLaunch, "machineId" | "cwd" | "workspaceId" | "desktopProjectId" | "launcher" | "agentType" | "displayLauncher" | "displayEngine" | "displayModel" | "inlinePrompt" | "model" | "effort" | "launcherDefaultEffort" | "permissionMode" | "ultracode" | "text" | "nameHint" | "attachments" | "todoId">, options: { open?: boolean; replace?: boolean } = {}) {
+export function launchAgent(input: Pick<AgentLaunch, "machineId" | "cwd" | "workspaceId" | "desktopProjectId" | "launcher" | "agentType" | "displayLauncher" | "displayEngine" | "displayModel" | "inlinePrompt" | "model" | "effort" | "launcherDefaultEffort" | "permissionMode" | "ultracode" | "text" | "nameHint" | "attachments">, options: { open?: boolean; replace?: boolean } = {}) {
   const launch: AgentLaunch = { ...input, id: `local-${uuid()}`, phase: "creating", uploaded: {}, ...launchOpIds() };
   putLaunch(launch);
   if (options.open !== false) {

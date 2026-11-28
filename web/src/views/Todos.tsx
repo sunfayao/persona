@@ -63,7 +63,7 @@ import { tRich } from "../i18n/rich";
 import { dayLabel } from "../lib/feed";
 import { entryWords, supervisionDays, supervisionLog, supervisionRole, supervisorOf, workerAgent, workerStep, workerStepLabel, type SupervisionDay, type SupervisionEntry, type SupervisionRole } from "../lib/todo-supervisor";
 import { groupTodosByProject, treeStateLabel, type TodoProjectGroup, type TreeState } from "../lib/todo-tree";
-import { cancellationReason, fetchAgentLifecycle, formatAgentSource, seenCanFile } from "../lib/todo-details";
+import { cancellationReason, fetchAgentLifecycle, formatAgentSource } from "../lib/todo-details";
 import { TRIAGE_SECTIONS, checksAsOpen, countsAsOpen, lastActivity, openMergePRs, sectionStartsFolded, supersededFailedStarts, triage, triageTodos, type OwnerNeed, type TriageGroup, type TriageResult, type TriageRule, type TriageSection } from "../lib/todo-triage";
 import { orderWaitGroups } from "../lib/task-wait";
 import { viewDrawOn } from "../features/todos/model/view-gates";
@@ -85,7 +85,6 @@ import { TodoAskLine, TodoAskPanel } from "./TodoAsk";
 import { todoUltracode } from "../lib/ultracode";
 import { UltraMark } from "./chat/Ultracode";
 import { boundThread, threadLine, todoThreadsOn } from "../lib/todo-thread";
-import { setTodoSeen, todoSeenOn } from "../lib/todo-seen";
 import { AttachmentTray } from "../ui/AttachmentTray";
 
 /** The list by status sections (default, #3156), by folder (#2526) or as a graph of requests. */
@@ -169,7 +168,7 @@ export function TodosView({
   // a minute's tick moves to-dos across the 24 h and 48 h lines (and today's end) while nothing else changes: the
   // badge's clock, so the sections and the badge's marks move together
   const tick = useTodoMinute();
-  const [restored, restoreTodo] = useRestoredTodos();
+  const restored = useRestoredTodos();
   // whether a failed start was superseded by finished work (#3713) is decided on every to-do: a search that leaves the
   // finished one out must not put it back in Needs you
   const superseded = useMemo(() => supersededFailedStarts(todos), [todos]);
@@ -266,49 +265,6 @@ export function TodosView({
   const byStatus = grouping === "status";
   // "By request": the requests graph takes the page's width, and the detail opens beside it only once a piece is picked
   const requestMode = grouping === "request";
-  const onRestore = useCallback(
-    (id: string) => {
-      restoreTodo(id);
-      toast(t("todos.restored"), "ok");
-    },
-    [restoreTodo],
-  );
-  // Got it on a Just finished row (#5707): filed under Done at once, the hub
-  // keeps the mark for every device, and the toast's Undo takes it off. Only while the hub keeps seen marks.
-  const seenOn = useStore((s) => todoSeenOn(s.features));
-  // Opening a Just finished to-do is seeing it too: it is filed under Done once the page leaves it (another to-do, the
-  // list, another page), so its row does not move while it is read. Nothing is said: the user did not ask for it.
-  const seenOnLeave = useRef<string | undefined>(undefined);
-  // to-dos the user pressed Got it on here: their own choice (and its Undo) stands, leaving one marks nothing
-  const decided = useRef(new Set<string>());
-  // what the rows' callback reads when it runs, so it stays the same function and a push re-renders no row
-  const seenInputs = useRef({ todos, lookup, restored, superseded });
-  seenInputs.current = { todos, lookup, restored, superseded };
-  const onSeen = useCallback((id: string) => {
-    const failed = (e: unknown) => toast(t("todos.action_failed", { error: errorText(e) }), "error");
-    // the mark shown before the hub answers is not earlier than the moment that put it in Just finished
-    const { todos: list, lookup: look, restored: back, superseded: sup } = seenInputs.current;
-    const td = list.find((x) => x.id === id);
-    const after = td ? triage(td, look, Date.now(), back.get(id) ?? 0, sup.has(id)).last : 0;
-    decided.current.add(id);
-    if (seenOnLeave.current === id) seenOnLeave.current = undefined;
-    setTodoSeen(id, true, after).catch(failed);
-    toast(t("todos.seen_moved"), "ok", { label: t("lib-agents.undo"), run: () => void setTodoSeen(id, false).catch(failed) });
-  }, []);
-  const opened = seenOn && selectedId !== undefined ? todos.find((td) => td.id === selectedId) : undefined;
-  const openedJustDone = opened !== undefined && triage(opened, lookup, Date.now(), restored.get(opened.id) ?? 0, superseded.has(opened.id)).section === "just_done";
-  useEffect(() => {
-    if (openedJustDone && !decided.current.has(selectedId!)) seenOnLeave.current = selectedId;
-  }, [openedJustDone, selectedId]);
-  useEffect(() => {
-    const id = selectedId;
-    return () => {
-      if (id === undefined || seenOnLeave.current !== id) return;
-      seenOnLeave.current = undefined;
-      void setTodoSeen(id, true).catch(() => {}); // it stays in Just finished, as if never opened
-    };
-  }, [selectedId]);
-
   // List and detail side by side (md and up, Tailwind's max-md: below it they take turns, as on a phone)
   const split = !useMedia(ONE_PANE);
   // Active selected todo
@@ -527,8 +483,6 @@ export function TodosView({
                       views={views}
                       selectedId={activeTodo?.id}
                       onSelect={openFromList}
-                      onRestore={onRestore}
-                      onSeen={seenOn ? onSeen : undefined}
                     />
                   ),
                 )}
@@ -542,7 +496,6 @@ export function TodosView({
                     views={sectionViews.get(g.key)!}
                     selectedId={activeTodo?.id}
                     onSelect={openFromList}
-                    onSeen={seenOn ? onSeen : undefined}
                   />
                 ))}
 
@@ -734,15 +687,12 @@ const TodoProjectSection = memo(function TodoProjectSection({
   views,
   selectedId,
   onSelect,
-  onSeen,
 }: {
   group: TodoProjectGroup;
   /** Its todos' row views, in the same order as group.todos. */
   views: readonly TodoRowView[];
   selectedId: string | undefined;
   onSelect: (id: string) => void;
-  /** Got it on a row in Just finished (one closed in the last day stays in its folder until it is seen). */
-  onSeen?: (id: string) => void;
 }) {
   const holds = group.todos.some((td) => td.id === selectedId);
   const [folded, toggle] = useFolded(group.key, group.folded, { follow: true, holds });
@@ -767,7 +717,6 @@ const TodoProjectSection = memo(function TodoProjectSection({
               view={views[i]}
               selected={selectedId === todo.id}
               onSelect={onSelect}
-              onSeen={onSeen}
             />
           ))}
         </div>
@@ -811,8 +760,6 @@ const TodoTriageSection = memo(function TodoTriageSection({
   views,
   selectedId,
   onSelect,
-  onRestore,
-  onSeen,
 }: {
   section: TriageSection;
   /** Whether it starts folded: Shelved and Done. */
@@ -823,9 +770,6 @@ const TodoTriageSection = memo(function TodoTriageSection({
   views: ReadonlyMap<string, TodoRowView>;
   selectedId: string | undefined;
   onSelect: (id: string) => void;
-  onRestore: (id: string) => void;
-  /** Got it on a Just finished row; unset while the hub keeps no seen marks. */
-  onSeen?: (id: string) => void;
 }) {
   const holds = groups.some((g) => g.members.some((m) => m.id === selectedId));
   const [folded, toggle] = useFolded(`todos-section:${section}`, foldedFirst, { follow: true, holds });
@@ -842,7 +786,7 @@ const TodoTriageSection = memo(function TodoTriageSection({
       {!folded && (
         <div className="flex flex-col gap-1 pt-0.5">
           {groups.map((g) => (
-            <TodoTriageRow key={g.key} group={g} views={views} selectedId={selectedId} onSelect={onSelect} onRestore={onRestore} onSeen={onSeen} />
+            <TodoTriageRow key={g.key} group={g} views={views} selectedId={selectedId} onSelect={onSelect} />
           ))}
         </div>
       )}
@@ -865,15 +809,11 @@ function TodoTriageRow({
   views,
   selectedId,
   onSelect,
-  onRestore,
-  onSeen,
 }: {
   group: TriageGroup;
   views: ReadonlyMap<string, TodoRowView>;
   selectedId: string | undefined;
   onSelect: (id: string) => void;
-  onRestore: (id: string) => void;
-  onSeen?: (id: string) => void;
 }) {
   // When selection lands on a non-lead member (deep link, click, or a live tick demoting the selected lead),
   // latch the row open so it stays expanded even if that member later becomes lead again (#12417).
@@ -932,8 +872,6 @@ function TodoTriageRow({
       selected={selectedId === td.id}
       onSelect={onSelect}
       section={group.triage.get(td.id)?.section}
-      onRestore={onRestore}
-      onSeen={onSeen}
     />
   );
   return (
@@ -1098,18 +1036,13 @@ const TodoListItem = memo(function TodoListItem({
   selected,
   onSelect,
   section,
-  onRestore,
-  onSeen,
 }: {
   todo: Todo;
   view: TodoRowView;
   selected: boolean;
   onSelect: (id: string) => void;
-  /** Its status section (#3156): a PR to merge shows its link, a shelved one its Restore, a Just finished one Got it. */
+  /** Its status section (#3156): a PR to merge shows its link. */
   section?: TriageSection;
-  onRestore?: (id: string) => void;
-  /** Got it (#5707), on a row in Just finished (`section`, else the view's). */
-  onSeen?: (id: string) => void;
 }) {
   const { status, dotState, activeCount } = view;
   const showWait = (section ?? view.section) === "parked";
@@ -1219,18 +1152,11 @@ const TodoListItem = memo(function TodoListItem({
           ) : !responsible ? (
             <span className="truncate text-ink-3">· {t("todos.not_handed")}</span>
           ) : null)}
-          {(section ?? view.section) === "just_done" && seenCanFile(todo) && onSeen ? (
-            <span className="ml-auto flex shrink-0 items-center gap-1.5">
-              {!todo.done_at && <ReviewBadge todo={todo} />}
-              <SeenButton onClick={() => onSeen(todo.id)} />
-            </span>
-          ) : (
-            !todo.done_at && <ReviewBadge todo={todo} className="ml-auto" />
-          )}
+          {!todo.done_at && <ReviewBadge todo={todo} className="ml-auto" />}
         </div>
 
         {/* What it waits on from the user (#2056), to read: it is answered in the conversation it came from */}
-        <TodoAskLine todo={todo} readOnly className="mt-1" />
+        <TodoAskLine todo={todo} className="mt-1" />
 
         {showWait && <div className="mt-1" data-testid={openPR ? "todo-pr-line" : undefined}><TaskWaitInfo todo={todo} merges={openMergePRs(todo, Date.now())} /></div>}
 
@@ -1262,39 +1188,10 @@ const TodoListItem = memo(function TodoListItem({
           </div>
         )}
 
-        {/* Shelved: one tap brings it back (#3156); nothing is deleted */}
-        {section === "shelved" && onRestore && (
-          <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
-            <Button tone="secondary" icon="undo" onClick={() => onRestore(todo.id)} className="h-7 text-[12px] whitespace-nowrap">
-              {t("todos.restore")}
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   );
 });
-
-/** Got it on an ordinary, unsupervised Delivered · awaiting review row (#5707): files it under Done at once. A small
- * capsule at the end of the status line, under the time (#6578), so the row is as tall as any other: its 20 px hang
- * over the 18 px line (the negative margin keeps them out of the line's height), and `touch-hit` gives a finger 44 px.
- * Its press stays its own and never opens the row. Supervised work and unaccepted deliveries get no such receipt. */
-function SeenButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      data-testid="todo-seen"
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      className="touch-hit -my-1 inline-flex h-5 shrink-0 items-center gap-1 rounded-full bg-surface px-2 text-[11.5px] font-medium whitespace-nowrap text-ink-2 shadow-btn transition-colors hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"
-    >
-      <Icon name="check" size={11} stroke={2.2} />
-      {t("todos.seen")}
-    </button>
-  );
-}
 
 /** A to-do whose decision is held for the briefing (#4930, #5803):
  *  nothing was pushed for it, and it comes with the next briefing. The to-do's page writes out what that means under
@@ -1335,6 +1232,7 @@ export function ReviewChecklist({ todo, lookup }: { todo: Todo; lookup?: Session
   const sup = todo.supervision;
   if (!sup) return null;
   const list = checklist(sup);
+  const brief = todo.brief ? briefCriteria(todo.brief) : [];
   const review = latestReview(sup);
   const parked = triage(todo, lookup, Date.now()).section === "parked";
   // What this list cannot say of finished work (#3822): the criteria a scope change dropped, and what was done beyond the brief.
@@ -1347,17 +1245,19 @@ export function ReviewChecklist({ todo, lookup }: { todo: Todo; lookup?: Session
         <span className="flex-1" />
         {sup.expect_minutes ? <span className="text-[12px] text-ink-3">{t("assistant-tasks.review_expect", { minutes: sup.expect_minutes })}</span> : null}
       </div>
-      {list.length === 0 ? (
+      {list.length === 0 && brief.length > 0 ? (
+        <BriefCriteria criteria={brief} />
+      ) : list.length === 0 ? (
         <p className="mt-2 text-[12.5px] text-ink-3">{t("assistant-tasks.review_none")}</p>
       ) : (
         <ul className="mt-2 flex flex-col gap-1.5">
           {list.map((c) => {
             return (
-              <li key={c.criterion} className="flex items-start gap-2 text-[13px]">
+              <li key={c.criterion} data-mark={c.mark} className="flex items-start gap-2 text-meta">
                 <CriterionMark mark={c.mark} className="mt-0.5" />
                 <span className="flex min-w-0 flex-col">
-                  <span className="text-ink">{c.criterion}</span>
-                  {c.evidence && <span className="text-[12px] text-ink-3 select-text">{c.evidence}</span>}
+                  <span className="text-ink [overflow-wrap:anywhere]">{c.criterion}</span>
+                  {c.evidence && <span className="text-label text-ink-3 select-text [overflow-wrap:anywhere]">{c.evidence}</span>}
                   {(c.at || c.by) && (
                     <span className="flex flex-wrap gap-x-1.5 text-[11px] text-ink-3">
                       {c.by && <span>{c.by}</span>}
@@ -1686,9 +1586,17 @@ function TodoDetail({
     attention: "bg-field text-attention",
   }[look.tone];
 
-  const roster = activeAgents.map((agent) => {
+  const role = useMemo(() => supervisionRole(todo, todos), [todo, todos]);
+  const formerLeader = releasedAgents.filter((agent) => agent.source === "leader")
+    .sort((a, b) => Date.parse(b.linked_at) - Date.parse(a.linked_at))[0];
+  const leader = supervisorOf(todo) ?? formerLeader;
+  const workers = role?.kind === "root" ? role.workers : undefined;
+  const workerRoot = role?.kind === "worker" ? role.root : undefined;
+  const previousAgents = releasedAgents.filter((agent) => agent !== leader);
+
+  const roster = (leader?.released_at ? [leader, ...activeAgents] : activeAgents).map((agent) => {
     const session = lookup(agent.machine_id, agent.session_id);
-    const state = session && !agent.start_error ? foldedState(session) : "offline";
+    const state = session && !agent.start_error && !agent.released_at ? foldedState(session) : "offline";
     const waiting = session && state === "working" && !session.children?.working && backgroundWaiting(session);
     return { agent, session, state, waiting };
   });
@@ -1697,10 +1605,6 @@ function TodoDetail({
     if (waiting) counts.bg_waiting++;
     else if (state === "needs_you" || state === "working" || state === "unread") counts[state]++;
   }
-  // a supervisor Agent's to-do, with the workers it handed out, or a worker of one with its root (lib/todo-supervisor.ts)
-  const role = useMemo(() => supervisionRole(todo, todos), [todo, todos]);
-  const leader = supervisorOf(todo);
-  const workerRoot = role?.kind === "worker" ? role.root : undefined;
   // the supervisor first (its workers hang under it), then what needs the owner
   const attentionFirst = [...roster].sort((a, b) => Number(b.agent === leader) - Number(a.agent === leader) || Number(b.state === "needs_you") - Number(a.state === "needs_you"));
 
@@ -1784,7 +1688,7 @@ function TodoDetail({
           a task's issues and PRs are shown (legacy ones included). */}
       <TodoStageBar stage={todo.stage} stageKind={todo.stage_kind} done={todo.stage_done} className="mt-4" />
 
-      {/* What it waits on from the user (#2056), and where it is answered */}
+      {/* What the task is waiting on. */}
       <TodoAskPanel todo={todo} />
       <HeldForBriefing todo={todo} />
 
@@ -1854,18 +1758,19 @@ function TodoDetail({
                 const ix = sessionCard(interactions, agent.machine_id, agent.session_id);
                 const kicker = ix?.kind === "plan" ? t("todos.kicker_plan") : ix?.kind === "permission" ? t("todos.kicker_permission") : ix?.kind === "screen" ? t("todos.kicker_screen") : ix?.kind === "elicitation" ? t("todos.kicker_elicitation") : t("todos.kicker_question");
                 const sourceLabel = formatAgentSource(agent, todo.spaces, lookup);
-                const stateLabel = agent.start_error ? stateName("failed") : !session ? t("todos.ended") :
+                const stateLabel = agent.start_error ? stateName("failed") : !session || agent.released_at ? t("todos.ended") :
                   waiting ? stateName("bg_waiting") : state === "idle" && session.work?.just_finished ? stateName("just_finished") : stateName(state);
-                const AgentRow = session ? "button" : "div";
+                const canOpen = Boolean(agent.session_id && !agent.start_error);
+                const AgentRow = canOpen ? "button" : "div";
                 // the supervisor's row wraps the tree of its workers onto a line of its own beneath it
-                const workers = agent === leader && role?.kind === "root" ? role.workers : undefined;
+                const nested = agent === leader ? workers : undefined;
 
                 return (
-                  <li key={JSON.stringify([agent.machine_id, agent.session_id])} className={cx("flex items-center gap-2 px-2", workers && "flex-wrap gap-y-0")}>
+                  <li key={JSON.stringify([agent.machine_id, agent.session_id])} className={cx("flex items-center gap-2 px-2", nested && "flex-wrap gap-y-0")}>
                     <AgentRow
-                      type={session ? "button" : undefined}
-                      onClick={session ? () => openFromPage({ name: "session", mid: agent.machine_id, sid: agent.session_id }) : undefined}
-                      className={cx("my-1 flex min-w-0 flex-1 items-start gap-2 rounded-control px-1.5 py-2 text-left", session && "cursor-pointer hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent")}
+                      type={canOpen ? "button" : undefined}
+                      onClick={canOpen ? () => openFromPage({ name: "session", mid: agent.machine_id, sid: agent.session_id }) : undefined}
+                      className={cx("my-1 flex min-w-0 flex-1 items-start gap-2 rounded-control px-1.5 py-2 text-left", canOpen && "cursor-pointer hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent")}
                     >
                       <span className="mt-0.5"><StatusMark state={state} size="sm" label={false} waiting={waiting} /></span>
                       <span className="min-w-0 flex-1">
@@ -1897,14 +1802,15 @@ function TodoDetail({
                     <span data-testid="todo-agent-time" className="shrink-0 pr-1.5 whitespace-nowrap text-meta text-ink-3">
                       {ago(session?.updated_at || agent.linked_at)}
                     </span>
-                    {workers && <SupervisorWorkers workers={workers} lookup={lookup} machines={machines} onOpenTodo={onOpenTodo} />}
+                    {nested && <SupervisorWorkers workers={nested} lookup={lookup} machines={machines} onOpenTodo={onOpenTodo} />}
                   </li>
                 );
               })}
             </ul>
           )}
+          {!leader && workers && <SupervisorWorkers workers={workers} lookup={lookup} machines={machines} onOpenTodo={onOpenTodo} />}
           {/* Released Agents (Participated) */}
-          {releasedAgents.length > 0 && (
+          {previousAgents.length > 0 && (
             <div className="px-3 py-2.5">
               <button
                 type="button"
@@ -1917,20 +1823,26 @@ function TodoDetail({
                   size={11}
                   className={cx("transition-transform duration-200", showReleased ? "rotate-180" : "")}
                 />
-                <span>{t("todos.released_section", { count: releasedAgents.length })}</span>
+                <span>{t("todos.released_section", { count: previousAgents.length })}</span>
               </button>
               {showReleased && (
                 <div className="mt-2 flex flex-col gap-1.5">
-                  {releasedAgents.map((agent) => {
+                  {previousAgents.map((agent) => {
                     const mName = machines.find((m) => m.id === agent.machine_id)?.name || agent.machine_id;
                     const displaySub = `${mName} · ${shortPath(agent.cwd)}`;
+                    const title = lookup(agent.machine_id, agent.session_id)?.title || agent.title || t("lib-format.untitled_session");
                     return (
                       <div
                         key={`${agent.machine_id}/${agent.session_id}`}
                         className="flex items-center justify-between rounded-control border border-line/60 bg-hover/40 px-3 py-2 text-[12px] text-ink-3"
                       >
                         <div className="min-w-0 flex-1">
-                          <span className="truncate font-medium text-ink-2">{agent.title || t("lib-format.untitled_session")}</span>
+                          {agent.session_id && !agent.start_error ? (
+                            <button type="button" className="touch-hit block max-w-full truncate rounded-control text-left font-medium text-ink-2 hover:underline"
+                              onClick={() => openFromPage({ name: "session", mid: agent.machine_id, sid: agent.session_id })}>
+                              {title}
+                            </button>
+                          ) : <span className="truncate font-medium text-ink-2">{title}</span>}
                           <div className="text-[11px] text-ink-3">{displaySub}</div>
                         </div>
                         <span className="shrink-0 text-[11px]">{t("todos.left_at", { time: ago(agent.released_at ?? undefined) })}</span>
@@ -1984,7 +1896,7 @@ function TodoDetail({
 // ── Supervision: a supervisor Agent and its workers ─────────
 
 /** The workers a to-do's supervisor handed out, as a tree under its row (lib/todo-supervisor.ts): each worker to-do on
- *  a line with where it stands and the computer its Agent runs on, opening that to-do. The open ones are listed; the
+ *  a line with its status and links to its to-do and Agent session. The open ones are listed; the
  *  closed ones fold under Closed, as the Agents that left fold under Took part. */
 function SupervisorWorkers({ workers, lookup, machines, onOpenTodo }: { workers: Todo[]; lookup: SessionLookup; machines: Machine[]; onOpenTodo: (id: string) => void }) {
   const [showClosed, setShowClosed] = useState(false);
@@ -1996,13 +1908,13 @@ function SupervisorWorkers({ workers, lookup, machines, onOpenTodo }: { workers:
     const step = workerStep(w);
     const machine = agent && machines.find((m) => m.id === agent.machine_id)?.name;
     return (
-      <li key={w.id}>
+      <li key={w.id} className="flex items-center gap-1">
         <button
           type="button"
           data-open-todo={w.id}
           data-worker-step={step}
           onClick={() => onOpenTodo(w.id)}
-          className="flex min-h-9 w-full min-w-0 items-start gap-2 rounded-control px-1.5 py-2 text-left hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent [@media(pointer:coarse)]:min-h-11"
+          className="flex min-h-9 min-w-0 flex-1 items-start gap-2 rounded-control px-1.5 py-2 text-left hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent [@media(pointer:coarse)]:min-h-11"
         >
           <span className="mt-px flex size-4 shrink-0 items-center justify-center">
             {w.done_at ? (
@@ -2017,6 +1929,10 @@ function SupervisorWorkers({ workers, lookup, machines, onOpenTodo }: { workers:
             <span data-testid="todo-worker-state" className="text-label text-ink-3 sm:ml-auto">{[workerStepLabel(w), machine].filter(Boolean).join(" · ")}</span>
           </span>
         </button>
+        {agent?.session_id && !agent.start_error && (
+          <IconButton icon="chat" label={t("todos.worker_session", { title: session?.title || agent.title || w.title })}
+            onClick={() => openFromPage({ name: "session", mid: agent.machine_id, sid: agent.session_id })} />
+        )}
       </li>
     );
   };

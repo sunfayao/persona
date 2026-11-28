@@ -66,7 +66,7 @@ export const HandoffCard = memo(function HandoffCard({ item: feed }: { item: Fee
   const st: HandoffCardState = uncertain
     ? { state: "uncertain", attempt: uncertain } : handoffCardState(card, feed.conversation, item, newest);
   const attempt = "attempt" in st ? st.attempt : undefined;
-  const live = st.state === "live" && !!item;
+  const live = card.kind !== "todo" && st.state === "live" && !!item;
   const reply = card.kind === "reply";
   const draft = text ?? card.text;
   const confirm = async () => {

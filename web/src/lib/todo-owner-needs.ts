@@ -57,7 +57,7 @@ export function useTodoLookup(): SessionLookup {
 export function useOwnerNeeds(): ReadonlyMap<string, OwnerNeed> {
   const todos = useScopedTodos();
   const lookup = useTodoLookup();
-  const [restored] = useRestoredTodos();
+  const restored = useRestoredTodos();
   // placed again on each minute's tick as on each change, at the moment it is placed (as the page's sections are)
   const minute = useTodoMinute();
   return useMemo(() => ownerNeeds(todos, lookup, Date.now(), restored), [todos, lookup, restored, minute]);

@@ -346,34 +346,14 @@ function HandlingLine({ item, now }: { item: InboxItem; now?: string }) {
  * back to the processing conversation for a new suggestion instead.
  */
 export function SuggestionCard({ item, suggestion: s }: { item: InboxItem; suggestion: InboxSuggestion }) {
-  if (s.kind === "todo") return <TodoSuggestion item={item} suggestion={s} />;
-  return <TextSuggestion item={item} suggestion={s} />;
-}
-
-/**
- * A to-do suggestion (#6480): the title is a field right in the card, so one tap on "Add to to-dos" takes it as it stands.
- */
-function TodoSuggestion({ item, suggestion: s }: { item: InboxItem; suggestion: InboxSuggestion }) {
-  const busy = useInbox((st) => st.sending.includes(itemKey(item)));
-  const [title, setTitle] = useState(s.text);
-  const [acting, setActing] = useState<"" | "confirm" | "reject">("");
-  const act = async (action: "confirm" | "reject") => {
-    setActing(action);
-    await suggestionAct(item, action, action === "confirm" && title.trim() !== s.text ? title.trim() : undefined);
-    setActing("");
-  };
-  return (
-    <section className="rounded-[14px] bg-surface p-3.5 shadow-card" data-suggestion="todo">
-      <p className="flex items-center gap-1.5 text-submeta font-medium whitespace-nowrap text-accent-ink"><span><Spark />{suggestionTitle(s)}</span></p>
-      <input value={title} onChange={(e) => setTitle(e.target.value)} aria-label={t("inbox-inboxevent.todo_title")} data-todo-title
-        className="mt-2 h-8 w-full rounded-control bg-field px-2.5 text-meta text-ink outline-none focus:shadow-[inset_0_0_0_1px_var(--accent)]" />
+  if (s.kind === "todo") return (
+    <section className="rounded-card bg-surface p-3.5 shadow-card" data-suggestion="todo">
+      <p className="text-submeta font-medium text-accent-ink"><Spark />{suggestionTitle(s)}</p>
+      <p className="mt-2 text-meta text-ink [overflow-wrap:anywhere]">{s.text}</p>
       {s.note && <p className="mt-1.5 text-label leading-relaxed text-ink-3">{s.note}</p>}
-      <div className="mt-3 flex flex-wrap justify-end gap-2">
-        <Button tone="quiet" disabled={busy && acting !== "reject"} busy={acting === "reject"} onClick={() => void act("reject")}>{t("inbox-inboxevent.reject")}</Button>
-        <Button tone="accent" icon="check" disabled={!title.trim() || (busy && acting !== "confirm")} busy={acting === "confirm"} onClick={() => void act("confirm")}>{t("lib-inbox-events.add_todo")}</Button>
-      </div>
     </section>
   );
+  return <TextSuggestion item={item} suggestion={s} />;
 }
 
 function TextSuggestion({ item, suggestion: s }: { item: InboxItem; suggestion: InboxSuggestion }) {

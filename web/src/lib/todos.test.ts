@@ -7,7 +7,6 @@ import {
   heldDelivery,
   isCancelled,
   isAutoDone,
-  isRemovable,
   TODO_STATUS_INFO,
   TODO_STATUS_RANK,
   todoRank,
@@ -32,7 +31,7 @@ import {
   type TodoAgent,
   type TodoSpace,
 } from "./todos";
-import { cancellationReason, formatAgentSource, resolveLinkCurrentTodoId } from "./todo-details";
+import { cancellationReason, formatAgentSource } from "./todo-details";
 import { BOARD_ORDER, boardSectionOf } from "./task-board";
 
 const mockSession = (mid: string, sid: string, state: Session["state"], patch: Partial<Session> = {}): Session => ({
@@ -224,15 +223,7 @@ describe("Agent 没开起来的任务 (#1077 / #1142)", () => {
     expect(sortTodos([done, open, failed]).map((t) => t.id)).toEqual(["t9", "t1", "t2"]);
   });
 
-  it("没在运行的才能移除", () => {
-    expect(isRemovable("failed")).toBe(true);
-    expect(isRemovable("done")).toBe(true);
-    expect(isRemovable("unread")).toBe(true);
-    expect(isRemovable("follow_up")).toBe(true);
-    expect(isRemovable("not_started")).toBe(true);
-    expect(isRemovable("working")).toBe(false);
-    expect(isRemovable("needs_you")).toBe(false);
-  });
+
 });
 
 describe("待办列表排序 (sortTodos)", () => {
@@ -524,35 +515,6 @@ describe("旧 hub 兼容判定 (isSpacesSupported)", () => {
   });
 });
 
-describe("弹窗关联目标判定 (resolveLinkCurrentTodoId)", () => {
-  it("对于 space 目标，从 todos 列表中匹配对应项目的待办 ID", () => {
-    const todos: Todo[] = [
-      {
-        id: "t_space",
-        title: "项目待办",
-        created_at: "",
-        updated_at: "",
-        spaces: [{ machine_id: "mac-1", space: "weather", linked_at: "" }],
-      },
-    ];
-    expect(resolveLinkCurrentTodoId({ machineId: "mac-1", space: "weather" }, undefined, todos)).toBe("t_space");
-    expect(resolveLinkCurrentTodoId({ machineId: "mac-1", space: "other" }, undefined, todos)).toBeUndefined();
-  });
-
-  it("对于 session 目标，即使 todos 尚未加载或加载失败（空列表），依然保留 session.todo.id (#874 item 4)", () => {
-    const session = mockSession("mac-1", "s1", "idle");
-    session.todo = { id: "todo_123", title: "关联待办" };
-
-    // When todos is empty (not yet loaded), resolveLinkCurrentTodoId still returns session.todo.id
-    expect(resolveLinkCurrentTodoId(undefined, session, [])).toBe("todo_123");
-  });
-
-  it("对于未关联待办的 session 目标，返回 undefined", () => {
-    const session = mockSession("mac-1", "s2", "idle");
-    expect(resolveLinkCurrentTodoId(undefined, session, [])).toBeUndefined();
-  });
-});
-
 describe("交付与等待处理的状态标签 (#5732)", () => {
   const base: Todo = { id: "t", title: "交付任务", created_at: "2026-11-04T06:00:00Z", updated_at: "2026-11-04T08:00:00Z" };
 
@@ -729,7 +691,6 @@ describe("模型服务出错中断的任务 (#1516)", () => {
     const s = mockSession("mac-1", "s1", "unread", { last_text: cut, turn_error: cut });
     expect(todoStatus(todo, makeSessionLookup([s]))).toBe("interrupted");
     expect(TODO_STATUS_INFO.interrupted).toEqual({ label: "中断了", tone: "red" });
-    expect(isRemovable("interrupted")).toBe(true);
     // still interrupted (not finished) after the user has seen it
     expect(todoStatus(todo, makeSessionLookup([mockSession("mac-1", "s1", "idle", { turn_error: cut })]))).toBe("interrupted");
   });

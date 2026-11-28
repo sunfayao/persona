@@ -31,7 +31,6 @@ export interface CompactResendOptions {
   blocked?: boolean;
   offline?: boolean;
   composerDisabled?: boolean;
-  routed?: boolean;
   working?: boolean;
   outgoing?: boolean;
   stopped?: boolean;
@@ -70,12 +69,12 @@ export function isImageLimitError(lineCode: string | undefined, sessionCode: str
 
 /**
  * Determines whether "Compact and send again" can be safely offered for `session`.
- * - Blocked (setup gate), offline/manager-offline, routed to a task, currently working/sending, stopped, or unable to send: never offered.
+ * - Blocked (setup gate), offline/manager-offline, currently working/sending, stopped, or unable to send: never offered.
  * - Persona assistant conversations: requires hub `assistant_compact`.
  * - Agent chats: live terminal Claude Code sessions only (`!source_kind`, Claude agent, not botmux, not offline/needs_you).
  */
 export function compactResendSupport(session: Session | undefined, opts: CompactResendOptions): CompactResendSupport {
-  if (!session || opts.blocked || opts.offline || opts.routed || opts.working || opts.outgoing || opts.stopped) {
+  if (!session || opts.blocked || opts.offline || opts.working || opts.outgoing || opts.stopped) {
     return { supported: false, mode: null };
   }
   if (!sessionCan(session, "send")) return { supported: false, mode: null };

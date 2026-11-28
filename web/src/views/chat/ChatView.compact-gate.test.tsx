@@ -1,12 +1,11 @@
 // @vitest-environment jsdom
 // Regression test for PR #12547 review comment 4654593168:
 // One-click /compact from ChatView's Session Insights popover must align with composer preconditions
-// (hidden when task route is active or setup gate is blocked) and keep the popover open + toast when send fails.
+// (hidden when setup gate is blocked) and keep the popover open + toast when send fails.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { COMPACT_FEATURE } from "../../lib/compaction";
-import { setRoute } from "../../lib/feed";
 import type { Session } from "../../lib/types";
 import { ChatView } from "./ChatView";
 
@@ -116,7 +115,6 @@ beforeEach(() => {
   mocks.api.mockReset().mockResolvedValue({});
   mocks.apiOp.mockReset().mockResolvedValue({ delivered: true });
   mocks.toast.mockReset();
-  setRoute("c1", null);
 });
 
 afterEach(async () => {
@@ -124,7 +122,6 @@ afterEach(async () => {
     root.unmount();
   });
   host.remove();
-  setRoute("c1", null);
 });
 
 describe("ChatView composer footer removal", () => {

@@ -24,6 +24,5 @@
   "orphaned": "没人在做",
   "orphaned_error": "出错后关闭",
   "orphaned_closed": "已关闭",
-  "orphaned_offline": "电脑离线",
-  "create_unconfirmed": "Hub 还没有确认创建结果，请先查询结果，不要重复创建。"
+  "orphaned_offline": "电脑离线"
 }

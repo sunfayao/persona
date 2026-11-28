@@ -17,11 +17,9 @@ import { MANAGER_HEADER } from "../../lib/manager-choice";
 import { resetRuleAnswered, type RuleCard, type RuleSuggestion } from "../../lib/rule-suggestion";
 import { setToken } from "../../lib/api";
 import { reset, upsertSession } from "../../lib/store";
-import type { Todo, TodoAsk } from "../../lib/todos";
 import type { Interaction, Session } from "../../lib/types";
 import { InteractionCard, underCard } from "../chat/Interactions";
 import RuleSuggestionLine from "./RuleSuggestionLine";
-import { TaskDecision } from "./TaskDecision";
 import { PlanCard } from "./Tasks";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -336,24 +334,4 @@ describe("on each kind of card", () => {
     expect(button("Not now").disabled).toBe(true);
   });
 
-  it("a decision carries it under its row, answered through the to-do's manager", async () => {
-    const ask: TodoAsk = {
-      outcome: "decide", verdict: "Needs your decision: merge the example change", recommend: "Merge", asked_at: at, question: "Merge the example change now?",
-      why_owner: "priority", options: [{ label: "Merge", leads_to: "it ships today" }, { label: "Wait", leads_to: "it ships tomorrow" }], suggestion: merge,
-    };
-    const todo: Todo = { id: "t1", title: "Example change", manager: "second", created_at: at, updated_at: at, supervision: { supervisor: "c1", state: "needs_user", reviews: [{ at, verdict: "needs_user" }] }, decision_review: { review_at: at }, ask } as Todo;
-    await render(<TaskDecision todo={todo} rowKey="task:t1" />);
-    expect(line()!.dataset.ruleSuggestion).toBe("standing_authorization");
-    expect(line()!.previousElementSibling!.getAttribute("data-needs-row")).toBe("task:t1");
-    answer = { status: 200, body: { ok: true, kind: "standing_authorization", creates: "standing_authorization" } };
-    await press("Always");
-    expect(posts).toEqual([{ path: "/api/v1/assistant/rule-suggestions/rs_merge/always", manager: "second", body: undefined }]);
-    expect(result()!.textContent).toContain("Standing authorization added.");
-    act(() => root.unmount());
-    root = createRoot(host);
-    resetRuleAnswered();
-    await render(<TaskDecision todo={{ ...todo, ask: { ...ask, suggestion: undefined } }} rowKey="task:t1" />);
-    expect(line()).toBeNull();
-    expect(host.querySelector('[data-needs-row="task:t1"]')).not.toBeNull();
-  });
 });

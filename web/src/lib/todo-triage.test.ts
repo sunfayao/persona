@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { Interaction, Session } from "./types";
 import { acceptedAtRest, makeSessionLookup, shownStatus, todoRank, todoStatus, todoStatusLabel, type Todo } from "./todos";
 import { checkCount, checklist, decisionDismissed, reviewBadge, type Supervision } from "./supervision";
 import { finishedAt, FOLDED_SECTIONS, lastActivity, relatedKeys, sectionStartsFolded, SHELVE_AFTER_MS, supersededFailedStarts, todoBucket, TRIAGE_SECTIONS, triage, triageTodos, waitingForMerge } from "./todo-triage";
-import { seenCanFile } from "./todo-details";
-import { resetRestoredCache, restoreTodo } from "./todo-restore";
 
 const NOW = Date.parse("2026-11-10T12:00:00Z");
 const hoursAgo = (h: number) => new Date(NOW - h * 3600_000).toISOString();
@@ -201,20 +199,8 @@ describe("triage (docs/assistant/todo-status-sop.md, decision table)", () => {
     expect(triage(todo("f", { start_error: "x", done_at: hoursAgo(2), seen_at: hoursAgo(1) }), lookup, NOW, 0, true)).toMatchObject({ section: "done", rule: "superseded" });
     // a supervised finished turn still needs acceptance after being seen
     expect(at(todo("t", { agents: [agent("unseen")], seen_at: hoursAgo(0.5), supervision: { supervisor: "main" } }))).toMatchObject({ section: "just_done", rule: "finished_unseen" });
-    expect(seenCanFile(todo("t", { agents: [agent("unseen")] }))).toBe(true);
-    expect(seenCanFile(todo("t", { agents: [agent("unseen")], supervision: { supervisor: "main" } }))).toBe(false);
-    expect(seenCanFile(todo("t", { delivery: { state: "live", at: hoursAgo(2) } }))).toBe(false);
     // a mark that does not parse is no mark
     expect(at(todo("t", { agents: [agent("unseen")], seen_at: "not a time" })).section).toBe("just_done");
-  });
-
-  it.each([
-    ["allows a live concern", todo("concern", { kind: "concern", delivery: { state: "live", at: hoursAgo(2) } }), true],
-    ["still rejects an ordinary live delivery", todo("ordinary", { delivery: { state: "live", at: hoursAgo(2) } }), false],
-    ["still rejects pending review", todo("review", { kind: "concern", delivery: { state: "live", at: hoursAgo(2) }, supervision: { supervisor: "", state: "pending_review" } }), false],
-    ["still rejects supervision", todo("supervised", { kind: "concern", delivery: { state: "live", at: hoursAgo(2) }, supervision: { supervisor: "main" } }), false],
-  ])("%s", (_name, row, want) => {
-    expect(seenCanFile(row)).toBe(want);
   });
 
   it("a finished turn seen since it last moved is Done, unless its PR is open", () => {
@@ -482,18 +468,5 @@ describe("triageTodos", () => {
 
   it("related keys ignore case, spaces, punctuation and a PR link's trailing slash", () => {
     expect(relatedKeys(todo("a", { title: "Fix: the  Widget!", pr_url: "https://Example.com/pull/3/" }))).toEqual(["pr:https://example.com/pull/3", "title:fixthewidget"]);
-  });
-});
-
-describe("restoreTodo", () => {
-  beforeEach(() => {
-    localStorage.clear();
-    resetRestoredCache();
-  });
-
-  it("keeps the restore in this browser, dropping ones that would have shelved again", () => {
-    restoreTodo("old", NOW - SHELVE_AFTER_MS - 1);
-    restoreTodo("new", NOW);
-    expect(JSON.parse(localStorage.getItem("persona.todos.restored")!)).toEqual({ new: NOW });
   });
 });

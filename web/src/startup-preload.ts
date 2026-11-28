@@ -436,9 +436,6 @@ export async function brotliCopies(dir: string, files: string[]): Promise<{ file
 // its entry in views/assistant/Tasks.tsx, a new row's Just finished mark and the entry's word), less the Just finished
 // group In progress no longer draws, adds 47 B in ja, measured in one environment against main ac465e3d3 (ja 478,078 B
 // to 478,125 B; en 475,068 B to 475,117 B, zh-Hans 475,930 B to 475,960 B; against main f4d81af87 it was 10 B in ja).
-// Its rows, seeing a task on opening it and the tray's empty line come with the tray's first opening, in the chunk of
-// the Parked rows (FinishedTaskRows.tsx through ParkedTaskRow.tsx: no lazy entry of their own), which also took
-// lib/todo-seen.ts off the first screen; on it they cost 228 B. Main had 4,653 B of room; the budget stays.
 // #8578: directory-hidden Agents and their pending cards leave the lists, counts and attention events (lib/sessions.ts
 // directoryVisible / directoryVisibleCards, lib/attention.ts) and the Agents page gets its Hidden sessions button; the
 // inspection dialog and its hint (key temporary_view, outside the startup prefix "inspect") are a chunk of its own

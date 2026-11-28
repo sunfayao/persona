@@ -20,9 +20,9 @@ describe("Codex takeover", () => {
   });
 
   it("passes the continuation payload unchanged and keeps the original Todo", () => {
-    expect(continuationLaunch(plan, "machine", "todo-original")).toEqual({
+    expect(continuationLaunch(plan, "machine")).toEqual({
       machineId: "machine", cwd: "/work", launcher: "codex", agentType: "codex", inlinePrompt: true,
-      text: "encrypted continuation payload", attachments: [], todoId: "todo-original",
+      text: "encrypted continuation payload", attachments: [],
     });
   });
 });

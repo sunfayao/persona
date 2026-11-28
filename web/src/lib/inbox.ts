@@ -1501,7 +1501,7 @@ export async function suggestionAct(item: InboxItem, action: SuggestionAction, t
   const current = suggestionSnapshot(item);
   const s = current.suggestion;
   const key = itemKey(current);
-  if (!s || s.version !== expectedVersion || state.sending.includes(key)) return false;
+  if (!s || s.kind === "todo" || s.version !== expectedVersion || state.sending.includes(key)) return false;
   const attempt = current.suggestion_attempts?.find((a) => a.version === s.version);
   const confirmation = action === "confirm" && s.kind === "reply" && !s.handback;
   const uncertainKey = uncertainReplyKey(current, s.version);

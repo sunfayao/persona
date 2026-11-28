@@ -23,7 +23,7 @@ import { acknowledgeLaunch } from "../../lib/new-agent";
 import { useRuntimeSession } from "../../lib/runtime-session";
 import { ArchivedNotice, SessionDetailNotice } from "../../ui/SessionDetailNotice";
 import { isBackgroundSupervisor } from "../../lib/background-supervisor";
-import { getSession, getState, hubHas, listenSession, refresh, refreshTodos, saveMutes, upsertSession, useStore, viewSession } from "../../lib/store";
+import { getSession, getState, hubHas, listenSession, refresh, saveMutes, upsertSession, useStore, viewSession } from "../../lib/store";
 import { codexThreadOf, waitsForFirstMessage } from "../../lib/codex-waiting";
 import { foldRows } from "../../lib/folded-rows";
 import { PREVIEW_FEATURE } from "../../lib/preview";
@@ -38,8 +38,6 @@ import { acceptOutgoing, forgetOutgoing, inSendOrder, keepFailed, keepOutgoing, 
 import { apiOp } from "../../lib/ops";
 import { beginMessageSend, observeMessageItems, settleMessageEcho, stopMessageFeedback, useMessageFeedback } from "../../lib/message-send";
 import { conversationKey, pickedLauncher, pickedModel, usePickedLauncher } from "../../lib/assistant-chat";
-import { splitSkillDraft } from "../../lib/skill-mentions";
-import { unlinkAgentFromTodo } from "../../lib/todos";
 import { t as tr } from "../../i18n";
 import { lastEditablePrompt, promptsOf, rewindBlock, rewindDone, rewindSession, rewindTarget, type RewindRestore } from "../../lib/rewind";
 import { EDIT_SEND_SETTLE_MS } from "../../lib/edit-last-key";
@@ -143,11 +141,11 @@ import { codedFailure, knownAction, refreshReadiness, type CodedFailure } from "
 import { FALLBACK_UNAVAILABLE, recoveryExhausted } from "../../lib/model-fallback";
 import { BASE } from "../../lib/base";
 import { usageLimitLabel } from "../../lib/usage-limit";
-import { displayLines, getFeedState, loadedFrom, loadFeed, loadToday, sendRouted, startOfDay, useFeed, type DisplayLine, type FeedItem } from "../../lib/feed";
+import { displayLines, loadedFrom, loadFeed, loadToday, startOfDay, useFeed, type DisplayLine, type FeedItem } from "../../lib/feed";
 import { CardConversation } from "../../ui/AssistantCard";
 import { SessionMark, sessionMarkName } from "../../ui/AgentMark";
 import { sessionAgentName } from "../../lib/agent-kind";
-import { AssistantActionBar, DayLine, FeedLineView, QuickResultCard, RouteChip, TaskQuestions } from "../assistant/Tasks";
+import { AssistantActionBar, DayLine, FeedLineView, QuickResultCard, TaskQuestions } from "../assistant/Tasks";
 import { t } from "../../i18n";
 import { lazyDialog, lazyOverlay } from "../LazyOverlay";
 
@@ -157,7 +155,6 @@ import { lazyDialog, lazyOverlay } from "../LazyOverlay";
 const loadTerminal = () => import("../session/TerminalPanel");
 // Sharing settings load on their first open, outside the first screen.
 const ChatSearch = lazyDialog(() => import("./ChatSearch").then((m) => m.ChatSearch));
-const LinkTodoDialog = lazyDialog(() => import("../LinkTodoDialog").then((m) => m.LinkTodoDialog));
 const SharingDialog = lazyOverlay(() => import("../../sharing/SharingDialog").then((m) => m.default));
 const TerminalPanel = lazy(() => loadTerminal().then((m) => ({ default: m.TerminalPanel })));
 const GoalBar = lazy(() => import("./GoalBar").then((m) => ({ default: m.GoalBar })));
@@ -1370,23 +1367,6 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
       return true;
     }
     // Routed to a task ("Tell "xx""): straight to its agent, not to Persona.
-    if (assistant && out.images.length && getFeedState().routes[sid]) {
-      toast(t("chat-chatview.route_no_images"), "error");
-      return false;
-    }
-    if (assistant && !out.images.length && out.text.trim() && getFeedState().routes[sid]) {
-      if (splitSkillDraft(out.text).skills.length) {
-        toast(t("chat-chatview.skills_route"), "error");
-        return false;
-      }
-      try {
-        // in turn: the route is used up by the first message that takes it, and the next one must see that
-        if (await inSendOrder(outboxKey(mid, sid), () => sendRouted(sid, out.text))) return true;
-      } catch (e) {
-        toast(t("chat-chatview.not_delivered", { error: errorText(e) }), "error");
-        return false;
-      }
-    }
     return deliver(out, uuid(), out.edit?.clearDraft, 0, Boolean(out.edit));
   };
   const sendMessageNow = useRef(sendMessage);
@@ -1400,8 +1380,6 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   const sendNow = useRef(onSend);
   sendNow.current = onSend;
   const send = useCallback((out: Outgoing) => sendNow.current(out), []);
-  // Track active task routes so compact-and-resend respects composer send preconditions.
-  const hasTaskRoute = useFeed((s) => Boolean(s.routes[sid]));
   // The assistant's tasks: the conversation's feed, and the main one's "Today" card.
   const feed = useFeed((s) => (assistant ? (s.feeds[sid] ?? NO_FEED) : NO_FEED));
   useEffect(() => {
@@ -2232,7 +2210,6 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
     blocked: Boolean(gate.blocked),
     offline: Boolean(offlineLine),
     composerDisabled,
-    routed: hasTaskRoute,
     working,
     outgoing: outgoing > 0,
     stopped: Boolean(stoppedLine),
@@ -2355,8 +2332,8 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
       {backPage && (cameFrom ? <Suspense fallback={null}><HandoffBack onDismiss={() => setCameFrom(null)} /></Suspense> : cameFrom === undefined ? <Suspense fallback={null}><InboxBack key={`${mid}/${sid}`} mid={mid} sid={sid} session={session} /></Suspense> : null)}
       {/* a known session keeps its chat: a failed background read is retried quietly (runtime-session.ts) */}
       {archivedHere ? <ArchivedNotice session={archivedHere} /> : notFound ? <Suspense fallback={null}><LazyNotFoundNotice assistant={Boolean(assistant)} retry={retryDetail} /></Suspense> : noDetails && <SessionDetailNotice error={detail.error} retry={retryDetail} />}
-      {/* the to-do this Agent's session is linked to: where it stands, and steering by it (TodoStrip.tsx) */}
-      {!embedded && !assistant && session && <TodoStrip session={session} canSteer={canCompose} />}
+      {/* The linked to-do and its progress */}
+      {!embedded && !assistant && session && <TodoStrip session={session} />}
 
       <div className="session-workspace flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
@@ -2544,7 +2521,6 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
                 lists a row for each that closes the tray onto its card. */}
             <TurnCards asks={turnSplit.turn} />
             {voiceState !== "live" && <AssistantActionBar key={sid} conversation={sid} ownAsks={trayAsks} />}
-            {voiceState !== "live" && <RouteChip conversation={sid} />}
             {/* items handed to this conversation that are still open: "Wrap up" asks it for the final write-back (#5932) */}
             {voiceState !== "live" && isMain && <Suspense fallback={null}><LazyWrapUpChips conversation={sid} /></Suspense>}
           </>
@@ -2960,7 +2936,6 @@ export const Header = memo(function Header({
       toast(t("chat-chatview.change_failed", { error: errorText(e) }), "error");
     }
   };
-  const [linkTodoOpen, setLinkTodoOpen] = useState(false);
   const [sharingOpen, setSharingOpen] = useState(false);
   const allowed = session ? sessionMenuActions(session) : [];
   // Live link loads with the click (lib/attach-live.ts), off the first screen
@@ -3031,7 +3006,6 @@ export const Header = memo(function Header({
     }));
   const { items: assistantItems, dialogs: assistantDialogs } = useAssistantMenu(assistant ? session : undefined);
   const feishu = externalLink(session);
-  const linkedTodo = session?.todo ?? session?.completed_todo;
 
   // Conversation tasks' button gives way on a phone: ⋯ has it there, also before the session is in
   const tasksItem: MenuItem[] = tasks && phone ? [{ key: "conversation-tasks", label: t("sidepanel.conversation_tasks"), icon: "todo", checked: tasks.open, onSelect: tasks.onToggle }] : [];
@@ -3041,48 +3015,6 @@ export const Header = memo(function Header({
         ...(others.length > 0 ? [spaceAgentsItem(others, () => tabs.openAt(menu.anchor))] : []),
         ...assistantItems,
         ...(!assistant && !main ? [{ key: "share", label: t("chat-chatview.share"), icon: "link" as const, onSelect: () => setSharingOpen(true) }] : []),
-        ...(linkedTodo
-          ? [
-              {
-                key: "todo-detail",
-                label: t(session.todo ? "chat-chatview.todo_label" : "chat-chatview.todo_completed_label", { title: linkedTodo.title }),
-                icon: "todo" as const,
-                onSelect: () => navigate(`/todos?id=${encodeURIComponent(linkedTodo.id)}`),
-              },
-              ...(session.todo ? [
-              {
-                key: "unlink-todo",
-                label: t("chat-chatview.unlink_todo"),
-                icon: "x" as const,
-                onSelect: async () => {
-                  try {
-                    await unlinkAgentFromTodo(linkedTodo.id, session.machine_id, session.session_id);
-                    await refreshTodos();
-                    await refresh();
-                    toast(t("chat-chatview.todo_unlinked"), "ok");
-                  } catch (e) {
-                    toast(t("chat-chatview.unlink_failed", { error: errorText(e) }), "error");
-                  }
-                },
-              },
-              {
-                key: "relink-todo",
-                label: t("chat-chatview.relink_todo"),
-                icon: "todo" as const,
-                onSelect: () => setLinkTodoOpen(true),
-              },
-              ] : []),
-            ]
-          : !assistant
-            ? [
-                {
-                  key: "link-todo",
-                  label: t("chat-chatview.link_todo"),
-                  icon: "todo" as const,
-                  onSelect: () => setLinkTodoOpen(true),
-                },
-              ]
-            : []),
         ...(allowed.includes("attach") ? [{ key: "attach", label: t("chat-chatview.attach"), icon: "link" as const, onSelect: () => void attach() }] : []),
         // its Side sessions panel (#7944), as the header's button
         ...(sides ? [{ key: "sides", label: t("chat-chatview.side_sessions_count", { count: sides.count }), icon: "sideSessions" as const, checked: sides.open, onSelect: sides.onToggle }] : []),
@@ -3117,7 +3049,7 @@ export const Header = memo(function Header({
         ...(!archived && sessionDeletable(session) ? [{ key: "delete", label: t("chat-chatview.delete_chat"), icon: "trash" as const, danger: true, onSelect: () => setDialog("delete") }] : []),
       ]
     : tasksItem;
-  // a side panel's own rows (Open in new window, Remove task…) at the top of ⋯
+  // a side panel's own rows (Open in new window) at the top of ⋯
   const panelItems = chrome?.items ?? [];
   const items: MenuItem[] = panelItems.length > 0 && own.length > 0 ? [...panelItems, { ...own[0], divider: true }, ...own.slice(1)] : [...panelItems, ...own];
   // ⋯ follows the title (cindy's "More actions"); on a narrow page whose middle is the shell's switch the title is hidden,
@@ -3257,7 +3189,6 @@ export const Header = memo(function Header({
       {session && <RenameDialog open={dialog === "rename"} onClose={() => setDialog(null)} session={session} />}
       {session && <RenameSpaceDialog open={dialog === "space"} onClose={() => setDialog(null)} session={session} />}
       {session && <DeleteSessionDialog open={dialog === "delete"} onClose={() => setDialog(null)} session={session} machineName={machineName} />}
-      <LinkTodoDialog open={linkTodoOpen} session={session} onClose={() => setLinkTodoOpen(false)} />
       {session && sharingOpen && !assistant && !main && <SharingDialog key={`${session.machine_id}/${session.session_id}/${session.manager ?? ""}`} session={session} onClose={() => setSharingOpen(false)} />}
       {assistantDialogs}
     </header>

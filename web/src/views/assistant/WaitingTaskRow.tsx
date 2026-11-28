@@ -5,21 +5,18 @@ import { plainMarkdown } from "../../lib/plain-markdown";
 import { heldDelivery, interruption, type Todo, type TodoStatus } from "../../lib/todos";
 import { cx } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
-import { progressOf, retryTaskNow, ROW_ACTIONS, useRetrying, useTaskNow, waitsLabel } from "./Tasks";
+import { progressOf, ROW_ACTIONS, useTaskNow, waitsLabel } from "./Tasks";
 
-/** A task in Needs you that only waits (#8237): cut off by the model service, with why and Continue (its receipt card's
- *  until then); waiting for review, with what it handed in; finished work held for the owner's OK, with what holds it
+/** A task in Needs you that only waits (#8237): cut off by the model service, with the reason; waiting for review, with what it handed in; finished work held for the owner's OK, with what holds it
  *  and Open task (nothing to approve on the row itself, #13191); else what it waits for. The title opens the task. */
 export default function WaitingTaskRow({ rowKey, todo, status, countsOpenAttr }: { rowKey?: string; todo: Todo; status: TodoStatus; countsOpenAttr: { "data-counts-open"?: string } }) {
   const task = useTaskNow(todo);
-  const retrying = useRetrying(todo.id);
   const summary = useFeed((s) => {
     const done = todo.origin ? s.feeds[todo.origin]?.findLast((it) => it.kind === "receipt" && it.ref === todo.id && field(it, "state") !== "failed") : undefined;
     return done ? field(done, "summary") : undefined;
   });
   const cutOff = status === "interrupted";
   const cut = cutOff ? interruption(task?.lead) : undefined;
-  const canContinue = cutOff && (cut ? cut.canContinue : true);
   const hold = heldDelivery(todo);
   const approval = !cutOff && hold?.unblock === "user";
   const line = cutOff ? cut?.reason
@@ -40,14 +37,6 @@ export default function WaitingTaskRow({ rowKey, todo, status, countsOpenAttr }:
         <div className={ROW_ACTIONS}>
           <button type="button" data-open-task={todo.id} onClick={() => openTask(todo.id)} className="touch-hit inline-flex items-center gap-1 whitespace-nowrap font-semibold text-ink hover:underline">
             {t("assistant-tasks.open_task")}
-          </button>
-        </div>
-      )}
-      {canContinue && (
-        <div className={ROW_ACTIONS}>
-          <button type="button" data-continue-task={todo.id} disabled={retrying} onClick={() => retryTaskNow(todo, "continue")} className="touch-hit inline-flex items-center gap-1 whitespace-nowrap font-semibold text-ink hover:underline disabled:opacity-50 disabled:hover:no-underline">
-            <Icon name="retry" size={12} />
-            {retrying ? t("assistant-tasks.retrying") : t("assistant-tasks.continue")}
           </button>
         </div>
       )}

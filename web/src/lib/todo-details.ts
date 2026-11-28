@@ -3,36 +3,12 @@
 import { api, enc } from "./api";
 import { MANAGER_HEADER } from "./manager-choice";
 import { t } from "../i18n";
-import { findTodoForSpace, isCancelled, type SessionLookup, type Todo, type TodoAgent, type TodoSpace } from "./todos";
-import { reviewState } from "./supervision";
-import type { AgentLifecyclePage, Session } from "./types";
-
-/** Whether Got it can file a finished turn. An open concern moves to Other open after Seen and bypasses only the
- *  ordinary live-delivery restriction; review and supervision still block filing. Seen is never acceptance (#5732). */
-export function seenCanFile(todo: Todo): boolean {
-  return (todo.kind === "concern" || todo.delivery?.state !== "live") && reviewState(todo) !== "pending_review" && !todo.supervision?.supervisor;
-}
+import { isCancelled, type SessionLookup, type Todo, type TodoAgent, type TodoSpace } from "./todos";
+import type { AgentLifecyclePage } from "./types";
 
 /** Why the to-do was cancelled; older hubs carry it in done_reason. */
 export function cancellationReason(todo: Todo): string {
   return isCancelled(todo) ? (todo.cancelled_reason || todo.done_reason || "") : "";
-}
-
-/**
- * Resolve the current todo ID for LinkTodoDialog target.
- * For a space, looks up from the todos list.
- * For a session, uses session.todo?.id directly so the unlink control
- * does not disappear if /todos hasn't loaded or failed (#874 item 4).
- */
-export function resolveLinkCurrentTodoId(
-  space?: { machineId: string; space: string },
-  session?: Session,
-  todos: Todo[] = [],
-): string | undefined {
-  if (space) {
-    return findTodoForSpace(todos, space.machineId, space.space)?.id;
-  }
-  return session?.todo?.id;
 }
 
 /**

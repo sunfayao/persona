@@ -6,15 +6,14 @@ import { useSyncExternalStore } from "react";
 import { api, ApiError, enc } from "./api";
 import { formatDate, t } from "../i18n";
 import { parseAPIError } from "./api-errors";
-import { getState, onHubEvent, putTodo, refreshTodos, todosPushed } from "./store";
+import { getState, onHubEvent, refreshTodos, todosPushed } from "./store";
 import { applySnapshot } from "./assistant-views";
 import type { AssistantView, ViewAction } from "./extension-wire";
 import { isResumed } from "./reconnect";
 import type { TaskBrief } from "./brief";
 import type { RuleSuggestion } from "./rule-suggestion";
-import { deleteTodo, type Todo, type TodoAsk } from "./todos";
+import { type Todo, type TodoAsk } from "./todos";
 import { getInbox, itemPath } from "./inbox";
-import { closePanel, getPanel } from "./panel";
 import { BUILTIN_MANAGER, conversationManager, defaultManager, itemHeaders, MANAGER_HEADER, managerHeaderFor, noteConversation } from "./manager-choice";
 import type { ChatLine } from "./turns";
 import type { Item } from "./types";
@@ -420,13 +419,12 @@ interface FeedState {
   plans: Record<string, TaskPlan>;
   taskCards: Record<string, TaskCardMetadata[]>;
   /** Conversation → the task the next message goes to ("Tell "xx""). */
-  routes: Record<string, string | { todoId: string; askedAt: string }>;
   busy: Record<string, boolean>;
   /** Message cards put off with "Later". */
   later: Record<string, boolean>;
 }
 
-let st: FeedState = { feeds: {}, plans: {}, taskCards: {}, routes: {}, busy: {}, later: {} };
+let st: FeedState = { feeds: {}, plans: {}, taskCards: {}, busy: {}, later: {} };
 let feedRevision = 0;
 const itemRevisions = new Map<string, number>();
 // A live plan transition or an owner action wins over an older feed snapshot.
@@ -735,50 +733,6 @@ export async function dismissPlan(plan: TaskPlan) {
   }
 }
 
-/** The busy key of a task's "Retry" (busy is keyed by plan id otherwise). */
-export const retryKey = (todoId: string) => `retry:${todoId}`;
-
-/**
- * "Retry" on a task whose agent did not start (#1396): the hub starts the same task again (its plan's machine, directory,
- * prompt, launcher, model and permission) in the same todo, which it reopens at once — the card shows it starting
- * where it was. Taps while one is on its way do nothing; the hub starts one agent however many arrive. On a task the
- * model service cut off (#1516) it is "Continue": the hub tells its agent to go on, once. `on`: "Use … instead", the
- * launcher (and model) of the same computer to start it on (#10365), sent by lib/start-retry.ts retryOnLauncher, which
- * checks the hub takes it.
- */
-export async function retryTask(todo: Todo, on?: { launcher: string; model?: string }) {
-  const key = retryKey(todo.id);
-  if (st.busy[key]) return;
-  set({ busy: { ...st.busy, [key]: true } });
-  try {
-    const res = await api<{ todo: Todo }>(`/todos/${enc(todo.id)}/retry`, on ? { method: "POST", json: on } : { method: "POST" });
-    if (res.todo) putTodo(res.todo);
-    void refreshTodos();
-  } finally {
-    set({ busy: { ...st.busy, [key]: false } });
-  }
-}
-
-/** How a decision is answered other than by taking its recommendation (#3804): one of its options by its label, or one
- *  of the fixed responses that say the owner cannot answer it as asked. */
-export type AskAnswer = { option: string } | { response: string } | { answers: Record<string, string> };
-
-/** The Accept button of a `brief` item's task to verify: "accepted" when the hub took it, "recorded" when no Agent could
- *  receive the decision and the supervisor has it, or "handled" when that round is already over (409). Any other failure
- *  throws, since nothing was taken: the Agent's node refusing it (dialog_open: a dialog has its terminal, #7343) is 423
- *  with that code, or a 409 with it from a hub built between the two.
- *  `answer`: a decision's option or fixed response instead of its recommendation. */
-export async function acceptBrief(todoId: string, askedAt: string, answer?: AskAnswer): Promise<"accepted" | "recorded" | "handled"> {
-  try {
-    const res = await api<{ delivered?: string }>(`/todos/${enc(todoId)}/accept`, { method: "POST", json: { asked_at: askedAt, ...answer } });
-    void refreshTodos();
-    return res.delivered === "none" ? "recorded" : "accepted";
-  } catch (e) {
-    if (e instanceof ApiError && e.status === 409 && (!e.code || e.code === "conflict")) return "handled";
-    throw e;
-  }
-}
-
 /** The Handled button of a question in a `brief` item's `later` list: "marked", or "handled" when the hub says it is not in
  *  the queue any more (marked before, its to-do ended, or 7 days). Any other failure throws. */
 export async function handledLater(id: string, conversation: string): Promise<"marked" | "handled"> {
@@ -810,53 +764,6 @@ export function startInFlight(todo: Todo, plans: Record<string, TaskPlan>): bool
   if (todo.done_at || startFailure(todo, plans)) return false;
   if (todo.plan_id) return true;
   return Object.values(plans).some((p) => p.state !== "dismissed" && p.tasks.some((t) => t.todo_id === todo.id && !t.error));
-}
-
-/**
- * Removes a task that does not run: its todo goes (its agents and their chats stay on the Agents page), and with it
- * its card, pill and panel. One whose agents ran asks first; one whose agent never started goes at once. Answers
- * whether it went.
- */
-export async function removeTask(todo: Todo, ask: (message: string) => boolean = (m) => confirm(m)): Promise<boolean> {
-  if ((todo.agents ?? []).length > 0 && !ask(t("lib-feed.remove_confirm", { title: todo.title }))) return false;
-  await deleteTodo(todo.id);
-  const routes = { ...st.routes };
-  for (const [c, route] of Object.entries(routes)) if (routeTodoId(route) === todo.id) delete routes[c];
-  set({ routes });
-  const panel = getPanel();
-  if (panel?.kind === "task" && panel.todo === todo.id) closePanel();
-  await refreshTodos();
-  return true;
-}
-
-export function routeTodoId(route: FeedState["routes"][string] | undefined): string | undefined {
-  return typeof route === "string" ? route : route?.todoId;
-}
-
-export function setRoute(conversation: string, todoId: string | null, askedAt?: string) {
-  const routes = { ...st.routes };
-  if (todoId) routes[conversation] = askedAt ? { todoId, askedAt } : todoId;
-  else delete routes[conversation];
-  set({ routes });
-}
-
-/** Sends text straight to the task the conversation is routed to; false when none (send it to Persona as usual). */
-export async function sendRouted(conversation: string, text: string): Promise<boolean> {
-  const route = st.routes[conversation];
-  const todoId = routeTodoId(route);
-  if (!todoId) return false;
-  // A failed send keeps the route for the retry, so a task gone elsewhere (its chip no longer drawn) must not hold it.
-  const { todos, todosLoaded } = getState();
-  if (todosLoaded && !todos.some((t) => t.id === todoId)) {
-    setRoute(conversation, null);
-    return false;
-  }
-  const askedAt = typeof route === "object" ? route.askedAt : undefined;
-  const res = await api<{ item: FeedItem }>(`/assistant/conversations/${enc(conversation)}/route`, { method: "POST", json: { todo_id: todoId, text, ...(askedAt ? { asked_at: askedAt } : {}) } });
-  if (st.routes[conversation] === route) setRoute(conversation, null);
-  if (res.item) received([res.item]);
-  if (askedAt) void refreshTodos();
-  return true;
 }
 
 /**
@@ -1083,9 +990,9 @@ function isToday(iso: string, now = new Date()): boolean {
 }
 
 onConversationDeleted((_mid, sid) => {
-  const feeds = { ...st.feeds }, taskCards = { ...st.taskCards }, routes = { ...st.routes };
-  delete feeds[sid]; delete taskCards[sid]; delete routes[sid];
+  const feeds = { ...st.feeds }, taskCards = { ...st.taskCards };
+  delete feeds[sid]; delete taskCards[sid];
   again.delete(sid); todayAsked.delete(sid);
   const plans = Object.fromEntries(Object.entries(st.plans).filter(([, plan]) => plan.conversation !== sid));
-  set({ feeds, taskCards, routes, plans });
+  set({ feeds, taskCards, plans });
 });

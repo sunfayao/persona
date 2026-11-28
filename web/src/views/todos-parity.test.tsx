@@ -108,7 +108,7 @@ describe("the todos page", () => {
 });
 
 describe("the task board", () => {
-  it("lists only this conversation's tasks by section, removable ones with 移除", () => {
+  it("lists only this conversation's tasks by section without a remove action", () => {
     seed({
       todos: [
         todo({ id: "a", title: "跑测试", origin: "c1", agents: [{ machine_id: "m1", session_id: "s1", linked_at: iso(hour) }] }),
@@ -121,7 +121,7 @@ describe("the task board", () => {
     expect(html).toContain("工作中 · 1");
     expect(html).toContain("已完成 · 1");
     expect(html).not.toContain("别的对话");
-    expect(html).toContain('aria-label="移除「已经做完」"');
+    expect(html).not.toContain('aria-label="移除「已经做完」"');
     expect(html).not.toContain('aria-label="移除「跑测试」"');
   });
 

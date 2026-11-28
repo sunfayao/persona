@@ -93,7 +93,7 @@ describe("TakeoverAction interactions", () => {
     state.api.mockResolvedValue(plan());
     render();
     await act(async () => button(host, t("chat-takeover.takeover_new")).click()); await flush();
-    expect(state.launch).toHaveBeenCalledWith({ machineId: "machine", cwd: "/work", launcher: "codex", agentType: "codex", inlinePrompt: true, text: "opaque encrypted continuation", attachments: [], todoId: "todo-original" });
+    expect(state.launch).toHaveBeenCalledWith({ machineId: "machine", cwd: "/work", launcher: "codex", agentType: "codex", inlinePrompt: true, text: "opaque encrypted continuation", attachments: [] });
     expect(state.api.mock.calls.map(([, options]) => options?.method ?? "GET")).toEqual(["GET"]);
   });
 

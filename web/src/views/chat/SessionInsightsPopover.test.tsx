@@ -3,7 +3,6 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { COMPACT_FEATURE } from "../../lib/compaction";
-import { setRoute } from "../../lib/feed";
 import { clearRateHistories, emptyRateHistory, recordTokens, saveRateHistory } from "../../lib/token-rate";
 import type { Item, Session } from "../../lib/types";
 import { ContextMeter } from "./ContextMeter";
@@ -78,7 +77,6 @@ afterEach(async () => {
     root.unmount();
   });
   host.remove();
-  setRoute("s1", null);
   clearRateHistories();
 });
 
@@ -280,17 +278,10 @@ describe("ContextMeter + lazy SessionInsightsPopover", () => {
     expect(document.querySelector("[data-session-insights]")).toBeNull();
   });
 
-  it("hides /compact when a task route is active or compactBlocked is set", async () => {
+  it("hides /compact when compactBlocked is set", async () => {
     const anchor = { current: host };
     const onCompact = vi.fn();
 
-    setRoute("s1", "todo-1");
-    await mount(
-      <SessionInsightsPopover anchor={anchor} session={baseSession} items={sampleItems} onCompact={onCompact} onClose={() => {}} />,
-    );
-    expect(document.querySelector("[data-insights-compact]")).toBeNull();
-
-    setRoute("s1", null);
     await mount(
       <SessionInsightsPopover anchor={anchor} session={baseSession} items={sampleItems} onCompact={onCompact} compactBlocked onClose={() => {}} />,
     );

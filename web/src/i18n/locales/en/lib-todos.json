@@ -24,6 +24,5 @@
   "orphaned": "Nobody is working on this",
   "orphaned_error": "closed after an error",
   "orphaned_closed": "closed",
-  "orphaned_offline": "computer offline",
-  "create_unconfirmed": "The hub hasn't confirmed this create yet. Check its result before creating another one."
+  "orphaned_offline": "computer offline"
 }
