@@ -28,6 +28,9 @@ const SUPERVISE_MARKER = "This is a supervision message from Persona";
 const LEGACY_SUPERVISE_HEAD = /^📋 督办：你派出去的任务有 (\d+) 个要你处理$/u; // i18n-ignore: matches the hub's injected text
 const LEGACY_SUPERVISE_MARKER = "这是 Persona 的督办消息"; // i18n-ignore: matches the hub's injected text
 const SUPERVISE_LEVEL = /^\s*<persona-supervision level="(triage|user)"\s*\/>\s*$/m;
+// The digest a supervisor Agent gets in its own chat about the tasks of its to-do (agents/worker_supervise): the first
+// line says how many need it and that the message is not from the user. Routine triage, as the main chat's digests.
+const AGENT_SUPERVISE_HEAD = /^Persona · supervision: (\d+) /u;
 
 const NOTICE_STATES: Record<string, string> = {
   finished: "done", "is waiting for the user": "needs", "was interrupted by a model service error": "interrupted", "did not start": "failed",
@@ -47,6 +50,8 @@ export function parseInjected(raw: string): Injected | null {
   if (supervision) {
     return { kind: "system", state: "supervise", level: SUPERVISE_LEVEL.exec(rest)?.[1] === "user" ? "user" : "triage", line: t("lib-injected.supervise", { count: Number(supervision[1]) }) };
   }
+  const digest = AGENT_SUPERVISE_HEAD.exec(head);
+  if (digest) return { kind: "system", state: "supervise", level: "triage", line: t("lib-injected.supervise", { count: Number(digest[1]) }) };
   if (head.startsWith("🔔 Task “") || head.startsWith("🔔 任务「")) { // i18n-ignore: matches the hub's injected text
     const m = (rest.includes(NOTICE_MARKER) && NOTICE_HEAD.exec(head)) || (rest.includes(LEGACY_NOTICE_MARKER) && LEGACY_NOTICE_HEAD.exec(head));
     if (!m) return null;

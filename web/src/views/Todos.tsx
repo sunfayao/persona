@@ -53,11 +53,14 @@ import { Button, cx, IconButton, Loading, toast } from "../ui/atoms";
 import { SearchField } from "../ui/SearchField";
 import { StateTally, StatusMark } from "../ui/StatusMark";
 import { type FoldedCounts } from "../lib/folded-counts";
-import { Icon } from "../ui/icons";
+import { Icon, type IconName } from "../ui/icons";
 import { FoldAllButton } from "../ui/FoldAllButton";
 import { SESSION_LIST_STYLE } from "../ui/list-metrics";
 import { Markdown } from "../ui/Markdown";
-import { t } from "../i18n";
+import { formatDate, t } from "../i18n";
+import { tRich } from "../i18n/rich";
+import { dayLabel } from "../lib/feed";
+import { entryWords, supervisionDays, supervisionLog, supervisionRole, supervisorOf, workerAgent, workerStep, workerStepLabel, type SupervisionDay, type SupervisionEntry, type SupervisionRole } from "../lib/todo-supervisor";
 import { groupTodosByProject, treeStateLabel, type TodoProjectGroup, type TreeState } from "../lib/todo-tree";
 import { cancellationReason, formatAgentSource, seenCanFile } from "../lib/todo-details";
 import { TRIAGE_SECTIONS, checksAsOpen, countsAsOpen, lastActivity, openMergePRs, sectionStartsFolded, supersededFailedStarts, triage, triageTodos, type OwnerNeed, type TriageGroup, type TriageResult, type TriageRule, type TriageSection } from "../lib/todo-triage";
@@ -67,7 +70,7 @@ import { drawnFromView, openAsDrawn } from "../features/todos/model/view-triage"
 import { useRestoredTodos } from "../lib/todo-restore";
 import { stepsWords } from "../lib/todo-steps";
 import { useOwnerNeeds, useTodoLookup, useTodoMinute } from "../lib/todo-owner-needs";
-import { autoReviewLine, checklist, latestReview, parkedLine, progressLine, type Supervision } from "../lib/supervision";
+import { autoReviewLine, checklist, latestReview, parkedLine, progressLine, type Supervision, type TaskReview } from "../lib/supervision";
 import { briefCriteria, resultExtras } from "../lib/brief";
 import { prLink } from "./TodoStageBar";
 import { useFolded } from "../lib/use-folded";
@@ -633,6 +636,7 @@ export function TodosView({
               onToggleReleased={() => setShowReleased((v) => !v)}
               open={checksAsOpen(activeTodo, sectionOf.get(activeTodo.id))}
               onOpenTodo={openFromList}
+              todos={todos}
             />
           ) : (
             <div className="flex flex-1 items-center justify-center text-[13px] text-ink-3">
@@ -1631,6 +1635,7 @@ function TodoDetail({
   onToggleReleased,
   open,
   onOpenTodo,
+  todos,
 }: {
   todo: Todo;
   owner: string;
@@ -1644,6 +1649,8 @@ function TodoDetail({
   /** Whether it reads open, as its row's mark does (checksAsOpen): a failed start waiting on the owner is (#3713). */
   open: boolean;
   onOpenTodo: (id: string) => void;
+  /** The list's to-dos: a supervised to-do's workers, or a worker's root, are among them. */
+  todos: readonly Todo[];
 }) {
   const allSessions = useAgentSessions();
   const spacesSupported = useStore((s) => s.spacesSupported);
@@ -1689,7 +1696,12 @@ function TodoDetail({
     if (waiting) counts.bg_waiting++;
     else if (state === "needs_you" || state === "working" || state === "unread") counts[state]++;
   }
-  const attentionFirst = [...roster].sort((a, b) => Number(b.state === "needs_you") - Number(a.state === "needs_you"));
+  // a supervisor Agent's to-do, with the workers it handed out, or a worker of one with its root (lib/todo-supervisor.ts)
+  const role = useMemo(() => supervisionRole(todo, todos), [todo, todos]);
+  const leader = supervisorOf(todo);
+  const workerRoot = role?.kind === "worker" ? role.root : undefined;
+  // the supervisor first (its workers hang under it), then what needs the owner
+  const attentionFirst = [...roster].sort((a, b) => Number(b.agent === leader) - Number(a.agent === leader) || Number(b.state === "needs_you") - Number(a.state === "needs_you"));
 
   const shown = shownStatus(todo, status);
   const dotState =
@@ -1802,12 +1814,28 @@ function TodoDetail({
         )}
       </DetailSection>
 
-      {/* 3. The agent sessions on it, each opening its session, and those that took part */}
+      {/* What its supervisor Agent did with the workers, and how the main conversation took the result; only on a
+          to-do a supervisor runs and on its workers */}
+      {role && <SupervisionSection todo={todo} role={role} onOpenTodo={onOpenTodo} />}
+
+      {/* 3. The agent sessions on it, each opening its session, and those that took part; a supervisor first, with the
+          workers it handed out beneath it; on a worker, the to-do it works for */}
       <DetailSection
         title={t("todos.detail_sessions")}
         aside={<><SectionCount count={activeAgents.length} testId="todo-agent-count" /><StateTally counts={counts} /></>}
         testId="todo-section-sessions"
       >
+        {workerRoot && (
+          <p data-testid="todo-supervised-by" className="mt-1 min-w-0 truncate text-label text-ink-3">
+            {tRich("todos.supervised_by", {
+              title: (
+                <button type="button" data-open-todo={workerRoot.id} onClick={() => onOpenTodo(workerRoot.id)} className="touch-hit text-accent-ink hover:underline">
+                  {workerRoot.title}
+                </button>
+              ),
+            })}
+          </p>
+        )}
         <div className="mt-3 divide-y divide-line rounded-control border border-line bg-canvas" data-testid="todo-agent-roster">
           {attentionFirst.length === 0 ? (
             <p className="px-3 py-3 text-meta text-ink-3">
@@ -1827,9 +1855,11 @@ function TodoDetail({
                 const stateLabel = agent.start_error ? stateName("failed") : !session ? t("todos.ended") :
                   waiting ? stateName("bg_waiting") : state === "idle" && session.work?.just_finished ? stateName("just_finished") : stateName(state);
                 const AgentRow = session ? "button" : "div";
+                // the supervisor's row wraps the tree of its workers onto a line of its own beneath it
+                const workers = agent === leader && role?.kind === "root" ? role.workers : undefined;
 
                 return (
-                  <li key={JSON.stringify([agent.machine_id, agent.session_id])} className="flex items-center gap-2 px-2">
+                  <li key={JSON.stringify([agent.machine_id, agent.session_id])} className={cx("flex items-center gap-2 px-2", workers && "flex-wrap gap-y-0")}>
                     <AgentRow
                       type={session ? "button" : undefined}
                       onClick={session ? () => openFromPage({ name: "session", mid: agent.machine_id, sid: agent.session_id }) : undefined}
@@ -1865,6 +1895,7 @@ function TodoDetail({
                     <span data-testid="todo-agent-time" className="shrink-0 pr-1.5 whitespace-nowrap text-meta text-ink-3">
                       {ago(session?.updated_at || agent.linked_at)}
                     </span>
+                    {workers && <SupervisorWorkers workers={workers} lookup={lookup} machines={machines} onOpenTodo={onOpenTodo} />}
                   </li>
                 );
               })}
@@ -1945,6 +1976,179 @@ function TodoDetail({
       {/* 5. The calls made on it */}
       <DecisionsSection todo={todo} lookup={lookup} />
     </div>
+  );
+}
+
+// ── Supervision: a supervisor Agent and its workers ─────────
+
+/** The workers a to-do's supervisor handed out, as a tree under its row (lib/todo-supervisor.ts): each worker to-do on
+ *  a line with where it stands and the computer its Agent runs on, opening that to-do. The open ones are listed; the
+ *  closed ones fold under Closed, as the Agents that left fold under Took part. */
+function SupervisorWorkers({ workers, lookup, machines, onOpenTodo }: { workers: Todo[]; lookup: SessionLookup; machines: Machine[]; onOpenTodo: (id: string) => void }) {
+  const [showClosed, setShowClosed] = useState(false);
+  if (!workers.length) return null;
+  const closed = workers.filter((w) => w.done_at);
+  const line = (w: Todo) => {
+    const agent = workerAgent(w);
+    const session = agent && !agent.start_error ? lookup(agent.machine_id, agent.session_id) : undefined;
+    const step = workerStep(w);
+    const machine = agent && machines.find((m) => m.id === agent.machine_id)?.name;
+    return (
+      <li key={w.id}>
+        <button
+          type="button"
+          data-open-todo={w.id}
+          data-worker-step={step}
+          onClick={() => onOpenTodo(w.id)}
+          className="flex min-h-9 w-full min-w-0 items-start gap-2 rounded-control px-1.5 py-2 text-left hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent [@media(pointer:coarse)]:min-h-11"
+        >
+          <span className="mt-px flex size-4 shrink-0 items-center justify-center">
+            {w.done_at ? (
+              <Icon name={step === "accepted" || step === "done" ? "check" : "x"} size={12} className="text-ink-3" />
+            ) : (
+              <StatusMark state={session ? foldedState(session) : "offline"} size="sm" label={false} />
+            )}
+          </span>
+          {/* where it stands goes under the title when the line is too narrow for both */}
+          <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
+            <span data-testid="todo-worker-title" className={cx("max-w-full min-w-0 truncate text-meta", w.done_at ? "text-ink-3" : "text-ink")}>{w.title}</span>
+            <span data-testid="todo-worker-state" className="text-label text-ink-3 sm:ml-auto">{[workerStepLabel(w), machine].filter(Boolean).join(" · ")}</span>
+          </span>
+        </button>
+      </li>
+    );
+  };
+  return (
+    <div data-testid="todo-workers" className="mb-2 ml-3 min-w-0 basis-full border-l border-line pl-2">
+      <ul>{workers.filter((w) => !w.done_at).map(line)}</ul>
+      {closed.length > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowClosed((v) => !v)}
+            aria-expanded={showClosed}
+            className="flex min-h-8 items-center gap-1 px-1.5 text-label text-ink-3 hover:text-ink-2 [@media(pointer:coarse)]:min-h-11"
+          >
+            <Icon name="chevron" size={11} className={cx("transition-transform duration-200", showClosed ? "rotate-180" : "")} />
+            <span>{t("todos.workers_closed", { count: closed.length })}</span>
+          </button>
+          {showClosed && <ul>{closed.map(line)}</ul>}
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Supervision: what a supervisor did with its workers, newest first, by the owner's local day (lib/todo-supervisor.ts):
+ * the workers it handed out, its verdicts on them, their latest reports and how they closed; on the root also its report
+ * to the main conversation and that conversation's verdicts. Today is open and earlier days are folded; an open day
+ * shows its first lines with Show all, and the heading's fold-all button folds or opens every day, as Decisions do.
+ */
+function SupervisionSection({ todo, role, onOpenTodo }: { todo: Todo; role: SupervisionRole; onOpenTodo: (id: string) => void }) {
+  const days = useMemo(() => supervisionDays(supervisionLog(todo, role)), [todo, role]);
+  // a day the owner opened or folded, and one whose every line is shown; neither is kept past the page
+  const [folds, setFolds] = useState<Record<string, boolean>>({});
+  const [whole, setWhole] = useState<Record<string, boolean>>({});
+  const isOpen = (d: SupervisionDay) => folds[d.key] ?? d.today;
+  const anyOpen = days.some(isOpen);
+  return (
+    <DetailSection
+      title={t("todos.detail_supervision")}
+      aside={<SectionCount count={days.reduce((n, d) => n + d.entries.length, 0)} testId="todo-supervision-count" />}
+      right={days.length > 0 && (
+        <FoldAllButton
+          label={anyOpen ? t("todos.decisions_fold") : t("todos.decisions_expand")}
+          expand={!anyOpen}
+          onClick={() => setFolds(Object.fromEntries(days.map((d) => [d.key, !anyOpen])))}
+          className={SESSION_LIST_STYLE.foldButton}
+          testId="todo-supervision-fold"
+        />
+      )}
+      testId="todo-section-supervision"
+    >
+      {days.length === 0 ? (
+        <SectionEmpty>{t("todos.supervision_empty")}</SectionEmpty>
+      ) : (
+        <ol className="mt-1 flex flex-col">
+          {days.map((d) => {
+            const open = isOpen(d);
+            const all = whole[d.key] === true;
+            return (
+              <li key={d.key} data-supervision-day={d.key}>
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  onClick={() => setFolds((f) => ({ ...f, [d.key]: !open }))}
+                  className="flex min-h-8 items-center gap-1.5 text-label text-ink-3 hover:text-ink-2 [@media(pointer:coarse)]:min-h-11"
+                >
+                  <Icon name="chevron" size={11} className={cx("transition-transform duration-200", open ? "rotate-180" : "")} />
+                  <span>{dayLabel(d.date)}</span>
+                  <span className="tabular-nums">{d.entries.length}</span>
+                </button>
+                {open && (
+                  <ul className="flex flex-col gap-2.5 rounded-control bg-inset p-3.5 shadow-hairline">
+                    {(all ? d.entries : d.entries.slice(0, DECISIONS_FIRST)).map((e) => (
+                      <SupervisionLine key={e.key} entry={e} page={todo.id} onOpenTodo={onOpenTodo} />
+                    ))}
+                  </ul>
+                )}
+                {open && d.entries.length > DECISIONS_FIRST && (
+                  <Button tone="quiet" expanded={all} className="mt-1 whitespace-nowrap px-2 py-1 text-xs" onClick={() => setWhole((w) => ({ ...w, [d.key]: !all }))}>
+                    {all ? t("todos.decisions_show_first", { count: DECISIONS_FIRST }) : t("todos.decisions_show_all", { count: d.entries.length })}
+                  </Button>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </DetailSection>
+  );
+}
+
+const VERDICT_ICON: Record<TaskReview["verdict"], IconName> = { accepted: "check", rework: "retry", needs_user: "person", parked: "pause", cancelled: "x" };
+
+function entryIcon(e: SupervisionEntry): IconName {
+  switch (e.kind) {
+    case "planned":
+      return "plus";
+    case "review":
+      return VERDICT_ICON[e.review.verdict] ?? "info";
+    case "report":
+      return "chat";
+    case "closed":
+      return e.outcome === "done" ? "check" : e.outcome === "cancelled" ? "x" : "alertCircle";
+    case "reported":
+      return "send";
+  }
+}
+
+/** A line of the Supervision log: what happened, the worker it is about (opening its to-do; not on that to-do's own
+ *  page), the time of day, and what was said with it, clipped. */
+function SupervisionLine({ entry: e, page, onOpenTodo }: { entry: SupervisionEntry; page: string; onOpenTodo: (id: string) => void }) {
+  const { label, detail } = entryWords(e);
+  return (
+    <li className="flex min-w-0 items-start gap-2" data-supervision-entry={e.kind}>
+      <Icon name={entryIcon(e)} size={13} className="mt-0.5 shrink-0 text-ink-3" />
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex min-w-0 items-baseline gap-2 text-meta">
+          <span className="min-w-0 truncate select-text">
+            <span className="text-ink">{label}</span>
+            {e.todo.id !== page && (
+              <>
+                <span className="text-ink-3"> · </span>
+                <button type="button" data-open-todo={e.todo.id} onClick={() => onOpenTodo(e.todo.id)} className="text-left text-accent-ink hover:underline">
+                  {e.todo.title}
+                </button>
+              </>
+            )}
+          </span>
+          <span className="ml-auto shrink-0 text-label text-ink-3 tabular-nums">{formatDate(e.at, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}</span>
+        </div>
+        {detail && <p className="line-clamp-2 text-label text-ink-2 select-text [overflow-wrap:anywhere]">{detail}</p>}
+      </div>
+    </li>
   );
 }
 

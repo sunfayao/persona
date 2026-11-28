@@ -770,9 +770,12 @@ export function supervisionTool(rawName?: string): "notify_user" | "ask_user" | 
   return bare === "notify_user" || bare === "ask_user" || bare === "supervision_finish" || bare === "task_review" ? bare : undefined;
 }
 
+/** The hub sent the round's supervision message for the user to see (level user), not as routine triage. */
+const forUser = (i: Item) => injectedOf(i)?.state === "supervise" && injectedOf(i)?.level === "user";
+
 /** Visibility is round-wide and derived again after every page merge. Arguments alone never prove success. */
 export function supervisionVisible(ordered: Item[], results: ReadonlyMap<string, Item>, live: boolean, routineMainRelay = false): boolean {
-  if (ordered.some((i) => i.supervisionUser || i.fold?.supervision_user || (injectedOf(i)?.state === "supervise" && injectedOf(i)?.level === "user"))) return true;
+  if (ordered.some((i) => i.supervisionUser || i.fold?.supervision_user || forUser(i))) return true;
   let silent = false;
   for (const use of ordered) {
     if (use.kind !== "tool_use") continue;
@@ -953,6 +956,10 @@ export interface ChatLinesOptions {
   /** The main Assistant conversation: routine cross-conversation replies stay folded even when nonempty.
    * Explicit owner-visibility actions and every leader conversation keep their existing behavior (#11764). */
   main?: boolean;
+  /** An Agent's own chat, not a Persona conversation: a supervisor Agent's rounds on Persona's digests about the tasks of
+   *  its to-do are its work for Persona, whatever it replies or reviews, so each stays one folded line unless the hub
+   *  sent that digest for the user. */
+  agent?: boolean;
 }
 
 function turnLines(t: Turn, live: boolean, results?: ReadonlyMap<string, Item>): ChatLine[] {
@@ -992,7 +999,8 @@ export function chatLines(items: Item[], opts: ChatLinesOptions = {}): ChatLine[
   let round: { lines: ChatLine[]; ordered: Item[]; live: boolean; source?: MessageSource } | undefined;
   const flush = () => {
     if (!round) return;
-    if (supervisionVisible(round.ordered, results, round.live, opts.main === true && round.source?.kind === "conversation")) out.push(...round.lines);
+    const shown = opts.agent ? round.ordered.some(forUser) : supervisionVisible(round.ordered, results, round.live, opts.main === true && round.source?.kind === "conversation");
+    if (shown) out.push(...round.lines);
     else out.push({ kind: "supervision", id: round.lines[0].id, lines: round.lines, live: round.live, ...(round.source ? { source: round.source } : {}) });
     round = undefined;
   };

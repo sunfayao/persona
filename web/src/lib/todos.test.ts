@@ -495,6 +495,13 @@ describe("生成来源文案 (formatAgentSource)", () => {
     };
     expect(formatAgentSource(childNoVia, spaces, lookup)).toBe("派生");
   });
+
+  it("labels a supervisor Agent's to-do: its supervisor, a worker on its own to-do, an independent reviewer", () => {
+    const a = (source: TodoAgent["source"], via?: string): TodoAgent => ({ machine_id: "mac-1", session_id: "s1", linked_at: "", source, via });
+    expect(formatAgentSource(a("leader"))).toBe("督办");
+    expect(formatAgentSource(a("worker", "td_root"))).toBe("执行");
+    expect(formatAgentSource(a("review"))).toBe("评审");
+  });
 });
 
 describe("旧 hub 兼容判定 (isSpacesSupported)", () => {

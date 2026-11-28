@@ -1505,9 +1505,11 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   // An Agent without any transcript input or streamed text uses the progress fallback. A Persona chat owns its
   // early feedback in the transcript even before its first actual row.
   const liveInTranscript = lastLive && !outgoing && Boolean(assistant || session?.assistant || earlier.liveItems.length || streaming);
+  // an Agent's own chat: a supervisor Agent's rounds on Persona's digests fold, whatever it replied (lib/turns.ts `agent`)
+  const agentChat = !(assistant || session?.assistant);
   const lines = useMemo(
-    () => stabilizeLines(lastLines.current, chatLines(earlier.liveItems, { live: liveInTranscript, background: foldBackground, main: isMain })),
-    [earlier.liveItems, liveInTranscript, foldBackground, isMain],
+    () => stabilizeLines(lastLines.current, chatLines(earlier.liveItems, { live: liveInTranscript, background: foldBackground, main: isMain, agent: agentChat })),
+    [earlier.liveItems, liveInTranscript, foldBackground, isMain, agentChat],
   );
   lastLines.current = lines;
   // a DayLine over the first line of each new calendar day (#8160); day-only keys keep them stable as pages and

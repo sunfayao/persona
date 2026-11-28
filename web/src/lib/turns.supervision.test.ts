@@ -3,7 +3,7 @@ import { injectedOf, parseInjected } from "./injected";
 import { lineOfItem } from "./chat-search";
 import { displayLines } from "./feed";
 import { chatLines, mergeItems, segments, supervisionTool } from "./turns";
-import type { Item } from "./types";
+import type { Injected, Item } from "./types";
 
 // i18n-ignore: the fixed supervision header and marker are protocol data.
 const raw = '📋 督办：你派出去的任务有 2 个要你处理\n<persona-supervision level="triage" />\n这是 Persona 的督办消息\nCheck the fictional release task.';
@@ -179,5 +179,35 @@ describe("supervision rounds", () => {
     expect(chatLines(page)[0].kind).toBe("segment");
     expect(chatLines(mergeItems([], [user(1), fold()]))[0].kind).toBe("supervision");
     expect(chatLines(page).map((l) => l.id)).toEqual(["seg:u1#0"]);
+  });
+});
+
+describe("a supervisor Agent's digests in its own chat", () => {
+  const digest = (head: string) => `${head}\n\n1. "Write the fictional parser" (td_1): the hub judged it finished and it waits for your review\n   Done when: tests pass\n`;
+  const current = digest("Persona · supervision: 2 of your to-do's tasks need you. This message is not from the user.");
+  const earlier = digest("Persona · supervision: 1 of the worker tasks you handed out with task_plan need you. This message is not from the user.");
+
+  it("recognizes the digest's first line as routine triage, also behind a context block", () => {
+    expect(parseInjected(current)).toEqual({ kind: "system", state: "supervise", level: "triage", line: "督办：2 个派出去的任务要处理" });
+    expect(parseInjected(earlier)).toMatchObject({ state: "supervise", level: "triage", line: "督办：1 个派出去的任务要处理" });
+    expect(parseInjected(`<persona-context>\nFictional snapshot\n</persona-context>\n${current}`)?.state).toBe("supervise");
+    for (const text of ["Persona · supervision: none of your tasks need you", "A real request\nPersona · supervision: 2 of your to-do's tasks need you.", "persona · supervision: 2 of them"]) {
+      expect(parseInjected(text)).toBeNull();
+    }
+    expect(injectedOf(user(1, current, { client_msg_id: "fictional-message" }))).toBeNull();
+  });
+
+  it("folds each round into one line whatever the Agent replied or reviewed, unless the hub sent it for the user", () => {
+    const review = call(2, "mcp__persona__task_review", { verdict: "accepted" });
+    const round = [user(1, current), review, result(3, review), answer(4, "Accepted the fictional parser."), user(5, "A real request", { client_msg_id: "fictional-next" }), answer(6)];
+    expect(chatLines(round, { agent: true }).map((l) => l.kind)).toEqual(["supervision", "segment"]);
+    const [line] = chatLines(round, { agent: true });
+    expect(line.kind === "supervision" && line.lines.map((l) => l.kind)).toEqual(["segment"]);
+    // a Persona conversation keeps its own rule: the accepted review and the reply are shown
+    expect(chatLines(round).map((l) => l.kind)).toEqual(["segment", "segment"]);
+    // the hub's mark, as it sends it, folds the same way; a digest it sent for the user is shown
+    const marked: Injected = { kind: "system", state: "supervise", level: "triage", line: "督办：2 个派出去的任务要处理" };
+    expect(chatLines([user(1, current, { injected: marked }), answer(2)], { agent: true })[0].kind).toBe("supervision");
+    expect(chatLines([user(1, current, { injected: { ...marked, level: "user" } }), answer(2)], { agent: true })[0].kind).toBe("segment");
   });
 });

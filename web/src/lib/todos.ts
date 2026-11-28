@@ -15,7 +15,9 @@ import { byTime } from "./times";
 import { stateName, waitName } from "./state-labels";
 import { usageLimitAgent } from "./usage-limit";
 
-type TodoAgentSource = "manual" | "space" | "spawned" | "chat";
+/** How an Agent came onto the to-do; `leader`, `worker` and `review` belong to a to-do a supervisor Agent runs
+ *  (lib/todo-supervisor.ts): its supervisor, a worker on the worker's own to-do, an independent reviewer. */
+type TodoAgentSource = "manual" | "space" | "spawned" | "chat" | "leader" | "worker" | "review";
 
 export interface TodoAgent {
   machine_id: string;

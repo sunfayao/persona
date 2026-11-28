@@ -39,6 +39,8 @@ export function resolveLinkCurrentTodoId(
  *   "With project" if neither is available;
  * - Spawned from parent agent: "Spawned by <parent title>"; "Spawned" if parent is not in session list;
  * - Same Feishu chat as most of the todo's botmux agents: "Same chat";
+ * - A supervisor Agent's to-do (lib/todo-supervisor.ts): "Supervisor" on its supervisor, "Worker" on a worker's own
+ *   to-do, "Reviewer" on an independent reviewer;
  * - Manual: undefined (not labeled).
  */
 export function formatAgentSource(
@@ -81,6 +83,9 @@ export function formatAgentSource(
   }
 
   if (agent.source === "chat") return t("lib-todos.same_chat");
+  if (agent.source === "leader") return t("lib-todos.source_leader");
+  if (agent.source === "worker") return t("lib-todos.source_worker");
+  if (agent.source === "review") return t("lib-todos.source_review");
 
   return undefined;
 }
