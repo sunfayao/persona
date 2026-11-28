@@ -65,6 +65,7 @@ func (s *Service) toolUseLoop(ctx context.Context) {
 				s.logf("tool use: save: %v", err)
 			}
 			s.adaptToolUse(ctx, false)
+			s.toolNotes.Sweep(ctx) // the field notes' review dates, stale notes and covered fixes (tool_notes.go)
 		}
 	}
 }

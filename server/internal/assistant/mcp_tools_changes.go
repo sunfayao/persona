@@ -139,5 +139,5 @@ func (s *Service) toolsCursor(ctx context.Context, machine, session string, assi
 		cursor += ":ext=" + digest
 	}
 	cursor += s.coreToolsRevision(ctx, assistant) // the adaptive core tools (tool_use_adapt.go)
-	return cursor
+	return cursor + s.toolNotesRevision(ctx, assistant)
 }

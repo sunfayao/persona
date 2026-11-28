@@ -1,0 +1,10 @@
+{
+  "card_propose": "Add a field note to {tool}: “{text}”",
+  "card_propose_scoped": "Add a field note to {tool} ({where}): “{text}”",
+  "fix_title": "Fix {tool}: {code}",
+  "fix_seen": "Failed {count} times, first on {first}, last on {last}.",
+  "fix_skeleton": "Arguments that failed: {skeleton}",
+  "fix_retry": "Arguments of the retry that worked: {skeleton}",
+  "fix_conversations": "Conversations where it happened: {links}",
+  "fix_repository": "Repository: {repository}"
+}

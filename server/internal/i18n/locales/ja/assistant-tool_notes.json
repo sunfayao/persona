@@ -1,0 +1,10 @@
+{
+  "card_propose": "{tool} に使い方メモを追加します：「{text}」",
+  "card_propose_scoped": "{tool}（{where}）に使い方メモを追加します：「{text}」",
+  "fix_title": "{tool} を修正：{code}",
+  "fix_seen": "{count} 回失敗しました（初回 {first}、最終 {last}）。",
+  "fix_skeleton": "失敗した呼び出しの引数の形：{skeleton}",
+  "fix_retry": "うまくいった再試行の引数の形：{skeleton}",
+  "fix_conversations": "発生した会話：{links}",
+  "fix_repository": "リポジトリ：{repository}"
+}
