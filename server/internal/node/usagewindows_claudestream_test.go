@@ -77,6 +77,9 @@ func TestClaudeStreamUsageKeepsTheNewestSamplePerLauncher(t *testing.T) {
 		t.Helper()
 		n.usageWin.mu.Lock()
 		defer n.usageWin.mu.Unlock()
+		if configDir == "" {
+			configDir = n.defaultClaudeDir()
+		}
 		a, ok := n.usageWin.accounts[claudeStreamUsageKey(launcher, configDir)]
 		if !ok {
 			t.Fatalf("no source for %q / %q", launcher, configDir)

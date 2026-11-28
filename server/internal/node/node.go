@@ -533,6 +533,9 @@ func New(version string) (*Node, error) {
 		n.links.EnableDirect(d)
 	}
 	n.configureCodex(proto.CodexConfig{})
+	n.loadUsageWindows(n.bootAt)
+	n.usageWin.claudeProbe = n.pollClaudeUsage
+	n.usageWin.agyProbe = n.pollAgyUsage
 	n.hosts = host.NewRegistry(nodeHosts(false, n.logger.Printf)...) // botmux once the hub says
 	n.resetSignals()
 	n.state = newState()

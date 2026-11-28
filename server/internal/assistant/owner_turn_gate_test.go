@@ -8,7 +8,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
-// The owner's message always goes first (#6394): a backlog from other conversations stays queued for the whole of
+// The owner's message always goes first (#6394): a backlog of notices stays queued for the whole of
 // the owner's round, whatever rank its messages carry, and drains only once the round is seen over.
 func TestOwnerTurnGateHoldsTheWholeQueue(t *testing.T) {
 	presenceTimes(t, 150*time.Millisecond, time.Hour)
@@ -21,7 +21,7 @@ func TestOwnerTurnGateHoldsTheWholeQueue(t *testing.T) {
 	}
 	// A backlog: an ordinary relayed message, a decision-bearing notice and a late answer, each of a different rank.
 	at := time.Now().UTC()
-	s.queueRelay("conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: "conversation_send", Text: "ordinary", At: at})
+	s.queueRelay("conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: "fixture_notice", Text: "ordinary", At: at})
 	s.queueRelay("conv1", relayMsg{From: "t1", Tool: noticeTool, State: "needs", Text: "a decision", At: at})
 	s.queueRelay("conv1", relayMsg{From: "t2", Tool: askAnswerTool, Text: "the late answer", At: at})
 	if q := s.queuedFor("conv1"); q != 3 {
@@ -70,7 +70,7 @@ func TestOwnerTurnGateSafetyStartWait(t *testing.T) {
 	stopHolds(t, s)
 	ctx := context.Background()
 	session := proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle}
-	s.queueRelay("conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: "conversation_send", Text: "held", At: time.Now().UTC()})
+	s.queueRelay("conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: "fixture_notice", Text: "held", At: time.Now().UTC()})
 	spoke := time.Now()
 	s.UserSpoke(ctx, SessionRef{MachineID: "server", SessionID: "conv1"})
 	s.drainRelays("server", []proto.Session{session})
@@ -94,7 +94,7 @@ func TestOwnerTurnGateHardCapAndRefresh(t *testing.T) {
 	stopHolds(t, s)
 	ctx := context.Background()
 	session := proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true}
-	s.queueRelay("conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: "conversation_send", Text: "held", At: time.Now().UTC()})
+	s.queueRelay("conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: "fixture_notice", Text: "held", At: time.Now().UTC()})
 	s.UserSpoke(ctx, SessionRef{MachineID: "server", SessionID: "conv1"})
 	s.setSessions("server", []proto.Session{session, {SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusWorking}})
 	// The owner speaks again mid-round: the cap starts over. Put the first turn at an exact timestamp rather than
@@ -126,7 +126,7 @@ func TestOwnerTurnGateScopedToConversation(t *testing.T) {
 	f.setSessions("server",
 		proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
 		proto.Session{SessionID: "lead1", MachineID: "server", Assistant: true, Status: proto.StatusIdle})
-	msg := relayMsg{From: "c2", FromTitle: "Research", Tool: "conversation_send", Text: "hello", At: time.Now().UTC()}
+	msg := relayMsg{From: "c2", FromTitle: "Research", Tool: "fixture_notice", Text: "hello", At: time.Now().UTC()}
 	s.UserSpoke(ctx, SessionRef{MachineID: "server", SessionID: "conv1"})
 	s.relayOrQueue(ctx, "conv1", msg)
 	s.relayOrQueue(ctx, "lead1", msg)

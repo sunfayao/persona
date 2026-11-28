@@ -48,9 +48,7 @@ func queuedRelays(s *Service, id string) []relayMsg {
 	return append([]relayMsg(nil), b.st.Queue[id]...)
 }
 
-// The supervision message itself (deliverDigest): held for the owner in an idle conversation, it waits on a decision
-// exactly when one of its signals does, also once a later signal merged into the one still queued, and its
-// relayDecisionMax then counts from that merge.
+// A failed delivery keeps its digest and preserves decision priority when later signals merge into it.
 func TestSupervisionMessageWaitsOnADecisionByItsSignals(t *testing.T) {
 	presenceTimes(t, time.Hour, time.Hour)
 	s, f := newQuietService(t)
@@ -68,6 +66,9 @@ func TestSupervisionMessageWaitsOnADecisionByItsSignals(t *testing.T) {
 	if _, _, err := s.updateSupervision(ctx, ids[0], func(v *Supervision) bool { v.State = reviewPending; return true }); err != nil {
 		t.Fatal(err)
 	}
+	f.mu.Lock()
+	f.failAssistant = errors.New("runtime temporarily unavailable")
+	f.mu.Unlock()
 	s.UserSpoke(ctx, SessionRef{MachineID: "server", SessionID: "conv1"})
 	s.signal(superviseSignal{Todo: ids[0], Kind: sigReview, Key: "1", Detail: "looks finished"})
 	waitFor(t, "the supervision message to queue", func() bool { return s.queuedFor("conv1") == 1 })
@@ -97,6 +98,9 @@ func TestSupervisionMessageWithADecisionIsQueuedUrgent(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.superviseTodo(ctx, todo.ID, "conv1", []string{"merged"}, 0)
+	f.mu.Lock()
+	f.failAssistant = errors.New("runtime temporarily unavailable")
+	f.mu.Unlock()
 	s.UserSpoke(ctx, SessionRef{MachineID: "server", SessionID: "conv1"})
 	s.signal(superviseSignal{Todo: todo.ID, Kind: sigFailed, Key: "x", Detail: "its computer is offline"})
 	waitFor(t, "the supervision message to queue", func() bool { return s.queuedFor("conv1") == 1 })
@@ -152,7 +156,7 @@ func TestPresenceHoldsOnlyTheConversationSpokenIn(t *testing.T) {
 	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
 		proto.Session{SessionID: "lead1", MachineID: "server", Assistant: true, Status: proto.StatusIdle})
 	s.UserSpoke(ctx, SessionRef{MachineID: "server", SessionID: "lead1"})
-	msg := relayMsg{From: "c2", FromTitle: "Research", Tool: "conversation_send", Text: "hello", At: time.Now().UTC()}
+	msg := relayMsg{From: "c2", FromTitle: "Research", Tool: noticeTool, Text: "hello", At: time.Now().UTC()}
 	s.relayOrQueue(ctx, "conv1", msg)
 	s.relayOrQueue(ctx, "lead1", msg)
 	if a, b := f.sentTo("conv1"), f.sentTo("lead1"); a != 1 || b != 0 {
@@ -175,8 +179,8 @@ func TestDecisionWaitingMessagesAreHeldAtMost(t *testing.T) {
 		msg  relayMsg
 		want time.Duration
 	}{
-		{"an ordinary message waits out the owner's round", relayMsg{Tool: "conversation_send", At: now.Add(-10 * time.Minute)}, gateWait},
-		{"a fresh decision waits just as long", relayMsg{Tool: superviseTool, Urgent: true, At: now}, gateWait},
+		{"an ordinary message waits out the owner's round", relayMsg{Tool: noticeTool, At: now.Add(-10 * time.Minute)}, gateWait},
+		{"a fresh decision waits just as long", relayMsg{Tool: noticeTool, State: "needs", At: now}, gateWait},
 		{"a decision past the old five-minute cap still waits", relayMsg{Tool: askAnswerTool, At: now.Add(-5 * time.Minute)}, gateWait},
 		{"the owner's own answer is not held", relayMsg{Tool: askAnswerTool, Owner: true, At: now}, 0},
 	} {
@@ -184,16 +188,16 @@ func TestDecisionWaitingMessagesAreHeldAtMost(t *testing.T) {
 			t.Errorf("%s: held %s, want %s", tc.name, got, tc.want)
 		}
 	}
-	if got := b.holdLocked("other", relayMsg{Tool: "conversation_send", At: now}, now); got != 0 {
+	if got := b.holdLocked("other", relayMsg{Tool: noticeTool, At: now}, now); got != 0 {
 		t.Fatalf("a conversation the owner did not speak in is held %s", got)
 	}
 	// A round seen working moves the gate to its hard cap; a list showing it stopped releases the gate.
 	b.ownerRoundsSeenLocked([]proto.Session{{SessionID: "conv1", Status: proto.StatusWorking}}, now)
-	if got := b.holdLocked("conv1", relayMsg{Tool: "conversation_send"}, now); got != ownerTurnMax-30*time.Second {
+	if got := b.holdLocked("conv1", relayMsg{Tool: noticeTool}, now); got != ownerTurnMax-30*time.Second {
 		t.Fatalf("the working round is held %s, want the hard cap", got)
 	}
 	b.ownerRoundsSeenLocked([]proto.Session{{SessionID: "conv1", Status: proto.StatusIdle}}, now)
-	if got := b.holdLocked("conv1", relayMsg{Tool: "conversation_send"}, now); got != 90*time.Second {
+	if got := b.holdLocked("conv1", relayMsg{Tool: noticeTool}, now); got != 90*time.Second {
 		t.Fatalf("after the round the presence window holds %s, want 90s", got)
 	}
 	// With the gate gone, the ranks and the decision cap decide as before.
@@ -202,15 +206,15 @@ func TestDecisionWaitingMessagesAreHeldAtMost(t *testing.T) {
 		msg  relayMsg
 		want time.Duration
 	}{
-		{"an ordinary message waits out the owner", relayMsg{Tool: "conversation_send", At: now.Add(-10 * time.Minute)}, 90 * time.Second},
-		{"a fresh decision waits as long", relayMsg{Tool: superviseTool, Urgent: true, At: now}, 90 * time.Second},
-		{"a decision that waited 4 minutes has one more", relayMsg{Tool: superviseTool, Urgent: true, At: now.Add(-4 * time.Minute)}, time.Minute},
+		{"an ordinary message waits out the owner", relayMsg{Tool: noticeTool, At: now.Add(-10 * time.Minute)}, 90 * time.Second},
+		{"a fresh decision waits as long", relayMsg{Tool: noticeTool, State: "needs", At: now}, 90 * time.Second},
+		{"a decision that waited 4 minutes has one more", relayMsg{Tool: noticeTool, State: "needs", At: now.Add(-4 * time.Minute)}, time.Minute},
 		{"a decision that waited 5 minutes goes", relayMsg{Tool: askAnswerTool, At: now.Add(-5 * time.Minute)}, 0},
 		{"a decision that does not say when it queued goes", relayMsg{Tool: askAnswerTool}, 0},
 		// Since #5006 a queued message says when it queued (queued_at): the 5 minutes count from then, not from when
 		// the message was written.
 		{"a decision written long ago that queued a minute ago", relayMsg{Tool: askAnswerTool, At: now.Add(-time.Hour), QueuedAt: now.Add(-time.Minute)}, 90 * time.Second},
-		{"a decision that queued 4 minutes ago has one more", relayMsg{Tool: superviseTool, Urgent: true, At: now, QueuedAt: now.Add(-4 * time.Minute)}, time.Minute},
+		{"a decision that queued 4 minutes ago has one more", relayMsg{Tool: noticeTool, State: "needs", At: now, QueuedAt: now.Add(-4 * time.Minute)}, time.Minute},
 		{"a decision that queued 5 minutes ago goes", relayMsg{Tool: askAnswerTool, At: now, QueuedAt: now.Add(-5 * time.Minute)}, 0},
 		{"a message that began to wait on a decision a minute ago", relayMsg{Tool: noticeTool, State: "needs", QueuedAt: now.Add(-10 * time.Minute), DecisionAt: now.Add(-time.Minute)}, 90 * time.Second},
 	} {
@@ -218,18 +222,18 @@ func TestDecisionWaitingMessagesAreHeldAtMost(t *testing.T) {
 			t.Errorf("%s: held %s, want %s", tc.name, got, tc.want)
 		}
 	}
-	if got := b.holdLocked("other", relayMsg{Tool: "conversation_send", At: now}, now); got != 0 {
+	if got := b.holdLocked("other", relayMsg{Tool: noticeTool, At: now}, now); got != 0 {
 		t.Fatalf("a conversation the owner did not speak in is held %s", got)
 	}
 	// The pick skips what is held and says how long until the first may go.
 	b.st.Queue["conv1"] = []relayMsg{
-		{Tool: "conversation_send", Text: "other", At: now.Add(-10 * time.Minute)},
-		{Tool: superviseTool, Urgent: true, Text: "soon", At: now.Add(-4 * time.Minute)},
+		{Tool: noticeTool, Text: "other", At: now.Add(-10 * time.Minute)},
+		{Tool: noticeTool, State: "needs", Text: "soon", At: now.Add(-4 * time.Minute)},
 	}
-	if i, wait := b.pickLocked("conv1", now); i != -1 || wait != time.Minute {
+	if i, wait := b.pickLocked("conv1", now, false); i != -1 || wait != time.Minute {
 		t.Fatalf("pick %d, wait %s", i, wait)
 	}
-	if i, wait := b.pickLocked("conv1", now.Add(time.Minute)); i != 1 || wait != 0 {
+	if i, wait := b.pickLocked("conv1", now.Add(time.Minute), false); i != 1 || wait != 0 {
 		t.Fatalf("after the decision's hold: pick %d, wait %s", i, wait)
 	}
 	b.frontLocked("conv1", 1)
@@ -250,7 +254,7 @@ func TestDecisionGoesInWhileTheOwnerKeepsTalking(t *testing.T) {
 		return proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: status}
 	}
 	s.UserSpoke(ctx, SessionRef{MachineID: "server", SessionID: "conv1"})
-	s.relayOrQueue(ctx, "conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: "conversation_send", Text: "ordinary", At: time.Now().UTC()})
+	s.relayOrQueue(ctx, "conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: noticeTool, Text: "ordinary", At: time.Now().UTC()})
 	s.relayOrQueue(ctx, "conv1", relayMsg{From: "t1", Tool: askAnswerTool, Text: "the late answer", At: time.Now().UTC()})
 	if q, sent := s.queuedFor("conv1"), f.sentTo("conv1"); q != 2 || sent != 0 {
 		t.Fatalf("at first: %d queued, %d sent", q, sent)
@@ -374,7 +378,7 @@ func TestUnresolvedSupervisionHeadBlocksLaterReplacement(t *testing.T) {
 // it was added; those it passed record theirs when they go in, the longer for it.
 func TestQueueWaitOfReRankedMessages(t *testing.T) {
 	s, f := newQuietService(t)
-	s.queueRelay("conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: "conversation_send", Text: "ordinary"})
+	s.queueRelay("conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: "fixture", Text: "ordinary"})
 	s.queueRelay("conv1", relayMsg{From: "t1", Tool: noticeTool, State: "done", Text: "report"})
 	s.queueRelay("conv1", relayMsg{From: "t4", Tool: askAnswerTool, Text: "answer"})
 	now := time.Now().UTC()
@@ -395,7 +399,7 @@ func TestQueueWaitOfReRankedMessages(t *testing.T) {
 		kind  string
 		depth int
 		wait  float64
-	}{{roundNotice, 3, 600}, {roundNotice, 2, 1200}, {proto.SourceConversation, 1, 1800}} {
+	}{{roundNotice, 3, 600}, {roundNotice, 2, 1200}, {roundNotice, 1, 1800}} {
 		e := availEvents(s, queueWaitEvent)[i]
 		if wait, _ := e["wait"].(float64); e["kind"] != want.kind || e["depth"] != want.depth || wait < want.wait || wait > want.wait+30 {
 			t.Fatalf("queue wait %d is %v, want %+v", i, e, want)
@@ -412,7 +416,7 @@ func TestHeldRelaysSurviveARestart(t *testing.T) {
 	stopHolds(t, s)
 	ctx := context.Background()
 	s.UserSpoke(ctx, SessionRef{MachineID: "server", SessionID: "conv1"})
-	s.relayOrQueue(ctx, "conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: "conversation_send", Text: "held", At: time.Now().UTC()})
+	s.relayOrQueue(ctx, "conv1", relayMsg{From: "c2", FromTitle: "Research", Tool: noticeTool, Text: "held", At: time.Now().UTC()})
 	if s.queuedFor("conv1") != 1 {
 		t.Fatal("not held")
 	}
@@ -434,5 +438,36 @@ func TestHeldRelaysSurviveARestart(t *testing.T) {
 	restarted.relays.mu.Unlock()
 	if kept {
 		t.Fatal("the owner's last message is kept after its hold ended and its queue was handed on")
+	}
+}
+
+func TestConversationFollowUpReachesRunningRuntimeDuringOwnerTurn(t *testing.T) {
+	for _, agent := range []string{"agy", "claude", "codex", "traex"} {
+		t.Run(agent, func(t *testing.T) {
+			s, f := newQuietService(t)
+			ctx := t.Context()
+			f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Agent: agent, Assistant: true, Status: proto.StatusWorking},
+				proto.Session{SessionID: "conv2", MachineID: "server", Assistant: true, Status: proto.StatusIdle})
+			s.UserSpoke(ctx, SessionRef{MachineID: "server", SessionID: "conv1"})
+			result, err := s.toolConversationSend(ctx, "conv2", []byte(`{"id":"conv1","text":"follow up with this result"}`))
+			if err != nil || !strings.HasPrefix(result, "Sent to") || f.sentTo("conv1") != 1 || s.queuedFor("conv1") != 0 {
+				t.Fatalf("result %q, error %v, sent %d, pending %d", result, err, f.sentTo("conv1"), s.queuedFor("conv1"))
+			}
+		})
+	}
+}
+
+func TestNativeFollowUpCanRetryWhileRecipientIsWorking(t *testing.T) {
+	now := time.Now()
+	book := relayBook{st: relayState{Queue: map[string][]relayMsg{
+		"conv1": {
+			{Tool: noticeTool, State: "needs", At: now},
+			{Tool: superviseTool, At: now},
+			{Tool: "conversation_send", At: now},
+		},
+	}}}
+	book.ownerSpokeLocked("conv1", now)
+	if i, wait := book.pickLocked("conv1", now, true); i != 1 || wait != 0 {
+		t.Fatalf("selected %d after %s during the owner's turn", i, wait)
 	}
 }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { usageAccountFromQuota } from '../lib/usage.js'
+import { readNativeQuota, usageAccountFromQuota } from '../lib/usage.js'
 
 const sampledAt = new Date('2026-11-20T23:00:00Z')
 
@@ -95,4 +95,17 @@ test('malformed native bucket collections are rejected', () => {
   ]) {
     assert.throws(() => usageAccountFromQuota({ response }, sampledAt), TypeError)
   }
+})
+
+test('the shared quota reader sends only the native quota request', async () => {
+  const client = {
+    async nativeRequest(method, params) {
+      assert.equal(method, 'RetrieveUserQuotaSummary')
+      assert.deepEqual(params, { request: { forceRefresh: false } })
+      return { response: { buckets: [{ window: '5h', remainingFraction: 0.25 }] } }
+    },
+  }
+  const result = await readNativeQuota(client, () => sampledAt)
+  assert.equal(result.sampled_at, sampledAt.toISOString())
+  assert.equal(result.windows[0].used_percent, 75)
 })

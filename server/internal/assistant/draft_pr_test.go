@@ -201,7 +201,7 @@ func TestDraftPRBusySupervisorRevalidatesBeforeDelivery(t *testing.T) {
 			if !ok {
 				t.Fatal("missing supervisor")
 			}
-			supervisor.Status = "working"
+			supervisor.Status, supervisor.Starting = "working", true
 			hub.setSessions("server", supervisor)
 			want := 0
 			if existing {
@@ -226,7 +226,7 @@ func TestDraftPRBusySupervisorRevalidatesBeforeDelivery(t *testing.T) {
 			if err := s.applyPRStatus(ctx, task, status); err != nil {
 				t.Fatal(err)
 			}
-			supervisor.Status = "idle"
+			supervisor.Status, supervisor.Starting = "idle", false
 			hub.setSessions("server", supervisor)
 			sessions, err := s.sessions(ctx, "server")
 			if err != nil {
@@ -251,7 +251,7 @@ func TestDraftPRRetriesAndDeduplicatesEachHead(t *testing.T) {
 	if !ok {
 		t.Fatal("missing supervisor")
 	}
-	supervisor.Status = "working"
+	supervisor.Status, supervisor.Starting = "working", true
 	hub.setSessions("server", supervisor)
 	for i, head := range []string{"head-a", "head-a", "head-b", "head-a"} {
 		status := TodoPRStatus{URL: task.PRURL, State: "open", Draft: true, Own: true, HeadOID: head, CheckedAt: time.Now()}
@@ -263,7 +263,7 @@ func TestDraftPRRetriesAndDeduplicatesEachHead(t *testing.T) {
 			if len(hub.notices()) != 0 {
 				t.Fatal("busy supervisor received a draft")
 			}
-			supervisor.Status = "idle"
+			supervisor.Status, supervisor.Starting = "idle", false
 			hub.setSessions("server", supervisor)
 		}
 		// Clear volatile sent-state: persisted fingerprints must still prevent duplicate delivery.

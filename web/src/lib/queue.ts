@@ -3,7 +3,14 @@
 import { t } from "../i18n";
 import { quotePath } from "./attachments";
 import { CONTEXT_RE } from "./compatibility";
+import type { Session } from "./types";
 import { parseUserText, tagAttrs, type AttachedFile } from "./turns";
+
+/** Older managers append server-side relays after the CLI's input queue. */
+export function ownQueuedCount(session: Pick<Session, "queued" | "queued_relayed">): number {
+  const length = session.queued?.length ?? 0;
+  return Math.max(0, length - Math.max(0, session.queued_relayed ?? 0));
+}
 
 /** The order to re-queue in when message `index` moves `by` places (−1 up, +1 down; #6088): every message, that one moved.
  *  Null when it cannot move that way. */

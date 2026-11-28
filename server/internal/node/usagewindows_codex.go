@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"encoding/json"
-	"github.com/sunfayao/persona/server/internal/node/harness/codex/appserver"
 	"os"
 	"slices"
 	"sort"
@@ -12,12 +11,14 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/sunfayao/persona/server/internal/node/harness/codex/appserver"
+	"github.com/sunfayao/persona/server/internal/node/usagewindows"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const (
 	codexUsagePollParallel = 4
-	codexUsagePollTimeout  = 5 * time.Second // each home, including app-server startup
+	codexUsagePollTimeout  = 15 * time.Second // each attempt, including app-server startup
 	codexUsageMaxBackoff   = 30 * time.Minute
 )
 
@@ -73,9 +74,10 @@ func collectCodexAppUsage(ctx context.Context, homes []string, found map[string]
 			continue
 		}
 		reads.Go(func() error {
-			readCtx, cancel := context.WithTimeout(ctx, codexUsagePollTimeout)
-			defer cancel()
-			entry.probe = readCodexAppUsage(readCtx, cli, home)
+			usagewindows.Probe(ctx, codexUsagePollTimeout, usageProbeBackoff, func(readCtx context.Context) bool {
+				entry.probe = readCodexAppUsage(readCtx, cli, home)
+				return len(entry.probe.account.Windows) == 0 && !entry.probe.unavailable
+			})
 			if len(entry.probe.account.Windows) == 0 && !entry.probe.unavailable {
 				entry.state.delay = min(max(2*entry.state.delay, 2*usageWindowsEvery), codexUsageMaxBackoff)
 				entry.state.retryAt = now.Add(entry.state.delay)

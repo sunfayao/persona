@@ -760,12 +760,11 @@ func (s *Service) queuedRelays() (map[string][]string, bool) {
 	}
 	for id, q := range b.st.Queue {
 		for _, msg := range q {
+			if msg.nativeFollowUp() {
+				continue // retries are transport bookkeeping, not pending chat input
+			}
 			if msg.Tool == noticeTool || msg.Tool == askAnswerTool || msg.Tool == taskEndTool || msg.Tool == prFollowupTool || msg.Tool == relayRefusedTool { // a quiet task's notice (quiet.go), a question's answer (ask_todo.go): its title is enough
 				out[id] = append(out[id], msg.FromTitle+"的通知")
-				continue
-			}
-			if msg.Tool == superviseTool { // the tasks to follow up (supervise_digest.go)
-				out[id] = append(out[id], "督办消息")
 				continue
 			}
 			if msg.Tool == chatReplyTool { // a chat's new messages (chat_reply.go): their words stay out of the label
@@ -776,6 +775,11 @@ func (s *Service) queuedRelays() (map[string][]string, bool) {
 		}
 	}
 	return out, true
+}
+
+// nativeFollowUp uses the runtime input queue even while another turn is running.
+func (msg relayMsg) nativeFollowUp() bool {
+	return msg.Tool == superviseTool || msg.Tool == "conversation_send"
 }
 
 func (msg relayMsg) source() *proto.MessageSource {
@@ -847,6 +851,9 @@ func (s *Service) deliverRelay(ctx context.Context, machine, to string, msg rela
 		s.backgroundRoundDelivered(ctx, to, msg, time.Now())
 	}
 	s.relayDelivered(ctx, to, msg)
+	if msg.nativeFollowUp() {
+		go s.releaseAsksForInput(to, true)
+	}
 	return nil
 }
 
@@ -973,11 +980,7 @@ func (s *Service) takeRelayHeadLocked(id string, msg relayMsg, replayOK bool) (r
 	return replay
 }
 
-// drainRelays delivers the next queued message to every conversation of the machine that is not running (called
-// whenever its list changes: a turn that just ended, or the hub starting with messages still queued). Next is the
-// best-ranked message the owner's presence does not hold (relay_presence.go); it is moved to the head of the queue,
-// where the message going in is. A conversation whose messages are all held is drained again when the first hold
-// ends.
+// drainRelays retries queued deliveries, including native follow-ups to running conversations.
 func (s *Service) drainRelays(machine string, list []proto.Session) {
 	b := &s.relays
 	b.mu.Lock()
@@ -989,8 +992,8 @@ func (s *Service) drainRelays(machine string, list []proto.Session) {
 	held := map[string]time.Duration{}
 	now := time.Now()
 	for _, c := range list {
-		if len(b.st.Queue[c.SessionID]) > 0 && c.Status != proto.StatusWorking && !c.Starting && !b.draining[c.SessionID] && !b.replacing[c.SessionID] {
-			i, wait := b.pickLocked(c.SessionID, now)
+		if len(b.st.Queue[c.SessionID]) > 0 && !c.Starting && !b.draining[c.SessionID] && !b.replacing[c.SessionID] {
+			i, wait := b.pickLocked(c.SessionID, now, c.Status == proto.StatusWorking)
 			if last, stuck := b.stuck[c.SessionID]; stuck && i >= 0 && b.st.Queue[c.SessionID][i] == last {
 				// Only the message it failed to take is left to go: tried again after a gap, not on every list.
 				if gap := relayRetryGap - now.Sub(b.failedAt[c.SessionID]); gap > 0 {
@@ -999,7 +1002,9 @@ func (s *Service) drainRelays(machine string, list []proto.Session) {
 				}
 			}
 			if i < 0 {
-				held[c.SessionID] = wait
+				if wait > 0 {
+					held[c.SessionID] = wait
+				}
 				continue
 			}
 			b.frontLocked(c.SessionID, i)
@@ -1117,8 +1122,13 @@ func (s *Service) drainRelays(machine string, list []proto.Session) {
 				}
 				b.stuck[id] = msg // the next drain takes another one first (pickLocked)
 			}
-			if retry > 0 {
+			switch {
+			case retry > 0:
 				s.drainAfterLocked(machine, id, retry)
+			case msg.nativeFollowUp() && taken && len(b.st.Queue[id]) > 0:
+				s.drainAfterLocked(machine, id, 0)
+			case msg.nativeFollowUp() && !leaves && !refused && relayRetryGap > 0:
+				s.drainAfterLocked(machine, id, relayRetryGap)
 			}
 			b.mu.Unlock()
 			if len(replay) > 0 {
@@ -1154,7 +1164,8 @@ func (s *Service) assistantConversation(ctx context.Context, id string) (proto.S
 // spaceConversation is assistantConversation among the conversations of one space only (in == nil: any): a
 // conversation's tools reach only the conversations of its own space.
 func (s *Service) spaceConversation(ctx context.Context, id string, in *string) (proto.Session, error) {
-	list, err := s.sessions(ctx, s.settings(ctx).MachineID)
+	machine := s.settings(ctx).MachineID
+	list, err := s.sessions(ctx, machine)
 	if errors.Is(err, ErrNoDevice) {
 		return proto.Session{}, errors.New("the assistant's machine is not configured")
 	}
@@ -1169,6 +1180,9 @@ func (s *Service) spaceConversation(ctx context.Context, id string, in *string) 
 	for _, c := range list {
 		if !c.Assistant || in != nil && spaceOf(c) != *in {
 			continue
+		}
+		if c.MachineID == "" {
+			c.MachineID = machine
 		}
 		if c.SessionID == id {
 			return c, nil
@@ -1401,22 +1415,16 @@ func (s *Service) toolConversationSend(ctx context.Context, self string, args js
 		return fmt.Sprintf("Queued for %q: %d %s in the last %d minutes already (at most %d). It goes in at about %s (in %d min), once, after what waits before it (%d waiting); no need to send it again.%s",
 			name, adm.count, adm.what, int(relayWindow.Minutes()), adm.limit, at.Format("15:04"), int(math.Ceil(time.Until(msg.Due).Minutes())), n, back), nil
 	}
-	if running := c.Status == proto.StatusWorking || c.Starting; running || s.relayWaits(c.SessionID, msg) {
-		n := s.queueRelay(c.SessionID, msg)
-		if n > 0 {
+	if s.relayReplacing(c.SessionID) {
+		if s.queueRelay(c.SessionID, msg) == 0 {
+			return "", errors.New("not sent: the relay queue could not be read; try again shortly")
 		}
-		s.publish(ctx) // the receiver shows it waiting above its composer
-		if running {
-			return fmt.Sprintf("%q is running: the message is queued (%d waiting) and goes in when its current turn ends.%s", name, n, back), nil
-		}
-		s.drainRelays(c.MachineID, []proto.Session{c}) // what may go goes; the rest when the hold for the user ends
-		return fmt.Sprintf("%q has messages waiting, or the user is talking in it: the message is queued (%d waiting) and goes in after them.%s", name, n, back), nil
+		s.drainAfter(c.MachineID, c.SessionID, relayRetryGap)
+		return fmt.Sprintf("Queued for %q while its runtime reconnects.%s", name, back), nil
 	}
 	if err := s.tryDirectRelay(ctx, c.MachineID, c.SessionID, &msg); err != nil {
-		if f := relayFailureOf(err); f != relayFailedInDoubt && f != relayFailedNotNow {
-			// Back to the sender, nothing queued: a refusal for good, a conversation that is gone, a setup the owner
-			// fixes, the manager's own refusal (its model or connection gone, a pick that cannot be read), and, until
-			// #11393's decision 1 says otherwise, a conversation at work or away (relayFailedBusy). Fail closed.
+		if f := relayFailureOf(err); f != relayFailedInDoubt && f != relayFailedNotNow && f != relayFailedBusy {
+			// A permanent refusal or a missing setup is returned to the sender.
 			return "", err
 		}
 		// It could not take the message now (it did not start, its computer is away, the answer did not come): kept
