@@ -158,7 +158,8 @@ func notesDraft(d tooluse.Draft) toolnotes.Draft {
 		NoteID: d.NoteID, TodoID: d.TodoID}
 }
 
-// savedRepository is the repository saved in Persona at path (owner/name, any provider), which a fix's to-do is bound to.
+// savedRepository is the repository saved in Persona at path (owner/name, any provider): a fix's to-do is bound
+// to it.
 func (s *Service) savedRepository(ctx context.Context, path string) (toolnotes.Repository, bool) {
 	doc, err := s.repositoryDocument(ctx)
 	if err != nil {

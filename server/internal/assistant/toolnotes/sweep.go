@@ -16,11 +16,11 @@ const (
 	reasonCovered  = "covered: its fix, to-do %s, is done"
 )
 
-// Sweep is the notes' upkeep, run at start and every few minutes: a proposal whose card is gone (the manager
-// restarted) retires unanswered; a note whose tool's description changed retires; a done fix to-do retires the notes
-// of its tool and code; retired notes past keepRetired, or past maxRetired, are dropped. What changed is stored once,
-// and the tool watches are woken once when what the descriptions show changed, a note past its review date since the
-// last Sweep included. A tool missing from the list (an extension off or still starting) retires none of its notes.
+// Sweep is the notes' upkeep, run every few minutes (the tool record's tick): a proposal whose card is gone (the
+// manager restarted) retires unanswered; a note whose tool's description changed retires; a done fix to-do retires the
+// notes of its tool and code; retired notes past keepRetired, or past maxRetired, are dropped. What changed is stored
+// once, and the tool watches are woken once when what the descriptions show changed, a note past its review date since
+// the last Sweep included. A tool missing from the list (an extension off or still starting) retires none of its notes.
 func (d *Domain) Sweep(ctx context.Context) {
 	if err := d.ensure(ctx); err != nil {
 		d.h.Logf("tool notes: read: %v", err)

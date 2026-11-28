@@ -54,7 +54,7 @@ const (
 	MaxBlock   = 600
 	// ReviewDays is how long an approved note stays before it is due for review.
 	ReviewDays = 90
-	// maxActive bounds the notes that are not retired; maxRetired and keepRetired the retired ones kept for list.
+	// maxActive bounds the notes that are not retired; maxRetired and keepRetired the retired ones kept as a record.
 	maxActive   = 100
 	maxRetired  = 100
 	keepRetired = 90 * 24 * time.Hour
@@ -138,8 +138,9 @@ type Call struct {
 	Zone             *time.Location
 }
 
-// Card is a one-tap card a change waits on: the conversation it is shown in, its line in the user's language, the
-// details it shows, and Key, which makes two proposals in one conversation the same one (approval.Operation.Replacement).
+// Card is the one-tap card a proposal waits on: the conversation it is shown in, its line in the user's language, the
+// details it shows, and Key, which makes two proposals in one conversation the same one
+// (approval.Operation.Replacement).
 type Card struct {
 	Machine, Session string
 	Summary          string
