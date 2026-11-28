@@ -215,10 +215,38 @@ func (d *Domain) Evaluate(p Parent, pieces []Piece, m *Marker) Verdict {
 	case m.attempts() < MaxWakes && now.Sub(m.At) >= ReraiseAfter && !p.Parked && !p.Updated.After(m.At):
 		v.Action, v.Key = ActionWake, v.Key+"#"+strconv.Itoa(m.attempts()+1)
 	}
+	// A parent is awaiting only while a wake is pending or may still be raised again. Once the wakes are used up (or a
+	// note recorded since the last one ended them) nobody will be told again: it counts as unattended.
+	if v.Action == ActionNone && !v.Container && (m == nil || m.attempts() >= MaxWakes || p.Updated.After(m.At)) {
+		v.State = ""
+	}
 	return v
 }
 
-func (m Marker) attempts() int { return max(m.Count, 1) }
+// Current is the wake marker kept for parent id, nil when there is none or the store cannot be read.
+func (d *Domain) Current(ctx context.Context, id string) *Marker {
+	if m, ok, err := d.Marker(ctx, id); err == nil && ok {
+		return &m
+	}
+	return nil
+}
+
+// Unchanged says whether the pieces now are the pieces a close was decided on, and still all finished: none reopened,
+// attached, replaced or changed in between.
+func Unchanged(decided, now []Piece) bool {
+	return Ready(now) && slices.EqualFunc(now, decided, func(a, b Piece) bool {
+		return a.ID == b.ID && a.Done == b.Done && a.Cancelled == b.Cancelled && a.StartFailed == b.StartFailed && a.Changed.Equal(b.Changed)
+	})
+}
+
+// attempts is how many wakes the marker stands for. A marker without a count was written before wakes were counted
+// and before they were capped: it counts as used up, so a deploy does not wake old parents again.
+func (m Marker) attempts() int {
+	if m.Count <= 0 {
+		return MaxWakes
+	}
+	return m.Count
+}
 
 // RollUp is the result text of a closed container: each piece's verdict (with the cancel reason, the criteria met and
 // the delivery links) in the owner's language, one line each under a heading.

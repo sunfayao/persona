@@ -165,14 +165,22 @@ func TestEvaluateWakeAndReraise(t *testing.T) {
 	if v := d.Evaluate(own, append(pieces, piece("b", nil)), m); v.Action != ActionWake || v.Key != "children:a,b" {
 		t.Fatalf("a new finished set wakes afresh: %+v", v)
 	}
-	// at most three wakes; a marker from before re-raising (no count) is one
+	// at most three wakes; a marker from before re-raising (no count) counts as used up
 	m.Count = MaxWakes
 	if v := d.Evaluate(own, pieces, m); v.Action != ActionNone {
 		t.Fatalf("fourth wake: %+v", v)
 	}
+	if v := d.Evaluate(own, pieces, m); v.State != "" {
+		t.Fatalf("wakes used up: the parent is unattended again, not awaiting: %+v", v)
+	}
 	m.Count = 0
-	if v := d.Evaluate(own, pieces, m); v.Key != "children:a#2" {
-		t.Fatalf("legacy marker: %+v", v)
+	if v := d.Evaluate(own, pieces, m); v.Action != ActionNone || v.State != "" {
+		t.Fatalf("a marker written before the count is used up: %+v", v)
+	}
+	noted.Updated = m.At.Add(time.Minute)
+	m.Count = 1
+	if v := d.Evaluate(noted, pieces, m); v.State != "" {
+		t.Fatalf("no wake can be raised any more after a note: %+v", v)
 	}
 }
 

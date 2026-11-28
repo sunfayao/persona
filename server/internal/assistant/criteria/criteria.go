@@ -45,9 +45,16 @@ func Fit(s string) string {
 }
 
 // TooLong refuses a new criterion longer than Max runes (after one-lining) and says which one. what names the field.
-func TooLong(what string, list []string) error {
+// A stored criterion that an older build clipped (Max runes and the clip mark, see Fit) is not new and passes.
+func TooLong(what string, list []string) error { return TooLongNew(what, list, nil) }
+
+// TooLongNew is TooLong for a whole list sent back: an item that is already in current, unchanged, is not new.
+func TooLongNew(what string, list, current []string) error {
 	for i, c := range list {
-		if n := utf8.RuneCountInString(textfmt.OneLine(c)); n > Max {
+		if slices.Contains(current, c) {
+			continue
+		}
+		if n := utf8.RuneCountInString(textfmt.OneLine(c)); n > Max && Fit(c) != textfmt.OneLine(c) {
 			return fmt.Errorf("%s item %d is %d characters: a criterion is one checkable result of at most %d characters; put procedure "+
 				"and context in the prompt, not in the criteria. Nothing was written", what, i+1, n, Max)
 		}

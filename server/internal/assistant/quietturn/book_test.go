@@ -93,14 +93,14 @@ func TestFinishClosesOlderBatchesToo(t *testing.T) {
 	}
 }
 
-func TestSilentFinishOfAnotherBatchAfterPromotion(t *testing.T) {
+func TestSilentFinishNamingLaterBatchKeepsVisibleOlderBatch(t *testing.T) {
 	t.Parallel()
 	ctx, b := context.Background(), newBook(&memStore{}, start())
 	b.Open(ctx, "c1", "a")
 	b.Open(ctx, "c1", "b") // delivered while the turn of a runs
 	b.Promote(ctx, "c1")   // a's turn accepted a task
-	if r, err := b.Finish(ctx, "c1", "b", "silent"); err != nil || r.Level != "triage" {
-		t.Fatalf("b's own silent finish: %+v, %v", r, err)
+	if r, err := b.Finish(ctx, "c1", "b", "silent"); err != nil || r.Level != "user" || r.Note == "" {
+		t.Fatalf("b's silent finish closes a that was already shown, so it stays visible: %+v, %v", r, err)
 	}
 }
 

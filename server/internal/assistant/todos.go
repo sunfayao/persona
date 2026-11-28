@@ -2052,7 +2052,8 @@ func (s *Service) failTodoIf(ctx context.Context, id, reason string, keep func(T
 // autoDoneTodo marks todo id done by the assistant's judge when it is still open and was not reopened after work
 // began; false when the user got there first (done it, reopened it), it is gone, or it is a concern (never closed on
 // its own, concerns.go).
-func (s *Service) autoDoneTodo(ctx context.Context, id, reason string, work time.Time) (bool, error) {
+// A still check, given, runs with the write lock held and closes nothing when it says no.
+func (s *Service) autoDoneTodo(ctx context.Context, id, reason string, work time.Time, still ...func() bool) (bool, error) {
 	if err := s.ensureTodosLoaded(ctx); err != nil {
 		return false, err
 	}
@@ -2068,6 +2069,9 @@ func (s *Service) autoDoneTodo(ctx context.Context, id, reason string, work time
 		}
 	}
 	defer unlock()
+	if len(still) > 0 && !still[0]() {
+		return false, nil
+	}
 	now := time.Now().UTC()
 	var row db.TodoRow
 	st := s.todoDB()

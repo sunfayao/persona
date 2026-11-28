@@ -317,6 +317,12 @@ func (tb *taskBrief) criteria() []string {
 	return slices.Clone(out)
 }
 
+// restartsClock: a scope change or an estimate set by someone starts the overdue clock again; an automatic extension
+// (Auto) does not, and does not count as a scope change.
+func (e BriefEvent) restartsClock() bool {
+	return (e.Kind == briefEventScope || e.Kind == briefEventEstimate) && !e.Auto
+}
+
 func (e BriefEvent) updatesEstimate() bool {
 	return e.Kind == briefEventDispatch || (e.Kind == briefEventScope || e.Kind == briefEventEstimate) && e.ExpectMinutes > 0
 }
@@ -333,11 +339,12 @@ func (b TaskBrief) scopeRevision() time.Time {
 	return at
 }
 
-// expect is the brief's expect_minutes as its dispatches and scope changes left it.
-func (tb *taskBrief) expect() int {
+// expect is the brief's expect_minutes as its dispatches and scope changes left it; with manual, without the
+// automatic extensions (the overdue clock's estimate).
+func (tb *taskBrief) expect(manual ...bool) int {
 	out := tb.rec.ExpectMinutes
 	for _, e := range tb.st.Log {
-		if e.updatesEstimate() && e.ExpectMinutes > 0 {
+		if e.updatesEstimate() && e.ExpectMinutes > 0 && !(e.Auto && len(manual) > 0) {
 			out = e.ExpectMinutes
 		}
 	}
@@ -454,7 +461,7 @@ func (tb *taskBrief) latestCompletion() *BriefEvent {
 func (tb *taskBrief) clockAt() time.Time {
 	at := tb.rec.CreatedAt
 	for _, e := range tb.st.Log {
-		if e.Kind == briefEventScope || e.Kind == briefEventEstimate {
+		if e.restartsClock() {
 			at = e.At
 		}
 	}
@@ -466,17 +473,17 @@ const briefClockMin = 24 * time.Hour
 
 // dueAt is when the clock runs out: three times what the work should take after it started, and at least a day.
 func (tb *taskBrief) dueAt() time.Time {
-	return tb.clockAt().Add(max(time.Duration(tb.expect())*3*time.Minute, briefClockMin))
+	return tb.clockAt().Add(max(time.Duration(tb.expect(true))*3*time.Minute, briefClockMin))
 }
 
 // overdueAt is when the supervisor was told the clock ran out, nil when it was not for the clock running now: a
 // scope change logged after the mark started another clock.
 func (tb *taskBrief) overdueAt() *time.Time {
 	for i := len(tb.st.Log) - 1; i >= 0; i-- {
-		switch e := tb.st.Log[i]; e.Kind {
-		case briefEventScope, briefEventEstimate:
+		switch e := tb.st.Log[i]; {
+		case e.restartsClock():
 			return nil
-		case briefEventOverdue:
+		case e.Kind == briefEventOverdue:
 			at := e.At
 			return &at
 		}

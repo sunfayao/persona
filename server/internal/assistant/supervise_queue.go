@@ -159,7 +159,7 @@ func (s *Service) recheckQueuedDigest(ctx context.Context, to string, msg relayM
 	}
 	next := msg
 	next.OnceID = relayMsgID(to, msg)
-	next.Signals = encodeDigestSignals(groups[to])
+	next.Signals, next.SentUp = encodeDigestSignals(groups[to]), sentUp(groups[to])
 	if len(groups[to]) > 0 {
 		next.Text = s.renderQueuedDigest(ctx, to, entries[to], prompts.IsSuperviseRound(msg.Text))
 		next.Urgent = anyDecision(groups[to])
@@ -173,7 +173,7 @@ func (s *Service) recheckQueuedDigest(ctx context.Context, to string, msg relayM
 		m := msg
 		m.OnceID = "" // another destination is a separate delivery
 		m.Text = s.renderQueuedDigest(ctx, target, entries[target])
-		m.Signals, m.Urgent = encodeDigestSignals(list), anyDecision(list)
+		m.Signals, m.Urgent, m.SentUp = encodeDigestSignals(list), anyDecision(list), sentUp(list)
 		moved[target] = m
 	}
 	b := &s.relays

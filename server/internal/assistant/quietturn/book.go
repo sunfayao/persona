@@ -206,7 +206,7 @@ func (b *Book) Finish(ctx context.Context, conv, batchID, visibility string) (Re
 			b.shown[conv] = true
 		}
 		b.mu.Unlock()
-	case list[at].Visible:
+	case slices.ContainsFunc(list[:at+1], func(x batch) bool { return x.Visible }):
 		r.Level, r.Note = "user", "this turn is already visible through its card or question; it stays visible"
 	}
 	b.set(conv, slices.Clone(list[at+1:]))

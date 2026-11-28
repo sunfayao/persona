@@ -318,7 +318,8 @@ func TestSupervisionFinishPerBatch(t *testing.T) {
 	s.turns.Open(ctx, "conv1", "a")
 	s.turns.Open(ctx, "conv1", "b")
 	s.promoteSupervision("conv1") // task_review accepted, in turn A
-	if body, err := finishBody(t, s, "conv1", `{"visibility":"silent","summary":"B needs nothing.","batch":"b"}`); err != nil || body["level"] != supervisionTriage {
+	// A's card was shown and finishing B closes A too, so the silent finish does not fold the turn that showed it.
+	if body, err := finishBody(t, s, "conv1", `{"visibility":"silent","summary":"B needs nothing.","batch":"b"}`); err != nil || body["level"] != supervisionUser {
 		t.Fatalf("B's silent finish: %v, %v", body, err)
 	}
 	s.turns.Open(ctx, "conv1", "c")
