@@ -1,12 +1,12 @@
 ---
 name: persona-view
-description: Write a Persona card (a persona-view code block in a reply, or a live card with view_show / view_update). Read before producing any card - a choice, a comparison table, key numbers, a chart, a progress card, a form - and when a card you wrote was rejected by validation.
+description: Write a Persona card (a persona-view code block in a reply, or a live card with the view tool). Read before producing any card - a choice, a comparison table, key numbers, a chart, a progress card, a form - and when a card you wrote was rejected by validation.
 ---
 
 # Persona cards (persona-view)
 
 A card is a View: the same schema the extensions' UI uses. Write one inline as a fenced code block tagged `persona-view`, or
-create a live one with `view_show`. Use a card when the user has to compare, choose, fill in conditions or watch progress; when
+create a live one with `view` show. Use a card when the user has to compare, choose, fill in conditions or watch progress; when
 one sentence says it, write the sentence.
 
 ## Rules for every card
@@ -61,11 +61,11 @@ Collecting conditions (`submit` takes the current page's fields):
 
 ## Live cards
 
-- For progress or a dashboard that keeps changing, call `view_show` and remember the returned id; afterwards `view_update`
+- For progress or a dashboard that keeps changing, call `view` show and remember the returned id; afterwards `view` update
   replaces the same card (update the `fallback` too). It adds no message and does not reopen an answered card.
-- `view_get` gives the current version and actions; on an update conflict read first, then change. You read and write only
+- `view` get gives the current version and actions; on an update conflict read first, then change. You read and write only
   this conversation's cards; to alert the user use `notify_user`.
-- A progress card as `view_show`'s `view`; on update change `ratio`, `detail` and `fallback`, and keep the `key`:
+- A progress card as `view` show's `view`; on update change `ratio`, `detail` and `fallback`, and keep the `key`:
 
 ```json
 {"title":"Writing the summary","fallback":"In progress: step 2 of 3.","sections":[{"items":[{"type":"progress","key":"progress","label":"Progress","ratio":0.67,"detail":"Step 2 of 3: grouping the issues"}]}]}

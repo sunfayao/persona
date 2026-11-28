@@ -1,0 +1,51 @@
+{
+  "name": "task_start_repair",
+  "description": "Remedy a failed start of one of this conversation's tasks while its computer keeps the tab the agent did not start in (a supervision message says until when). `screen` reads the tab's last 30 lines: the question its shell waits on, or where the agent's screen stopped. `keys` types into it while no agent runs there: `text` as is (no enter, at most 32 characters), then `keys` by name (\"enter\", \"esc\", \"ctrl+c\", \"y\", \"n\", \"up\", \"down\"…, at most 8); read the screen before and after. `retry` starts the agent again, in the kept tab or a new one, or with `launcher` on another launcher of the same computer and workspace; at most 3 retries, the hub never retries itself, and the outcome comes as a supervision message.",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "action",
+      "todo_id"
+    ],
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": [
+          "screen",
+          "keys",
+          "retry"
+        ],
+        "description": "read the kept tab, type into it, or start the agent again"
+      },
+      "todo_id": {
+        "type": "string",
+        "description": "the task's id, as the supervision message gives it"
+      },
+      "reason": {
+        "type": "string",
+        "description": "keys, retry: why, kept with the task's history"
+      },
+      "text": {
+        "type": "string",
+        "maxLength": 32,
+        "description": "text to type as is, before the keys"
+      },
+      "keys": {
+        "type": "array",
+        "maxItems": 8,
+        "items": {
+          "type": "string"
+        },
+        "description": "keys to press after the text, by name"
+      },
+      "launcher": {
+        "type": "string",
+        "description": "optional: another launcher of that computer, as the supervision message lists"
+      },
+      "model": {
+        "type": "string",
+        "description": "with launcher: a model id (default: its own)"
+      }
+    }
+  }
+}

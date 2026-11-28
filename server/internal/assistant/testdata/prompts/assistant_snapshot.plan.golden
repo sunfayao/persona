@@ -1,5 +1,5 @@
 - Now: 2026-11-06 Fri 10:00 (UTC)
-- Model profile: not set (model_profiles_list to view, model_profile_switch to switch)
+- Model profile: not set (model_profiles: list them, switch to one)
 - Computers online: 
 - Agents: 0 need you, 1 finished unread, 2 working (details: agents_list)
   - Finished unread: 整理文档 (mac-a, session_id=a9b8c7d6); Plan 2/2

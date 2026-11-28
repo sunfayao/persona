@@ -159,7 +159,7 @@ describe("hand-off cards", () => {
   });
 
   it("wraps the recovery instructions and filenames on an interactive failed launch", async () => {
-    const failure = 'The previous workspace has uncommitted changes. Commit or stash them, then retry (task_retry). Changed files include "timeout.ts".';
+    const failure = 'The previous workspace has uncommitted changes. Commit or stash them, then retry (task_start_repair retry). Changed files include "timeout.ts".';
     await show({ id: "task-event", conversation, at, kind: "task", ref: "example-task" }, [linked("example-task", "Example task", [], { start_error: failure, done_at: at })], []);
     const [card] = cards();
     const reason = card!.querySelector("[data-handoff-failure]");

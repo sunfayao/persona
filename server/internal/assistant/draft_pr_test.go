@@ -317,10 +317,10 @@ func TestDraftPRFailedPersistenceDoesNotSignal(t *testing.T) {
 }
 
 func TestDraftPRPromptGolden(t *testing.T) {
-	policy := prompts.RenderSupervisionInstructions()
+	policy, rule := prompts.RenderSupervisionInstructions(), prompts.SuperviseRule("draft_pr")
 	for _, required := range []string{"- `draft_pr`:", "make it ready if appropriate", "record the concrete reason", "grants no new permission"} {
-		if !strings.Contains(policy, required) {
-			t.Errorf("canonical supervision policy lacks %q", required)
+		if !strings.Contains(rule, required) || strings.Contains(policy, required) {
+			t.Errorf("the draft_pr rule lacks %q, or the static policy still carries it", required)
 		}
 	}
 	for _, tc := range []struct{ locale, fact string }{
@@ -352,8 +352,8 @@ func TestDraftPRPromptGolden(t *testing.T) {
 					t.Errorf("missing draft fact %q: %s", required, got)
 				}
 			}
-			if strings.Contains(got, "make it ready") || strings.Contains(got, "record the concrete reason") {
-				t.Fatal("event repeated handling policy instead of facts")
+			if strings.Count(got, "make it ready") != 1 || strings.Count(got, "record the concrete reason") != 1 {
+				t.Fatalf("the event does not carry its signal's rule once: %s", got)
 			}
 			golden(t, "draft_pr."+tc.locale, got)
 		})

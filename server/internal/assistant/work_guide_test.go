@@ -59,7 +59,7 @@ func TestWorkGuideFreshChatSettings(t *testing.T) {
 			t.Fatalf("unexpected native guide selection %t", present)
 		}
 		if enabled {
-			for _, migrated := range []string{"todo_create", "continues_why", "task_scope", "concern_report"} {
+			for _, migrated := range []string{"todo_create", "continues_why", "task_scope", `kind: "concern"`} {
 				if !strings.Contains(full, migrated) || strings.Contains(short, migrated) {
 					t.Errorf("procedure %s", migrated)
 				}

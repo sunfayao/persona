@@ -133,14 +133,21 @@ func (e *toolEnv) made() subscriptions.Subscription {
 
 func ptrTo[T any](v T) *T { return &v }
 
+// The subscription tools are the assistant's while subscriptions run and are in use: none before the service runs,
+// none with no subscription while the Inbox's AI twin is off, all six once the twin is on or a subscription exists.
 func TestSubscriptionToolsAreTheAssistantsWhileSubscriptionsRun(t *testing.T) {
 	h := newTestManager(t)
-	if len(h.subscriptionTools()) != 0 {
+	ctx := context.Background()
+	if len(h.subscriptionTools(ctx)) != 0 {
 		t.Fatal("tools before the service runs")
 	}
 	h.subs = subscriptions.New(subscriptions.Options{Store: subscriptions.NewMemStore(), Connectors: toolConns{&toolConn{}}})
+	if h.cfg.Inbox.Agent.Enabled || len(h.subscriptionTools(ctx)) != 0 {
+		t.Fatal("tools with no subscription and the twin off")
+	}
+	h.cfg.Inbox.Agent.Enabled = true
 	var names []string
-	for _, tl := range h.subscriptionTools() {
+	for _, tl := range h.subscriptionTools(ctx) {
 		names = append(names, tl.Name)
 		if !strings.HasPrefix(string(tl.InputSchema), `{"type":"object"`) || tl.Description == "" {
 			t.Errorf("%s: %s", tl.Name, tl.InputSchema)

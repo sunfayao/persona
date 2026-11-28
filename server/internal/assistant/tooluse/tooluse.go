@@ -40,6 +40,9 @@ type Host struct {
 	Now func() time.Time
 	// Logf logs what could not be read or saved.
 	Logf func(format string, args ...any)
+	// Canonical is the name a tool's recorded calls count under (Usage), the tool that stands for an older one merged
+	// into it; nil counts each as recorded.
+	Canonical func(name string) string
 }
 
 // Call is one call of a tool by an assistant conversation, as the book keeps it.
@@ -315,6 +318,9 @@ func (b *Book) Usage(runtime string, since time.Time) map[string]Counts {
 				continue
 			}
 			for tool, c := range tools {
+				if b.h.Canonical != nil {
+					tool = b.h.Canonical(tool)
+				}
 				old := out[tool]
 				out[tool] = Counts{Calls: old.Calls + c.Calls, Errors: old.Errors + c.Errors}
 			}

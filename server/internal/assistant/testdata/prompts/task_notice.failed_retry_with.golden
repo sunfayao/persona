@@ -4,4 +4,4 @@
 Reason:
 box 上新开的终端运行不了「work」
 
-You decide whether and how to tell the user: say why it did not start; the user can click Retry on the card or pick another computer; its launcher cannot start on this computer, so the user can also have you retry with claude (task_retry with launcher). Your answer is sent to the user as a notification: say only what the user needs to know, and do not repeat this notice.
+You decide whether and how to tell the user: say why it did not start; the user can click Retry on the card or pick another computer; its launcher cannot start on this computer, so the user can also have you retry with claude (task_start_repair retry with launcher). Your answer is sent to the user as a notification: say only what the user needs to know, and do not repeat this notice.

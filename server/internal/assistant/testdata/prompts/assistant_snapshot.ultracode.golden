@@ -1,5 +1,5 @@
 - Now: 2026-11-06 Fri 00:00 (UTC)
-- Model profile: not set (model_profiles_list to view, model_profile_switch to switch)
+- Model profile: not set (model_profiles: list them, switch to one)
 - Computers online: 
 - Agents: 1 need you, 1 finished unread, 2 working (details: agents_list)
   - Need you: 审查方案[ultracode=on: every substantial task runs a multi-agent workflow, so do not rush it while waiting for results] (box, session_id=needson)

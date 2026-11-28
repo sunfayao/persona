@@ -10,3 +10,7 @@
 2. Task “清理旧日志” (todo_2, signal=review): awaiting item-by-item review; this does not mean it is done
    Acceptance criteria: 旧日志已删除
    Why this exists (the user did not ask for it directly): started by the assistant; reason: 部署任务留下的尾巴
+
+How to handle these signals:
+- `overdue`: one-time. Verify and close, revise scope with `task_scope`, or set a new `expect_minutes`; never ignore.
+- `review`: verify the evidence and give a `task_review` verdict.

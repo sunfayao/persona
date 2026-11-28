@@ -21,8 +21,8 @@ import (
 // withheld with a reason, the instructions tell the background supervisor where the withheld ones' work goes, the hub
 // sends that work there, and every tool a round's own message names is one the round lists.
 
-// mainOnlySignals are the signals the instructions' background line leaves to the main conversation; their handling
-// rules name the tools a round withholds (task_start_screen, task_start_keys, task_retry, conversation_send).
+// mainOnlySignals are the signals the hub leaves to the main conversation; their handling rules name the tools a round
+// withholds (task_start_screen, task_start_keys, task_retry, conversation_send).
 var mainOnlySignals = []string{sigFailed, sigStarted, sigEscalated, sigTodoReady}
 
 // backgroundSignals are the signals an existing background conversation can receive for explicitly addressed legacy
@@ -51,22 +51,16 @@ func policyToolNames(policy string) []string {
 	return out
 }
 
-// backgroundLine is the instructions' line for the background supervisor.
-func backgroundLine(policy string) string {
-	for _, line := range strings.Split(policy, "\n") {
-		if strings.HasPrefix(line, "- Background supervises for main") {
-			return line
-		}
-	}
-	return ""
-}
-
 // Every tool the supervision instructions name is in a round's list or withheld with a reason, never both and never
 // neither; nothing is withheld that the instructions do not name or that is no tool; and the instructions' background
 // line says where the withheld tools' work goes: owner decisions through task_review, never ask_user, and the start
 // remedies and a stuck leader to the main conversation.
 func TestRoundToolsAgreeWithSupervisionInstructions(t *testing.T) {
+	// What a supervisor reads: the static instructions and the rule each signal's message brings.
 	policy := prompts.RenderSupervisionInstructions()
+	for _, kind := range append(slices.Clone(backgroundSignals), mainOnlySignals...) {
+		policy += "\n" + prompts.SuperviseRule(kind)
+	}
 	named := policyToolNames(policy)
 	if len(named) < 10 || !slices.Contains(named, "task_review") || !slices.Contains(named, "supervision_finish") {
 		t.Fatalf("the instructions name too few tools, or the reader missed some: %v", named)
@@ -95,19 +89,6 @@ func TestRoundToolsAgreeWithSupervisionInstructions(t *testing.T) {
 	for _, name := range roundToolNames {
 		if !slices.Contains(roundConnectorTools, name) && !slices.Contains(toolNames, name) {
 			t.Errorf("roundToolNames lists %s, which is no assistant tool", name)
-		}
-	}
-
-	line := backgroundLine(policy)
-	if line == "" {
-		t.Fatal(`the supervision instructions have no line for the background supervisor ("- Background supervises for main")`)
-	}
-	if !strings.Contains(line, "never `ask_user`") || !strings.Contains(line, "`task_review`") {
-		t.Errorf("the background line does not send owner decisions through task_review instead of ask_user, which a round withholds:\n%s", line)
-	}
-	for _, kind := range mainOnlySignals {
-		if !strings.Contains(line, "`"+kind+"`") {
-			t.Errorf("the background line does not leave %s to the main conversation, whose handling needs tools a round withholds:\n%s", kind, line)
 		}
 	}
 }
@@ -179,9 +160,14 @@ func roundMessage(lang string) string {
 var roundScanTools = append(slices.Clone(toolNames), "lark_search", "larkcli_search", "lark_chats", "lark_messages")
 
 // namedTools are the tools of roundScanTools text names, quoted or bare, each once in the order it first names them.
+// A name without an underscore is an English word too (view, skill, repositories): it counts only quoted (`view`).
 func namedTools(text string) []string {
 	var named []string
-	for _, w := range regexp.MustCompile(`[a-z][a-z0-9_]*`).FindAllString(text, -1) {
+	for _, m := range regexp.MustCompile("`?[a-z][a-z0-9_]*`?").FindAllString(text, -1) {
+		w := strings.Trim(m, "`")
+		if !strings.Contains(w, "_") && !(len(m) == len(w)+2) {
+			continue
+		}
 		if slices.Contains(roundScanTools, w) && !slices.Contains(named, w) {
 			named = append(named, w)
 		}
@@ -193,21 +179,17 @@ func namedTools(text string) []string {
 // where: the description (and schema) of a tool it lists, or "context", the background supervisor's <persona-context>.
 // Each names one in passing (where an id comes from, what undoes or replaces a call, a step a round never takes: the
 // Agent presets agent_start takes beside task_plan, the questions ask_user turned into to-dos that are not to be asked
-// again, the main conversation's model profile, task_retry for a start that did not come up, which only the main
+// again, the main conversation's model profile, task_start_repair for a start that did not come up, which only the main
 // conversation's failed signal leads to) or beside the round's own way (task_plan with continues for a
 // replacement, task_review needs_user for the owner), so none sends a round to a tool it lacks. A new mention is worded
 // for the round's tools, or listed here when it is one of these.
 var roundPassingMentions = map[string][]string{
-	"agent_archive":      {"agent_unarchive"},
 	"agent_send":         {"agent_start", "ask_user"},
-	"agents_list":        {"agent_unarchive"},
-	"conversation_read":  {"conversations_list"},
 	"supervision_finish": {"ask_user"},
-	"task_plan":          {"task_retry"},
+	"task_plan":          {"task_start_repair"},
 	"task_scope":         {"agent_supervise", "ask_user"},
-	"todo_get":           {"todo_repository_links_add"},
-	"todo_list":          {"concern_report"},
-	"context":            {"agent_start", "ask_user", "model_profile_switch", "model_profiles_list"},
+	"todo_get":           {"todo_links"},
+	"context":            {"agent_start", "ask_user", "model_profiles"},
 }
 
 // backgroundContexts are the background supervisor's <persona-context> as Context renders it (contextSnapshot) for

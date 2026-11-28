@@ -691,7 +691,7 @@ func (h *Manager) AgentTools(ctx context.Context, assistant bool) (agents, assis
 	if assistant {
 		assistantOnly = append(assistantOnly, h.computerTools()...)
 		assistantOnly = append(assistantOnly, h.browserTools()...)
-		assistantOnly = append(assistantOnly, h.subscriptionTools()...)
+		assistantOnly = append(assistantOnly, h.subscriptionTools(ctx)...)
 		assistantOnly = append(assistantOnly, h.connectors.ToolsFor(ctx, false)...)
 	}
 	for _, list := range [][]proto.Tool{agents, assistantOnly} {

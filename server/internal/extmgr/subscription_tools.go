@@ -28,9 +28,12 @@ import (
 var subscriptionToolNames = []string{"subscription_list", "subscription_get", "subscription_sources", "subscription_dry_run",
 	"subscription_save", "subscription_run"}
 
-// subscriptionTools are the assistant's while subscriptions run.
-func (h *Manager) subscriptionTools() []proto.Tool {
-	if h.subs == nil {
+// subscriptionTools are the assistant's while subscriptions run and are in use: with no subscription and the Inbox's
+// AI twin off (manager.json inbox.agent.enabled) nothing brings sources into the Inbox for a conversation to manage,
+// so the six tools are in no list until the user sets one up on the subscriptions page or turns the twin on. Their
+// calls still route (CallTool). The extensions' tool digest carries the change to running conversations.
+func (h *Manager) subscriptionTools(ctx context.Context) []proto.Tool {
+	if h.subs == nil || !h.subscriptionsInUse(ctx) {
 		return nil
 	}
 	out := make([]proto.Tool, 0, len(subscriptionToolNames))
@@ -41,6 +44,16 @@ func (h *Manager) subscriptionTools() []proto.Tool {
 }
 
 func isSubscriptionTool(name string) bool { return slices.Contains(subscriptionToolNames, name) }
+
+// subscriptionsInUse: the Inbox's AI twin is on, or at least one subscription exists. A store that cannot be read
+// counts as none: a tool is listed only for a feature known to be in use.
+func (h *Manager) subscriptionsInUse(ctx context.Context) bool {
+	if h.cfg != nil && h.cfg.Inbox.Agent.Enabled {
+		return true
+	}
+	subs, _, err := h.subs.List(ctx, subscriptions.Filter{})
+	return err == nil && len(subs) > 0
+}
 
 // subscriptionActor is who the audit names for a change the user approved on the assistant's card.
 var subscriptionActor = subscriptions.Actor{ID: "assistant", Name: "Persona"}

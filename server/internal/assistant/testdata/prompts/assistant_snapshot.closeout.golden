@@ -1,6 +1,6 @@
 - Now: YYYY-MM-DD Day HH:MM (Asia/Shanghai)
 - Open to-dos: 0 in total (full list: todo_list)
-- Model profile: unavailable (model_profiles_list to retry)
+- Model profile: unavailable (model_profiles list to retry)
 - Computers online: 服务器 (server)
 - Agents: 0 need you, 2 finished unread, 0 working (details: agents_list)
   - Finished unread: 改重试 (server, session_id=bbbbbbbb): 没做完：还差线上验证[it says not merged]; 发版 (server, session_id=cccccccc): 说已部署，但线上不是这次的改动[it says merged, deployed; the hub found this change is not live yet; the hub is authoritative]

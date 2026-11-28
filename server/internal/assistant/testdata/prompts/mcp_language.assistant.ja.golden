@@ -1,19 +1,5 @@
 [
   {
-    "name": "resource_status",
-    "description": "Read registered shared runners, queue tickets, duplicate markers and mirror freshness. An unknown or stale mirror is not a successful result.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "resource": {
-          "type": "string"
-        }
-      },
-      "required": []
-    },
-    "defer_loading": true
-  },
-  {
     "name": "ask_user",
     "description": "Ask the user multiple-choice questions on a card in Persona and wait for the answers. Use it to confirm anything risky (sending messages or email for them, deleting, changing live systems) or to let them choose. Your runtime's own question tool does not reach the user. Use wait false only where your instructions say to; a confirmation this turn needs (approving a message before it is sent) keeps the default.\n\nDetails: read .claude/skills/persona-work/references/ask-user.md in your working directory.",
     "input_schema": {
@@ -83,7 +69,7 @@
         }
       }
     },
-    "core_rank": 22
+    "core_rank": 19
   },
   {
     "name": "notify_user",
@@ -115,7 +101,7 @@
         }
       }
     },
-    "core_rank": 38
+    "core_rank": 29
   },
   {
     "name": "supervision_finish",
@@ -224,7 +210,7 @@
         }
       }
     },
-    "core_rank": 39
+    "core_rank": 30
   },
   {
     "name": "schedule_routine",
@@ -346,7 +332,7 @@
         }
       }
     },
-    "core_rank": 40
+    "defer_loading": true
   },
   {
     "name": "schedule_state_set",
@@ -391,7 +377,7 @@
       "type": "object",
       "properties": {}
     },
-    "core_rank": 36
+    "defer_loading": true
   },
   {
     "name": "cancel_followup",
@@ -407,7 +393,7 @@
         }
       }
     },
-    "core_rank": 25
+    "defer_loading": true
   },
   {
     "name": "machines_list",
@@ -467,7 +453,7 @@
   },
   {
     "name": "agents_list",
-    "description": "The coding Agents on the user's computers (Claude Code, Codex, Antigravity, TRAE and runtime Agents) and their state: needs_you (waiting for an answer or approval), working, unread (finished, result not looked at), idle, offline (stopped). Much faster and more accurate than ssh + herdr. The default lists Active (needs you, working, finished unread), then Idle and Ended in the last 24 hours, newest first: look at those two before handing out follow-up work, since an Agent that did the related work on that computer and directory goes on in its own context (reuse= says how). Each line has machine, session id, project, title and last update, then its conclusion or last words. Do not reuse an Agent on a model the user retired (model=). Let one with ultracode=on finish its multi-agent workflow without nudging it. A line under an Agent waits for the user: answer a question with interaction_answer and its interaction id; an approval is the user's to give in the app.\n\nDetails: read .claude/skills/persona-work/references/agents-and-machines.md in your working directory.",
+    "description": "The coding Agents on the user's computers (Claude Code, Codex, Antigravity, TRAE and runtime Agents) and their state: needs_you (waiting for an answer or approval), working, unread (finished, result not looked at), idle, offline (stopped). Much faster and more accurate than ssh + herdr. The default lists Active (needs you, working, finished unread), then Idle and Ended in the last 24 hours, newest first: look at those two before handing out follow-up work, since an Agent that did the related work on that computer and directory goes on in its own context (reuse= says how). Each line has machine, session id, project, title and last update, then its conclusion or last words. Do not reuse an Agent on a model the user retired (model=). Let one with ultracode=on finish its multi-agent workflow without nudging it. A line under an Agent waits for the user: answer a question with interaction_answer and its interaction id; an approval is the user's to give in the app. `kind: \"conversations\"` lists your own Persona conversations instead, newest activity first (id, title, last activity, main/running state, gist; this one marked; `query`, `include_archived`, `limit`): find the user's conversation there before reading or messaging it.\n\nDetails: read .claude/skills/persona-work/references/agents-and-machines.md in your working directory.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -485,14 +471,30 @@
             "archived",
             "all"
           ],
-          "description": "default active (then idle and those that ended in the last 24 hours); ended = every stopped Agent; done = work finished in the last 24 hours; muted = the muted ones; archived = only archived sessions (agent_unarchive restores them), which the others leave out; all = everything, archived ones marked"
+          "description": "default active (then idle and those that ended in the last 24 hours); ended = every stopped Agent; done = work finished in the last 24 hours; muted = the muted ones; archived = only archived sessions (agent_archive with restore brings one back), which the others leave out; all = everything, archived ones marked"
         },
         "machine": {
           "type": "string"
         },
         "query": {
           "type": "string",
-          "description": "filter by title / project / directory"
+          "description": "filter by title / project / directory; conversations: by title or last message"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "agents",
+            "conversations"
+          ],
+          "description": "agents (default), or your Persona conversations"
+        },
+        "include_archived": {
+          "type": "boolean",
+          "description": "conversations: archived ones too, marked"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "conversations: default 30, max 100"
         }
       }
     },
@@ -500,13 +502,9 @@
   },
   {
     "name": "agent_read",
-    "description": "Read the recent conversation of one agent (from agents_list): the user's messages, what the agent said, tool calls in short form. `turns` = how many recent exchanges (default 2, max 10). Use it to answer the user's follow-ups about work an agent or task already did (its conclusion, a PR link, why it stopped) instead of asking the agent with agent_send, which makes it take another turn while the user waits (and a stopped agent takes no messages: it is read-only).",
+    "description": "Read the recent conversation of one agent (from agents_list): the user's messages, what the agent said, tool calls in short form. `turns` = how many recent exchanges (default 2, max 10). Use it to answer the user's follow-ups about work an agent or task already did (its conclusion, a PR link, why it stopped) instead of asking the agent with agent_send, which makes it take another turn while the user waits (and a stopped agent takes no messages: it is read-only). With `conversation` instead of machine and session_id it reads another of your Persona conversations (from agents_list kind conversations), cut the same way.",
     "input_schema": {
       "type": "object",
-      "required": [
-        "machine",
-        "session_id"
-      ],
       "properties": {
         "machine": {
           "type": "string"
@@ -517,6 +515,10 @@
         },
         "turns": {
           "type": "integer"
+        },
+        "conversation": {
+          "type": "string",
+          "description": "a Persona conversation's id, or its first 8 characters, instead of machine and session_id"
         }
       }
     },
@@ -623,12 +625,10 @@
   },
   {
     "name": "agent_switch",
-    "description": "Move a running Claude Code agent (from agents_list) to another launcher on its computer and go on with it, in one step: the agent is quit and resumed on that launcher in the same terminal, with the same conversation, and `text` is sent to it there. It is the switch the user makes from the agent's chat. Use it only when the user asked for it, for example when a subscription's usage limit stopped agents and the user wants them to go on with another provider now rather than wait for the reset; never on your own. The launcher must be one of that computer's (machines_list and agents_list show the names). The switch happens now or not at all: an agent that is working, waits for the user (a question, a permission, a plan), is starting, has background work its quit would end, or has a draft or a dialog in its input box is refused with nothing typed and nothing left waiting; tell the user why, and try again once it has stopped if they still want it. Other refusals say why too (a launcher that does not run there or is not signed in, a model the launcher's default cannot be read for: give model). Not for stopped agents (agent_send with resume), assistant conversations, read-only agents, or Codex and other agents. An agent its usage limit stopped goes on with what it was doing when `text` is left out; any other agent needs `text`. Its usage-limit continuation, if one was due, is not sent afterwards.",
+    "description": "Move a running Claude Code agent (from agents_list) to another launcher on its computer and go on with it, in one step: the agent is quit and resumed on that launcher in the same terminal, with the same conversation, and `text` is sent to it there. It is the switch the user makes from the agent's chat. Use it only when the user asked for it, for example when a subscription's usage limit stopped agents and the user wants them to go on with another provider now rather than wait for the reset; never on your own. The launcher must be one of that computer's (machines_list and agents_list show the names). The switch happens now or not at all: an agent that is working, waits for the user (a question, a permission, a plan), is starting, has background work its quit would end, or has a draft or a dialog in its input box is refused with nothing typed and nothing left waiting; tell the user why, and try again once it has stopped if they still want it. Other refusals say why too (a launcher that does not run there or is not signed in, a model the launcher's default cannot be read for: give model). Not for stopped agents (agent_send with resume), assistant conversations, read-only agents, or Codex and other agents. An agent its usage limit stopped goes on with what it was doing when `text` is left out; any other agent needs `text`. Its usage-limit continuation, if one was due, is not sent afterwards. To move many Claude Code agents at once, leave out session_id: name them in `agents`, or leave it out for every Claude Code agent narrowed by `machine` and `from_launcher`; call it with `preview` true first and tell the user what it will do with each, then again once they agree (one call is enough when they named exactly which agents and where). Each goes as its state allows: an idle or limit-stopped one now, a working or waiting one when its turn ends (agents_list shows switch_queued=), a stopped one Persona started on its next resume; the answer has one line per agent.",
     "input_schema": {
       "type": "object",
       "required": [
-        "machine",
-        "session_id",
         "launcher"
       ],
       "properties": {
@@ -655,31 +655,6 @@
         "text": {
           "type": "string",
           "description": "what the agent does on the new launcher, sent as the user would type it; empty only for an agent its usage limit stopped (it goes on with what it was doing)"
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "agents_switch",
-    "description": "Move many Claude Code agents to another launcher on their computers in one call. Use it when the user asks to move agents to another launcher (\"move everything on the default launcher to X\", \"switch these to X\"), for example because they watch their subscription quota; never on your own. Name the agents in `agents`, or leave it out to take every Claude Code agent (running ones, and stopped ones Persona started), narrowed by `machine` and `from_launcher` (`claude` is the default launcher). First call it with `preview` true and tell the user what it will do with each agent, then call it again without `preview` once they agree; when the user already named exactly which agents and where, one call is enough. Each agent goes as its state allows: one its usage limit stopped is switched now and goes on with what it was doing; an idle one is switched now and nothing is sent (it waits on the new launcher for the next message); one that is working, waits for the user (a question, a permission, a plan), is starting or has background work is queued and switched when its turn ends (with the usage-limit continuation if that turn ended on a limit); a stopped one Persona started has the launcher it resumes on changed, so its next Resume, or the message that resumes it, comes up on the new launcher; one the checks refuse (another CLI, a runtime's session, an assistant conversation, a launcher that does not run there, a model the launcher's default cannot be read for: give model) is reported and left as it is, and so is one whose switch failed on its computer (it is back on its launcher; not tried again: tell the user why). The answer has one line per agent: switched and continued, switched, switched (takes effect when resumed), queued, or refused with why. A queued switch is dropped if the agent moves to another launcher meanwhile or after a day; if it stops meanwhile, its Resume is pointed at the new launcher instead; agents_list shows queued ones as switch_queued=. The switch is the same as the user's from the agent's chat: same conversation, same terminal.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "launcher"
-      ],
-      "properties": {
-        "launcher": {
-          "type": "string",
-          "description": "the launcher to move them to, by its name on their computers"
-        },
-        "model": {
-          "type": "string",
-          "description": "a model of that launcher; empty: the launcher's default"
-        },
-        "effort": {
-          "type": "string",
-          "description": "the reasoning effort on the new launcher; empty: as each has it"
         },
         "agents": {
           "type": "array",
@@ -700,10 +675,6 @@
               }
             }
           }
-        },
-        "machine": {
-          "type": "string",
-          "description": "without agents: only this computer's agents"
         },
         "from_launcher": {
           "type": "string",
@@ -741,7 +712,7 @@
         }
       }
     },
-    "core_rank": 19
+    "defer_loading": true
   },
   {
     "name": "agent_start",
@@ -810,7 +781,7 @@
         },
         "host": {
           "type": "string",
-          "description": "agy (Antigravity companion) or herdr (the computer's terminal); leave out to let Persona choose"
+          "description": "agy (Antigravity companion) or herdr (terminal); omit to let Persona choose"
         },
         "speed": {
           "type": "string",
@@ -829,7 +800,7 @@
         }
       }
     },
-    "core_rank": 20
+    "defer_loading": true
   },
   {
     "name": "agent_supervise",
@@ -873,11 +844,11 @@
         }
       }
     },
-    "core_rank": 21
+    "defer_loading": true
   },
   {
     "name": "agent_archive",
-    "description": "Archive a coding agent's session (from agents_list) when the user asks to archive or tidy up agents: it leaves the Agents list for Archived in Persona, nothing is deleted, and agent_unarchive brings it back (never remove a session any other way). Persona also asks the agent's own tool to archive it where that tool has an archive (Codex); the result says whether it did (native: done / pending / unsupported). Without close the agent itself is not closed: one open on its computer stays open. With close, its agent and its terminal tab are also closed on its computer (its transcript stays; then it is stopped until resumed): only when the user asks to close it too, and the user confirms in Persona first (declined: nothing changes). A busy agent is refused and nothing changes: working, waiting for an answer or background work, and for close also a /loop, queued messages or a server it runs. When the close does not happen the session stays archived and still open on the computer, and the result says why: tell the user exactly that, not that it was closed. With `force: true`, explicitly cancel and close an Agent stuck waiting for a terminal confirmation, then archive it. Use force only when the user asks to stop or archive that blocked Agent. Pending permissions and plans are rejected or cancelled, never allowed. Working Agents, background work, running subagents/workflows, queued messages, loops and serving ports are still refused. A failed close leaves it visible. Force implies close and does not ask for a second permission card. Not for Persona conversations, which no tool archives.",
+    "description": "Archive a coding agent's session (from agents_list) when the user asks to archive or tidy up agents: it leaves the Agents list for Archived in Persona, nothing is deleted, and `restore: true` brings it back, reopening nothing on the computer (never remove a session any other way). Persona also asks the agent's own tool to archive it where that tool has an archive (Codex); the result says whether it did (native: done / pending / unsupported). Without close the agent itself is not closed: one open on its computer stays open. With close, its agent and its terminal tab are also closed on its computer (its transcript stays; then it is stopped until resumed): only when the user asks to close it too, and the user confirms in Persona first (declined: nothing changes). A busy agent is refused and nothing changes: working, waiting for an answer or background work, and for close also a /loop, queued messages or a server it runs. When the close does not happen the session stays archived and still open on the computer, and the result says why: tell the user exactly that, not that it was closed. With `force: true`, explicitly cancel and close an Agent stuck waiting for a terminal confirmation, then archive it. Use force only when the user asks to stop or archive that blocked Agent. Pending permissions and plans are rejected or cancelled, never allowed. Working Agents, background work, running subagents/workflows, queued messages, loops and serving ports are still refused. A failed close leaves it visible. Force implies close and does not ask for a second permission card. Not for Persona conversations, which no tool archives.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -900,88 +871,14 @@
         "close": {
           "type": "boolean",
           "description": "also close its agent on the computer (asks the user in Persona first); default false: archive only"
+        },
+        "restore": {
+          "type": "boolean",
+          "description": "true: bring an archived one (agents_list state archived) back"
         }
       }
     },
     "core_rank": 11
-  },
-  {
-    "name": "agent_unarchive",
-    "description": "Bring an archived coding agent's session back into the Agents list (find it with agents_list and state archived). Nothing is reopened on the computer: a stopped agent stays stopped until resumed (agent_send with resume). Persona also asks the agent's own tool to restore it where that tool archived it too; the result says whether it did.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "machine",
-        "session_id"
-      ],
-      "properties": {
-        "machine": {
-          "type": "string",
-          "description": "the machine's id or name, as agents_list shows it"
-        },
-        "session_id": {
-          "type": "string",
-          "description": "the agent's session id, or its first 8 characters"
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "agent_autoname",
-    "description": "Rename one coding agent's session with the model when the user explicitly asks for Auto Rename. This replaces the current title, including a hand-written one, with a short title generated from its conversation; it does not change the terminal tab's title. The user must confirm this write in Persona every time; a declined or unanswered confirmation does nothing and makes no model call. The background automatic-naming switch and its once-only/placeholder restrictions do not block this explicit request. Do not use it on Persona conversations (including the main chat), on an agent the user has not asked to rename, or with a session-id prefix. Use the exact machine and session_id from agents_list. On success the JSON answer has title, title_source: auto and changed; on refusal it has the stable code and retryable fields. The HTTP endpoint used by client menus is separate and does not depend on this tool.",
-    "input_schema": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "machine",
-        "session_id"
-      ],
-      "properties": {
-        "machine": {
-          "type": "string",
-          "description": "the machine's exact id or name, as agents_list shows it"
-        },
-        "session_id": {
-          "type": "string",
-          "description": "the agent's exact full session id, never a prefix"
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "agent_autoname_receipt",
-    "description": "Read-only: inspect the current assistant's existing agent_autoname confirmation cards and one coding agent's current naming snapshot. This does not prove that a particular earlier model call started, completed or succeeded: the model's tool-call id is not a manager-side correlation. The naming snapshot may predate the call or come from another caller, and background naming failures are not attributed to it. Do not retry a request from this result; unknown or ambiguous means the evidence cannot settle the outcome. Use only the exact machine and full session id from agents_list. The caller is verified from the actual assistant conversation; no other assistant's cards can be read. Optional since/before are an RFC3339 window of at most 24 hours, and must be supplied together. Confirmation history is read with bounded pages; incomplete pages are reported. This tool never calls the naming model, writes settings, approves or resolves a card, renames an agent, or publishes a session list. Not for Persona conversations, ordinary coding Agents, or extensions.",
-    "input_schema": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "machine",
-        "session_id"
-      ],
-      "properties": {
-        "machine": {
-          "type": "string",
-          "description": "the machine's exact id, as agents_list shows it"
-        },
-        "session_id": {
-          "type": "string",
-          "description": "the agent's exact full session id, never a prefix"
-        },
-        "since": {
-          "type": "string",
-          "format": "date-time",
-          "description": "inclusive RFC3339 start of the original confirmation window; requires before"
-        },
-        "before": {
-          "type": "string",
-          "format": "date-time",
-          "description": "exclusive RFC3339 end of the original confirmation window [since,before); at most 24 hours after since"
-        }
-      }
-    },
-    "defer_loading": true
   },
   {
     "name": "interaction_answer",
@@ -1030,7 +927,7 @@
         }
       }
     },
-    "core_rank": 29
+    "defer_loading": true
   },
   {
     "name": "ask_escalate",
@@ -1074,170 +971,6 @@
     "defer_loading": true
   },
   {
-    "name": "inbox_suggest",
-    "description": "Submit the event’s recap and one suggestion, replacing any earlier suggestion. It waits in the user's inbox; nothing goes out until they confirm, and then the program does exactly what it says (you never send it yourself). `kind`: `reply` — one message to send, `text` in the user's voice, ready to go out as it is (no blanks to fill in like 【…】: leave out what you could not find and say so in `note`; for a Feishu sheet / Base item `changes` proposes moving rows' status: ref, field and one of the values the item lists); `agent` — an Agent to start, `text` its instruction (`machine` and `cwd` optional); `todo` — a to-do for the user to add: `text` its title (clear, starting with the action, no chat or people names); the user can edit it and adds it with one tap (a row that came to a to-do counts as handled); `conclusion` — you dealt with it, `text` the conclusion, `outcome` `fyi` (worth knowing) or `done` (nothing to do). `handback: true` for one the user has to judge: their confirmation comes back here as an instruction instead of being carried out. `note`: one or two sentences on what you found and where. `recap`: the event's background, progress and where it is stuck (up to 600 characters), every time. `title`: what the matter is, without chat or person names; `summary`: one sentence on where things stand and who is waited on for what. Write both every time; items whose title comes from the source (mail, documents, PRs / issues, and the like) ignore `title`, and the tool says so. `related`: ids of inbox items in other chats or sources this one is about. `recap` without `kind` creates no suggestion, and may include `title`, `summary`, and `follow`. `follow` records waiting on the other side: `who` (empty means waiting for a reply), `next`, and `check_at` (RFC 3339 with a time zone) or `check_in` (such as `30m`, `4h`, or `2d`). `check_at` takes precedence; with neither, look again in `24h`; the resulting time is clamped to 30 minutes–14 days from now. `follow` is valid only without `kind`. `reported`: `{text, by}` records one externally visible action you or an Agent actually completed but the program did not observe, without verifying it; never use it for plans or actions not taken. `by` is `agent` or `assistant` (default `assistant`), and `text` is one sentence, kept on one line and clipped to 120 characters. It may be given alone or accompany `kind`, `recap`, `title`, `summary`, or `follow`; a filed item refuses it, and text identical to the item's latest `reported` entry is not recorded twice. Call it at the end of each turn. In a conversation the user handed an inbox item to (its context block names the item's id), pass that id as `item` and call it when you have something to write back to the item, and again whenever it changes (it also shows in that conversation as a card); it refuses an item not handed to this conversation or one the user already filed: answer in the chat then.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "processing_turn": {
-          "type": "string"
-        },
-        "item": {
-          "type": "string"
-        },
-        "kind": {
-          "type": "string",
-          "enum": [
-            "reply",
-            "agent",
-            "conclusion",
-            "todo"
-          ]
-        },
-        "text": {
-          "type": "string"
-        },
-        "note": {
-          "type": "string"
-        },
-        "handback": {
-          "type": "boolean"
-        },
-        "outcome": {
-          "type": "string",
-          "enum": [
-            "fyi",
-            "done"
-          ]
-        },
-        "recap": {
-          "type": "string"
-        },
-        "reported": {
-          "type": "object",
-          "required": [
-            "text"
-          ],
-          "properties": {
-            "text": {
-              "type": "string"
-            },
-            "by": {
-              "type": "string",
-              "enum": [
-                "agent",
-                "assistant"
-              ],
-              "default": "assistant"
-            }
-          }
-        },
-        "title": {
-          "type": "string"
-        },
-        "summary": {
-          "type": "string"
-        },
-        "follow": {
-          "type": "object",
-          "properties": {
-            "who": {
-              "type": "string"
-            },
-            "next": {
-              "type": "string"
-            },
-            "check_at": {
-              "type": "string",
-              "format": "date-time"
-            },
-            "check_in": {
-              "type": "string"
-            }
-          }
-        },
-        "machine": {
-          "type": "string"
-        },
-        "cwd": {
-          "type": "string"
-        },
-        "related": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "changes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "ref",
-              "field",
-              "value"
-            ],
-            "properties": {
-              "ref": {
-                "type": "string"
-              },
-              "field": {
-                "type": "string"
-              },
-              "value": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "inbox_folders",
-    "description": "List the folders the user's inbox items are filed under: each `/`-separated path (`work/alerts/engine`, every segment a level) with its item count and open count, and whether automatic filing by the triage model is on. Give `folder` to also list the items filed in that folder and below, or `unfiled: true` for the items in no folder; each line has the item's id (what inbox_move takes), source, title, sender and whether it is done. Call it before inbox_move, to reuse a folder in use rather than open a near-duplicate.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "folder": {
-          "type": "string",
-          "description": "a folder path: also list the items filed there and below"
-        },
-        "unfiled": {
-          "type": "boolean",
-          "description": "also list the items in no folder"
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "inbox_move",
-    "description": "Move inbox items into a folder, as the user would from the inbox: `items` are their ids (from inbox_folders, or the id of an item handed to this conversation), `folder` a `/`-separated path (`work/alerts/engine`; a new path makes the folder), or `\"\"` to take them out of every folder. Moved items stay where they are put: the triage model no longer files them. An unknown id or a path with no name in it moves nothing. Move only what the user asked for.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "items",
-        "folder"
-      ],
-      "properties": {
-        "items": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "inbox item ids"
-        },
-        "folder": {
-          "type": "string",
-          "description": "the folder path, or \"\" for no folder"
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
     "name": "inbox_post",
     "description": "Put this conversation into the user's Inbox as a row that opens it, so a result is not missed behind a quiet unread dot. Call it only when the user explicitly asked for it (for example \"tell me if there is anything worth a look\", \"send me the briefing every time\") or when the scheduled task you are running is set to put findings in the Inbox. Never decide on your own to interrupt the user: an ordinary reply, a run with nothing new, or something merely interesting does not go there. `title` is a short name for the row (the task's name or what was found), `summary` one or two sentences saying what to look at, `tier` is `action` when the user has to do something and `fyi` (the default) when it is worth knowing, and `reason` names the request or task setting that makes this post (the user can read it on the row). Calling it again for this conversation soon after updates the same row instead of adding another. It does not send a notification: use notify_user for that when the user asked for a push.",
     "input_schema": {
@@ -1270,7 +1003,7 @@
   },
   {
     "name": "persona_settings",
-    "description": "This is how the user changes Persona's settings: ask them in conversation, there is no settings page for these. `list` (the default) shows every key with a one-line description, how to set it and its current value (secrets only as set or unset); `get` reads one. `set`, `add` and `remove` show before → after as a confirmation card in Persona and change nothing until they approve; secrets are entered there, never in chat. Change only what was asked. Areas: assistant behavior, session triage, About Me, saved prompts, start page and sidebar, inbox sorting and task links, mail accounts, extensions (`extension.\u003cid\u003e`, channels and connectors too: its own switch, `enabled`, and its settings) and their download mirrors, hub updates, device notifications, each agent CLI's settings per computer and muted Claude config directories. Model profiles are not here: use `model_profiles_list`.\n\n`test` checks a provider ID for a `model_config.*` group, without approval or saving. `assistant.standing_authorizations`: never invent a quote or widen a grant's scope, and give only conditions that can be checked independently.\n\nDetails: read .claude/skills/persona-work/references/persona-settings.md in your working directory.",
+    "description": "This is how the user changes Persona's settings: ask them in conversation, there is no settings page for these. `list` (the default) shows every key with a one-line description, how to set it and its current value (secrets only as set or unset); `get` reads one. `set`, `add` and `remove` show before → after as a confirmation card in Persona and change nothing until they approve; secrets are entered there, never in chat. Change only what was asked. Areas: assistant behavior, session triage, About Me, saved prompts, start page and sidebar, inbox sorting and task links, mail accounts, extensions (`extension.\u003cid\u003e`, channels and connectors too: its own switch, `enabled`, and its settings) and their download mirrors, hub updates, device notifications, each agent CLI's settings per computer and muted Claude config directories. Model profiles are not here: use `model_profiles`.\n\n`test` checks a provider ID for a `model_config.*` group, without approval or saving. `assistant.standing_authorizations`: never invent a quote or widen a grant's scope, and give only conditions that can be checked independently.\n\nDetails: read .claude/skills/persona-work/references/persona-settings.md in your working directory.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -1358,15 +1091,22 @@
     "defer_loading": true
   },
   {
-    "name": "skill_import",
-    "description": "Import a user-requested skill ZIP through Persona's existing Settings importer. First preview the base64-encoded archive (up to 4 MiB compressed); returns validated metadata, a short-lived reference and environment. Then install with the same archive, reference and environment. Installation and undo wait for the user's own permission card showing the validated skill and target computer; never approve for the user. The target is the current assistant's configured personal computer, never a model-chosen path or machine. Skills are shared by assistants using that computer account and load in new conversations; an existing conversation is not guaranteed to refresh. Same-name skills are never overwritten. ZIP inspection does not run scripts or treat skill instructions as authorization. Use status with the original reference and environment after a lost/uncertain response, before any retry: it records previewed, installed or undone and recovers the undo receipt. Status is an operation receipt, not a live inventory; receipts expire after ten minutes or a computer restart. If unavailable, inspect Settings \u003e Skills instead of assuming failure. Cancel discards an unused preview. Undo takes an installed receipt, refuses edited/replaced files and retains recovery data. No URL download, repository clone, arbitrary path write or arbitrary skill removal is provided. An older computer may require a Persona update.",
+    "name": "skill",
+    "description": "Skills on the main conversation's computer; each install is the user's to approve on their own card, never yours. `save` keeps a short procedure worked out in this conversation as a skill (name, description, and a Markdown body without front matter); facts and preferences go to memory instead. `import` takes a skill ZIP the user asked for through Persona's Settings importer, by `op`: preview the base64 archive (at most 4 MiB compressed) for validated metadata, a reference and an environment; install with the same archive, reference and environment; status after a lost or uncertain answer, before any retry; cancel an unused preview; undo an installed receipt. A same-name skill is never overwritten, no URL is fetched and no script runs; skills load in new conversations.",
     "input_schema": {
       "type": "object",
-      "additionalProperties": false,
       "required": [
-        "op"
+        "action"
       ],
       "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "import",
+            "save"
+          ],
+          "description": "save: keep a procedure from this conversation; import: a skill ZIP, step by step with op"
+        },
         "op": {
           "type": "string",
           "enum": [
@@ -1391,23 +1131,7 @@
           "type": "string",
           "maxLength": 128,
           "description": "Environment returned by preview, required except for preview. A changed assistant computer requires a fresh preview."
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "skill_save",
-    "description": "Keep a short procedure from this conversation as a skill on the main conversation's computer, once the user approves. Facts and preferences go to memory; skills with files, to skill_import. body: Markdown, no front matter.",
-    "input_schema": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "name",
-        "description",
-        "body"
-      ],
-      "properties": {
+        },
         "name": {
           "type": "string"
         },
@@ -1417,73 +1141,57 @@
         "body": {
           "type": "string"
         }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "model_profiles_list",
-    "description": "List editable model profiles, current profile, changed fields, rollback and recent audit events. Profiles contain model settings only, never credentials.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "additionalProperties": false
-    },
-    "core_rank": 37
-  },
-  {
-    "name": "model_profile_get",
-    "description": "Inspect one model profile by id. See its purpose bindings, launcher model fields and named execution tiers (the Agent presets). Add, change or remove a tier with persona_settings key model_profiles.tiers. Saving a tier does not apply the profile.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Profile id from model_profiles_list"
-        }
       },
-      "additionalProperties": false,
-      "required": [
-        "id"
-      ]
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "model_profile_switch",
-    "description": "Switch atomically to a model profile by id when the user asks (for example economy or performance). Saves a before-image for model_profile_rollback and records actor/time. Applies on next model call or Agent start; does not interrupt running work. Inspect profiles first; do not assume economy needs any particular model.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Profile id from model_profiles_list"
-        }
-      },
-      "additionalProperties": false,
-      "required": [
-        "id"
-      ]
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "model_profile_rollback",
-    "description": "Undo the last model-profile switch using its saved before-image. Restores only touched model settings, not launcher credentials. Inspect the rollback preview with model_profiles_list first; a second rollback redoes the switch.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
       "additionalProperties": false
     },
     "defer_loading": true
   },
   {
-    "name": "repositories_list",
-    "description": "Search this assistant's saved names, aliases, full paths and purposes to resolve repository identity; use repository_get for useful details. The user's explicit repository URL or path takes precedence. References are not authorization or an allowlist; never infer a machine or local checkout path. Returns saved metadata and verified_at only: no remote, source, clone or permission checks. Non-repository tasks need no lookup; this is not a mandatory dispatch preflight.",
+    "name": "model_profiles",
+    "description": "Model profiles: model settings only, never credentials. `list`: the profiles, the current one, its changed fields, the rollback preview and recent changes. `get` with `id`: one profile's purpose bindings, launcher model fields and Agent presets (change a preset with persona_settings key model_profiles.tiers). `switch` with `id`, only when the user asks: it applies at the next model call or Agent start, interrupts nothing and keeps a before-image. `rollback`: undoes the last switch; a second rollback redoes it.",
     "input_schema": {
       "type": "object",
-      "additionalProperties": false,
+      "required": [
+        "action"
+      ],
       "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "list",
+            "get",
+            "switch",
+            "rollback"
+          ],
+          "description": "list, get one, switch to one, or roll back the last switch"
+        },
+        "id": {
+          "type": "string",
+          "description": "get, switch: the profile's id from list"
+        }
+      },
+      "additionalProperties": false
+    },
+    "defer_loading": true
+  },
+  {
+    "name": "repositories",
+    "description": "This assistant's saved repository references. `list` searches their names, aliases, full paths and purposes to resolve repository identity (query, cursor, limit); `get` with `id` reads one when its details are useful: provider, instance, full path, canonical URL, aliases, purpose, verified_at. `add` saves one when the user asks, after their permission card (url, and optional provider, name, aliases, purpose); duplicates and URL credentials are refused, and after an uncertain add look with `list` before retrying. The user's explicit repository URL or path takes precedence. A reference is not authorization or an allowlist; never infer a machine or local checkout path. Saved metadata only: nothing here checks the remote.",
+    "input_schema": {
+      "type": "object",
+      "required": [
+        "action"
+      ],
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "list",
+            "get",
+            "add"
+          ],
+          "description": "list (search), get one by id, or add one on the user's request"
+        },
         "query": {
           "type": "string",
           "maxLength": 200,
@@ -1499,41 +1207,13 @@
           "minimum": 1,
           "maximum": 50,
           "description": "Results per page, default 20; at most 50."
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "repository_get",
-    "description": "Read this assistant's saved reference by id from repositories_list: provider, instance, full path, canonical URL, optional name/aliases/purpose, verified_at. Retrieve details only when useful; the user's explicit repository URL or path takes precedence. A reference is not authorization or an allowlist; never infer a machine or local checkout path. Saved metadata only: no remote check, source read, clone, credentials or permission grant.",
-    "input_schema": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id"
-      ],
-      "properties": {
+        },
         "id": {
           "type": "string",
           "minLength": 1,
           "maxLength": 80,
-          "description": "Stable saved binding id returned by this assistant's repositories_list, not a URL, machine, path or another assistant's id."
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "repository_add",
-    "description": "On the user's request, add a reference for this assistant using Settings \u003e Repositories URLs/metadata and existence checks through its provider. Refuse duplicates, concurrent changes and URL credentials. A permission card shows normalized details; only the user's own approval saves. Returns the saved binding with id and verified_at. Reference only, not authorization or an allowlist: no clone, source fetch, permission grant, machine or local checkout. If saving is uncertain or its response lost, inspect repositories_list/repository_get before retrying. Undo in Settings \u003e Repositories.",
-    "input_schema": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "url"
-      ],
-      "properties": {
+          "description": "get: the reference's id from list"
+        },
         "url": {
           "type": "string",
           "minLength": 1,
@@ -1565,113 +1245,47 @@
           "type": "string",
           "maxLength": 500
         }
-      }
+      },
+      "additionalProperties": false
     },
     "defer_loading": true
   },
   {
-    "name": "view_show",
-    "description": "Create a persistent live card in the calling assistant conversation. Use the same View schema as persona-view and extension UI: sections of components, a required plain-text fallback, and optional named pages. The card stays at its feed position; use view_update to change it. The hub validates the View and returns field-level errors for correction. At most 64 KB per card and 200 cards per conversation. This does not send a push notification. Keep the conclusion in your normal reply too. Returns {id, version}; save the id for updates. Do not collect passwords or secrets in a card. An html component can call persona.reply / persona.open only when it has a key, and each call is confirmed by the user; the card's one reply is shared with its reply actions.",
+    "name": "view",
+    "description": "Live cards in this assistant conversation. `show` creates a persistent card from a View (the persona-view schema: sections of components, a required plain-text fallback, optional named pages; at most 64 KB a card and 200 a conversation) and returns {id, version}: keep the id. `update` replaces a card this conversation made with a complete View: give the version `get` read to refuse a stale update (a validation error or a conflict leaves the card as it was) and keep component keys stable. `get` reads a card of this conversation: its View, version and the user's actions (replies and submitted values, with their delivery state). A card sends no push: keep the conclusion in your reply too. Never collect passwords or secrets in a card; an html component's persona.reply and persona.open need a key and the user's confirmation.",
     "input_schema": {
       "type": "object",
       "required": [
-        "view"
+        "action"
       ],
       "properties": {
-        "view": {
-          "type": "object",
-          "description": "A View from schema/extension/view.schema.json with a required plain-text fallback and sections. Only assistant reply/open/push.page/pop actions, not extension ui.action ids."
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "view_update",
-    "description": "Replace a live card created by this assistant conversation with a complete validated View. Other conversations and ordinary agents cannot modify it. Supply the version read from view_get to reject stale updates; without it the hub uses the version it reads at the start of this call. Validation or a version conflict leaves the previous card intact. Contents are stored before update notifications are coalesced (at most one per second). Returns {version}. Keep stable component keys to preserve editing and scroll state across devices.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "id",
-        "view"
-      ],
-      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "show",
+            "update",
+            "get"
+          ],
+          "description": "show: a new card; update: replace one of this conversation's cards; get: read one"
+        },
         "id": {
           "type": "string",
-          "description": "The exact id returned by view_show, including its view_ prefix."
+          "description": "update, get: the card's id from show, with its view_ prefix"
         },
         "view": {
           "type": "object",
-          "description": "The entire replacement View, including required plain-text fallback."
+          "description": "A View from schema/extension/view.schema.json with a required plain-text fallback and sections. Only assistant reply/open/push.page/pop actions, not extension ui.action ids."
         },
         "version": {
           "type": "integer",
           "minimum": 1,
           "maximum": 9007199254740991,
-          "description": "Expected version from view_get; a stale version returns a conflict instead of overwriting."
+          "description": "Expected version from get; a stale version returns a conflict instead of overwriting."
         }
-      }
+      },
+      "additionalProperties": false
     },
     "defer_loading": true
-  },
-  {
-    "name": "view_get",
-    "description": "Read a persistent live card created by the calling assistant conversation. Returns its id, conversation, version, full View, timestamps and actions (the user's selected reply and submitted values, with pending/sent/failed delivery status; kind html is a reply from an html component's persona.reply, its text the reply the user confirmed; version is the card version the user saw when choosing). Use it before updating a card after resuming work; an id from another conversation is forbidden. Updating the card never clears a committed answer.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "id"
-      ],
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "The exact live card id returned by view_show."
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "conversations_list",
-    "description": "List your Persona conversations, newest activity first: id, title, last activity, main/running state and last-message gist. Archived ones need `include_archived`; this conversation is marked. Use it to identify the user's conversation before reading or messaging it.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "query": {
-          "type": "string",
-          "description": "case-insensitive match on title or last message"
-        },
-        "include_archived": {
-          "type": "boolean",
-          "description": "include archived conversations (marked as such)"
-        },
-        "limit": {
-          "type": "integer",
-          "description": "default 30, max 100"
-        }
-      }
-    },
-    "core_rank": 28
-  },
-  {
-    "name": "conversation_read",
-    "description": "Read the recent part of another Persona conversation (an id from conversations_list): the user's messages, what was answered, tool calls in short form, cut like agent_read. `turns` = how many recent exchanges (default 2, max 10).",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "id"
-      ],
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "full id or its first 8 characters"
-        },
-        "turns": {
-          "type": "integer"
-        }
-      }
-    },
-    "core_rank": 26
   },
   {
     "name": "conversation_send",
@@ -1700,11 +1314,11 @@
         }
       }
     },
-    "core_rank": 27
+    "core_rank": 22
   },
   {
     "name": "task_plan",
-    "description": "Plan code, repository research and other multi-step work for coding Agents, one supervised task per independent piece. Check machines_list and agents_list first; follow-up for an Agent with the context goes to agent_send. Read-only, user_requested and preapproved tasks start at once, others on the owner's Start; a queued receipt is not a started Agent.\n\nWrite title (under 20 characters), why, goal, done_when and out_of_bounds in Japanese. A writable task needs checkable done_when, a read-only one goal. Continue a task with continues (scope_revision after task_scope); retry a failed start with task_retry. readonly=true: Claude-family launchers run with bypassPermissions; Codex and agy (Antigravity companion) in plan mode, or with assistant.readonly_mode=prompt by instruction only, not a security boundary; pi and cursor refuse it.\n\n`wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, with known input/session ids. Observation never answers questions, accepts tasks, resends or cancels work; normal supervision/`task_review` applies. Older nodes may time out rather than return an unrelated reply. Only an immediately dispatchable single-task plan waits.\n\nDetails: read .claude/skills/persona-work/references/task-plan.md in your working directory.",
+    "description": "Plan code, repository research and other multi-step work for coding Agents, one supervised task per independent piece. Check machines_list and agents_list first; follow-up for an Agent with the context goes to agent_send. Read-only, user_requested and preapproved tasks start at once, others on the owner's Start; a queued receipt is not a started Agent.\n\nWrite title (under 20 characters), why, goal, done_when and out_of_bounds in Japanese. A writable task needs checkable done_when, a read-only one goal. Continue a task with continues (scope_revision after task_scope); retry a failed start with task_start_repair retry. readonly=true: Claude-family launchers run with bypassPermissions; Codex and agy (Antigravity companion) in plan mode, or with assistant.readonly_mode=prompt by instruction only, not a security boundary; pi and cursor refuse it.\n\n`wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, with known input/session ids. Observation never answers questions, accepts tasks, resends or cancels work; normal supervision/`task_review` applies. Older nodes may time out rather than return an unrelated reply. Only an immediately dispatchable single-task plan waits.\n\nDetails: read .claude/skills/persona-work/references/task-plan.md in your working directory.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -1889,7 +1503,7 @@
               },
               "host": {
                 "type": "string",
-                "description": "agy (Antigravity companion) or herdr (the computer's terminal); leave out to let Persona choose"
+                "description": "agy (Antigravity companion) or herdr (terminal); omit to let Persona choose"
               },
               "model": {
                 "type": "string"
@@ -2399,39 +2013,31 @@
     "defer_loading": true
   },
   {
-    "name": "task_start_screen",
-    "description": "Read the last 30 lines of the terminal tab a task's agent did not start in, while its computer keeps that tab (a supervision message says until when): the question the tab's shell waits on, or where the agent's own screen stopped. Only for a task of this conversation whose start is being remedied; what it shows stays here, it is not kept with the task.",
+    "name": "task_start_repair",
+    "description": "Remedy a failed start of one of this conversation's tasks while its computer keeps the tab the agent did not start in (a supervision message says until when). `screen` reads the tab's last 30 lines: the question its shell waits on, or where the agent's screen stopped. `keys` types into it while no agent runs there: `text` as is (no enter, at most 32 characters), then `keys` by name (\"enter\", \"esc\", \"ctrl+c\", \"y\", \"n\", \"up\", \"down\"…, at most 8); read the screen before and after. `retry` starts the agent again, in the kept tab or a new one, or with `launcher` on another launcher of the same computer and workspace; at most 3 retries, the hub never retries itself, and the outcome comes as a supervision message.",
     "input_schema": {
       "type": "object",
       "required": [
+        "action",
         "todo_id"
       ],
       "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "screen",
+            "keys",
+            "retry"
+          ],
+          "description": "read the kept tab, type into it, or start the agent again"
+        },
         "todo_id": {
           "type": "string",
           "description": "the task's id, as the supervision message gives it"
         },
         "reason": {
           "type": "string",
-          "description": "why you look, in the user's language (optional; kept with the task's history)"
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "task_start_keys",
-    "description": "Type into the terminal tab a task's agent did not start in, while its computer keeps that tab and no agent runs there: text as is (no enter, at most 32 characters), then keys by name (\"enter\", \"esc\", \"ctrl+c\", \"y\", \"n\", \"up\", \"down\"…, at most 8). Use it to answer the question the tab's shell waits on, or to get past where the agent's screen stopped; read the tab first with task_start_screen and again after. The keys, the text and your reason are kept with the task's history. It starts nothing: start the agent again with task_retry.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "todo_id",
-        "reason"
-      ],
-      "properties": {
-        "todo_id": {
-          "type": "string",
-          "description": "the task's id, as the supervision message gives it"
+          "description": "keys, retry: why, kept with the task's history"
         },
         "text": {
           "type": "string",
@@ -2446,32 +2052,6 @@
           },
           "description": "keys to press after the text, by name"
         },
-        "reason": {
-          "type": "string",
-          "description": "why these keys, in the user's language, one sentence"
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "task_retry",
-    "description": "Start a failed task's agent again: in its kept tab (once task_start_keys answered what stopped it), else in a new tab, reopening it; with launcher, on that launcher of the same computer and workspace. At most 3 retries; the hub never retries itself. Returns at once; the outcome comes as a supervision message. Only this conversation's tasks; reason goes in their history.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "todo_id",
-        "reason"
-      ],
-      "properties": {
-        "todo_id": {
-          "type": "string",
-          "description": "the task's id, from the supervision message"
-        },
-        "reason": {
-          "type": "string",
-          "description": "why it should start now, in the user's language, one sentence"
-        },
         "launcher": {
           "type": "string",
           "description": "optional: another launcher of that computer, as the supervision message lists"
@@ -2485,88 +2065,28 @@
     "defer_loading": true
   },
   {
-    "name": "todo_workspace",
-    "description": "Manage an explicitly requested backend workspace for one to-do. Legacy Engine creation and folder reuse stay available. inspect reads saved and live state. First prepare needs operation_id, machine_id, layout and selected_repo_ids from todo_repositories_get; all selected repos must be ready. Inspect unknown outcomes before retrying the same operation. To correct a branch/path, cancel, edit associations or naming, then prepare the same to-do with a new operation_id. Unchanged successful repos and local work survive; conflicting resources need explicit cleanup. Cleanup removes worktrees and retains branches by default. Use force (discards unsaved work) or delete_branch only for that explicitly requested effect. Prepare after cleanup with a new operation_id. No action starts an Agent or changes the to-do stage.",
+    "name": "todo_links",
+    "description": "A to-do's saved repository and issue/PR associations. `get` reads them with their revisions; no Git or network call. `add_links` adds 1–50 exact issue or PR URLs as `links` [{url, title}] (actual titles only), grouped by repository by itself. `set` replaces the repositories at once (`expected_revision`, `expected_catalog_revision`, `repositories`; [] removes them) and `set_links` one repository's links (`repo_id`, `expected_revision`, `links`); reread and reconcile on a conflict. The hub already links the issues and PRs an Agent's replies name, and an association never proves completion.",
     "input_schema": {
       "type": "object",
       "required": [
-        "id",
-        "action"
-      ],
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "action": {
-          "type": "string",
-          "enum": [
-            "inspect",
-            "prepare",
-            "cancel",
-            "cleanup"
-          ]
-        },
-        "operation_id": {
-          "type": "string"
-        },
-        "machine_id": {
-          "type": "string"
-        },
-        "layout": {
-          "type": "string",
-          "enum": [
-            "root",
-            "container"
-          ]
-        },
-        "selected_repo_ids": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "force": {
-          "type": "boolean"
-        },
-        "delete_branch": {
-          "type": "boolean"
-        }
-      },
-      "additionalProperties": false
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "todo_repositories_get",
-    "description": "Read a to-do's saved repository/issue/PR associations and catalog status. No Git/network calls.",
-    "input_schema": {
-      "type": "object",
-      "required": [
+        "action",
         "id"
       ],
       "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "get",
+            "add_links",
+            "set",
+            "set_links"
+          ],
+          "description": "get, add issue/PR links, replace the repositories, or replace one repository's links"
+        },
         "id": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "todo_repositories_set",
-    "description": "Replace atomically using revisions from todo_repositories_get/repositories_list. [] removes metadata. Frozen source snapshots: remove/reselect to adopt catalog identity changes. Editable after execution. Omit links to keep; [] clears. Omitted/empty titles keep. Reread/reconcile conflicts. No files, progress or completion changes.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "id",
-        "expected_revision",
-        "expected_catalog_revision",
-        "repositories"
-      ],
-      "properties": {
-        "id": {
-          "type": "string"
+          "type": "string",
+          "description": "the to-do's id"
         },
         "expected_revision": {
           "type": "integer",
@@ -2695,33 +2215,9 @@
             },
             "additionalProperties": false
           }
-        }
-      },
-      "additionalProperties": false
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "todo_repository_links_set",
-    "description": "Set saved-source links. [] clears; absent/empty titles keep. Reread conflicts. Metadata only.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "id",
-        "repo_id",
-        "expected_revision",
-        "links"
-      ],
-      "properties": {
-        "id": {
-          "type": "string"
         },
         "repo_id": {
           "type": "string"
-        },
-        "expected_revision": {
-          "type": "integer",
-          "minimum": 0
         },
         "links": {
           "type": "array",
@@ -2792,23 +2288,6 @@
               }
             ]
           }
-        }
-      },
-      "additionalProperties": false
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "todo_repository_links_add",
-    "description": "Atomically add 1–50 exact issue/PR URLs across links:[{url,title}] and legacy urls, at least one in total. Auto-group even unlisted repositories; no manual entry. Actual titles only: nonempty refreshes, omitted/empty keeps. Deduplicate; explicit adds can restore removed links. Preserve aliases, refs and source snapshots. Replace/remove via todo_repositories_get and revision-checked set tools. Associations never prove completion.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "id"
-      ],
-      "properties": {
-        "id": {
-          "type": "string"
         },
         "urls": {
           "type": "array",
@@ -2816,27 +2295,6 @@
           "maxItems": 50,
           "items": {
             "type": "string"
-          }
-        },
-        "links": {
-          "type": "array",
-          "maxItems": 50,
-          "items": {
-            "type": "object",
-            "required": [
-              "url"
-            ],
-            "properties": {
-              "url": {
-                "type": "string"
-              },
-              "title": {
-                "type": "string",
-                "description": "Plain source title; trim; ≤1024 UTF-8 bytes.",
-                "maxLength": 1024
-              }
-            },
-            "additionalProperties": false
           }
         }
       },
@@ -2877,7 +2335,7 @@
             "todo",
             "concern"
           ],
-          "description": "todo or user-raised concerns awaiting concern_report; omitted includes both."
+          "description": "todo or user-raised concerns awaiting their reported outcome; omitted includes both."
         },
         "limit": {
           "type": "integer",
@@ -2889,7 +2347,7 @@
   },
   {
     "name": "todo_get",
-    "description": "Read a to-do's title/state, reminder and push status, timestamps, origin/plan, notes, agents, decisions and canonical repository/issue/PR associations. Maintain links with todo_repository_links_add or the revision-checked set tools; associations do not prove completion.",
+    "description": "Read a to-do's title/state, reminder and push status, timestamps, origin/plan, notes, agents, decisions and canonical repository/issue/PR associations. Maintain links with todo_links (add_links, or the revision-checked set and set_links); associations do not prove completion.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -2906,7 +2364,7 @@
   },
   {
     "name": "todo_create",
-    "description": "Record what the user asks to remember, track or be reminded of (`remind`), and agreed work, immediately and without confirmation; carry the work out via task_plan, linking its task to this to-do (`todo_id` or `part_of`). Open title duplicates return existing to-dos but refuse bindings: use todo_repositories_get/set. Short title in the user's language; details in notes. Bindings save atomically; IDs/catalog_revision from repositories_list. No files or task progress changes.",
+    "description": "Record what the user asks to remember, track or be reminded of (`remind`), and agreed work, immediately and without confirmation; carry the work out via task_plan, linking its task to this to-do (`todo_id` or `part_of`). Open title duplicates return existing to-dos but refuse bindings: use todo_links get and set. Short title in the user's language; details in notes. Bindings save atomically; IDs/catalog_revision from repositories list. No files or task progress changes.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -2931,7 +2389,7 @@
             "todo",
             "concern"
           ],
-          "description": "todo (default); concern (main chat only) tracks a user-raised matter until concern_report reports its outcome; other completion tools cannot close it."
+          "description": "todo (default); concern (main chat only) tracks a user-raised matter until its outcome is reported (todo_update); other completion tools cannot close it."
         },
         "project": {
           "type": "string",
@@ -3088,7 +2546,7 @@
   },
   {
     "name": "todo_update",
-    "description": "Update supplied title, notes, reminder, project, part_of or after immediately, including task to-dos; no confirmation. Omitted fields stay; \"\" clears notes/remind/project/part_of, [] clears after. New reminder times notify again. Completion/reopening uses todo_complete/todo_reopen.",
+    "description": "Update supplied title, notes, reminder, project, part_of or after immediately, including task to-dos; no confirmation. Omitted fields stay; \"\" clears notes/remind/project/part_of, [] clears after. New reminder times notify again. `state`, alone: `done` once the user says so (confirmed in Persona first for a task's or one with agents, as it closes their idle agents; a concern needs `report`, the outcome you told the user), `open` if not done after all, `deleted` only when asked (confirmed; a finished one is done instead).",
     "input_schema": {
       "type": "object",
       "required": [
@@ -3125,83 +2583,23 @@
             "type": "string"
           },
           "description": "Sibling piece ids it waits for; replaces old."
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "done",
+            "open",
+            "deleted"
+          ],
+          "description": "with id only"
+        },
+        "report": {
+          "type": "string",
+          "description": "a concern's outcome as you told the user (state done)"
         }
       }
     },
     "core_rank": 14
-  },
-  {
-    "name": "todo_complete",
-    "description": "Mark one of the user's Persona to-dos done, when the user says it is done (or asks you to close it). The user's own to-do is closed at once. A task's, or one agents work on, is confirmed in Persona first, because closing it also closes its agents once they are idle; if the user declines, nothing changes. A concern is not closed with this: report its outcome with concern_report.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "id"
-      ],
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "the to-do's id (todo_…), as todo_list gives it"
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "todo_reopen",
-    "description": "Open a done Persona to-do again, when the user says it is not done after all. The user's own to-do is reopened at once; a task's, or one agents worked on, is confirmed in Persona first.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "id"
-      ],
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "the to-do's id (todo_…), as todo_list gives it"
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "todo_delete",
-    "description": "Delete one of the user's Persona to-dos for good (its notes, links to agents and decisions go with it), only when the user asks for it to be deleted; one that is finished is completed instead (todo_complete). Every delete is confirmed in Persona first; if the user declines, writes instead, or does not answer, nothing is deleted. The agents that worked on it are left as they are.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "id"
-      ],
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "the to-do's id (todo_…), as todo_list gives it"
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "concern_report",
-    "description": "Report the outcome of one of the user's concerns (a to-do of kind concern, see todo_list kind concern) and close it: main conversation only. Call it in the same reply in which you tell the user the outcome, with report the words you told them, faithfully; it is kept on the concern as a decision of source reported (shown in the app, sent to extensions). It is the only way a concern closes: nothing closes one on its own, and todo_complete refuses it. Report only an outcome the user has actually been told; if the concern is not settled yet, leave it open. A concern the user reopens needs another report.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "id",
-        "report"
-      ],
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "the concern's id (todo_…), as todo_list gives it"
-        },
-        "report": {
-          "type": "string",
-          "description": "what you told the user of its outcome, as you said it in this reply (at most 4000 characters)"
-        }
-      }
-    },
-    "defer_loading": true
   },
   {
     "name": "decision_record",

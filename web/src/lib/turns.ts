@@ -695,14 +695,29 @@ const PERSONA_VERB_KEY: Record<string, string> = {
   secret_run: "persona_secret_run",
 };
 
+/** Persona's tools that stand for older ones by an action (the hub's mergedTools): a step reads as the older one did. */
+const PERSONA_MERGED: Record<string, Record<string, string>> = {
+  view: { show: "view_show", get: "view_get", update: "view_update" },
+};
+
+/** The older Persona tool a merged call stands for (the hub's unmergeTool), for its words; else base. */
+function olderPersonaTool(base: string, input?: Record<string, unknown>): string {
+  const actions = ownEntry(PERSONA_MERGED, base);
+  if (actions) return (typeof input?.action === "string" && ownEntry(actions, input.action)) || base;
+  if (base === "agents_list" && input?.kind === "conversations") return "conversations_list";
+  if (base === "agent_read" && typeof input?.conversation === "string") return "conversation_read";
+  return base;
+}
+
 /** How one of Persona's own tools reads in a step: a verb ("Read agent chat"), or for the phone and mail families the
  *  family and what it did ("iPhone" + "contacts search"); null for every other tool and the Persona tools without one
- *  (they keep "Persona · agent read"). Display only: the server stays `persona` on the wire. */
-export function personaToolVerb(rawName?: string): { verb: string; what?: string } | null {
+ *  (they keep "Persona · agent read"). A merged tool reads as the older tool its input's action names. Display only:
+ *  the server stays `persona` on the wire. */
+export function personaToolVerb(rawName?: string, input?: Record<string, unknown>): { verb: string; what?: string } | null {
   const name = canonicalMcpToolName(rawName);
   if (!isPersonaTool(name)) return null;
   const base = name!.slice(name!.lastIndexOf("__") + 2);
-  const key = ownEntry(PERSONA_VERB_KEY, canonicalTool(base));
+  const key = ownEntry(PERSONA_VERB_KEY, canonicalTool(olderPersonaTool(base, input)));
   if (key) return { verb: t(`lib-turns.${key}`) };
   const family = /^(phone|mail)_(.+)$/.exec(base);
   if (family) return { verb: t(family[1] === "phone" ? "lib-turns.persona_phone" : "lib-turns.persona_mail"), what: family[2].replace(/_/g, " ") };

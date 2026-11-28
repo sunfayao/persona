@@ -91,7 +91,7 @@ func TestAgentAllowsOnlyItsOwnPersonaTools(t *testing.T) {
 	n.dir, n.bin = personaDir(home), "/usr/local/bin/personad"
 	var want []string
 	for _, tool := range []string{"report_to_supervisor", "todo_decisions", "todo_decision_add", "todo_bind_thread", "task_plan", "task_review"} {
-		want = append(want, "mcp__persona__"+tool, "mcp__"+compat.MCPServer+"__"+tool)
+		want = append(want, "mcp__persona__"+tool)
 	}
 	got := strings.Split(n.agentAllowedTools(false), ",")
 	if !slices.Equal(got, want) {
@@ -128,8 +128,8 @@ func TestAgentAllowsOnlyItsOwnPersonaTools(t *testing.T) {
 	if b, err := os.ReadFile(filepath.Join(n.dir, "mcp.json")); err != nil || json.Unmarshal(b, &mcp) != nil {
 		t.Fatalf("mcp.json: %v", err)
 	}
-	if mcp.Servers["persona"] == nil || mcp.Servers[compat.MCPServer] == nil {
-		t.Fatalf("mcp.json registers %v: the allowed names must be the ones it registers", slices.Collect(maps.Keys(mcp.Servers)))
+	if len(mcp.Servers) != 1 || mcp.Servers["persona"] == nil {
+		t.Fatalf("mcp.json registers %v: the allowed names must be the ones it registers, once", slices.Collect(maps.Keys(mcp.Servers)))
 	}
 	settings, err := os.ReadFile(filepath.Join(n.dir, "claude-settings.json"))
 	if err != nil {

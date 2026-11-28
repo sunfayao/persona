@@ -138,6 +138,7 @@ func (s *Service) toolsCursor(ctx context.Context, machine, session string, assi
 	if digest := s.extensionToolsDigest(ctx, assistant); digest != "" {
 		cursor += ":ext=" + digest
 	}
+	cursor += s.toolGatesNow(ctx).revision()      // feature-bound groups opening or closing (fleet_tools.go)
 	cursor += s.coreToolsRevision(ctx, assistant) // the adaptive core tools (tool_use_adapt.go)
 	return cursor + s.toolNotesRevision(ctx, assistant)
 }

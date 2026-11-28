@@ -74,7 +74,7 @@ func TestAssistantRichViewPromptExamplesAreValid(t *testing.T) {
 			t.Fatalf("prompt teaches an invalid view: %v", err)
 		}
 	}
-	for _, want := range []string{"view_show", "view_update", "view_get", "submit=true", "ask_user", "fallback", "runs when it scrolls into view"} {
+	for _, want := range []string{"`view` show", "`view` update", "`view` get", "submit=true", "ask_user", "fallback", "runs when it scrolls into view"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("missing rich view guidance: %s", want)
 		}

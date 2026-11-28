@@ -64,8 +64,16 @@ func (s *Service) claudeMD(ctx context.Context, here string, larkCLI bool) strin
 
 func (s *Service) assistantPrompt(ctx context.Context, here string, larkCLI bool, settings Settings) prompts.AssistantClaudeMD {
 	hello := s.hello(ctx)
-	d := prompts.AssistantClaudeMD{Owner: strings.TrimSpace(hello.Owner), Notes: s.notes(ctx), LarkCLI: larkCLI, Language: answerLanguage(hello.Locale),
-		BackgroundSupervisor: s.backgroundOn(settings)}
+	d := prompts.AssistantClaudeMD{Owner: strings.TrimSpace(hello.Owner), Notes: s.notes(ctx), LarkCLI: larkCLI, Language: answerLanguage(hello.Locale)}
+	gates := s.toolGatesNow(ctx)
+	d.InboxTwin, d.InboxPost = gates.inboxTwin, gates.inboxPost
+	if s.ext != nil {
+		agents, assistantOnly := s.ext.AgentTools(ctx, true)
+		has := func(list []proto.Tool, name string) bool {
+			return slices.ContainsFunc(list, func(t proto.Tool) bool { return t.Name == name })
+		}
+		d.Mail, d.Subscriptions = has(agents, "mail_search"), has(assistantOnly, "subscription_save")
+	}
 	devices := s.devices(ctx)
 	if i := slices.IndexFunc(devices, func(d Device) bool { return d.ID == here }); i >= 0 {
 		d.OnHub = devices[i].Kind == "local"

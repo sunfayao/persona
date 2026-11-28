@@ -22,10 +22,8 @@ func TestCoreToolsPinned(t *testing.T) {
 		"agent_read", "agents_list", "todo_get", "persona_settings", "task_review", "supervision_finish", "task_plan",
 		"agent_send", "machines_list", "schedule_state_set", "agent_archive", "task_scope", "todo_list", "todo_update",
 		"todo_create", "computer_run", "computer_state", "machine_exec",
-		"agent_interrupt", "agent_start", "agent_supervise", "ask_user", "browser_look", "browser_run", "cancel_followup",
-		"conversation_read", "conversation_send", "conversations_list", "interaction_answer", "lark_chats", "lark_messages",
-		"lark_search", "larkcli_chats", "larkcli_messages", "larkcli_search", "list_followups", "model_profiles_list",
-		"notify_user", "schedule_followup", "schedule_routine",
+		"ask_user", "browser_look", "browser_run", "conversation_send", "lark_chats", "lark_messages", "lark_search",
+		"larkcli_chats", "larkcli_messages", "larkcli_search", "notify_user", "schedule_followup",
 	}
 	if !slices.Equal(coreTools, want) {
 		t.Fatalf("core tools changed:\n got %q\nwant %q", coreTools, want)
@@ -68,7 +66,7 @@ func TestToolLoadingMarksAssistantTools(t *testing.T) {
 	}
 	got := mcpToolList(t, s, "o1", true, false)
 	for name, deferred := range map[string]bool{"agent_read": false, "ask_user": false, "lark_chats": false, "task_plan": false,
-		"computer_run": false, "inbox_move": true, "view_show": true, "task_plan_withdraw": true, "lark_agent_reply": true,
+		"computer_run": false, "secret_run": true, "view": true, "task_plan_withdraw": true, "lark_agent_reply": true,
 		"conn_read": true} {
 		if tool, ok := got[name]; !ok || tool.DeferLoading != deferred {
 			t.Errorf("%s: listed %v, deferred %v; want deferred %v", name, ok, tool.DeferLoading, deferred)

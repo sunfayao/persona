@@ -195,7 +195,7 @@ func TestConnectorsEndpoint(t *testing.T) {
 // What GET /api/v1/connectors?all=1 says each built-in connector can do (the app goes by these names).
 func TestConnectorsListTheSameCapabilities(t *testing.T) {
 	h := newTestManager(t)
-	h.mail = (*mail.Service)(nil)
+	h.mail = oneAccountMail{}
 	h.connectors = connector.NewRegistry(nil)
 	h.registerConnectors()
 	if err := h.addConnector(imessage.NewRemote(imessage.Config{Machine: "mac"}, "Mac", nil)); err != nil {
@@ -207,7 +207,7 @@ func TestConnectorsListTheSameCapabilities(t *testing.T) {
 		got = append(got, fmt.Sprintf("%s %s hosts=%v options=%v", info.ID, strings.Join(info.Capabilities, ","), info.Hosts, info.Options != nil))
 	}
 	want := []string{
-		"mail tools,actions hosts=[] options=false",
+		"mail status,tools,actions hosts=[] options=false",
 		"github status,tools,actions,events,hosts,inbox,login,options,threads hosts=[github.com] options=true",
 		"imessage status,tools,catalog,events,inbox hosts=[] options=false", // catalog: inbox_things (#6317)
 	}
@@ -231,5 +231,47 @@ func TestGhTokenFromAMachine(t *testing.T) {
 	}
 	if _, err := h.ghToken("nope")(context.Background(), "github.com"); !errors.Is(err, github.ErrNoMachine) {
 		t.Fatalf("unknown machine: %v", err)
+	}
+}
+
+// oneAccountMail is the hub's mail with one account added; its tools are the service's own list, which reads nothing.
+type oneAccountMail struct{ *mail.Service }
+
+func (oneAccountMail) ListAccounts() ([]mail.MailAccount, error) {
+	return []mail.MailAccount{{ID: "acc1", Email: "me@example.com"}}, nil
+}
+
+// noAccountMail is the hub's mail before the user added an account.
+type noAccountMail struct{ *mail.Service }
+
+func (noAccountMail) ListAccounts() ([]mail.MailAccount, error) { return nil, nil }
+
+// Mail's tools wait for a mailbox: with no account added the connector is not configured, and no conversation, the
+// assistant's or an Agent's, lists mail_*; once an account is added they are back.
+func TestMailToolsWaitForAnAccount(t *testing.T) {
+	h := newTestManager(t)
+	ctx := context.Background()
+	mailTools := func(agents bool) []string {
+		var out []string
+		for _, tool := range h.connectors.ToolsFor(ctx, agents) {
+			if strings.HasPrefix(tool.Name, "mail_") {
+				out = append(out, tool.Name)
+			}
+		}
+		return out
+	}
+	h.mail = noAccountMail{}
+	h.connectors = connector.NewRegistry(nil)
+	h.registerConnectors()
+	if got := append(mailTools(true), mailTools(false)...); len(got) != 0 {
+		t.Fatalf("mail tools listed with no account: %v", got)
+	}
+	st := connector.StatusOf(ctx, h.connectors.Owner("mail_search"))
+	if st.State != connector.StateNotConfigured || st.Error == "" {
+		t.Fatalf("status with no account: %+v", st)
+	}
+	h.mail = oneAccountMail{}
+	if got := mailTools(true); !slices.Contains(got, "mail_search") || !slices.Contains(got, "mail_send") {
+		t.Fatalf("an Agent's mail tools with an account: %v", got)
 	}
 }

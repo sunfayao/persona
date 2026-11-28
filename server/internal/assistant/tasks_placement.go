@@ -419,12 +419,14 @@ func (s *Service) startTaskAgent(ctx context.Context, t *PlanTask, retry bool) (
 	case t.Parent != "":
 		rules = append(rules, prompts.RenderTaskWorker())
 	}
-	// Files for the user are named by path, never pasted into the reply (task_files.go, #10511). Always asked for,
-	// unlike the closeout form below, which depends on a switch.
-	rules = append(rules, prompts.RenderTaskFiles(answerLanguage(s.hello(ctx).Locale)))
-	// One structured closeout carries delivery too when both switches are on.
+	// One structured closeout carries delivery too when both switches are on; a read-only task's is the short one.
 	delivery := !t.Readonly && s.doneNeedsDelivery(ctx)
-	brief := s.closeoutBrief(ctx, m.ID, delivery)
+	brief := s.closeoutBriefFor(ctx, m.ID, delivery, t.Readonly)
+	// Files for the user are named by path, never pasted into the reply (task_files.go, #10511): by the closeout's
+	// `artifact: file` line, or by the files note while the closeout's switch is off.
+	if brief == "" {
+		rules = append(rules, prompts.RenderTaskFiles(answerLanguage(s.hello(ctx).Locale)))
+	}
 	if delivery { // what done means: live and checked (delivery.go)
 		rules = append(rules, prompts.RenderTaskDelivery(brief != ""))
 	}
@@ -457,9 +459,11 @@ func (s *Service) startTaskAgent(ctx context.Context, t *PlanTask, retry bool) (
 			prompt += "\n\n" + framework // old nodes must receive every required rule
 		}
 	}
-	prompt, err = s.withStandingAuthorizations(ctx, m.ID, t.Cwd, prompt, repoPaths...)
-	if err != nil {
-		return "", "", err
+	if !t.Readonly { // a standing authorization never overrides read-only mode: nothing to say to a read-only task
+		prompt, err = s.withStandingAuthorizations(ctx, m.ID, t.Cwd, prompt, repoPaths...)
+		if err != nil {
+			return "", "", err
+		}
 	}
 	// The user's attachments end it, copied here when this is not the assistant's computer (#2437): last, so the
 	// pictures' <attached_images> block ends the message as it does one sent straight to an agent.

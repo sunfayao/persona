@@ -1,5 +1,5 @@
 - Now: 2026-11-08 Sun 15:04 (UTC)
-- Model profile: not set (model_profiles_list to view, model_profile_switch to switch)
+- Model profile: not set (model_profiles: list them, switch to one)
 - Computers online: 
 - Agents: 0 need you, 0 finished unread, 0 working (details: agents_list)
 - Asked with ask_user, expired into to-dos (you asked with ask_user, nobody answered in time, so it became a to-do waiting for the user's decision; the decision the user records in the to-do is sent as a new message to the conversation that asked; do not ask again, and do not go ahead with one of the options first unless the user has already answered directly in the conversation): “Merge the release PR now?” (todo_ask_0a1b2c, asked 11-08 12:04)

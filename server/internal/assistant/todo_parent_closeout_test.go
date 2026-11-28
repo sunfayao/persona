@@ -34,7 +34,7 @@ func TestGoldenParentCloseoutWakeLanguages(t *testing.T) {
 			Children: children,
 			Notes:    "Track API + UI rollout",
 		})
-		for _, want := range []string{"todo_child_1", "todo_child_2", "pull/101", "pull/102", "todo_complete"} {
+		for _, want := range []string{"todo_child_1", "todo_child_2", "pull/101", "pull/102", "todo_update state done"} {
 			if !strings.Contains(container, want) {
 				t.Fatalf("%s container wake missing %q:\n%s", locale, want, container)
 			}
@@ -119,7 +119,7 @@ func TestParentCloseoutHooksAndPartialCompletion(t *testing.T) {
 			if len(notices) != 1 {
 				t.Fatalf("got %d notices to main, want 1: %q", len(notices), notices)
 			}
-			for _, want := range []string{"signal=" + sigParentCloseout, parent.ID, child1.Title, child2.Title, pr1, pr2, "todo_complete"} {
+			for _, want := range []string{"signal=" + sigParentCloseout, parent.ID, child1.Title, child2.Title, pr1, pr2, "todo_update state done"} {
 				if !strings.Contains(notices[0], want) {
 					t.Errorf("parent closeout notice missing %q:\n%s", want, notices[0])
 				}

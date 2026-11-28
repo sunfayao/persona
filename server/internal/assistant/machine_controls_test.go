@@ -8,6 +8,7 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/extmgr"
 	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // controlsExt is extensions that say what can be done on each Mac (machineControlSource), and nothing else.
@@ -17,6 +18,11 @@ type controlsExt struct {
 }
 
 func (e *controlsExt) MachineControls() map[string]extmgr.MachineControl { return e.controls }
+
+// AgentTools: no connector of this fake offers tools, so the instructions name no mailbox and no subscription.
+func (e *controlsExt) AgentTools(context.Context, bool) (agents, assistantOnly []proto.Tool) {
+	return nil, nil
+}
 
 // machineLines are the instructions' line for each computer, by id.
 func machineLines(t *testing.T, md string, machines ...Device) map[string]string {

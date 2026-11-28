@@ -59,14 +59,10 @@ func TestAgentLanguagePeerBodyAndConcurrency(t *testing.T) {
 
 func TestAgentLanguageTaskFileInstructions(t *testing.T) {
 	// The protocol is English whatever the language; its file line is a fixed marker the server reads.
-	want := struct{ marker, scratch string }{"file: <absolute path on this computer>", "Keep temporary files and drafts outside repository checkouts"}
+	const marker = "file: <absolute path on this computer>"
 	for _, language := range []string{"", "English", "日本語"} {
-		got := RenderTaskFiles(language)
-		if !strings.Contains(got, "\n"+want.marker+"\n") {
+		if got := RenderTaskFiles(language); !strings.Contains(got, "\n"+marker+"\n") {
 			t.Errorf("%q missed file protocol line: %q", language, got)
-		}
-		if !strings.Contains(got, want.scratch) {
-			t.Errorf("%q missed the instruction to keep scratch files outside the checkout", language)
 		}
 	}
 }

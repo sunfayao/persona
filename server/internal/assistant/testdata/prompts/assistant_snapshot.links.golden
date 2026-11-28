@@ -1,5 +1,5 @@
 - Now: 2026-11-04 Wed 11:52 (UTC)
-- Model profile: not set (model_profiles_list to view, model_profile_switch to switch)
+- Model profile: not set (model_profiles: list them, switch to one)
 - Computers online: 
 - Agents: 1 need you, 0 finished unread, 0 working (details: agents_list)
   - Need you: 修 CI (mac-a, session_id=b00502b8, link https://hub.example.com/s/mac-a/b00502b8-82a3): 要你批准推送

@@ -5,15 +5,22 @@ import (
 	"testing"
 )
 
+// A decision signal's rule is in the message that carries the signal, once however many of its entries there are, and
+// in no static instructions: the rules of signals that did not fire are in no request.
 func TestSuperviseDecisionInstructionsAppearOnce(t *testing.T) {
 	policy := RenderSupervisionInstructions()
 	for _, instruction := range []string{"- `recheck`:", "- `undecidable`:", "- `owner_cannot_answer`:", "`todo_decision_add`"} {
-		if got := strings.Count(policy, instruction); got != 1 {
-			t.Errorf("static policy: %q occurs %d times, want 1", instruction, got)
+		if strings.Contains(policy, instruction) {
+			t.Errorf("static policy still carries %q", instruction)
 		}
 	}
-	if !strings.Contains(policy, "Never take an irreversible/externally visible step on the owner's behalf") {
-		t.Fatal("static decision policy lost the owner's approval boundary")
+	for kind, instruction := range map[string]string{"recheck": "- `recheck`:", "undecidable": "- `undecidable` / `delivery_hold`:",
+		"owner_cannot_answer": "Never take an irreversible/externally visible step on the owner's behalf"} {
+		entry := SuperviseEntry{ID: "todo_example", Title: "Example task", Kind: kind}
+		text := RenderSupervise(Supervise{Decisions: true, Entries: []SuperviseEntry{entry, entry}})
+		if got := strings.Count(text, instruction); got != 1 {
+			t.Errorf("%s: the message carries %q %d times, want 1:\n%s", kind, instruction, got, text)
+		}
 	}
 	for _, role := range []struct {
 		name string
@@ -39,7 +46,7 @@ func TestSuperviseDecisionInstructionsAppearOnce(t *testing.T) {
 					}
 				}
 				if got := strings.Count(text, "todo_decision_add"); got != 0 {
-					t.Errorf("Decisions=%v: event repeats decision recording %d times", decisions, got)
+					t.Errorf("Decisions=%v: a recheck repeats the decision recording of owner_cannot_answer %d times", decisions, got)
 				}
 				// i18n-ignore: approval handling also belongs only in the static fragment.
 				approval := "标着「不会默认执行」的（不可撤回，或别人看得到）你不能替用户走这一步"

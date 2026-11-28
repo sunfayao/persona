@@ -5,14 +5,14 @@ The tool's description holds what every call needs. This page holds the rest: wh
 ## Before planning
 
 - Check `machines_list` for a computer that can run the work and `agents_list` for an Agent that already has its context. Follow-up on the same computer and directory goes to that Agent with `agent_send` (see [Delegating work](delegate.md)).
-- Resolve a repository only when the work is about one. The owner's explicit repository URL or path takes precedence. Otherwise search `repositories_list`, and use `repository_get` only when its details help. A saved binding is a reference, not authorization or an allowlist: never infer a machine or checkout path from it. Non-repository tasks need no lookup, and retrieval is not a mandatory dispatch preflight.
+- Resolve a repository only when the work is about one. The owner's explicit repository URL or path takes precedence. Otherwise search with `repositories` list, and use `repositories` get only when its details help. A saved binding is a reference, not authorization or an allowlist: never infer a machine or checkout path from it. Non-repository tasks need no lookup, and retrieval is not a mandatory dispatch preflight.
 - A reminder or calendar event another tool makes for you is not a task.
 
 ## Who starts it and who follows it
 
 - Read-only tasks, tasks the owner asked for in their latest message (`user_requested`) and kinds the owner preapproved start at once. The rest wait as a card for the owner's Start.
 - The receipt confirms a queued dispatch, not a started Agent. Check the to-do's outcome before you report, and reach its Agent with `agent_send`.
-- The conversation that plans a task owns it: its signals, its cards, the remedies for a start that failed (`task_retry`, `task_start_screen`, `task_start_keys`), its review and its cancellation. The receipt names who supervises the task and any running work that looks like the same task: check that work before letting both go on.
+- The conversation that plans a task owns it: its signals, its cards, the remedies for a start that failed (`task_start_repair` screen, keys and retry), its review and its cancellation. The receipt names who supervises the task and any running work that looks like the same task: check that work before letting both go on.
 - Closing the Agent's terminal on acceptance is the owner's choice when they press Start; `task_plan` cannot set it.
 
 ## The brief and its fields
@@ -37,7 +37,7 @@ A started task keeps a brief that the hub records and never rewrites: the owner'
 
 - To continue, rework or replace a task, give `continues` with the original to-do id and `continues_why`. The task keeps its to-do, its brief and its criteria, even after a Start that failed; never split it into a new to-do. Start stops and releases the earlier Agents that are still active, and reopens the to-do if it was closed. Persona refuses a takeover you are not authorized for, earlier Agents it cannot reach to stop, and an open legacy successor.
 - After an owner-authorized scope change, record it with `task_scope` first and pass its `scope_revision`; a plan with a stale revision is refused.
-- A start that did not come up is retried with `task_retry`, also on another launcher.
+- A start that did not come up is retried with `task_start_repair` retry, also on another launcher.
 
 ## Read-only tasks and permissions
 

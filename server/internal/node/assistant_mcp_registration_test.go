@@ -146,7 +146,7 @@ func mcpFlag(t *testing.T, flags []string, key string) string {
 	return flags[i+1]
 }
 
-func TestDoctorMCPRetainsAliasesForAutomaticResume(t *testing.T) {
+func TestSharedMCPConfigRegistersPersonaOnce(t *testing.T) {
 	e := newDoctorEnv(t)
 	e.n.hubPersonaContracts.Store(true)
 	if err := e.n.writeClaudeConfig(); err != nil {
@@ -162,8 +162,8 @@ func TestDoctorMCPRetainsAliasesForAutomaticResume(t *testing.T) {
 	if err := json.Unmarshal(raw, &config); err != nil {
 		t.Fatal(err)
 	}
-	if len(config.Servers) != 2 || config.Servers["persona"] == nil || config.Servers[compat.MCPServer] == nil {
-		t.Fatalf("shared resume config lost aliases: %s", raw)
+	if len(config.Servers) != 1 || config.Servers["persona"] == nil {
+		t.Fatalf("shared resume config must register Persona once, without the legacy alias: %s", raw)
 	}
 	for _, check := range checkGenerated(e.opts) {
 		if check.Name == "mcp.json" && (check.Status != DoctorOK || check.State != "current") {

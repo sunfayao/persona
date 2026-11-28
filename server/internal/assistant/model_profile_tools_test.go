@@ -332,11 +332,20 @@ func TestModelProfileMCPSharedRestrictions(t *testing.T) {
 	profileToolsDevices(s)
 	storeProfiles(t, st, ModelProfile{ID: "economy", Name: "Economy"})
 	requireProfileMCP(t, s, "model_profile_switch", map[string]any{"id": "economy"}, nil)
+	requireProfileMCP(t, s, "model_profiles", map[string]any{"action": "switch", "id": "economy"}, nil)
 	if err := s.guestSet(context.Background(), "server", "guest", []string{"connector_reply"}); err != nil {
 		t.Fatal(err)
 	}
 	before, puts := profileStoreSnapshot(st.memStore)
-	tools := []string{"model_profiles_list", "model_profile_get", "model_profile_switch", "model_profile_rollback"}
+	tools := []string{"model_profiles"}
+	// The older names still answer (unlisted), and refuse a restricted caller as the merged tool does.
+	calls := map[string]map[string]any{
+		"model_profiles":         {"action": "switch", "id": "economy"},
+		"model_profiles_list":    {"id": "economy"},
+		"model_profile_get":      {"id": "economy"},
+		"model_profile_switch":   {"id": "economy"},
+		"model_profile_rollback": {"id": "economy"},
+	}
 	for _, tt := range []struct {
 		name, session    string
 		assistant, guest bool
@@ -358,8 +367,8 @@ func TestModelProfileMCPSharedRestrictions(t *testing.T) {
 					t.Fatalf("restricted caller discovered %s", tool.Name)
 				}
 			}
-			for _, name := range tools {
-				res := profileMCPCall(t, s, tt.session, name, map[string]any{"id": "economy"}, tt.assistant, tt.guest)
+			for name, args := range calls {
+				res := profileMCPCall(t, s, tt.session, name, args, tt.assistant, tt.guest)
 				if !res.IsError {
 					t.Fatalf("restricted caller ran %s: %+v", name, res)
 				}

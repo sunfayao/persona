@@ -10,7 +10,6 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/db"
-	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -381,46 +380,11 @@ func TestRoundToolSet(t *testing.T) {
 	}
 }
 
-// assistant.background_supervisor_keeps_context: off by default, set through persona_settings with its card; on, the
-// background supervisor is today's long conversation: no round is asked for, its message is whole and it is never
-// replaced for its rounds.
+// A stored assistant.background_supervisor_keeps_context (no longer in persona_settings: the background supervisor
+// is retired) still reads: on, the background supervisor is the long conversation it was: no round is asked for, its
+// message is whole and it is never replaced for its rounds.
 func TestBackgroundKeepsContextSetting(t *testing.T) {
 	ctx := context.Background()
-	t.Run("persona_settings", func(t *testing.T) {
-		s := newTestService(t, newFakeHub().withMachine())
-		const key = "assistant.background_supervisor_keeps_context"
-		tool := func(args string) (string, bool) {
-			r := s.Tool(ctx, ToolCall{Name: "persona_settings", Arguments: json.RawMessage(args), MachineID: "server", SessionID: "c1"})
-			return r.Content[0].Text, r.IsError
-		}
-		get := func() string { out, _ := tool(`{"action":"get","key":"` + key + `"}`); return out }
-		if got := get(); got != "false" {
-			t.Fatalf("default: %s", got)
-		}
-		if out, isErr := tool(`{"action":"set","key":"` + key + `","value":false}`); isErr || !strings.Contains(out, "is unchanged") || len(s.pendingQuestions()) != 0 {
-			t.Fatalf("set to what it is: %s", out)
-		}
-		card := i18n.T(i18n.Default, "assistant-settings_tool.change_background_supervisor_keeps_context",
-			i18n.Args{"before": i18n.T(i18n.Default, "assistant-settings_tool.off"), "after": i18n.T(i18n.Default, "assistant-settings_tool.on")})
-		go func() {
-			q, ok := awaitCard(s)
-			if !ok || q.Summary != card {
-				t.Errorf("card %q (%v), want %q", q.Summary, ok, card)
-				return
-			}
-			allow := true
-			raw, _ := json.Marshal(proto.Resolution{Allow: &allow})
-			if _, err := s.Action(ctx, Action{Op: "answer", InteractionID: q.ID, Answer: raw}); err != nil {
-				t.Error(err)
-			}
-		}()
-		if out, _ := tool(`{"action":"set","key":"` + key + `","value":true}`); !strings.HasPrefix(out, key+" is true") || get() != "true" {
-			t.Fatalf("approved: %s", out)
-		}
-		if got := settingTitles[key]; got != "title_background_supervisor_keeps_context" {
-			t.Fatalf("its title key: %q", got)
-		}
-	})
 	t.Run("on", func(t *testing.T) {
 		s, f, todo := newBackgroundService(t)
 		on := true

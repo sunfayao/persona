@@ -1312,6 +1312,11 @@ func personaToolTitle(l i18n.Lang, name string, input json.RawMessage) string {
 		return ""
 	}
 	tool := rest[i+2:]
+	if len(input) > 0 { // a merged tool's call is titled as the older tool it runs (unmergeTool)
+		if old, _, err := unmergeTool(compat.Tool(tool), input); err == nil {
+			tool = old
+		}
+	}
 	if tool == "report_to_supervisor" {
 		var a struct {
 			Kind string `json:"kind"`

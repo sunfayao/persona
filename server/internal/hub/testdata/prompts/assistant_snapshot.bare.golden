@@ -1,6 +1,6 @@
 - Now: YYYY-MM-DD Day HH:MM (Asia/Shanghai)
 - Open to-dos: 0 in total (full list: todo_list)
-- Model profile: not set (model_profiles_list to view, model_profile_switch to switch)
+- Model profile: not set (model_profiles: list them, switch to one)
 - Computers online: ; offline: 服务器 (server), 笔记本 (laptop), 台式机 (desk)
 - Agents: 0 need you, 0 finished unread, 0 working (details: agents_list)
 - Scheduled follow-ups: none

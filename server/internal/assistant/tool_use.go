@@ -36,8 +36,9 @@ func (s *Service) newToolUse() *tooluse.Book {
 			}
 			return st.PutSetting(ctx, key, v)
 		},
-		Now:  time.Now,
-		Logf: s.logf,
+		Now:       time.Now,
+		Logf:      s.logf,
+		Canonical: mergedName, // a merged tool ranks with its older tools' calls
 	})
 }
 

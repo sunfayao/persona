@@ -96,9 +96,13 @@ func assertScopedHandoff(t *testing.T, prompt string) {
 
 // assertHandoffContract: wherever a handoff entry is offered, the note says it is for a separate part only and the
 // caller does the rest, and that the new session shares the caller's directory and reports to the supervisor, so the
-// caller neither edits what it changes nor polls it (#12995).
+// caller neither edits what it changes nor polls it (#12995). With the MCP tools the note names task_spawn, whose own
+// description says it all.
 func assertHandoffContract(t *testing.T, prompt string) {
 	t.Helper()
+	if strings.Contains(prompt, "only with `task_spawn`") {
+		prompt = prompts.Tool("task_spawn").Description
+	}
 	for _, want := range []string{"only to hand a separate part of this assignment", "never hand over all of it", "do the rest yourself",
 		"works in your directory with your permissions", "reports to your supervisor, not to you", "leave the files it changes alone",
 		"do not poll it, read its transcript or wait for it"} {
@@ -128,7 +132,7 @@ func TestTaskHandoffCodexProductionEntrypoints(t *testing.T) {
 			prompt := taskHandoffTestStart(t, s, f, tool)
 			// The MCP names and repository guidance are not Codex's, nor a bare personad on its PATH, nor a leader's
 			// task_plan / task_review for an Agent that does not lead its task.
-			for _, unsupported := range []string{"use `task_spawn`", "todo_repositories_get", "todo_repository_links_add", "personad tool",
+			for _, unsupported := range []string{"only with `task_spawn`", "todo_repositories_get", "todo_repository_links_add", "personad tool",
 				"`tool task_plan`", "`tool task_review`"} {
 				if strings.Contains(prompt, unsupported) {
 					t.Errorf("Codex was told to call %q: %s", unsupported, prompt)
@@ -150,9 +154,15 @@ func TestTaskHandoffClaudeKeepsMCPWithoutMetadata(t *testing.T) {
 			s, f, h := taskHandoffTestFixture(t, "claude")
 			h.infoErr = errors.New("metadata unavailable")
 			prompt := taskHandoffTestStart(t, s, f, tool)
-			for _, supported := range []string{"use `task_spawn`", "todo_decisions", "todo_repositories_get", "todo_repository_links_add"} {
+			// The repository links are the hub's own work now (advanceTaskReply): no note asks the Agent for them.
+			for _, supported := range []string{"only with `task_spawn`"} {
 				if !strings.Contains(prompt, supported) {
 					t.Errorf("Claude lost %q: %s", supported, prompt)
+				}
+			}
+			for _, gone := range []string{"todo_repositories_get", "todo_repository_links_add"} {
+				if strings.Contains(prompt, gone) {
+					t.Errorf("Claude is still told to keep the links itself (%q): %s", gone, prompt)
 				}
 			}
 			if len(h.infoCalls) != 0 || taskHandoffTestExecutable(t, prompt) != "" || strings.Contains(prompt, "The same entry runs") {
@@ -169,7 +179,7 @@ func TestTaskHandoffOtherTerminalFamilies(t *testing.T) {
 		t.Run(agent, func(t *testing.T) {
 			s, f, h := taskHandoffTestFixture(t, agent)
 			prompt := taskHandoffTestStart(t, s, f, "agent_start")
-			if strings.Contains(prompt, "use `task_spawn`") || strings.Contains(prompt, "todo_repositories_get") ||
+			if strings.Contains(prompt, "only with `task_spawn`") || strings.Contains(prompt, "todo_repositories_get") ||
 				strings.Contains(prompt, "todo_repository_links_add") || taskHandoffTestExecutable(t, prompt) != h.info["box"].Executable {
 				t.Fatalf("unsupported instructions for %s: %s", agent, prompt)
 			}
@@ -214,7 +224,7 @@ func TestTaskHandoffMissingMetadataDoesNotBlockAssignments(t *testing.T) {
 					strings.Contains(prompt, "do not poll it") {
 					t.Fatalf("an unverified entry was advertised: %s", prompt)
 				}
-				if !strings.Contains(prompt, "Continue the assigned work yourself") {
+				if !strings.Contains(prompt, "in-session subagents are fine") {
 					t.Fatalf("missing metadata stopped the assignment: %s", prompt)
 				}
 				if (state == "unknown-family" || state == "empty-family") && len(h.infoCalls) != 0 {
@@ -467,7 +477,7 @@ func TestTaskHandoffLastSeenLauncherRetainsSource(t *testing.T) {
 			s.models.zshrcMu.Unlock()
 			prompt := taskHandoffTestStart(t, s, f, "agent_start")
 			if (source == "path") != (taskHandoffTestExecutable(t, prompt) == h.info["box"].Executable) ||
-				strings.Contains(prompt, "use `task_spawn`") {
+				strings.Contains(prompt, "only with `task_spawn`") {
 				t.Fatalf("last-seen provenance was lost: %s", prompt)
 			}
 			if source != "path" && len(h.infoCalls) != 0 {
@@ -530,7 +540,7 @@ func TestGoldenTaskLeaderEntries(t *testing.T) {
 					t.Fatalf("not started as a leader: %s", prompt)
 				}
 				terminal := taskHandoffTestExecutable(t, prompt) == h.info["box"].Executable
-				if terminal != (entry == "terminal") || strings.Contains(prompt, "use `task_spawn`") == terminal {
+				if terminal != (entry == "terminal") || strings.Contains(prompt, "only with `task_spawn`") == terminal {
 					t.Fatalf("%s leader got the other entry: %s", entry, prompt)
 				}
 				golden(t, "task_leader."+entry+"."+locale, prompt)

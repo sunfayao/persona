@@ -1,6 +1,6 @@
 - Now: YYYY-MM-DD Www HH:MM (Asia/Shanghai)
 - Open to-dos: 0 in total (full list: todo_list)
-- Model profile: unavailable (model_profiles_list to retry)
+- Model profile: unavailable (model_profiles list to retry)
 - Computers online: 服务器 (server); offline: 笔记本 (laptop), 台式机 (desk)
 - Agents: 1 need you, 2 finished unread, 0 working (details: agents_list)
   - Need you: 在问 (server, session_id=eeeeeeee, link http://hub.example.com:18660/s/server/eeeeeeee-5): 删掉这个分支吗？

@@ -38,12 +38,6 @@ func (s *Service) backgroundOn(cfg Settings) bool {
 	return !s.noBackground && (cfg.MainSupervisesOwnTasks == nil || !*cfg.MainSupervisesOwnTasks)
 }
 
-// mainSupervisesOwnTasks is the compatibility projection of assistant.main_supervises_own_tasks. Since #5732 main
-// supervises new work even when this legacy setting is off.
-func (s *Service) mainSupervisesOwnTasks(ctx context.Context) bool {
-	return !s.backgroundOn(s.settings(ctx))
-}
-
 // ownSupervisor is the main conversation for task supervision (#5732). The background supervisor remains available
 // for work already queued for it, but no new task signal is routed away from the main conversation.
 func (s *Service) ownSupervisor(cfg Settings) string {

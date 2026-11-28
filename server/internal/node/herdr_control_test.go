@@ -48,7 +48,7 @@ func claudeCmd(launcher, args, dir string, q func(string) string) string {
 
 // ownToolsRule is the --allowedTools of a Claude Agent Persona starts without its plugin: the Agent's own Persona tools
 // under both registered names (agentAllowedTools); with the plugin the office rule follows (pluginToolsRule).
-var ownToolsRule = strings.Join(compat.MCPAllowedToolNames(assistantwire.AgentOwnTools, true), ",")
+var ownToolsRule = strings.Join(compat.MCPAllowedToolNames(assistantwire.AgentOwnTools, false), ",")
 
 func pluginToolsRule(dir string) string {
 	return ownToolsRule + ",Bash(sh " + filepath.Join(dir, "agent-plugin", "skills", "persona-office", "scripts", "office.sh") + " *)"

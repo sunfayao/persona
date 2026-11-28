@@ -1,5 +1,5 @@
 - Now: 2026-11-05 Thu 10:00 (UTC)
-- Model profile: not set (model_profiles_list to view, model_profile_switch to switch)
+- Model profile: not set (model_profiles: list them, switch to one)
 - Computers online: 
 - Agents: 0 need you, 0 finished unread, 0 working (details: agents_list)
 - Open task details (shown by priority, including personal to-dos; recently ended conversation tasks are listed too; task_plan; for existing results look here, and if that is not enough read its conversation with agent_read; use agent_send only to have it look something up, do something new or change direction): 

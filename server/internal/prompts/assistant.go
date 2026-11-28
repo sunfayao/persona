@@ -2,6 +2,7 @@ package prompts
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"time"
 )
@@ -76,9 +77,10 @@ type AssistantClaudeMD struct {
 	LarkCLI bool
 	// Language is the language the user reads, by its own name ("English", or Japanese written in Japanese); "" is Chinese, as before i18n.
 	Language string
-	// BackgroundSupervisor: the background supervisor follows up the tasks no leader supervises (#4927), so the main
-	// conversation is told it no longer reviews them itself. False keeps the text as it was.
-	BackgroundSupervisor bool
+	// Mail: a mailbox is added, so mail_* are in the conversation's list. InboxTwin: the Inbox's AI twin is on
+	// (inbox_folders, inbox_move); InboxPost: assistant.inbox_post is (inbox_post). Subscriptions: subscription_* are
+	// listed. Each says what the instructions name, as the tool gates list it (fleet_tools.go toolGates).
+	Mail, InboxTwin, InboxPost, Subscriptions bool
 	// Runtime is the agent that reads the file: RuntimeClaude ("" too) for CLAUDE.md; RuntimeCodex, whose wording
 	// holds for any agent but Claude, or RuntimeAgy for AGENTS.md.
 	Runtime string
@@ -784,10 +786,13 @@ type Supervise struct {
 	// Inbox: an entry is new Inbox messages from other people about the task (#4293).
 	Inbox bool
 	// Fresh: it goes to the background supervisor as a round that starts from a clean context (#7315): a line on where
-	// what earlier rounds settled is kept, the round marker (SuperviseRoundMarker) and each entry's last review. The
-	// handling rules are in no supervision message (they are the static supervision instructions), so a round carries
-	// only its entries' facts. Not Fresh renders as before, byte for byte.
+	// what earlier rounds settled is kept, the round marker (SuperviseRoundMarker) and each entry's last review. Not
+	// Fresh renders as before, byte for byte.
 	Fresh bool
+	// Rules is set by RenderSupervise, never by a caller: the handling rule of each signal the entries carry, once, in
+	// the order they first carry it (assistant/supervise_signal). The static supervision instructions keep only what
+	// every signal shares, so the rules of the signals that did not fire are in no request.
+	Rules []string
 }
 
 // SuperviseEntry is one task in it, with what happened (Kind: review, idle, needs_you, stalled, interrupted, failed,
@@ -940,7 +945,28 @@ type SuperviseAsk struct {
 	Reminded bool
 }
 
-func RenderSupervise(s Supervise) string { return render("assistant/supervise", s) }
+func RenderSupervise(s Supervise) string {
+	s.Rules = superviseRules(s.Entries)
+	return render("assistant/supervise", s)
+}
+
+// superviseRules are the handling rules of the entries' signals, each once (two signals that share a rule give it
+// once), in the order the entries first carry them; a signal without a rule gives none.
+func superviseRules(entries []SuperviseEntry) []string {
+	var out []string
+	for _, e := range entries {
+		if rule := SuperviseRule(e.Kind); rule != "" && !slices.Contains(out, rule) {
+			out = append(out, rule)
+		}
+	}
+	return out
+}
+
+// SuperviseRule is the handling rule a supervision message carries for signal kind, as one "- `kind`: …" line; ""
+// for a signal whose entry says all there is to do.
+func SuperviseRule(kind string) string {
+	return strings.TrimSpace(render("assistant/supervise_signal", struct{ Kind string }{kind}))
+}
 
 type DraftPR struct {
 	Language, URL, Head string

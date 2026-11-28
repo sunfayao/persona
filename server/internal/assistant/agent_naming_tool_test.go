@@ -17,11 +17,20 @@ import (
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
-// The actual assistant catalog includes the narrow write, never the coding Agents' catalog. Only two ids are accepted.
+// agent_autoname is retired: no catalog lists it (an Agent's tab names itself), its call still routes, and its narrow
+// write accepts only two ids.
 func TestAgentAutonameToolCatalog(t *testing.T) {
 	s := newFleetTest(t).s
-	found := false
 	for _, tool := range s.Tools(context.Background()) {
+		if tool.Name == "agent_autoname" {
+			t.Fatal("the assistant's catalog still lists agent_autoname")
+		}
+	}
+	if !s.isOwnTool(context.Background(), "agent_autoname") {
+		t.Fatal("a retired agent_autoname call no longer routes")
+	}
+	found := false
+	for _, tool := range toolsNamed([]string{"agent_autoname"}) {
 		if tool.Name != "agent_autoname" {
 			continue
 		}

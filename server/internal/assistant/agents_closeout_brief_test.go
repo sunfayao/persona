@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/closeout"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -22,6 +23,8 @@ func TestGoldenAgentCloseoutBrief(t *testing.T) {
 	golden(t, "agent_closeout_brief", brief(prompts.AgentCloseoutBrief{Language: "English"}))
 	golden(t, "agent_closeout_brief.after_delivery", brief(prompts.AgentCloseoutBrief{AfterDelivery: true}))
 	golden(t, "agent_closeout_brief.session", brief(prompts.AgentCloseoutBrief{Session: true}))
+	golden(t, "agent_closeout_brief.readonly", prompts.RenderAgentCloseoutBrief(prompts.AgentCloseoutBrief{
+		Form: closeout.MarkdownReadonly("English"), Language: "English", Readonly: true}))
 	// The delivery standard when the form follows it; without, it is pinned by the hub package's task_delivery golden.
 	golden(t, "task_delivery.closeout", prompts.RenderTaskDelivery(true))
 }
@@ -66,8 +69,9 @@ func TestTaskPromptCarriesTheCloseoutForm(t *testing.T) {
 
 	closeoutOn(t, s)
 	p := start(edit)
-	if !strings.HasPrefix(p, "修好登录") || !strings.Contains(p, "file: <absolute path on this computer>") || !strings.Contains(p, "Closeout record") || !strings.Contains(p, `<closeout status="done|not_done|blocked"`) ||
-		strings.Contains(p, "Delivery:") {
+	// The closeout's artifact line names the files for the user: no separate files note beside it.
+	if !strings.HasPrefix(p, "修好登录") || strings.Contains(p, "file: <absolute path on this computer>") || !strings.Contains(p, "Closeout record") || !strings.Contains(p, `<closeout status="done|not_done|blocked"`) ||
+		!strings.Contains(p, "artifact:") || strings.Contains(p, "Delivery:") {
 		t.Fatalf("closeout only:\n%s", p)
 	}
 

@@ -415,7 +415,9 @@ var grantSafeTools = map[string]bool{
 // deferred tool's schema (it loads task_plan's).
 var grantSafeBuiltins = map[string]bool{"TodoWrite": true, "ToolSearch": true}
 
-func grantSafeTool(name string) bool {
+// grantSafeTool: a call of name with input is one of grantSafeTools, a merged tool's call by the older tool it runs
+// (unmergeTool: repositories with action list is repositories_list).
+func grantSafeTool(name string, input json.RawMessage) bool {
 	if grantSafeBuiltins[name] {
 		return true
 	}
@@ -425,7 +427,22 @@ func grantSafeTool(name string) bool {
 	if !ok || i <= 0 || !compat.IsMCPServer(strings.TrimPrefix(rest[:i], "plugin_")) {
 		return false
 	}
-	return grantSafeTools[compat.Tool(rest[i+2:])]
+	old, _, err := unmergeTool(compat.Tool(rest[i+2:]), input)
+	return err == nil && grantSafeTools[old]
+}
+
+// grantSafeListed: a clean round keeps name directly available, a merged tool when one of its actions is safe (the
+// call itself is still checked by what it runs, grantSafeTool).
+func grantSafeListed(name string) bool {
+	if grantSafeTools[name] {
+		return true
+	}
+	for _, old := range mergedTools[name] {
+		if grantSafeTools[old] {
+			return true
+		}
+	}
+	return false
 }
 
 // grantSafeAfterPrompt: an item of a clean round after its prompt carries nothing from outside: the agent's own text,
@@ -437,7 +454,7 @@ func grantSafeAfterPrompt(it proto.Item) bool {
 		case proto.KindText, proto.KindThinking:
 			return true
 		case proto.KindToolUse:
-			return grantSafeTool(it.ToolName)
+			return grantSafeTool(it.ToolName, it.ToolInput)
 		}
 		return false
 	case "user":

@@ -142,19 +142,11 @@ func (s *Service) ownSettings() []ownSetting {
 		{Setting: Setting{Key: "assistant.delivery_gate", Title: i18n.T(i18n.Default, "assistant-settings_tool.title_delivery_gate"), Actions: getSet,
 			About: "merged (the default): supervised tasks with linked PR(s) or GitHub issue(s) stay open until the PR is merged " +
 				"and linked issue(s) are closed (unless explicitly PR-only/draft-only or outcome cannot). off: close strictly on " +
-				"done_when with no delivery gate. live: also require the change to be deployed and live on the running hub " +
-				"(equivalent to assistant.done_needs_delivery=true). Applies from the next judgment / review",
+				"done_when with no delivery gate. live: also require the change to be deployed and live on the running hub. " +
+				"Applies from the next judgment / review",
 			Value: "off, merged or live"},
 			get: func(ctx context.Context) (string, error) { return s.deliveryGate(ctx), nil },
 			set: s.setDeliveryGate},
-		{Setting: Setting{Key: "assistant.done_needs_delivery", Title: "上线并实测才算做完", Actions: getSet,
-			About: "legacy boolean alias for assistant.delivery_gate: true sets delivery_gate to live (close only once live and " +
-				"checked, and hand the delivery standard to the agent); false sets delivery_gate to off (no delivery gate). " +
-				"Prefer assistant.delivery_gate (off / merged / live). Either way the judge never closes a supervised task: delivery " +
-				"waits for its supervisor's task_review. Applies from the next judgment / task",
-			Value: "true or false"},
-			get: func(ctx context.Context) (string, error) { return fmt.Sprint(s.doneNeedsDelivery(ctx)), nil },
-			set: s.setDoneNeedsDelivery},
 		{Setting: Setting{Key: "assistant.review_sample_percent", Title: "Share of finished tasks to spot-check", Actions: getSet,
 			About: "100 (the default): the done judge adds no per-criterion check. Below 100 it also checks each done_when criterion " +
 				"and the delivery as evidence for review. Passing, failing, sampled and unsampled work all stay open as delivered, " +
@@ -252,15 +244,6 @@ func (s *Service) ownSettings() []ownSetting {
 			Value: "true or false"},
 			get: func(ctx context.Context) (string, error) { return fmt.Sprint(s.prEventsRouteToAgentOn(ctx)), nil },
 			set: s.setPREventsRouteToAgent},
-		{Setting: Setting{Key: "assistant.main_supervises_own_tasks", Title: "The main chat supervises its own tasks", Actions: getSet,
-			About: "compatibility only, whether off (the default) or on: the main conversation supervises every new task no leader " +
-				"supervises and receives its supervision messages. The main conversation still hears of failed starts with no current " +
-				"leader and of what an already configured background conversation hands to the user; that background only finishes its " +
-				"previously assigned supervision notices, and no background conversation is created or selected for new work. Changing " +
-				"the setting does not move existing notices or stop tasks",
-			Value: "true or false"},
-			get: func(ctx context.Context) (string, error) { return fmt.Sprint(s.mainSupervisesOwnTasks(ctx)), nil },
-			set: s.setMainSupervisesOwnTasks},
 		{Setting: Setting{Key: "assistant.supervision_batch_minutes", Title: "Routine supervision batching per recipient", Actions: getSet,
 			About: "0 (the default) keeps the existing supervision gather and shared spacing. A nonzero interval batches routine signals independently for each final recipient conversation, anchored at that recipient's first routine signal. needs_you, ask, escalated, decide, decision_reply, park_decided, owner_cannot_answer, recheck, undecidable and failed bypass the batch after the existing 15-second gather; any one of them releases that recipient's whole digest. Due batches still use the recipient's existing busy queue",
 			Value: "a whole number from 0 to 1440 minutes"},
@@ -268,19 +251,6 @@ func (s *Service) ownSettings() []ownSetting {
 				return fmt.Sprint(supervisionBatchMinutesOf(s.settings(ctx))), nil
 			},
 			set: s.setSupervisionBatchMinutes},
-		{Setting: Setting{Key: "assistant.background_supervisor_keeps_context", Title: "The background supervisor keeps every round in context", Actions: getSet,
-			About: "off (the default): each round of the background supervisor starts from its first turn, in the same conversation: " +
-				"it reads its start brief and that round's supervision message, with only the tools supervision uses; what " +
-				"earlier rounds settled is on the tasks (brief, scope changes, decisions, the last review). on: from the next " +
-				"round, one long conversation again that keeps each later round in context, with all of the assistant's tools, " +
-				"as before (rounds already run from the first " +
-				"turn stay on their own branches, out of that context). Applies from the next round (one already running " +
-				"finishes as it is)",
-			Value: "true or false"},
-			get: func(ctx context.Context) (string, error) {
-				return fmt.Sprint(backgroundKeepsContext(s.settings(ctx))), nil
-			},
-			set: s.setBackgroundSupervisorKeepsContext},
 		{Setting: Setting{Key: "assistant.launcher", Title: "Persona 的启动器", Actions: getSet,
 			About: "which launcher (model) new Persona conversations start with by default",
 			Value: "a launcher name from this setting's get"},
@@ -468,9 +438,9 @@ var settingTitles = map[string]string{standingAuthorizationsKey: "title_standing
 	readonlyModeKey:                       "title_readonly_mode",
 	"assistant.task_workspace_preference": "title_task_workspace_preference",
 	"assistant.start_requested_tasks":     "title_start_requested_tasks", "assistant.launcher": "title_launcher",
-	"assistant.delivery_gate": "title_delivery_gate", "assistant.done_needs_delivery": "title_done_needs_delivery",
-	"assistant.review_sample_percent": "title_review_sample_percent", "assistant.briefing_waits": "title_briefing_waits", "assistant.background_supervisor_keeps_context": "title_background_supervisor_keeps_context",
-	"assistant.interject_background": "title_interject_background", "assistant.claude_interactive": "title_claude_interactive", "assistant.agent_tasks": "title_agent_tasks", "assistant.close_ended_terminals": "title_close_ended_terminals", "assistant.inbox_signals": "title_inbox_signals", "inbox.todo_forward.enabled": "title_inbox_todo_forward", "assistant.pr_events_route_to_agent": "title_pr_events_route_to_agent", "assistant.main_supervises_own_tasks": "title_main_supervises_own_tasks", "assistant.supervision_batch_minutes": "title_supervision_batch_minutes", "model_profiles.tiers": "title_model_tiers",
+	"assistant.delivery_gate":         "title_delivery_gate",
+	"assistant.review_sample_percent": "title_review_sample_percent", "assistant.briefing_waits": "title_briefing_waits",
+	"assistant.interject_background": "title_interject_background", "assistant.claude_interactive": "title_claude_interactive", "assistant.agent_tasks": "title_agent_tasks", "assistant.close_ended_terminals": "title_close_ended_terminals", "assistant.inbox_signals": "title_inbox_signals", "inbox.todo_forward.enabled": "title_inbox_todo_forward", "assistant.pr_events_route_to_agent": "title_pr_events_route_to_agent", "assistant.supervision_batch_minutes": "title_supervision_batch_minutes", "model_profiles.tiers": "title_model_tiers",
 	"assistant.load_all_tools":                "title_load_all_tools",
 	"assistant.meeting_transcription_default": "title_meeting_transcription_default",
 	"assistant.main_background_folded":        "title_main_background_folded",
@@ -694,50 +664,6 @@ func (s *Service) setDeliveryGate(ctx context.Context, v json.RawMessage) (*ownC
 		}}, nil
 }
 
-func (s *Service) setDoneNeedsDelivery(ctx context.Context, v json.RawMessage) (*ownChange, error) {
-	var onPtr *bool
-	if err := json.Unmarshal(v, &onPtr); err != nil || onPtr == nil {
-		return nil, errors.New("value must be true or false")
-	}
-	on := *onPtr
-	target := deliveryGateOff
-	if on {
-		target = deliveryGateLive
-	}
-	beforeGate := s.deliveryGate(ctx)
-	if beforeGate == target {
-		return &ownChange{summary: "「上线并实测才算做完」没有变化"}, nil
-	}
-	if s.store() == nil {
-		return nil, errors.New("no database on this hub")
-	}
-	word := map[bool]string{true: "assistant-settings_tool.on", false: "assistant-settings_tool.off"}
-	beforeBool := beforeGate == deliveryGateLive
-	return &ownChange{cardText: func(l i18n.Lang) string {
-		if beforeGate == deliveryGateMerged && !on {
-			return i18n.T(l, "assistant-settings_tool.change_delivery_gate", i18n.Args{
-				"before": i18n.T(l, "assistant-settings_tool.delivery_gate_"+beforeGate),
-				"after":  i18n.T(l, "assistant-settings_tool.delivery_gate_"+target),
-			})
-		}
-		return i18n.T(l, "assistant-settings_tool.change_done_needs_delivery", i18n.Args{
-			"before": i18n.T(l, word[beforeBool]),
-			"after":  i18n.T(l, word[on]),
-		})
-	},
-		apply: func(ctx context.Context) (string, error) {
-			if _, err := s.updateSettings(ctx, func(v *Settings) error {
-				v.DoneNeedsDelivery = &on
-				v.DeliveryGate = nil
-				return nil
-			}); err != nil {
-				return "", err
-			}
-			s.settingsChanged(ctx)
-			return fmt.Sprintf("assistant.done_needs_delivery is %v from the next judgment and task on.", on), nil
-		}}, nil
-}
-
 func (s *Service) setReviewSamplePercent(ctx context.Context, v json.RawMessage) (*ownChange, error) {
 	var pct int
 	if err := json.Unmarshal(v, &pct); err != nil || pct < 0 || pct > 100 {
@@ -809,23 +735,6 @@ func (s *Service) setPREventsRouteToAgent(ctx context.Context, v json.RawMessage
 		return i18n.T(l, "assistant-settings_tool.change_pr_events_route_to_agent", i18n.Args{"before": before, "after": after})
 	}, func(v *Settings) **bool { return &v.PREventsRouteToAgent },
 		"assistant.pr_events_route_to_agent is %v from the next PR status sweep on.")
-}
-
-func (s *Service) setMainSupervisesOwnTasks(ctx context.Context, v json.RawMessage) (*ownChange, error) {
-	return s.setBoolSetting(ctx, v, s.mainSupervisesOwnTasks, "assistant.main_supervises_own_tasks is unchanged", func(l i18n.Lang, before, after string) string {
-		return i18n.T(l, "assistant-settings_tool.change_main_supervises_own_tasks", i18n.Args{"before": before, "after": after})
-	}, func(v *Settings) **bool { return &v.MainSupervisesOwnTasks },
-		"assistant.main_supervises_own_tasks is %v for the signals raised from now on (open tasks keep running; what the "+
-			"background supervisor was already sent it finishes).")
-}
-
-func (s *Service) setBackgroundSupervisorKeepsContext(ctx context.Context, v json.RawMessage) (*ownChange, error) {
-	return s.setBoolSetting(ctx, v, func(ctx context.Context) bool { return backgroundKeepsContext(s.settings(ctx)) },
-		"assistant.background_supervisor_keeps_context is unchanged", func(l i18n.Lang, before, after string) string {
-			return i18n.T(l, "assistant-settings_tool.change_background_supervisor_keeps_context", i18n.Args{"before": before, "after": after})
-		}, func(v *Settings) **bool { return &v.BackgroundSupervisorKeepsContext },
-		"assistant.background_supervisor_keeps_context is %v from the background supervisor's next round (one running now "+
-			"finishes as it is).")
 }
 
 // launchers are the launchers of the assistant's machine, as the apps list them.

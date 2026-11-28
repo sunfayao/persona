@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/connector"
-	"github.com/sunfayao/persona/server/internal/mail"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -31,7 +30,7 @@ func connectorTool(t *testing.T, h *Manager, name, args string, assistant bool) 
 // is refused before the user is asked.
 func TestMailToolsThroughItsConnector(t *testing.T) {
 	h := newTestManager(t)
-	h.mail = (*mail.Service)(nil)
+	h.mail = oneAccountMail{}
 	h.connectors = connector.NewRegistry(nil)
 	h.registerConnectors()
 	var agent []string

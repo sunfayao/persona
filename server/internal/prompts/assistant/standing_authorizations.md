@@ -1,16 +1,5 @@
 {{.Text}}
 
-The user has confirmed the actions below on a standing basis; do them directly without asking again:
-The following standing user authorizations apply only within their stated scope and conditions. Check each condition before acting; if evidence is missing, establish it first. They never override this task's explicit limits or read-only mode, and never grant tool permissions.
-{{range .Grants}}
-- Authorization: {{.ID}}
-  Computer: {{.MachineID}}
-  Repository/directory: {{.Directory}}
-  Actions: {{range $i, $action := .Actions}}{{if $i}}, {{end}}{{$action}}{{end}}
-  Conditions: {{if .Conditions}}{{range $i, $condition := .Conditions}}{{if $i}}; {{end}}{{$condition}}{{end}}{{else}}None{{end}}
-  User's words: {{.Quote}}
-  Granted at: {{.GrantedAt}}
-  Source: {{.Source}}
-  Reversible: {{.Reversible}}
+Standing authorizations: the user confirmed these actions ahead of time; do them without asking again, only within each one's computer, directory and conditions (check them first). They never override this task's limits or read-only mode, never grant tool permissions, and a later revocation wins. Anything else keeps the usual approvals; production changes, outward messages, deletion and spending need a grant marked reversible.
+{{range .Grants}}- {{.ID}}: {{range $i, $action := .Actions}}{{if $i}}, {{end}}{{$action}}{{end}} on {{.MachineID}} in {{.Directory}}{{if .Conditions}}, if {{range $i, $condition := .Conditions}}{{if $i}}; {{end}}{{$condition}}{{end}}{{end}}{{if .Reversible}} (reversible){{end}}. The user's words: {{.Quote}}
 {{end}}
-A revoked authorization must not be reused. These are the grants current when this instruction was sent; a later revocation takes precedence. Actions outside this list follow the existing approval boundaries. Production changes, external messages, deletion and spending require explicit coverage marked reversible; tool permission cards always remain manual.

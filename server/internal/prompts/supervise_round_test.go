@@ -15,8 +15,8 @@ func background(fresh bool, entries ...SuperviseEntry) Supervise {
 	return Supervise{Background: true, Fresh: fresh, Entries: entries}
 }
 
-// A Fresh round is the same facts as the message that is not Fresh plus its header line, marker and last reviews: the
-// handling rules are in neither (they are the static supervision instructions), whatever kinds its entries are.
+// A Fresh round is the same message as the one that is not Fresh plus its header line, marker and last reviews: the
+// handling rules of its signals come with both alike, and the static instructions' role lines with neither.
 func TestSuperviseFreshAddsOnlyTheRoundsFacts(t *testing.T) {
 	for _, entry := range []SuperviseEntry{
 		{ID: "t1", Title: "Example task", Kind: "idle"},
@@ -28,7 +28,7 @@ func TestSuperviseFreshAddsOnlyTheRoundsFacts(t *testing.T) {
 	} {
 		fresh := RenderSupervise(background(true, entry))
 		whole := RenderSupervise(background(false, entry))
-		for _, banned := range []string{"Role-specific responsibilities", "task_review", "agent_send", "interaction_answer", "supervision_finish", "task_scope"} {
+		for _, banned := range []string{"Role-specific responsibilities", "supervision_finish", "task_scope"} {
 			if strings.Contains(fresh, banned) {
 				t.Errorf("%s: a Fresh round carries handling policy %q:\n%s", entry.Kind, banned, fresh)
 			}

@@ -136,6 +136,7 @@ var funcs = template.FuncMap{
 	},
 	"join":      strings.Join,
 	"hasPrefix": strings.HasPrefix,
+	"contains":  strings.Contains,
 	// ctx is text for inside a context block, unable to close it (ContextBody).
 	"ctx": ContextBody,
 	// output is an agent's words for inside an <agent_output> block, unable to open or close one (AgentOutput).
