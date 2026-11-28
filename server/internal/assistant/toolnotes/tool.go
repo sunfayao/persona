@@ -137,7 +137,13 @@ func (d *Domain) propose(ctx context.Context, c Call, in input) (string, error) 
 	if len(where) > 0 {
 		summary = i18n.T(c.Lang, "assistant-tool_notes.card_propose_scoped", i18n.Args{"tool": n.Tool, "where": strings.Join(where, ", "), "text": n.Text})
 	}
-	shown, _ := json.Marshal(map[string]string{"tool": n.Tool, "text": n.Text, "where": strings.Join(where, ", "), "evidence": n.Evidence})
+	details := map[string]string{"tool": n.Tool, "text": n.Text}
+	for k, v := range map[string]string{"where": strings.Join(where, ", "), "evidence": n.Evidence} {
+		if v != "" {
+			details[k] = v
+		}
+	}
+	shown, _ := json.Marshal(details)
 	out, err := d.h.Confirm(ctx, Card{Machine: c.Machine, Session: c.Session, Summary: summary, Shown: shown,
 		Key: n.Tool + "\x00" + n.Machine + "\x00" + n.Runtime + "\x00" + n.Text}, approval.Operation{
 		Denied:     "The user declined the field note: it was not added.",

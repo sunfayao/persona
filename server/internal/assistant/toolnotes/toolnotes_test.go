@@ -373,7 +373,8 @@ func TestRuntimeAndMachineScoping(t *testing.T) {
 	mustRun(t, d, `{"action":"propose","tool":"computer_run","text":"Call persona_call with describe first.","runtime":"agy"}`)
 	mustRun(t, d, `{"action":"propose","tool":"computer_run","text":"Its screen is small; read before clicking.","machine":"lab-mini"}`)
 	if len(f.cards) != 2 || f.cards[0].Summary != "Add a field note to computer_run (agy): “Call persona_call with describe first.”" ||
-		f.cards[1].Summary != "Add a field note to computer_run (lab-mini): “Its screen is small; read before clicking.”" {
+		f.cards[1].Summary != "Add a field note to computer_run (lab-mini): “Its screen is small; read before clicking.”" ||
+		string(f.cards[1].Shown) != `{"text":"Its screen is small; read before clicking.","tool":"computer_run","where":"lab-mini"}` {
 		t.Fatalf("cards = %+v", f.cards)
 	}
 	claude := descriptions(d, f)["computer_run"]
