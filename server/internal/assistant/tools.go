@@ -43,7 +43,7 @@ var toolNames = []string{"resource_status", "ask_user", "notify_user", "supervis
 	"repositories_list", "repository_get", "repository_add", "view_show", "view_update", "view_get",
 	"conversations_list", "conversation_read", "conversation_send", "task_plan", "task_plan_withdraw", "task_review", "task_scope", "task_decided", "task_start_screen", "task_start_keys", "task_retry",
 	"todo_workspace", "todo_repositories_get", "todo_repositories_set", "todo_repository_links_set", "todo_repository_links_add", "todo_list", "todo_get", "todo_create", "todo_update", "todo_complete", "todo_reopen", "todo_delete", "concern_report",
-	"decision_record", "decisions_query"}
+	"decision_record", "decisions_query", "tool_note"}
 
 // Tools are the assistant's tools (assistant.tools).
 func (s *Service) Tools(ctx context.Context) []proto.Tool {
@@ -197,6 +197,8 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		return s.toolSecretRun(ctx, machine, self, args) // secret_run.go
 	case "skill_import":
 		return s.toolSkillImport(ctx, machine, self, args)
+	case "tool_note":
+		return s.toolNote(ctx, machine, self, args) // tool_notes.go
 	case "inbox_draft":
 		return s.toolInboxDraft(ctx, self, args)
 	case "inbox_suggest":

@@ -16,6 +16,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/assistant/agents"
 	"github.com/sunfayao/persona/server/internal/assistant/repository"
 	"github.com/sunfayao/persona/server/internal/assistant/saved"
+	"github.com/sunfayao/persona/server/internal/assistant/toolnotes"
 	"github.com/sunfayao/persona/server/internal/assistant/tooluse"
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/devicewire"
@@ -327,6 +328,8 @@ type Service struct {
 	toolUse *tooluse.Book
 	// runtimeOfCalls caches callerRuntime.
 	runtimeOfCalls runtimeCache
+	// toolNotes: the field notes at the end of the tools' descriptions, and the tool_note tool (tool_notes.go).
+	toolNotes *toolnotes.Domain
 }
 
 var _ Handler = (*Service)(nil)
@@ -365,6 +368,7 @@ func New(o Options) *Service {
 	savedHost := saved.Host{Store: func() any { return s.store() }, Event: s.event, Handle: s.handle, Full: fullRole, BodyErr: writeBodyErr}
 	s.savedPrompts = saved.NewPrompts(savedHost)
 	s.toolUse = s.newToolUse()
+	s.toolNotes = s.newToolNotes()
 	saved.Register(savedHost)
 	s.resourceRoutes()
 	s.repositoryRoutes()

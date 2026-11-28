@@ -138,5 +138,5 @@ func (s *Service) toolsCursor(ctx context.Context, machine, session string, assi
 	if digest := s.extensionToolsDigest(ctx, assistant); digest != "" {
 		cursor += ":ext=" + digest
 	}
-	return cursor
+	return cursor + s.toolNotesRevision(ctx, assistant)
 }

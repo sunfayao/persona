@@ -133,10 +133,10 @@ func (s *Service) contextSnapshot(ctx context.Context, scope string, background 
 }
 
 // backgroundSnapshot is snap for the background supervisor (#7315): without what only the main conversation acts on,
-// its plan cards waiting for Start (only it withdraws them, toolTaskPlanWithdraw) and the owner's unread chats. Their tools are not among a round's (supervise_round.go roundToolNames), and its supervision needs none
+// its plan cards waiting for Start (only it withdraws them, toolTaskPlanWithdraw), the owner's unread chats and the tools' notes to review. Their tools are not among a round's (supervise_round.go roundToolNames), and its supervision needs none
 // of them.
 func backgroundSnapshot(snap prompts.Snapshot) prompts.Snapshot {
-	snap.Plans, snap.PlansTotal, snap.Chats = nil, 0, nil
+	snap.Plans, snap.PlansTotal, snap.Chats, snap.ToolReview = nil, 0, nil, nil
 	return snap
 }
 
@@ -181,6 +181,7 @@ func scopeSnapshot(snap prompts.Snapshot, scope string) prompts.Snapshot {
 	snap.Unaccepted, accepts = firstOf(snap.Unaccepted, snapshotAcceptLimit, func(a prompts.SnapshotAccept) bool { return mine(a.Owner) })
 	if snap.Scoped {
 		snap.UnacceptedTotal = accepts
+		snap.ToolReview = nil // the main conversation reviews the tools' notes
 	}
 	shown := map[string]bool{} // a scoped index lists only the open ones its details do not
 	for _, t := range snap.Tasks {
@@ -302,6 +303,7 @@ func (s *Service) takeSnapshot(done chan struct{}) {
 	snap.Unaccepted, snap.UnacceptedTotal = s.snapshotUnaccepted(ctx, loc)
 	snap.Plans, snap.PlansTotal = s.snapshotPlans(ctx, loc, now)
 	snap.Asked = s.snapshotAsked(ctx)
+	snap.ToolReview = s.toolReview(ctx) // tool_notes.go
 	snap.FollowingEnabled = s.inboxConfig(ctx).Agent.Enabled && s.inboxReady(ctx) == nil
 	if snap.FollowingEnabled {
 		snap.Following, snap.FollowingTotal = s.snapshotFollowing(ctx, loc)

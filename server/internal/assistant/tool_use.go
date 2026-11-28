@@ -62,6 +62,7 @@ func (s *Service) toolUseLoop(ctx context.Context) {
 			if err := s.toolUse.Flush(ctx); err != nil {
 				s.logf("tool use: save: %v", err)
 			}
+			s.toolNotes.Sweep(ctx) // the field notes' review dates, stale notes and covered fixes (tool_notes.go)
 		}
 	}
 }
