@@ -189,6 +189,37 @@ func (g githubForge) PRStatus(ctx context.Context, repo string, number int) (Tod
 	if len(reviews) == 100 && out.Review == "approved" {
 		out.Review = "pending"
 	}
+	if err := g.headChecks(ctx, repo, pr.Head.SHA, &out); err != nil {
+		return TodoPRStatus{}, err
+	}
+	return out, nil
+}
+
+// PRHeadChecks is the state of the checks of the head commit of a pull request, open or merged (the checks it had when
+// it was merged): State, HeadOID and Checks are set. A pull request closed without a merge has no Checks.
+func (g githubForge) PRHeadChecks(ctx context.Context, repo string, number int) (TodoPRStatus, error) {
+	var pr struct {
+		State  string `json:"state"`
+		Merged bool   `json:"merged"`
+		Head   struct {
+			SHA string `json:"sha"`
+		} `json:"head"`
+	}
+	if err := g.get(ctx, fmt.Sprintf("/repos/%s/pulls/%d", repo, number), &pr); err != nil {
+		return TodoPRStatus{}, err
+	}
+	out := TodoPRStatus{HeadOID: pr.Head.SHA, State: pr.State, Checks: "none"}
+	if pr.Merged {
+		out.State = "merged"
+	}
+	if out.State == "closed" || pr.Head.SHA == "" {
+		return out, nil
+	}
+	return out, g.headChecks(ctx, repo, pr.Head.SHA, &out)
+}
+
+// headChecks reads the statuses and check runs of commit sha into out: its Checks and the failing check it names.
+func (g githubForge) headChecks(ctx context.Context, repo, sha string, out *TodoPRStatus) error {
 	var status struct {
 		State    string `json:"state"`
 		Total    int    `json:"total_count"`
@@ -200,9 +231,9 @@ func (g githubForge) PRStatus(ctx context.Context, repo string, number int) (Tod
 			TargetURL   string `json:"target_url"`
 		} `json:"statuses"`
 	}
-	commit := fmt.Sprintf("/repos/%s/commits/%s", repo, pr.Head.SHA)
+	commit := fmt.Sprintf("/repos/%s/commits/%s", repo, sha)
 	if err := g.get(ctx, commit+"/status", &status); err != nil {
-		return TodoPRStatus{}, err
+		return err
 	}
 	type failedCheckItem struct {
 		id         int64
@@ -250,7 +281,7 @@ func (g githubForge) PRStatus(ctx context.Context, repo string, number int) (Tod
 	const maxCheckRunPages = 10
 	var firstChecks checkRunsPage
 	if err := g.get(ctx, commit+"/check-runs?per_page=100&filter=latest", &firstChecks); err != nil {
-		return TodoPRStatus{}, err
+		return err
 	}
 	totalChecks := firstChecks.Total
 	allRuns := make([]checkRun, 0, len(firstChecks.Runs))
@@ -270,7 +301,7 @@ func (g githubForge) PRStatus(ctx context.Context, repo string, number int) (Tod
 	for page := 2; totalChecks > len(allRuns) && len(firstChecks.Runs) > 0 && page <= maxCheckRunPages; page++ {
 		var next checkRunsPage
 		if err := g.get(ctx, fmt.Sprintf("%s/check-runs?per_page=100&filter=latest&page=%d", commit, page), &next); err != nil {
-			return TodoPRStatus{}, err
+			return err
 		}
 		if next.Total > totalChecks {
 			totalChecks = next.Total
@@ -345,7 +376,7 @@ func (g githubForge) PRStatus(ctx context.Context, repo string, number int) (Tod
 			Digest:     digestStr,
 		}
 	}
-	return out, nil
+	return nil
 }
 
 func normalizedFailingCheckIdentity(name string, id int64) string {

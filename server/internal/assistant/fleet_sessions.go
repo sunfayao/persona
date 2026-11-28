@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	jsonv2 "encoding/json/v2"
+	"github.com/sunfayao/persona/server/internal/assistant/fleettext"
 	"math"
 	"slices"
 	"sort"
@@ -587,9 +588,9 @@ func (s *Service) decorateInventory(machine string, list []proto.Session, comple
 			list[i].Undelivered = &kept
 		}
 		list[i].SeenAt = seen[list[i].SessionID]
-		localizeSession(lang, &list[i]) // the node's Chinese activity line… (fleet_text.go)
+		fleettext.LocalizeSession(lang, &list[i]) // the node's Chinese activity line… (fleettext)
 		if list[i].StartErrorCode != "" {
-			list[i].StartError = startErrorText(lang, cmp.Or(m.Name, machine), list[i])
+			list[i].StartError = fleettext.StartErrorText(lang, cmp.Or(m.Name, machine), list[i])
 		}
 		list[i].State, list[i].BackgroundWorking = stateWithBackground(agentState(list[i], list[i].SeenAt), list[i])
 		list[i].BackgroundWaiting = backgroundWaiting(list[i])

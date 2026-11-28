@@ -42,8 +42,9 @@ type Channels interface {
 	Merged(ctx context.Context, pr string) (bool, error)
 	// Deployed says whether the running deployment contains the pull request's change.
 	Deployed(ctx context.Context, pr string) (bool, error)
-	// CI is the state of the pull request's checks: CISuccess, CIFailure, CIPending or CINone.
-	CI(ctx context.Context, pr string) (string, error)
+	// CI is the state of the checks of the pull request's head commit (the one it was merged with, once merged):
+	// CISuccess, CIFailure, CIPending or CINone, and that commit.
+	CI(ctx context.Context, pr string) (state, commit string, err error)
 	Fetch(ctx context.Context, url string) (Page, error)
 }
 
@@ -73,37 +74,46 @@ func run(ctx context.Context, c Check, ch Channels) (state, evidence string) {
 	if len(prs) == 0 {
 		return Cannot, c.Kind + ": no pull request is recorded for this to-do"
 	}
-	var bad []string
+	var notes []string
+	met := true
 	for _, pr := range prs {
-		ok, why, err := onePR(ctx, c.Kind, pr, ch)
-		switch {
-		case err != nil:
+		ok, note, err := onePR(ctx, c.Kind, pr, ch)
+		if err != nil {
 			return Cannot, fmt.Sprintf("%s: %s cannot be checked: %v", c.Kind, pr, err)
-		case !ok:
-			bad = append(bad, pr+" "+why)
 		}
+		met = met && ok
+		notes = append(notes, pr+" "+note)
 	}
-	if len(bad) > 0 {
-		return NotMet, c.Kind + ": " + strings.Join(bad, "; ")
+	if met {
+		return Met, c.Kind + ": " + strings.Join(notes, "; ")
 	}
-	return Met, fmt.Sprintf("%s: %d of %d pull request(s) %s", c.Kind, len(prs), len(prs), map[string]string{
-		KindPRMerged: "merged", KindCIGreen: "green", KindDeployed: "in the running deployment"}[c.Kind])
+	return NotMet, c.Kind + ": " + strings.Join(notes, "; ")
 }
 
-func onePR(ctx context.Context, kind, pr string, ch Channels) (ok bool, why string, err error) {
+// onePR checks one pull request; note says what was found, which commit's checks included.
+func onePR(ctx context.Context, kind, pr string, ch Channels) (ok bool, note string, err error) {
+	say := func(ok bool, yes, no string) string {
+		if ok {
+			return yes
+		}
+		return no
+	}
 	switch kind {
 	case KindPRMerged:
 		ok, err = ch.Merged(ctx, pr)
-		return ok, "is not merged", err
+		return ok, say(ok, "is merged", "is not merged"), err
 	case KindDeployed:
 		ok, err = ch.Deployed(ctx, pr)
-		return ok, "is not in the running deployment", err
+		return ok, say(ok, "is in the running deployment", "is not in the running deployment"), err
 	case KindCIGreen:
-		state, err := ch.CI(ctx, pr)
+		state, commit, err := ch.CI(ctx, pr)
 		if err != nil {
 			return false, "", err
 		}
-		return state == CISuccess, map[string]string{CIFailure: "has failing checks", CIPending: "has checks still running", CINone: "has no checks"}[state], nil
+		if len(commit) > 8 {
+			commit = commit[:8]
+		}
+		return state == CISuccess, map[string]string{CISuccess: "has green checks", CIFailure: "has failing checks", CIPending: "has checks still running", CINone: "has no checks"}[state] + " (commit " + commit + ")", nil
 	}
 	return false, "", fmt.Errorf("unknown kind %q", kind)
 }

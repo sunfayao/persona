@@ -146,6 +146,11 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 	if t.Origin == "" || !s.mayReview(ctx, self, t, isMain, background) {
 		return "", fmt.Errorf("task %s was not handed out from this conversation", t.ID)
 	}
+	if a.Verdict == reviewAccepted {
+		if err := alreadyAccepted(ctx, t); err != nil {
+			return "", err
+		}
+	}
 	if lead, ok := t.supervisorAgent(); ok && a.Verdict == reviewAccepted && t.DoneAt == nil {
 		if open := s.openLeaderWorkers(t); len(open) > 0 { // its supervisor closes them first (task_leader.go)
 			ids := make([]string, 0, len(open))

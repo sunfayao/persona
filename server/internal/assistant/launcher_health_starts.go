@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/sunfayao/persona/server/internal/assistant/fleettext"
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/apierr"
@@ -176,5 +177,5 @@ func (s *Service) startFailureText(ctx context.Context, machine string, err erro
 		}
 		return err.Error()
 	}
-	return startErrorText(s.lang(ctx), s.machineName(machine), proto.Session{StartError: err.Error(), StartErrorCode: code, StartErrorArgs: args})
+	return fleettext.StartErrorText(s.lang(ctx), s.machineName(machine), proto.Session{StartError: err.Error(), StartErrorCode: code, StartErrorArgs: args})
 }

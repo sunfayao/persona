@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistant/acceptance"
 	"github.com/sunfayao/persona/server/internal/assistant/criteria"
@@ -300,5 +301,135 @@ func TestAReviewByNumberIsRefusedWhenTheListChangedDuringTheCall(t *testing.T) {
 	got := todoNow(s, todo.ID)
 	if got.DoneAt != nil || len(got.Supervision.Reviews) != 0 {
 		t.Fatalf("written: %+v", got.Supervision)
+	}
+}
+
+// ciForge answers the checks of a pull request's head commit as given.
+type ciForge struct {
+	*fakeForge
+	st  TodoPRStatus
+	err error
+}
+
+func (f ciForge) PRHeadChecks(context.Context, string, int) (TodoPRStatus, error) { return f.st, f.err }
+
+func TestCIGreenAnswersForAMergedPullRequestFromItsHeadCommit(t *testing.T) {
+	for _, tc := range []struct {
+		name, state, checks, want, evidence string
+	}{
+		{"merged, green", "merged", "success", "1. met: ", "head1234"},
+		{"merged, a failed check", "merged", "failure", "1. not met: ", "failing checks (commit head1234)"},
+		{"closed, not merged", "closed", "none", "1. cannot: ", "closed without a merge"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, _, todo := typedService(t, ciForge{fakeForge: mergedAndLive(), st: TodoPRStatus{State: tc.state, HeadOID: "head1234abcd", Checks: tc.checks}}, true)
+			if _, err := declareChecks(s, todo.ID, `[{"criterion":1,"kind":"ci_green"}]`); err != nil {
+				t.Fatal(err)
+			}
+			res, err := s.toolTaskReview(context.Background(), "conv1", json.RawMessage(`{"todo_id":"`+todo.ID+`","verify":true}`))
+			if err != nil || !strings.Contains(res, tc.want) || !strings.Contains(res, tc.evidence) {
+				t.Fatalf("%q %v", res, err)
+			}
+		})
+	}
+}
+
+// slowForge holds the first merge question until gate closes: a hub run that is in flight.
+func slowForge(inner *fakeForge) (*hookForge, chan struct{}) {
+	gate := make(chan struct{})
+	return &hookForge{fakeForge: inner, onMerge: func() { <-gate }}, gate
+}
+
+func quickDigest(s *Service, hub time.Duration) {
+	s.superviseTimes = superviseTimings{gather: time.Millisecond, every: time.Millisecond, urgent: time.Millisecond, hub: hub}
+}
+
+func reviewSent(f *fakeHub) int { f.mu.Lock(); defer f.mu.Unlock(); return len(f.sends) }
+
+func TestAReviewWaitsForTheHubsRunAndIsDroppedWhenTheHubAccepted(t *testing.T) {
+	forge, gate := slowForge(mergedAndLive())
+	s, f, todo := typedService(t, forge, true)
+	quickDigest(s, time.Minute)
+	if _, err := declareChecks(s, todo.ID, bothTyped); err != nil {
+		t.Fatal(err)
+	}
+	reviewWaits(t, s, todo.ID)
+	s.sendDigest(context.Background())
+	if reviewSent(f) != 0 {
+		t.Fatalf("the review went out while the hub's run was in flight: %v", f.sends)
+	}
+	close(gate)
+	s.tasks.outcomeRuns.Wait()
+	s.sendDigest(context.Background())
+	if got := todoNow(s, todo.ID); got.DoneAt == nil || reviewSent(f) != 0 {
+		t.Fatalf("accepted by the hub, closed %v, sends %v", got.DoneAt, f.sends)
+	}
+}
+
+func TestAReviewIsDeliveredWithTheHubsEvidenceWhenACheckFailed(t *testing.T) {
+	forge, gate := slowForge(&fakeForge{merged: true, sha: mergeSHA, contains: map[string]bool{oldHub: false}})
+	s, f, todo := typedService(t, forge, true)
+	quickDigest(s, time.Minute)
+	if _, err := declareChecks(s, todo.ID, bothTyped); err != nil {
+		t.Fatal(err)
+	}
+	reviewWaits(t, s, todo.ID)
+	s.sendDigest(context.Background())
+	if reviewSent(f) != 0 {
+		t.Fatalf("delivered early: %v", f.sends)
+	}
+	close(gate)
+	s.tasks.outcomeRuns.Wait()
+	waitFor(t, "the review", func() bool { s.sendDigest(context.Background()); return reviewSent(f) > 0 })
+	if c := todoNow(s, todo.ID).Supervision.Criteria[1]; c.By != "hub" || c.State != "not_met" {
+		t.Fatalf("no hub evidence on the ledger: %+v", c)
+	}
+}
+
+func TestAReviewGoesOutAfterTheBoundWhenTheHubsRunHangs(t *testing.T) {
+	forge, gate := slowForge(mergedAndLive())
+	t.Cleanup(func() { close(gate) })
+	s, f, todo := typedService(t, forge, true)
+	quickDigest(s, 1500*time.Millisecond) // the digest ignores a hold shorter than a second
+	if _, err := declareChecks(s, todo.ID, bothTyped); err != nil {
+		t.Fatal(err)
+	}
+	reviewWaits(t, s, todo.ID)
+	s.sendDigest(context.Background())
+	if reviewSent(f) != 0 {
+		t.Fatalf("delivered before the bound: %v", f.sends)
+	}
+	waitFor(t, "the review after the bound", func() bool { s.sendDigest(context.Background()); return reviewSent(f) > 0 })
+}
+
+func TestTheHubsAcceptanceAndAReviewersOwnTakeEffectOnce(t *testing.T) {
+	forge, gate := slowForge(mergedAndLive())
+	s, _, todo := typedService(t, forge, true)
+	if _, err := declareChecks(s, todo.ID, bothTyped); err != nil {
+		t.Fatal(err)
+	}
+	reviewWaits(t, s, todo.ID) // the hub's run starts and waits at the forge
+	var wg sync.WaitGroup
+	var reviewerErr error
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, reviewerErr = acceptReview(s, todo.ID, nil)
+	}()
+	close(gate)
+	wg.Wait()
+	s.tasks.outcomeRuns.Wait()
+	v := ledgerOf(s, todo.ID)
+	accepted := 0
+	for _, r := range v.Reviews {
+		if r.Verdict == reviewAccepted {
+			accepted++
+		}
+	}
+	if got := todoNow(s, todo.ID); got.DoneAt == nil || accepted != 1 {
+		t.Fatalf("closed %v, accepted reviews %d: %+v", got.DoneAt, accepted, v.Reviews)
+	}
+	if reviewerErr != nil && !strings.Contains(reviewerErr.Error(), "already") {
+		t.Fatalf("the loser was told: %v", reviewerErr)
 	}
 }

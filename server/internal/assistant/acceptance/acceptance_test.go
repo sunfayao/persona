@@ -30,7 +30,9 @@ func (f fakeChannels) Merged(_ context.Context, pr string) (bool, error) {
 func (f fakeChannels) Deployed(_ context.Context, pr string) (bool, error) {
 	return f.deployed[pr], f.down
 }
-func (f fakeChannels) CI(_ context.Context, pr string) (string, error) { return f.ci[pr], f.down }
+func (f fakeChannels) CI(_ context.Context, pr string) (string, string, error) {
+	return f.ci[pr], "abcdef0123456789", f.down
+}
 func (f fakeChannels) Fetch(_ context.Context, u string) (Page, error) {
 	if p, ok := f.pages[u]; ok {
 		return p, f.down
@@ -225,10 +227,10 @@ func TestTheHTTPCheckAgainstAServer(t *testing.T) {
 // liveChannels fetches through h and knows no pull request.
 type liveChannels struct{ h HTTP }
 
-func (liveChannels) PullRequests(context.Context) []string          { return nil }
-func (liveChannels) Merged(context.Context, string) (bool, error)   { return false, nil }
-func (liveChannels) Deployed(context.Context, string) (bool, error) { return false, nil }
-func (liveChannels) CI(context.Context, string) (string, error)     { return "", nil }
+func (liveChannels) PullRequests(context.Context) []string              { return nil }
+func (liveChannels) Merged(context.Context, string) (bool, error)       { return false, nil }
+func (liveChannels) Deployed(context.Context, string) (bool, error)     { return false, nil }
+func (liveChannels) CI(context.Context, string) (string, string, error) { return "", "", nil }
 func (l liveChannels) Fetch(ctx context.Context, u string) (Page, error) {
 	return l.h.Fetch(ctx, u)
 }
