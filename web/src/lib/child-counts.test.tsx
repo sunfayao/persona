@@ -32,7 +32,6 @@ const { waitingAgents: inboxWaiting } = await import("./inbox");
 const { requestRoute } = await import("./card-focus");
 const { backgroundWork } = await import("./background-work");
 const { runtimeNeedsYou } = await import("./runtime-list");
-const { sidebarPending } = await import("../views/sidebar-pending");
 const { answeredSessions } = await import("../views/assistant/answered-lookup");
 
 const at = "2026-11-12T08:00:00Z";
@@ -117,11 +116,9 @@ describe("child sessions counted once, under their parent (#5120)", () => {
     expect(entries.running.map((item) => item.key)).toEqual(["agent:m/orphan"]);
   });
 
-  it("the switcher's count, the pending list and the Inbox: one waiting agent, the parent", () => {
+  it("the switcher's count and the Inbox: one waiting agent, the parent", () => {
     const list = { managers: [{ id: "a", name: "A" }], default: "a" } as unknown as Parameters<typeof managerWaiting>[0];
     expect(managerWaiting(list, shown, interactions)).toEqual({ a: NEEDS });
-    const pending = sidebarPending(shown, interactions, {});
-    expect(pending.map((p) => [p.session?.session_id, p.cards.length, p.to])).toEqual([["lead", 1, { name: "session", mid: "m", sid: "lead", view: "chat", work: true }]]);
     expect(inboxWaiting(interactions, { m: raw }, mutes, { source: "", kind: "", query: "" }).map((ix) => ix.id)).toEqual(["ix-1"]);
     expect(requestRoute(card)).toEqual({ name: "session", mid: "m", sid: "lead" });
   });

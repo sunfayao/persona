@@ -59,7 +59,6 @@ import { providersPath } from "../lib/readiness";
 import { settingsHref } from "./settings/nav";
 import { LauncherBlockedHelp } from "./LauncherBlockedHelp";
 import { launcherTitle, namedLauncher, namesFromProviders, providerIdNote, providerTitle, type Named } from "../lib/provider-names";
-import { WorkSessionForm } from "./WorkSessionForm";
 import { NewAgentModel, useModelList } from "./NewAgentModel";
 import { ProjectDocumentContext, ProjectDocumentSource, projectDocumentText, type ProjectDocumentSnapshot } from "./NewAgentProjectDocument";
 
@@ -83,12 +82,7 @@ interface Dirs {
 
 type NewAgentProps = { open: boolean; onClose: () => void; preset?: NewAgentPreset | null };
 
-export function NewAgent(props: NewAgentProps) {
-  if (props.preset?.workSession) return <WorkSessionForm open={props.open} onClose={props.onClose} />;
-  return <AgentForm {...props} />;
-}
-
-function AgentForm({ open, onClose, preset }: NewAgentProps) {
+export function NewAgent({ open, onClose, preset }: NewAgentProps) {
   // with several assistants, the current one's computers: the agent started here shows in its list
   const machines = useScopedMachines();
   const online = useMemo(() => machines.filter((m) => m.online), [machines]);

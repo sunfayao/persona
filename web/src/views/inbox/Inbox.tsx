@@ -90,7 +90,8 @@ export function Inbox({ id, manager, onToggleSidebar }: { id?: string; manager?:
         </Button>
         {!picking && (
           <>
-            <IconButton icon="compose" label={accounts.length ? t("inbox-inbox.compose") : t("inbox-inbox.compose_no_account")} onClick={() => setComposing(true)} disabled={!accounts.length} />
+            {/* only with a mailbox to send from: nothing to write with otherwise */}
+            {accounts.length > 0 && <IconButton icon="compose" label={t("inbox-inbox.compose")} onClick={() => setComposing(true)} />}
             <IconButton icon="retry" label={t("inbox-inbox.refresh")} onClick={() => void refreshInbox()} disabled={loading} />
           </>
         )}

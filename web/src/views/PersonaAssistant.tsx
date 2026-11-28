@@ -25,7 +25,6 @@ import { PersonaAvatar, usePersona } from "./assistant/Persona";
 import { ChatOnlyNote, FailureCard, ReadinessCard, useReadinessGate } from "./assistant/Readiness";
 import { DayLine } from "./assistant/Tasks";
 import { ShellHeaderSlots, ShellSwitch } from "./ShellSwitch";
-import { StartSessionButton } from "./StartSessionButton";
 import { t } from "../i18n";
 import { useAssistantTitle, useShownOffline } from "./ManagerParts";
 import { chosenManager, noteConversation, ownerHeaders, shownManager, useShownManager } from "../lib/manager-choice";
@@ -83,7 +82,6 @@ export function PersonaAssistant({ at, onToggleSidebar }: { at?: string; onToggl
         starting={starting.has(main)}
         onToggleSidebar={onToggleSidebar}
         topCenter={<ShellSwitch page="assistant" />}
-        headerActions={<StartSessionButton compact />}
         mainCache={scope ? { scope, manager } : undefined}
         refreshError={assistantError ?? undefined}
         onRefresh={() => void refreshAssistant().catch(() => {})}
@@ -252,14 +250,12 @@ function Starter({ cleared, onToggleSidebar }: { cleared?: boolean; onToggleSide
           onToggleSidebar={onToggleSidebar}
           onInterrupt={noop}
           topCenter={<ShellSwitch page="assistant" />}
-          actions={<StartSessionButton compact />}
         />
       ) : (
       <header className="flex h-14 shrink-0 items-center gap-2 px-3 sm:px-4">
         {/* a phone's assistant page: "Assistant | Agents" between the same side slots as ChatView's and the Agents page's */}
-        <ShellHeaderSlots page="assistant" onToggleSidebar={onToggleSidebar} end={<><StartSessionButton compact /><IconButton icon="info" label={t("personaassistant.profile")} onClick={() => navigate({ name: "profile" })} /></>} />
+        <ShellHeaderSlots page="assistant" onToggleSidebar={onToggleSidebar} end={<IconButton icon="info" label={t("personaassistant.profile")} onClick={() => navigate({ name: "profile" })} />} />
         <span className="flex-1 max-lg:hidden" />
-        <StartSessionButton className="max-lg:hidden" />
         <button type="button" onClick={() => navigate({ name: "profile" })} className="flex h-7 items-center gap-1.5 rounded-[8px] px-2 text-[12px] font-medium whitespace-nowrap text-ink-2 shadow-btn hover:bg-hover hover:text-ink max-lg:hidden">
           <PersonaAvatar size={16} fallback={<Icon name="info" size={13} />} /> {t("personaassistant.profile")}
         </button>

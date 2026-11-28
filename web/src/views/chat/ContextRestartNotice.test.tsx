@@ -4,7 +4,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { t } from "../../i18n";
 import { archiveSession } from "../../lib/agent-archives";
-import { api } from "../../lib/api";
 import { apiOp } from "../../lib/ops";
 import { toast } from "../../ui/atoms";
 import { navigate } from "../../lib/router";
@@ -15,10 +14,6 @@ import { ContextRestartNotice } from "./ContextRestartNotice";
 vi.mock("../../lib/router", async (original) => ({
   ...(await original<typeof import("../../lib/router")>()),
   navigate: vi.fn(),
-}));
-vi.mock("../../lib/api", async (original) => ({
-  ...(await original<typeof import("../../lib/api")>()),
-  api: vi.fn().mockResolvedValue({}),
 }));
 vi.mock("../../lib/ops", async (original) => ({
   ...(await original<typeof import("../../lib/ops")>()),
@@ -67,7 +62,7 @@ describe("post-compaction context usage notice", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it.each([true, false])("carries a side chat or Agent in one click (assistant=%s)", async (assistant) => {
+  it.each([true, false])("carries an assistant conversation or Agent in one click (assistant=%s)", async (assistant) => {
     const side = { ...main, session_id: "source", assistant };
     const next = { ...side, session_id: "fresh" };
     vi.mocked(apiOp).mockResolvedValueOnce({ state: "pending" }).mockResolvedValueOnce({ session: next });
@@ -79,15 +74,15 @@ describe("post-compaction context usage notice", () => {
     expect(vi.mocked(apiOp).mock.calls[0]).toEqual(vi.mocked(apiOp).mock.calls[1]);
     expect(navigate).toHaveBeenCalledWith(assistant ? { name: "persona" } : { name: "session", mid: "hub", sid: "fresh" });
     expect(archiveSession).not.toHaveBeenCalled();
-    expect(api).not.toHaveBeenCalled();
     const archive = vi.mocked(toast).mock.calls[0]?.[2];
+    if (assistant) {
+      // an assistant conversation has no archive of its own: the toast only says the new one started
+      expect(archive).toBeUndefined();
+      return;
+    }
     expect(archive?.label).toBe(t("chat-contextrestart.archive"));
     await act(async () => archive?.run());
-    if (assistant) {
-      expect(api).toHaveBeenCalledWith("/assistant/conversations/source/archive", { method: "POST", json: {} });
-    } else {
-      expect(archiveSession).toHaveBeenCalledWith(side);
-    }
+    expect(archiveSession).toHaveBeenCalledWith(side);
   });
 
   it("leaves the source open and never offers archive when the new chat failed to start", async () => {

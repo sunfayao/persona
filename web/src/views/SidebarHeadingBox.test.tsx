@@ -107,7 +107,6 @@ describe("the sidebar's top-level headings (#10637)", () => {
   const cases = [
     { list: "the complete Agents list", features: [], titles: ["页面", "Agents"] },
     { list: "the paged Agents list", features: ["sessions_list", "sessions_lookup", "sessions_agents_only"], titles: ["页面", "Agents"] },
-    { list: "Pending in Agents' place", features: ["sessions_dimensions"], titles: ["页面", "待处理"] },
   ];
   for (const { list, features, titles } of cases) {
     it(`share one heading box, folded and unfolded, with ${list}`, async () => {
@@ -148,14 +147,6 @@ describe("the headings' icon buttons on a touch screen (#11511)", () => {
     await render(["sessions_list", "sessions_lookup", "sessions_agents_only"]);
     expect(classes(add("[data-sidebar-agents]"))).toContain(TOUCH_BOX);
     expect(classes(add("[data-sidebar-agents]")?.parentElement)).toEqual(expect.arrayContaining(["px-2", ROW_END]));
-  });
-
-  it("leave Pending's + alone at its heading's end", async () => {
-    await render(["sessions_dimensions"]);
-    const pending = add("[data-sidebar-rows]");
-    expect(pending).not.toBeNull();
-    expect(classes(pending)).not.toContain(TOUCH_BOX);
-    expect(classes(pending)).toContain("touch-hit");
   });
 
   it("hide the search box's ⌘K on a screen without hover (a landscape phone is wide enough for it)", async () => {

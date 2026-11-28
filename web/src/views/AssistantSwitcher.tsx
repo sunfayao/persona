@@ -25,10 +25,9 @@ import { lazyDialog } from "./LazyOverlay";
 import type { ShownCode } from "./ManagerInstall";
 import { setTheme, useTheme, type Theme } from "./theme";
 
-// New assistant and the install code open only on a click: their chunk (shared with Settings › Assistants) loads on the
-// first open, not with the first screen (src/startup-preload.ts FIRST_SCREEN_BUDGET).
+// The install code of an assistant still installing opens only on a click: its chunk loads on the first open, not with
+// the first screen (src/startup-preload.ts FIRST_SCREEN_BUDGET).
 type CodeProps = { open: boolean; shown: ShownCode | null; onClose: () => void; onCode: (c: InstallCode, id: string) => void };
-const NewManager = lazyDialog(() => import("./ManagerInstall").then((m) => m.NewManager));
 const CodeDialog = lazyDialog<CodeProps>(() => import("./ManagerInstall").then(({ CodeDialog: Code }) => ({ open: _open, ...rest }: CodeProps) => <Code {...rest} />));
 
 // The install codes this page was given, by manager: a row still installing shows its code again while it lasts,
@@ -86,12 +85,11 @@ function CountedSwitcher(props: SwitcherProps) {
   return <SwitcherRow {...props} badges={useManagerBadges()} />;
 }
 
-/** The roster's rows (each assistant, then New assistant and Manage assistants…) and the dialogs they open: the one list
- *  the sidebar's head and Settings' Switch both show. `open`: whether the list is open (its lines count minutes then). */
+/** The roster's rows (each assistant) and the install code a row still installing opens: the list the sidebar's head
+ *  shows. `open`: whether the list is open (its lines count minutes then). */
 function useAssistantList(route: Route, badges: Record<string, number>, open: boolean) {
   const roster = useRoster();
   const current = useShownManager();
-  const [creating, setCreating] = useState(false);
   const [shown, setShown] = useState<ShownCode | null>(null);
   const [asking, setAsking] = useState(false);
   // the lines count minutes (an install code running out, "last synced"): once a minute while the list is open
@@ -133,35 +131,18 @@ function useAssistantList(route: Route, badges: Record<string, number>, open: bo
       else if (m.id !== current) switchAssistant(m, route);
     },
   });
-  const items: MenuItem[] = roster
-    ? [
-        ...[...listed, ...installing].map(row),
-        { key: "new-assistant", label: t("sidebar.new_assistant"), icon: "plus" as const, divider: true, onSelect: () => setCreating(true) },
-      ]
-    : [];
+  const items: MenuItem[] = roster ? [...listed, ...installing].map(row) : [];
   const dialogs = (
-    <>
-      <NewManager
-        open={creating}
-        onClose={() => setCreating(false)}
-        onMade={(m, code) => {
-          setCreating(false);
-          codes.set(m.id, code);
-          setShown({ id: m.id, name: m.name, code, fresh: true });
-          void loadRoster();
-        }}
-      />
-      <CodeDialog
-        open={Boolean(shown)}
-        shown={shown}
-        onClose={() => setShown(null)}
-        onCode={(code, id) => {
-          codes.set(id, code);
-          setShown((s) => (s ? { ...s, code, id } : s));
-          void loadRoster();
-        }}
-      />
-    </>
+    <CodeDialog
+      open={Boolean(shown)}
+      shown={shown}
+      onClose={() => setShown(null)}
+      onCode={(code, id) => {
+        codes.set(id, code);
+        setShown((s) => (s ? { ...s, code, id } : s));
+        void loadRoster();
+      }}
+    />
   );
   return { items, dialogs, asking, now };
 }

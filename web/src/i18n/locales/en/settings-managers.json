@@ -1,5 +1,4 @@
 {
-  "new": "New assistant",
   "default": "Default",
   "installing_one": "Installing · code expires in {count} minute",
   "installing_other": "Installing · code expires in {count} minutes",
@@ -20,12 +19,9 @@
   "err_name": "Names are 1 to 40 characters",
   "err_forbidden": "This device isn't allowed to make changes",
   "name": "Name",
-  "name_placeholder": "For example: Work",
   "save": "Save",
   "new_code": "New install code",
   "done": "Done",
-  "create": "Create",
-  "new_hint": "You get an install code. Install it on the computer that will run it within 10 minutes.",
   "code_for": "Install “{name}”",
   "code_title": "Install code",
   "expires_in": "Expires in {time}",

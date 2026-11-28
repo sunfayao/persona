@@ -295,7 +295,7 @@ export interface PanelChrome {
   beside?: React.ReactNode;
 }
 
-export function ChatView({ mid, sid, assistant, starting: launching, onToggleSidebar, topCenter, inPage, embedded, panel: chrome, banner, offline, mainCache, refreshError, onRefresh, headerActions, landAt }: {
+export function ChatView({ mid, sid, assistant, starting: launching, onToggleSidebar, topCenter, inPage, embedded, panel: chrome, banner, offline, mainCache, refreshError, onRefresh, landAt }: {
   mid: string;
   sid: string;
   assistant?: boolean;
@@ -319,8 +319,6 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   mainCache?: { scope: string; manager?: string };
   refreshError?: string;
   onRefresh?: () => void;
-  /** The page's own buttons at the header's end, before the permission mode and ⋯ (Persona's Start session button). */
-  headerActions?: React.ReactNode;
   /** A message to open the chat at (`?at=`, a search hit's, #6283): landed on once it is in, paging back for it. */
   landAt?: string;
 }) {
@@ -2340,7 +2338,6 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
         onTerminal={openTerminal}
         viewDot={view === "term" && (interactions.length > 0 || state === "needs_you")}
         termDot={terminalWaits(session, interactions, outbox)}
-        actions={headerActions}
         tasks={conversationTasks}
         team={team}
         sides={sideControl}
@@ -2878,7 +2875,6 @@ export const Header = memo(function Header({
   onTerminal,
   viewDot,
   termDot,
-  actions,
   tasks,
   team,
   sides,
@@ -2912,8 +2908,6 @@ export const Header = memo(function Header({
   viewDot?: boolean;
   /** The terminal waits on a dialog while the conversation is shown (lib/session-view.ts terminalWaits, #7343). */
   termDot?: boolean;
-  /** The page's own buttons, at the end of the right side (ChatView `headerActions`). */
-  actions?: React.ReactNode;
   /** The conversation's tasks panel: a button from 640 px, a row of ⋯ on a phone (the title keeps its room there). */
   tasks?: { open: boolean; onToggle: () => void };
   /** A lead with workers (#5180): its Team panel's button, whether the panel is open, and whether a worker needs you. */
@@ -3233,7 +3227,6 @@ export const Header = memo(function Header({
         </span>
       )}
       {tasks && <IconButton icon="todo" label={t("sidepanel.conversation_tasks")} active={tasks.open} onClick={tasks.onToggle} className="hidden sm:flex" />}
-      {!chrome && actions}
       {!assistant && session && !session.capabilities?.takeover?.released_desktop &&
         (session.agent === "codex" || session.source_kind === "codex_history" || session.source_kind === "codex_app_server") &&
         <Suspense fallback={null}><TakeoverAction key={`${session.machine_id}:${session.session_id}`} session={session} /></Suspense>}

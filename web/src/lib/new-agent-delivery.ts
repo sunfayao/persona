@@ -51,7 +51,7 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
     const target = {
       machine_id: launch.machineId, cwd: launch.cwd, workspace_id: launch.workspaceId || undefined,
       desktop_project_id: launch.desktopProjectId || undefined,
-      launcher: launch.launcher || undefined, agent_type: launch.agentType, work_session: launch.workSession,
+      launcher: launch.launcher || undefined, agent_type: launch.agentType,
       model: launch.model || undefined, todo_id: launch.todoId || undefined,
       launcher_default_effort: launch.launcherDefaultEffort,
       permission_mode: launch.permissionMode || undefined,
@@ -186,7 +186,7 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
     // the hub won't start it with ultracode here (an old node, a CLI or engine that can't take it): asking again would
     // get the same answer, so "Retry" starts it without, and the card says so (#3428)
     const noUltracode = creating && launch.ultracode === true && ultracodeRefused(e);
-    update({ phase: "failed", handoffAt: undefined, uncertain, repeatOnly: creating && (gap || launch.workSession === true), ...(gap ? {} : { ...launchOpIds(), promptSentAt: undefined }),
+    update({ phase: "failed", handoffAt: undefined, uncertain, repeatOnly: creating && gap, ...(gap ? {} : { ...launchOpIds(), promptSentAt: undefined }),
       ...(noUltracode ? { ultracode: undefined } : {}),
       error: noUltracode ? t("ultracode.start_refused", { error: ultracodeErrorText(e) }) : t(creating ? "lib-new-agent.start_failed" : sending ? "lib-new-agent.first_message_failed" : "lib-new-agent.attachments_failed", { error: errorText(e) }),
       clearable: e instanceof ApiError && e.code === "input_draft" && typeof e.body.clearable === "string" ? e.body.clearable : undefined,

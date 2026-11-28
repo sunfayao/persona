@@ -15,11 +15,10 @@ import { keyedRefs } from "../lib/keyed-refs";
 import { sidebarSessionOrder, sidebarSessionPresentation } from "../lib/herdr-tree";
 import { selectSidebarMachines } from "../lib/sidebar-machines";
 import { machineWithHub } from "../lib/mesh";
-import { backgroundWaiting, baseName, sessionTitle, stateOf, tabLabel } from "../lib/format";
-import { cardState } from "../lib/card-focus";
+import { backgroundWaiting, baseName, stateOf, tabLabel } from "../lib/format";
 import { agentKey, isSpacePinned, pinnedSessions } from "../lib/pins";
 import { firstAndCurrent } from "../lib/persona-nav";
-import { href, navigate, onLinkClick, showsSession, type Route } from "../lib/router";
+import { href, navigate, type Route } from "../lib/router";
 import { useScrollMemory } from "../lib/scroll-memory";
 import { retryFullAgentSessions, useAgentSessions, useFullAgentSessions } from "../lib/sessions";
 import { useHubUnreachable, useStore } from "../lib/store";
@@ -61,10 +60,8 @@ import { CollapseButton, PagesTally } from "./SidebarRail";
 import type { PageSection } from "../lib/sidebar-pages";
 import { WindowedRows } from "./WindowedRows";
 import { captureSidebarAgentRow, onSidebarAgentRemoval } from "./sidebar-agent-removal";
-import { scoped, useScope, useScoped, useScopedInteractions, useScopedMachines } from "../lib/current-assistant";
+import { scoped, useScope, useScoped } from "../lib/current-assistant";
 import { AssistantSwitcher } from "./AssistantSwitcher";
-import { sidebarPending } from "./sidebar-pending";
-import { usePendingWorkSessions } from "./sidebar-pending-sessions";
 // Declared in the files split out of this one; re-exported so the files that import them from here stay as they are.
 export { useNavPages, type NavPage } from "./SidebarParts";
 export { AgentRow, PersonaRow, SESSION_ACTIVE_ROW, SessionRow } from "./SidebarRows";
@@ -308,7 +305,6 @@ export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Ro
   // a phone's drawer has the pages as two rows of icons, so its first screen reaches the Agents (#1996)
   const narrow = useMedia(NARROW);
   const activeKey = useActiveKey(route);
-  const workBrowserReady = useStore((s) => s.features.includes("sessions_dimensions"));
   const { nav, reg, hover, highlight } = useGlide(activeKey);
   useStickyTop(nav);
   const go = useGo(onNavigate);
@@ -348,42 +344,13 @@ export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Ro
 
         <PersonalAgents reg={reg} hover={hover} activeKey={activeKey} go={go} />
 
-        {workBrowserReady ? <PendingAgents route={route} reg={reg} hover={hover} go={go} onNewAgent={onNewAgent} onNavigate={onNavigate} />
-          : !(narrow && route.name === "agent-list") && <AgentsBlock reg={reg} hover={hover} activeKey={activeKey} go={go} onNewAgent={onNewAgent} onNavigate={onNavigate} foldable />}
-        {!workBrowserReady && <NavRow k="terminal" reg={reg} hover={hover} active={activeKey === "terminal"} to={{ name: "terminal" }} go={go} label={t("work-entry.title")} icon="clock" />}
+        {!(narrow && route.name === "agent-list") && <AgentsBlock reg={reg} hover={hover} activeKey={activeKey} go={go} onNewAgent={onNewAgent} onNavigate={onNavigate} foldable />}
+        <NavRow k="terminal" reg={reg} hover={hover} active={activeKey === "terminal"} to={{ name: "terminal" }} go={go} label={t("work-entry.title")} icon="clock" />
       </div>
       {/* subscription rate-limit windows (#2432): nothing is drawn without data */}
       <SidebarUsage />
       <NodePrompt />
     </aside>
-  );
-}
-
-function PendingAgents({ route, reg, hover, go, onNewAgent, onNavigate }: {
-  route: Route; reg: RegFn; hover: (key: string | null) => void; go: GoFn; onNewAgent: () => void; onNavigate?: () => void;
-}) {
-  const scope = useScope();
-  const { sessions, loaded } = usePendingWorkSessions(scope.several ? scope.id : undefined);
-  const interactions = useScopedInteractions();
-  const answered = useStore((s) => s.answered);
-  const machines = useScopedMachines();
-  const rows = useMemo(() => sidebarPending(sessions, interactions, answered), [sessions, interactions, answered]);
-  const [folded, toggle] = useFolded("work-pending", false, { all: false });
-  return (
-    <Section top title={t("work-entry.pending")} folded={folded} onToggle={toggle} right={<AgentsAdd onNewAgent={onNewAgent} onNavigate={onNavigate} />}>
-      {loaded && !rows.length && <p className="px-2 py-1.5 text-[12px] text-ink-3">{t("work-entry.pending_empty")}</p>}
-      {rows.map((row) => {
-        const card = row.cards[0];
-        const label = card?.session_title || (row.session && sessionTitle(row.session)) || baseName(card?.cwd) || t("work-entry.pending_request");
-        const active = row.to.name === "request" ? route.name === "request" && route.id === row.to.id
-          : row.to.name === "session" && showsSession(route, row.to.mid, row.to.sid);
-        return <NavRow key={row.key} k={row.key} reg={reg} hover={hover} active={active} to={row.to}
-          go={(to) => (e) => { onLinkClick(e, to, card ? cardState(card.id) : null); if (e.defaultPrevented) onNavigate?.(); }}
-          label={label} title={[label, machineWithHub(row.machineId, machines)].filter(Boolean).join(" · ")} icon="chat" dot="needs_you"
-          badge={row.cards.length > 1 ? row.cards.length : undefined} badgeTone="attention" />;
-      })}
-      <NavRow k="work:all" reg={reg} hover={hover} active={false} to={{ name: "terminal" }} go={go} label={t("work-entry.all")} icon="list" />
-    </Section>
   );
 }
 

@@ -17,8 +17,8 @@ A mock with MOCK_MANAGER_NEEDS_YOU=0 as well (a hub whose roster has no inbox co
 the agents waiting only.
 It moves the NAS to 工作 and back to 家里, so every round (390 / 1200, light / dark) starts alike.
 
-Checks the sidebar's assistant switcher (the current assistant in the sidebar's head; its list with New assistant and
-Manage assistants…; the pick names the assistant's requests and survives a reload; an offline one greyed with the
+Checks the sidebar's assistant switcher (the current assistant in the sidebar's head; its list with Manage
+assistants…; the pick names the assistant's requests and survives a reload; an offline one greyed with the
 composer off, its inbox and to-dos saying it is offline rather than empty; an installing one opens its install code),
 that the machines and inbox pages list only the current assistant's (no manager headings), another assistant's inbox
 item opened by its address (its requests name its manager, the Trail's too, and the current assistant stays, also after
@@ -28,8 +28,8 @@ first group then follows the new assistant (its pages' requests name it, Connect
 only); with --single, the title and Switch with one assistant. Once after the rounds: the count beside 工作 (its agents
 waiting plus the roster's inbox_needs_you) moving without a reload when the hub pushes `managers`, and every row of the
 list reachable and clickable at 200% zoom and at the largest text size. --outdated its Needs update badge; --single
-checks the current assistant's name, avatar and status in the sidebar head, its one-row roster with New assistant and
-Manage assistants…, and the appearance and settings menu, while the chat title stays product-branded. It also checks
+checks the current assistant's name, avatar and status in the sidebar head, its one-row roster with Manage
+assistants…, and the appearance and settings menu, while the chat title stays product-branded. It also checks
 that nothing is filtered and that no request names a manager (no X-Persona-Manager header, no manager= in the address).
 Screenshots (390 and 1200 wide, light and dark) contain only mock data.
 """
@@ -139,7 +139,6 @@ def check(browser, base, width, theme, shots, single, outdated):
             expect(radio).to_contain_text("助手")
             expect(radio).to_contain_text("在线 · server")
             expect(radio.get_by_text("默认", exact=True)).to_have_count(0)
-            expect(menu.get_by_role("menuitem", name="新建助手")).to_be_visible()
             expect(menu.get_by_role("menuitem", name="管理助手…")).to_be_visible()
             expect(menu.get_by_text("外观", exact=True)).to_be_visible()
             for item in ("跟随系统", "浅色", "深色", "设置", "断开这个浏览器…"):
@@ -188,7 +187,6 @@ def check(browser, base, width, theme, shots, single, outdated):
         expect(radios.nth(0)).to_contain_text("在线 · server")
         expect(radios.nth(2)).to_contain_text("离线 · 最后同步于")
         expect(menu.get_by_role("menuitem").filter(has_text="安装中")).to_have_count(1)
-        expect(menu.get_by_role("menuitem", name="新建助手")).to_be_visible()
         expect(menu.get_by_role("menuitem", name="管理助手…")).to_be_visible()
         # the segmented switcher at the assistant page's top is gone
         expect(page.get_by_role("radiogroup", name="管理者")).to_have_count(0)
@@ -478,7 +476,6 @@ def check_settings(browser, base, width, theme, shots, single):
         switch = first.locator("[data-settings-switch]")
         switch.click()
         menu = page.get_by_role("menu")
-        expect(menu.get_by_role("menuitem", name="新建助手")).to_be_visible()
         expect(menu.get_by_role("menuitem", name="管理助手…")).to_be_visible()
         if single:
             expect(menu.get_by_role("menuitemradio")).to_have_count(1)
@@ -614,7 +611,7 @@ def check_counts(browser, base):
 
 def check_reach(browser, base, shots):
     """Every row of the list can be scrolled to and clicked at 200% zoom (a 1200 x 900 window is 600 x 450 CSS pixels)
-    and at the largest text size: New assistant, Manage assistants…, the three looks under Appearance, Settings and
+    and at the largest text size: Manage assistants…, the three looks under Appearance, Settings and
     Disconnect."""
     for what, viewport, text_size in (("zoom200", {"width": 600, "height": 450}, None), ("large", {"width": 390, "height": 700}, "large")):
         context = browser.new_context(viewport=viewport, device_scale_factor=2, locale="zh-CN", color_scheme="light")
@@ -641,7 +638,7 @@ def check_reach(browser, base, shots):
             if shots:
                 page.wait_for_timeout(400)
                 page.screenshot(path=os.path.join(shots, f"managers-reach-{what}-top.png"))
-            for name in ("新建助手", "管理助手…", "跟随系统", "浅色", "深色", "设置", "断开这个浏览器…"):
+            for name in ("管理助手…", "跟随系统", "浅色", "深色", "设置", "断开这个浏览器…"):
                 row = menu.get_by_role("menuitem", name=name, exact=True)
                 row.scroll_into_view_if_needed()
                 box = row.bounding_box()

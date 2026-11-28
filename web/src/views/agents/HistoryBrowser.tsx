@@ -18,7 +18,7 @@ import type { Machine, Session } from "../../lib/types";
 import { Button, useNow } from "../../ui/atoms";
 import { SearchField } from "../../ui/SearchField";
 import { WindowedRows } from "../WindowedRows";
-import { WorkSessionRow } from "./WorkSessionBrowser";
+import { WorkSessionRow } from "./WorkSessionRow";
 
 const copy = (key: string) => t(`session-history.${key}`);
 const selectClass = "min-h-8 min-w-0 flex-1 rounded-control bg-inset px-2 py-1 text-xs text-ink shadow-hairline focus-visible:outline-accent [@media(pointer:coarse)]:min-h-11";
@@ -29,7 +29,7 @@ function HistoryRow({ session, machines, active, now }: { session: Session; mach
   const available = terminalResume(session) === "available" && machine?.online;
   return <div data-history-row={session.session_id}>
     <div className="flex min-w-0 items-center gap-1">
-      <div className="min-w-0 flex-1"><WorkSessionRow session={{ ...session, harness_name: sessionAgentName(session) }} name={machineWithHub(session.machine_id, machines)} active={active} now={now} depth={0}
+      <div className="min-w-0 flex-1"><WorkSessionRow session={session} name={machineWithHub(session.machine_id, machines)} active={active} now={now}
         onSelect={() => { rememberSessionRow(session); navigate({ name: "session", mid: session.machine_id, sid: session.session_id, work: true }); }} /></div>
       {available && <Button tone="quiet" busy={resume.phase === "resuming"} aria-label={t("session-history.resume_named", { title: sessionTitle(session) })}
         onClick={() => { rememberSessionRow(session); void resumeInTerminal(session.machine_id, session.session_id, () => navigate({ name: "session", mid: session.machine_id, sid: session.session_id, work: true, view: "term" })); }}>

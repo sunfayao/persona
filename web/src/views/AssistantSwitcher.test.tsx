@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The sidebar's switcher: the current assistant in the sidebar's head, the roster it
-// opens (status, where each runs, what waits there, the default tagged, the current one checked), switching, New
-// assistant, an installing one's install commands, and the earlier product row without a roster.
+// opens (status, where each runs, what waits there, the default tagged, the current one checked), switching, an
+// installing one's install commands, and the earlier product row without a roster.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,7 +15,6 @@ vi.mock("../lib/api", async (orig) => ({
   api: (path: string, init?: { method?: string; json?: unknown }) => {
     const method = init?.method ?? "GET";
     hub.calls.push({ path, method, json: init?.json });
-    if (path === "/managers" && method === "POST") return Promise.resolve({ manager: { id: "m-new", name: (init?.json as { name: string }).name, online: false, installing: soon(10) }, code: "mi_new", expires_at: soon(10), commands: { service: "curl -fsSL <hub address>/i/mi_new | sh" } });
     if (path === "/managers") return hub.error ? Promise.reject(hub.error) : Promise.resolve(hub.roster);
     if (path === "/managers/m-3/code") return Promise.resolve({ code: "mi_again", expires_at: soon(10) });
     return Promise.resolve({});
@@ -35,7 +34,7 @@ import { loadPages } from "../lib/lazy-page";
 import { AssistantSwitcher } from "./AssistantSwitcher";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-// New assistant and the install code are lazy dialogs: their chunk is loaded before the clicks that open them
+// The install code is a lazy dialog: its chunk is loaded before the clicks that open it
 beforeAll(() => loadPages(), 60_000);
 
 function soon(min: number) {
@@ -151,7 +150,6 @@ describe("the sidebar's assistant switcher", () => {
     expect(radios[0].querySelector("[data-menu-badge]")).toBeNull();
     expect(radios[2].textContent).toContain("离线 · 最后同步于");
     expect(row("测试").textContent).toContain("安装中 · 码 7 分钟后过期");
-    expect(rows().map((r) => r.textContent).filter((x) => x === "新建助手")).toEqual(["新建助手"]);
   });
 
   it("leaves out the built-in assistant while it is hidden, still counting it, and goes back to the default from it (#9055)", async () => {
@@ -191,23 +189,6 @@ describe("the sidebar's assistant switcher", () => {
     expect(head().querySelector("[data-avatar-status=grey]")).not.toBeNull();
   });
 
-  it("makes a new assistant from the list, and shows its install commands", async () => {
-    await render();
-    await open();
-    await choose("新建助手");
-    const input = document.body.querySelector<HTMLInputElement>("[role=dialog] input")!;
-    await act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "书房");
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-    await act(async () => [...document.body.querySelectorAll<HTMLButtonElement>("[role=dialog] button")].find((b) => b.textContent === "创建")!.click());
-    await flush();
-    expect(hub.calls.find((c) => c.path === "/managers" && c.method === "POST")?.json).toEqual({ name: "书房" });
-    expect(document.body.textContent).toContain("安装「书房」");
-    expect(document.body.textContent).toContain("mi_new");
-    expect(document.body.textContent).toContain("curl -fsSL <hub address>/i/mi_new | sh");
-  });
-
   it("shows an installing assistant's install code instead of switching to it", async () => {
     await render();
     await open();
@@ -218,7 +199,7 @@ describe("the sidebar's assistant switcher", () => {
     expect(document.body.textContent).toContain("mi_again");
   });
 
-  it("shows one assistant's identity and roster, with New but no default tag or counts", async () => {
+  it("shows one assistant's identity and roster, with no default tag or counts", async () => {
     setRoster({ default: "assistant", managers: [ROSTER.managers[0]] });
     await render();
     expect(head().textContent).toContain("助手");
@@ -238,7 +219,7 @@ describe("the sidebar's assistant switcher", () => {
     expect(radios[0].textContent).toContain("助手");
     expect(radios[0].textContent).not.toContain("默认");
     expect(radios[0].querySelector("[data-menu-badge]")).toBeNull();
-    expect(rows().slice(1).map((r) => r.textContent)).toEqual(["新建助手", "跟随系统", "浅色", "深色", "设置", "断开这个浏览器…"]);
+    expect(rows().slice(1).map((r) => r.textContent)).toEqual(["跟随系统", "浅色", "深色", "设置", "断开这个浏览器…"]);
     await choose("设置");
     expect(navigate).toHaveBeenCalledWith({ name: "settings" });
   });
@@ -274,7 +255,6 @@ describe("the sidebar's assistant switcher", () => {
     expect(radios[0].textContent).not.toContain("默认");
     expect(row("测试").textContent).toContain("安装中");
     expect(document.body.querySelector("[data-menu-badge]")).toBeNull();
-    expect(row("新建助手")).toBeDefined();
   });
 
   it("moves a mounted head from no roster to one, two and one assistant without a reload", async () => {
@@ -343,7 +323,6 @@ describe("the sidebar's assistant switcher", () => {
     await open();
     expect(document.body.querySelector<HTMLElement>("[role=menu]")!.style.width).toBe("220px");
     expect(menuHeader()).toBe("外观");
-    expect(rows().some((r) => r.textContent === "新建助手")).toBe(false);
   });
 
   it("keeps identity and a one-row roster when two assistants become one", async () => {
@@ -386,7 +365,6 @@ describe("the sidebar's assistant switcher", () => {
     expect(document.body.querySelector<HTMLElement>("[role=menu]")!.style.width).toBe("220px");
     expect(menuHeader()).toBe("外观");
     expect(rows().map((r) => r.textContent)).toEqual(["跟随系统", "浅色", "深色", "设置", "断开这个浏览器…"]);
-    expect(rows().some((r) => r.textContent === "新建助手")).toBe(false);
   });
 
   it("fades an offline assistant's whole row, which can still be picked", async () => {
@@ -450,7 +428,6 @@ describe("the sidebar's assistant switcher", () => {
     expect(head().querySelector("[data-assistant-avatar]")).toBeNull();
     expect(document.body.querySelector<HTMLElement>("[role=menu]")!.style.width).toBe("220px");
     expect(menuHeader()).toBe("外观");
-    expect(rows().some((r) => r.textContent === "新建助手")).toBe(false);
   });
 
   it("shows a kept pick by the name the roster last gave it until the roster is read again", async () => {

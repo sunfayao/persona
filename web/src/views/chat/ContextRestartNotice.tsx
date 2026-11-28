@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { t } from "../../i18n";
 import { archiveSession } from "../../lib/agent-archives";
-import { api, ApiError, errorText, isTransient, sessionPath } from "../../lib/api";
+import { ApiError, errorText, isTransient, sessionPath } from "../../lib/api";
 import { isBackgroundSupervisor } from "../../lib/background-supervisor";
 import { NEW_MAIN_FEATURE } from "../../lib/compaction";
 import { uuid } from "../../lib/format";
@@ -61,16 +61,13 @@ export function ContextRestartNotice({ session, assistant, isMain }: { session: 
           : { name: "session", mid: next.machine_id, sid: next.session_id });
       }
       dismiss();
-      toast(t("chat-contextrestart.started"), "info", {
+      // an Agent's old chat can be archived from the toast; an assistant conversation has no archive of its own
+      if (assistant) toast(t("chat-contextrestart.started"), "info");
+      else toast(t("chat-contextrestart.started"), "info", {
         label: t("chat-contextrestart.archive"),
         sticky: true,
-        run: () => {
-          const write = assistant
-            ? api(`/assistant/conversations/${encodeURIComponent(session.session_id)}/archive`, { method: "POST", json: {} })
-            : archiveSession(session);
-          void write.then(() => toast(t("chat-contextrestart.archived"), "ok"),
-            (e) => toast(errorText(e), "error"));
-        },
+        run: () => void archiveSession(session).then(() => toast(t("chat-contextrestart.archived"), "ok"),
+          (e) => toast(errorText(e), "error")),
       });
     } catch (e) {
       if (e instanceof ApiError && e.status < 500 && !isTransient(e) && e.body.delivered !== "unknown") {

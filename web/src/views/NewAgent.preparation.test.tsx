@@ -480,7 +480,7 @@ describe("New Agent with an omp launcher (#11964)", () => {
     expect(body).toMatchObject({ machine_id: "computer", launcher });
     if (choice === "launcher default") expect(body).not.toHaveProperty("model");
     else expect(body.model).toBe(model);
-    for (const field of ["effort", "launcher_default_effort", "permission_mode", "ultracode", "work_session"]) {
+    for (const field of ["effort", "launcher_default_effort", "permission_mode", "ultracode"]) {
       expect(body).not.toHaveProperty(field);
     }
   });

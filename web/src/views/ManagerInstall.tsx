@@ -1,12 +1,10 @@
-// Making an assistant and installing it: the dialog that asks for its name, and the
-// one-time install code with its countdown (and the install commands when the hub gives them). Settings › Assistants
-// and the sidebar's switcher both open them, so they live outside the settings chunk.
+// Installing an assistant: the one-time install code with its countdown (and the install commands when the hub gives
+// them), opened from the sidebar's switcher for an assistant still installing.
 import { useEffect, useState } from "react";
 import { t } from "../i18n";
 import { clock, secondsLeft } from "../lib/connect-device";
-import { createManager, managerError, NAME_MAX, renewCode, validName, type InstallCode, type Manager } from "../lib/managers";
+import { managerError, renewCode, type InstallCode } from "../lib/managers";
 import { Button, copyText, cx, Dialog, IconButton, toast, useNow } from "../ui/atoms";
-import { inputClass } from "./assistant/parts";
 
 /** A code on screen: the manager it installs, and whether it replaces one already installed somewhere. */
 export interface ShownCode {
@@ -15,64 +13,6 @@ export interface ShownCode {
   code: InstallCode;
   /** Never installed: once its code runs out the hub may have dropped it, and a new code makes it again (renewCode). */
   fresh?: boolean;
-}
-
-export function NewManager({ open, onClose, onMade }: { open: boolean; onClose: () => void; onMade: (m: Manager, code: InstallCode) => void }) {
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  useEffect(() => {
-    if (!open) return;
-    setName("");
-    setError("");
-  }, [open]);
-  const ok = validName(name);
-  const make = async () => {
-    if (!ok || busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      const r = await createManager(name.trim());
-      onMade(r.manager, r);
-    } catch (e) {
-      setError(managerError(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      width={400}
-      title={t("settings-managers.new")}
-      footer={
-        <>
-          <Button tone="quiet" disabled={busy} onClick={onClose}>{t("common.cancel")}</Button>
-          <Button tone="primary" busy={busy} disabled={!ok} onClick={() => void make()}>{t("settings-managers.create")}</Button>
-        </>
-      }
-    >
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void make();
-        }}
-      >
-        <input
-          autoFocus
-          value={name}
-          maxLength={NAME_MAX * 2}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={t("settings-managers.name_placeholder")}
-          aria-label={t("settings-managers.name")}
-          className={inputClass}
-        />
-      </form>
-      <p className="mt-2 text-[11.5px] leading-relaxed text-ink-3">{t("settings-managers.new_hint")}</p>
-      {error && <p role="alert" className="mt-2 text-[12.5px] text-red">{error}</p>}
-    </Dialog>
-  );
 }
 
 /** The install code (and commands), its countdown, and once it ran out New installation code. */

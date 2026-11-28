@@ -26,7 +26,6 @@ export interface AgentLaunch {
   displayLauncher?: string;
   displayEngine?: string;
   displayModel?: string;
-  workSession?: boolean;
   /** Start with the first message when this harness takes it as part of creation. */
   inlinePrompt?: boolean;
   /** Picked in "New agent" for this start only (launcher-models.ts startPicks); none: the launcher's own. */
@@ -64,7 +63,7 @@ export interface AgentLaunch {
   promptSentAt?: number;
   /** The hub answered that it doesn't know how this went: only the person can say whether to go on. */
   uncertain?: boolean;
-  /** The target is locked on retry: work-session choices or a start that the hub may already have. */
+  /** The target is locked on retry: a start that the hub may already have. */
   repeatOnly?: boolean;
   /** A native session exists but desktop setup has not acknowledged completion. */
   desktopSetupIncomplete?: boolean;
@@ -75,7 +74,7 @@ export interface AgentLaunch {
 }
 
 /** `open: false` starts it without opening its conversation (Compare runs starts several and opens their page, #8916). */
-export function launchAgent(input: Pick<AgentLaunch, "machineId" | "cwd" | "workspaceId" | "desktopProjectId" | "launcher" | "agentType" | "displayLauncher" | "displayEngine" | "displayModel" | "workSession" | "inlinePrompt" | "model" | "effort" | "launcherDefaultEffort" | "permissionMode" | "ultracode" | "text" | "nameHint" | "attachments" | "todoId">, options: { open?: boolean; replace?: boolean } = {}) {
+export function launchAgent(input: Pick<AgentLaunch, "machineId" | "cwd" | "workspaceId" | "desktopProjectId" | "launcher" | "agentType" | "displayLauncher" | "displayEngine" | "displayModel" | "inlinePrompt" | "model" | "effort" | "launcherDefaultEffort" | "permissionMode" | "ultracode" | "text" | "nameHint" | "attachments" | "todoId">, options: { open?: boolean; replace?: boolean } = {}) {
   const launch: AgentLaunch = { ...input, id: `local-${uuid()}`, phase: "creating", uploaded: {}, ...launchOpIds() };
   putLaunch(launch);
   if (options.open !== false) {
@@ -153,8 +152,6 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
 
 /** What "New agent" opens with when another page opens it ("Knowledge"'s "Start agent"): the first message, and where if known. */
 export interface NewAgentPreset {
-  /** Open the work-session picker from the main conversation. */
-  workSession?: boolean;
   prompt?: string;
   machineId?: string;
   cwd?: string;

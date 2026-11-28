@@ -1,5 +1,4 @@
 {
-  "new": "新建助手",
   "default": "默认",
   "installing": "安装中 · 码 {count} 分钟后过期",
   "installing_expired": "安装中 · 码已过期",
@@ -19,12 +18,9 @@
   "err_name": "名字要 1 到 40 个字",
   "err_forbidden": "这台设备没有修改权限",
   "name": "名字",
-  "name_placeholder": "比如：工作",
   "save": "保存",
   "new_code": "新的安装码",
   "done": "完成",
-  "create": "创建",
-  "new_hint": "建好后给你一个安装码，10 分钟内在要运行它的电脑上装好。",
   "code_for": "安装「{name}」",
   "code_title": "安装码",
   "expires_in": "{time} 后过期",

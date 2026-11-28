@@ -40,7 +40,6 @@ export function takeFolderAgentDraft(id: string) {
 
 /** Open a local draft only when the source already identifies the agent's computer and folder. */
 export function openFolderAgentDraft(preset: NewAgentPreset): boolean {
-  if (preset.workSession) return false;
   const workspace = preset.workspace;
   const machine = workspace?.machineId || preset.machineId;
   const cwd = (workspace?.cwd || preset.cwd || "").trim();

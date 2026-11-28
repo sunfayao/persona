@@ -6,8 +6,5 @@
   "terminal_unavailable": "ターミナルを利用できません",
   "pick_session": "セッションを開く",
   "pick_session_detail": "一覧からセッションを選ぶと会話が表示されます。",
-  "pending": "対応待ち",
-  "pending_empty": "対応待ちの項目はありません。",
-  "pending_request": "対応待ちのリクエスト",
-  "all": "履歴"
+  "pending": "対応待ち"
 }
