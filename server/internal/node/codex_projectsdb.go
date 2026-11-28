@@ -31,6 +31,7 @@ type codexProjectSnapshot struct {
 	NativeProjectIDs map[string]string // native project id -> canonical project id
 	Stamp            string            // source stamp of the last complete successful refresh
 	Revision         uint64            // also changes when a previously unavailable reader becomes usable
+	retry            bool              // SQLite was unavailable, so only the legacy state was read
 }
 
 // Nothing writes to either source. A failed refresh preserves the entire last successful snapshot and its stamp.
@@ -51,11 +52,20 @@ func codexDesktopProjectSnapshot(home string) (codexProjectSnapshot, error) {
 	state := filepath.Join(home, ".codex-global-state.json")
 	db := codexAppDBPath(home)
 	stamp := fileStamp(state) + db + fileStamp(db) + fileStamp(db+"-wal")
-	if stamp == c.stamp && time.Since(c.at) < codexAppDBRefresh {
+	return c.refresh(stamp, time.Now(), func() (codexProjectSnapshot, error) {
+		return readCodexDesktopProjectSnapshot(home, state, db)
+	})
+}
+
+func (c *codexProjectCatalog) refresh(stamp string, now time.Time, read func() (codexProjectSnapshot, error)) (codexProjectSnapshot, error) {
+	if c.snapshot.Revision != 0 && stamp == c.snapshot.Stamp && !c.snapshot.retry {
+		return c.snapshot, nil
+	}
+	if stamp == c.stamp && now.Sub(c.at) < codexAppDBRefresh {
 		return c.snapshot, c.err
 	}
-	c.at, c.stamp = time.Now(), stamp
-	snapshot, err := readCodexDesktopProjectSnapshot(home, state, db)
+	c.at, c.stamp = now, stamp
+	snapshot, err := read()
 	c.err = err
 	if err == nil {
 		snapshot.Stamp = stamp
@@ -115,11 +125,12 @@ func readCodexDesktopProjectSnapshot(home, state, db string) (codexProjectSnapsh
 	}
 	ctx := context.Background()
 	native, nativeOrder, supported, err := readCodexNativeProjects(ctx, db)
-	if err != nil {
+	sqliteMissing := errors.Is(err, exec.ErrNotFound)
+	if err != nil && !sqliteMissing {
 		return codexProjectSnapshot{}, err
 	}
 	if !found && !supported {
-		return codexProjectSnapshot{}, nil
+		return codexProjectSnapshot{retry: sqliteMissing}, nil
 	}
 	var threads map[string]string
 	if supported {
@@ -209,7 +220,7 @@ func readCodexDesktopProjectSnapshot(home, state, db string) (codexProjectSnapsh
 			assigned[thread] = key
 		}
 	}
-	return codexProjectSnapshot{Projects: projects, Order: order, ThreadProjects: assigned, NativeProjectIDs: nativeIDs}, nil
+	return codexProjectSnapshot{Projects: projects, Order: order, ThreadProjects: assigned, NativeProjectIDs: nativeIDs, retry: sqliteMissing}, nil
 }
 
 // readCodexNativeProjects recognizes an older Codex database with no project tables as an absent source. A schema
@@ -219,9 +230,6 @@ func readCodexNativeProjects(ctx context.Context, db string) (map[string]codexAp
 		return nil, nil, false, nil
 	}
 	sqlite, err := codexSQLiteProgram()
-	if errors.Is(err, exec.ErrNotFound) {
-		return nil, nil, false, nil
-	}
 	if err != nil {
 		return nil, nil, false, err
 	}

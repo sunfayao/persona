@@ -2,11 +2,13 @@ package assistant
 
 import (
 	"context"
+	"encoding/json"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/knowledge"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -204,5 +206,86 @@ func assertContinuationDecisionPrompt(t *testing.T, s *Service, prompt string) {
 		if strings.Contains(prompt, unwanted) {
 			t.Errorf("prompt contains %q:\n%s", unwanted, prompt)
 		}
+	}
+}
+
+func TestEngineeringKnowledgeUsesAuthenticatedWorkerScope(t *testing.T) {
+	e := newTodoEnv(t, todoTestDB(t))
+	ordinary := proto.Session{SessionID: "worker-a", Space: "engineering"}
+	differentSpace := proto.Session{SessionID: "worker-b", Space: "private"}
+	differentProject := proto.Session{SessionID: "worker-c", Space: "engineering"}
+	guest := proto.Session{SessionID: "guest-worker", Space: "engineering"}
+	e.f.setSessions("box", ordinary, differentSpace, differentProject, guest)
+	nodes := []string{"box", "remote-a", "remote-b", "external"}
+	for _, machine := range nodes[1:] {
+		e.f.setSessions(machine, ordinary)
+	}
+	e.f.mu.Lock()
+	e.f.hello.Assistant.WorkMachines = []string{"external"}
+	e.f.mu.Unlock()
+
+	first := e.create("Engineering")
+	e.must("PATCH", "/api/v1/todos/"+first.ID, `{"project":"rocket"}`)
+	for _, machine := range nodes {
+		e.must("PUT", "/api/v1/todos/"+first.ID+"/agents/"+machine+"/"+ordinary.SessionID, "")
+	}
+	e.must("PUT", "/api/v1/todos/"+first.ID+"/agents/box/"+differentSpace.SessionID, "")
+	e.must("PUT", "/api/v1/todos/"+first.ID+"/agents/box/"+guest.SessionID, "")
+	if err := e.s.guestSet(context.Background(), "box", guest.SessionID, []string{"todo_decisions"}); err != nil {
+		t.Fatal(err)
+	}
+	second := e.create("Other work")
+	e.must("PATCH", "/api/v1/todos/"+second.ID, `{"project":"other"}`)
+	e.must("PUT", "/api/v1/todos/"+second.ID+"/agents/box/"+differentProject.SessionID, "")
+
+	const doc = "knowledge/entities/runbooks/release.md"
+	reads := 0
+	e.s.knowledge = knowledge.New(knowledge.Dependencies{
+		Authorize: e.s.knowledgeScope,
+		Load: func() (knowledge.Config, error) {
+			space := "engineering"
+			cfg := knowledge.Config{}
+			for _, machine := range nodes {
+				cfg.Grants = append(cfg.Grants, knowledge.Grant{Machine: machine, Project: "rocket", Space: &space, Documents: []string{doc}})
+			}
+			return cfg, nil
+		},
+		Read: func(_ context.Context, _, path string) (string, error) {
+			reads++
+			if path != doc {
+				t.Fatalf("unexpected document read %q", path)
+			}
+			return "Release engineering checklist", nil
+		},
+	})
+	call := func(machine, session, args string) proto.ToolResult {
+		return e.s.mcpCall(context.Background(), machine, session, "todo_decisions", json.RawMessage(args), false)
+	}
+	search := `{"action":"knowledge_search","query":"release"}`
+	read := `{"action":"knowledge_read","path":"` + doc + `"}`
+	for _, machine := range nodes[:3] {
+		for _, args := range []string{search, read} {
+			if got := call(machine, ordinary.SessionID, args); got.IsError || !strings.Contains(got.Content[0].Text, doc) {
+				t.Fatalf("authorized request from %s: %+v", machine, got)
+			}
+		}
+	}
+	for _, request := range []struct{ machine, session, args string }{
+		{"other-box", ordinary.SessionID, read},
+		{"box", differentSpace.SessionID, read},
+		{"box", differentProject.SessionID, search},
+		{"box", guest.SessionID, read},
+		{"external", ordinary.SessionID, read},
+		{"box", "unmanaged", read},
+		{"box", "", read},
+		{"box", differentSpace.SessionID, `{"action":"knowledge_read","path":"` + doc + `","space":"engineering"}`},
+	} {
+		if got := call(request.machine, request.session, request.args); !got.IsError {
+			t.Fatalf("unauthorized request %+v returned %+v", request, got)
+		}
+	}
+	e.must("PATCH", "/api/v1/todos/"+first.ID, `{"done":true}`)
+	if got := call("box", ordinary.SessionID, read); !got.IsError || reads != 6 {
+		t.Fatalf("closed todo must not read knowledge: %+v, reads=%d", got, reads)
 	}
 }

@@ -757,3 +757,36 @@ func TestDelayedDoneCreationStoreKeepsManualChoice(t *testing.T) {
 		t.Fatalf("done creation after the guarded store write = %+v", got)
 	}
 }
+
+func TestAgentDecisionRetryKeyReusesTheOriginalReceipt(t *testing.T) {
+	e := newTodoEnv(t, todoTestDB(t))
+	e.f.setSessions("box", proto.Session{SessionID: "worker"}, proto.Session{SessionID: "other"})
+	todo := e.create("Release")
+	for _, session := range []string{"worker", "other"} {
+		e.must("PUT", "/api/v1/todos/"+todo.ID+"/agents/box/"+session, "")
+	}
+	add := func(session, args string) string {
+		t.Helper()
+		res := e.s.agentTool(context.Background(), "box", session, "todo_decision_add", json.RawMessage(args))
+		if res.IsError {
+			t.Fatalf("decision rejected: %+v", res)
+		}
+		return res.Content[0].Text
+	}
+	const first = `{"question":"Where?","choice":"Staging","retry_key":"release-1"}`
+	receipt := add("worker", first)
+	for range reportLimit + 1 {
+		if got := add("worker", first); got != receipt {
+			t.Fatalf("retry returned a different receipt: %s", got)
+		}
+	}
+	if got := add("worker", `{"question":"A new question?","choice":"Production","retry_key":"release-1"}`); got != receipt {
+		t.Fatal("the same retry key was accepted as a second operation")
+	}
+	if add("other", first) == receipt {
+		t.Fatal("another worker reused this worker's decision")
+	}
+	if rows := listDecisions(t, e, todo.ID, "?all=1"); len(rows) != 2 || rows[0].Choice != "Staging" || rows[1].Choice != "Staging" {
+		t.Fatalf("stored decisions: %+v", rows)
+	}
+}

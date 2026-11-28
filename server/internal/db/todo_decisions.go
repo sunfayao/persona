@@ -3,10 +3,11 @@ package db
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 var (
@@ -105,49 +106,120 @@ func (d *DB) TodoDecisionsSince(ctx context.Context, since time.Time) ([]TodoDec
 // is not an earlier decision of the same todo. A card's answer already written (same todo, interaction and question)
 // is not written again: inserted is false then.
 func (d *DB) InsertTodoDecision(ctx context.Context, r TodoDecisionRow) (inserted bool, err error) {
-	conn, err := d.pool.Acquire(ctx)
-	if err != nil {
-		return false, err
-	}
-	defer conn.Release()
 	if r.Source == DecisionReported {
 		return false, errors.New("a report is written by ReportConcern")
 	}
-	err = pgx.BeginFunc(ctx, conn, func(tx pgx.Tx) error {
-		var one int
-		err := tx.QueryRow(ctx, `SELECT 1 FROM todos WHERE id = $1 FOR UPDATE`, r.TodoID).Scan(&one)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrTodoNotFound
-		}
-		if err != nil {
+	err = pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
+		if err := lockDecisionTodo(ctx, tx, r.TodoID); err != nil {
 			return err
+		}
+		if r.Source == DecisionAgent && r.SourceMessage != "" {
+			exists, err := decisionExists(ctx, tx, r.TodoID, r.ID)
+			if err != nil || exists {
+				return err
+			}
 		}
 		if r.SupersedesID != "" {
 			if err := checkSupersede(ctx, tx, r.TodoID, r.SupersedesID, r.ID, r.CreatedAt); err != nil {
 				return err
 			}
 		}
-		tag, err := tx.Exec(ctx, `INSERT INTO todo_decisions (id, todo_id, question, choice, reason, source, source_machine,
-				source_session, source_message, supersedes_id, created_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULLIF($10, ''), $11)
-			ON CONFLICT (todo_id, source_message, question) WHERE source_message <> '' DO NOTHING`,
-			r.ID, r.TodoID, r.Question, r.Choice, r.Reason, r.Source, r.SourceMachine, r.SourceSession, r.SourceMessage,
-			r.SupersedesID, r.CreatedAt)
-		if err != nil {
+		inserted, err = insertTodoDecision(ctx, tx, r)
+		if err != nil || !inserted {
 			return err
 		}
-		if tag.RowsAffected() == 0 {
-			return nil
-		}
-		inserted = true
 		_, err = tx.Exec(ctx, `UPDATE todos SET updated_at = $2 WHERE id = $1`, r.TodoID, r.CreatedAt)
 		return err
 	})
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23503" { // the todo was deleted between the check and the insert
-		return false, ErrTodoNotFound
+	return inserted && err == nil, err
+}
+
+func lockDecisionTodo(ctx context.Context, tx pgx.Tx, id string) error {
+	var one int
+	err := tx.QueryRow(ctx, `SELECT 1 FROM todos WHERE id = $1 FOR UPDATE`, id).Scan(&one)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrTodoNotFound
 	}
-	return inserted, err
+	return err
+}
+
+func insertTodoDecision(ctx context.Context, tx pgx.Tx, r TodoDecisionRow) (bool, error) {
+	tag, err := tx.Exec(ctx, `INSERT INTO todo_decisions (id, todo_id, question, choice, reason, source, source_machine,
+			source_session, source_message, supersedes_id, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULLIF($10, ''), $11)
+		ON CONFLICT (todo_id, source_message, question) WHERE source_message <> '' DO NOTHING`,
+		r.ID, r.TodoID, r.Question, r.Choice, r.Reason, r.Source, r.SourceMachine, r.SourceSession, r.SourceMessage,
+		r.SupersedesID, r.CreatedAt)
+	return tag.RowsAffected() != 0, err
+}
+
+type decisionQuerier interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func decisionExists(ctx context.Context, q decisionQuerier, todoID, id string) (bool, error) {
+	var exists bool
+	err := q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM todo_decisions WHERE id = $1 AND todo_id = $2)`, id, todoID).Scan(&exists)
+	return exists, err
+}
+
+func (d *DB) TodoDecisionExists(ctx context.Context, todoID, id string) (bool, error) {
+	return decisionExists(ctx, d.pool, todoID, id)
+}
+
+func (d *DB) TodoOutcomeRecorded(ctx context.Context, todoID, key string) (bool, error) {
+	var exists bool
+	err := d.pool.QueryRow(ctx, `SELECT EXISTS (
+		SELECT 1 FROM todo_outcome_completions WHERE todo_id = $1 AND completion_key = $2)`, todoID, key).Scan(&exists)
+	return exists, err
+}
+
+// CommitTodoOutcome claims a completion and records its decisions in one transaction. Legacy rows have the same
+// source message suffixes. Keep those rows and fill any missing slots before marking the completion recorded.
+func (d *DB) CommitTodoOutcome(ctx context.Context, todoID, key string, rows []TodoDecisionRow) ([]TodoDecisionRow, error) {
+	var inserted []TodoDecisionRow
+	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
+		if err := lockDecisionTodo(ctx, tx, todoID); err != nil {
+			return err
+		}
+		tag, err := tx.Exec(ctx, `INSERT INTO todo_outcome_completions (todo_id, completion_key)
+			VALUES ($1, $2) ON CONFLICT DO NOTHING`, todoID, key)
+		if err != nil || tag.RowsAffected() == 0 {
+			return err
+		}
+		for _, r := range rows {
+			if r.TodoID != todoID || r.Source != DecisionOutcome || !strings.HasPrefix(r.SourceMessage, key+"#") {
+				return errors.New("outcome decisions must belong to the same completion")
+			}
+			var exists bool
+			err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM todo_decisions
+				WHERE todo_id = $1 AND source_message = $2 AND source = $3)`, todoID, r.SourceMessage, DecisionOutcome).Scan(&exists)
+			if err != nil {
+				return err
+			}
+			if exists {
+				continue
+			}
+			wrote, err := insertTodoDecision(ctx, tx, r)
+			if err != nil {
+				return fmt.Errorf("write outcome decision: %w", err)
+			}
+			if !wrote {
+				return errors.New("outcome decision conflicts with another source")
+			}
+			inserted = append(inserted, r)
+		}
+		if len(inserted) == 0 {
+			return nil
+		}
+		at := inserted[len(inserted)-1].CreatedAt
+		_, err = tx.Exec(ctx, `UPDATE todos SET updated_at = GREATEST(updated_at, $2) WHERE id = $1`, todoID, at)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return inserted, nil
 }
 
 // ReportConcern writes r, the report of a concern's outcome to the owner (Source DecisionReported), and closes the

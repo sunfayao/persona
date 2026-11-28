@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 	"time"
@@ -102,9 +103,17 @@ func (s *Service) recordTaskOutcome(t Todo, doneAt time.Time) {
 	}
 	s.tasks.outcomes[key] = now
 	s.tasks.mu.Unlock()
+	recorded := false
+	defer func() {
+		if !recorded {
+			s.tasks.mu.Lock()
+			delete(s.tasks.outcomes, key)
+			s.tasks.mu.Unlock()
+		}
+	}()
 	rctx, cancel := context.WithTimeout(context.Background(), outcomeReadTimeout)
 	defer cancel()
-	if s.outcomeRecorded(rctx, t.ID, key) {
+	if recorded = s.outcomeRecorded(rctx, t.ID, key); recorded {
 		return // another assistant on the same store got there first
 	}
 	agents := s.outcomeAgents(rctx, t)
@@ -132,11 +141,16 @@ func (s *Service) recordTaskOutcome(t Todo, doneAt time.Time) {
 	if out.Outcome == "" {
 		return
 	}
-	// The writes get a context of their own: a slow model must not leave even the fallback unwritten.
-	ctx, wcancel := context.WithTimeout(context.Background(), outcomeWriteTimeout)
-	defer wcancel()
-	if !s.outcomeDecisions(ctx, t, key, agents[0], out) {
-		return // recorded by another assistant on the same store, or the todo is gone
+	// Retry the same extracted outcome on a fresh context, including when the first commit's reply was lost.
+	for range 2 {
+		ctx, cancel := context.WithTimeout(context.Background(), outcomeWriteTimeout)
+		err := s.outcomeDecisions(ctx, t, key, agents[0], out)
+		cancel()
+		if err == nil || errors.Is(err, db.ErrTodoNotFound) {
+			recorded = true
+			return
+		}
+		s.logf("task %s: outcome decisions: %v", t.ID, err)
 	}
 }
 
@@ -153,19 +167,14 @@ func (s *Service) goRecordTaskOutcome(t Todo, doneAt time.Time) {
 	}()
 }
 
-// outcomeRecorded: the store already has decisions of this completion.
+// outcomeRecorded checks the committed marker. A legacy summary alone cannot prove a complete batch.
 func (s *Service) outcomeRecorded(ctx context.Context, todoID, key string) bool {
 	st := s.todoDB()
 	if st == nil {
 		return false
 	}
-	list, err := st.ListTodoDecisions(ctx, todoID, true)
-	if err != nil {
-		return false
-	}
-	return slices.ContainsFunc(list, func(d db.TodoDecisionRow) bool {
-		return d.Source == db.DecisionOutcome && strings.HasPrefix(d.SourceMessage, key)
-	})
+	recorded, err := st.TodoOutcomeRecorded(ctx, todoID, key)
+	return err == nil && recorded
 }
 
 // outcomeAgents are t's agents that said something last, the most recently linked first: their whole last reply
@@ -256,14 +265,11 @@ func tidyOutcome(o taskOutcome) taskOutcome {
 	return out
 }
 
-// outcomeDecisions writes the outcome, each decision and each pitfall as a decision of t (source "outcome"); a
-// completion's rows share its key, each with its own suffix, so the store keeps them once. The outcome's row goes
-// first and claims the completion: false when another assistant on the same store wrote it first, or the todo is gone
-// (nothing else is written then). Without a store there is nothing to claim: true.
-func (s *Service) outcomeDecisions(ctx context.Context, t Todo, key string, by outcomeAgent, o taskOutcome) bool {
+// outcomeDecisions publishes the outcome, decisions and pitfalls only after the whole completion commits.
+func (s *Service) outcomeDecisions(ctx context.Context, t Todo, key string, by outcomeAgent, o taskOutcome) error {
 	st := s.todoDB()
 	if st == nil {
-		return true
+		return nil
 	}
 	l := s.lang(ctx)
 	type row struct{ q, c, r, id string }
@@ -275,28 +281,21 @@ func (s *Service) outcomeDecisions(ctx context.Context, t Todo, key string, by o
 		rows = append(rows, row{q: i18n.T(l, "assistant-tasks.outcome_pitfall"), c: p, id: "p" + string(rune('1'+i))})
 	}
 	at := decisionNow()
-	wrote, last := false, at
+	batch := make([]db.TodoDecisionRow, 0, len(rows))
 	for i, r := range rows {
-		at := at.Add(time.Duration(i) * time.Microsecond) // listed in this order
-		ok, err := s.insertDecision(ctx, st, db.TodoDecisionRow{ID: "dec_" + randomHex(8), TodoID: t.ID, Question: decisionText(r.q),
+		batch = append(batch, db.TodoDecisionRow{ID: "dec_" + randomHex(8), TodoID: t.ID, Question: decisionText(r.q),
 			Choice: decisionText(r.c), Reason: decisionText(r.r), Source: db.DecisionOutcome, SourceMachine: by.MachineID,
-			SourceSession: by.SessionID, SourceMessage: key + "#" + r.id, CreatedAt: at})
-		if err != nil {
-			s.logf("task %s: outcome decisions: %v", t.ID, err)
-			if i == 0 {
-				return false
-			}
-			break
-		}
-		if i == 0 && !ok {
-			return false // the completion is another's
-		}
-		if ok {
-			wrote, last = true, at
-		}
+			SourceSession: by.SessionID, SourceMessage: key + "#" + r.id, CreatedAt: at.Add(time.Duration(i) * time.Microsecond)})
 	}
-	if wrote {
-		s.decisionsChanged(ctx, t.ID, last)
+	inserted, err := st.CommitTodoOutcome(ctx, t.ID, key, batch)
+	if err != nil {
+		return err
 	}
-	return true
+	for _, row := range inserted {
+		s.decisionInserted(ctx, row)
+	}
+	if len(inserted) > 0 {
+		s.decisionsChanged(ctx, t.ID, inserted[len(inserted)-1].CreatedAt)
+	}
+	return nil
 }

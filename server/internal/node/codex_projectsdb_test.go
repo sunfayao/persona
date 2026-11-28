@@ -182,3 +182,49 @@ func TestCodexDesktopProjectSnapshotRefreshNativeAssignments(t *testing.T) {
 		t.Fatalf("archive did not refresh assignments = %+v, %v", archived, err)
 	}
 }
+
+func TestCodexProjectSnapshotReusesSuccessfulFingerprintAndRetriesFailure(t *testing.T) {
+	var c codexProjectCatalog
+	now := time.Date(2026, 11, 4, 0, 0, 0, 0, time.UTC)
+	attempts := 0
+	var readErr error
+	incomplete := false
+	read := func() (codexProjectSnapshot, error) {
+		attempts++
+		return codexProjectSnapshot{retry: incomplete}, readErr
+	}
+	c.refresh("state;db;wal-1", now, read)
+	if snap, err := c.refresh("state;db;wal-1", now.Add(time.Hour), read); err != nil || snap.Revision != 1 || attempts != 1 {
+		t.Fatalf("unchanged source was reread: revision=%d attempts=%d err=%v", snap.Revision, attempts, err)
+	}
+	readErr = os.ErrPermission
+	if snap, err := c.refresh("state;db;wal-2", now.Add(time.Hour), read); err != readErr || snap.Revision != 1 || attempts != 2 {
+		t.Fatalf("WAL change did not attempt a refresh: revision=%d attempts=%d err=%v", snap.Revision, attempts, err)
+	}
+	if _, err := c.refresh("state;db;wal-2", now.Add(time.Hour+time.Second), read); err != readErr || attempts != 2 {
+		t.Fatalf("a failed source did not back off: attempts=%d err=%v", attempts, err)
+	}
+	readErr, incomplete = nil, true
+	if snap, err := c.refresh("state;db;wal-2", now.Add(2*time.Hour), read); err != nil || snap.Revision != 2 || attempts != 3 {
+		t.Fatalf("legacy fallback was unavailable: revision=%d attempts=%d err=%v", snap.Revision, attempts, err)
+	}
+	incomplete = false
+	if snap, err := c.refresh("state;db;wal-2", now.Add(3*time.Hour), read); err != nil || snap.Revision != 3 || attempts != 4 {
+		t.Fatalf("incomplete read was not retried: revision=%d attempts=%d err=%v", snap.Revision, attempts, err)
+	}
+}
+
+func BenchmarkCodexProjectSnapshotUnchanged(b *testing.B) {
+	var c codexProjectCatalog
+	now := time.Now()
+	c.refresh("state;db;wal", now, func() (codexProjectSnapshot, error) {
+		return codexProjectSnapshot{}, nil
+	})
+	read := func() (codexProjectSnapshot, error) {
+		b.Fatal("unchanged snapshot reached the SQL reader")
+		return codexProjectSnapshot{}, nil
+	}
+	for b.Loop() {
+		c.refresh("state;db;wal", now.Add(time.Hour), read)
+	}
+}

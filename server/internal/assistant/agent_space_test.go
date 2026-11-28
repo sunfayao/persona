@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -108,5 +109,92 @@ func TestExtensionConversationStartSpace(t *testing.T) {
 		if w.Code != tc.code {
 			t.Errorf("start in space %q: status %d, want %d: %s", tc.space, w.Code, tc.code, w.Body.String())
 		}
+	}
+}
+
+func TestAgentReadUsesAnExactLookupAndLazyImages(t *testing.T) {
+	s, f := newQuietService(t)
+	hidden := proto.Session{SessionID: "hidden-session"}
+	hidden.SetHiddenByDirectory(true)
+	f.setSessions("box", proto.Session{SessionID: "exact-session"},
+		proto.Session{SessionID: "exact-session-child"}, proto.Session{SessionID: "exact-sibling"}, hidden)
+	var calls []DeviceCall
+	ctx := context.WithValue(context.Background(), deviceCallsForTest{}, &calls)
+	if _, err := s.toolAgentRead(ctx, "box", "exact-session", 20, ""); err != nil {
+		t.Fatal(err)
+	}
+	got := make(map[string]int)
+	for _, call := range calls {
+		got[call.Method]++
+		if call.Method != DeviceSessionItems {
+			continue
+		}
+		var params struct {
+			SessionID  string `json:"session_id"`
+			Turns      int    `json:"turns"`
+			LazyImages bool   `json:"lazy_images"`
+		}
+		if err := json.Unmarshal(call.Params, &params); err != nil || params.SessionID != "exact-session" || params.Turns != 10 || !params.LazyImages {
+			t.Fatalf("items request was not capped and lazy: %+v, %v", params, err)
+		}
+	}
+	if got[DeviceSessionsList] != 0 || got[DeviceDevicesList] != 1 || got[DeviceSessionGet] != 1 || got[DeviceSessionItems] != 1 {
+		t.Fatalf("exact lookup did not take the point path: %v", got)
+	}
+	space := ""
+	if _, _, err := s.findAgentInSpace(ctx, "box", "exact-", &space); err == nil || !strings.Contains(err.Error(), "ambiguous") {
+		t.Fatalf("ambiguous prefix: %v", err)
+	}
+	if _, _, err := s.findAgentInSpace(ctx, "box", hidden.SessionID, &space); err == nil {
+		t.Fatal("exact lookup exposed a hidden session")
+	}
+}
+
+type lookupBenchmarkHub struct {
+	Hub
+	devices, row, missing, list json.RawMessage
+}
+
+func (h lookupBenchmarkHub) DeviceCall(_ context.Context, p DeviceCall) (json.RawMessage, error) {
+	switch p.Method {
+	case DeviceDevicesList:
+		return h.devices, nil
+	case DeviceSessionGet:
+		var in struct {
+			SessionID string `json:"session_id"`
+		}
+		_ = json.Unmarshal(p.Params, &in)
+		if in.SessionID == "session-07999" {
+			return h.row, nil
+		}
+		return h.missing, nil
+	case DeviceSessionsList:
+		return h.list, nil
+	default:
+		return nil, fmt.Errorf("unexpected method %s", p.Method)
+	}
+}
+
+func BenchmarkAgentLookupOnLargeMachine(b *testing.B) {
+	list := make([]proto.Session, 8000)
+	for i := range list {
+		list[i] = proto.Session{SessionID: fmt.Sprintf("session-%05d", i), Title: "Workspace"}
+	}
+	devices, _ := json.Marshal(map[string]any{"devices": []Device{{ID: "box", Name: "Build machine"}}})
+	row, _ := json.Marshal(map[string]any{"ok": true, "session": list[len(list)-1]})
+	inventory, _ := json.Marshal(map[string]any{"sessions": list})
+	h := lookupBenchmarkHub{devices: devices, row: row, missing: json.RawMessage(`{"ok":false}`), list: inventory}
+	s := New(Options{Hub: h})
+	for _, tc := range []struct{ name, id string }{{"exact", "session-07999"}, {"prefix", "session-0799"}} {
+		b.Run(tc.name, func(b *testing.B) {
+			ctx := context.Background()
+			b.ReportAllocs()
+			for b.Loop() {
+				_, _, err := s.findAgentInSpace(ctx, "Build machine", tc.id, nil)
+				if tc.name == "exact" && err != nil || tc.name == "prefix" && err == nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }

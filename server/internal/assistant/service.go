@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistant/agents"
+	"github.com/sunfayao/persona/server/internal/assistant/knowledge"
 	"github.com/sunfayao/persona/server/internal/assistant/repository"
 	"github.com/sunfayao/persona/server/internal/assistant/saved"
 	"github.com/sunfayao/persona/server/internal/assistant/toolnotes"
@@ -64,6 +66,7 @@ type Service struct {
 	compactRecovery  compactRecoveryCache
 	logical          logicalDeviceState
 	agents           *agents.Domain
+	knowledge        *knowledge.Domain
 	a2aLogicalWrites chan struct{}
 	history          conversationHistoryBook
 	// agentDirs keeps each computer's hidden Agent folders (hidden_agent_dirs.go); nil: none.
@@ -351,6 +354,11 @@ func New(o Options) *Service {
 		s.logf = func(string, ...any) {}
 	}
 	s.agents = s.newAgentsDomain()
+	var knowledgeConfig string
+	if o.RepositoryConfig != "" {
+		knowledgeConfig = filepath.Join(filepath.Dir(o.RepositoryConfig), "engineering-knowledge.json")
+	}
+	s.knowledge = knowledge.New(knowledge.Dependencies{ConfigFile: knowledgeConfig, Authorize: s.knowledgeScope})
 	// The kept old keys too while a rotation keeps them (keyrotate.go).
 	s.models.secret = secretkey.NewWithFallback(o.SecretKey)
 	s.logicalSwitchRoutes()

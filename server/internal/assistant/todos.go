@@ -176,6 +176,9 @@ type todoStore interface {
 	UpdateTodoAgentSnapshot(ctx context.Context, machineID, sessionID, title, startError string) error
 	ListTodoDecisions(ctx context.Context, todoID string, all bool) ([]db.TodoDecisionRow, error)
 	InsertTodoDecision(ctx context.Context, r db.TodoDecisionRow) (bool, error)
+	TodoDecisionExists(ctx context.Context, todoID, id string) (bool, error)
+	TodoOutcomeRecorded(ctx context.Context, todoID, key string) (bool, error)
+	CommitTodoOutcome(ctx context.Context, todoID, key string, rows []db.TodoDecisionRow) ([]db.TodoDecisionRow, error)
 	CommitTodoAnswer(ctx context.Context, id string, decisions []db.TodoDecisionRow, settings map[string]any, at time.Time) (*db.TodoRow, []db.TodoDecisionRow, error)
 	SetTodoDecisionSupersedes(ctx context.Context, todoID, id, supersedesID string, at time.Time) (*db.TodoDecisionRow, error)
 	ReportConcern(ctx context.Context, r db.TodoDecisionRow, reason string) (*db.TodoRow, bool, error)

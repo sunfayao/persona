@@ -1,4 +1,4 @@
-Note a call you made on the Persona todo you work on, so whoever picks it up next (another agent, you after compaction, the user) does not decide it again: a choice between ways of doing it, a default you settled on, something you ruled out. It shows in the todo as noted by an agent, not as the user's. Not for progress (that is report_to_supervisor) and not for what only the user can decide: ask them. To change an earlier decision an agent made, name it in supersedes_id (its id from todo_decisions); the user's own decisions you cannot replace: ask them.
+Note a decision you made on your open todo. Use report_to_supervisor for progress and ask the user for decisions they own. Use supersedes_id to replace an earlier agent decision (see todo_decisions).
 
 ```json
 {
@@ -20,6 +20,10 @@ Note a call you made on the Persona todo you work on, so whoever picks it up nex
     "supersedes_id": {
       "type": "string",
       "description": "the earlier decision of this todo this one replaces"
+    },
+    "retry_key": {
+      "type": "string",
+      "description": "reuse the same key to retry one decision"
     }
   }
 }

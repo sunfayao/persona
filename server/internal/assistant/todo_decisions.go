@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistant/knowledge"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/prompts"
@@ -305,6 +307,18 @@ func (s *Service) cardDecisions(ctx context.Context, ix proto.Interaction, r pro
 // open todo it works on, read or noted by it. The todo is the agent's own (activeBySession), never one it names:
 // an agent cannot read or write another todo's decisions.
 func (s *Service) agentDecisionTool(ctx context.Context, machine, session, name string, args json.RawMessage, now time.Time) (string, error) {
+	if name == "todo_decisions" {
+		var request struct {
+			Action json.RawMessage `json:"action"`
+		}
+		if err := json.Unmarshal(args, &request); err == nil && len(request.Action) != 0 {
+			var req knowledge.Request
+			if err := strictParams(name, args, &req); err != nil {
+				return "", errors.New("invalid engineering knowledge arguments")
+			}
+			return s.knowledge.Run(ctx, knowledge.Caller{Machine: machine, Session: session}, req)
+		}
+	}
 	if session == "" { // an older node names no session for these tools
 		return "", errors.New("Persona could not tell which agent session is calling (the node on this machine may be older than the hub)")
 	}
@@ -335,6 +349,7 @@ func (s *Service) agentDecisionTool(ctx context.Context, machine, session, name 
 		Choice       string `json:"choice"`
 		Reason       string `json:"reason"`
 		SupersedesID string `json:"supersedes_id"`
+		RetryKey     string `json:"retry_key"`
 	}
 	if err := json.Unmarshal(args, &a); err != nil {
 		return "", fmt.Errorf("arguments: %v", err)
@@ -344,6 +359,22 @@ func (s *Service) agentDecisionTool(ctx context.Context, machine, session, name 
 		SourceSession: session, SupersedesID: strings.TrimSpace(a.SupersedesID), CreatedAt: now.UTC().Truncate(time.Microsecond)}
 	if row.Question == "" || row.Choice == "" {
 		return "", errors.New("question and choice cannot be empty")
+	}
+	if a.RetryKey != "" {
+		if len(a.RetryKey) > 128 {
+			return "", errors.New("retry_key must be at most 128 bytes")
+		}
+		scope, _ := json.Marshal([4]string{t.ID, machine, session, a.RetryKey})
+		digest := sha256.Sum256(scope)
+		row.ID = fmt.Sprintf("dec_%x", digest[:16])
+		row.SourceMessage = "agent:" + row.ID
+		exists, err := st.TodoDecisionExists(ctx, t.ID, row.ID)
+		if err != nil {
+			return "", err
+		}
+		if exists {
+			return agentDecisionReceipt(t.ID, row.ID), nil
+		}
 	}
 	if row.SupersedesID != "" {
 		// The user's calls are theirs to change: an agent replacing one would drop it from what every later agent reads.
@@ -363,15 +394,52 @@ func (s *Service) agentDecisionTool(ctx context.Context, machine, session, name 
 		return "", fmt.Errorf("too many decisions: at most %d in %d minutes; note only the calls that change the work",
 			reportLimit, int(reportWindow.Minutes()))
 	}
-	if _, err := s.insertDecision(ctx, st, row); err != nil {
+	inserted, err := s.insertDecision(ctx, st, row)
+	if err != nil {
 		if errors.Is(err, db.ErrDecisionSupersede) {
 			return "", errors.New("supersedes_id must be an earlier decision of this todo (see todo_decisions)")
 		}
 		return "", err
 	}
-	s.decisionsChanged(ctx, t.ID, row.CreatedAt)
-	s.logf("todo %s: %s noted decision %s", t.ID, short(session), row.ID)
-	return fmt.Sprintf("Noted on todo %s as decision %s (yours, not the user's: it shows as noted by an agent).", t.ID, row.ID), nil
+	if inserted {
+		s.decisionsChanged(ctx, t.ID, row.CreatedAt)
+		s.logf("todo %s: %s noted decision %s", t.ID, short(session), row.ID)
+	}
+	return agentDecisionReceipt(t.ID, row.ID), nil
+}
+
+func agentDecisionReceipt(todoID, id string) string {
+	return fmt.Sprintf("Noted on todo %s as decision %s (yours, not the user's: it shows as noted by an agent).", todoID, id)
+}
+
+// knowledgeScope derives all three grant fields from the current managed session and its active to-do.
+func (s *Service) knowledgeScope(ctx context.Context, caller knowledge.Caller) (knowledge.Scope, bool) {
+	machine := s.canonical(caller.Machine)
+	if machine == "" || caller.Session == "" || s.isWorkMachine(machine) {
+		return knowledge.Scope{}, false
+	}
+	if _, guest, err := s.guestOf(ctx, machine, caller.Session); err != nil || guest {
+		return knowledge.Scope{}, false
+	}
+	if s.ensureTodosLoaded(ctx) != nil {
+		return knowledge.Scope{}, false
+	}
+	todo, ok := s.openTodoOfAgent(machine, caller.Session)
+	if !ok || todo.Project == "" {
+		return knowledge.Scope{}, false
+	}
+	session, ok := s.agentSession(ctx, machine, caller.Session)
+	if !ok || session.Assistant || session.HiddenByDirectory() || session.IsDeleted() {
+		return knowledge.Scope{}, false
+	}
+	space := runSpace(session)
+	if todo.Origin != "" {
+		origin, known := s.selfSpace(ctx, todo.Origin)
+		if !known || origin != space {
+			return knowledge.Scope{}, false
+		}
+	}
+	return knowledge.Scope{Machine: machine, Space: space, Project: todo.Project}, true
 }
 
 // agentDecisionView is a decision as todo_decisions gives it to an agent: who made the call, in words.

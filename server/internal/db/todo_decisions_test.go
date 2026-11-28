@@ -156,3 +156,77 @@ func TestTodoDecisionsSince(t *testing.T) {
 		t.Fatalf("after the last: %+v, %v", rows, err)
 	}
 }
+
+func TestTodoOutcomeSecondWriteRollsBackAndRetries(t *testing.T) {
+	d := open(t)
+	ctx := context.Background()
+	at := time.Date(2026, 11, 4, 10, 0, 0, 0, time.UTC)
+	const todoID, key = "todo_outcome", "outcome:todo_outcome:completion"
+	if err := d.CreateTodo(ctx, TodoRow{ID: todoID, Title: "Ship", CreatedAt: at, UpdatedAt: at}); err != nil {
+		t.Fatal(err)
+	}
+	rows := []TodoDecisionRow{
+		{ID: "summary", TodoID: todoID, Source: DecisionOutcome, SourceMessage: key + "#o", Question: "Outcome", Choice: "Done", CreatedAt: at},
+		{ID: "summary", TodoID: todoID, Source: DecisionOutcome, SourceMessage: key + "#d1", Question: "How", Choice: "Batch", CreatedAt: at.Add(time.Microsecond)},
+		{ID: "pitfall", TodoID: todoID, Source: DecisionOutcome, SourceMessage: key + "#p1", Question: "Pitfall", Choice: "Retry duplicate", CreatedAt: at.Add(2 * time.Microsecond)},
+	}
+	if got, err := d.CommitTodoOutcome(ctx, todoID, key, rows); err == nil || len(got) != 0 {
+		t.Fatalf("second row's duplicate ID did not abort the batch: %v, %v", got, err)
+	}
+	if got, err := d.ListTodoDecisions(ctx, todoID, true); err != nil || len(got) != 0 {
+		t.Fatalf("partial batch visible: %v, %v", got, err)
+	}
+	if recorded, err := d.TodoOutcomeRecorded(ctx, todoID, key); err != nil || recorded {
+		t.Fatalf("partial batch marked complete: %v, %v", recorded, err)
+	}
+	rows[1].ID = "decision"
+	start := make(chan struct{})
+	type result struct {
+		count int
+		err   error
+	}
+	results := make(chan result, 2)
+	for range 2 {
+		go func() {
+			<-start
+			got, err := d.CommitTodoOutcome(ctx, todoID, key, rows)
+			results <- result{len(got), err}
+		}()
+	}
+	close(start)
+	a, b := <-results, <-results
+	if a.err != nil || b.err != nil || !((a.count == 3 && b.count == 0) || (a.count == 0 && b.count == 3)) {
+		t.Fatalf("the two retries must commit one batch: %+v, %+v", a, b)
+	}
+	if got, err := d.ListTodoDecisions(ctx, todoID, true); err != nil || ids(got) != "summary,decision,pitfall" {
+		t.Fatalf("retried batch: %v, %v", got, err)
+	}
+	if recorded, err := d.TodoOutcomeRecorded(ctx, todoID, key); err != nil || !recorded {
+		t.Fatalf("committed batch marker: %v, %v", recorded, err)
+	}
+}
+
+func TestTodoOutcomeRetryFillsMissingLegacySlots(t *testing.T) {
+	d := open(t)
+	ctx := context.Background()
+	at := time.Date(2026, 11, 4, 10, 0, 0, 0, time.UTC)
+	const todoID, key = "todo_legacy", "outcome:todo_legacy:completion"
+	if err := d.CreateTodo(ctx, TodoRow{ID: todoID, Title: "Ship", CreatedAt: at, UpdatedAt: at}); err != nil {
+		t.Fatal(err)
+	}
+	summary := TodoDecisionRow{ID: "legacy", TodoID: todoID, Source: DecisionOutcome, SourceMessage: key + "#o",
+		Question: "Outcome", Choice: "Original summary", CreatedAt: at}
+	if ok, err := d.InsertTodoDecision(ctx, summary); err != nil || !ok {
+		t.Fatalf("legacy summary: %v, %v", ok, err)
+	}
+	newSummary := summary
+	newSummary.ID, newSummary.Question = "new", "Phase outcome"
+	decision := TodoDecisionRow{ID: "recovered", TodoID: todoID, Source: DecisionOutcome, SourceMessage: key + "#d1",
+		Question: "What worked?", Choice: "Use the existing pipeline", CreatedAt: at.Add(time.Microsecond)}
+	if got, err := d.CommitTodoOutcome(ctx, todoID, key, []TodoDecisionRow{newSummary, decision}); err != nil || ids(got) != "recovered" {
+		t.Fatalf("retry: %v, %v", got, err)
+	}
+	if got, err := d.ListTodoDecisions(ctx, todoID, true); err != nil || ids(got) != "legacy,recovered" || got[0].Choice != summary.Choice {
+		t.Fatalf("legacy decisions: %v, %v", got, err)
+	}
+}

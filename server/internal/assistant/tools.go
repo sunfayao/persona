@@ -1680,17 +1680,24 @@ func (s *Service) findAgentInSpace(ctx context.Context, machine, id string, spac
 	if len(id) < 6 {
 		return Device{}, proto.Session{}, fmt.Errorf("session_id is required (at least its first 8 characters)")
 	}
+	visible := func(c proto.Session) bool {
+		return !c.HiddenByDirectory() && (space == nil || !c.IsDeleted() && runSpace(c) == *space)
+	}
+	var devices []Device
+	if machine == "" {
+		devices = s.devices(ctx)
+	} else if m, ok := s.machineByName(ctx, machine); ok {
+		if c, ok := s.agentSession(ctx, m.ID, id); ok && visible(c) {
+			return m, c, nil
+		}
+		devices = []Device{m}
+	}
 	var found *Device
 	var session proto.Session
-	for _, m := range s.devices(ctx) {
-		if machine != "" {
-			if want, ok := s.machineByName(ctx, machine); !ok || want.ID != m.ID {
-				continue
-			}
-		}
+	for _, m := range devices {
 		list, _ := s.sessions(ctx, m.ID)
 		for _, c := range list {
-			if c.HiddenByDirectory() || space != nil && (c.IsDeleted() || runSpace(c) != *space) {
+			if !visible(c) {
 				continue
 			}
 			if c.SessionID == id || strings.HasPrefix(c.SessionID, id) {
@@ -1705,6 +1712,22 @@ func (s *Service) findAgentInSpace(ctx context.Context, machine, id string, spac
 		return *found, session, nil
 	}
 	return Device{}, proto.Session{}, fmt.Errorf("no agent %s (use agents_list)", id)
+}
+
+func (s *Service) agentSession(ctx context.Context, machine, id string) (proto.Session, bool) {
+	var c proto.Session
+	var ok bool
+	if s.fleetOn() {
+		c, ok = s.decoratedSession(machine, id)
+	} else {
+		c, ok = s.session(ctx, machine, id)
+	}
+	if ok && c.SessionID == id {
+		if rows := s.deletionRows(ctx, machine, []proto.Session{c}, false); len(rows) != 0 {
+			return rows[0], true
+		}
+	}
+	return proto.Session{}, false
 }
 
 // agents_list's default view (state "" or "active") lists what goes on, then the Agents follow-up work can go back to:
@@ -2178,7 +2201,7 @@ func (s *Service) agentTranscript(ctx context.Context, m Device, c proto.Session
 	var res struct {
 		Items []proto.Item `json:"items"`
 	}
-	if err := s.call(ctx, m.ID, DeviceSessionItems, map[string]any{"session_id": c.SessionID, "turns": min(turns, 10)}, &res); err != nil {
+	if err := s.call(ctx, m.ID, DeviceSessionItems, map[string]any{"session_id": c.SessionID, "turns": min(turns, 10), "lazy_images": true}, &res); err != nil {
 		return "", err
 	}
 	head := fmt.Sprintf("%s on %s (%s, %s)", agentLabel(c), m.Name, stateNames[c.State], c.Cwd)

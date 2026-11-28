@@ -242,6 +242,23 @@ A manager's own sections of the configuration are in its `manager.json`, not in 
 - `assistant.task_execution_legacy_fallback`: advanced, default `true`. It lets only an attested inherited ordinary task omit `task_execution` on a node that predates it, and records actual use as `compatibility_fallback: "legacy_task_execution"` in run history. Set it to `false` to make every such task wait for the capability instead. Explicit execution choices and Health tasks never use this omission.
 - `assistant.node_update_handoff_grace_seconds`: advanced, default `60`, from 0 to 86400. After this much continuous headless activity, an update stops admitting new headless turns while admitted RPCs and current turns finish. `0` preserves the indefinite natural-idle wait. Removing the setting restores 60 seconds. The value is also carried by `node.update.commit` for the resident drain.
   `assistant.external` stays in hub.json ("hub runtime config" above).
+- Engineering knowledge for managed workers uses an operator-owned `engineering-knowledge.json` beside the
+  manager's configuration. Each grant names an exact manager machine ID, track space (use `""` for the ordinary
+  space), to-do project label, and up to 12 approved logical Markdown paths under `knowledge/`. Grant only pages
+  whose content that project's workers may read. The worker must be attached to an open to-do with the matching
+  project and space. Guests and restricted work machines are denied. If the to-do came from an assistant
+  conversation, that conversation's space must also match.
+  The manager runs its local Knowledge CLI with the existing read-only view of the mounted corpus. Set
+  `executable` to the absolute path of the installed CLI if it is outside the service's PATH. An omitted grant
+  file denies access. Replace the file atomically to update or revoke grants without restarting.
+
+  ```json
+  {"grants":[{"machine":"engineering-node","space":"engineering","project":"rocket","documents":["knowledge/entities/runbooks/release.md"]}]}
+  ```
+
+  Workers use `todo_decisions` with `{"action":"knowledge_search","query":"release"}`, then
+  `{"action":"knowledge_read","path":"knowledge/entities/runbooks/release.md"}` with a returned path.
+  Search ranks only the granted document bodies and returns short excerpts. Reads return bounded, redacted content.
 - The everyday entry for model settings is **Settings › Model Providers / Model Configuration**: the former manages connections and credentials; the latter manages uses such as chat, classification, translation, knowledge processing, `/agent`, and scheduled tasks. `ai`, `inbox.*_ai` and the launcher defaults (`assistant.launcher` here, `machines[].launchers` in hub.json) remain as a baseline; unified-use overrides live in Postgres, not written back to either file. Without an override the original model is kept; opening settings does not migrate it to another provider.
 - `ai` (no default): model for small App features calling model APIs directly (not through Claude Code): Inbox triage, drafting replies, recognizing email config from pasted text.
   When omitted, these uses automatically select a directly callable connection on the hub (with a Key in **Settings › Model Providers**); only if none exist do they report "No directly callable model yet".
