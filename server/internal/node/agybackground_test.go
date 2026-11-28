@@ -246,3 +246,53 @@ func TestAgyBackgroundOneShotTimersAndReconciliation(t *testing.T) {
 		t.Fatalf("expected all tasks reconciled after empty manage_task list, got: %+v", row.Background)
 	}
 }
+
+func TestAgyBackgroundServerRestartStopsOpenTasks(t *testing.T) {
+	n := &Node{home: t.TempDir()}
+	t.Setenv("ANTIGRAVITY_CLI_CONFIG_DIR", "")
+	dir := n.agyDataRoot()
+	base := time.Now().UTC().Add(-5 * time.Minute).Truncate(time.Second)
+	t0 := base.Format(time.RFC3339)
+	t1 := base.Add(30 * time.Second).Format(time.RFC3339)
+	tRestart := base.Add(60 * time.Second).Format(time.RFC3339)
+	tAfter := base.Add(90 * time.Second).Format(time.RFC3339)
+
+	planner := fmt.Sprintf(`{"step_index":0,"type":"PLANNER_RESPONSE","created_at":%q,"tool_calls":[`+
+		`{"name":"run_command","args":{"CommandLine":"\"done-cmd\""}},`+
+		`{"name":"run_command","args":{"CommandLine":"\"long-cmd\""}},`+
+		`{"name":"schedule","args":{"CronExpression":"\"*/5 * * * *\"","Prompt":"\"Poll\""}}`+
+		`]}`+"\n", t0)
+	file := agyTestFile(t, dir, agyTestID, planner+
+		agyBackgroundStep(1, "RUNNING", t0, 1, "done-cmd", "")+
+		agyBackgroundStep(2, "RUNNING", t0, 2, "long-cmd", "")+
+		agyBackgroundStep(3, "RUNNING", t0, 3, "Cron: */5 * * * *, Prompt: Poll", ""))
+
+	agyTestAppend(t, file, fmt.Sprintf(`{"step_index":4,"type":"SYSTEM_MESSAGE","created_at":%q,"content":%q}`+"\n", t1,
+		fmt.Sprintf("<SYSTEM_MESSAGE>\n[Message] timestamp=%s sender=%s/task-1 content=Task id \"%s/task-1\" finished with result: ok\n</SYSTEM_MESSAGE>", t1, agyTestID, agyTestID)))
+	agyTestAppend(t, file, fmt.Sprintf(`{"step_index":5,"type":"SYSTEM_MESSAGE","created_at":%q,"content":%q}`+"\n", tAfter,
+		fmt.Sprintf("<SYSTEM_MESSAGE>\n[Message] timestamp=%s sender=system priority=MESSAGE_PRIORITY_LOW content=[Notice] All your subagents and background tasks have been stopped due to server restart. If you want a subagent to continue working, it needs to be revived by sending it a new message.\n</SYSTEM_MESSAGE>", tRestart)))
+	agyTestAppend(t, file, fmt.Sprintf(`{"step_index":6,"type":"PLANNER_RESPONSE","created_at":%q,"tool_calls":[{"name":"run_command","args":{"CommandLine":"\"post-restart\""}}]}`+"\n", tAfter)+
+		agyBackgroundStep(7, "RUNNING", tAfter, 4, "post-restart", ""))
+
+	var row proto.Session
+	row.Status = proto.StatusIdle
+	n.mergeAgyTranscript(&row, agyTestID)
+	if len(row.Background) != 1 || row.Background[0].ID != agyTestID+"/task-4" {
+		t.Fatalf("expected only post-restart task-4 running, got: %+v", row.Background)
+	}
+	bgEnded := row.BackgroundEnded()
+	ended := make(map[string]proto.BackgroundTask, len(bgEnded))
+	for _, task := range bgEnded {
+		ended[task.ID] = task
+	}
+	restartTime := base.Add(60 * time.Second)
+	if task := ended[agyTestID+"/task-1"]; task.Status != proto.WorkflowCompleted || !task.EndedAt.Equal(base.Add(30*time.Second)) {
+		t.Fatalf("expected task-1 to remain completed at t1, got: %+v", task)
+	}
+	for _, id := range []string{agyTestID + "/task-2", agyTestID + "/task-3"} {
+		task, ok := ended[id]
+		if !ok || task.Status != proto.WorkflowKilled || !task.EndedAt.Equal(restartTime) {
+			t.Fatalf("expected %s killed at restart time %s, got: %+v", id, restartTime, task)
+		}
+	}
+}

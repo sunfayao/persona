@@ -22,6 +22,7 @@ const (
 var (
 	agyTaskName      = lazyre.New(`^task-[0-9]+$`)
 	agyTaskEnd       = lazyre.New(`(?i)\bTask id "([^"\n]+)" (?:was )?(finished|failed|canceled|cancelled|killed|stopped)\b`)
+	agyServerRestart = lazyre.New(`(?i)\bAll your subagents and background tasks have been stopped due to server restart\b`)
 	agyMsgHeader     = lazyre.New(`\[Message\]([^\n]*)`)
 	agyMsgSender     = lazyre.New(`\bsender=([^\s]+)`)
 	agyMsgTimestamp  = lazyre.New(`\btimestamp=([^\s]+)`)
@@ -192,19 +193,28 @@ func agyBackground(steps []agyStep, conversation, dir string, brain *os.Root) ag
 				}
 				byID[m[1]].finish(status, stepAt, false)
 			}
+			restartHandled := false
 			for _, m := range agyMsgHeader.FindAllStringSubmatch(step.Content, -1) {
 				hdr := m[1]
-				sm := agyMsgSender.FindStringSubmatch(hdr)
-				if sm == nil {
-					continue
-				}
-				sender := sm[1]
 				msgAt := stepAt
 				if tm := agyMsgTimestamp.FindStringSubmatch(hdr); tm != nil {
 					if parsed, err := time.Parse(time.RFC3339Nano, tm[1]); err == nil {
 						msgAt = parsed
 					}
 				}
+				if agyServerRestart.MatchString(hdr) {
+					restartHandled = true
+					for _, rec := range ordered {
+						if rec.task.Status == "" {
+							rec.finish(proto.WorkflowKilled, msgAt, false)
+						}
+					}
+				}
+				sm := agyMsgSender.FindStringSubmatch(hdr)
+				if sm == nil {
+					continue
+				}
+				sender := sm[1]
 				if rec := byID[sender]; rec != nil {
 					if rec.oneShot {
 						rec.finish(proto.WorkflowCompleted, msgAt, false)
@@ -221,6 +231,13 @@ func agyBackground(steps []agyStep, conversation, dir string, brain *os.Root) ag
 					}
 					if strings.EqualFold(rec.condition, "any") || sender == rec.condition || sender == conversation+"/"+rec.condition {
 						rec.finish(proto.WorkflowKilled, msgAt, false)
+					}
+				}
+			}
+			if !restartHandled && agyServerRestart.MatchString(step.Content) {
+				for _, rec := range ordered {
+					if rec.task.Status == "" {
+						rec.finish(proto.WorkflowKilled, stepAt, false)
 					}
 				}
 			}

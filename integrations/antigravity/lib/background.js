@@ -1,5 +1,6 @@
 const startPrefix = 'Tool is running as a background task with task id:'
 const endNotice = /\bTask id "([^"\n]+)" (?:was )?(finished|failed|canceled|cancelled|killed|stopped)\b/gi
+const serverRestartNotice = /\bAll your subagents and background tasks have been stopped due to server restart\b/i
 const msgHeader = /\[Message\]([^\n]*)/g
 const msgSender = /\bsender=([^\s]+)/
 const msgTimestamp = /\btimestamp=([^\s]+)/
@@ -136,13 +137,18 @@ export function extractBackground(steps, conversation) {
           const status = verb === 'finished' ? 'completed' : verb === 'failed' ? 'failed' : 'killed'
           finish(records.get(notice[1]), status, step.created_at)
         }
+        let restartHandled = false
         for (const m of text.matchAll(msgHeader)) {
           const hdr = m[1]
+          const tm = msgTimestamp.exec(hdr)
+          const msgAt = tm && Number.isFinite(Date.parse(tm[1])) ? tm[1] : step.created_at
+          if (serverRestartNotice.test(hdr)) {
+            restartHandled = true
+            for (const rec of records.values()) if (!rec.task.status) finish(rec, 'killed', msgAt)
+          }
           const sm = msgSender.exec(hdr)
           if (!sm) continue
           const sender = sm[1]
-          const tm = msgTimestamp.exec(hdr)
-          const msgAt = tm && Number.isFinite(Date.parse(tm[1])) ? tm[1] : step.created_at
           const own = records.get(sender)
           if (own) {
             if (own.oneShot) {
@@ -158,6 +164,9 @@ export function extractBackground(steps, conversation) {
               finish(rec, 'killed', msgAt)
             }
           }
+        }
+        if (!restartHandled && serverRestartNotice.test(text)) {
+          for (const rec of records.values()) if (!rec.task.status) finish(rec, 'killed', step.created_at)
         }
         break
       }

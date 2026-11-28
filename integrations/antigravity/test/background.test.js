@@ -79,3 +79,56 @@ test('one-shot timers, bundled task notices, MaxIterations crons, and manage_tas
   ], CONV)
   assert.deepEqual(afterList.running, [])
 })
+
+test('server restart notice stops all open background tasks without overwriting completed ones or later tasks', () => {
+  const baseMs = Date.now() - 5 * 60_000
+  const t0 = new Date(baseMs).toISOString()
+  const t1 = new Date(baseMs + 30_000).toISOString()
+  const tRestart = new Date(baseMs + 60_000).toISOString()
+  const tAfter = new Date(baseMs + 90_000).toISOString()
+
+  const steps = [
+    {
+      step_index: 0,
+      type: 'PLANNER_RESPONSE',
+      created_at: t0,
+      tool_calls: [
+        { name: 'run_command', args: { CommandLine: '"done-cmd"' } },
+        { name: 'run_command', args: { CommandLine: '"long-cmd"' } },
+        { name: 'schedule', args: { CronExpression: '"*/5 * * * *"', Prompt: '"Poll"' } },
+      ],
+    },
+    bgStep(1, 1, t0, 'done-cmd'),
+    bgStep(2, 2, t0, 'long-cmd'),
+    bgStep(3, 3, t0, 'Cron: */5 * * * *, Prompt: Poll'),
+    {
+      step_index: 4,
+      type: 'SYSTEM_MESSAGE',
+      created_at: t1,
+      content: `<SYSTEM_MESSAGE>\n[Message] timestamp=${t1} sender=${CONV}/task-1 content=Task id "${CONV}/task-1" finished with result: ok\n</SYSTEM_MESSAGE>`,
+    },
+    {
+      step_index: 5,
+      type: 'SYSTEM_MESSAGE',
+      created_at: tAfter,
+      content: `<SYSTEM_MESSAGE>\n[Message] timestamp=${tRestart} sender=system priority=MESSAGE_PRIORITY_LOW content=[Notice] All your subagents and background tasks have been stopped due to server restart. If you want a subagent to continue working, it needs to be revived by sending it a new message.\n</SYSTEM_MESSAGE>`,
+    },
+    {
+      step_index: 6,
+      type: 'PLANNER_RESPONSE',
+      created_at: tAfter,
+      tool_calls: [{ name: 'run_command', args: { CommandLine: '"post-restart"' } }],
+    },
+    bgStep(7, 4, tAfter, 'post-restart'),
+  ]
+
+  const parsed = extractBackground(steps, CONV)
+  assert.deepEqual(parsed.running.map((r) => r.id), [`${CONV}/task-4`])
+  const byId = new Map(parsed.ended.map((r) => [r.id, r]))
+  assert.equal(byId.get(`${CONV}/task-1`)?.status, 'completed')
+  assert.equal(byId.get(`${CONV}/task-1`)?.ended_at, t1)
+  assert.equal(byId.get(`${CONV}/task-2`)?.status, 'killed')
+  assert.equal(byId.get(`${CONV}/task-2`)?.ended_at, tRestart)
+  assert.equal(byId.get(`${CONV}/task-3`)?.status, 'killed')
+  assert.equal(byId.get(`${CONV}/task-3`)?.ended_at, tRestart)
+})
