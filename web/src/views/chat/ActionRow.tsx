@@ -132,7 +132,7 @@ export function presentAction(use: Item): ActionPresentation {
   if (name === "LS") return { verb: VERB[name], param: { text: truncateParam(str(inp.path)) } };
   if (name.startsWith("mcp__")) {
     // Persona's own tools read as what they do ("Read Agent chat"), then what they were given
-    const own = personaToolVerb(name);
+    const own = personaToolVerb(name, inp);
     if (own) {
       const what = [own.what, toolChip(use)].filter(Boolean).join(" · ");
       return { verb: own.verb, ...(what ? { param: { text: truncateParam(what), title: name } } : {}) };

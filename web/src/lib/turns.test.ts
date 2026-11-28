@@ -523,6 +523,11 @@ it("personaToolVerb names Persona's own tools by what they do, and nothing else"
   expect(personaToolVerb("mcp__persona__secret_run")).toEqual({ verb: "用密码运行" });
   expect(personaToolVerb("mcp__persona__phone_contacts_search")).toEqual({ verb: "iPhone", what: "contacts search" });
   expect(personaToolVerb("mcp__persona__mail_send")).toEqual({ verb: "邮件", what: "send" });
+  // a merged tool reads as the older tool its action names; without one it has no verb of its own
+  expect(personaToolVerb("mcp__persona__view", { action: "show", view: {} })).toEqual({ verb: "画卡片" });
+  expect(personaToolVerb("mcp__persona__view", { action: "update" })).toEqual({ verb: "更新卡片" });
+  expect(personaToolVerb("mcp__persona__view")).toBeNull();
+  expect(personaToolVerb("mcp__persona__view", { action: "constructor" })).toBeNull();
   // no verb of its own: keeps "Called Persona · …"
   expect(personaToolVerb("mcp__persona__something_new")).toBeNull();
   // other servers, and the bare server
