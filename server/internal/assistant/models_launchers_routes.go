@@ -388,6 +388,8 @@ func sessionLaunchers(discovered, configured []ConfiguredLauncher) []ConfiguredL
 				list[i].AgentType = list[i].Agent
 			case list[i].Name == "codex" || list[i].Name == "traex":
 				list[i].AgentType = list[i].Name
+			case list[i].Name == proto.TraexFerryLauncher:
+				list[i].AgentType = "traex"
 			default:
 				list[i].AgentType = "claude"
 			}

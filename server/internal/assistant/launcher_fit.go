@@ -152,6 +152,10 @@ func (a startAgent) supportsPermissionMode(mode string) bool {
 func (s *Service) fitNewLauncher(ctx context.Context, m Device, own startPick, params map[string]any) (string, startAgent, error) {
 	note, agent, err := s.fitLauncher(ctx, m, own, params)
 	if err == nil {
+		if agent.agent == "traex" {
+			// The machine's configured wrapper may only be known by name on the node.
+			params["agent_type"] = agent.agent
+		}
 		err = s.applyOmpStartDefaults(ctx, m, own, agent, params)
 	}
 	return note, agent, err
@@ -209,6 +213,8 @@ func launcherKindSnapshot(discovered, overrides []ConfiguredLauncher, name strin
 		switch name {
 		case "claude", "codex", "traex":
 			kind = name
+		case proto.TraexFerryLauncher:
+			kind = "traex"
 		}
 	}
 	return kind

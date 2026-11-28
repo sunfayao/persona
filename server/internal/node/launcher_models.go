@@ -227,7 +227,7 @@ func (n *Node) launcherModelsAgent(ctx context.Context, name, agentType string) 
 		return agentType
 	case name == "claude":
 		return "claude"
-	case name == traexAgent:
+	case name == traexAgent || name == proto.TraexFerryLauncher:
 		return traexAgent
 	}
 	if m, ok := n.managedLauncher(name); ok {

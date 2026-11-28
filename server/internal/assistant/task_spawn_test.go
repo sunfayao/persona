@@ -85,7 +85,7 @@ func TestTaskSpawnSelectsFerryWithinTheParentsAuthority(t *testing.T) {
 			}
 			start := starts[before]
 			effort, _ := start["effort"].(string)
-			if start["launcher"] != "traex-ferry" || start["model"] != tc.model || effort != tc.effort ||
+			if start["launcher"] != "traex-ferry" || start["agent_type"] != "traex" || start["model"] != tc.model || effort != tc.effort ||
 				start["permission_mode"] != tc.wantMode || start["plan_then"] != nil ||
 				start["host"] != proto.EngineHerdr || start["cwd"] != "/code/app" {
 				t.Fatalf("child start: %+v", start)

@@ -125,3 +125,10 @@ func TestTraexStartAndResumeKeepPermissionAndEffort(t *testing.T) {
 		})
 	}
 }
+
+func TestFerryLauncherStartsTraexWithoutADeclaredType(t *testing.T) {
+	n, _ := testNode(t)
+	if got := n.startAgentType(proto.TraexFerryLauncher, ""); got != traexAgent {
+		t.Fatalf("Ferry starts %q, want %q", got, traexAgent)
+	}
+}

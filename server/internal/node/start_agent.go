@@ -46,6 +46,9 @@ func launcherAgentType(name string) string {
 	if _, _, ok := workAgent(name); ok {
 		return name
 	}
+	if name == proto.TraexFerryLauncher {
+		return traexAgent
+	}
 	if name == "codex" || name == traexAgent || name == ompAgent {
 		return name
 	}
@@ -120,7 +123,7 @@ func traexCommandQ(cmd string, spec agentLaunch, resume string, q func(string) s
 			effort = suffix
 		}
 	}
-	if spec.Launcher == "traex-ferry" {
+	if spec.Launcher == proto.TraexFerryLauncher {
 		if effort != "" && model != "" {
 			model += "@" + effort
 		}
@@ -166,7 +169,7 @@ func (n *Node) startOtherAgent(ctx context.Context, launch host.Launcher, cwd, l
 	case ompAgent:
 		spec.Model = execution.Model
 	}
-	if freshTraex && launcher == "traex-ferry" && spec.Effort != "" && spec.Model == "" {
+	if freshTraex && launcher == proto.TraexFerryLauncher && spec.Effort != "" && spec.Model == "" {
 		return nil, fmt.Errorf("launcher %s requires a model when specifying effort", launcher)
 	}
 	created, err := n.newTab(ctx, launch, cwd, ws, tabName, resume) // retire.go

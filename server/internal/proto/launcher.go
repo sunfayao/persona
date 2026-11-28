@@ -6,6 +6,9 @@ import (
 	"strings"
 )
 
+// TraexFerryLauncher is the shell launcher that adapts TRAE CLI to Ferry.
+const TraexFerryLauncher = "traex-ferry"
+
 type Launcher struct {
 	Name    string `json:"name"`
 	BaseURL string `json:"base_url"`

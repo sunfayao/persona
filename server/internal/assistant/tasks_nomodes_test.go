@@ -26,7 +26,7 @@ func TestFerryLeaderAndWorkerKeepTheirEffortAndPermission(t *testing.T) {
 		f.sessions["box"] = nil
 		f.ownModels = true
 		f.launcherList = []proto.Launcher{
-			{Name: "claude", Agent: "claude"}, {Name: "traex-ferry", Agent: "traex"}, {Name: "traex", Agent: "traex"},
+			{Name: "claude", Agent: "claude"}, {Name: "traex-ferry"}, {Name: "traex", Agent: "traex"},
 		}
 		s := newServiceOn(t, f, &profileTaskStore{memStore: &memStore{}, plans: map[string]db.TaskPlanRow{}})
 		s.devs = traexModesDevices{newFleetDevs()}
@@ -59,7 +59,7 @@ func TestFerryLeaderAndWorkerKeepTheirEffortAndPermission(t *testing.T) {
 		for i, pick := range []struct{ launcher, model, effort string }{
 			{"traex-ferry", "ferry-example", "xhigh"}, {"traex", "native-example", "high"},
 		} {
-			if start := starts[i]; start["launcher"] != pick.launcher || start["model"] != pick.model ||
+			if start := starts[i]; start["launcher"] != pick.launcher || start["agent_type"] != "traex" || start["model"] != pick.model ||
 				start["effort"] != pick.effort || start["permission_mode"] != proto.ModeBypass {
 				t.Fatalf("start %d: %+v", i, start)
 			}
