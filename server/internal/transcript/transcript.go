@@ -285,7 +285,7 @@ type Meta struct {
 	codexSeen map[string]bool
 	// RolloutTools is supplied by the node when the source has additional metadata in function responses.
 	RolloutTools RolloutToolDecoder
-	traexCalls   map[string]RolloutToolCall
+	rolloutCalls map[string]RolloutToolCall
 	codexTurnID  string
 	codexUserID  string
 	// codexPending: the ids of backgrounded commands whose terminal record has not been read. A command can finish in

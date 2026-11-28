@@ -92,6 +92,7 @@ func (rl *codexRateLimits) fullUntil() (until time.Time, ok bool) {
 type codexItem struct {
 	Type    string `json:"type"`
 	ID      string `json:"id"`
+	Text    string `json:"text"`
 	Content []struct {
 		Type string `json:"type"`
 		Text string `json:"text"`
@@ -275,7 +276,7 @@ func parseCodexLine(seq int, line []byte, meta *Meta) []proto.Item {
 		return nil
 	}
 	if l.Type == "response_item" {
-		return parseTraexResponse(seq, l, meta)
+		return parseRolloutResponse(seq, l, meta)
 	}
 	if l.Type == "token_usage_record" {
 		var record struct {
@@ -371,7 +372,7 @@ func parseCodexLine(seq int, line []byte, meta *Meta) []proto.Item {
 		meta.turnWorked, meta.turnErrorCounted = false, false
 		meta.turnParts = nil
 		meta.codexSeen = nil // an item repeats only within its turn: a long rollout keeps no ids of the turns before
-		meta.traexCalls = nil
+		meta.rolloutCalls = nil
 		return nil
 	case "task_complete":
 		meta.endTurn(seq, l.Timestamp)
@@ -494,6 +495,13 @@ func codexItemLines(seq int, ts time.Time, turnID string, it *codexItem, meta *M
 		return proto.Item{ID: fmt.Sprintf("%s#%d", id, idx), Seq: seq, TS: ts, Role: role, Kind: kind}
 	}
 	switch it.Type {
+	case "Plan":
+		if text := strings.TrimSpace(it.Text); text != "" {
+			plan := mk(0, it.ID, "assistant", proto.KindText)
+			plan.Text = clip(text)
+			plan.Narration = true
+			return []proto.Item{plan}
+		}
 	case "UserMessage":
 		var parts, images []string
 		for _, c := range it.Content {
@@ -783,7 +791,7 @@ func codexCommandLines(seq int, ts time.Time, it *codexItem, meta *Meta) []proto
 	}
 	name := "Bash"
 	var input json.RawMessage
-	if call, ok := meta.traexCalls[it.ID]; it.Source == "agent" && ok {
+	if call, ok := meta.rolloutCalls[it.ID]; it.Source == "agent" && ok {
 		name, input = call.Name, call.Input
 	} else {
 		input, _ = json.Marshal(map[string]string{"command": shellCommand(it.Command)})

@@ -17,6 +17,16 @@ func TestCodexTaskCompletionKeepsFirstTokenTiming(t *testing.T) {
 	}
 }
 
+func TestCodexPlanItemKeepsNativeText(t *testing.T) {
+	t.Parallel()
+	var m Meta
+	input := `{"timestamp":"2026-01-01T00:01:00Z","type":"event_msg","payload":{"type":"item_completed","turn_id":"turn-1","item":{"type":"Plan","id":"item-1","text":"1. Check the inputs\n2. Run the tests"}}}`
+	items := ParseLine(1, []byte(input), &m)
+	if len(items) != 1 || items[0].Kind != proto.KindText || !items[0].Narration || items[0].Text != "1. Check the inputs\n2. Run the tests" {
+		t.Fatalf("plan item = %+v", items)
+	}
+}
+
 func TestCodexTaskNotificationUsesNativeFields(t *testing.T) {
 	t.Parallel()
 	var m Meta

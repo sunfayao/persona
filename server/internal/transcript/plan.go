@@ -21,9 +21,9 @@ var planTools = map[string]bool{"TodoWrite": true, "TaskCreate": true, "TaskUpda
 var PlanMarkers = [][]byte{[]byte(`"name":"TodoWrite"`), []byte(`"name":"TaskCreate"`), []byte(`"name":"TaskUpdate"`),
 	[]byte(`"name":"TaskList"`)}
 
-// PlanRolloutRecord identifies the native records that delimit and complete traex plan calls.
+// PlanRolloutRecord identifies native plan calls, their results and turn boundaries.
 func (m *Meta) PlanRolloutRecord(line []byte) bool {
-	return len(m.traexCalls) > 0 &&
+	return bytes.Contains(line, []byte(`"name":"update_plan"`)) || len(m.rolloutCalls) > 0 &&
 		(bytes.Contains(line, []byte(`"type":"task_started"`)) || bytes.Contains(line, []byte(`"source":"agent"`)) ||
 			bytes.Contains(line, []byte(`"type":"function_call_output"`)))
 }
