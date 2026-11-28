@@ -38,8 +38,8 @@ func TestTodoPiecesTools(t *testing.T) {
 		s := e.s
 		pieceTool(t, s, "conv1", "todo_create", map[string]any{"title": "Search page"})
 		root := mustTodo(t, s, "Search page")
-		if root.PartOf != "" || len(root.After) != 0 || root.Origin != "conv1" || root.Supervision != nil || len(root.Agents) != 0 {
-			t.Fatalf("a to-do the conversation made (it is the origin, nothing is dispatched): %+v", root)
+		if root.PartOf != "" || len(root.After) != 0 || root.Origin != "" {
+			t.Fatalf("a plain to-do: %+v", root)
 		}
 
 		// A piece the conversation will hand out is its own (task_plan's todo_id can run an Agent on it).
