@@ -1,4 +1,4 @@
-package assistant
+package fleettext
 
 import (
 	"encoding/json"
@@ -47,11 +47,11 @@ func TestLocalizeSession(t *testing.T) {
 	queued := []string{"【来自 另一个会话】look at this", "my own line"}
 	s := proto.Session{Activity: "在跑测试", Background: bg, Queued: queued}
 	zh := s
-	localizeSession(i18n.ZhHans, &zh)
+	LocalizeSession(i18n.ZhHans, &zh)
 	if zh.Activity != "在跑测试" || zh.Background[0].Description != "超时转到后台的命令" || zh.Queued[0] != queued[0] {
 		t.Fatalf("zh-Hans changed it: %+v", zh)
 	}
-	localizeSession(i18n.En, &s)
+	LocalizeSession(i18n.En, &s)
 	if s.Activity != "Running tests" || s.Background[0].Description != "Command moved to the background after a timeout" ||
 		!slices.Equal(s.Queued, []string{"[From Another session] look at this", "my own line"}) {
 		t.Fatalf("%+v", s)
@@ -77,7 +77,7 @@ func TestLocalizeRuntimeFailureLastText(t *testing.T) {
 	} {
 		for l, want := range map[i18n.Lang]string{i18n.ZhHans: c.s.LastText, i18n.En: c.en, i18n.Ja: c.ja} {
 			s := c.s
-			localizeSession(l, &s)
+			LocalizeSession(l, &s)
 			if s.LastText != want {
 				t.Errorf("%s %q: %q, want %q", l, c.s.LastText, s.LastText, want)
 			}
@@ -117,7 +117,7 @@ func TestLocalizeWorkflowAgentTools(t *testing.T) {
 		{i18n.Ja, []string{"toolu_r Read: example.goを読み取り中", "toolu_o Custom: 在做别的", "srvtoolu_s WebSearch: Web検索中：example"}},
 	} {
 		s := proto.Session{Workflows: runs}
-		localizeSession(c.l, &s)
+		LocalizeSession(c.l, &s)
 		if got := summaries(s); !slices.Equal(got, c.want) {
 			t.Errorf("%s: %q, want %q", c.l, got, c.want)
 		}
@@ -134,7 +134,7 @@ func TestLocalizeSubagentTools(t *testing.T) {
 	other := &proto.WorkflowTool{ID: "toolu_o", Name: "Custom", Summary: "在做别的"}
 	subs := []proto.Subagent{{ID: "a1", LastTool: bash, Steps: 3}, {ID: "a2"}, {ID: "a3", LastTool: other}}
 	s := proto.Session{Subagents: subs}
-	localizeSession(i18n.En, &s)
+	LocalizeSession(i18n.En, &s)
 	if got := s.Subagents[0].LastTool; got == bash || got.ID != "toolu_b" || got.Name != "Bash" || got.Summary == bash.Summary ||
 		got.Summary != activityText(i18n.En, bash.Summary) || s.Subagents[0].Steps != 3 {
 		t.Fatalf("en: %+v", got)
@@ -146,7 +146,7 @@ func TestLocalizeSubagentTools(t *testing.T) {
 		t.Fatal("the node's subagents were written to")
 	}
 	zh := proto.Session{Subagents: subs}
-	localizeSession(i18n.ZhHans, &zh)
+	LocalizeSession(i18n.ZhHans, &zh)
 	if zh.Subagents[0].LastTool != bash {
 		t.Fatal("zh-Hans rewritten")
 	}
@@ -157,23 +157,23 @@ func TestLocalizeSubagentTools(t *testing.T) {
 func TestClaudeLiveTextInEachLanguage(t *testing.T) {
 	for _, reason := range []string{proto.ReadOnlyClaudeBg, proto.ReadOnlyClaudeNoInbox, proto.ReadOnlyClaudeInbox} {
 		s := proto.Session{ReadOnlyReason: reason, AttentionReason: proto.AttentionClaudeComputer}
-		localizeSession(i18n.En, &s)
+		LocalizeSession(i18n.En, &s)
 		if s.ReadOnlyReason == reason || s.ReadOnlyReason == "" || s.AttentionReason == proto.AttentionClaudeComputer {
 			t.Errorf("en: %q / %q", s.ReadOnlyReason, s.AttentionReason)
 		}
 		j := proto.Session{ReadOnlyReason: reason}
-		localizeSession(i18n.Ja, &j)
+		LocalizeSession(i18n.Ja, &j)
 		if j.ReadOnlyReason == reason || j.ReadOnlyReason == s.ReadOnlyReason {
 			t.Errorf("ja: %q", j.ReadOnlyReason)
 		}
 		z := proto.Session{ReadOnlyReason: reason}
-		localizeSession(i18n.ZhHans, &z)
+		LocalizeSession(i18n.ZhHans, &z)
 		if z.ReadOnlyReason != reason {
 			t.Errorf("zh-Hans: %q", z.ReadOnlyReason)
 		}
 	}
 	other := proto.Session{ReadOnlyReason: "仅查看：这个子 Agent 由父 Agent 驱动"}
-	localizeSession(i18n.En, &other)
+	LocalizeSession(i18n.En, &other)
 	if other.ReadOnlyReason != "仅查看：这个子 Agent 由父 Agent 驱动" {
 		t.Errorf("a reason the hub does not know was rewritten: %q", other.ReadOnlyReason)
 	}
@@ -192,7 +192,7 @@ func TestClaudeComputerAttentionSuggestsTmuxOrPersona(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			s := proto.Session{AttentionReason: proto.AttentionClaudeComputer}
-			localizeSession(c.lang, &s)
+			LocalizeSession(c.lang, &s)
 			got := strings.ToLower(s.AttentionReason)
 			for _, want := range c.want {
 				if !strings.Contains(got, want) {
@@ -206,8 +206,8 @@ func TestClaudeComputerAttentionSuggestsTmuxOrPersona(t *testing.T) {
 	for _, lang := range []i18n.Lang{i18n.En, i18n.Ja} {
 		legacy := proto.Session{AttentionReason: proto.AttentionClaudeComputerBefore5965}
 		current := proto.Session{AttentionReason: proto.AttentionClaudeComputer}
-		localizeSession(lang, &legacy)
-		localizeSession(lang, &current)
+		LocalizeSession(lang, &legacy)
+		LocalizeSession(lang, &current)
 		if legacy.AttentionReason != current.AttentionReason {
 			t.Errorf("%s: legacy attention %q, want the localized current guidance %q", lang, legacy.AttentionReason, current.AttentionReason)
 		}

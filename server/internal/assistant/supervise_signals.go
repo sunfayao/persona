@@ -850,6 +850,8 @@ type superviseTimings struct {
 	// cooldown: how long routine signals for a conversation wait after a supervision message went to it (zero:
 	// routineCooldown's default).
 	cooldown time.Duration
+	// hub: how long a review waits for the hub's own run of the to-do's typed checks (zero: a minute).
+	hub time.Duration
 }
 
 // superviseTimings are s's own timings, the package's for each one it does not set. Tests set them on their Service,
@@ -864,6 +866,9 @@ func (s *Service) superviseTimings() superviseTimings {
 	}
 	if p.urgent <= 0 {
 		p.urgent = superviseUrgentEvery
+	}
+	if p.hub <= 0 {
+		p.hub = time.Minute
 	}
 	return p
 }
@@ -912,12 +917,9 @@ func (s *Service) signalReplacing(old *superviseSignal, g superviseSignal) {
 			return // /stop silences the reporting task's notices on every route until the user speaks again (#3308)
 		}
 	}
-	if t, ok := s.todoNow(g.Todo); ok && g.Kind == sigReview && t.Supervision != nil && len(t.Supervision.Checks) > 0 {
-		s.tasks.outcomeRuns.Add(1) // typed checks are declared: the hub runs them as the review begins (hubReview)
-		go func() {
-			defer s.tasks.outcomeRuns.Done()
-			s.hubReview(context.Background(), g.Todo)
-		}()
+	hubRuns := false
+	if t, ok := s.todoNow(g.Todo); ok && g.Kind == sigReview && hubDue(t) {
+		hubRuns, g.NotBefore = true, time.Now().Add(s.superviseTimings().hub) // the review waits for the hub's run (hubReview)
 	}
 	if g.level() == supervisionInfo && g.Kind != sigParkedSummary {
 		return // Progress is already recorded on the task card; it never wakes the assistant.
@@ -936,6 +938,13 @@ func (s *Service) signalReplacing(old *superviseSignal, g superviseSignal) {
 		return
 	}
 	s.queueSignalReplacing(old, g)
+	if hubRuns {
+		s.tasks.outcomeRuns.Add(1) // typed checks are declared: the hub runs them as the review begins
+		go func() {
+			defer s.tasks.outcomeRuns.Done()
+			s.hubReview(context.Background(), g.Todo)
+		}()
+	}
 }
 
 // queueSignal only adds a validated signal to the in-memory digest. It does not change the turn ledger.

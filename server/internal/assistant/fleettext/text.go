@@ -1,4 +1,6 @@
-package assistant
+// Package fleettext rewrites the node's Chinese session wording (activity lines, stand-in senders, start errors) into the
+// user's language. It imports neither the assistant root nor a sibling domain.
+package fleettext
 
 import (
 	"strings"
@@ -25,7 +27,7 @@ func fromName(l i18n.Lang, from string) string {
 	switch from {
 	case transcript.FromSession:
 		return tt(l, "from_session")
-	case "队友":
+	case "队友": // i18n-ignore: matches the node's own wording
 		return tt(l, "from_teammate")
 	}
 	return from
@@ -57,7 +59,7 @@ func activityText(l i18n.Lang, s string) string {
 }
 
 // queuedFrom starts a queued message another session sent (transcript/user_text.go applyQueue).
-const queuedFrom = "【来自 "
+const queuedFrom = "【来自 " // i18n-ignore: matches the node's own wording
 
 // runtimeFailureText is a runtime session's last words in l when they are its bridge's own for an agent that stopped on
 // a failure (transcript.RuntimeError…: Paseo's, #8133); its agent's own words stay as they are.
@@ -71,10 +73,10 @@ func runtimeFailureText(l i18n.Lang, s string) string {
 	return s
 }
 
-// localizeSession rewrites s's node-written lines in l: its activity, a runtime bridge's last words for a failure, a
+// LocalizeSession rewrites s's node-written lines in l: its activity, a runtime bridge's last words for a failure, a
 // background command's stand-in description, the sender of a queued message, what its workflow agents' and subagents'
 // latest tool calls do. The node's slices are shared: changed ones are copied.
-func localizeSession(l i18n.Lang, s *proto.Session) {
+func LocalizeSession(l i18n.Lang, s *proto.Session) {
 	if l == i18n.ZhHans || !i18n.Valid(l) {
 		return
 	}
@@ -88,7 +90,7 @@ func localizeSession(l i18n.Lang, s *proto.Session) {
 	s.AttentionReason = claudeLiveText(l, s.AttentionReason)
 	copied := false
 	for i, b := range s.Background {
-		if b.Description == "超时转到后台的命令" {
+		if b.Description == "超时转到后台的命令" { // i18n-ignore: matches the node's own wording
 			if !copied {
 				s.Background, copied = append([]proto.BackgroundTask(nil), s.Background...), true
 			}
@@ -101,7 +103,7 @@ func localizeSession(l i18n.Lang, s *proto.Session) {
 		if !ok {
 			continue
 		}
-		from, body, ok := strings.Cut(rest, "】")
+		from, body, ok := strings.Cut(rest, "】") // i18n-ignore: matches the node's own wording
 		if !ok {
 			continue
 		}
@@ -186,10 +188,10 @@ func claudeLiveText(l i18n.Lang, s string) string {
 	return s
 }
 
-// startErrorText is a failed start's start_error in l: for a start the node refused with a code the hub words itself
+// StartErrorText is a failed start's start_error in l: for a start the node refused with a code the hub words itself
 // (a launcher or claude the new tab's shell does not have, node/shellmiss.go, #1642) that sentence, naming machine,
 // for every app in the user's language; else the node's text as it is. The code and its details stay on the session.
-func startErrorText(l i18n.Lang, machine string, s proto.Session) string {
+func StartErrorText(l i18n.Lang, machine string, s proto.Session) string {
 	if s.StartErrorCode == "" {
 		return s.StartError
 	}

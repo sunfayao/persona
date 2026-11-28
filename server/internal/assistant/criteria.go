@@ -139,20 +139,25 @@ func (c hubChannels) Deployed(ctx context.Context, pr string) (bool, error) {
 	return false, forgeReason(cmp.Or(r.Err, errors.New("the running deployment does not say which commit it was built from, or the pull request is not in its repository")))
 }
 
-func (c hubChannels) CI(ctx context.Context, pr string) (string, error) {
-	f, ok := c.s.forge().(prStatusForge)
+// prHeadChecksForge is the forge's answer for the checks of a pull request's head commit, open or merged.
+type prHeadChecksForge interface {
+	PRHeadChecks(ctx context.Context, repo string, number int) (TodoPRStatus, error)
+}
+
+func (c hubChannels) CI(ctx context.Context, pr string) (state, commit string, err error) {
+	f, ok := c.s.forge().(prHeadChecksForge)
 	if !ok {
-		return "", errors.New("the hub has no channel for CI state")
+		return "", "", errors.New("the hub has no channel for CI state")
 	}
 	repo, n := prParts(pr)
-	st, err := f.PRStatus(ctx, repo, n)
+	st, err := f.PRHeadChecks(ctx, repo, n)
 	switch {
 	case err != nil:
-		return "", forgeReason(err)
-	case st.State != "open":
-		return "", fmt.Errorf("the pull request is %s, and the hub reads CI state while it is open", st.State)
+		return "", "", forgeReason(err)
+	case st.State == "closed":
+		return "", "", errors.New("the pull request is closed without a merge")
 	}
-	return st.Checks, nil
+	return st.Checks, st.HeadOID, nil
 }
 
 func (c hubChannels) Fetch(ctx context.Context, url string) (acceptance.Page, error) {
@@ -200,17 +205,36 @@ func (s *Service) verifyChecks(ctx context.Context, t Todo) (string, error) {
 	return "The hub ran the declared checks (no verdict was written; criteria without a check are not listed):\n" + acceptance.Lines(t.Supervision.DoneWhen, verdicts), nil
 }
 
+// hubDue says the hub has typed checks to run for t's review this round: t is waiting for review and has not been run
+// since it began.
+func hubDue(t Todo) bool {
+	v := t.Supervision
+	return v != nil && t.DoneAt == nil && len(v.Checks) > 0 && v.State == reviewPending &&
+		!slices.ContainsFunc(v.Criteria, func(c db.TodoCriterion) bool {
+			return c.By == reviewerHub && c.At != nil && v.PendingSince != nil && !c.At.Before(*v.PendingSince)
+		})
+}
+
+// releaseHubHold lets a review that waited for the hub's run go on to its supervisor.
+func (s *Service) releaseHubHold(id string) {
+	b := &s.supervise
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if g, ok := b.pending[id+"|"+sigReview]; ok && !g.NotBefore.IsZero() {
+		g.NotBefore = time.Time{}
+		b.pending[id+"|"+sigReview] = g
+		s.scheduleDigestLocked(time.Now())
+	}
+}
+
 // hubReview runs when a to-do enters pending review. With typed checks declared it runs them; when every criterion has
 // one and all are met, and the owner's own confirmation is not needed, it accepts the to-do itself, with no model turn,
 // through the review path its supervisor would use. Otherwise the review goes on to its supervisor, with the hub's
 // evidence on the ledger.
 func (s *Service) hubReview(ctx context.Context, id string) {
+	defer s.releaseHubHold(id)
 	t, ok := s.todoNow(id)
-	v := t.Supervision
-	if !ok || t.DoneAt != nil || v == nil || len(v.Checks) == 0 || v.state(t) != reviewPending ||
-		slices.ContainsFunc(v.Criteria, func(c db.TodoCriterion) bool {
-			return c.By == reviewerHub && c.At != nil && v.PendingSince != nil && !c.At.Before(*v.PendingSince)
-		}) {
+	if !ok || !hubDue(t) {
 		return
 	}
 	verdicts, all, err := s.runHubChecks(ctx, t)
@@ -230,7 +254,7 @@ func (s *Service) hubReview(ctx context.Context, id string) {
 	if lead, supervised, reachable := s.leaderSupervisor(t); supervised && reachable {
 		_, err = s.leaderReview(ctx, lead, args)
 	} else {
-		_, err = s.toolTaskReview(ctx, v.Supervisor, args)
+		_, err = s.toolTaskReview(ctx, t.Supervision.Supervisor, args)
 	}
 	if err != nil {
 		s.logf("task %s: hub acceptance: %v", id, err)
@@ -279,4 +303,17 @@ func planRole(supervisor bool) acceptance.Role {
 		return acceptance.Supervisor
 	}
 	return acceptance.Main
+}
+
+// alreadyAccepted refuses a second acceptance of a closed to-do when either one is the hub's: of the hub's and a
+// reviewer's at the same moment exactly one takes effect, and the other is told so.
+func alreadyAccepted(ctx context.Context, t Todo) error {
+	v := t.Supervision
+	if t.DoneAt == nil || v == nil || len(v.Reviews) == 0 {
+		return nil
+	}
+	if last := v.Reviews[len(v.Reviews)-1]; last.Verdict == reviewAccepted && (hubActing(ctx) || last.By == reviewerHub) {
+		return fmt.Errorf("task %s is already accepted: nothing more to record", t.ID)
+	}
+	return nil
 }

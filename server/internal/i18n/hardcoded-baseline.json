@@ -19,7 +19,6 @@
   "internal/assistant/fleet_delegate.go": 1,
   "internal/assistant/fleet_ix.go": 3,
   "internal/assistant/fleet_push.go": 2,
-  "internal/assistant/fleet_text.go": 4,
   "internal/assistant/inbox_events.go": 1,
   "internal/assistant/inbox_group.go": 6,
   "internal/assistant/inbox_mail.go": 3,

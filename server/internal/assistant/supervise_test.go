@@ -61,7 +61,7 @@ func TestDigestWait(t *testing.T) {
 
 // A Service's own supervision timings take the place of the package's, each one it sets; the rest stay the package's.
 func TestSuperviseTimingsOnService(t *testing.T) {
-	want := superviseTimings{gather: superviseGather, every: superviseEvery, urgent: superviseUrgentEvery}
+	want := superviseTimings{gather: superviseGather, every: superviseEvery, urgent: superviseUrgentEvery, hub: time.Minute}
 	if got := (&Service{}).superviseTimings(); got != want {
 		t.Fatalf("defaults = %+v; want %+v", got, want)
 	}

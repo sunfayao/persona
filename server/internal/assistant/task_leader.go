@@ -1195,6 +1195,11 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 	if a.Verdict == reviewRework && a.Note == "" && !slices.ContainsFunc(a.Checks, func(c ReviewCheck) bool { return !c.Met }) {
 		return "", errors.New("rework: say what is missing (a check that is not met, or note)")
 	}
+	if a.Verdict == reviewAccepted {
+		if err := alreadyAccepted(ctx, t); err != nil {
+			return "", err
+		}
+	}
 	if a.Verdict == reviewAccepted && t.DoneAt == nil && t.memberSupervised() && len(s.openLeaderWorkers(t)) > 0 {
 		return "", fmt.Errorf("task %s has open pieces: close them with task_review first", t.ID)
 	}

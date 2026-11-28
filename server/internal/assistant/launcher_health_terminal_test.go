@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/sunfayao/persona/server/internal/assistant/fleettext"
 	"slices"
 	"strings"
 	"testing"
@@ -232,14 +233,14 @@ func TestTodoAgentKeepsTheWordedStartError(t *testing.T) {
 func TestStartErrorTextWordsTheCode(t *testing.T) {
 	sess := proto.Session{StartError: "the new tab's shell (bash) has no command work", StartErrorCode: proto.CodeLauncherMissing,
 		StartErrorArgs: map[string]string{"launcher": "work", "where": "terminal", "pane_shell": "bash", "launcher_shell": "zsh", "rc_file": "~/.zshrc"}}
-	if got := startErrorText("en", "Lab box", sess); !strings.Contains(got, "new terminal tabs on Lab box (bash) has no command “work”") {
+	if got := fleettext.StartErrorText("en", "Lab box", sess); !strings.Contains(got, "new terminal tabs on Lab box (bash) has no command “work”") {
 		t.Errorf("en: %q", got)
 	}
-	if got := startErrorText("ja", "Lab box", sess); !strings.Contains(got, "Lab box の新しいターミナルタブ（bash）には「work」") {
+	if got := fleettext.StartErrorText("ja", "Lab box", sess); !strings.Contains(got, "Lab box の新しいターミナルタブ（bash）には「work」") {
 		t.Errorf("ja: %q", got)
 	}
 	sess.StartErrorCode = "something_else"
-	if got := startErrorText("en", "Lab box", sess); got != sess.StartError {
+	if got := fleettext.StartErrorText("en", "Lab box", sess); got != sess.StartError {
 		t.Errorf("an unknown code: %q", got)
 	}
 }

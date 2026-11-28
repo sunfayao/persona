@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"fmt"
+	"github.com/sunfayao/persona/server/internal/assistant/fleettext"
 	"sort"
 	"strings"
 	"sync"
@@ -953,7 +954,7 @@ func (s *Service) startErrorsOf(machine string, list []proto.Session) sessionSta
 		if out == nil {
 			out, lang = sessionStartErrors{}, s.lang(context.Background())
 		}
-		out[c.SessionID] = startErrorText(lang, s.machineName(machine), c)
+		out[c.SessionID] = fleettext.StartErrorText(lang, s.machineName(machine), c)
 	}
 	return out
 }
