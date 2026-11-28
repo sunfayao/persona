@@ -222,7 +222,8 @@
           "out": 2222,
           "cache_read": 190592
         }
-      ]
+      ],
+      "ttft_ms": 3976
     },
     {
       "id": "call_JB0YnrzzV3GE1xdCHZNY7emUPxBLm9KY#0",
@@ -648,9 +649,9 @@
       "usage": [
         {
           "model": "gpt-5-codex",
-          "in": 6332,
-          "out": 623,
-          "cache_read": 590976
+          "in": 13316,
+          "out": 6338,
+          "cache_read": 947456
         }
       ]
     },

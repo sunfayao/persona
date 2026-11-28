@@ -100,13 +100,14 @@ type codexItem struct {
 	Phase       string   `json:"phase"`
 	SummaryText []string `json:"summary_text"`
 	// CommandExecution
-	Command          []string `json:"command"`
-	Source           string   `json:"source"`
-	Status           string   `json:"status"`
-	AggregatedOutput string   `json:"aggregated_output"`
-	Stdout           string   `json:"stdout"`
-	Stderr           string   `json:"stderr"`
-	ExitCode         *int     `json:"exit_code"`
+	Command          codexCommand `json:"command"`
+	Source           string       `json:"source"`
+	Status           string       `json:"status"`
+	AggregatedOutput string       `json:"aggregated_output"`
+	Stdout           string       `json:"stdout"`
+	Stderr           string       `json:"stderr"`
+	ExitCode         *int         `json:"exit_code"`
+	ProcessID        string       `json:"process_id"`
 	// Duration: how long the command ran (its outcome's duration_ms).
 	Duration codexDuration `json:"duration"`
 	// FileChange
@@ -675,6 +676,12 @@ func codexItemLines(seq int, ts time.Time, turnID string, it *codexItem, meta *M
 		return codexSubagentActivity(meta, mk, it)
 	case "CollabAgentToolCall":
 		return codexCollabCall(meta, mk, it)
+	case "TerminalInteraction":
+		input, _ := json.Marshal(struct {
+			TaskID  string `json:"task_id,omitempty"`
+			Command string `json:"command,omitempty"`
+		}{TaskID: it.ProcessID, Command: shellCommand(it.Command)})
+		return codexTool(meta, mk, it.ID, "TaskOutput", input, it.AggregatedOutput, false)
 	case "TaskNotification":
 		if record := it.TaskNotification; record != nil && record.ID != "" {
 			n := mk(0, it.ID, "system", proto.KindNotice)
@@ -700,6 +707,21 @@ func codexItemLines(seq int, ts time.Time, turnID string, it *codexItem, meta *M
 	n := mk(0, it.ID, "system", proto.KindNotice)
 	n.Text = "Codex 事件：" + it.Type + "（完整记录在原会话中）"
 	return []proto.Item{n}
+}
+
+// codexCommand accepts the vector on CommandExecution and the string on TerminalInteraction.
+type codexCommand []string
+
+func (c *codexCommand) UnmarshalJSON(raw []byte) error {
+	if len(raw) > 0 && raw[0] == '"' {
+		var command string
+		if err := json.Unmarshal(raw, &command); err != nil {
+			return err
+		}
+		*c = codexCommand{command}
+		return nil
+	}
+	return json.Unmarshal(raw, (*[]string)(c))
 }
 
 // codexPendingKept bounds the backgrounded command ids a Meta keeps: a rollout that starts commands and never records

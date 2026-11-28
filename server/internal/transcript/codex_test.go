@@ -110,7 +110,8 @@ func TestHistoryMutationRollout(t *testing.T) {
 	}
 	want := []string{
 		"user:text::build the proxy", "assistant:text::Checking the repo first.",
-		"assistant:tool_use:Bash:", "user:tool_result::a\n", "assistant:text::Done: the proxy runs.",
+		"assistant:tool_use:Bash:", "user:tool_result::a\n", "assistant:tool_use:TaskOutput:", "user:tool_result::",
+		"assistant:text::Done: the proxy runs.",
 	}
 	if strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Fatalf("items\n got %q\nwant %q", got, want)
