@@ -691,17 +691,17 @@ func cloneTokens(m map[string]map[string]string) map[string]map[string]string {
 // Older nodes can still report the rollout's active copy of a task goal.
 // Settle only that task's generated objective after its Agent has stopped.
 func (s *Service) settleClosedTaskGoals(machine string, list []proto.Session) {
-	var candidates map[string]*proto.Session
+	var candidates map[string]int
 	for i := range list {
 		row := &list[i]
-		if row.Agent != "codex" || row.Goal == nil || row.Goal.Status != proto.GoalActive ||
+		if (row.Agent != "codex" && row.Agent != "claude") || row.Goal == nil || row.Goal.Status != proto.GoalActive ||
 			row.Goal.UpdatedAt.IsZero() || row.Starting || row.Status == proto.StatusWorking {
 			continue
 		}
 		if candidates == nil {
-			candidates = map[string]*proto.Session{}
+			candidates = map[string]int{}
 		}
-		candidates[row.SessionID] = row
+		candidates[row.SessionID] = i
 	}
 	if len(candidates) == 0 {
 		return
@@ -715,16 +715,19 @@ func (s *Service) settleClosedTaskGoals(machine string, list []proto.Session) {
 		}
 		objective := ""
 		for _, a := range t.Agents {
-			row := candidates[a.SessionID]
-			if a.MachineID != machine || row == nil || row.Goal.UpdatedAt.After(*t.DoneAt) ||
-				row.Goal.UpdatedAt.Before(t.CreatedAt) || s.todos.activeBySession[[2]string{machine, a.SessionID}] != "" {
+			i, ok := candidates[a.SessionID]
+			if a.MachineID != machine || !ok {
+				continue
+			}
+			row := &list[i]
+			if row.Goal.UpdatedAt.After(*t.DoneAt) || row.Goal.UpdatedAt.Before(t.CreatedAt) {
 				continue
 			}
 			if old := outcomes[a.SessionID]; old != nil && !t.DoneAt.After(*old.DoneAt) {
 				continue
 			}
 			if objective == "" {
-				objective = prompts.RenderTaskGoal(t.Supervision.DoneWhen)
+				objective = strings.Join(strings.Fields(prompts.RenderTaskGoal(t.Supervision.DoneWhen)), " ")
 			}
 			if row.Goal.Objective == objective {
 				outcomes[a.SessionID] = t
@@ -732,7 +735,7 @@ func (s *Service) settleClosedTaskGoals(machine string, list []proto.Session) {
 		}
 	}
 	for sid, t := range outcomes {
-		row := candidates[sid]
+		row := &list[candidates[sid]]
 		if t.Cancelled() {
 			row.Goal = nil
 		} else {

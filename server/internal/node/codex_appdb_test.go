@@ -20,7 +20,7 @@ func TestCodexGoalsReadNativeChangesThatAreMissingFromRollout(t *testing.T) {
 	active := &proto.GoalInfo{Objective: "Run the regression tests", Status: proto.GoalActive, UpdatedAt: now}
 	rows := []proto.Session{
 		{SessionID: appChat, Agent: "codex", Goal: active},
-		{SessionID: "separate-session", Agent: "codex", Goal: active},
+		{SessionID: "separate-session", Agent: "codex", SourceKind: proto.SourceRuntime, Goal: active},
 	}
 	db := filepath.Join(n.codexHome(), "goals_1.sqlite")
 	if err := os.MkdirAll(filepath.Dir(db), 0700); err != nil {
@@ -36,6 +36,9 @@ func TestCodexGoalsReadNativeChangesThatAreMissingFromRollout(t *testing.T) {
 			t.Fatalf("queried %s, want %s", path, db)
 		}
 		reads++
+		if reads == 3 {
+			return map[string]proto.GoalInfo{}, nil
+		}
 		native := *active
 		if reads > 1 {
 			native.Status, native.UpdatedAt = proto.GoalComplete, now.Add(time.Second)
@@ -53,6 +56,14 @@ func TestCodexGoalsReadNativeChangesThatAreMissingFromRollout(t *testing.T) {
 	n.applyCodexGoals(t.Context(), rows, now.Add(codexAppDBRefresh), query)
 	if reads != 2 || rows[0].Goal.Status != proto.GoalComplete || rows[1].Goal != active || active.Status != proto.GoalActive {
 		t.Fatalf("native completion did not replace only the matching rollout goal: reads=%d rows=%+v", reads, rows)
+	}
+	if err := os.WriteFile(db+"-wal", []byte("goal cleared"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	rows[0].Goal = active // The original rollout still advertises an active goal.
+	n.applyCodexGoals(t.Context(), rows, now.Add(2*codexAppDBRefresh), query)
+	if reads != 3 || rows[0].Goal != nil || rows[1].Goal != active {
+		t.Fatalf("native clear did not remove only the stale rollout goal: reads=%d rows=%+v", reads, rows)
 	}
 }
 

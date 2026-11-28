@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,16 +12,18 @@ import (
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
-func TestClosedTaskSettlesOnlyItsStoppedCodexGoal(t *testing.T) {
+func TestClosedTaskSettlesOnlyItsStoppedLegacyGoal(t *testing.T) {
 	s, _, _ := newSupervisedService(t)
 	start := time.Unix(1_800_000_000, 0).UTC()
 	done := start.Add(time.Minute)
-	criteria := []string{"Run the regression tests"}
-	goal := &proto.GoalInfo{Objective: prompts.RenderTaskGoal(criteria), Status: proto.GoalActive, UpdatedAt: start}
-	for _, spec := range []struct{ id, verdict string }{{"accepted", db.DoneByReview}, {"cancelled", db.DoneByCancelled}, {"working", db.DoneByReview}, {"unrelated", db.DoneByReview}, {"new-goal", db.DoneByReview}} {
+	criteria := []string{"Run the\nregression tests"}
+	goal := &proto.GoalInfo{Objective: strings.Join(strings.Fields(prompts.RenderTaskGoal(criteria)), " "), Status: proto.GoalActive, UpdatedAt: start}
+	for _, spec := range []struct{ id, verdict string }{{"accepted", db.DoneByReview}, {"cancelled", db.DoneByCancelled}, {"working", db.DoneByReview}, {"unrelated", db.DoneByReview}, {"new-goal", db.DoneByReview}, {"claude", db.DoneByReview}} {
 		putTodo(s, Todo{ID: spec.id, CreatedAt: start, DoneAt: &done, DoneBy: spec.verdict,
 			Agents: []TodoAgent{{MachineID: "box", SessionID: spec.id}}, Supervision: &Supervision{DoneWhen: criteria}})
 	}
+	putTodo(s, Todo{ID: "follow-up", CreatedAt: done.Add(time.Second),
+		Agents: []TodoAgent{{MachineID: "box", SessionID: "accepted"}}})
 	other, later := *goal, *goal
 	other.Objective = "My own goal"
 	later.UpdatedAt = done.Add(time.Second)
@@ -30,10 +33,11 @@ func TestClosedTaskSettlesOnlyItsStoppedCodexGoal(t *testing.T) {
 		{SessionID: "working", Agent: "codex", Status: proto.StatusWorking, Goal: goal},
 		{SessionID: "unrelated", Agent: "codex", Status: proto.StatusIdle, Goal: &other},
 		{SessionID: "new-goal", Agent: "codex", Status: proto.StatusIdle, Goal: &later},
+		{SessionID: "claude", Agent: "claude", Status: proto.StatusIdle, Goal: goal},
 	}
 	s.settleClosedTaskGoals("box", rows)
 	if rows[0].Goal.Status != proto.GoalComplete || !rows[0].Goal.UpdatedAt.Equal(done) || rows[1].Goal != nil ||
-		rows[2].Goal != goal || rows[3].Goal != &other || rows[4].Goal != &later || goal.Status != proto.GoalActive {
+		rows[2].Goal != goal || rows[3].Goal != &other || rows[4].Goal != &later || rows[5].Goal.Status != proto.GoalComplete || goal.Status != proto.GoalActive {
 		t.Fatalf("unexpected goal projections: %+v %+v %+v %+v %+v", rows[0].Goal, rows[1].Goal, rows[2].Goal, rows[3].Goal, rows[4].Goal)
 	}
 }

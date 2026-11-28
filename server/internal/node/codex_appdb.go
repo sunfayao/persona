@@ -139,19 +139,19 @@ type codexGoalCache struct {
 }
 
 type codexGoalDB struct {
-	at    time.Time
-	stamp string
-	goals map[string]proto.GoalInfo
+	at, checkedAt time.Time
+	stamp         string
+	goals         map[string]proto.GoalInfo
 }
 
 // The Codex CLI writes native goal-tool updates to goals_1.sqlite even when
 // the rollout still has only the original thread_goal_updated event.
-func (c *codexGoalCache) read(ctx context.Context, home string, now time.Time, query func(context.Context, string) (map[string]proto.GoalInfo, error)) map[string]proto.GoalInfo {
+func (c *codexGoalCache) read(ctx context.Context, home string, now time.Time, query func(context.Context, string) (map[string]proto.GoalInfo, error)) codexGoalDB {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	cached := c.byHome[home]
 	if now.Sub(cached.at) < codexAppDBRefresh {
-		return cached.goals
+		return cached
 	}
 	db := filepath.Join(home, "goals_1.sqlite")
 	stamp := fileStamp(db)
@@ -159,9 +159,12 @@ func (c *codexGoalCache) read(ctx context.Context, home string, now time.Time, q
 		cached = codexGoalDB{at: now}
 	} else {
 		stamp += fileStamp(db + "-wal")
-		if stamp != cached.stamp {
+		if stamp == cached.stamp {
+			cached.checkedAt = now
+		} else {
 			if goals, err := query(ctx, db); err == nil {
 				cached.goals, cached.stamp = goals, stamp
+				cached.checkedAt = now
 			}
 		}
 		cached.at = now
@@ -170,7 +173,7 @@ func (c *codexGoalCache) read(ctx context.Context, home string, now time.Time, q
 		c.byHome = map[string]codexGoalDB{}
 	}
 	c.byHome[home] = cached
-	return cached.goals
+	return cached
 }
 
 func readCodexGoals(ctx context.Context, db string) (map[string]proto.GoalInfo, error) {
@@ -200,7 +203,7 @@ func (n *Node) applyCodexGoals(ctx context.Context, list []proto.Session, now ti
 	if n.codices == nil {
 		return
 	}
-	byHome := map[string]map[string]proto.GoalInfo{}
+	byHome := map[string]codexGoalDB{}
 	for i := range list {
 		s := &list[i]
 		if s.Agent != "codex" {
@@ -213,13 +216,18 @@ func (n *Node) applyCodexGoals(ctx context.Context, list []proto.Session, now ti
 			}
 			src = codexSource{home: n.codexPaneHome(s.PaneID), thread: s.SessionID}
 		}
-		goals, read := byHome[src.home]
+		db, read := byHome[src.home]
 		if !read {
-			goals = n.codices.goals.read(ctx, src.home, now, query)
-			byHome[src.home] = goals
+			db = n.codices.goals.read(ctx, src.home, now, query)
+			byHome[src.home] = db
 		}
-		if g, ok := goals[src.thread]; ok && (s.Goal == nil || !g.UpdatedAt.Before(s.Goal.UpdatedAt)) {
-			s.Goal = &g
+		if g, ok := db.goals[src.thread]; ok {
+			if s.Goal == nil || !g.UpdatedAt.Before(s.Goal.UpdatedAt) {
+				s.Goal = &g
+			}
+		} else if s.Goal != nil && s.Goal.UpdatedAt.Before(db.checkedAt) {
+			// A successful native read also observes /goal clear, which deletes the row.
+			s.Goal = nil
 		}
 	}
 }

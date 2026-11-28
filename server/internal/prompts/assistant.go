@@ -1046,8 +1046,7 @@ func RenderTaskDoneWhen(criteria []string) string {
 	return render("assistant/task_done_when", struct{ Criteria []string }{criteria})
 }
 
-// RenderTaskGoal is a task's done_when as one checkable condition, for the Claude Code or Codex /goal typed after the
-// task's first message: one line, trimmed.
+// RenderTaskGoal recognizes objectives written by earlier Persona task starts.
 func RenderTaskGoal(criteria []string) string {
 	return strings.TrimSpace(render("assistant/task_goal", struct{ Criteria []string }{criteria}))
 }

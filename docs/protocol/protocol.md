@@ -585,11 +585,8 @@ an older CLI without `/goal`) or an answer not read back never fails the start: 
 A first message the transcript never shows gets no goal. A `/goal` command that may still sit in the input box is left
 there, where the next message's own check finds it as a draft and refuses rather than sending the two together.
 
-The assistant supplies the condition from a task's `done_when` as one checkable sentence
-(`server/internal/prompts/assistant/task_goal.md`); a task without criteria carries no goal. Whether a task start carries one at all is the
-assistant's policy, not the node's. The goal is otherwise the documented Claude Code goal (see
-): its `goal_status` attachment and "Goal set:" output update
-`Session.goal` in the usual way.
+Persona task dispatch sends its ordinary task brief and relies on supervision for its completion criteria. Explicit
+session starts that supply a goal and goals set from the terminal still update `Session.goal`.
 
 A new Codex start takes the goal as Codex's own `/goal <objective>`, typed once the start found the thread its
 `prompt` began, and confirmed from the rollout's `thread_goal_updated` line instead of the screen; a Codex older than
@@ -1881,8 +1878,7 @@ How a device adds a pending computer: see "Computer pairing codes" under "Tempor
 ### Start defaults
 
 An optional policy of what a task Agent starts with beyond what its caller named, by the kind of work; with no policy,
-an expired one or no rule that fits, a task starts exactly as without the feature, apart from the Codex goal default
-below. It is one setting on the assistant
+an expired one or no rule that fits, a task starts without defaults. It is one setting on the assistant
 (`start_defaults` in `GET`/`PUT /api/v1/assistant`, full credentials; empty rules clear it) and has its own route,
 `GET`/`PUT /api/v1/assistant/start-defaults`, open to full credentials and to an extension token granted
 `assistant.start_defaults` (an extension's policy must expire within one hour). Its shape:
@@ -1896,7 +1892,6 @@ below. It is one setting on the assistant
         "candidates": [{"name": "<preset>", "priority": 10, "weight": 2}, {"name": "<other preset>"}],
         "effort": "max",
         "ultracode": true,
-        "goal": "done_when",
         "plan_first": false
       }
     }
@@ -1916,19 +1911,12 @@ below. It is one setting on the assistant
   it the first usable one, or one of them by `weight` when weights differ. An omitted `priority` is 0; a candidate the computer cannot start is passed
   over and named in the task's `why`, and a whole unusable priority group falls through to the next. `presets` is
   accepted as another name for `candidates`, handled like `when`. `effort` one of `low` / `medium` / `high` / `xhigh` / `max`;
-  `ultracode` a boolean (`true` turns it on for a task that did not set it; `false` asks for nothing); `goal` either
-  `done_when` (a goal from the task's `done_when`) or `off` (no start goal, which turns off the Codex default below);
-  `plan_first` a boolean. Effort and ultracode reach Claude Code starts only; a goal reaches new Claude Code and Codex
-  starts of tasks with `done_when`.
+  `ultracode` a boolean, and `plan_first` a boolean. Effort and ultracode reach Claude Code starts only.
+  Stored policies may still round-trip the retired `goal` values `done_when` and `off`. A rule with only that
+  retired field is skipped, and task starts use the ordinary prompt and supervision.
 - A candidate's weight roll comes from the operating system's crypto-grade random source (`crypto/rand`), never a
   predictable generator; weights only ever share starts inside the winning priority group.
-- With no fitting rule naming `goal` for a task (no policy, none that fits, or every fitting one silent on `goal`), a
-  new Codex start of a task with `done_when` carries that goal by default; a Claude Code start carries none.
-  `"goal":"off"` in a rule is how the owner turns the Codex default off; any other value is 400. The default is not
-  sent to a start through an app launcher, and a node's refusal of it is not put in the task's
-  `why`.
-- Rules are tried in order and the first that fits wins, except for `goal`: the first fitting rule that names `goal`
-  decides it, whichever rule supplies the rest. A caller's own effort, ultracode, tier, model or launcher is
+- The first matching rule with usable settings wins. A caller's own effort, ultracode, tier, model or launcher is
   never replaced. A rule's values apply to one start try: the next try starts again from what the task named, and for
   whatever a rule filled in the task in `TaskPlan` keeps its own value, never the policy's (its `why` names a preset the
   policy picked).
