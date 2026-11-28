@@ -70,14 +70,13 @@ export function hasSessionTokenUsage(items?: readonly Item[]): boolean {
 
 export interface ContextMeterProps {
   session: Session;
-  compact?: boolean;
   items?: readonly Item[];
   assistant?: boolean;
   onCompact?: () => boolean | void | Promise<boolean | void | unknown>;
   compactBlocked?: boolean;
 }
 
-export function ContextMeter({ session, compact = false, items, assistant, onCompact, compactBlocked }: ContextMeterProps) {
+export function ContextMeter({ session, items, assistant, onCompact, compactBlocked }: ContextMeterProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
@@ -110,18 +109,16 @@ export function ContextMeter({ session, compact = false, items, assistant, onCom
       >
         {usage ? (
           <>
-            {!compact && (
-              <span
-                className="block h-[3px] w-11 overflow-hidden rounded-full bg-line-strong"
-                role="progressbar"
-                aria-label={tip}
-                aria-valuenow={usage.used}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              >
-                <span className={cx("block h-full rounded-full motion-safe:transition-[width] motion-safe:duration-300", TIER_BAR[tier])} style={{ width: `${usage.used}%`, transitionTimingFunction: EASE }} />
-              </span>
-            )}
+            <span
+              className="block h-[3px] w-11 overflow-hidden rounded-full bg-line-strong"
+              role="progressbar"
+              aria-label={tip}
+              aria-valuenow={usage.used}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <span className={cx("block h-full rounded-full motion-safe:transition-[width] motion-safe:duration-300", TIER_BAR[tier])} style={{ width: `${usage.used}%`, transitionTimingFunction: EASE }} />
+            </span>
             <span className={cx("tabular-nums", TIER_TEXT[tier])}>{contextLabel(usage)}</span>
           </>
         ) : (

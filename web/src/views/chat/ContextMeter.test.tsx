@@ -49,15 +49,6 @@ describe("ContextMeter", () => {
     expect(html).toContain('aria-description="上下文是 Agent 在这段对话里能记住的量');
     expect(html).not.toContain("opus");
   });
-  it("keeps the labelled share and popover button in compact mode", () => {
-    const html = renderToStaticMarkup(<ContextMeter session={s} compact />);
-    expect(html).toMatch(/^<button type="button" aria-haspopup="dialog"/);
-    expect(html).toContain(">上下文 39%<");
-    expect(html).toContain('aria-label="上下文 39%（已用），还剩 61%"');
-    expect(html).not.toContain("progressbar");
-    expect(html).not.toContain("opus");
-    expect(renderToStaticMarkup(<ContextMeter session={{ ...s, context_window: undefined }} compact />)).toBe("");
-  });
   it("shows a compact token pill when context window is unknown but item token usage exists", () => {
     const html = renderToStaticMarkup(
       <ContextMeter
