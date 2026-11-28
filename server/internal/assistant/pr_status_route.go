@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/agentguard"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -532,7 +533,7 @@ func (s *Service) deliverPREventToAgent(ctx context.Context, t Todo, ev prRouted
 		if c.Status == proto.StatusOffline {
 			wait = 5 * time.Minute
 		}
-		if contextFull(c) && compactable(c) {
+		if contextFull(c) && agentguard.Compactable(c) {
 			params["compact_if_full"] = true
 			wait = compactSendWait
 		}

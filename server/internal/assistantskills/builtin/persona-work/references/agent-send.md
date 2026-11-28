@@ -14,13 +14,15 @@ The tool's description holds what every call needs. This page holds the rest: wh
 
 - A plain message does not start a stopped Agent. Send again with `resume: true` and `resume_why`, which the owner sees: the same session goes on in its own context, on its own launcher, with `text` as its first message.
 - Stops that were not the owner's (including quota and capacity errors) allow a resume. The main conversation, acting for the owner, also resumes an Agent that ended without the owner's Stop (`exit`, or `unknown`: it ended on its own). An Agent the owner stopped (`stop=user`) comes back only with the owner's Resume on its terminal page.
-- A resumed Agent must be supervised: give `task` (the follow-up's title and done_when) unless it is already on an open task of yours.
+- A resumed Agent must be supervised: give `task` (the follow-up's title and done_when) unless it is already on an open task of yours. One exception: in a turn the owner's own message started, the main conversation may resume the owner's own session with no `task` (to wake it and pass on a message): no to-do is made and nothing is supervised, and the answer says so. A supervision turn or another conversation still needs `task`.
 
 ## Tasks
 
 - Give `task` for new work, so it becomes your supervised task first (the main conversation's, or a lead's). The Agent receives only `text`, so say the done_when criteria there too.
 - `title`: a short line, under 20 characters. `done_when`: at most 6 results you can check when it says it is done (a PR merged, a sheet's link, what the live system answers). `expect_minutes`: how long it should take from now; longer without progress counts as stuck.
-- More work on your existing task keeps its title (send that title, or no task) and replaces its done_when and expected minutes.
+- More work on your existing task keeps its title (send that title, or no task) and replaces its done_when and expected minutes. To add criteria to an open task without sending work, use `task_scope` with its to-do id.
+- `part_of`: the id of an open request to-do you opened or supervise (one level, checked as `task_plan`'s `part_of`). The new to-do is made as that piece in the same write, so the request never sees it as a separate to-do (no `todo_update part_of` afterwards). It is refused with `todo_id`, and for an Agent that already works for your task.
+- A plain message (no `task`) to an Agent whose last task of yours is closed reopens that to-do, and the answer says so. New work comes with `task`, not as a plain message.
 - `task` is refused for an Agent on the owner's own to-do or on another conversation's task (send without `task` to only send the message), and with another title for an Agent that already works for your task: close that task first (`task_review`), or hand the work to another Agent.
 - A send that fails creates no task. When it may still have gone through, check the Agent before sending the same words again.
 - Omit `task` for a reply, a nudge or a decision.

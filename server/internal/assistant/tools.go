@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sunfayao/persona/server/internal/assistant/agentguard"
 	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
 	"maps"
 	"slices"
@@ -557,7 +558,7 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		ctx = context.WithValue(ctx, relayedOwnerDecisionKey{}, a.Text)
 		// A terminal Agent that ended without an owner's Stop takes only the owner's own message on its node: for this
 		// tool it is stopped too, and resume brings it back (exitedTerminal).
-		stopped := stoppedAgent(c) || exitedTerminal(c)
+		stopped := stoppedAgent(c) || agentguard.ExitedTerminal(c)
 		var handoff *preparedHandoff
 		if a.Handoff != nil {
 			if a.Task != nil || a.Resume || c.Status == proto.StatusOffline || stopped || exitText(a.Text) {
@@ -574,7 +575,7 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 				return fmt.Sprintf("%s has already stopped: nothing was sent.", agentLabel(c)), nil
 			}
 			if !a.Resume {
-				return "", stoppedRefusal(c)
+				return "", errors.New(agentguard.StoppedRefusal(agentLabel(c)))
 			}
 			resume = cleanWhy(a.ResumeWhy)
 			// The main conversation acts for the owner: it may also resume an Agent that ended without an owner's Stop.
@@ -648,8 +649,9 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 			inputID = "wait_" + randomHex(16)
 			params["client_msg_id"] = inputID
 		}
+		reopened := "" // a plain message that reopens the Agent's closed to-do says so (set once its send is noted)
 		finish := func(receipt string) string {
-			return s.waitAgentReply(ctx, receipt, inputID, wait, fixedWaitTarget(am.ID, c.SessionID))
+			return s.waitAgentReply(ctx, receipt+reopened, inputID, wait, fixedWaitTarget(am.ID, c.SessionID))
 		}
 		var handed handedAttachments
 		if mentioned := s.mentionedAttachments(ctx, machine, self, a.Text, atts); len(atts)+len(mentioned) > 0 {
@@ -675,13 +677,13 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 			if err != nil {
 				return "", task.sendFailed(ctx, s, err)
 			}
-			if !note.reopens() && handoff == nil {
+			if reopened = note.reopenWords(); !note.reopens() && handoff == nil {
 				lctx = ctx
 			}
 			// A nearly full Claude Code or Codex agent is compacted with its own /compact before the text goes in, by
 			// its node as it delivers, which checks again then (#11137): that takes minutes, so the wait is not the live
 			// send's. Any other send goes exactly as before.
-			if contextFull(c) && compactable(c) {
+			if contextFull(c) && agentguard.Compactable(c) {
 				params["compact_if_full"] = true
 				var ccancel context.CancelFunc
 				lctx, ccancel = context.WithTimeout(context.WithoutCancel(ctx), compactSendWait)
@@ -736,6 +738,7 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		if err != nil {
 			return "", task.sendFailed(sctx, s, err)
 		}
+		reopened = note.reopenWords()
 		return finish(fmt.Sprintf("Resumed %s on %s (same session, directory and launcher) and sent.", agentLabel(c), am.Name) + handed.said() + task.sent(sctx, s, a.Text)), nil
 	case "agent_switch": // moves a running agent to another launcher and goes on with it (agent_switch.go, #5973)
 		return s.toolAgentSwitch(ctx, machine, self, args)
@@ -1809,7 +1812,7 @@ func reuseHint(c proto.Session, forOwner bool) string {
 		}
 		return ""
 	}
-	if !stoppedAgent(c) && !exitedTerminal(c) {
+	if !stoppedAgent(c) && !agentguard.ExitedTerminal(c) {
 		if c.SourceKind != "" && (c.Capabilities == nil || !c.Capabilities.Send) {
 			return "view-only (start a new Agent for more work)"
 		}

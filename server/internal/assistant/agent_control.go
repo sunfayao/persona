@@ -15,6 +15,7 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/assistant/criteria"
 	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/devicewire"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/prompts"
@@ -289,6 +290,8 @@ type adoptionOptions struct {
 	update, quiet bool
 	role          string
 	via           string // a worker of the supervisor of to-do via (attachWorker): linked as a task leader's worker
+	partOf        string // the request the new to-do is made a piece of, in the write that makes it (agent_send's task.part_of)
+	ownerFree     bool   // not declared as the owner's request: the turn's owner message is no original request (agent_send)
 }
 
 // adoptAgentFor is adoptAgentAs with the todo's origin and supervisor kept separate (#5732). A side conversation
@@ -343,7 +346,13 @@ func (s *Service) adoptAgentFor(ctx context.Context, self, supervisor string, am
 		}
 	}
 	title, retitle := s.adoptedTitle(ctx, c, title, prompt)
-	todo, err := s.newTodo(ctx, title, notes, self, "", opts.quiet || s.quietTask(ctx, self))
+	var todo Todo
+	var err error
+	if opts.partOf != "" {
+		todo, err = s.createPieceTodo(ctx, self, title, notes, db.TodoEdit{PartOf: &opts.partOf})
+	} else {
+		todo, err = s.newTodo(ctx, title, notes, self, "", opts.quiet || s.quietTask(ctx, self))
+	}
 	if err != nil {
 		return Todo{}, false, err
 	}
@@ -369,7 +378,7 @@ func (s *Service) adoptAgentFor(ctx context.Context, self, supervisor string, am
 			s.dropAdoption(ctx, todo.ID, err)
 			return Todo{}, false, fmt.Errorf("supervise it: %w", err)
 		}
-		s.briefFor(ctx, s.callerOrigin(ctx, self), todo, doneWhen, expect) // before its agent is linked (task_brief.go)
+		s.briefFor(ctx, declaredOrigin(s.callerOrigin(ctx, self), !opts.ownerFree), todo, doneWhen, expect) // before its agent is linked (task_brief.go)
 	}
 	s.restage(ctx, todo.ID, nil)
 	todo.Supervision = &v
@@ -409,6 +418,8 @@ type sendTask struct {
 	// TodoID: a to-do its supervisor Agent runs: the Agent joins it as a worker of that supervisor instead of becoming
 	// a task of the caller's (attachWorker, task_leader.go).
 	TodoID string `json:"todo_id"`
+	// PartOf: the open to-do of this conversation (a request) the new to-do is made a piece of, in the same write.
+	PartOf string `json:"part_of"`
 }
 
 // givenTask is agent_send's task as sent, nil for a reply (#3386): left out, null, or an object of only title,
@@ -431,7 +442,7 @@ func givenTask(raw json.RawMessage) *sendTask {
 // none: task has only blank fields (no title, no non-blank done_when, no expect_minutes above 0); any real value in one
 // of them makes it a hand-off.
 func (t sendTask) none() bool {
-	return strings.TrimSpace(t.Title) == "" && len(cleanDoneWhen(t.DoneWhen)) == 0 && t.ExpectMinutes <= 0 && strings.TrimSpace(t.TodoID) == ""
+	return strings.TrimSpace(t.Title) == "" && len(cleanDoneWhen(t.DoneWhen)) == 0 && t.ExpectMinutes <= 0 && strings.TrimSpace(t.TodoID) == "" && strings.TrimSpace(t.PartOf) == ""
 }
 
 // handedTask is the task agent_send with a task put the agent on: made now, or self's own that it worked for already
@@ -463,6 +474,12 @@ func (s *Service) sendTaskAllowed(ctx context.Context, self string, am Device, c
 	if err := s.ensureTodosLoaded(ctx); err != nil {
 		return err
 	}
+	if task.PartOf = strings.TrimSpace(task.PartOf); task.PartOf != "" && task.TodoID != "" {
+		return errors.New("part_of places a new to-do; todo_id joins an Agent to a to-do its supervisor runs: not both. Nothing was sent")
+	}
+	if err := s.requestOfPiece(ctx, self, task.PartOf); err != nil {
+		return fmt.Errorf("%w; nothing was sent", err)
+	}
 	t, ok := s.openTodoOfAgent(am.ID, c.SessionID)
 	if !ok {
 		return nil
@@ -470,7 +487,32 @@ func (s *Service) sendTaskAllowed(ctx context.Context, self string, am Device, c
 	if err := othersTask(c, t, self); err != nil {
 		return fmt.Errorf("%w; nothing was sent (send it without task to only send it)", err)
 	}
+	if task.PartOf != "" {
+		return fmt.Errorf("%s already works for your task %s: part_of only places a new to-do; todo_update part_of moves that one. Nothing was sent", agentLabel(c), t.ID)
+	}
 	return otherWork(c, t, task)
+}
+
+// requestOfPiece checks part_of of agent_send's task as task_plan's part_of is checked (checkPieces, supervisedWorkRefusal),
+// and that it is an open to-do this conversation opened or supervises. "" is no request.
+func (s *Service) requestOfPiece(ctx context.Context, self, id string) error {
+	if id = strings.TrimSpace(id); id == "" {
+		return nil
+	}
+	root, ok := s.todoNow(id)
+	switch {
+	case !ok:
+		return fmt.Errorf("part_of: no to-do %q (todo_list has their ids)", id)
+	case root.DoneAt != nil:
+		return fmt.Errorf("part_of: %s is closed; a piece joins an open request", id)
+	case root.Origin != self && (root.Supervision == nil || root.Supervision.Supervisor != self && root.Supervision.Supervisor != s.settings(ctx).Main):
+		return fmt.Errorf("part_of: %s is not a to-do this conversation opened or supervises", id)
+	}
+	if err := s.supervisedWorkRefusal(PlanTask{PartOf: id}); err != nil {
+		return err
+	}
+	_, err := s.checkPieces("", pieceEdit{PartOf: &id})
+	return err
 }
 
 // exitText: text is only the agents' own command to quit, which the node runs by closing the agent (node exitCommand).
@@ -524,8 +566,8 @@ func exitRefused(c proto.Session, t Todo, text string, attachments int) error {
 func otherWork(c proto.Session, t Todo, task sendTask) error {
 	if title := clip(oneLine(task.Title), 40); title != "" && title != clip(oneLine(t.Title), 40) {
 		return fmt.Errorf("%s already works for your task %s (%q), not %q; nothing was sent. More of that task: send it with that "+
-			"title, or without task. Other work: close that task first (task_review), or hand the work to another agent",
-			agentLabel(c), t.ID, t.Title, title)
+			"title, or without task; to add criteria to it, task_scope with %s. Other work: close that task first (task_review), or "+
+			"hand the work to another agent", agentLabel(c), t.ID, t.Title, title, t.ID)
 	}
 	return nil
 }
@@ -550,7 +592,8 @@ func (s *Service) handTask(ctx context.Context, self string, am Device, c proto.
 		return s.attachWorker(ctx, self, am, c, task, text)
 	}
 	supervisor := s.settings(ctx).Main
-	todo, made, err := s.adoptAgentFor(ctx, self, supervisor, am, c, task.Title, text, text, task.DoneWhen, task.ExpectMinutes, adoptionOptions{})
+	todo, made, err := s.adoptAgentFor(ctx, self, supervisor, am, c, task.Title, text, text, task.DoneWhen, task.ExpectMinutes,
+		adoptionOptions{partOf: strings.TrimSpace(task.PartOf), ownerFree: true})
 	if err != nil {
 		return nil, fmt.Errorf("%w; nothing was sent", err)
 	}

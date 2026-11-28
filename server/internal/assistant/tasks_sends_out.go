@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/agentguard"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/rpc"
 )
@@ -92,6 +93,14 @@ func (o *sendsOut) letGo() { o.held, o.heldAt, o.ended, o.settling = "", time.Ti
 // (closedTurnHeld): such a send has a bounded wait of its own (its ctx deadline: liveSendWait for a live agent_send or a
 // card message, 5 minutes for agent_interrupt's then, a not-running agent or a card message's offline row). n may be nil.
 func (n *agentSendNote) reopens() bool { return n != nil && n.task != "" }
+
+// reopenWords is what the answer to a plain send says when n reopens the agent's accepted task ("" when it does not).
+func (n *agentSendNote) reopenWords() string {
+	if !n.reopens() {
+		return ""
+	}
+	return agentguard.ReopenWords(n.task)
+}
 
 // counts: n asks task id, accepted at doneAt (that acceptance, not a later one), for more, and is not past sendKeep at
 // now.

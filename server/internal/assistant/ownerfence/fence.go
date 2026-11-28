@@ -22,6 +22,7 @@ type Book struct {
 	mu       sync.Mutex
 	seq      uint64
 	inputs   map[Ref]Input
+	direct   map[Ref]time.Time // when the owner last typed in, or answered a card of, the session themselves
 	observed map[Ref]map[Ref]uint64
 }
 
@@ -32,7 +33,21 @@ func (b *Book) record(target Ref, input Input) Input {
 	b.seq++
 	input.Seq = b.seq
 	b.inputs[target] = input
+	if input.ByOwner && input.RelayOf == 0 {
+		if b.direct == nil {
+			b.direct = make(map[Ref]time.Time)
+		}
+		b.direct[target] = input.At
+	}
 	return input
+}
+
+// LastDirect is when the owner last gave target input of their own (not one relayed from the main conversation); zero
+// when this manager has seen none.
+func (b *Book) LastDirect(target Ref) time.Time {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.direct[target]
 }
 
 func (b *Book) Record(target Ref, input Input) Input {

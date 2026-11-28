@@ -1156,6 +1156,16 @@ func (s *Service) callerOrigin(ctx context.Context, conversation string) briefRe
 	return s.briefOrigin(ctx, c.machine, conversation)
 }
 
+// declaredOrigin is origin as a dispatch may record it: the owner's message of the turn is the original request only
+// when the dispatch declared the work as the owner's (task_plan's user_requested); any other work is the assistant's own,
+// with no quotation of the owner.
+func declaredOrigin(origin briefRecord, declared bool) briefRecord {
+	if !declared && origin.StartedBy == briefByOwner {
+		origin.Request, origin.StartedBy = nil, briefByAssistant
+	}
+	return origin
+}
+
 // briefFor makes the brief of a task handed out outside a plan (agent_start's task, an adopted agent, an agent that
 // became a task): who asked is origin, the goal its title, done as given. Logged, never fatal: the task goes on.
 func (s *Service) briefFor(ctx context.Context, origin briefRecord, todo Todo, doneWhen []string, expect int) {

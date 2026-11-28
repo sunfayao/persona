@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/agentguard"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -43,6 +44,11 @@ func (s *Service) toolAgentArchive(ctx context.Context, machine, self string, ar
 		return "", fmt.Errorf("force is only for archiving a confirmation-blocked Agent")
 	}
 	who := fmt.Sprintf("%s on %s (session %s)", agentLabel(c), am.Name, c.SessionID)
+	if archived && (!c.Archived || a.Force) {
+		if err := s.archiveGuard(ctx, machine, self, am.ID, c, who); err != nil {
+			return "", err
+		}
+	}
 	switch {
 	case !archived:
 		if !c.Archived {
@@ -75,6 +81,24 @@ func (s *Service) toolAgentArchive(ctx context.Context, machine, self string, ar
 	return fmt.Sprintf("Archived %s: it left the Agents list and is under Archived in the app; nothing was deleted, and agent_unarchive "+
 		"brings it back. New activity in it brings it back by itself.%s%s", who, still,
 		nativeArchiveWords(s.nativeArchiveAwaited(ctx, am.ID, archiveSessionOf(c)))), nil
+}
+
+// archiveGuard refuses what the assistant's own tool may not archive outside a turn the owner's message started: a
+// session the owner used in the last day or one linked to an open to-do (agentguard.ArchiveRefusal). The apps' routes and
+// the restore are not guarded.
+func (s *Service) archiveGuard(ctx context.Context, machine, self, mid string, c proto.Session, who string) error {
+	if err := s.ensureTodosLoaded(ctx); err != nil {
+		return err
+	}
+	f := agentguard.ArchiveFacts{Now: time.Now(), LastOwnerInput: s.ownerInputs.LastDirect(s.ownerInputRef(mid, c.SessionID)),
+		OwnerTurn: func() bool { return s.mainOwnerInput(ctx, s.ownerInputRef(machine, self)).Seq != 0 }}
+	if t, ok := s.openTodoOfAgent(mid, c.SessionID); ok {
+		f.OpenTodo = t.ID
+	}
+	if msg := agentguard.ArchiveRefusal(who, f); msg != "" {
+		return errors.New(msg)
+	}
+	return nil
 }
 
 // archiveAndCloseTool is agent_archive with close: refused when busy, confirmed on the phone, then archived and closed.
