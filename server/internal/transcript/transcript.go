@@ -138,7 +138,8 @@ type block struct {
 
 // Meta is session-level information collected while parsing.
 type Meta struct {
-	ClaudeReader ClaudeLineReader
+	shareProjection bool // sanitize the complete bounded publication source before display clipping
+	ClaudeReader    ClaudeLineReader
 	// Developer info for the chat header (all from fields Claude Code writes on each line).
 	GitBranch string
 	Version   string
@@ -539,6 +540,10 @@ func ParseLine(seq int, line []byte, meta *Meta) []proto.Item {
 	} else {
 		items = parseLine(seq, line, meta)
 	}
+	return finishParsedItems(items, line, meta)
+}
+
+func finishParsedItems(items []proto.Item, line []byte, meta *Meta) []proto.Item {
 	if len(items) > 0 && items[0].Role == "user" && items[0].Kind == proto.KindText {
 		meta.Turns++
 	}

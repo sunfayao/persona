@@ -40,12 +40,14 @@ func TestCodexHistoryLineageExcludesAbandonedDatabaseRows(t *testing.T) {
 		{thread: remoteRaw, id: "b", ordinal: 14, status: "completed", items: [][2]string{userItem("b", "abandoned")}},
 		{thread: segmentID, id: "c", ordinal: 16, status: "completed", items: [][2]string{userItem("c", "replacement")}},
 	})
-	p := filepath.Join(home, "canonical.jsonl")
 	tt := codex.AppThread{ID: remoteRaw, Cwd: home, RolloutPath: segment, Paginated: true}
-	if _, err := writeCodexAppHistory(context.Background(), filepath.Join(home, "thread_history_1.sqlite"), tt, p, codexHistoryMark{Turn: -1}, false); err != nil {
-		t.Fatal(err)
-	}
-	f := transcript.NewFile(p)
+	db := filepath.Join(home, "thread_history_1.sqlite")
+	f := transcript.NewIndexedFile("fixture:lineage", transcript.IndexedSource{
+		Revision: func() string { return fileStamp(db) },
+		Read: func() ([]transcript.CodexRecord, error) {
+			return codex.ReadHistory(t.Context(), db, tt, querySQLiteUntil)
+		},
+	}, transcript.Sources{})
 	items, err := f.Refresh()
 	if text := historyText(items); err != nil || !strings.Contains(text, "retained") || !strings.Contains(text, "replacement") || strings.Contains(text, "abandoned") {
 		t.Fatalf("lineage: %s %v", text, err)
@@ -103,7 +105,7 @@ func TestCodexPaginatedHistoryKeepsThePrefixAndAnEmptyConversation(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f.Where() == src.path || !strings.Contains(f.Where(), "codex-app-history") {
+	if f.Where() == src.path || !f.Indexed() {
 		t.Fatalf("read the old rollout: %s", f.Where())
 	}
 	got, err := f.Refresh()
@@ -114,18 +116,17 @@ func TestCodexPaginatedHistoryKeepsThePrefixAndAnEmptyConversation(t *testing.T)
 	if err := n.refreshCodexAppHistory(id); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(f.Where()); err != nil {
-		t.Fatalf("the empty conversation disappeared: %v", err)
-	}
-	if b, _ := os.ReadFile(f.Where()); strings.Count(string(b), "\n") != 1 {
-		t.Fatalf("want a header-only canonical history: %s", b)
+	if _, err := f.Refresh(); err != nil || f.LastSeq() != 1 {
+		t.Fatalf("want a header-only indexed history: seq=%d, %v", f.LastSeq(), err)
 	}
 	// The continuation writes new turns under its own rollout ID, leaving the base segment's rows unchanged.
 	turns[0].thread = remoteOther
 	turns[0].id, turns[0].items = "replacement", [][2]string{userItem("new", "new branch")}
 	writeCodexHistory(t, home, turns)
-	n.refreshCodexAppHistory(id)
-	fresh, err := transcript.NewFile(f.Where()).Refresh()
+	if err := n.refreshCodexAppHistory(id); err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := f.Refresh()
 	if err != nil || !strings.Contains(historyText(fresh), "new branch") || strings.Contains(historyText(fresh), "retained prefix") {
 		t.Fatalf("replacement: %s %v", historyText(fresh), err)
 	}

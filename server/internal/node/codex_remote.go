@@ -928,7 +928,7 @@ func (c *codexRemote) message(m codexMessage) {
 		delete(t.files, ev.Item.ID)
 		refresh = true
 		if ev.Item.Type == "agentMessage" {
-			t.partial = ev.Item.Text
+			t.partial = ev.CompletedMessage(time.Now())
 			t.buffer = nil
 			delta = t.partial
 			emit = true

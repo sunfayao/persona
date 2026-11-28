@@ -177,7 +177,7 @@ func TestTraexContextWindowBreakdownAndEffortParity(t *testing.T) {
 		UPDATE threads SET model = 'relay-pro-max', reasoning_effort = 'xhigh', rollout_path = '`+rolloutFile+`' WHERE id = '`+threadMain+`';`)
 	invalidateCodexPaginated(n.traexHome())
 
-	// Materialize paginated history so traexPath points at the synthesized file while rollout holds token_count/turn_context.
+	// Read the indexed items while the retained rollout supplies telemetry.
 	f, err := n.file(threadMain)
 	if err != nil {
 		t.Fatal(err)

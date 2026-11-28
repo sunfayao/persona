@@ -5,23 +5,11 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/sunfayao/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
-
-// A Codex App chat whose rollout is gone (codex_appdb.go) keeps its history in <CODEX_HOME>/thread_history_<n>.sqlite:
-// thread_turns, and thread_items holding the app-server's ThreadItems (v2: userMessage, agentMessage, commandExecution…).
-// Its transcript is that history written back as rollout lines — session_meta, then per finished turn task_started, an
-// item_completed per item, and task_complete (with its error when it failed) or turn_aborted — so the transcript reader,
-// the clients and every check on a rollout read it as any other (#3305). The file is
-// <state dir>/codex-app-history/<home hash>-<thread>.jsonl. It grows as a rollout does: the turns finished since it was
-// last written are appended (the last turn while it still runs is left for later; one that never finished but has turns
-// after it is written as interrupted), so a reader goes on where it was. <file>.mark records what was written; a file
-// unlike its mark, or whose last turn is no longer in the database as it was, is written again from the start (and
-// removed when no turn is left finished). It is brought up to date when the transcript is read (file) and, while the chat
-// is watched, about once a second (pumpWatch), never by the list; one writer at a time, across processes too
-// (<file>.lock: the others wait for its write). The database is read while the App has it closed too (codexDBTarget).
-// Without sqlite3 or the history database there is none, as before.
 
 // codexShellArgv splits the App's command line ("/bin/bash -lc 'git status'") into the argv a rollout carries, so the
 // transcript reader drops the login shell around it as it does for a rollout's (transcript.shellCommand). The command is
@@ -38,10 +26,9 @@ func shellArgv(command string) []string {
 	return []string{command}
 }
 
-// codexRolloutItem turns one of the app-server's ThreadItems (v2, camelCase) into the item a rollout's item_completed
-// carries (transcript/codex.go codexItem); nil for a kind the chat does not show (a sleep, a subagent's progress) and for
-// an item still running.
-func RolloutItem(kind string, raw []byte) map[string]any {
+// DecodeThreadItem adapts the app-server's item wire format to the native record shared with rollouts.
+// An in-progress item stays on the live stream until the CLI records its completion.
+func DecodeThreadItem(kind string, raw []byte) map[string]any {
 	var v struct {
 		ID      string `json:"id"`
 		Content []struct {
@@ -53,6 +40,16 @@ func RolloutItem(kind string, raw []byte) map[string]any {
 		Phase            string          `json:"phase"`
 		Summary          []string        `json:"summary"`
 		Command          string          `json:"command"`
+		Source           string          `json:"source"`
+		ProcessID        string          `json:"processId"`
+		Kind             string          `json:"kind"`
+		AgentThreadID    string          `json:"agentThreadId"`
+		AgentPath        string          `json:"agentPath"`
+		Model            *string         `json:"model"`
+		ReasoningEffort  *string         `json:"reasoningEffort"`
+		ReceiverThreads  []string        `json:"receiverThreadIds"`
+		AgentStates      json.RawMessage `json:"agentsStates"`
+		TaskNotification json.RawMessage `json:"taskNotification"`
 		Status           string          `json:"status"`
 		AggregatedOutput string          `json:"aggregatedOutput"`
 		ExitCode         *int            `json:"exitCode"`
@@ -110,10 +107,13 @@ func RolloutItem(kind string, raw []byte) map[string]any {
 		item["type"], item["content"] = "UserMessage", content
 	case "agentMessage":
 		item["type"], item["content"], item["phase"] = "AgentMessage", []map[string]string{{"type": "text", "text": v.Text}}, v.Phase
+	case "plan":
+		item["type"], item["text"] = "Plan", v.Text
 	case "reasoning":
 		item["type"], item["summary_text"] = "Reasoning", v.Summary
 	case "commandExecution":
 		item["type"], item["command"], item["status"], item["aggregated_output"] = "CommandExecution", shellArgv(v.Command), v.Status, v.AggregatedOutput
+		item["source"], item["process_id"], item["arguments"] = v.Source, v.ProcessID, v.Arguments
 		if v.ExitCode != nil {
 			item["exit_code"] = *v.ExitCode
 		}
@@ -148,8 +148,31 @@ func RolloutItem(kind string, raw []byte) map[string]any {
 		}
 	case "contextCompaction":
 		item["type"] = "ContextCompaction"
+	case "terminalInteraction":
+		item["type"], item["process_id"], item["command"] = "TerminalInteraction", v.ProcessID, v.Command
+	case "subAgentActivity":
+		if v.AgentThreadID == "" {
+			return nil
+		}
+		item["type"], item["kind"], item["agent_thread_id"], item["agent_path"] = "SubAgentActivity", v.Kind, v.AgentThreadID, v.AgentPath
+		item["model"], item["reasoning_effort"] = v.Model, v.ReasoningEffort
+	case "collabAgentToolCall":
+		item["type"], item["tool"], item["status"] = "CollabAgentToolCall", v.Tool, v.Status
+		item["receiver_thread_ids"], item["agents_states"] = v.ReceiverThreads, v.AgentStates
+	case "taskNotification":
+		item["type"], item["task_notification"] = "TaskNotification", v.TaskNotification
 	default:
 		return nil
 	}
 	return item
+}
+
+// ThreadItemRecord normalizes a v2 item for the transcript mapper shared by live and indexed sources.
+func ThreadItemRecord(at time.Time, turn, kind string, raw json.RawMessage) (transcript.CodexRecord, bool) {
+	item := DecodeThreadItem(kind, raw)
+	if item == nil {
+		return transcript.CodexRecord{}, false
+	}
+	payload, _ := json.Marshal(map[string]any{"type": "item_completed", "turn_id": turn, "item": item})
+	return transcript.CodexRecord{Timestamp: at, Type: "event_msg", Payload: payload}, true
 }

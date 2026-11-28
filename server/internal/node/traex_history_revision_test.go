@@ -8,9 +8,9 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // The shared history fixture predates TRAE 0.215's projection state. Add its revision columns here only.
@@ -42,18 +42,7 @@ func traexHistoryRevisionSQL(t *testing.T, db, sql string) {
 
 func traexHistoryRevisionSession(t *testing.T, n *Node, id, last string) proto.Session {
 	t.Helper()
-	// History is refreshed by a conversation read/watch, never the global list.
-	if err := n.refreshCodexAppHistory(id); err != nil {
-		t.Fatal(err)
-	}
-	// Model the next summary poll without sleeping through the list's existing metadata throttle.
-	p := n.codexAppHistoryFile(codexSource{home: n.traexHome(), thread: id})
-	n.mu.Lock()
-	if m, ok := n.metas[p]; ok {
-		m.readAt = time.Time{}
-		n.metas[p] = m
-	}
-	n.mu.Unlock()
+	traexCurrentHistory(t, n, id)
 	for _, s := range n.traexSessions(map[string]bool{}) {
 		if s.SessionID == id {
 			if s.Agent != traexAgent || s.Title != "Inspect the export" || s.Status != proto.StatusOffline || s.LastText != last {
@@ -64,6 +53,18 @@ func traexHistoryRevisionSession(t *testing.T, n *Node, id, last string) proto.S
 	}
 	t.Fatalf("conversation %s was not listed", id)
 	return proto.Session{}
+}
+
+func traexCurrentHistory(t *testing.T, n *Node, id string) *transcript.File {
+	t.Helper()
+	f, err := n.file(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.Refresh(); err != nil {
+		t.Fatal(err)
+	}
+	return f
 }
 
 func TestTraexHistoryRevisionKeepsUnchangedThreads(t *testing.T) {
@@ -79,17 +80,9 @@ func TestTraexHistoryRevisionKeepsUnchangedThreads(t *testing.T) {
 			traexHistoryRevisionSQL(t, filepath.Join(n.traexHome(), "state_5.sqlite"),
 				fmt.Sprintf(`UPDATE threads SET archived = 0 WHERE id = '%s';`, threadOld))
 			invalidateCodexPaginated(n.traexHome())
-			for _, id := range []string{threadMain, threadOld} {
-				if err := n.refreshCodexAppHistory(id); err != nil {
-					t.Fatal(err)
-				}
-			}
-			paths := map[string]string{}
-			for _, id := range []string{threadMain, threadOld} {
-				paths[id] = n.codexAppHistoryFile(codexSource{home: n.traexHome(), thread: id})
-			}
-			beforeA, beforeB := statOf(t, paths[threadMain]), statOf(t, paths[threadOld])
-			markB, _ := readCodexHistoryMark(paths[threadOld])
+			readerA := traexCurrentHistory(t, n, threadMain)
+			readerB := traexCurrentHistory(t, n, threadOld)
+			beforeA, beforeB := readerA.End(), readerB.End()
 			stamp := fileStamp(db) + fileStamp(db+"-wal")
 			traexHistoryRevisionSQL(t, db, fmt.Sprintf(`BEGIN;
 				UPDATE thread_items SET item_json = REPLACE(item_json, 'Inspect the export', 'Inspect the changed export')
@@ -99,20 +92,16 @@ func TestTraexHistoryRevisionKeepsUnchangedThreads(t *testing.T) {
 			if stamp == fileStamp(db)+fileStamp(db+"-wal") {
 				t.Fatal("fixture did not change the history database stamp")
 			}
-			// Refresh B before A, then read A and its cached summary.
-			if err := n.refreshCodexAppHistory(threadOld); err != nil {
-				t.Fatal(err)
+			if readerB.Changed() {
+				t.Fatal("an unrelated thread write invalidated B's transcript")
 			}
+			traexCurrentHistory(t, n, threadOld)
 			traexHistoryRevisionSession(t, n, threadMain, "")
-			if os.SameFile(beforeA, statOf(t, paths[threadMain])) {
-				t.Fatal("the changed running snapshot was not rebuilt")
+			if readerA.End().History == beforeA.History {
+				t.Fatal("the changed running snapshot retained its old cursor")
 			}
-			if afterB := statOf(t, paths[threadOld]); !os.SameFile(beforeB, afterB) ||
-				!beforeB.ModTime().Equal(afterB.ModTime()) || beforeB.Size() != afterB.Size() {
-				t.Fatal("an unrelated thread write rebuilt B's transcript")
-			}
-			if after, _ := readCodexHistoryMark(paths[threadOld]); after != markB {
-				t.Fatalf("an unrelated thread write changed B's mark: before %+v, after %+v", markB, after)
+			if readerB.End() != beforeB {
+				t.Fatal("an unrelated thread write changed B's cursor")
 			}
 		})
 	}
@@ -129,16 +118,15 @@ func TestTraexListingDoesNotRebuildChangedHistory(t *testing.T) {
 	if _, err := f.Refresh(); err != nil {
 		t.Fatal(err)
 	}
-	p := n.codexAppHistoryFile(codexSource{home: n.traexHome(), thread: threadMain})
-	before := statOf(t, p)
+	before := f.End()
 	traexHistoryRevisionSQL(t, db, `UPDATE thread_items SET item_json = REPLACE(item_json, 'correct', 'ready');
 		UPDATE thread_history_projection_state SET next_rollout_ordinal = next_rollout_ordinal + 1;`)
 	for range 4 {
 		if rows := n.traexSessions(map[string]bool{}); len(rows) != 1 {
 			t.Fatalf("listing lost the conversation: %+v", rows)
 		}
-		if !os.SameFile(before, statOf(t, p)) {
-			t.Fatal("a global list rebuilt the changed history")
+		if f.End() != before || !f.Changed() {
+			t.Fatal("a global list refreshed the changed history")
 		}
 	}
 	f, err = n.file(threadMain)
@@ -160,13 +148,15 @@ func TestTraexHistoryRevisionSkipsProjectionContext(t *testing.T) {
 		CREATE VIEW thread_history_projection_state AS
 		SELECT thread_id, next_rollout_ordinal, active_turn_id,
 			json_extract('synthetic invalid context', '$') AS projection_context_json FROM projection_markers;`)
-	traexHistoryRevisionSession(t, n, threadMain, "")
-	p := n.codexAppHistoryFile(codexSource{home: n.traexHome(), thread: threadMain})
-	before := statOf(t, p)
+	f := traexCurrentHistory(t, n, threadMain)
+	before := f.End()
 	traexHistoryRevisionSQL(t, db, `CREATE TABLE unrelated (value INTEGER); INSERT INTO unrelated VALUES (1);`)
-	traexHistoryRevisionSession(t, n, threadMain, "")
-	if !os.SameFile(before, statOf(t, p)) {
+	if f.Changed() {
 		t.Fatal("reading projection context forced an unnecessary whole-database refresh")
+	}
+	traexCurrentHistory(t, n, threadMain)
+	if f.End() != before {
+		t.Fatal("unrelated writes moved the timeline cursor")
 	}
 }
 
@@ -182,8 +172,7 @@ func TestTraexHistoryRevisionFollowsActiveChanges(t *testing.T) {
 	if _, err := f.Refresh(); err != nil {
 		t.Fatal(err)
 	}
-	p := n.codexAppHistoryFile(codexSource{home: n.traexHome(), thread: threadMain})
-	initial, _ := readCodexHistoryMark(p)
+	initial, _ := n.traexThread(threadMain)
 	for _, step := range []struct {
 		sql, last string
 		complete  bool
@@ -201,24 +190,20 @@ func TestTraexHistoryRevisionFollowsActiveChanges(t *testing.T) {
 	} {
 		traexHistoryRevisionSQL(t, db, "BEGIN;"+step.sql+"COMMIT;")
 		traexHistoryRevisionSession(t, n, threadMain, step.last)
-		items, err := f.Refresh()
+		items, _, _ := f.Page(0, 100)
 		text := historyText(items)
-		if err != nil || strings.Count(text, "user:text:Inspect the changed export") != 1 || strings.Contains(text, "user:text:Inspect the export") {
-			t.Fatalf("updated running items = %s, %v", text, err)
+		if strings.Count(text, "user:text:Inspect the changed export") != 1 || strings.Contains(text, "user:text:Inspect the export") {
+			t.Fatalf("updated running items = %s", text)
 		}
 		if step.last == "The export is correct." && strings.Count(text, "assistant:text:The export is correct.") != 1 {
 			t.Fatalf("answer missing or duplicated: %s", text)
 		}
-		raw, err := os.ReadFile(p)
-		if err != nil {
-			t.Fatal(err)
+		if f.Meta().TurnClosed != step.complete {
+			t.Fatalf("completion = %v, want %v", f.Meta().TurnClosed, step.complete)
 		}
-		completed := strings.Count(string(raw), `"type":"task_complete"`)
-		if step.complete && completed != 1 || !step.complete && completed != 0 {
-			t.Fatalf("completion events = %d, want completed %v", completed, step.complete)
-		}
-		if mark, _ := readCodexHistoryMark(p); mark.Updated != initial.Updated {
-			t.Fatalf("fixture changed threads.updated_at_ms: %d -> %d", initial.Updated, mark.Updated)
+		current, _ := n.traexThread(threadMain)
+		if current.UpdatedAtMs != initial.UpdatedAtMs {
+			t.Fatalf("fixture changed threads.updated_at_ms: %d -> %d", initial.UpdatedAtMs, current.UpdatedAtMs)
 		}
 	}
 }
@@ -244,10 +229,7 @@ func TestTraexHistoryRevisionFallsBackAfterProjectionReadFailure(t *testing.T) {
 					'{"type":"agentMessage","id":"aa","text":"%s","phase":"final_answer"}'
 					WHERE thread_id = '%s' AND item_type = 'agentMessage';`, last, threadMain))
 				traexHistoryRevisionSession(t, n, threadMain, last)
-				p := n.codexAppHistoryFile(codexSource{home: n.traexHome(), thread: threadMain})
-				if mark, _ := readCodexHistoryMark(p); mark.History != fileStamp(db)+fileStamp(db+"-wal") {
-					t.Fatalf("fallback did not use the whole database stamp: %+v", mark)
-				}
+
 			}
 		})
 	}

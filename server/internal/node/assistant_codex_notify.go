@@ -107,7 +107,7 @@ func (c *codexConn) notification(method string, params json.RawMessage) {
 			c.compacted()
 		}
 		if ev.Item.Type == "agentMessage" {
-			n.emitDelta(p.id, ev.Item.Text) // until the item arrives from the rollout
+			n.emitDelta(p.id, ev.CompletedMessage(time.Now())) // until history contains the item
 		}
 		if f, err := n.file(p.id); err == nil {
 			n.refresh(p.id, f)

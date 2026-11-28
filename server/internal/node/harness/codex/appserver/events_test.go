@@ -1,10 +1,14 @@
 package appserver
 
 import (
+	"reflect"
 	"slices"
 	"testing"
+	"time"
 
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 func TestDecodeEventKeepsDirectAndWrappedThreadItems(t *testing.T) {
@@ -16,6 +20,32 @@ func TestDecodeEventKeepsDirectAndWrappedThreadItems(t *testing.T) {
 			!slices.Equal(ev.Item.Paths(), []string{"example.txt"}) || string(ev.Item.Raw) != item {
 			t.Fatalf("event = %+v, decoded = %t", ev, ok)
 		}
+	}
+}
+
+func TestThreadItemProjectionAgreesAcrossHistorySources(t *testing.T) {
+	t.Parallel()
+	const atMS = 1767225600000
+	const v2 = `{"type":"commandExecution","id":"call-1","command":"make check","status":"completed","aggregatedOutput":"ok","exitCode":0,"durationMs":125,"completedAtMs":1767225600000}`
+	ev, ok := DecodeEvent("item/completed", []byte(`{"threadId":"thread-1","turnId":"turn-1","item":`+v2+`}`))
+	if !ok {
+		t.Fatal("app-server item did not decode")
+	}
+	at := time.UnixMilli(atMS).UTC()
+	indexed, ok := codex.ThreadItemRecord(at, "turn-1", "commandExecution", []byte(v2))
+	if !ok {
+		t.Fatal("SQLite item did not decode")
+	}
+	const rollout = `{"timestamp":"2026-01-01T00:00:00Z","type":"event_msg","payload":{"type":"item_completed","turn_id":"turn-1","item":{"type":"CommandExecution","id":"call-1","command":["make check"],"status":"completed","aggregated_output":"ok","exit_code":0,"duration":{"secs":0,"nanos":125000000}}}}`
+	want := transcript.ParseLine(2, []byte(rollout), &transcript.Meta{})
+	if len(want) != 2 {
+		t.Fatalf("rollout items = %+v", want)
+	}
+	if got := transcript.ProjectCodexRecord(2, indexed, &transcript.Meta{}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("indexed items = %+v, want %+v", got, want)
+	}
+	if got := ev.CompletedItems(2, time.Time{}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("app-server items = %+v, want %+v", got, want)
 	}
 }
 

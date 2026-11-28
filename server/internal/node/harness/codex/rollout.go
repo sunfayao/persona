@@ -3,9 +3,10 @@ package codex
 import (
 	"bufio"
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // Codex support: herdr reports Codex panes as agent "codex"; their conversations are rollouts under
@@ -27,23 +28,44 @@ type RolloutMeta struct {
 	Root     string // the conversation a subagent belongs to (session_id, else parent_thread_id); "" when not given
 }
 
+var (
+	rolloutExts = []string{".jsonl", ".jsonl.zst"}
+	// filepathGlob is what GlobRolloutPaths uses for its internal globs; tests patch it.
+	filepathGlob = filepath.Glob
+)
+
+// stripRolloutSuffix removes one of the rollout extensions from path's base, returning the stem and whether one was present.
+func stripRolloutSuffix(name string) (string, bool) {
+	for _, ext := range rolloutExts {
+		if strings.HasSuffix(name, ext) {
+			return name[:len(name)-len(ext)], true
+		}
+	}
+	return name, false
+}
+
 // rolloutID is a rollout filename's thread UUID, before any _<segment UUID> suffix, or empty when absent:
 // what rolloutIDRe captures, without a regular expression. rollouts reads it for every rollout on disk once a minute,
 // where rolloutIDRe took most of each refresh's CPU time.
 func RolloutID(path string) string {
-	const ext, idLen = ".jsonl", 36
-	if len(path) < idLen+len(ext) || !strings.HasSuffix(path, ext) {
+	base := filepath.Base(path)
+	stem, ok := stripRolloutSuffix(base)
+	if !ok {
 		return ""
 	}
-	end := len(path) - len(ext)
+	const idLen = 36
+	if len(stem) < idLen {
+		return ""
+	}
+	end := len(stem)
 	start := end - idLen
-	if !IsUUID(path[start:end]) {
+	if !IsUUID(stem[start:end]) {
 		return ""
 	}
-	for start >= idLen+1 && path[start-1] == '_' && IsUUID(path[start-idLen-1:start-1]) {
+	for start >= idLen+1 && stem[start-1] == '_' && IsUUID(stem[start-idLen-1:start-1]) {
 		end, start = start-1, start-idLen-1
 	}
-	return path[start:end]
+	return stem[start:end]
 }
 
 func IsUUID(id string) bool {
@@ -67,20 +89,46 @@ func IsUUID(id string) bool {
 	return true
 }
 
-// allRolloutPaths is every rollout file of a home on disk, whenever it was written, archived ones too: what a token
-// usage backfill reaching further back than rollouts' two weeks reads.
-func AllRolloutPaths(home string) []string {
-	paths, _ := filepath.Glob(filepath.Join(home, "sessions", "*", "*", "*", "rollout-*.jsonl"))
-	archived, _ := filepath.Glob(filepath.Join(home, "archived_sessions", "rollout-*.jsonl"))
-	return append(paths, archived...)
+// GlobRolloutPaths returns both plain and compressed rollouts matching pattern, where pattern ends with ".jsonl".
+func GlobRolloutPaths(pattern string) []string {
+	var out []string
+	if strings.HasSuffix(pattern, ".jsonl") {
+		for _, ext := range rolloutExts {
+			p := pattern[:len(pattern)-len(".jsonl")] + ext
+			found, _ := filepathGlob(p)
+			out = append(out, found...)
+		}
+		return out
+	}
+	found, _ := filepathGlob(pattern)
+	return found
 }
 
-// readRolloutMeta reads a rollout's first line (session_meta, tens of KB of instructions); whole says that line was all
+// AllRolloutPaths is every rollout file of a home on disk, whenever it was written, archived ones too: what a token
+// usage backfill reaching further back than rollouts' two weeks reads.
+func AllRolloutPaths(home string) []string {
+	var paths []string
+	for _, ext := range rolloutExts {
+		for _, sub := range []string{"sessions", "archived_sessions"} {
+			var glob string
+			if sub == "sessions" {
+				glob = filepath.Join(home, sub, "*", "*", "*", "rollout-*"+ext)
+			} else {
+				glob = filepath.Join(home, sub, "rollout-*"+ext)
+			}
+			found, _ := filepath.Glob(glob)
+			paths = append(paths, found...)
+		}
+	}
+	return paths
+}
+
+// ReadRolloutMeta reads a rollout's first line (session_meta, tens of KB of instructions); whole says that line was all
 // written, and only then is what it says worth keeping. Codex 0.167 creates the file empty and writes the line 8–19 ms
 // later: a meta read in between and kept left the thread without a directory for good, and a start in that directory
 // never found its thread (#2351).
 func ReadRolloutMeta(path string) (m RolloutMeta, whole bool) {
-	f, err := os.Open(path)
+	f, err := transcript.OpenStream(path)
 	if err != nil {
 		return RolloutMeta{}, false
 	}

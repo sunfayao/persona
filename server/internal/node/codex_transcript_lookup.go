@@ -12,7 +12,8 @@ import (
 	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 )
 
-var codexTranscriptGlob = filepath.Glob
+// codexTranscriptGlob is the glob helper used for old-transcript lookup; also finds .jsonl.zst variants.
+var codexTranscriptGlob = func(pattern string) ([]string, error) { return codex.GlobRolloutPaths(pattern), nil }
 
 const (
 	oldCodexLookupFor = time.Minute

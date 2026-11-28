@@ -1,83 +1,23 @@
 package node
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/sunfayao/persona/server/internal/link"
 	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/node/harness/traex"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
-// A Codex App chat whose rollout is gone (codex_appdb.go) keeps its history in <CODEX_HOME>/thread_history_<n>.sqlite:
-// thread_turns, and thread_items holding the app-server's ThreadItems (v2: userMessage, agentMessage, commandExecution…).
-// Its transcript is that history written back as rollout lines — session_meta, then per finished turn task_started, an
-// item_completed per item, and task_complete (with its error when it failed) or turn_aborted — so the transcript reader,
-// the clients and every check on a rollout read it as any other (#3305). The file is
-// <state dir>/codex-app-history/<home hash>-<thread>.jsonl. It grows as a rollout does: the turns finished since it was
-// last written are appended (the last turn while it still runs is left for later; one that never finished but has turns
-// after it is written as interrupted), so a reader goes on where it was. <file>.mark records what was written; a file
-// unlike its mark, or whose last turn is no longer in the database as it was, is written again from the start (and
-// removed when no turn is left finished). It is brought up to date when the transcript is read (file) and, while the chat
-// is watched, about once a second (pumpWatch), never by the list; one writer at a time, across processes too
-// (<file>.lock: the others wait for its write). The database is read while the App has it closed too (codexDBTarget).
-// Without sqlite3 or the history database there is none, as before.
-
-// codexAppHistoryVersion changes when already-written JSONL no longer matches what the converter produces. A mark
-// without it is a legacy cache and is rebuilt once, even when the App database has not changed.
-const codexAppHistoryVersion = 2
-
-// codexAppHistoryWait bounds one read of the history database; a long chat's turns stream in well under it.
+// codexAppHistoryWait bounds one read of the native SQLite history.
 const codexAppHistoryWait = 30 * time.Second
-
-// codexAppHistoryLockWait bounds the wait for another writer of a chat's transcript (a variable: tests shorten it).
-var codexAppHistoryLockWait = codexAppHistoryWait
-
-// After a failed write the chat is not tried again for codexAppHistoryRetry while nothing changed, and for
-// codexAppHistoryRetrySoon when only the history database did (the App writes it all the time it works; a database this
-// code cannot read must not cost a query a second). A change of the chat (updated_at_ms) is tried at once.
-const codexAppHistoryRetry = 5 * time.Minute
-
-var codexAppHistoryRetrySoon = 10 * time.Second // a variable: tests shorten it
-
-var codexAppHistoryFailed = struct {
-	sync.Mutex
-	byPath map[string]codexHistoryFailure
-}{byPath: map[string]codexHistoryFailure{}}
-
-type codexHistoryFailure struct {
-	updated int64  // the chat's updated_at_ms it failed at
-	history string // and the history database's files
-	at      time.Time
-}
-
-// codexHistoryMark is what <file>.mark says: the last turn written (its rollout_ordinal, turn_id and status in the
-// database then; -1 and "" for none), what it is up to date with — the chat's updated_at_ms and the history database's
-// files (the App may write a turn's rows after updating the chat, and finish a turn without updating it) — and the size
-// the file had then (-1: no file, the chat has no finished turn).
-type codexHistoryMark struct {
-	Version int    `json:"version,omitempty"`
-	Turn    int64  `json:"turn"`
-	TurnID  string `json:"turn_id"`
-	Status  string `json:"status"`
-	Updated int64  `json:"updated"`
-	History string `json:"history"`
-	Size    int64  `json:"size"`
-	Lineage string `json:"lineage,omitempty"`
-}
 
 // codexHistoryDBPath is the newest history database in home (thread_history_1.sqlite in 2026-11).
 func codexHistoryDBPath(home string) string {
@@ -97,22 +37,12 @@ func codexHomeTag(home string) string {
 	return hex.EncodeToString(h[:6])
 }
 
-// codexAppHistoryDir is where the transcripts of App chats with no rollout are written ("" without a state directory, or
-// in a scoped node, which reads transcripts only from its own directories).
+// codexAppHistoryDir identifies the retired disk projection directory for export checks.
 func (n *Node) codexAppHistoryDir() string {
 	if n.dir == "" || n.sessionScope != nil {
 		return ""
 	}
 	return filepath.Join(n.dir, "codex-app-history")
-}
-
-// codexAppHistoryFile is where the transcript of src, an App chat with no rollout, is written ("" when none can be).
-func (n *Node) codexAppHistoryFile(src codexSource) string {
-	dir := n.codexAppHistoryDir()
-	if dir == "" || !validID(src.thread) {
-		return ""
-	}
-	return filepath.Join(dir, codexHomeTag(src.home)+"-"+src.thread+".jsonl")
 }
 
 // withoutGoneRollout clears a source's rollout when the file is gone: the registry keeps a path once known (the App
@@ -124,39 +54,6 @@ func withoutGoneRollout(src codexSource, pass *codexListPass) codexSource {
 		}
 	}
 	return src
-}
-
-// codexAppHistoryPath: the transcript written for src while it exists, else "": for an App chat with no rollout, and for
-// a paginated chat whose history goes on in another rollout segment (its rollout path, or the lineage the file was
-// written from: codex_history_lineage.go) whether a rollout is there or not. The list asks for every Codex row each
-// second, and almost every row is an ordinary chat whose rollout is its transcript: that is known from the rollout's
-// stat, which the list pass already has, so the file is not stat'ed for it (#5970).
-func (n *Node) codexAppHistoryPath(src codexSource, pass *codexListPass) string {
-	p := n.codexAppHistoryFile(src)
-	if p == "" {
-		return ""
-	}
-	rolloutless := func() bool { // an App chat whose rollout is gone, as the App still lists it
-		src := withoutGoneRollout(src, pass)
-		if src.path != "" {
-			return false
-		}
-		_, ok := codexAppThreadOf(src)
-		return ok
-	}
-	t, paginated := pass.paginatedThreadOf(src)
-	if !paginated && !rolloutless() {
-		return ""
-	}
-	if _, err := pass.stat(p); err != nil {
-		return ""
-	}
-	if paginated && !codex.IsContinuation(t.RolloutPath) && !rolloutless() {
-		if mark, _ := readCodexHistoryMark(p); !codex.IsContinuation(mark.Lineage) {
-			return ""
-		}
-	}
-	return p
 }
 
 // codexAppHistoryChat: session id is an App chat with no rollout, whose transcript comes from the App's database.
@@ -184,362 +81,61 @@ func (n *Node) codexAppHistoryChat(id string) (codexSource, codex.AppThread, boo
 	return src, t, ok
 }
 
-// refreshCodexAppHistory brings the transcript of session id up to date when it is an App chat with no rollout and the
-// App's databases changed since: the turns finished since are appended, or the file is written anew. One writer at a
-// time, across processes too (two nodes on one computer share the state directory): the others wait for its write (up to
-// codexAppHistoryLockWait), so a chat opened by several requests at once has its transcript for each.
-func (n *Node) refreshCodexAppHistory(id string) error {
-	src, t, ok := n.codexAppHistoryChat(id)
+// indexedCodexFile keeps an in-memory paging cursor over a CLI's native SQLite history.
+func (n *Node) indexedCodexFile(id string) (*transcript.File, bool) {
+	src, thread, ok := n.codexAppHistoryChat(id)
 	if !ok {
-		return nil
+		return nil, false
 	}
-	p := n.codexAppHistoryFile(src)
-	if p == "" {
-		return nil
-	}
-	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
-		return err
-	}
-	release, err := lockCodexAppHistory(p + ".lock")
-	if err != nil {
-		n.logf("codex app history %s: %v", src.thread, err)
-		return err
-	}
-	defer release()
-	mark, size := readCodexHistoryMark(p)
 	db := codexHistoryDBPath(src.home)
-	history := ""
-	if db != "" {
-		history = fileStamp(db) + fileStamp(db+"-wal")
-		if t.IncludeRunning {
-			history = traexHistoryStamp(db, t.ID, history)
-		}
-	}
-	if mark.Version == codexAppHistoryVersion && mark.Updated == t.UpdatedAtMs && mark.History == history && mark.Size == size && (!t.Paginated || mark.Lineage == t.RolloutPath) {
-		return nil // up to date
-	}
 	if db == "" {
-		return nil
+		return nil, false
 	}
-	codexAppHistoryFailed.Lock()
-	f, failed := codexAppHistoryFailed.byPath[p]
-	codexAppHistoryFailed.Unlock()
-	if failed && f.updated == t.UpdatedAtMs && (time.Since(f.at) < codexAppHistoryRetrySoon || f.history == history && time.Since(f.at) < codexAppHistoryRetry) {
-		return errors.New("Codex history is waiting to retry a failed read")
+	source := transcript.IndexedSource{
+		Revision: func() string {
+			stamp := fileStamp(db) + fileStamp(db+"-wal")
+			if thread.IncludeRunning {
+				stamp = traexHistoryStamp(db, thread.ID, stamp)
+			}
+			return thread.RolloutPath + ":" + strconv.FormatInt(thread.UpdatedAtMs, 10) + ":" + stamp
+		},
+		Read: func() ([]transcript.CodexRecord, error) {
+			ctx, cancel := context.WithTimeout(context.Background(), codexAppHistoryWait)
+			defer cancel()
+			return codex.ReadHistory(ctx, db, thread, querySQLiteUntil)
+		},
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), codexAppHistoryWait)
-	defer cancel()
-	lineage := ""
-	if t.Paginated {
-		lineage = t.RolloutPath
+	identity := "history:" + codexHomeTag(db) + ":" + thread.ID
+	n.mu.Lock()
+	file := n.files[id]
+	if file == nil {
+		file = transcript.NewIndexedFile(identity, source, transcript.Sources{RolloutTools: traex.RolloutTools{}})
+		n.files[id] = file
 	}
-	grow := !t.IncludeRunning && mark.Version == codexAppHistoryVersion && mark.Size >= 0 && mark.Size == size && mark.TurnID != "" && mark.Lineage == lineage
-	res, err := writeCodexAppHistory(ctx, db, t, p, mark, grow)
-	if errors.Is(err, errCodexHistoryChanged) { // a written turn is not what it was (the App rolled back): anew
-		res, err = writeCodexAppHistory(ctx, db, t, p, codexHistoryMark{Turn: -1}, false)
+	n.used(id)
+	n.evictFiles()
+	n.mu.Unlock()
+	file.BindIndexed(identity, source)
+	return file, true
+}
+
+func (n *Node) refreshCodexAppHistory(id string) error {
+	if f, ok := n.indexedCodexFile(id); ok {
+		return f.PrefetchIndexed()
 	}
-	if err == nil {
-		_, size = readCodexHistoryMark(p)
-		err = writeCodexHistoryMark(p, codexHistoryMark{Version: codexAppHistoryVersion, Turn: res.turn, TurnID: res.turnID, Status: res.status,
-			Updated: t.UpdatedAtMs, History: history, Size: size, Lineage: lineage})
-	}
-	codexAppHistoryFailed.Lock()
-	if err != nil {
-		codexAppHistoryFailed.byPath[p] = codexHistoryFailure{t.UpdatedAtMs, history, time.Now()}
-	} else {
-		delete(codexAppHistoryFailed.byPath, p)
-	}
-	codexAppHistoryFailed.Unlock()
-	if err != nil {
-		n.logf("codex app history %s: %v", src.thread, err)
-		return err
-	}
-	live := map[string]codex.AppThread{}
-	for id, row := range codexAppThreads(src.home) {
-		live[id] = row
-	}
-	for id, row := range codexPaginatedThreads(src.home) {
-		live[id] = row
-	}
-	pruneCodexAppHistory(filepath.Dir(p), codexHomeTag(src.home), live)
 	return nil
 }
 
-// lockCodexAppHistory takes the lock at path, waiting up to codexAppHistoryLockWait for another writer (of this process
-// or another) to finish; any other error (the file cannot be made, the file system has no locks) is returned at once.
-func lockCodexAppHistory(path string) (func(), error) {
-	deadline := time.Now().Add(codexAppHistoryLockWait)
-	for {
-		release, err := link.LockFile(path, false)
-		if err == nil || !errors.Is(err, link.ErrLocked) || time.Now().After(deadline) {
-			return release, err
-		}
-		time.Sleep(50 * time.Millisecond)
+func (n *Node) indexedHistoryMeta(id string) (quickMeta, int64, bool) {
+	n.mu.Lock()
+	history := n.files[id]
+	n.mu.Unlock()
+	if history == nil || !history.Indexed() || history.LastSeq() == 0 {
+		return quickMeta{}, 0, false
 	}
-}
-
-// readCodexHistoryMark is p's mark and p's size now (-1 when there is no file).
-func readCodexHistoryMark(p string) (codexHistoryMark, int64) {
-	size := int64(-1)
-	if st, err := os.Stat(p); err == nil {
-		size = st.Size()
-	}
-	m := codexHistoryMark{Turn: -1, Size: -2} // no mark: nothing matches it
-	if b, err := os.ReadFile(p + ".mark"); err == nil {
-		_ = json.Unmarshal(b, &m)
-	}
-	return m, size
-}
-
-func writeCodexHistoryMark(p string, m codexHistoryMark) error {
-	b, _ := json.Marshal(m)
-	return os.WriteFile(p+".mark", b, 0o600)
-}
-
-// pruneCodexAppHistory removes the files of home's chats the App no longer lists, and temporary files a stopped write left
-// behind.
-func pruneCodexAppHistory(dir, tag string, live map[string]codex.AppThread) {
-	entries, _ := os.ReadDir(dir)
-	for _, e := range entries {
-		name := e.Name()
-		if strings.HasPrefix(name, ".write-") {
-			if info, err := e.Info(); err == nil && time.Since(info.ModTime()) > time.Hour {
-				os.Remove(filepath.Join(dir, name))
-			}
-			continue
-		}
-		if live == nil || !strings.HasPrefix(name, tag+"-") {
-			continue
-		}
-		thread := strings.TrimPrefix(name, tag+"-")
-		for _, ext := range []string{".lock", ".mark", ".jsonl"} {
-			thread = strings.TrimSuffix(thread, ext)
-		}
-		if _, ok := live[thread]; !ok {
-			os.Remove(filepath.Join(dir, name))
-		}
-	}
-}
-
-// errCodexHistoryChanged: a turn the file has is not in the database as it was (the App rolled the chat back).
-var errCodexHistoryChanged = errors.New("a written turn changed")
-
-type codexHistoryWrite struct {
-	turn           int64  // the last turn written (rollout_ordinal); the mark's when none was
-	turnID, status string // its turn_id, and its status in the database ("inProgress" for one written as interrupted)
-}
-
-// writeCodexAppHistory writes thread t's turns to path: when grow, those after the mark's last turn, appended (that turn
-// must still be the first the database gives, as it was: else errCodexHistoryChanged); else all of them, as a new file
-// (through a temporary one renamed over it) beginning with session_meta, and no file when no turn finished. A finished
-// turn is written as it streams in; the last turn while it still runs is left for later; one that never finished but has
-// turns after it is written as interrupted.
-func writeCodexAppHistory(ctx context.Context, db string, t codex.AppThread, path string, mark codexHistoryMark, grow bool) (codexHistoryWrite, error) {
-	res := codexHistoryWrite{turn: -1}
-	if grow {
-		res = codexHistoryWrite{turn: mark.Turn, turnID: mark.TurnID, status: mark.Status}
-	}
-	sqlite, err := codexSQLiteProgram()
-	if err != nil {
-		return res, err
-	}
-	if !validID(t.ID) {
-		return res, fmt.Errorf("bad thread id")
-	}
-	// The output first: a process once started is always waited for.
-	var file *os.File
-	if grow {
-		file, err = os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o600)
-	} else {
-		file, err = os.CreateTemp(filepath.Dir(path), ".write-*")
-	}
-	if err != nil {
-		return res, err
-	}
-	defer func() {
-		file.Close()
-		if !grow {
-			os.Remove(file.Name()) // close first: Windows cannot remove the open temporary file
-		}
-	}()
-	w := bufio.NewWriterSize(file, 256<<10)
-	line := func(at time.Time, typ string, payload any) {
-		b, _ := json.Marshal(map[string]any{"timestamp": at.UTC().Format(time.RFC3339Nano), "type": typ, "payload": payload})
-		w.Write(b)
-		w.WriteByte('\n')
-	}
-
-	from := int64(-1)
-	if grow {
-		from = mark.Turn // read again: it must still be the turn written
-	}
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	// One query, one snapshot: each turn (in order) with its items (in order); the mark's turn, read again only to see it
-	// is as it was, without its items. Every value is one line: JSON escapes control characters within its strings, so
-	// neither the separator nor a newline appears in one, and the line breaks it may have between values are blanked.
-	oneLine := func(col string) string {
-		return `REPLACE(REPLACE(COALESCE(` + col + `, ''), char(10), ' '), char(13), ' ')`
-	}
-	cte, err := codex.HistoryTurnsSQL(filepath.Dir(db), t)
-	if err != nil {
-		return res, err
-	}
-	q := cte + fmt.Sprintf(`SELECT t.history_ordinal, t.turn_id, t.status, COALESCE(t.duration_ms, -1), `+oneLine("t.error_json")+`, `+
-		`COALESCE(i.created_at_ms, 0), COALESCE(i.item_type, ''), `+oneLine("i.item_json")+` FROM history t `+
-		`LEFT JOIN thread_items i ON i.thread_id = t.thread_id AND i.turn_id = t.turn_id AND t.history_ordinal > %d `+
-		`WHERE t.history_ordinal >= %d ORDER BY t.history_ordinal, i.rollout_ordinal`, from, from)
-	cmd := exec.CommandContext(ctx, sqlite, "-readonly", "-bail", "-noheader", "-list", "-separator", "\x1f", "-cmd", ".timeout 2000", codexDBTarget(db), q)
-	hideCodexSQLiteWindow(cmd)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return res, err
-	}
-	if err := cmd.Start(); err != nil {
-		return res, err
-	}
-
-	type turn struct {
-		ordinal     int64
-		id, status  string
-		durationMs  int64
-		errJSON     string
-		last        time.Time
-		final, done bool     // done: written before (the mark's turn)
-		held        [][2]any // a turn not finished: its items, written only once a later turn shows it ended
-		heldStart   time.Time
-	}
-	metaWritten := grow
-	startTurn := func(c *turn, at time.Time) {
-		if !metaWritten {
-			line(at, "session_meta", map[string]any{"id": t.ID, "cwd": t.Cwd, "originator": "Codex Desktop", "source": "vscode"})
-			metaWritten = true
-		}
-		line(at, "event_msg", map[string]any{"type": "task_started", "turn_id": c.id})
-	}
-	closeTurn := func(c *turn, aborted bool) {
-		closing := map[string]any{"type": "task_complete", "turn_id": c.id}
-		switch {
-		case aborted || c.status == "interrupted":
-			closing = map[string]any{"type": "turn_aborted", "turn_id": c.id}
-		case c.status == "failed":
-			if json.Valid([]byte(c.errJSON)) {
-				closing["error"] = json.RawMessage(c.errJSON)
-			} else {
-				closing["error"] = map[string]string{"message": "The turn failed."}
-			}
-		}
-		if c.durationMs >= 0 && closing["type"] == "task_complete" {
-			closing["duration_ms"] = c.durationMs
-		}
-		line(c.last, "event_msg", closing)
-		res.turn, res.turnID, res.status = c.ordinal, c.id, c.status
-	}
-	// ended: c is followed by a later turn, so it is over.
-	ended := func(c *turn) {
-		switch {
-		case c == nil || c.done:
-		case c.final:
-			closeTurn(c, false)
-		default:
-			startTurn(c, c.heldStart)
-			for _, it := range c.held {
-				line(it[0].(time.Time), "event_msg", map[string]any{"type": "item_completed", "item": it[1]})
-			}
-			closeTurn(c, true)
-		}
-	}
-	at := time.UnixMilli(t.UpdatedAtMs)
-	if t.Paginated && !grow {
-		originator := "Codex"
-		if t.Source == "vscode" {
-			originator = "Codex Desktop"
-		}
-		line(at, "session_meta", map[string]any{"id": t.ID, "cwd": t.Cwd, "originator": originator, "source": t.Source})
-		metaWritten = true
-	}
-	var cur *turn
-	changed := false
-	r := bufio.NewReaderSize(stdout, 1<<20)
-	var readErr error
-	for !changed {
-		row, err := r.ReadBytes('\n')
-		if parts := strings.SplitN(strings.TrimSuffix(string(row), "\n"), "\x1f", 8); len(parts) == 8 {
-			ordinal, _ := strconv.ParseInt(parts[0], 10, 64)
-			if ms, _ := strconv.ParseInt(parts[5], 10, 64); ms > 0 {
-				at = time.UnixMilli(ms)
-			}
-			if cur == nil || cur.ordinal != ordinal {
-				if grow && cur == nil && (ordinal != mark.Turn || parts[1] != mark.TurnID || parts[2] != mark.Status) {
-					changed = true
-					continue
-				}
-				ended(cur)
-				dur, _ := strconv.ParseInt(parts[3], 10, 64)
-				status := parts[2]
-				cur = &turn{ordinal: ordinal, id: parts[1], status: status, durationMs: dur, errJSON: parts[4], last: at, heldStart: at,
-					final: status == "completed" || status == "failed" || status == "interrupted", done: grow && cur == nil}
-				if cur.final && !cur.done {
-					startTurn(cur, at)
-				}
-			}
-			cur.last = at
-			if item := codex.RolloutItem(parts[6], []byte(parts[7])); item != nil && !cur.done {
-				if cur.final {
-					line(at, "event_msg", map[string]any{"type": "item_completed", "item": item})
-				} else {
-					cur.held = append(cur.held, [2]any{at, item})
-				}
-			}
-		}
-		if err != nil {
-			if err != io.EOF {
-				readErr = err
-			}
-			break
-		}
-	}
-	if changed || readErr != nil {
-		cancel() // the rest of the query is not needed
-	}
-	waitErr := cmd.Wait()
-	switch {
-	case changed:
-		return res, errCodexHistoryChanged
-	case readErr != nil:
-		return res, readErr
-	case waitErr != nil:
-		return res, fmt.Errorf("%v: %s", waitErr, strings.TrimSpace(stderr.String()))
-	case grow && cur == nil:
-		return res, errCodexHistoryChanged // the mark's turn is gone
-	}
-	if cur != nil && !cur.done && cur.final {
-		closeTurn(cur, false) // the last turn while it still runs is left for later
-	} else if cur != nil && !cur.done && t.IncludeRunning {
-		// Terminal CLIs have no separate live stream. Include their stored current items
-		// without inventing a completion; the next revision rebuilds this snapshot.
-		startTurn(cur, cur.heldStart)
-		for _, it := range cur.held {
-			line(it[0].(time.Time), "event_msg", map[string]any{"type": "item_completed", "item": it[1]})
-		}
-		res.turn, res.turnID, res.status = cur.ordinal, cur.id, cur.status
-	}
-	if err := w.Flush(); err != nil {
-		return res, err
-	}
-	if err := file.Close(); err != nil {
-		return res, err
-	}
-	switch {
-	case grow: // appended
-		return res, nil
-	case res.turn < 0 && !t.Paginated: // an App-only chat without a completed turn keeps its previous behavior
-		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return res, err
-		}
-		return res, nil
-	}
-	return res, os.Rename(file.Name(), path)
+	tm := history.Meta()
+	m := quickMeta{lastText: tm.LastText, model: tm.Model, effort: tm.Effort,
+		contextTokens: tm.ContextTokens, contextWindow: tm.ContextWindow,
+		autoCompactThreshold: tm.AutoCompactThreshold, plan: tm.Plan}
+	return m, int64(history.LastSeq()), true
 }

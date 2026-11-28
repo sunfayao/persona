@@ -22,11 +22,14 @@ import (
 // onto the same items as Claude's transcript, with Claude's tool names (Bash, Edit, Read, mcp__server__tool) so the
 // apps render them alike.
 
-type codexLine struct {
+// CodexRecord is the timeline record consumed by both rollouts and indexed histories.
+type CodexRecord struct {
 	Timestamp time.Time       `json:"timestamp"`
 	Type      string          `json:"type"`
 	Payload   json.RawMessage `json:"payload"`
 }
+
+type codexLine = CodexRecord
 
 type codexPayload struct {
 	Type       string          `json:"type"`
@@ -275,6 +278,10 @@ func parseCodexLine(seq int, line []byte, meta *Meta) []proto.Item {
 	if json.Unmarshal(line, &l) != nil {
 		return nil
 	}
+	return parseCodexRecord(seq, l, meta)
+}
+
+func parseCodexRecord(seq int, l CodexRecord, meta *Meta) []proto.Item {
 	if l.Type == "response_item" {
 		return parseRolloutResponse(seq, l, meta)
 	}
@@ -498,7 +505,7 @@ func codexItemLines(seq int, ts time.Time, turnID string, it *codexItem, meta *M
 	case "Plan":
 		if text := strings.TrimSpace(it.Text); text != "" {
 			plan := mk(0, it.ID, "assistant", proto.KindText)
-			plan.Text = clip(text)
+			plan.Text = meta.projectCodexText(text)
 			plan.Narration = true
 			return []proto.Item{plan}
 		}
@@ -518,7 +525,7 @@ func codexItemLines(seq int, ts time.Time, turnID string, it *codexItem, meta *M
 				meta.observeUserText(prompt, false)
 				u := mk(0, it.ID, "user", proto.KindText)
 				u.Source = &proto.MessageSource{Kind: proto.SourceScheduledTask}
-				u.Text = clip(prompt)
+				u.Text = meta.projectCodexText(prompt)
 				if meta.codexUserID == "" {
 					meta.codexUserID = u.ID
 				}
@@ -553,7 +560,7 @@ func codexItemLines(seq int, ts time.Time, turnID string, it *codexItem, meta *M
 			meta.ContextStats.ConversationBytes += int64(len(images)) * imageTokenBytesEstimate
 		}
 		u := mk(0, it.ID, "user", proto.KindText)
-		u.Text = clip(fullText)
+		u.Text = meta.projectCodexText(fullText)
 		if meta.codexUserID == "" {
 			meta.codexUserID = u.ID
 		}
@@ -571,7 +578,10 @@ func codexItemLines(seq int, ts time.Time, turnID string, it *codexItem, meta *M
 		if it.Phase == "final_answer" {
 			text, quiet = codexHeartbeatAnswer(text)
 		}
-		text, vizRefs := splitVisualizations(codexThreadLinks(text))
+		if !meta.shareProjection {
+			text = codexThreadLinks(text)
+		}
+		text, vizRefs := splitVisualizations(text)
 		if text == "" && len(vizRefs) == 0 {
 			return nil
 		}
@@ -586,7 +596,7 @@ func codexItemLines(seq int, ts time.Time, turnID string, it *codexItem, meta *M
 			a := mk(0, it.ID, "assistant", proto.KindText)
 			a.Narration = it.Phase == "commentary"
 			a.CodexHeartbeatQuiet = quiet
-			a.Text = clip(text)
+			a.Text = meta.projectCodexText(text)
 			out = append(out, a)
 		}
 		for _, ref := range vizRefs {
@@ -603,7 +613,7 @@ func codexItemLines(seq int, ts time.Time, turnID string, it *codexItem, meta *M
 		}
 		meta.ContextStats.ConversationBytes += estimateWeightedBytes(text)
 		t := mk(0, it.ID, "assistant", proto.KindThinking)
-		t.Text = clip(text)
+		t.Text = meta.projectCodexText(text)
 		return []proto.Item{t}
 	case "FileChange":
 		// One Edit per file, the patch as a unified diff (the apps draw "diff" when there is no old/new string).
@@ -626,7 +636,7 @@ func codexItemLines(seq int, ts time.Time, turnID string, it *codexItem, meta *M
 			meta.observeToolContext("Edit", input, resText)
 			id := fmt.Sprintf("%s-%d", it.ID, n)
 			use := mk(2*n, id, "assistant", proto.KindToolUse)
-			use.ToolUseID, use.ToolName, use.ToolInput = id, "Edit", clipJSON(input) // a new file's whole content
+			use.ToolUseID, use.ToolName, use.ToolInput = id, "Edit", meta.projectCodexInput(input) // a new file's whole content
 			res := mk(2*n+1, id, "user", proto.KindToolResult)
 			res.ToolUseID, res.Text, res.IsError = id, resText, it.Status == "failed"
 			res.Outcome = &proto.ToolOutcome{Status: codexStatus(it.Status, res.IsError)}
@@ -789,13 +799,7 @@ func codexCommandLines(seq int, ts time.Time, it *codexItem, meta *Meta) []proto
 		}
 		return proto.Item{ID: fmt.Sprintf("%s#%d", id, idx), Seq: seq, TS: ts, Role: role, Kind: kind}
 	}
-	name := "Bash"
-	var input json.RawMessage
-	if call, ok := meta.rolloutCalls[it.ID]; it.Source == "agent" && ok {
-		name, input = call.Name, call.Input
-	} else {
-		input, _ = json.Marshal(map[string]string{"command": shellCommand(it.Command)})
-	}
+	name, input := meta.commandTool(it)
 	if it.Status == "backgrounded" {
 		if it.ID != "" {
 			// A genuinely pending command suppresses its repeated background record, even after task_started (the
@@ -807,7 +811,7 @@ func codexCommandLines(seq int, ts time.Time, it *codexItem, meta *Meta) []proto
 		}
 		meta.observeToolContext(name, input, "")
 		use := mk(0, it.ID, "assistant", proto.KindToolUse)
-		use.ToolUseID, use.ToolName, use.ToolInput = it.ID, name, clipJSON(input)
+		use.ToolUseID, use.ToolName, use.ToolInput = it.ID, name, meta.projectCodexInput(input)
 		return []proto.Item{use}
 	}
 	out := it.AggregatedOutput
@@ -822,7 +826,7 @@ func codexCommandLines(seq int, ts time.Time, it *codexItem, meta *Meta) []proto
 		// The terminal record of a backgrounded call: only its result, under the call already shown.
 		meta.ContextStats.ToolOutputBytes += estimateWeightedBytes(out)
 		res := mk(1, it.ID, "user", proto.KindToolResult)
-		res.ToolUseID, res.Text, res.IsError = it.ID, clip(out), failed
+		res.ToolUseID, res.Text, res.IsError = it.ID, meta.projectCodexText(out), failed
 		res.Outcome = &proto.ToolOutcome{Status: codexStatus(it.Status, failed), ExitCode: it.ExitCode, DurationMS: it.Duration.ms, Tail: outputTail(out)}
 		meta.codexSeenAdd(it.ID) // a repeat of this terminal record is dropped
 		return []proto.Item{res}
@@ -837,6 +841,24 @@ func codexCommandLines(seq int, ts time.Time, it *codexItem, meta *Meta) []proto
 	o := items[1].Outcome
 	o.Status, o.ExitCode, o.DurationMS = codexStatus(it.Status, failed), it.ExitCode, it.Duration.ms
 	return items
+}
+
+func (m *Meta) commandTool(it *codexItem) (string, json.RawMessage) {
+	command := shellCommand(it.Command)
+	if it.Source == "agent" {
+		if call, ok := m.rolloutCalls[it.ID]; ok {
+			return call.Name, call.Input
+		}
+		// An indexed agent command can carry its structured arguments inline.
+		// The display command is the tool's name, with a skill name in parentheses for Skill.
+		name, _, _ := strings.Cut(command, "(")
+		if input := bytes.TrimSpace(it.Arguments); m.RolloutTools != nil && m.RolloutTools.Supports(name) &&
+			len(input) > 0 && input[0] == '{' {
+			return name, input
+		}
+	}
+	input, _ := json.Marshal(map[string]string{"command": command})
+	return "Bash", input
 }
 
 // LocalMachine is the id the hub gave this node's machine (set by the node): links to its sessions name it.
@@ -1026,9 +1048,9 @@ func jsonNonEmpty(raw json.RawMessage) bool {
 func codexTool(meta *Meta, mk func(int, string, string, string) proto.Item, id, name string, input json.RawMessage, result string, isErr bool) []proto.Item {
 	meta.observeToolContext(name, input, result)
 	use := mk(0, id, "assistant", proto.KindToolUse)
-	use.ToolUseID, use.ToolName, use.ToolInput = id, name, clipJSON(input)
+	use.ToolUseID, use.ToolName, use.ToolInput = id, name, meta.projectCodexInput(input)
 	res := mk(1, id, "user", proto.KindToolResult)
-	res.ToolUseID, res.Text, res.IsError = id, clip(result), isErr
+	res.ToolUseID, res.Text, res.IsError = id, meta.projectCodexText(result), isErr
 	res.Outcome = &proto.ToolOutcome{Status: codexStatus("", isErr), Tail: outputTail(result)}
 	return []proto.Item{use, res}
 }
@@ -1068,4 +1090,18 @@ func shellCommand(argv []string) string {
 		return argv[2]
 	}
 	return strings.Join(argv, " ")
+}
+
+func (m *Meta) projectCodexText(text string) string {
+	if m.shareProjection {
+		return text
+	}
+	return clip(text)
+}
+
+func (m *Meta) projectCodexInput(input json.RawMessage) json.RawMessage {
+	if m.shareProjection {
+		return input
+	}
+	return clipJSON(input)
 }

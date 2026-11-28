@@ -114,9 +114,11 @@ func TestSharePrivateKeyAcrossAssistantSegments(t *testing.T) {
 
 func TestShareCodexCompleteEventsAndFrontier(t *testing.T) {
 	data := []byte(`{"type":"session_meta","payload":{"id":"synthetic-thread"}}
+{"type":"world_state","payload":{"state":"model-only context"}}
 {"type":"event_msg","payload":{"type":"task_started","turn_id":"synthetic-turn"}}
 {"type":"event_msg","payload":{"type":"item_completed","item":{"type":"UserMessage","id":"u1","content":[{"type":"text","text":"Ambiguous input"}]}}}
 {"type":"event_msg","payload":{"type":"item_completed","item":{"type":"AgentMessage","id":"a1","content":[{"type":"text","text":"Synthetic result"}]}}}
+{"type":"token_usage_record","payload":{"usage":{"input_tokens":7}}}
 {"type":"event_msg","payload":{"type":"task_complete","turn_id":"synthetic-turn"}}
 `)
 	out, err := ProjectShareBytes(context.Background(), data, "synthetic-source", "synthetic-incarnation", nil)

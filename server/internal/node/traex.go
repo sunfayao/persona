@@ -44,12 +44,6 @@ func (n *Node) traexHome() string {
 }
 
 func (n *Node) traexPath(id string) string {
-	if _, ok := n.traexThread(id); ok {
-		p := n.codexAppHistoryFile(codexSource{home: n.traexHome(), thread: id})
-		if fileExists(p) {
-			return p
-		}
-	}
 	return n.traexRolloutPath(id)
 }
 
@@ -63,8 +57,7 @@ func (n *Node) traexRolloutPath(id string) string {
 }
 
 // traexEnrichMeta merges rollout-only telemetry (token_count context tokens/window/auto-compact,
-// output tokens, reasoning effort, context stats, version) onto quickMeta read from synthesized
-// paginated history, which contains chat items without turn_context or token_count events.
+// output tokens, reasoning effort, context stats, version) onto indexed history metadata when the rollout still exists.
 func (n *Node) traexEnrichMeta(id, path string, m quickMeta) quickMeta {
 	rp := n.traexRolloutPath(id)
 	if rp == "" || rp == path {

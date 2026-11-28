@@ -20,10 +20,10 @@ import (
 // user's words and images, the answer, its reasoning, a command (without the login shell around it) with its output and
 // exit code, a file change, an MCP call, a web search, an image looked at or made, a compaction. Kinds the chat does not
 // show, and items still running, are left out.
-func TestCodexRolloutItemsReadAsARollout(t *testing.T) {
+func TestCodexThreadItemsReadAsARollout(t *testing.T) {
 	parse := func(kind, raw string) []proto.Item {
 		t.Helper()
-		item := codex.RolloutItem(kind, []byte(raw))
+		item := codex.DecodeThreadItem(kind, []byte(raw))
 		if item == nil {
 			return nil
 		}
@@ -77,7 +77,7 @@ func TestCodexRolloutItemsReadAsARollout(t *testing.T) {
 		t.Fatalf("compaction = %+v", c)
 	}
 	for _, kind := range []string{"sleep", "subAgentActivity", "somethingNew"} {
-		if item := codex.RolloutItem(kind, []byte(`{"type":"`+kind+`","id":"x"}`)); item != nil {
+		if item := codex.DecodeThreadItem(kind, []byte(`{"type":"`+kind+`","id":"x"}`)); item != nil {
 			t.Errorf("%s = %v, want left out", kind, item)
 		}
 	}
@@ -207,39 +207,18 @@ func TestCodexAppChatHistoryComesFromTheAppsDatabase(t *testing.T) {
 	if !strings.Contains(s, transcript.InterruptedNotice) {
 		t.Fatalf("the interrupted turn is not marked: %s", s)
 	}
-	p := n.transcriptPath(id)
-	if !strings.HasPrefix(p, n.dir) {
-		t.Fatalf("transcript at %q, want under the state directory", p)
+	if !f.Indexed() {
+		t.Fatal("App history was not read from SQLite")
 	}
-	before := statOf(t, p)
-
-	// Nothing changed: read again, the file is as it was, and the database is not even asked (made unreadable here: a
-	// query would fail and be remembered).
-	db := filepath.Join(home, "thread_history_1.sqlite")
-	if err := os.Chmod(db, 0); err != nil {
-		t.Fatal(err)
+	if fileExists(n.codexAppHistoryFile(codexSource{home: home, thread: appChat})) {
+		t.Fatal("reading SQLite created a projected rollout")
 	}
-	if f, err := os.Open(db); err == nil { // root, or a system without these modes: a query would not fail
-		f.Close()
-		t.Log("the database stays readable here: whether it was asked is not seen")
-	}
-	if _, err := n.file(id); err != nil {
-		t.Fatal(err)
-	}
-	codexAppHistoryFailed.Lock()
-	_, asked := codexAppHistoryFailed.byPath[p]
-	codexAppHistoryFailed.Unlock()
-	if err := os.Chmod(db, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if asked {
-		t.Fatal("the database was asked again without a change")
-	}
-	if st := statOf(t, p); !os.SameFile(st, before) || !st.ModTime().Equal(before.ModTime()) || st.Size() != before.Size() {
-		t.Fatal("written again without a change")
+	before := f.End()
+	if changes, span, err := f.RefreshSpan(); err != nil || len(changes) != 0 || span.History != before.History {
+		t.Fatalf("an unchanged snapshot returned %d items, %+v, %v", len(changes), span, err)
 	}
 
-	// The App finished the running turn and another: they are appended to the same file, and the reader gets only them.
+	// Finishing a turn appends to the cursor without replaying the preceding turns.
 	running.status = "completed"
 	running.items = append(running.items, answerItem("a4", "PDF too."))
 	turns[4] = running
@@ -257,19 +236,18 @@ func TestCodexAppChatHistoryComesFromTheAppsDatabase(t *testing.T) {
 		!strings.Contains(s, "user:text:thanks") || strings.Contains(s, "fix the export") {
 		t.Fatalf("after the App's turns = %s", s)
 	}
-	if !os.SameFile(statOf(t, p), before) {
-		t.Fatal("the file was replaced instead of grown")
+	if f.End().History != before.History {
+		t.Fatal("an append replaced the history cursor")
 	}
 
 	// Archived in the App: no transcript of its history any more.
 	writeCodexApp(t, home, project, "DELETE FROM threads;"+codexAppRow(appChat, "", project, "Alpha chat", updated.Add(2*time.Hour), 1))
-	src, _ := n.codexSource(id)
-	if got := n.codexAppHistoryPath(src, nil); got != "" {
-		t.Fatalf("archived chat's history at %q", got)
+	if _, ok := n.indexedCodexFile(id); ok {
+		t.Fatal("an archived chat remained visible in this history source")
 	}
 }
 
-func TestCodexAppHistoryRebuildsLegacyMarks(t *testing.T) {
+func TestCodexAppHistoryKeepsLazyImageData(t *testing.T) {
 	n := remoteTestNode(t)
 	home := n.codexHome()
 	project := t.TempDir()
@@ -287,36 +265,24 @@ func TestCodexAppHistoryRebuildsLegacyMarks(t *testing.T) {
 	if id == "" {
 		t.Fatal("the chat is not listed")
 	}
-	if _, err := n.file(id); err != nil {
+	f, err := n.file(id)
+	if err != nil {
 		t.Fatal(err)
 	}
-	p := n.transcriptPath(id)
-	const withImage = `{"type":"image","text":"","data":"iVBORw0KGgo=","mimeType":"image/png"}`
-	raw, err := os.ReadFile(p)
-	if err != nil || !strings.Contains(string(raw), withImage) {
-		t.Fatalf("the current history did not retain its image: %v", err)
-	}
-	// A pre-image converter wrote this same row without data/mimeType. Keep every other mark field and the size
-	// current so only its missing format version can force the rebuild.
-	legacy := strings.Replace(string(raw), withImage, `{"type":"image","text":""}`, 1)
-	if err := os.WriteFile(p, []byte(legacy), 0o600); err != nil {
+	if _, err := f.Refresh(); err != nil {
 		t.Fatal(err)
 	}
-	mark, size := readCodexHistoryMark(p)
-	mark.Version, mark.Size = 0, size
-	if err := writeCodexHistoryMark(p, mark); err != nil {
-		t.Fatal(err)
+	page, _, _ := f.Page(0, 100)
+	for _, item := range page {
+		if item.Kind == proto.KindImage {
+			full, err := f.Full(item.ID)
+			if err != nil || full.Image == nil || full.Image.Data != "iVBORw0KGgo=" {
+				t.Fatalf("full image = %+v, %v", full.Image, err)
+			}
+			return
+		}
 	}
-	if err := n.refreshCodexAppHistory(id); err != nil {
-		t.Fatal(err)
-	}
-	rebuilt, err := os.ReadFile(p)
-	if err != nil || !strings.Contains(string(rebuilt), withImage) {
-		t.Fatalf("a legacy mark kept the image-less history: %v; %s", err, rebuilt)
-	}
-	if got, _ := readCodexHistoryMark(p); got.Version != codexAppHistoryVersion {
-		t.Fatalf("the rebuilt history did not advance its mark: %+v", got)
-	}
+	t.Fatal("SQLite image data was not available in the page")
 }
 
 // A chat registered with its rollout, which the App then deleted: its history comes from the database (the registry
@@ -387,30 +353,7 @@ func TestCodexAppChatWithoutReadableHistoryHasNoTranscript(t *testing.T) {
 					t.Fatalf("left %s", e.Name())
 				}
 			}
-			if sql == "" {
-				return
-			}
-			// The failed query is not run again for the same change of the chat; it is for the next one.
-			src, _ := n.codexSource(id)
-			p := n.codexAppHistoryFile(src)
-			failedAt := func() time.Time {
-				codexAppHistoryFailed.Lock()
-				defer codexAppHistoryFailed.Unlock()
-				return codexAppHistoryFailed.byPath[p].at
-			}
-			first := failedAt()
-			if first.IsZero() {
-				t.Fatal("the failure is not remembered")
-			}
-			n.file(id)
-			if !failedAt().Equal(first) {
-				t.Fatal("asked again for the same change")
-			}
-			writeCodexApp(t, home, project, "DELETE FROM threads;"+codexAppRow(appChat, "", project, "Alpha chat", time.Now().Add(time.Minute), 0))
-			n.file(id)
-			if failedAt().Equal(first) {
-				t.Fatal("not asked again after the chat changed")
-			}
+
 		})
 	}
 }
@@ -542,8 +485,7 @@ func TestCodexDBTargetIsThePathUnlessClosedInWALMode(t *testing.T) {
 
 // After a failed read the chat is tried again soon once the history database changes, at once when the chat does; a lock
 // that cannot be taken for another reason than another writer is not waited for.
-func TestCodexAppChatHistoryFailureBackoffAndLockErrors(t *testing.T) {
-	defer func(soon, wait time.Duration) { codexAppHistoryRetrySoon, codexAppHistoryLockWait = soon, wait }(codexAppHistoryRetrySoon, codexAppHistoryLockWait)
+func TestCodexAppChatReadsHistoryAfterTheDatabaseIsRepaired(t *testing.T) {
 	n := remoteTestNode(t)
 	home := n.codexHome()
 	project := t.TempDir()
@@ -552,40 +494,24 @@ func TestCodexAppChatHistoryFailureBackoffAndLockErrors(t *testing.T) {
 	if out, err := exec.Command(sqlite3WithJSON(t), db, "CREATE TABLE thread_turns (thread_id TEXT, turn_id TEXT);").CombinedOutput(); err != nil {
 		t.Fatalf("sqlite3: %v: %s", err, out)
 	}
-	if _, s := readChat(t, n, appChat); s != "" {
-		t.Fatalf("read with another schema: %s", s)
+	if _, text := readChat(t, n, appChat); text != "" {
+		t.Fatalf("read with another schema: %s", text)
 	}
-	// The App writes its rows (the history database changes, the chat does not): tried again once the short wait is over.
-	os.Remove(db)
-	writeCodexHistory(t, home, []historyTurn{{thread: appChat, id: "t0", status: "completed", ordinal: 0, items: [][2]string{userItem("u0", "rows now")}}})
-	if _, s := readChat(t, n, appChat); s != "" {
-		t.Fatalf("tried again at once: %s", s)
-	}
-	codexAppHistoryRetrySoon = 0
-	id, s := readChat(t, n, appChat)
-	if !strings.Contains(s, "rows now") {
-		t.Fatalf("after the short wait = %s", s)
-	}
-
-	// The directory cannot take the lock file: given up at once, not after the wait for another writer.
-	p := n.transcriptPath(id)
-	dir := filepath.Dir(p)
-	for _, name := range []string{filepath.Base(p) + ".lock"} {
-		os.Remove(filepath.Join(dir, name))
-	}
-	if err := os.Chmod(dir, 0o500); err != nil {
+	if err := os.Remove(db); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chmod(dir, 0o700)
-	if f, err := os.Create(filepath.Join(dir, "probe")); err == nil { // root, or a system without these modes
-		f.Close()
-		t.Skip("the directory stays writable here")
+	writeCodexHistory(t, home, []historyTurn{{thread: appChat, id: "t0", status: "completed", ordinal: 0,
+		items: [][2]string{userItem("u0", "rows now")}}})
+	if _, text := readChat(t, n, appChat); !strings.Contains(text, "rows now") {
+		t.Fatalf("after repairing the database: %s", text)
 	}
-	codexAppHistoryLockWait = 3 * time.Second
-	writeCodexApp(t, home, project, "DELETE FROM threads;"+codexAppRow(appChat, "", project, "Alpha chat", time.Now().Add(time.Minute), 0))
-	start := time.Now()
-	n.file(id)
-	if d := time.Since(start); d > time.Second {
-		t.Fatalf("waited %v on a lock that cannot be taken", d)
+}
+
+// codexAppHistoryFile names the retired projection path. The native reader must never create it.
+func (n *Node) codexAppHistoryFile(src codexSource) string {
+	dir := n.codexAppHistoryDir()
+	if dir == "" || !validID(src.thread) {
+		return ""
 	}
+	return filepath.Join(dir, codexHomeTag(src.home)+"-"+src.thread+".jsonl")
 }

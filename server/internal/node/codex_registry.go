@@ -426,7 +426,7 @@ type codexListPass struct {
 	// has that session's row, so the thread's own is left out and its subagents hang off the session.
 	runtimes map[string]codexClaim
 	// paginated is codexPaginatedThreads by Codex home: each call globs the home for the App's databases and stats
-	// them, which every row's codexAppHistoryPath did (#5970).
+	// them on every list pass (#5970).
 	paginated map[string]map[string]codex.AppThread
 	// apps is loadCodexAppState by Codex home: every App row asked for it twice, and each ask globbed the home for the
 	// App's state database first, 1,100 globs a second with 550 rows.
@@ -598,9 +598,6 @@ func (n *Node) codexSessionsIn(seen map[string]bool, pass *codexListPass) []prot
 			Capabilities: &proto.SessionCapabilities{Read: true}, ReadOnlyReason: "仅查看：未发现可共享的 app-server 入口，请在电脑上打开会话"}
 		var m quickMeta
 		readPath := src.path
-		if p := n.codexAppHistoryPath(src, pass); p != "" {
-			readPath = p
-		}
 		if readPath != "" {
 			if st, err := pass.stat(readPath); err == nil {
 				m = n.meta(readPath, st)

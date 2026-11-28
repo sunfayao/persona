@@ -20,6 +20,7 @@ type File struct {
 	Path string
 
 	sources Sources
+	indexed *indexedHistory
 	mu      sync.Mutex
 	offset  int64
 	lines   int
@@ -166,14 +167,19 @@ func (f *File) Changed() bool {
 	if !f.mu.TryLock() {
 		return true
 	}
-	path, offset, ino := f.Path, f.offset, f.ino
+	if f.indexed != nil {
+		source, revision := f.indexed.source, f.indexed.revision
+		f.mu.Unlock()
+		return source.Revision() != revision
+	}
+	path, offset, ino, mtime := f.Path, f.offset, f.ino, f.readMtime
 	revoked := f.tree != nil && len(f.tree.revoked) > 0
 	f.mu.Unlock()
 	if revoked {
 		return true
 	}
 	st, err := statTranscript(path)
-	return err != nil || !unchanged(st, offset, ino)
+	return err != nil || !unchanged(st, offset, ino) || (compressedTranscript(path) && !st.ModTime().Equal(mtime))
 }
 
 // unchanged: a file stat'ed as st is the one read up to offset (same inode), with nothing after it.
@@ -182,6 +188,12 @@ func unchanged(st os.FileInfo, offset int64, ino uint64) bool {
 }
 
 func (f *File) refresh(strict bool) ([]proto.Item, Span, error) {
+	if f.indexed != nil {
+		return f.refreshIndexed()
+	}
+	if compressedTranscript(f.Path) {
+		return f.refreshCompressed()
+	}
 	// A file with nothing new is the common case of a watched session at rest (a refresh four times a second): a stat
 	// says so without parsing. Windows also reads the file index through a metadata handle. A failed stat goes on
 	// to the open, which reports it, unless an export requires a readable regular file immediately.
@@ -256,31 +268,7 @@ func (f *File) refresh(strict bool) ([]proto.Item, Span, error) {
 		}
 		line, at := data[:i], pos
 		data, pos = data[i+1:], pos+int64(i)+1
-		f.lines++
-		if f.lines == 1 {
-			f.firstHash = crc32.ChecksumIEEE(line)
-		}
-		if len(bytes.TrimSpace(line)) == 0 {
-			continue
-		}
-		items := f.parseLine(f.lines, line, &f.meta)
-		if f.tree == nil {
-			f.tree = &branchTree{}
-		}
-		if trackLine(f.tree, &f.meta, items, &f.items, &fresh) { // on a branch that was gone back over (branch.go)
-			continue
-		}
-		// New items go out with their images (subscribers that did not ask for lazy images get them whole); the
-		// stored copy leaves them out.
-		for _, it := range items {
-			sent, _ := light(it, true)
-			kept, cut := light(it, false)
-			fresh = append(fresh, sent)
-			f.items = append(f.items, kept)
-			if cut || it.SourceFingerprint != "" {
-				f.rememberLine(f.lines, lineRef{at, i})
-			}
-		}
+		f.appendLine(line, at, &fresh)
 	}
 	f.partial = append([]byte(nil), data...)
 	if st.Size() != f.offset { // a writer appended while the read was in progress
@@ -292,6 +280,34 @@ func (f *File) refresh(strict bool) ([]proto.Item, Span, error) {
 		f.readMtime = st.ModTime()
 	}
 	return fresh, Span{f.history(), from, f.lines}, nil
+}
+
+func (f *File) appendLine(line []byte, at int64, fresh *[]proto.Item) {
+	f.lines++
+	if f.lines == 1 {
+		f.firstHash = crc32.ChecksumIEEE(line)
+	}
+	if len(bytes.TrimSpace(line)) == 0 {
+		return
+	}
+	items := f.parseLine(f.lines, line, &f.meta)
+	if f.tree == nil {
+		f.tree = &branchTree{}
+	}
+	if trackLine(f.tree, &f.meta, items, &f.items, fresh) { // on a branch that was gone back over (branch.go)
+		return
+	}
+	// New items go out with their images (subscribers that did not ask for lazy images get them whole); the
+	// stored copy leaves them out.
+	for _, it := range items {
+		sent, _ := light(it, true)
+		kept, cut := light(it, false)
+		*fresh = append(*fresh, sent)
+		f.items = append(f.items, kept)
+		if cut || it.SourceFingerprint != "" {
+			f.rememberLine(f.lines, lineRef{at, len(line)})
+		}
+	}
 }
 
 // before returns the index of the first item with seq >= beforeSeq (0 = len, the end). Callers hold f.mu.
@@ -370,6 +386,16 @@ var ErrSourceChanged = errors.New("original transcript item no longer present")
 // rather than pass the cut copy off as whole.
 func (f *File) Full(id string) (proto.Item, error) {
 	f.mu.Lock()
+	if f.indexed != nil {
+		if f.indexed.source.Revision() != f.indexed.revision {
+			f.mu.Unlock()
+			return proto.Item{}, ErrSourceChanged
+		}
+		if full, ok := f.indexed.full[id]; ok {
+			f.mu.Unlock()
+			return full, nil
+		}
+	}
 	it, found := f.item(id)
 	var err error
 	if !found { // an item in lines not parsed yet: parse back to it (window.go)
@@ -428,6 +454,17 @@ func (f *File) WithImages(items []proto.Item) []proto.Item {
 			continue
 		}
 		f.mu.Lock()
+		if f.indexed != nil {
+			full := f.indexed.full[it.ID]
+			f.mu.Unlock()
+			if full.Image != nil {
+				if out == nil {
+					out = append([]proto.Item(nil), items...)
+				}
+				out[i].Image = full.Image
+			}
+			continue
+		}
 		ref, cut := f.refs[it.Seq]
 		scratch := Meta{Sidechain: f.meta.Sidechain, Codex: f.meta.Codex}
 		f.mu.Unlock()
@@ -452,13 +489,8 @@ func (f *File) WithImages(items []proto.Item) []proto.Item {
 
 // reparse reads line seq again and returns its items by id.
 func (f *File) reparse(seq int, ref lineRef, scratch *Meta) (map[string]proto.Item, error) {
-	fh, err := openTranscript(f.Path)
+	line, err := readTranscriptLine(f.Path, ref)
 	if err != nil {
-		return nil, err
-	}
-	defer fh.Close()
-	line := make([]byte, ref.n)
-	if _, err := fh.ReadAt(line, ref.off); err != nil {
 		return nil, err
 	}
 	out := map[string]proto.Item{}
@@ -523,7 +555,10 @@ func (f *File) CoversClosedTurnAfter(end Span, history string, seq int, sentAt t
 	if history == "" || history != end.History || end.History != f.history() || end.To != f.lines || f.base > seq || seq > f.lines || len(f.partial) != 0 {
 		return false
 	}
-	fh, err := openTranscript(f.Path)
+	if f.indexed != nil {
+		return f.indexed.read && f.indexed.source.Revision() == f.indexed.revision
+	}
+	fh, err := OpenStream(f.Path)
 	if err != nil {
 		return false
 	}
@@ -534,5 +569,5 @@ func (f *File) CoversClosedTurnAfter(end Span, history string, seq int, sentAt t
 		return false
 	}
 	st, err := statTranscript(f.Path)
-	return err == nil && unchanged(st, f.offset, f.ino)
+	return err == nil && unchanged(st, f.offset, f.ino) && (!compressedTranscript(f.Path) || st.ModTime().Equal(f.readMtime))
 }

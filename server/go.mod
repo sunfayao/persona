@@ -12,6 +12,7 @@ require (
 	github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6
 	github.com/emersion/go-smtp v0.25.0
 	github.com/jackc/pgx/v5 v5.7.5
+	github.com/klauspost/compress v1.19.1
 	github.com/lnquy/cron v1.1.1
 	github.com/mdp/qrterminal/v3 v3.2.1
 	github.com/pelletier/go-toml/v2 v2.2.4
@@ -60,7 +61,6 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jsimonetti/rtnetlink v1.4.1 // indirect
-	github.com/klauspost/compress v1.19.1 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/mdlayher/netlink v1.7.3-0.20250113171957-fbb4dce95f42 // indirect
 	github.com/mdlayher/socket v0.5.1 // indirect

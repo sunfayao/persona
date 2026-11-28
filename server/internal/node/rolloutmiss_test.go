@@ -328,8 +328,8 @@ func TestRolloutPathMissesOutliveRelisting(t *testing.T) {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
 		}
-		// What Codex leaves of an old rollout it compressed: not a rollout this node reads.
-		zst := filepath.Join(dir, "rollout-"+day.Format("2006-01-02T15-04-05")+"-"+id+".jsonl.zst")
+		// What Codex leaves of an old rollout it pruned: not a rollout this node reads.
+		zst := filepath.Join(dir, "rollout-"+day.Format("2006-01-02T15-04-05")+"-"+id+".bak")
 		if err := os.WriteFile(zst, []byte("zstd"), 0o644); err != nil {
 			t.Fatal(err)
 		}

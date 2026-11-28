@@ -313,7 +313,7 @@ func (n *Node) pumpWatch(w *watch, live int) {
 	go func() {
 		defer w.reading.Store(false)
 		if refreshHistory {
-			n.refreshCodexAppHistory(w.id)
+			n.indexedCodexFile(w.id)
 		}
 		if follow {
 			n.followCopy(w.id, w.f)

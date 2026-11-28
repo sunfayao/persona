@@ -120,8 +120,7 @@ func rollouts(home string) []codexRollout {
 		day := now.AddDate(0, 0, -d)
 		dir := filepath.Join(home, "sessions", day.Format("2006"), day.Format("01"), day.Format("02"))
 		recent[dir] = true
-		paths, _ := filepath.Glob(filepath.Join(dir, "rollout-*.jsonl"))
-		for _, p := range paths {
+		for _, p := range codex.GlobRolloutPaths(filepath.Join(dir, "rollout-*.jsonl")) {
 			if id := codex.RolloutID(p); id != "" {
 				files = append(files, rolloutFile{path: p, id: id})
 			}
@@ -129,9 +128,8 @@ func rollouts(home string) []codexRollout {
 	}
 	if now.Sub(c.olderAt) > time.Minute {
 		look := newMissLook(home) // before listing: a rollout written meanwhile moves a directory past this stamp
-		all, _ := filepath.Glob(filepath.Join(home, "sessions", "*", "*", "*", "rollout-*.jsonl"))
-		archived, _ := filepath.Glob(filepath.Join(home, "archived_sessions", "rollout-*.jsonl"))
-		all = append(all, archived...)
+		all := codex.GlobRolloutPaths(filepath.Join(home, "sessions", "*", "*", "*", "rollout-*.jsonl"))
+		all = append(all, codex.GlobRolloutPaths(filepath.Join(home, "archived_sessions", "rollout-*.jsonl"))...)
 		c.older = c.older[:0]
 		for _, p := range all {
 			if id := codex.RolloutID(p); id != "" && !recent[filepath.Dir(p)] {
@@ -158,8 +156,11 @@ func rollouts(home string) []codexRollout {
 			}
 		}
 		id := firstNonEmpty(meta.ThreadID, f.id)
-		if meta.ThreadID == "" && !strings.HasSuffix(f.path, f.id+".jsonl") {
-			continue // an ambiguous continuation header is still being written
+		if meta.ThreadID == "" {
+			base := filepath.Base(f.path)
+			if !strings.HasSuffix(base, f.id+".jsonl") && !strings.HasSuffix(base, f.id+".jsonl.zst") {
+				continue // an ambiguous continuation header is still being written
+			}
 		}
 		out = append(out, codexRollout{id: id, path: f.path, mtime: st.ModTime(), RolloutMeta: meta})
 	}
@@ -232,8 +233,11 @@ func rolloutThreadID(home, path string) string {
 	if id := metaOf(home, path).ThreadID; id != "" {
 		return id
 	}
-	if id := codex.RolloutID(path); id != "" && strings.HasSuffix(path, id+".jsonl") {
-		return id
+	if id := codex.RolloutID(path); id != "" {
+		base := filepath.Base(path)
+		if strings.HasSuffix(base, id+".jsonl") || strings.HasSuffix(base, id+".jsonl.zst") {
+			return id
+		}
 	}
 	return ""
 }
@@ -250,8 +254,8 @@ func mainThread(home, id string) string {
 	return id
 }
 
-// rolloutGlob is what rolloutPath globs with (a test counts the globs).
-var rolloutGlob = filepath.Glob
+// rolloutGlob is what rollout discovery globs with (a test counts the globs); it yields both .jsonl and .jsonl.zst matches.
+var rolloutGlob = func(pattern string) ([]string, error) { return codex.GlobRolloutPaths(pattern), nil }
 
 // rolloutPath finds a session's rollout under a home by id.
 func rolloutPath(home, id string) string { return rolloutPathIn(home, id, nil) }

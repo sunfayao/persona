@@ -218,9 +218,6 @@ func (n *Node) findOwnTranscriptPath(id string, pass *codexListPass) string {
 		return ""
 	}
 	if src, ok := n.codexSource(id); ok && !n.ownedAssistantSource(id) {
-		if p := n.codexAppHistoryPath(src, pass); p != "" {
-			return p
-		}
 		if src.path != "" {
 			if _, err := pass.stat(src.path); err == nil {
 				return src.path
@@ -229,13 +226,12 @@ func (n *Node) findOwnTranscriptPath(id string, pass *codexListPass) string {
 		if p := rolloutPathIn(src.home, src.thread, pass); p != "" {
 			return p
 		}
-		return n.codexAppHistoryPath(src, pass) // the App's chat with no rollout: its history as written (codex_apphistory.go)
+		return "" // indexed histories have no rollout path
 	}
 	if strings.HasPrefix(id, "c0de-") {
 		return n.oldCodexTranscript(id)
 	}
-	// A migrated compatible-CLI conversation may retain its old rollout. Its paginated history is authoritative,
-	// even when a reader cached the rollout before migration; followCopy will relocate that reader too.
+	// The native rollout remains available for operations that need a file, even after history migration.
 	if _, ok := n.traexThread(id); ok {
 		if p := n.traexPath(id); p != "" {
 			n.setPath(id, p)
@@ -333,7 +329,12 @@ func (n *Node) setPath(id, p string) {
 func validID(id string) bool { return nodeclient.ValidSessionID(id) }
 
 func (n *Node) file(id string) (*transcript.File, error) {
-	n.refreshCodexAppHistory(id) // a Codex App chat with no rollout: its history written out of the App's database (codex_apphistory.go)
+	if f, ok := n.indexedCodexFile(id); ok {
+		if err := f.PrefetchIndexed(); err != nil {
+			return nil, noTranscript{id}
+		}
+		return f, nil
+	}
 	return n.transcriptFile(id)
 }
 
@@ -347,6 +348,9 @@ func (n *Node) exportFile(id string) (*transcript.File, error) {
 	f, err := n.transcriptFile(id)
 	if err != nil {
 		return nil, err
+	}
+	if f.Indexed() {
+		return nil, unsupported()
 	}
 	// Refuse a cached projection even when its database can no longer name
 	// the session. The readable JSONL would still be stale.
@@ -427,6 +431,9 @@ func (n *Node) warmTranscripts(ctx context.Context) {
 // copied when its working directory moved). The session list's rev and updated_at read that file, so the items must
 // too (#1423). Relocate to another inode starts over. moved says it pointed the transcript elsewhere.
 func (n *Node) followCopy(id string, f *transcript.File) (moved bool) {
+	if f.Indexed() {
+		return false
+	}
 	if p := n.transcriptPath(id); p != "" && p != f.Where() {
 		f.Relocate(p)
 		return true

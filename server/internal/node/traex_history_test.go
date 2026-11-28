@@ -1,7 +1,6 @@
 package node
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -111,8 +110,8 @@ func TestTraexPaginatedHistoryListsAndReadsWithoutRollouts(t *testing.T) {
 	if rows := n.traexSessions(map[string]bool{}); len(rows) != 1 || rows[0].LastText != "The export is correct." {
 		t.Fatalf("the summary did not use the already-read transcript: %+v", rows)
 	}
-	if p := n.transcriptPath(threadMain); !strings.HasPrefix(p, n.dir+string(filepath.Separator)) {
-		t.Fatalf("history materialized outside the node state: %q", p)
+	if !f.Indexed() || fileExists(n.codexAppHistoryFile(codexSource{home: n.traexHome(), thread: threadMain})) {
+		t.Fatal("the reader created a synthetic history file")
 	}
 	// Reading Persona's copy never creates or modifies TRAE's legacy rollouts.
 	if got := rolloutPath(n.traexHome(), threadMain); got != "" {
@@ -133,9 +132,8 @@ func TestTraexPaginatedRunningTurnIsReadableAndFinishesWithoutDuplicates(t *test
 	if err != nil || !strings.Contains(historyText(items), "user:text:Inspect the export") {
 		t.Fatalf("running turn: %s, %v", historyText(items), err)
 	}
-	mark, _ := readCodexHistoryMark(f.Where())
-	if mark.Version != codexAppHistoryVersion || mark.Turn != 0 || mark.TurnID != turn.id || mark.Status != turn.status {
-		t.Fatalf("running turn mark: %+v", mark)
+	if !f.Indexed() || !f.Meta().TurnOpen {
+		t.Fatal("the reader dropped the running turn")
 	}
 	turn.status = "completed"
 	turn.items = append(turn.items, answerItem("a1", "The export is correct."))
@@ -144,8 +142,10 @@ func TestTraexPaginatedRunningTurnIsReadableAndFinishesWithoutDuplicates(t *test
 		t.Fatal(err)
 	}
 	items, err = f.Refresh()
-	text := historyText(items)
-	if err != nil || strings.Count(text, "user:text:Inspect the export") != 1 || strings.Count(text, "assistant:text:The export is correct.") != 1 {
+	page, _, _ := f.Page(0, 100)
+	text := historyText(page)
+	if err != nil || !strings.Contains(historyText(items), "assistant:text:The export is correct.") ||
+		strings.Count(text, "user:text:Inspect the export") != 1 || strings.Count(text, "assistant:text:The export is correct.") != 1 {
 		t.Fatalf("finished turn: %s, %v", text, err)
 	}
 }
@@ -178,25 +178,22 @@ func TestTraexNonPaginatedRunningTurnCompletesInPlace(t *testing.T) {
 		items: [][2]string{userItem("u1", "Inspect the export")}}
 	writeCodexHistory(t, home, []historyTurn{turn})
 	db := codexHistoryDBPath(home)
-	path := filepath.Join(t.TempDir(), "history.jsonl")
-	row := codex.AppThread{ID: threadMain, IncludeRunning: true, Paginated: false}
-	f := transcript.NewFile(path)
-	project := func(status string) string {
+	row := codex.AppThread{ID: threadMain, IncludeRunning: true}
+	f := transcript.NewIndexedFile("fixture:running", transcript.IndexedSource{
+		Revision: func() string { return fileStamp(db) + fileStamp(db+"-wal") },
+		Read: func() ([]transcript.CodexRecord, error) {
+			return codex.ReadHistory(t.Context(), db, row, querySQLiteUntil)
+		},
+	}, transcript.Sources{})
+	project := func() string {
 		t.Helper()
-		res, err := writeCodexAppHistory(context.Background(), db, row, path, codexHistoryMark{}, false)
-		if err != nil {
+		if _, err := f.Refresh(); err != nil {
 			t.Fatal(err)
 		}
-		if res.turn != int64(turn.ordinal) || res.turnID != turn.id || res.status != status {
-			t.Fatalf("watermark for %s: %+v", status, res)
-		}
-		items, err := f.Refresh()
-		if err != nil {
-			t.Fatal(err)
-		}
+		items, _, _ := f.Page(0, 100)
 		return historyText(items)
 	}
-	if got := project("inProgress"); !strings.Contains(got, "user:text:Inspect the export") {
+	if got := project(); !strings.Contains(got, "user:text:Inspect the export") {
 		t.Fatalf("running transcript: %s", got)
 	}
 	answer := answerItem("a1", "The export is correct.")
@@ -204,7 +201,7 @@ func TestTraexNonPaginatedRunningTurnCompletesInPlace(t *testing.T) {
 		INSERT INTO thread_items VALUES ('%s', 'turn-1', 'a1', 1, 1, '%s', '%s');
 		UPDATE thread_turns SET status = 'completed' WHERE thread_id = '%s' AND turn_id = 'turn-1';
 		COMMIT;`, threadMain, answer[1], answer[0], threadMain))
-	if got := project("completed"); strings.Count(got, "user:text:Inspect the export") != 1 ||
+	if got := project(); strings.Count(got, "user:text:Inspect the export") != 1 ||
 		strings.Count(got, "assistant:text:The export is correct.") != 1 {
 		t.Fatalf("completed transcript: %s", got)
 	}

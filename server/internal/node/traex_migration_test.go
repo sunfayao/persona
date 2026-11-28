@@ -37,8 +37,8 @@ func TestTraexPaginatedMigrationReplacesCachedRollout(t *testing.T) {
 	if err := n.refreshCodexAppHistory(threadMain); err != nil {
 		t.Fatal(err)
 	}
-	if got := n.transcriptPath(threadMain); got == legacy || got == "" {
-		t.Fatalf("cached rollout still hides paginated history: %s", got)
+	if !reader.Indexed() {
+		t.Fatal("the open reader still points at the legacy rollout")
 	}
 	again, err := n.file(threadMain)
 	if err != nil || again != reader {

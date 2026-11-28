@@ -2,7 +2,10 @@ package appserver
 
 import (
 	"encoding/json"
+	"time"
 
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
@@ -66,7 +69,32 @@ type EventItem struct {
 	Changes []struct {
 		Path string `json:"path"`
 	} `json:"changes"`
-	Raw json.RawMessage `json:"-"`
+	Raw           json.RawMessage `json:"-"`
+	CompletedAtMS *int64          `json:"completedAtMs"`
+}
+
+// CompletedItems uses the indexed-history mapper for completed app-server items.
+func (e Event) CompletedItems(seq int, received time.Time) []proto.Item {
+	if e.Kind != ItemCompleted {
+		return nil
+	}
+	if e.Item.CompletedAtMS != nil {
+		received = time.UnixMilli(*e.Item.CompletedAtMS).UTC()
+	}
+	record, ok := codex.ThreadItemRecord(received, e.TurnID, e.Item.Type, e.Item.Raw)
+	if !ok {
+		return nil
+	}
+	return transcript.ProjectCodexRecord(seq, record, &transcript.Meta{})
+}
+
+func (e Event) CompletedMessage(received time.Time) string {
+	for _, item := range e.CompletedItems(0, received) {
+		if item.Role == "assistant" && item.Kind == proto.KindText {
+			return item.Text
+		}
+	}
+	return ""
 }
 
 func (it *EventItem) UnmarshalJSON(raw []byte) error {

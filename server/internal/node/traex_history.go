@@ -84,7 +84,11 @@ func (n *Node) traexSessions(seen map[string]bool) []proto.Session {
 			Effort: t.Effort, Status: proto.StatusOffline, UpdatedAt: t.Updated(), CodexRoute: codexRouteTerminal}
 		var m quickMeta
 		var hasMeta bool
-		if p := n.traexPath(id); p != "" {
+		if indexed, rev, ok := n.indexedHistoryMeta(id); ok {
+			m = n.traexEnrichMeta(id, "", indexed)
+			hasMeta = true
+			s.LastText, s.Rev = snippet(m.lastText), rev
+		} else if p := n.traexPath(id); p != "" {
 			if st, err := os.Stat(p); err == nil {
 				m = n.traexEnrichMeta(id, p, n.meta(p, st))
 				hasMeta = true

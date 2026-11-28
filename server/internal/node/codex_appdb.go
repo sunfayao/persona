@@ -202,13 +202,17 @@ func readCodexThreads(ctx context.Context, db, where string) (map[string]codex.A
 // (read-only, as readCodexThreads; a WAL database nobody has open is read as it is on disk, codexDBTarget): the Codex
 // App's state database, opencode's (usage_opencode.go).
 func querySQLite(ctx context.Context, db, q string, into any) error {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	return querySQLiteUntil(ctx, db, q, into)
+}
+
+func querySQLiteUntil(ctx context.Context, db, q string, into any) error {
 	sqlite, err := codexSQLiteProgram()
 	if err != nil {
 		return err
 	}
-	cctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(cctx, sqlite, "-readonly", "-bail", "-json", "-cmd", ".timeout 2000", codexDBTarget(db), q)
+	cmd := exec.CommandContext(ctx, sqlite, "-readonly", "-bail", "-json", "-cmd", ".timeout 2000", codexDBTarget(db), q)
 	hideCodexSQLiteWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {

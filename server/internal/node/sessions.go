@@ -212,6 +212,12 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 				s.Subagents = n.subagents(id)
 			}
 		}
+		if m, rev, ok := n.indexedHistoryMeta(id); ok {
+			s.LastText, s.Rev, s.Plan = snippet(m.lastText), rev, m.plan
+			if m.contextTokens > 0 {
+				n.setSessionContext(&s, m)
+			}
+		}
 		if a.Agent == traexAgent && host.ParsePane(a.PaneID).Kind == host.Herdr && s.Capabilities == nil && s.Status != proto.StatusOffline && s.Status != proto.StatusInterrupted {
 			s.Capabilities = &proto.SessionCapabilities{Read: true, Send: true, Interrupt: true, Approve: true, Terminal: true, QueueNextTurn: true, QueueEdit: proto.Bool(false)}
 			n.traexModelRow(&s)
