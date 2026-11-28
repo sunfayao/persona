@@ -111,7 +111,7 @@ func TestMainOnlyDigestReconcilesLegacyQueue(t *testing.T) {
 			if tc.outgrown {
 				s.superviseRoundAnswered(bg, superviseRoundReply{Context: "kept", Why: "no_anchor"})
 			}
-			listRound(f, bg, proto.StatusWorking, true)
+			listRound(f, bg, proto.StatusWorking, false)
 			wakeRound(s, superviseSignal{Todo: todo.ID, Kind: sigStalled, Key: "legacy-waiting", Minutes: 50})
 			if got := s.queuedFor(bg); got != 1 {
 				t.Fatalf("the legacy notice did not queue: %d", got)

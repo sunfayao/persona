@@ -114,7 +114,10 @@ type BriefEvent struct {
 	Added         []string      `json:"added,omitempty"`
 	Dropped       []string      `json:"dropped,omitempty"`
 	Approval      *BriefRequest `json:"approval,omitempty"`
-	eventID       string        // process-local continuation rollback identity; never part of the wire or stored schema
+	// Auto marks an estimate the hub extended on its own because the Agent was making progress (extendEstimate); it
+	// keeps the clock where it was, and an estimate a supervisor or the owner sets starts the count again.
+	Auto    bool   `json:"auto,omitempty"`
+	eventID string // process-local continuation rollback identity; never part of the wire or stored schema
 }
 
 // BriefCriterion is one criterion's result when the work ended: met, not_met, unchecked (nobody checked it), or dropped
@@ -193,11 +196,13 @@ type TaskBrief struct {
 	EstimateClockAt     time.Time             `json:"estimate_clock_at,omitzero"`
 	EstimateDueAt       time.Time             `json:"estimate_due_at,omitzero"`
 	EstimateDueToldAt   *time.Time            `json:"estimate_due_told_at,omitempty"`
-	ActualMinutes       int                   `json:"actual_minutes,omitempty"`
-	CompletionReported  *time.Time            `json:"completion_reported_at,omitempty"`
-	ClockAt             time.Time             `json:"clock_at"`
-	DueAt               time.Time             `json:"due_at"`
-	Overdue             *time.Time            `json:"overdue_at,omitempty"`
+	// EstimateAutoExtended: how often the hub extended the estimate on its own since a supervisor or the owner last set it.
+	EstimateAutoExtended int        `json:"estimate_auto_extended,omitempty"`
+	ActualMinutes        int        `json:"actual_minutes,omitempty"`
+	CompletionReported   *time.Time `json:"completion_reported_at,omitempty"`
+	ClockAt              time.Time  `json:"clock_at"`
+	DueAt                time.Time  `json:"due_at"`
+	Overdue              *time.Time `json:"overdue_at,omitempty"`
 }
 
 // LineageStep is one to-do of a brief's lineage: who worked on it, from when to when, and why it stopped ("" while it
@@ -345,7 +350,9 @@ func (tb *taskBrief) estimateState() (expect int, source string, clock time.Time
 		if !e.updatesEstimate() {
 			continue
 		}
-		clock = e.At
+		if !e.Auto {
+			clock = e.At
+		}
 		if e.EstimateSource != "" {
 			source = e.EstimateSource
 		}
@@ -358,7 +365,7 @@ func (tb *taskBrief) estimateState() (expect int, source string, clock time.Time
 func (tb *taskBrief) estimateEvidence() *TaskEstimateEvidence {
 	evidence := tb.rec.EstimateEvidence
 	for _, event := range tb.st.Log {
-		if event.updatesEstimate() {
+		if event.updatesEstimate() && !event.Auto {
 			evidence = event.EstimateEvidence
 		}
 	}
@@ -367,6 +374,19 @@ func (tb *taskBrief) estimateEvidence() *TaskEstimateEvidence {
 		return &copy
 	}
 	return nil
+}
+
+// autoExtensions is how many automatic extensions the estimate has had since a supervisor or the owner last set it.
+func (tb *taskBrief) autoExtensions() (n int) {
+	for _, e := range tb.st.Log {
+		switch {
+		case e.Auto:
+			n++
+		case e.updatesEstimate():
+			n = 0
+		}
+	}
+	return n
 }
 
 // estimateDueToldAt is when a supervision message carried the current estimate_due, nil before that or after a new
@@ -487,7 +507,7 @@ func (tb *taskBrief) view() TaskBrief {
 		EstimateSourceNow: source, EstimateEvidenceNow: tb.estimateEvidence(), ClockAt: tb.clockAt(), DueAt: tb.dueAt(), Overdue: tb.overdueAt()}
 	if source != "" && v.ExpectNow > 0 {
 		v.EstimateClockAt, v.EstimateDueAt = clock, clock.Add(time.Duration(v.ExpectNow)*time.Minute)
-		v.EstimateDueToldAt = tb.estimateDueToldAt()
+		v.EstimateDueToldAt, v.EstimateAutoExtended = tb.estimateDueToldAt(), tb.autoExtensions()
 	}
 	if c := tb.latestCompletion(); c != nil {
 		at := c.At

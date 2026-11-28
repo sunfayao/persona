@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/signalrule"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -158,7 +159,7 @@ func allStoppedSignal(t Todo, tasks []Todo, sessions []proto.Session, now time.T
 			}
 			if child.State == proto.StateWorking || child.Status == proto.StatusWorking ||
 				child.BackgroundWorking || child.BackgroundWaiting || backgroundRunning(child) {
-				at, waiting := allStoppedBackground(child, now)
+				at, waiting := signalrule.StoppedBackground(child, now)
 				if waiting || at.IsZero() || now.Sub(at) < superviseAllStoppedAfter {
 					return superviseSignal{}, false
 				}
@@ -198,7 +199,7 @@ func allStoppedSince(c proto.Session, now time.Time) (time.Time, bool) {
 		c.TurnErrorResumes {
 		return time.Time{}, false
 	}
-	since, waiting := allStoppedBackground(c, now)
+	since, waiting := signalrule.StoppedBackground(c, now)
 	if waiting {
 		return time.Time{}, false
 	}
@@ -221,59 +222,6 @@ func allStoppedSince(c proto.Session, now time.Time) (time.Time, bool) {
 		}
 	}
 	return since, !since.IsZero() && !since.After(now)
-}
-
-// Background labels alone do not prove progress. Use observed activity where it
-// exists, otherwise the start time. Without either, the parent's known stop bounds
-// the age: its background work started before it stopped. A monitor with a future
-// expiry is a timed wake. Activity timestamps also rearm deduplication.
-func allStoppedBackground(c proto.Session, now time.Time) (latest time.Time, waiting bool) {
-	latest = c.UpdatedAt
-	advance := func(at time.Time) {
-		if at.After(latest) {
-			latest = at
-		}
-	}
-	advance(c.StateSince)
-	if c.Work != nil {
-		advance(c.Work.TurnAt)
-	}
-	if c.ActivityAt != nil {
-		advance(*c.ActivityAt)
-	}
-	for _, b := range c.Background {
-		if b.Kind == "monitor" && b.ExpiresAt != nil && b.ExpiresAt.After(now) {
-			return latest, true
-		}
-		advance(b.StartedAt)
-	}
-	for _, a := range c.Subagents {
-		if a.Running {
-			advance(a.StartedAt)
-			advance(a.UpdatedAt)
-		}
-	}
-	for _, w := range c.Workflows {
-		if w.Running || w.Status == proto.WorkflowRunning {
-			at := w.StartedAt
-			if w.UpdatedAt.After(at) {
-				at = w.UpdatedAt
-			}
-			for _, a := range w.Agents {
-				if a.StartedAt.After(at) {
-					at = a.StartedAt
-				}
-				if a.UpdatedAt.After(at) {
-					at = a.UpdatedAt
-				}
-			}
-			advance(at)
-		}
-	}
-	if w := c.Work; w != nil && (w.InteractionID != "" || w.WakeAt != nil && w.WakeAt.After(now)) {
-		return latest, true
-	}
-	return latest, false
 }
 
 type allStoppedBatchKey struct{}

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/signalrule"
 	"github.com/sunfayao/persona/server/internal/assistant/taskleader"
 	"github.com/sunfayao/persona/server/internal/closeout"
 	"github.com/sunfayao/persona/server/internal/prompts"
@@ -274,6 +275,9 @@ func (s *Service) sendDigest(ctx context.Context) {
 			groups[to] = append(groups[to], g)
 		}
 	}
+	for to, list := range groups {
+		groups[to] = s.foldDoneReports(list)
+	}
 	if len(absorbed) > 0 { // handled: nobody is told, and they are not told again
 		s.ackSupervisePending(absorbed)
 		s.turnsTold(ctx, absorbed)
@@ -502,6 +506,7 @@ func (s *Service) deliverDigest(ctx context.Context, here Settings, to string, l
 		s.prMergeWakeTold(ctx, kept)
 		s.parentCloseoutTold(ctx, kept)
 		s.turnsTold(ctx, holds) // and how a turn ended: kept went, the rest of them was said the same within the window
+		s.doneReportsTold(kept)
 		s.finishFailedStartBatches(ctx, to, kept, settled, now)
 	}()
 	if !s.supervisePendingDurably(kept) {
@@ -552,7 +557,7 @@ func (s *Service) deliverDigest(ctx context.Context, here Settings, to string, l
 				allEntries = append(allEntries, e)
 			}
 		}
-		msg.Text, msg.Urgent = render(allEntries), anyDecision(all)
+		msg.Text, msg.Urgent, msg.SentUp = render(allEntries), anyDecision(all), sentUp(all)
 		msg.Signals = encodeDigestSignals(all)
 		if s.replaceQueuedSupervise(to, msg) {
 			delivered = all
@@ -564,7 +569,7 @@ func (s *Service) deliverDigest(ctx context.Context, here Settings, to string, l
 			return true
 		}
 	}
-	msg.Text, msg.Urgent = render(entries), anyDecision(kept)
+	msg.Text, msg.Urgent, msg.SentUp = render(entries), anyDecision(kept), sentUp(kept)
 	msg.Signals = encodeDigestSignals(kept)
 	msg.Interject = slices.ContainsFunc(kept, func(g superviseSignal) bool { return g.Kind == sigDecisionReply })
 	if background {
@@ -575,7 +580,8 @@ func (s *Service) deliverDigest(ctx context.Context, here Settings, to string, l
 		s.logf("supervise: %d signal(s) to the main conversation", len(entries))
 	}
 	c, ok := s.session(ctx, here.MachineID, to)
-	if !ok || c.Starting || s.relayReplacing(to) || slices.ContainsFunc(kept, func(g superviseSignal) bool { return g.Kind == sigOwnerChoice }) {
+	if !ok || c.Starting || s.relayReplacing(to) || slices.ContainsFunc(kept, func(g superviseSignal) bool { return g.Kind == sigOwnerChoice }) ||
+		!msg.Interject && !msg.nativeFollowUp() && (c.Status == proto.StatusWorking || s.relayWaits(to, msg)) {
 		if !s.queueDigest(to, msg, kept, now, prev) {
 			return false
 		}
@@ -605,6 +611,46 @@ func (s *Service) deliverDigest(ctx context.Context, here Settings, to string, l
 		b.mu.Unlock()
 	}
 	return true
+}
+
+// foldDoneReports: a worker's completion is one entry for a conversation. Its done report rides on the review of the
+// same to-do when both wait in list (the review carries the report's words and evidence), and is acknowledged; a
+// report told earlier is not repeated by the review that follows it (digestEntry).
+func (s *Service) foldDoneReports(list []superviseSignal) []superviseSignal {
+	out := slices.Clone(list)
+	for _, rep := range list {
+		i := slices.IndexFunc(out, func(g superviseSignal) bool { return g.Kind == sigReview && g.Todo == rep.Todo })
+		if rep.Kind != sigReport || rep.Report != upReportDone || i < 0 {
+			continue
+		}
+		next := out[i]
+		next.ReportSaid, next.Evidence, next.Step, next.Steps = rep.Detail, rep.Evidence, rep.Step, rep.Steps
+		s.replaceSupervisePending(out[i], next)
+		s.ackSupervisePending([]superviseSignal{rep})
+		out[i] = next
+		out = slices.DeleteFunc(out, func(g superviseSignal) bool { return g.id() == rep.id() })
+	}
+	return out
+}
+
+// doneReportsTold remembers the done reports a delivered message carried, alone or on their review.
+func (s *Service) doneReportsTold(list []superviseSignal) {
+	b := &s.supervise
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for _, g := range list {
+		if g.Kind == sigReport && g.Report == upReportDone || g.ReportSaid != "" {
+			if b.toldSaid == nil {
+				b.toldSaid = map[string]string{}
+			}
+			b.toldSaid[g.Todo] = cmp.Or(g.ReportSaid, g.Detail)
+		}
+	}
+}
+
+// sentUp: list carries what a supervisor Agent sends up to this conversation (signalrule.SentUp).
+func sentUp(list []superviseSignal) bool {
+	return slices.ContainsFunc(list, func(g superviseSignal) bool { return signalrule.SentUp(g.Kind, g.Report) })
 }
 
 // setQueuedLocked keeps list as the signals of the supervision message still queued for conversation to (none: nil);
@@ -881,6 +927,10 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 		if st != reviewTimedOut {
 			return prompts.SuperviseEntry{}, false
 		}
+	case sigReport:
+		if r := triageLatestReview(v); r != nil && signalrule.ReportAnswered(g.At, r.At) {
+			return prompts.SuperviseEntry{}, false // its supervisor reviewed the task after the report
+		}
 	case sigReview:
 		if st != reviewPending || v.handoffResult() != nil {
 			return prompts.SuperviseEntry{}, false
@@ -1101,6 +1151,9 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 	if g.Kind == sigReport { // what it said is the report itself, not a reason in brackets
 		e.Detail, e.Report, e.Said, e.Evidence, e.Step, e.Steps = "", g.Report, g.Detail, g.Evidence, g.Step, g.Steps
 	}
+	if g.Kind == sigReview && g.ReportSaid != "" { // the done report folded into this completion (foldDoneReports)
+		e.Said, e.Evidence, e.Step, e.Steps = g.ReportSaid, slices.Clone(g.Evidence), g.Step, g.Steps
+	}
 	// Progress reports stay quiet. Their persisted evidence accompanies the next
 	// real supervision event, even after restart or a report of a different kind.
 	for i, c := range v.Criteria {
@@ -1147,6 +1200,7 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 	b := &s.supervise
 	b.mu.Lock()
 	e.Ask = cmp.Or(g.Ask, b.asks[t.ID])
+	told := cmp.Or(g.ReportSaid, b.toldSaid[t.ID])
 	b.mu.Unlock()
 	if g.Kind != sigNeedsYou {
 		e.Ask = ""
@@ -1201,6 +1255,9 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 			text = closeout.Strip(text) // told above, in a form that cannot be cut in the middle
 		}
 		e.Last = clipMiddle(text, 600)
+		if g.Kind == sigReview && signalrule.Repeats(e.Last, told) {
+			e.Last = "" // the done report said it already
+		}
 	} else if g.Machine != "" {
 		e.Machine = g.Machine
 	}

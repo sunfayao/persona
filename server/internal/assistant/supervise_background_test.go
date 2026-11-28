@@ -201,7 +201,7 @@ func TestNoMainBackgroundOriginNoticeDoesNotGrantCloseout(t *testing.T) {
 			if tc.queued {
 				status = proto.StatusWorking
 			}
-			f.setSessions("server", proto.Session{SessionID: "bg1", MachineID: "server", Assistant: true, Status: status, Starting: tc.queued})
+			f.setSessions("server", proto.Session{SessionID: "bg1", MachineID: "server", Assistant: true, Status: status})
 			setSettings(t, s, func(v *Settings) {
 				v.Main = ""
 				v.BackgroundSupervisor, v.BackgroundSupervisorMachineID = "bg1", "server"
@@ -326,7 +326,7 @@ func TestPreUpgradeNoMainQueueDoesNotGainGrantAfterRehome(t *testing.T) {
 			s, f := newQuietServiceOn(t, st)
 			secretary(f)
 			f.known["bg1"] = true
-			f.setSessions("server", proto.Session{SessionID: "bg1", MachineID: "server", Assistant: true, Status: proto.StatusWorking, Starting: true})
+			f.setSessions("server", proto.Session{SessionID: "bg1", MachineID: "server", Assistant: true, Status: proto.StatusWorking})
 			setSettings(t, s, func(v *Settings) {
 				v.Main = ""
 				v.BackgroundSupervisor, v.BackgroundSupervisorMachineID = "bg1", "server"
@@ -395,7 +395,7 @@ func TestNoMainFailedStartNoticeDoesNotGrantCloseout(t *testing.T) {
 			if tc.queued {
 				status = proto.StatusWorking
 			}
-			f.setSessions("server", proto.Session{SessionID: "bg1", MachineID: "server", Assistant: true, Status: status, Starting: tc.queued})
+			f.setSessions("server", proto.Session{SessionID: "bg1", MachineID: "server", Assistant: true, Status: status})
 			setSettings(t, s, func(v *Settings) {
 				v.Main = ""
 				v.BackgroundSupervisor, v.BackgroundSupervisorMachineID = "bg1", "server"
