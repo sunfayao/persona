@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -42,6 +43,9 @@ func TestStandingAuthorizationRejectsBroadOrMutatedGrants(t *testing.T) {
 		}
 		if err := checkStandingGrant(grant); err == nil {
 			t.Errorf("invalid %s", field)
+		} else if field == "actions" && !strings.Contains(err.Error(), "merge, push, deploy-test, deploy-production, send, delete, spend") {
+			// persona_settings' description no longer lists them: the refusal says which there are.
+			t.Errorf("the refusal does not name the supported actions: %v", err)
 		}
 	}
 	grant := standingRegistryGrant()

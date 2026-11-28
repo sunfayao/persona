@@ -86,6 +86,7 @@ func (h *Manager) settingsList(ctx context.Context) []extwire.Setting {
 type selfSetting struct {
 	key, title, about string
 	value             string // what set / add take as value, for the model
+	now               string // what list shows in place of get's answer (an extension's: its switch)
 	get               func(ctx context.Context) (string, error)
 	set               func(ctx context.Context, v json.RawMessage) (*selfChange, error)
 	add               func(ctx context.Context, v json.RawMessage) (*selfChange, error)
@@ -100,10 +101,10 @@ type selfChange struct {
 }
 
 // current is the value in effect as list shows it: one clipped line. An extension's fields may hold secrets and a long
-// form, so only get shows them.
+// form, so list shows only its switch (now) and get the rest.
 func (s selfSetting) current(ctx context.Context) string {
-	if s.get == nil || strings.HasPrefix(s.key, extensionSettingPrefix) {
-		return ""
+	if s.get == nil || s.now != "" {
+		return s.now
 	}
 	v, err := s.get(ctx)
 	if err != nil {

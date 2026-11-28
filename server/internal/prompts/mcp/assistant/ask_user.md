@@ -1,4 +1,6 @@
-Ask the user one or more multiple-choice questions in Persona (a card in this conversation plus a notification) and wait for the answers. Use it to confirm anything risky (sending messages / email for them, deleting, changing live systems) or to let them pick between options. Your runtime's own question tool does not reach the user; use this one. They can also type a free-form answer. Waits up to 2 hours; if the user writes in this conversation instead of picking an option, the question is withdrawn and the tool returns at once, with their message following. If nobody answers in time, the question becomes a to-do that waits for the user's call (in their to-do list and the next briefing), and their answer comes to this conversation later as a new message. With a deadline (each question then recommends one of its options): if nobody answers by it and you marked it reversible, the recommended options are taken by default and recorded on the question's to-do; one that cannot be undone is only reminded again and keeps waiting. With wait false the card goes up the same way but the call returns at once: end the turn without guessing the answer; it comes later as a new message quoting the question and the answer (or saying the card was closed unanswered, or expired and became a to-do). Use wait false only where your instructions say to; a confirmation this same turn needs (approving a message before it is sent) keeps the default. A waiting call holds this turn, so anything else sent to this conversation waits behind it: once such a message waits and the question has been up for a couple of minutes, the call returns without the answer and the card stays up as with wait false; end the turn then.
+Ask the user multiple-choice questions on a card in Persona and wait for the answers. Use it to confirm anything risky (sending messages or email for them, deleting, changing live systems) or to let them choose. Your runtime's own question tool does not reach the user. Use wait false only where your instructions say to; a confirmation this turn needs (approving a message before it is sent) keeps the default.
+
+Details: read .claude/skills/persona-work/references/ask-user.md in your working directory.
 
 ```json
 {
@@ -7,15 +9,15 @@ Ask the user one or more multiple-choice questions in Persona (a card in this co
   "properties": {
     "wait": {
       "type": "boolean",
-      "description": "default true: hold this turn until the user answers. false: put the card up and return at once; the answer arrives later as a new message in this conversation"
+      "description": "false: put the card up and return at once; the answer comes later as a new message"
     },
     "deadline": {
       "type": "string",
-      "description": "optional: until when the questions wait, a duration (\"30m\", \"4h\") or an RFC 3339 time, 1 minute to 30 days ahead; needs reversible and a recommend on every question"
+      "description": "until when they wait: \"4h\" or an RFC 3339 time; needs reversible and a recommend on every question"
     },
     "reversible": {
       "type": "boolean",
-      "description": "with deadline: whether going ahead with the recommended options can be undone later. false for deleting, sending anything to other people, spending money or changing production: those are never taken by default"
+      "description": "with deadline: whether taking the recommended options can be undone; false for deleting, sending to others, spending money or changing production"
     },
     "questions": {
       "type": "array",
@@ -37,7 +39,7 @@ Ask the user one or more multiple-choice questions in Persona (a card in this co
           },
           "recommend": {
             "type": "string",
-            "description": "the label of the option you recommend; required with deadline"
+            "description": "the label of the option you recommend"
           },
           "options": {
             "type": "array",

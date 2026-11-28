@@ -97,13 +97,14 @@ func checkStandingGrant(grant StandingAuthorization) error {
 	if !validStandingDirectory(grant.Directory) || len(grant.Directory) > 2000 {
 		return errors.New("directory must be a specific absolute directory without wildcards")
 	}
-	if len(grant.Actions) == 0 || len(grant.Actions) > 7 {
-		return errors.New("actions must contain one or more supported actions")
+	supported := []string{"merge", "push", "deploy-test", "deploy-production", "send", "delete", "spend"}
+	if len(grant.Actions) == 0 || len(grant.Actions) > len(supported) {
+		return fmt.Errorf("actions must contain one or more of %s", strings.Join(supported, ", "))
 	}
 	seen := map[string]bool{}
 	for _, action := range grant.Actions {
-		if !slices.Contains([]string{"merge", "push", "deploy-test", "deploy-production", "send", "delete", "spend"}, action) || seen[action] {
-			return fmt.Errorf("unsupported or duplicate action %q", action)
+		if !slices.Contains(supported, action) || seen[action] {
+			return fmt.Errorf("unsupported or duplicate action %q: each of %s at most once", action, strings.Join(supported, ", "))
 		}
 		seen[action] = true
 	}
