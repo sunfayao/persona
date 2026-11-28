@@ -22,7 +22,6 @@ type ParentCloseoutChild struct {
 // of an open parent to-do (with no active Agent) has completed (#13100).
 type ParentCloseoutWake struct {
 	Language string
-	Personal bool
 	Children []ParentCloseoutChild
 	Notes    string
 }

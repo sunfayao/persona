@@ -2,52 +2,120 @@ package assistant
 
 import (
 	"context"
-	"maps"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/parentcloseout"
 	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
-// Deterministic parent to-do completion wake (#13100).
-//
-// When a part_of child to-do completes (todo_complete / task_review accepted / autoDoneTodo), the hub checks its open
-// parent to-do. When the parent is still open, has no active Agent, and every real part_of child (at least one) is done,
-// the hub emits one durable, idempotent parent_closeout wake to the parent's owning conversation (Main chat or Leader,
-// never the background supervisor), listing the completed children and their delivery/merged PRs. Plain personal to-dos
-// are never silently auto-completed.
-
-const parentCloseoutWakesKey = "assistant.parent_closeout_wakes"
-
-// parentCloseoutWakeMarker records that open parent to-do TodoID was already woken for canonical children set Key.
-type parentCloseoutWakeMarker struct {
-	Key    string    `json:"key"`
-	Target string    `json:"target,omitempty"`
-	At     time.Time `json:"at"`
-}
+// Parent to-do closeout (#13100). When every part_of piece of an open parent to-do is finished, the hub either closes
+// it itself (a request container: no criteria or Agent of its own, every piece a dispatched task; roll-up result, no
+// model turn) or raises a durable parent_closeout wake to the owning conversation, raised again while nobody answers.
+// The rules, the settle window and the wake markers live in assistant/parentcloseout; this file reads the to-dos for
+// them and acts on the verdict.
 
 func isOutsideDecisionTodo(id string) bool {
 	return strings.HasPrefix(id, "todo_od_")
 }
 
-// isPlainPersonalTodo reports whether t has no owning conversation, plan, or supervision ledger (made by hand).
-func isPlainPersonalTodo(t Todo) bool {
-	return strings.TrimSpace(t.Origin) == "" && strings.TrimSpace(t.PlanID) == "" && t.Supervision == nil
+// closeout is the rules' domain, built on first use. Tests set todoBook.closeoutNow before it.
+func (s *Service) closeout() *parentcloseout.Domain {
+	b := &s.todos
+	b.closeoutOnce.Do(func() {
+		b.closeoutDom = parentcloseout.New(parentcloseout.Dependencies{
+			Clock: parentcloseout.ClockFunc(func() time.Time {
+				if f := b.closeoutNow; f != nil {
+					return f()
+				}
+				return time.Now()
+			}),
+			Store: func() parentcloseout.Store {
+				if st := s.store(); st != nil {
+					return st
+				}
+				return nil
+			},
+			Logf: s.logf,
+		})
+	})
+	return b.closeoutDom
 }
 
-// parentCloseoutKey is the canonical idempotency key for parent's completed child set and reopen generation.
-func parentCloseoutKey(parent Todo, children []Todo) string {
-	ids := make([]string, 0, len(children))
-	for _, c := range children {
-		ids = append(ids, c.ID)
+func closeoutPieceOf(t Todo) parentcloseout.Piece {
+	at := max(t.CreatedAt.UnixNano(), t.UpdatedAt.UnixNano())
+	if t.DoneAt != nil {
+		at = max(at, t.DoneAt.UnixNano())
 	}
-	sort.Strings(ids)
-	key := "children:" + strings.Join(ids, ",")
-	if parent.ReopenedAt != nil && !parent.ReopenedAt.IsZero() {
-		key += "@reopen:" + parent.ReopenedAt.UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano)
+	return parentcloseout.Piece{ID: t.ID, Title: t.Title, Done: t.DoneAt != nil, Cancelled: t.Cancelled(),
+		CancelReason: strings.TrimSpace(t.CancelledReason + " " + t.DoneReason), StartFailed: t.StartError != "",
+		Dispatched: t.Origin != "" || t.Supervision != nil, Changed: time.Unix(0, at)}
+}
+
+func closeoutParentOf(t Todo) parentcloseout.Parent {
+	p := parentcloseout.Parent{Open: t.DoneAt == nil && !t.Cancelled() && t.StartError == "",
+		Excluded: t.isConcern() || isAskTodo(t.ID) || isOutsideDecisionTodo(t.ID), HasAgent: todoHasActiveAgent(t),
+		OwnAgent: todoHasAgents(t), HasLedger: t.Supervision != nil, Updated: t.UpdatedAt}
+	if t.ReopenedAt != nil {
+		p.Reopened = *t.ReopenedAt
 	}
-	return key
+	if v := t.Supervision; v != nil {
+		p.Parked = v.State == reviewParked
+		if v.UpdatedAt.After(p.Updated) {
+			p.Updated = v.UpdatedAt
+		}
+	}
+	for _, at := range []*time.Time{t.RemindAt, t.DueAt} {
+		if at != nil && at.After(p.HoldUntil) {
+			p.HoldUntil = *at
+		}
+	}
+	if day, err := time.Parse("2006-01-02", t.DueDate); err == nil && day.Add(24*time.Hour).After(p.HoldUntil) {
+		p.HoldUntil = day.Add(24 * time.Hour)
+	}
+	return p
+}
+
+// closeoutPieces are the real part_of pieces of parent id, oldest first, with their closeout values.
+func (s *Service) closeoutPieces(id string) ([]Todo, []parentcloseout.Piece) {
+	s.todos.mu.RLock()
+	var children []Todo
+	for _, t := range s.todos.todos {
+		if t.PartOf == id && t.ID != id && !isAskTodo(t.ID) && !isOutsideDecisionTodo(t.ID) {
+			children = append(children, copyTodoLocked(t))
+		}
+	}
+	s.todos.mu.RUnlock()
+	sort.Slice(children, func(i, j int) bool {
+		if !children[i].CreatedAt.Equal(children[j].CreatedAt) {
+			return children[i].CreatedAt.Before(children[j].CreatedAt)
+		}
+		return children[i].ID < children[j].ID
+	})
+	pieces := make([]parentcloseout.Piece, len(children))
+	for i, c := range children {
+		pieces[i] = closeoutPieceOf(c)
+	}
+	return children, pieces
+}
+
+// closeoutStates is the closeout state (parentcloseout.StateClosing, StateAwaiting) of each open parent in list whose
+// pieces are all finished, for the to-do view.
+func (s *Service) closeoutStates(list []listedTodo) map[string]string {
+	pieces := map[string][]parentcloseout.Piece{}
+	for _, t := range list {
+		if t.PartOf != "" && t.PartOf != t.ID && !isAskTodo(t.ID) && !isOutsideDecisionTodo(t.ID) {
+			pieces[t.PartOf] = append(pieces[t.PartOf], closeoutPieceOf(t.Todo))
+		}
+	}
+	out := map[string]string{}
+	for _, t := range list {
+		if v := s.closeout().Evaluate(closeoutParentOf(t.Todo), pieces[t.ID], nil); v.State != "" {
+			out[t.ID] = v.State
+		}
+	}
+	return out
 }
 
 // childDeliveryPRs returns the deduplicated merged/delivery PR URLs for a completed child to-do.
@@ -76,55 +144,19 @@ func (s *Service) childDeliveryPRs(ctx context.Context, child Todo) ([]string, e
 	return out, nil
 }
 
-// checkParentCloseoutReady reports whether parent is an open to-do with no active Agent whose real part_of children
-// (at least one) are all done without cancellation or start failure.
-// A non-nil error indicates a transient repository-store read failure while collecting child delivery PRs.
-func (s *Service) checkParentCloseoutReady(ctx context.Context, parent Todo) ([]Todo, []prompts.ParentCloseoutChild, bool, error) {
-	if parent.DoneAt != nil || parent.Cancelled() || parent.StartError != "" ||
-		parent.isConcern() || isAskTodo(parent.ID) || isOutsideDecisionTodo(parent.ID) {
-		return nil, nil, false, nil
+// closeoutPrepare reads parent's pieces and its wake marker and says what to do with it. A non-nil error is a transient
+// failure to read the marker.
+func (s *Service) closeoutPrepare(ctx context.Context, parent Todo) ([]Todo, []parentcloseout.Piece, parentcloseout.Verdict, error) {
+	children, pieces := s.closeoutPieces(parent.ID)
+	m, ok, err := s.closeout().Marker(ctx, parent.ID)
+	if err != nil {
+		return nil, nil, parentcloseout.Verdict{}, err
 	}
-	if todoHasActiveAgent(parent) {
-		return nil, nil, false, nil
+	var marker *parentcloseout.Marker
+	if ok {
+		marker = &m
 	}
-
-	s.todos.mu.RLock()
-	var children []Todo
-	for _, t := range s.todos.todos {
-		if t.PartOf != parent.ID || t.ID == parent.ID || isAskTodo(t.ID) || isOutsideDecisionTodo(t.ID) {
-			continue
-		}
-		children = append(children, copyTodoLocked(t))
-	}
-	s.todos.mu.RUnlock()
-	if len(children) == 0 {
-		return nil, nil, false, nil
-	}
-	sort.Slice(children, func(i, j int) bool {
-		if !children[i].CreatedAt.Equal(children[j].CreatedAt) {
-			return children[i].CreatedAt.Before(children[j].CreatedAt)
-		}
-		return children[i].ID < children[j].ID
-	})
-	for _, c := range children {
-		if c.DoneAt == nil || c.Cancelled() || c.StartError != "" {
-			return nil, nil, false, nil
-		}
-	}
-
-	out := make([]prompts.ParentCloseoutChild, 0, len(children))
-	for _, c := range children {
-		prs, err := s.childDeliveryPRs(ctx, c)
-		if err != nil {
-			return nil, nil, false, err
-		}
-		out = append(out, prompts.ParentCloseoutChild{
-			ID:    c.ID,
-			Title: c.Title,
-			PRs:   prs,
-		})
-	}
-	return children, out, true, nil
+	return children, pieces, s.closeout().Evaluate(closeoutParentOf(parent), pieces, marker), nil
 }
 
 // parentCloseoutSupervisor resolves the owning conversation (the main chat or a side conversation, never the background supervisor)
@@ -164,120 +196,21 @@ func (s *Service) parentCloseoutSupervisor(ctx context.Context, cfg Settings, pa
 	return cfg.Main
 }
 
-// loadParentCloseoutWakesLocked loads durable wake markers once per Service lifetime.
-// s.todos.parentCloseoutMu must be held.
-func (s *Service) loadParentCloseoutWakesLocked(ctx context.Context) error {
-	b := &s.todos
-	if b.parentCloseoutWakesLoaded {
-		if b.parentCloseoutWakes == nil {
-			b.parentCloseoutWakes = map[string]parentCloseoutWakeMarker{}
-		}
-		return nil
-	}
-	if st := s.store(); st != nil {
-		loaded := map[string]parentCloseoutWakeMarker{}
-		if _, err := st.Setting(ctx, parentCloseoutWakesKey, &loaded); err != nil {
-			return err
-		}
-		b.parentCloseoutWakes = loaded
-	} else if b.parentCloseoutWakes == nil {
-		b.parentCloseoutWakes = map[string]parentCloseoutWakeMarker{}
-	}
-	b.parentCloseoutWakesLoaded = true
-	return nil
-}
-
-// parentCloseoutWakeRecorded reports whether parent todoID already has a persisted wake marker for key.
-func (s *Service) parentCloseoutWakeRecorded(ctx context.Context, todoID, key string) (bool, error) {
-	b := &s.todos
-	b.parentCloseoutMu.Lock()
-	defer b.parentCloseoutMu.Unlock()
-	if err := s.loadParentCloseoutWakesLocked(ctx); err != nil {
-		return false, err
-	}
-	m, ok := b.parentCloseoutWakes[todoID]
-	return ok && m.Key == key, nil
-}
-
-// parentCloseoutTold persists idempotent wake markers for delivered or durably queued sigParentCloseout signals.
+// parentCloseoutTold persists the wake markers of delivered or durably queued sigParentCloseout signals.
 func (s *Service) parentCloseoutTold(ctx context.Context, list []superviseSignal) {
-	var wakes []superviseSignal
 	for _, g := range list {
 		if g.Kind == sigParentCloseout && g.Todo != "" && g.Key != "" {
-			wakes = append(wakes, g)
+			s.closeout().Told(ctx, g.Todo, g.Key, g.To)
 		}
 	}
-	if len(wakes) == 0 {
-		return
-	}
-	b := &s.todos
-	b.parentCloseoutMu.Lock()
-	defer b.parentCloseoutMu.Unlock()
-	if err := s.loadParentCloseoutWakesLocked(ctx); err != nil {
-		s.logf("parent_closeout: load wake markers: %v", err)
-		return
-	}
-	next := maps.Clone(b.parentCloseoutWakes)
-	if next == nil {
-		next = map[string]parentCloseoutWakeMarker{}
-	}
-	now := time.Now().UTC()
-	changed := false
-	for _, g := range wakes {
-		if cur, ok := next[g.Todo]; ok && cur.Key == g.Key {
-			continue
-		}
-		next[g.Todo] = parentCloseoutWakeMarker{Key: g.Key, Target: g.To, At: now}
-		changed = true
-	}
-	if !changed {
-		return
-	}
-	if st := s.store(); st != nil {
-		if err := st.PutSetting(ctx, parentCloseoutWakesKey, next); err != nil {
-			s.logf("parent_closeout: persist wake markers: %v", err)
-			return
-		}
-	}
-	b.parentCloseoutWakes = next
 }
 
 // pruneParentCloseoutWakes removes wake markers for closed or deleted parents.
 func (s *Service) pruneParentCloseoutWakes(ctx context.Context) {
-	b := &s.todos
-	b.parentCloseoutMu.Lock()
-	defer b.parentCloseoutMu.Unlock()
-	if err := s.loadParentCloseoutWakesLocked(ctx); err != nil {
-		s.logf("parent_closeout: load wake markers for prune: %v", err)
-		return
-	}
-	if len(b.parentCloseoutWakes) == 0 {
-		return
-	}
-	var remove []string
-	b.mu.RLock()
-	if b.loaded {
-		for id := range b.parentCloseoutWakes {
-			if t := b.todos[id]; t == nil || t.DoneAt != nil {
-				remove = append(remove, id)
-			}
-		}
-	}
-	b.mu.RUnlock()
-	if len(remove) == 0 {
-		return
-	}
-	next := maps.Clone(b.parentCloseoutWakes)
-	for _, id := range remove {
-		delete(next, id)
-	}
-	if st := s.store(); st != nil {
-		if err := st.PutSetting(ctx, parentCloseoutWakesKey, next); err != nil {
-			s.logf("parent_closeout: prune wake markers: %v", err)
-			return
-		}
-	}
-	b.parentCloseoutWakes = next
+	s.closeout().Forget(ctx, "", func(id string) bool {
+		t, ok := s.todoNow(id)
+		return !ok || t.DoneAt != nil
+	})
 }
 
 // clearSentParentCloseout removes in-memory sent markers for sigParentCloseout signals dropped before delivery.
@@ -305,74 +238,92 @@ func (s *Service) resetParentCloseoutWake(ctx context.Context, todoID string) {
 	delete(b.pending, sigID)
 	delete(b.sent, sigID)
 	b.mu.Unlock()
-
-	tb := &s.todos
-	tb.parentCloseoutMu.Lock()
-	if err := s.loadParentCloseoutWakesLocked(ctx); err != nil {
-		s.logf("parent_closeout: load wake markers for reset (%s): %v", todoID, err)
-	} else if _, ok := tb.parentCloseoutWakes[todoID]; ok {
-		next := maps.Clone(tb.parentCloseoutWakes)
-		delete(next, todoID)
-		if st := s.store(); st != nil {
-			if err := st.PutSetting(ctx, parentCloseoutWakesKey, next); err != nil {
-				s.logf("parent_closeout: clear wake marker for %s: %v", todoID, err)
-			} else {
-				tb.parentCloseoutWakes = next
-			}
-		} else {
-			tb.parentCloseoutWakes = next
-		}
-	}
-	tb.parentCloseoutMu.Unlock()
-
+	s.closeout().Forget(ctx, todoID, nil)
 	s.clearParentCloseoutDedup(ctx, todoID)
 }
 
-// maybeEmitParentCloseout evaluates parent and, if all part_of children are complete and not already woken for this
-// child set, queues one sigParentCloseout supervision signal for its owning conversation.
+// maybeEmitParentCloseout evaluates parent: a container whose pieces have stayed settled is closed with a roll-up; any
+// other finished parent gets one sigParentCloseout signal for its owning conversation (again after the back-off while
+// nobody answers).
 func (s *Service) maybeEmitParentCloseout(ctx context.Context, parent Todo) {
-	children, _, ready, err := s.checkParentCloseoutReady(ctx, parent)
-	if err != nil || !ready {
-		return
-	}
-	key := parentCloseoutKey(parent, children)
-	recorded, err := s.parentCloseoutWakeRecorded(ctx, parent.ID, key)
+	children, pieces, v, err := s.closeoutPrepare(ctx, parent)
 	if err != nil {
 		s.logf("parent_closeout: check wake marker for %s: %v", parent.ID, err)
 		return
 	}
-	if recorded {
-		return
+	switch v.Action {
+	case parentcloseout.ActionClose:
+		s.closeContainer(ctx, parent, children, pieces)
+	case parentcloseout.ActionWake:
+		s.signal(superviseSignal{Todo: parent.ID, Kind: sigParentCloseout, Key: v.Key,
+			To: s.parentCloseoutSupervisor(ctx, s.settings(ctx), parent, children)})
 	}
-	cfg := s.settings(ctx)
-	to := s.parentCloseoutSupervisor(ctx, cfg, parent, children)
-	s.signal(superviseSignal{
-		Todo: parent.ID,
-		Kind: sigParentCloseout,
-		Key:  key,
-		To:   to,
-	})
 }
 
-// evaluateParentCloseoutForChild checks the part_of parent of completed childID.
+// closeContainer closes request container parent with the roll-up of its pieces as its result (done by the hub, no model
+// turn) and puts the closed to-do in the owning conversation's feed.
+func (s *Service) closeContainer(ctx context.Context, parent Todo, children []Todo, pieces []parentcloseout.Piece) {
+	if s.outsideBackingPending(parent.ID) {
+		return
+	}
+	var last time.Time
+	for i, c := range children {
+		if pieces[i].Changed.After(last) {
+			last = pieces[i].Changed
+		}
+		if !pieces[i].Accepted() {
+			continue
+		}
+		prs, err := s.childDeliveryPRs(ctx, c)
+		if err != nil {
+			s.logf("parent_closeout: delivery PRs of %s: %v", c.ID, err)
+			return
+		}
+		pieces[i].PRs = prs
+		for _, k := range s.briefCriteriaNow(c) {
+			if k.State != criterionDropped {
+				pieces[i].Criteria++
+			}
+			if k.State == criterionMet {
+				pieces[i].Met++
+			}
+		}
+	}
+	text := parentcloseout.RollUp(s.lang(ctx), pieces)
+	if done, err := s.autoDoneTodo(ctx, parent.ID, text, last); err != nil || !done {
+		if err != nil {
+			s.logf("parent_closeout: close %s: %v", parent.ID, err)
+		}
+		return
+	}
+	if to := s.parentCloseoutSupervisor(ctx, s.settings(ctx), parent, children); to != "" {
+		if _, err := s.appendFeed(ctx, to, feedReceipt, parent.ID, receiptBody{Title: parent.Title, State: "done", Summary: text}); err != nil {
+			s.logf("parent_closeout: feed for %s: %v", parent.ID, err)
+		}
+	}
+}
+
+// evaluateParentCloseoutForChild checks the part_of parent of childID, whose state or place just changed.
 func (s *Service) evaluateParentCloseoutForChild(ctx context.Context, childID string) {
 	childID = strings.TrimSpace(childID)
 	if childID == "" || isAskTodo(childID) || isOutsideDecisionTodo(childID) {
 		return
 	}
-	child, ok := s.todoNow(childID)
-	if !ok || strings.TrimSpace(child.PartOf) == "" || child.PartOf == child.ID {
-		return
+	if child, ok := s.todoNow(childID); ok && child.PartOf != child.ID {
+		s.evaluateParentCloseout(ctx, child.PartOf)
 	}
-	parent, ok := s.todoNow(child.PartOf)
-	if !ok {
-		return
-	}
-	s.maybeEmitParentCloseout(ctx, parent)
 }
 
-// sweepParentCloseout reconciles open parent to-dos on startup / supervision sweeps so wakes lost before delivery
-// are recovered while already-delivered wakes stay suppressed by their persisted markers.
+// evaluateParentCloseout checks parent id (a no-op for "" or a missing to-do).
+func (s *Service) evaluateParentCloseout(ctx context.Context, id string) {
+	if parent, ok := s.todoNow(id); ok && id != "" {
+		s.maybeEmitParentCloseout(ctx, parent)
+	}
+}
+
+// sweepParentCloseout reconciles open parent to-dos on startup and every supervision sweep: it closes containers once
+// their pieces have settled, recovers wakes lost before delivery and raises unanswered ones again. A delivered wake
+// stays suppressed by its persisted marker until the back-off ends.
 func (s *Service) sweepParentCloseout(ctx context.Context) {
 	if s.ensureTodosLoaded(ctx) != nil {
 		return
@@ -392,9 +343,6 @@ func (s *Service) sweepParentCloseout(ctx context.Context) {
 		}
 	}
 	s.todos.mu.RUnlock()
-	if len(parents) == 0 {
-		return
-	}
 	sort.Slice(parents, func(i, j int) bool { return parents[i].ID < parents[j].ID })
 	for _, p := range parents {
 		s.maybeEmitParentCloseout(ctx, p)
@@ -407,12 +355,23 @@ func (s *Service) parentCloseoutDigestEntry(ctx context.Context, g superviseSign
 	if !ok || t.DoneAt != nil {
 		return prompts.SuperviseEntry{}, false, false
 	}
-	children, promptChildren, ready, err := s.checkParentCloseoutReady(ctx, t)
+	children, pieces, v, err := s.closeoutPrepare(ctx, t)
 	if err != nil {
 		return prompts.SuperviseEntry{}, false, true
 	}
-	if !ready || parentCloseoutKey(t, children) != g.Key {
+	if v.Container || !parentcloseout.SameSet(v.Key, g.Key) {
 		return prompts.SuperviseEntry{}, false, false
+	}
+	var promptChildren []prompts.ParentCloseoutChild
+	for i, c := range children {
+		if !pieces[i].Accepted() {
+			continue
+		}
+		prs, err := s.childDeliveryPRs(ctx, c)
+		if err != nil {
+			return prompts.SuperviseEntry{}, false, true
+		}
+		promptChildren = append(promptChildren, prompts.ParentCloseoutChild{ID: c.ID, Title: c.Title, PRs: prs})
 	}
 	var doneWhen []string
 	if t.Supervision != nil {
@@ -424,7 +383,6 @@ func (s *Service) parentCloseoutDigestEntry(ctx context.Context, g superviseSign
 	}
 	wakeText := prompts.RenderParentCloseoutWake(prompts.ParentCloseoutWake{
 		Language: lang,
-		Personal: isPlainPersonalTodo(t),
 		Children: promptChildren,
 		Notes:    clip(strings.TrimSpace(t.Notes), 1000),
 	})

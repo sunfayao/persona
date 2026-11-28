@@ -75,11 +75,12 @@ func (s *Service) todoFactsOf(ctx context.Context, list []listedTodo) []projecti
 	}
 	cards := s.todoRunCards(want)
 	loc := s.location(ctx)
-	facts := make([]projection.Facts, len(list))
+	facts, closeout := make([]projection.Facts, len(list)), s.closeoutStates(list)
 	for i := range list {
 		t := &list[i]
 		linked := hasParkInteractionLink(t.Supervision)
 		facts[i] = projectionFacts(*t, sessions, loc)
+		facts[i].Closeout = closeout[t.ID]
 		if t.DoneAt != nil && t.StartError == "" {
 			continue
 		}

@@ -62,6 +62,12 @@ export interface TodoStepCount {
   done: number;
   /** All its steps. */
   total: number;
+  /**
+   * Only on an open to-do whose steps are all closed: closing, the hub closes it by itself shortly; awaiting, its
+   * conversation was asked to close it or plan what is missing. Absent when nothing is arranged. Open: a newer hub
+   * may send other values.
+   */
+  closeout?: string;
 }
 
 /**

@@ -76,6 +76,9 @@ type Facts struct {
 	Unreached bool `json:"-"`
 	// Steps are the to-dos whose part_of names this one, oldest first (Views fills them from the list).
 	Steps []Facts `json:"-"`
+	// Closeout: where a parent whose steps are all closed stands (the hub closes it itself, "closing", or the owner's
+	// conversation was asked to, "awaiting"); "" when nothing is arranged. The manager works it out (parentcloseout).
+	Closeout string `json:"-"`
 	// Superseded: a failed start whose work finished in a related to-do (Views works it out over the list); it reads as
 	// closed.
 	Superseded bool `json:"-"`

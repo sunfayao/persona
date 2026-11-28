@@ -201,14 +201,20 @@ func (s *Service) createTodoFromWithImages(ctx context.Context, title, notes, in
 	return s.insertTodo(ctx, row, bindings...)
 }
 
-// createPieceTodo makes a piece of a request that conversation will hand out itself (todo_pieces.go): a to-do with
-// plan's links, opened by that conversation, with no agent, so that its task_plan's todo_id can run an Agent on it when
-// its turn comes (reusableTodo) instead of opening a second to-do. It is
-// not supervised until an Agent works on it: the plan that starts it sets that up.
+// createPieceTodo makes a piece of a request that conversation will hand out itself (todo_pieces.go), or the request's
+// own to-do (a container when its pieces are all dispatched tasks): a to-do with plan's links, opened by that
+// conversation, with no agent, so that its task_plan's todo_id can run an Agent on it when its turn comes (reusableTodo)
+// instead of opening a second to-do. It is not supervised until an Agent works on it: the plan that starts it sets that
+// up. With no conversation it is the user's own to-do (createPlainTodo).
 func (s *Service) createPieceTodo(ctx context.Context, conversation, title, notes string, plan db.TodoEdit, bindings ...*repository.CreateBindings) (Todo, error) {
+	if conversation == "" {
+		return s.createPlainTodo(ctx, title, notes, plan, bindings...)
+	}
 	now := time.Now().UTC()
-	row := db.TodoRow{ID: "todo_" + randomHex(8), Title: title, Notes: notes, CreatedAt: now, UpdatedAt: now,
-		Origin: conversation, Quiet: s.quietTask(ctx, conversation)}
+	row := db.TodoRow{ID: "todo_" + randomHex(8), Title: title, Notes: notes, CreatedAt: now, UpdatedAt: now, Origin: conversation}
+	if plan.PartOf != nil && *plan.PartOf != "" {
+		row.Quiet = s.quietTask(ctx, conversation)
+	}
 	plan.Title, plan.Notes, plan.Done = nil, nil, nil
 	plan.Apply(&row, now)
 	return s.insertTodo(ctx, row, bindings...)
@@ -291,8 +297,12 @@ func (s *Service) editTodo(ctx context.Context, id string, e db.TodoEdit) (Todo,
 		s.onTodoWorkspaceReleased(ctx, cur, maySatisfyAfter)
 		if maySatisfyAfter {
 			s.evaluateTodoAfterDependents(ctx, id)
-			s.evaluateParentCloseoutForChild(ctx, id)
 		}
+		s.evaluateParentCloseoutForChild(ctx, id)
+	}
+	if e.PartOf != nil && row.PartOf != cur.PartOf {
+		s.evaluateParentCloseout(ctx, cur.PartOf) // a piece left it; the new request has one more
+		s.evaluateParentCloseout(ctx, row.PartOf)
 	}
 	if reopening && row.DoneAt == nil && (cur.DoneAt != nil || e.RestartWork ||
 		row.ReopenedAt != nil && (cur.ReopenedAt == nil || !row.ReopenedAt.Equal(*cur.ReopenedAt))) {

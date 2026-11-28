@@ -57,7 +57,7 @@ func TestTodoTools(t *testing.T) {
 		id := idIn(t, res)
 		got, ok := e.todo(id)
 		if !ok || got.DueDate != "" || got.DueAt != nil || got.RemindAt == nil || got.Priority != "" ||
-			got.Notes != "course page link" || len(got.Agents) != 0 || got.Origin != "" {
+			got.Notes != "course page link" || len(got.Agents) != 0 || got.Origin != "conv1" || got.Supervision != nil {
 			t.Fatalf("stored: %+v", got)
 		}
 		if res, err := e.tool("todo_create", map[string]any{"title": "Submit the homework"}); err != nil ||

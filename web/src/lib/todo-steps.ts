@@ -12,8 +12,9 @@ import { acceptedAtRest, openAsk, type Todo, type TodoStatus } from "./todos";
 export interface StepsWords {
   /** In place of the status word, for a to-do no Agent of its own is on: "Steps 3/9", or "9/9 steps done". */
   label?: string;
-  /** In place of "Not handed to an agent yet" beside `label`: "Next step not arranged yet" once every step is closed,
-   *  "" (nothing) while some are open, since its steps were handed out. */
+  /** In place of "Not handed to an agent yet" beside `label`: once every step is closed, "closing" (the hub closes the
+   *  request itself) or "awaiting closeout" (its conversation was asked to), as the hub says (`steps.closeout`); "" (nothing)
+   *  otherwise and while some steps are open, since its steps were handed out. */
   tail?: string;
   /** After the Agent count, for a to-do with an Agent of its own: "Steps 3/9". */
   after?: string;
@@ -29,7 +30,7 @@ export function todoSteps(todo: Todo): TodoStepCount | undefined {
 /**
  * What an open to-do's status line says about its steps, from `todoSteps` and its status (todoStatus):
  *  - no Agent of its own (`not_started`): "Steps 3/9" in place of "Not started", nothing in place of "Not handed to an
- *    agent yet"; once every step is closed, "9/9 steps done" and "Next step not arranged yet";
+ *    agent yet"; once every step is closed, "9/9 steps done" and, as the hub says, "closing" or "awaiting closeout";
  *  - otherwise its status stays, "Steps 3/9" after its Agent count; so does an accepted one at rest (acceptedAtRest)
  *    and one whose own result is finished or awaits review (ownWorkFinished): it keeps its status word, nothing claims
  *    its next step is unplanned, and nothing says it was not handed over.
@@ -44,7 +45,10 @@ export function stepsWords(todo: Todo, status: TodoStatus): StepsWords | undefin
   if (status !== "not_started") return { after: count };
   // its own result is finished or awaits review: its status word stays (Awaiting review), its steps after it
   if (ownWorkFinished(todo)) return { after: count, tail: "" };
-  if (steps.done >= steps.total) return { label: t("todos.steps_all_done", { done: steps.done, total: steps.total }), tail: t("todos.steps_next_unplanned") };
+  if (steps.done >= steps.total) {
+    const key = steps.closeout === "closing" ? "todos.steps_closing" : steps.closeout === "awaiting" ? "todos.steps_awaiting_closeout" : "";
+    return { label: t("todos.steps_all_done", { done: steps.done, total: steps.total }), tail: key && t(key) };
+  }
   return { label: count, tail: "" };
 }
 

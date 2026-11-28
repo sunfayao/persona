@@ -43,14 +43,14 @@ const flush = async () => {
 };
 const iso = (agoMs: number) => new Date(Date.now() - agoMs).toISOString();
 const HOUR = 3_600_000;
-const view = (steps: { done: number; total: number }): TodoSummary => ({ phase: "todo", section: "todo", reason: "rest", rank: 0, steps });
+const view = (steps: { done: number; total: number; closeout?: string }): TodoSummary => ({ phase: "todo", section: "todo", reason: "rest", rank: 0, steps });
 const link = (sid: string) => ({ machine_id: "mac", session_id: sid, linked_at: iso(2 * HOUR) });
 const agent = (sid: string): Session => ({ machine_id: "mac", session_id: sid, title: `agent ${sid}`, cwd: "/code/a", status: "working", state: "working", updated_at: iso(HOUR) }) as Session;
 const todo = (id: string, title: string, patch: Partial<Todo> = {}): Todo => ({ id, title, created_at: iso(5 * HOUR), updated_at: iso(HOUR), ...patch }) as Todo;
 
 const todos: Todo[] = [
-  // every step closed, nothing arranged next
-  todo("done-goal", "Move the photo library", { view: view({ done: 3, total: 3 }) }),
+  // every step closed, the hub is closing it
+  todo("done-goal", "Move the photo library", { view: view({ done: 3, total: 3, closeout: "closing" }) }),
   ...[1, 2, 3].map((n) => todo(`d${n}`, `Photo step ${n}`, { part_of: "done-goal", quiet: true, origin: "conv", done_at: iso(3 * HOUR) })),
   // one of three closed, one being done
   todo("busy-goal", "Ship the settings page", { view: view({ done: 1, total: 3 }) }),
@@ -95,7 +95,7 @@ const line = (id: string) => host.querySelector<HTMLElement>(`[data-todo="${id}"
 describe("a to-do split into steps on the To-dos page (#11858)", () => {
   it("says its steps on its row instead of Not started", async () => {
     await render();
-    expect(line("done-goal")).toBe("3/3 steps done· Next step not arranged yet");
+    expect(line("done-goal")).toBe("3/3 steps done· closing");
     expect(line("busy-goal")).toBe("Steps 1/3");
     // its status word stays (the state names' own), the steps after its Agent count
     expect(line("own")?.endsWith(`·${t("todos.agent_count", { count: 1 })}·Steps 1/2`)).toBe(true);
@@ -111,7 +111,6 @@ describe("a to-do split into steps on the To-dos page (#11858)", () => {
     // its steps after its status word; its steps were handed out, so nothing says it was not
     expect(accepted).toContain(`${t("lib-todos.review_done")}·Steps 2/2`);
     expect(accepted).not.toContain(t("todos.not_handed"));
-    expect(accepted).not.toContain(t("todos.steps_next_unplanned"));
     expect(accepted).not.toContain("2/2 steps done");
     await act(async () => root.unmount());
     root = createRoot(host);
@@ -126,7 +125,7 @@ describe("a to-do split into steps on the To-dos page (#11858)", () => {
     await render("done-goal");
     const page = host.querySelector<HTMLElement>("[data-testid=todo-detail]")!;
     expect(page.querySelector("[data-testid=todo-detail-status]")?.textContent).toBe("3/3 steps done");
-    expect(page.querySelector("[data-testid=todo-detail-steps-next]")?.textContent).toBe("Next step not arranged yet");
+    expect(page.querySelector("[data-testid=todo-detail-steps-next]")?.textContent).toBe("closing");
     await act(async () => root.unmount());
     root = createRoot(host);
     await render("own");

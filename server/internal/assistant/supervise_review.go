@@ -769,6 +769,8 @@ func (s *Service) reviewDoneTodo(ctx context.Context, id, reason string, accepte
 		s.onTodoWorkspaceReleased(ctx, before, accepted)
 		if accepted && row.DoneAt != nil {
 			s.evaluateTodoAfterDependents(ctx, id)
+		}
+		if row.DoneAt != nil {
 			s.evaluateParentCloseoutForChild(ctx, id)
 		}
 		if t, now := s.todoNow(id); ok && now {

@@ -195,6 +195,10 @@ describe("why the badge counts a to-do (#11838, ownerNeeds)", () => {
     personal("goal"),
     task("piece", { part_of: "goal", quiet: true, agents: [agent("run3")] }),
     task("quiet", { quiet: true }),
+    // every piece finished and the hub closing it, or its conversation asked to: nothing for the owner to do
+    personal("closing", { view: { phase: "todo", section: "todo", reason: "rest", rank: 0, steps: { done: 2, total: 2, closeout: "closing" } } }),
+    personal("awaiting", { view: { phase: "todo", section: "todo", reason: "rest", rank: 0, steps: { done: 2, total: 2, closeout: "awaiting" } } }),
+    personal("finished", { view: { phase: "todo", section: "todo", reason: "rest", rank: 0, steps: { done: 2, total: 2 } } }),
   ];
 
   it("says what each counted to-do waits on the owner for, or that no Agent is on it", () => {
@@ -205,11 +209,12 @@ describe("why the badge counts a to-do (#11838, ownerNeeds)", () => {
       held: "delivery_ok",
       errand: "unattended",
       stopped: "unattended",
+      finished: "unattended",
     });
   });
 
   it("is the badge: the same to-dos, so its size is the badge's number", () => {
     expect([...ownerBadge(list, lookup, NOW)].sort()).toEqual([...ownerNeeds(list, lookup, NOW).keys()].sort());
-    expect(ownerBadge(list, lookup, NOW).size).toBe(6);
+    expect(ownerBadge(list, lookup, NOW).size).toBe(7);
   });
 });

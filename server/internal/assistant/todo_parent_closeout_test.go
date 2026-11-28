@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/parentcloseout"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/prompts"
 )
@@ -22,6 +23,20 @@ func pendingParentCloseout(s *Service, parentID string) (superviseSignal, bool) 
 	return g, ok
 }
 
+// closeoutClock gives the closeout rules a clock that stands at a fixed moment plus the returned offset.
+func closeoutClock(s *Service) *time.Duration {
+	base, off := time.Now(), new(time.Duration)
+	s.todos.closeoutNow = func() time.Time { return base.Add(*off) }
+	return off
+}
+
+// withOwnCriteria gives to-do id a supervision ledger, so that it is no request container.
+func withOwnCriteria(s *Service, id string) {
+	s.todos.mu.Lock()
+	s.todos.todos[id].Supervision = &Supervision{Supervisor: "conv1", DoneWhen: []string{"the whole request works"}}
+	s.todos.mu.Unlock()
+}
+
 func TestGoldenParentCloseoutWakeLanguages(t *testing.T) {
 	children := []prompts.ParentCloseoutChild{
 		{ID: "todo_child_1", Title: "Implement API", PRs: []string{"https://github.com/example/app/pull/101"}},
@@ -30,7 +45,6 @@ func TestGoldenParentCloseoutWakeLanguages(t *testing.T) {
 	for _, locale := range []string{"zh-Hans", "en", "ja"} {
 		container := prompts.RenderParentCloseoutWake(prompts.ParentCloseoutWake{
 			Language: answerLanguage(locale),
-			Personal: false,
 			Children: children,
 			Notes:    "Track API + UI rollout",
 		})
@@ -40,16 +54,6 @@ func TestGoldenParentCloseoutWakeLanguages(t *testing.T) {
 			}
 		}
 		golden(t, "parent_closeout_wake.container."+locale, container)
-
-		personal := prompts.RenderParentCloseoutWake(prompts.ParentCloseoutWake{
-			Language: answerLanguage(locale),
-			Personal: true,
-			Children: children[:1],
-		})
-		if !strings.Contains(personal, "todo_child_1") || !strings.Contains(personal, "pull/101") {
-			t.Fatalf("%s personal wake missing child details:\n%s", locale, personal)
-		}
-		golden(t, "parent_closeout_wake.personal."+locale, personal)
 	}
 }
 
@@ -61,7 +65,9 @@ func TestParentCloseoutHooksAndPartialCompletion(t *testing.T) {
 			s.superviseTimes = superviseTimings{gather: time.Hour, every: time.Hour, urgent: time.Hour}
 			ctx := context.Background()
 
+			off := closeoutClock(s)
 			parent := createRequestAndPiece(t, s, "conv1", "Ship auth refresh", "Parent container", "", nil)
+			withOwnCriteria(s, parent.ID)
 			child1 := createRequestAndPiece(t, s, "conv1", "Backend token refresh", "", parent.ID, nil)
 			child2 := createRequestAndPiece(t, s, "conv1", "Client retry wiring", "", parent.ID, nil)
 			const pr1 = "https://github.com/example/app/pull/201"
@@ -101,6 +107,11 @@ func TestParentCloseoutHooksAndPartialCompletion(t *testing.T) {
 
 			// Completing child 2 completes all part_of children -> queues exactly one parent_closeout wake.
 			complete(child2.ID)
+			if _, ok := pendingParentCloseout(s, parent.ID); ok {
+				t.Fatal("the wake went out inside the settle window")
+			}
+			*off = 2 * time.Minute
+			s.sweepParentCloseout(ctx)
 			g, ok := pendingParentCloseout(s, parent.ID)
 			if !ok {
 				t.Fatal("completing last part_of child did not queue sigParentCloseout")
@@ -134,6 +145,7 @@ func TestParentCloseoutSkipsActiveAgentAndCancelledOrFailedChildren(t *testing.T
 		s.superviseTimes = superviseTimings{gather: time.Hour, every: time.Hour, urgent: time.Hour}
 		ctx := context.Background()
 
+		*closeoutClock(s) = time.Hour
 		parent := createRequestAndPiece(t, s, "conv1", "Parent with active agent", "", "", nil)
 		child := createRequestAndPiece(t, s, "conv1", "Subtask", "", parent.ID, nil)
 		s.todos.mu.Lock()
@@ -148,11 +160,12 @@ func TestParentCloseoutSkipsActiveAgentAndCancelledOrFailedChildren(t *testing.T
 		}
 	})
 
-	t.Run("cancelled or failed-start child does not trigger parent closeout", func(t *testing.T) {
-		for _, mode := range []string{"cancelled", "failed_start"} {
+	t.Run("failed-start child does not trigger parent closeout", func(t *testing.T) {
+		for _, mode := range []string{"failed_start"} {
 			t.Run(mode, func(t *testing.T) {
 				s, _ := newTodoReadyService(t, &memStore{})
 				s.superviseTimes = superviseTimings{gather: time.Hour, every: time.Hour, urgent: time.Hour}
+				*closeoutClock(s) = time.Hour
 				ctx := context.Background()
 
 				parent := createRequestAndPiece(t, s, "conv1", "Parent", "", "", nil)
@@ -162,19 +175,12 @@ func TestParentCloseoutSkipsActiveAgentAndCancelledOrFailedChildren(t *testing.T
 				if _, err := s.editTodo(ctx, c1.ID, dbTodoDoneEdit(true)); err != nil {
 					t.Fatal(err)
 				}
-				switch mode {
-				case "cancelled":
-					if closed, err := s.reviewDoneTodo(ctx, c2.ID, "Abandoned", false); err != nil || !closed {
-						t.Fatalf("cancel child: closed=%v err=%v", closed, err)
-					}
-				case "failed_start":
-					now := time.Now().UTC()
-					s.todos.mu.Lock()
-					s.todos.todos[c2.ID].DoneAt = &now
-					s.todos.todos[c2.ID].StartError = "machine offline"
-					s.todos.mu.Unlock()
-					s.sweepParentCloseout(ctx)
-				}
+				now := time.Now().UTC()
+				s.todos.mu.Lock()
+				s.todos.todos[c2.ID].DoneAt = &now
+				s.todos.todos[c2.ID].StartError = "machine offline"
+				s.todos.mu.Unlock()
+				s.sweepParentCloseout(ctx)
 				if _, ok := pendingParentCloseout(s, parent.ID); ok {
 					t.Fatalf("%s child unexpectedly triggered sigParentCloseout", mode)
 				}
@@ -187,7 +193,9 @@ func TestParentCloseoutSkipsActiveAgentAndCancelledOrFailedChildren(t *testing.T
 		s.superviseTimes = superviseTimings{gather: time.Hour, every: time.Hour, urgent: time.Hour}
 		ctx := context.Background()
 
+		*closeoutClock(s) = time.Hour
 		parent := createRequestAndPiece(t, s, "conv1", "Parent with ask child", "", "", nil)
+		withOwnCriteria(s, parent.ID)
 		child := createRequestAndPiece(t, s, "conv1", "Real child", "", parent.ID, nil)
 		s.todos.mu.Lock()
 		s.todos.todos[askTodoPrefix+"1"] = &Todo{ID: askTodoPrefix + "1", Title: "Pending question", PartOf: parent.ID}
@@ -197,6 +205,7 @@ func TestParentCloseoutSkipsActiveAgentAndCancelledOrFailedChildren(t *testing.T
 		if _, err := s.editTodo(ctx, child.ID, dbTodoDoneEdit(true)); err != nil {
 			t.Fatal(err)
 		}
+		s.sweepParentCloseout(ctx)
 		if _, ok := pendingParentCloseout(s, parent.ID); !ok {
 			t.Fatal("synthetic ask/outside-decision rows blocked parent closeout wake")
 		}
@@ -209,19 +218,22 @@ func TestParentCloseoutIdempotentAcrossSweepsAndRestart(t *testing.T) {
 	s1.superviseTimes = superviseTimings{gather: time.Hour, every: time.Hour, urgent: time.Hour}
 	ctx := context.Background()
 
+	*closeoutClock(s1) = time.Hour
 	parent := createRequestAndPiece(t, s1, "conv1", "Container parent", "", "", nil)
+	withOwnCriteria(s1, parent.ID)
 	c1 := createRequestAndPiece(t, s1, "conv1", "Child 1", "", parent.ID, nil)
 	if _, err := s1.editTodo(ctx, c1.ID, dbTodoDoneEdit(true)); err != nil {
 		t.Fatal(err)
 	}
+	s1.sweepParentCloseout(ctx)
 	sendPendingPRConflicts(s1)
 	if got := sendsToConversation(f1, "conv1"); len(got) != 1 || !strings.Contains(got[0], "signal="+sigParentCloseout) {
 		t.Fatalf("expected 1 parent_closeout wake, got %q", got)
 	}
 
 	// Verify durable wake marker was persisted to the store.
-	markers := map[string]parentCloseoutWakeMarker{}
-	if found, err := st.Setting(ctx, parentCloseoutWakesKey, &markers); err != nil || !found || markers[parent.ID].Key == "" {
+	markers := map[string]parentcloseout.Marker{}
+	if found, err := st.Setting(ctx, parentcloseout.SettingKey, &markers); err != nil || !found || markers[parent.ID].Key == "" {
 		t.Fatalf("expected persisted parent_closeout_wakes marker: found=%v err=%v markers=%+v", found, err, markers)
 	}
 
@@ -235,6 +247,7 @@ func TestParentCloseoutIdempotentAcrossSweepsAndRestart(t *testing.T) {
 	// Restarted service sharing the same store and reloaded todos must not re-emit for the same child set.
 	s2, f2 := newTodoReadyService(t, st)
 	s2.superviseTimes = superviseTimings{gather: time.Hour, every: time.Hour, urgent: time.Hour}
+	*closeoutClock(s2) = time.Hour
 	parentCopy, c1Copy := todoNow(s1, parent.ID), todoNow(s1, c1.ID)
 	s2.todos.mu.Lock()
 	s2.todos.loaded = true
@@ -254,6 +267,7 @@ func TestParentCloseoutIdempotentAcrossSweepsAndRestart(t *testing.T) {
 	if _, err := s2.editTodo(ctx, c2.ID, dbTodoDoneEdit(true)); err != nil {
 		t.Fatal(err)
 	}
+	s2.sweepParentCloseout(ctx)
 	sendPendingPRConflicts(s2)
 	if got := sendsToConversation(f2, "conv1"); len(got) != 1 || !strings.Contains(got[0], c2.Title) {
 		t.Fatalf("new completed child set did not trigger fresh parent_closeout wake: %q", got)
@@ -264,11 +278,185 @@ func TestParentCloseoutIdempotentAcrossSweepsAndRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	s2.pruneParentCloseoutWakes(ctx)
-	markers = map[string]parentCloseoutWakeMarker{}
-	if _, err := st.Setting(ctx, parentCloseoutWakesKey, &markers); err != nil {
+	markers = map[string]parentcloseout.Marker{}
+	if _, err := st.Setting(ctx, parentcloseout.SettingKey, &markers); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := markers[parent.ID]; ok {
 		t.Fatalf("closed parent marker was not pruned: %+v", markers)
+	}
+}
+
+func closeoutFeed(t *testing.T, s *Service, conversation string) []FeedItem {
+	t.Helper()
+	items, err := s.rawFeed(context.Background(), conversation, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return items
+}
+
+func TestParentCloseoutContainerClosesItselfWithRollUp(t *testing.T) {
+	s, f := newTodoReadyService(t, planUpdateStore{&planMemStore{memStore: &memStore{}, plans: map[string]db.TaskPlanRow{}}})
+	f.hello.Locale = "en"
+	s.superviseTimes = superviseTimings{gather: time.Hour, every: time.Hour, urgent: time.Hour}
+	ctx := context.Background()
+	off := closeoutClock(s)
+
+	parent := createRequestAndPiece(t, s, "conv1", "Ship the release", "", "", nil)
+	var pieces []Todo
+	for _, title := range []string{"Backend", "Client", "Docs", "Rollback plan"} {
+		pieces = append(pieces, createRequestAndPiece(t, s, "conv1", title, "", parent.ID, nil))
+	}
+	for _, c := range pieces[:3] {
+		if _, err := s.editTodo(ctx, c.ID, dbTodoDoneEdit(true)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// the 4/4 case: the last piece was cancelled, which no longer blocks the parent
+	if closed, err := s.reviewDoneTodo(ctx, pieces[3].ID, "not needed any more", false); err != nil || !closed {
+		t.Fatalf("cancel piece: closed=%v err=%v", closed, err)
+	}
+
+	s.sweepParentCloseout(ctx)
+	if got := todoNow(s, parent.ID); got.DoneAt != nil {
+		t.Fatal("the container was closed inside the settle window")
+	}
+	*off = 2 * time.Minute
+	s.sweepParentCloseout(ctx)
+	s.sweepParentCloseout(ctx)
+	got := todoNow(s, parent.ID)
+	if got.DoneAt == nil || got.DoneBy != db.DoneByAuto {
+		t.Fatalf("container not closed by the hub: %+v", got)
+	}
+	for _, want := range []string{"Backend: accepted", "Docs: accepted", "Rollback plan: cancelled (not needed any more)", "3 accepted, 1 cancelled"} {
+		if !strings.Contains(got.DoneReason, want) {
+			t.Errorf("roll-up lacks %q:\n%s", want, got.DoneReason)
+		}
+	}
+	if _, ok := pendingParentCloseout(s, parent.ID); ok {
+		t.Fatal("a container raised a parent_closeout wake")
+	}
+	var receipts int
+	for _, it := range closeoutFeed(t, s, "conv1") {
+		if it.Kind == feedReceipt && it.Ref == parent.ID && strings.Contains(string(it.Body), "Ship the release") {
+			receipts++
+		}
+	}
+	if receipts != 1 {
+		t.Fatalf("owner conversation got %d closed-to-do receipts, want 1", receipts)
+	}
+	sendPendingPRConflicts(s)
+	if got := sendsToConversation(f, "conv1"); len(got) != 0 {
+		t.Fatalf("closing a container started a model turn: %q", got)
+	}
+}
+
+func TestParentCloseoutSecondPieceInsideSettleWindow(t *testing.T) {
+	s, _ := newTodoReadyService(t, &memStore{})
+	s.superviseTimes = superviseTimings{gather: time.Hour, every: time.Hour, urgent: time.Hour}
+	ctx := context.Background()
+	off := closeoutClock(s)
+
+	parent := createRequestAndPiece(t, s, "conv1", "Request", "", "", nil)
+	p1 := createRequestAndPiece(t, s, "conv1", "First piece", "", parent.ID, nil)
+	if _, err := s.editTodo(ctx, p1.ID, dbTodoDoneEdit(true)); err != nil {
+		t.Fatal(err)
+	}
+	s.sweepParentCloseout(ctx) // "All 1 child to-dos are done" used to fire here
+	p2 := createRequestAndPiece(t, s, "conv1", "Second piece", "", parent.ID, nil)
+	*off = 10 * time.Minute
+	s.sweepParentCloseout(ctx)
+	if got := todoNow(s, parent.ID); got.DoneAt != nil {
+		t.Fatal("closed with a piece still open")
+	}
+	if _, ok := pendingParentCloseout(s, parent.ID); ok {
+		t.Fatal("a wake fired with a piece still open")
+	}
+	*off = 0
+	if _, err := s.editTodo(ctx, p2.ID, dbTodoDoneEdit(true)); err != nil {
+		t.Fatal(err)
+	}
+	s.sweepParentCloseout(ctx)
+	if got := todoNow(s, parent.ID); got.DoneAt != nil {
+		t.Fatal("closed inside the settle window")
+	}
+	*off = 2 * time.Minute
+	s.sweepParentCloseout(ctx)
+	if got := todoNow(s, parent.ID); got.DoneAt == nil || !strings.Contains(got.DoneReason, "Second piece") {
+		t.Fatalf("both pieces done: parent not closed with both in its roll-up: %+v", got)
+	}
+}
+
+func TestParentCloseoutNonContainerWakeIsRaisedAgain(t *testing.T) {
+	s, _ := newTodoReadyService(t, &memStore{})
+	s.superviseTimes = superviseTimings{gather: time.Hour, every: time.Hour, urgent: time.Hour}
+	ctx := context.Background()
+	off := closeoutClock(s)
+
+	parent := createRequestAndPiece(t, s, "conv1", "Request with its own criteria", "", "", nil)
+	withOwnCriteria(s, parent.ID)
+	p := createRequestAndPiece(t, s, "conv1", "Only piece", "", parent.ID, nil)
+	if _, err := s.editTodo(ctx, p.ID, dbTodoDoneEdit(true)); err != nil {
+		t.Fatal(err)
+	}
+	delivered := func(want string) {
+		t.Helper()
+		g, ok := pendingParentCloseout(s, parent.ID)
+		if !ok || !strings.HasSuffix(g.Key, want) {
+			t.Fatalf("pending wake = %+v (%v), want a key ending %q", g, ok, want)
+		}
+		s.supervise.mu.Lock()
+		delete(s.supervise.pending, g.id())
+		s.supervise.mu.Unlock()
+		s.parentCloseoutTold(ctx, []superviseSignal{g})
+	}
+	*off = 2 * time.Minute
+	s.sweepParentCloseout(ctx)
+	if got := todoNow(s, parent.ID); got.DoneAt != nil {
+		t.Fatal("a parent with criteria of its own was closed by the hub")
+	}
+	delivered(p.ID)
+
+	*off = 20 * time.Minute // inside the back-off
+	s.sweepParentCloseout(ctx)
+	if _, ok := pendingParentCloseout(s, parent.ID); ok {
+		t.Fatal("raised again inside the back-off")
+	}
+	*off = 40 * time.Minute
+	s.sweepParentCloseout(ctx)
+	delivered("#2")
+	*off = 80 * time.Minute
+	s.sweepParentCloseout(ctx)
+	delivered("#3")
+	*off = 200 * time.Minute
+	s.sweepParentCloseout(ctx)
+	if _, ok := pendingParentCloseout(s, parent.ID); ok {
+		t.Fatal("raised a fourth time")
+	}
+}
+
+func TestCloseoutStatesForTheView(t *testing.T) {
+	s, _ := newTodoReadyService(t, &memStore{})
+	ctx := context.Background()
+	container := createRequestAndPiece(t, s, "conv1", "Container", "", "", nil)
+	own := createRequestAndPiece(t, s, "conv1", "Own criteria", "", "", nil)
+	withOwnCriteria(s, own.ID)
+	open := createRequestAndPiece(t, s, "conv1", "Still open", "", "", nil)
+	for _, p := range []Todo{container, own, open} {
+		piece := createRequestAndPiece(t, s, "conv1", "Piece of "+p.Title, "", p.ID, nil)
+		if p.ID != open.ID {
+			if _, err := s.editTodo(ctx, piece.ID, dbTodoDoneEdit(true)); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	var list []listedTodo
+	for _, td := range s.todosOf(ctx, "*") {
+		list = append(list, listedTodo{Todo: td})
+	}
+	got := s.closeoutStates(list)
+	if got[container.ID] != parentcloseout.StateClosing || got[own.ID] != parentcloseout.StateAwaiting || got[open.ID] != "" {
+		t.Fatalf("states %v", got)
 	}
 }

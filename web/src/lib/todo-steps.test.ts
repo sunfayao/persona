@@ -11,7 +11,7 @@ import { makeSessionLookup, todoStatus, type Todo } from "./todos";
 import type { Session } from "./types";
 
 const at = "2026-11-10T08:00:00Z";
-const view = (steps?: { done: number; total: number }): TodoSummary => ({ phase: "todo", section: "todo", reason: "rest", rank: 0, ...(steps && { steps }) });
+const view = (steps?: { done: number; total: number; closeout?: string }): TodoSummary => ({ phase: "todo", section: "todo", reason: "rest", rank: 0, ...(steps && { steps }) });
 const goal = (patch: Partial<Todo> = {}): Todo => ({ id: "goal", title: "Plan the trip", created_at: at, updated_at: at, ...patch });
 
 beforeAll(() => initI18n("en"));
@@ -30,8 +30,12 @@ describe("a to-do's steps on its status line (#11858)", () => {
     expect(stepsWords(goal({ view: view({ done: 3, total: 9 }) }), "not_started")).toEqual({ label: "Steps 3/9", tail: "" });
   });
 
-  it("says every step is done and the next is not arranged once all are closed", () => {
-    expect(stepsWords(goal({ view: view({ done: 9, total: 9 }) }), "not_started")).toEqual({ label: "9/9 steps done", tail: "Next step not arranged yet" });
+  it("says every step is done, and whether the hub is closing the request or awaits its closeout, once all are closed", () => {
+    expect(stepsWords(goal({ view: view({ done: 9, total: 9, closeout: "closing" }) }), "not_started")).toEqual({ label: "9/9 steps done", tail: "closing" });
+    expect(stepsWords(goal({ view: view({ done: 9, total: 9, closeout: "awaiting" }) }), "not_started")).toEqual({ label: "9/9 steps done", tail: "awaiting closeout" });
+    // nothing arranged, or a state a newer hub sends: no claim about what is next
+    expect(stepsWords(goal({ view: view({ done: 9, total: 9 }) }), "not_started")).toEqual({ label: "9/9 steps done", tail: "" });
+    expect(stepsWords(goal({ view: view({ done: 9, total: 9, closeout: "later" }) }), "not_started")).toEqual({ label: "9/9 steps done", tail: "" });
   });
 
   it("keeps Accepted on a to-do its supervisor accepted, at rest, the steps after it", () => {
@@ -59,14 +63,15 @@ describe("a to-do's steps on its status line (#11858)", () => {
   });
 
   it.each([
-    { lang: "zh-Hans", count: "步骤 3/9", done: "9/9 步已完成", next: "下一步还没安排" },
-    { lang: "ja", count: "ステップ 3/9", done: "9/9 ステップ完了", next: "次のステップはまだ決まっていません" },
-    { lang: "en", count: "Steps 3/9", done: "9/9 steps done", next: "Next step not arranged yet" },
-  ] as const)("words it as iOS does in $lang", async ({ lang, count, done, next }) => {
+    { lang: "zh-Hans", count: "步骤 3/9", done: "9/9 步已完成", closing: "正在收尾", awaiting: "等待收尾" },
+    { lang: "ja", count: "ステップ 3/9", done: "9/9 ステップ完了", closing: "クローズ中", awaiting: "クローズ待ち" },
+    { lang: "en", count: "Steps 3/9", done: "9/9 steps done", closing: "closing", awaiting: "awaiting closeout" },
+  ] as const)("words it as iOS does in $lang", async ({ lang, count, done, closing, awaiting }) => {
     await initI18n(lang);
     expect(t("todos.steps_count", { done: 3, total: 9 })).toBe(count);
     expect(t("todos.steps_all_done", { done: 9, total: 9 })).toBe(done);
-    expect(t("todos.steps_next_unplanned")).toBe(next);
+    expect(t("todos.steps_closing")).toBe(closing);
+    expect(t("todos.steps_awaiting_closeout")).toBe(awaiting);
   });
 });
 
