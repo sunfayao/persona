@@ -72,7 +72,7 @@ Details: read .claude/skills/persona-work/references/task-plan.md in your workin
           },
           "host": {
             "type": "string",
-            "description": "agy (Antigravity companion) or an enabled engine"
+            "description": "agy (Antigravity companion) or herdr (the computer's terminal); leave out to let Persona choose"
           },
           "model": {
             "type": "string"

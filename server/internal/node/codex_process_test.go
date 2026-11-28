@@ -31,7 +31,7 @@ func TestCodexRemoteNodeProcess(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, bin, "node", "--stdio")
-	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home, "CLAUDE_CONFIG_DIR=" + filepath.Join(home, ".claude"), "ORCA_USER_DATA_PATH=" + filepath.Join(home, ".orca")}
+	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home, "CLAUDE_CONFIG_DIR=" + filepath.Join(home, ".claude")}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -52,9 +52,6 @@ func TestCodexRemoteNodeProcess(t *testing.T) {
 	no := false
 	cfg := proto.CodexConfig{Discovery: &no, Homes: []string{profile}, Servers: []proto.CodexServer{{ID: "smoke", Home: profile, Endpoint: "ws" + strings.TrimPrefix(server.URL, "http")}}}
 	if err = peer.Call(ctx, "node.configure", map[string]any{"machine_id": "test", "codex": cfg}, nil); err != nil {
-		t.Fatal(err)
-	}
-	if err = peer.Call(ctx, "engine.use", map[string]any{"engine": "herdr-core"}, nil); err != nil {
 		t.Fatal(err)
 	}
 	var session proto.Session

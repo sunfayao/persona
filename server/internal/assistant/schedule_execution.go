@@ -355,7 +355,7 @@ func (s *Service) checkTaskLauncher(ctx context.Context, machine, name string, p
 	}
 	ctx, cancel := context.WithTimeout(withUnhidden(withManagedSnapshot(ctx, stored), name), 10*time.Second)
 	defer cancel()
-	picker, known, err := s.pickerLaunchersKnown(ctx, machine, "")
+	picker, known, err := s.pickerLaunchersKnown(ctx, machine)
 	if err != nil || !known {
 		return false, nil
 	}

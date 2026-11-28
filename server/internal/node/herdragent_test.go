@@ -21,7 +21,7 @@ func withPaneShell(t *testing.T, shell string) {
 // Codex only, and typed only into a shell that takes `VAR=val cmd`; a launcher run without a pane (the assistant,
 // launcher checks) never gets it.
 func TestHerdrAgentOnlyInHerdrPanes(t *testing.T) {
-	herdr, orca := &herdrHost{}, &orcaHost{}
+	herdr := &herdrHost{}
 	for _, tc := range []struct {
 		launch host.Launcher
 		kind   string
@@ -31,8 +31,6 @@ func TestHerdrAgentOnlyInHerdrPanes(t *testing.T) {
 		{herdr, "codex", "codex"},
 		{herdr, traexAgent, ""},
 		{herdr, piAgent, "pi"},
-		{orca, "claude", ""},
-		{orca, "codex", ""},
 	} {
 		if got := herdrAgentFor(tc.launch, tc.kind); got != tc.want {
 			t.Errorf("%T %s: %q, want %q", tc.launch, tc.kind, got, tc.want)
@@ -50,9 +48,6 @@ func TestHerdrAgentOnlyInHerdrPanes(t *testing.T) {
 		if got := typedHerdrAgent(herdr, "claude", tc.shells...); got != tc.want {
 			t.Errorf("typed into %q: %q, want %q", tc.shells, got, tc.want)
 		}
-	}
-	if got := typedHerdrAgent(orca, "claude", "zsh"); got != "" {
-		t.Errorf("typed into an Orca zsh: %q", got)
 	}
 	if got := withHerdrAgent("", "traex hi"); got != "traex hi" {
 		t.Errorf("no agent: %q", got)
@@ -134,8 +129,8 @@ func (h *screenHost) Read(context.Context, host.PaneRef, host.ReadOpts) (string,
 	return h.screen, nil
 }
 
-// stateless is a screenHost whose engine sees claude in front of every pane but reports no state for it, as an Orca
-// fork does after the tab's rename until claude's first hook (#4438).
+// stateless is a screenHost whose engine sees claude in front of every pane but reports no state for it, as a host can
+// after the tab's rename until claude's first hook (#4438).
 type stateless struct{ screenHost }
 
 func (h *stateless) Agent(context.Context, host.PaneRef) (*host.Agent, error) {

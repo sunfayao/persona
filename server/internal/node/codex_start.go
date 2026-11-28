@@ -238,12 +238,10 @@ func (n *Node) startCodex(ctx context.Context, launch host.Launcher, cwd, launch
 	}
 	defer os.RemoveAll(dir) // codex-start removes the file once read; the directory goes when the start ends
 	file := filepath.Join(dir, "start.json")
-	owner, _ := launch.(interface{ Kind() string })
-	isolateHooks := owner != nil && owner.Kind() == host.Orca
 	if runtime.GOOS == "windows" {
 		prompt = strings.NewReplacer("\r\n", "\n", "\r", "\n").Replace(inertControls(prompt))
 	}
-	b, _ := json.Marshal(codexStartFile{Source: execution.Source, Argv: argv, Prompt: prompt, Images: images, Agent: herdrAgentFor(launch, "codex"), IsolateHooks: isolateHooks, Dir: cwd})
+	b, _ := json.Marshal(codexStartFile{Source: execution.Source, Argv: argv, Prompt: prompt, Images: images, Agent: herdrAgentFor(launch, "codex"), Dir: cwd})
 	if err := os.WriteFile(file, b, 0o600); err != nil {
 		return nil, err
 	}
@@ -579,8 +577,6 @@ type codexStartFile struct {
 	// Agent is the HERDR_AGENT the words run with (hostherdr.go): "codex" for a Codex started in a herdr pane; "" leaves
 	// the variable as it is (tab-start, other hosts).
 	Agent string `json:"agent,omitempty"`
-	// Orca hooks belong to this terminal. A shared Codex daemon can retain another terminal's hook environment.
-	IsolateHooks bool `json:"isolate_hooks,omitempty"`
 	// Dir is the directory the words run in ("": the shell's): the conversation's. A start in a pane the shell of
 	// which is elsewhere (a switch from Claude Code, engine_switch.go) runs Codex there, which records it as the
 	// thread's directory, and a resume finds its thread's files from there. No cd is typed: nothing but codex-start
@@ -651,17 +647,6 @@ func CodexStart(args []string) error {
 		return fmt.Errorf("%s %v", codexStartError, err)
 	}
 	argv := append([]string(nil), words...)
-	if f.IsolateHooks && !codexOnRemote(argv) && codexOwnProcess(argv) == "" {
-		// Probe the executable in the new terminal, not the node's PATH. Older CLIs have no shared daemon or flag.
-		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-		probe := exec.CommandContext(ctx, path, "--help")
-		probe.Env = env
-		help, err := probe.Output()
-		cancel()
-		if err == nil && strings.Contains(string(help), "--no-daemon") {
-			argv = append([]string{argv[0], "--no-daemon"}, argv[1:]...)
-		}
-	}
 	if filepath.Base(words[0]) == "codex" && (filepath.IsAbs(words[0]) || runtime.GOOS == "windows") {
 		home, _ := os.UserHomeDir()
 		cwd, _ := os.Getwd()

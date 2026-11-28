@@ -302,41 +302,6 @@ func TestRuntimeWatchDirectFailureRetriesOnNextList(t *testing.T) {
 	}
 }
 
-func TestRuntimeWatchTakenOverFailureRetriesOnNextList(t *testing.T) {
-	n, hub := runtimeNode(t)
-	sdkTranscript(t, n, sdkSession, "where we left off")
-	if err := n.useEngine(context.Background(), proto.EnginePaseo); err != nil {
-		t.Fatal(err)
-	}
-	host := dialRuntime(t, n, paseoEngineHello())
-	row := map[string]any{"session_id": sdkSession, "transcript": sdkSession, "agent": "claude", "status": "working", "cwd": "/w/app"}
-	var fail atomic.Bool
-	fail.Store(true)
-	host.mu.Lock()
-	host.answer = func(method string, params json.RawMessage) (any, error) {
-		switch method {
-		case "session.start":
-			return map[string]any{"session": row}, nil
-		case "session.watch":
-			if fail.CompareAndSwap(true, false) {
-				return nil, errors.New("takeover watch failure")
-			}
-		}
-		return map[string]any{"ok": true}, nil
-	}
-	host.mu.Unlock()
-	waitFor(t, "listed offline", func() bool { freshOffline(); return listed(t, n)[sdkSession].Status == proto.StatusOffline })
-	runtimeSessionCall(t, hub, "session.watch", map[string]any{"session_id": sdkSession, "since_seq": 0})
-	if _, err := nodeCall(t, n, "session.send", map[string]any{"session_id": sdkSession, "text": "carry on"}); err != nil {
-		t.Fatal(err)
-	}
-	if got := len(host.got("session.watch")); got != 1 {
-		t.Fatalf("takeover watch calls = %d, want 1", got)
-	}
-	pushRuntimeRetryList(t, host, map[string]any{"sessions": []map[string]any{row}})
-	waitFor(t, "the takeover watch retry", func() bool { return len(host.got("session.watch")) == 2 })
-}
-
 func TestRuntimeWatchTranscriptMovedFailureRetriesOnNextList(t *testing.T) {
 	n, hub := runtimeNode(t)
 	host := dialRuntime(t, n, paseoHello())

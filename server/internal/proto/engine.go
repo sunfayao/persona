@@ -1,63 +1,19 @@
 package proto
 
-// Terminal engines: the terminal host(s) a machine's node drives, chosen per machine. EngineHerdrBoth runs classic
-// herdr and herdr-core side by side: a machine used both locally and through the Herdr
-// app's remote sessions.
-const (
-	EngineHerdr     = "herdr"      // the classic herdr CLI
-	EngineHerdrCore = "herdr-core" // the runtime of the Herdr desktop app
-	EngineHerdrBoth = "herdr-both" // classic herdr and herdr-core together
-	EngineOrca      = "orca"       // the Orca desktop app's runtime
-	// EngineTern is Tern, Stencil's multiplexing terminal, through its `tern` command line (node/hosttern.go,
-	// docs/integrations/engines.md "Tern").
-	EngineTern = "tern"
-	// EngineRex is Rex, a multiplexing terminal, through its `rex` command line and control API (node/hostrex.go,
-	// docs/integrations/engines.md "Rex").
-	EngineRex = "rex"
-	// EnginePaseo is not a terminal: the Paseo daemon's agents, through its runtime (node/runtimecontrol.go,
-	// docs/integrations/paseo.md). New sessions and sessions to continue go to Paseo.
-	EnginePaseo = "paseo"
-	// EngineCindy is Cindy's agents, through its runtime bridge (node/cindybridge.go).
-	EngineCindy = "cindy"
-	// EngineT3Code is T3 Code's threads, through its runtime bridge to the local T3 server (node/t3codebridge.go,
-	// docs/integrations/engines.md "T3 Code").
-	EngineT3Code = "t3code"
-)
+// EngineHerdr is the terminal engine every node drives: the herdr command line, built in and always on. It is no
+// setting: Persona starts and drives every terminal Agent in herdr (docs/protocol/protocol.md "Engine").
+const EngineHerdr = "herdr"
 
 // HostAgy is the host a start names to run on the computer's Antigravity companion (the agy runtime's terminal-less
-// sessions, node runtimeOfIn) instead of in an engine host. It is a start host beside EngineHostIDs, never an engine a
-// machine enables: a new Agent with the default host runs agy in a herdr pane (#10237), a task the assistant starts
-// runs it here when the companion is connected (#13447).
+// sessions, node runtimeOfIn) instead of in herdr. It is the one host a start may name: a new Agent without it runs agy
+// in a herdr pane (#10237), a task the assistant starts runs it here when the companion is connected (#13447).
 const HostAgy = "agy"
 
-// RuntimeEngine: engine is one that is a runtime, not a terminal (Paseo, Cindy, T3 Code): its own providers start every
-// session that opens in it. Whether it runs only those (a launcher it lacks gets one of the same kind, or a refusal) its
-// node says per start host (launchers.list's host_runtime, #8140).
-func RuntimeEngine(engine string) bool {
-	return engine == EnginePaseo || engine == EngineCindy || engine == EngineT3Code
-}
-
-// EngineNames are the engines a machine may use, with the names the app shows.
-var EngineNames = map[string]string{
-	EngineHerdr:     "herdr",
-	EngineHerdrCore: "Herdr App",
-	EngineHerdrBoth: "herdr + Herdr App",
-	EngineOrca:      "Orca",
-	EngineTern:      "Tern",
-	EngineRex:       "Rex",
-	EnginePaseo:     "Paseo",
-	EngineCindy:     "Cindy",
-	EngineT3Code:    "T3 Code",
-}
-
-// Engine is one engine as found on a machine: Available when its socket is reachable (herdr: or its binary is there).
-// Note says why one that is there cannot be used (Orca too old or too new, Paseo's bridge not connected) or asks to
-// update it (Paseo), in Chinese; the hub words the node-engine catalog's notes in each reader's language
-// (i18n.EngineText), the others reach the app as they are.
+// Engine is herdr as found on a machine (node.info's engines, the machine's capabilities): Available when its server
+// answers, its socket file is there or its binary is on PATH; Version what it reports.
 type Engine struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	Available bool   `json:"available"`
 	Version   string `json:"version,omitempty"`
-	Note      string `json:"note,omitempty"`
 }

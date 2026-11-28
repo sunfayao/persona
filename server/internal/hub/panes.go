@@ -78,9 +78,6 @@ type nodeAction struct {
 	flags    []string // booleans, passed only when true
 	// Fields required unless the named boolean flag is true. Unknown/string flags never bypass validation.
 	requiredUnless map[string][]string
-	strictFlags    []string
-	strictStrings  []string
-	anyUnless      []string // any of these true flags bypasses requiredUnless for alternate request modes
 }
 
 func (h *Hub) nodeAction(a nodeAction) http.HandlerFunc {
@@ -93,22 +90,6 @@ func (h *Hub) nodeAction(a nodeAction) http.HandlerFunc {
 		if err := decodeJSONBody(w, r, &body, 4<<10); err != nil {
 			writeBodyErr(w, err, errors.New("bad request body"))
 			return
-		}
-		for _, flag := range a.strictFlags {
-			if v, present := body[flag]; present {
-				if _, ok := v.(bool); !ok {
-					writeErr(w, http.StatusBadRequest, i18n.Err("worktree-composer.mode_invalid"))
-					return
-				}
-			}
-		}
-		for _, field := range a.strictStrings {
-			if v, present := body[field]; present {
-				if _, ok := v.(string); !ok {
-					writeErr(w, http.StatusBadRequest, i18n.Err("worktree-composer.field_invalid"))
-					return
-				}
-			}
 		}
 		params := map[string]any{}
 		for _, k := range append(append([]string{}, a.required...), a.optional...) {
@@ -133,7 +114,7 @@ func (h *Hub) nodeAction(a nodeAction) http.HandlerFunc {
 			}
 		}
 		for flag, fields := range a.requiredUnless {
-			if params[flag] == true || anyActionFlag(params, a.anyUnless) {
+			if params[flag] == true {
 				continue
 			}
 			for _, k := range fields {
@@ -154,15 +135,6 @@ func (h *Hub) nodeAction(a nodeAction) http.HandlerFunc {
 	})
 }
 
-func anyActionFlag(params map[string]any, flags []string) bool {
-	for _, flag := range flags {
-		if params[flag] == true {
-			return true
-		}
-	}
-	return false
-}
-
 // nodeActions are the routes of those menu items, by path under /api/v1/machines/{mid}/.
 var nodeActions = map[string]nodeAction{
 	"panes/close": {method: "panes.close", timeout: 30 * time.Second, required: []string{"pane"}},
@@ -176,17 +148,14 @@ var nodeActions = map[string]nodeAction{
 	"tabs/rename":          {method: "tabs.rename", timeout: 30 * time.Second, required: []string{"tab_id", "label"}, optional: []string{"kind"}},
 	// #2431 "New worktree…": the repository of a workspace the host lists, and a Git worktree of it opened as a workspace.
 	// The branch and the path are typed in the dialog; the node refuses a path that holds something and never forces.
-	"worktree/prepare": {method: "worktree.prepare", timeout: 30 * time.Second, required: []string{"workspace_id"}, optional: []string{"kind", "locale"}, flags: []string{"composer"}, strictFlags: []string{"composer"}},
+	"worktree/prepare": {method: "worktree.prepare", timeout: 30 * time.Second, required: []string{"workspace_id"}, optional: []string{"kind", "locale"}},
 	"worktree/create": {method: "worktree.create", timeout: 150 * time.Second, required: []string{"workspace_id"},
-		optional: []string{"kind", "parent_workspace_id", "branch", "path", "name", "branch_override", "base_ref", "note", "sparse_preset_id", "source_id", "source_url", "locale"}, flags: []string{"auto_name", "composer", "no_parent"}, anyUnless: []string{"composer"}, strictFlags: []string{"composer", "no_parent"}, strictStrings: []string{"name", "branch_override", "base_ref", "parent_workspace_id", "note", "sparse_preset_id", "source_id", "source_url"},
+		optional: []string{"kind", "branch", "path", "locale"}, flags: []string{"auto_name"},
 		requiredUnless: map[string][]string{"auto_name": {"branch", "path"}}},
-	"worktree/source": {method: "worktree.source", timeout: 35 * time.Second, required: []string{"workspace_id", "kind"}, optional: []string{"query", "locale"}},
-	"worktree/preset": {method: "worktree.preset", timeout: 30 * time.Second, required: []string{"workspace_id", "kind", "name", "directories"}, optional: []string{"locale"}},
 	// #6115 a new agent in a worktree of its own: made from its folder, told apart, removed when it is closed and the
 	// user says so (the node refuses uncommitted work and unmerged branches unless force, which the user confirms).
 	"worktree/add":    {method: "worktree.add", timeout: 150 * time.Second, required: []string{"cwd"}, optional: []string{"branch", "name_hint", "kind", "locale"}},
 	"worktree/status": {method: "worktree.status", timeout: 30 * time.Second, required: []string{"cwd"}, optional: []string{"kind"}},
-	// remove on a runtime engine waits for its archive (node runtimeRemoveDeadline, 145 s), as delete does.
 	"worktree/remove": {method: "worktree.remove", timeout: 150 * time.Second, required: []string{"path"}, optional: []string{"kind"}, flags: []string{"delete_branch", "force"}},
 }
 
@@ -207,8 +176,6 @@ func (h *Hub) paneRoutes(api *http.ServeMux) {
 	// #2431 "New worktree…": what the dialog starts from, and the worktree (full devices only, panes.go)
 	api.HandleFunc("POST /api/v1/machines/{mid}/worktree/prepare", h.nodeAction(nodeActions["worktree/prepare"]))
 	api.HandleFunc("POST /api/v1/machines/{mid}/worktree/create", h.withClientOp("worktree_create", h.nodeAction(nodeActions["worktree/create"])))
-	api.HandleFunc("POST /api/v1/machines/{mid}/worktree/source", h.nodeAction(nodeActions["worktree/source"]))
-	api.HandleFunc("POST /api/v1/machines/{mid}/worktree/preset", h.nodeAction(nodeActions["worktree/preset"]))
 	api.HandleFunc("POST /api/v1/machines/{mid}/worktree/add", h.nodeAction(nodeActions["worktree/add"]))
 	api.HandleFunc("POST /api/v1/machines/{mid}/worktree/status", h.nodeAction(nodeActions["worktree/status"]))
 	api.HandleFunc("POST /api/v1/machines/{mid}/worktree/remove", h.nodeAction(nodeActions["worktree/remove"]))

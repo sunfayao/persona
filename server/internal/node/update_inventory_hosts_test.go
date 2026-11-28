@@ -26,9 +26,9 @@ func TestUpdateInventoryRefusesPartialHostSuccess(t *testing.T) {
 	n, _, _ := herdrNode(t)
 	failure := errors.New("source unavailable")
 	good := &inventoryHost{bareHost: bareHost{kind: host.Herdr}}
-	bad := &inventoryHost{bareHost: bareHost{kind: host.Orca}, snapshotErr: failure, listErr: failure}
+	bad := &inventoryHost{bareHost: bareHost{kind: host.Botmux}, snapshotErr: failure, listErr: failure}
 	n.hosts = host.NewRegistry(good, bad)
-	n.hostAgents = map[string][]host.Agent{host.Orca: {{Agent: "claude", AgentStatus: "idle"}}}
+	n.hostAgents = map[string][]host.Agent{host.Botmux: {{Agent: "claude", AgentStatus: "idle"}}}
 	if err := n.refreshHosts(context.Background()); err != nil {
 		t.Fatalf("display refresh lost its tolerant behavior: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestUpdateInventoryRefusesListFallbackAndScopedNodes(t *testing.T) {
 func TestUpdateInventoryRefusesCancellationAndPartialTargetSet(t *testing.T) {
 	n, _, _ := herdrNode(t)
 	a := &inventoryHost{bareHost: bareHost{kind: host.Herdr}}
-	b := &inventoryHost{bareHost: bareHost{kind: host.Orca}}
+	b := &inventoryHost{bareHost: bareHost{kind: host.Botmux}}
 	n.hosts = host.NewRegistry(a, b)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

@@ -332,7 +332,7 @@ func (n *Node) replayHook(e spoolEntry) error {
 	}
 	stopSig := n.recordHookTurn(req, in, e.At)
 	if !req.ReportOnly {
-		if paneKindOK(n, req.Pane) && !n.ahead.paneTaken(req.Pane) {
+		if !n.ahead.paneTaken(req.Pane) {
 			n.bindPane(req.Pane, in.SessionID)
 		}
 	}

@@ -69,9 +69,9 @@ func TestRuntimePaneSourceFrozenAndDelta(t *testing.T) {
 	m := newMachine(h, MachineConfig{ID: "demo"})
 	h.machines, h.byID["demo"] = []*Machine{m}, m
 	m.sessions = []proto.Session{
-		{MachineID: "demo", SessionID: "a", SourceKind: "runtime", PaneID: "orca:tab:a"},
-		{MachineID: "demo", SessionID: "b", SourceKind: "runtime", PaneID: "orca:tab:b"},
-		{MachineID: "demo", SessionID: "c", SourceKind: "runtime", SourceInstanceID: "orca"},
+		{MachineID: "demo", SessionID: "a", SourceKind: "runtime", PaneID: "w1:p1"},
+		{MachineID: "demo", SessionID: "b", SourceKind: "runtime", PaneID: "w1:p2"},
+		{MachineID: "demo", SessionID: "c", SourceKind: "runtime", SpaceKind: "codex_app"},
 	}
 	q := url.Values{"pane_source": {"terminal"}, "limit": {"1"}, "summary": {"1"}}
 	first := getOriginPage(t, h, q)
@@ -81,9 +81,9 @@ func TestRuntimePaneSourceFrozenAndDelta(t *testing.T) {
 	}
 	// Only origin metadata changes: transport, time, state and identity stay put.
 	m.mu.Lock()
-	m.sessions[1].SourceInstanceID = "orca"
-	m.sessions[2].SourceInstanceID = "pi"
-	m.sessions[2].PaneID = "orca:tab:c"
+	m.sessions[1].SpaceKind = "codex_app"
+	m.sessions[2].SpaceKind = ""
+	m.sessions[2].PaneID = "w1:p3"
 	m.mu.Unlock()
 	h.sessionsChanged(m)
 	frozen := cloneOriginQuery(q)
@@ -107,7 +107,7 @@ func TestRuntimePaneSourceFrozenAndDelta(t *testing.T) {
 	}
 	// Freeze the incremental view as well, then switch the entering row out again.
 	m.mu.Lock()
-	m.sessions[2].SourceInstanceID = "orca"
+	m.sessions[2].SpaceKind = "codex_app"
 	m.mu.Unlock()
 	h.sessionsChanged(m)
 	deltaQ.Set("cursor", delta.Cursor)
@@ -232,7 +232,7 @@ func TestRuntimePaneSourceExtensionScope(t *testing.T) {
 }
 
 func TestRuntimeOriginSummaryCompatibility(t *testing.T) {
-	summary := runtimeSummary(proto.Session{StartedByPersona: true, Host: "paseo", Background: []proto.BackgroundTask{{ID: "bg"}}})
+	summary := runtimeSummary(proto.Session{StartedByPersona: true, SpaceKind: "codex_app", Host: "herdr", Background: []proto.BackgroundTask{{ID: "bg"}}})
 	// By value, by pointer and as a slice element: the last two would pick Session's promoted MarshalJSONTo.
 	for _, v := range []any{summary, &summary, []runtimeRowSummary{summary}} {
 		raw, err := json.Marshal(v)
@@ -252,7 +252,7 @@ func checkOriginSummaryWire(t *testing.T, raw []byte) {
 	if err := json.Unmarshal(raw, &wire); err != nil {
 		t.Fatal(err)
 	}
-	for key, want := range map[string]any{"started_by_persona": true, compat.StartedField: true, "pane_source": "desktop", "host": "paseo", "waiting": true, "background_count": float64(1)} {
+	for key, want := range map[string]any{"started_by_persona": true, compat.StartedField: true, "pane_source": "desktop", "host": "herdr", "waiting": true, "background_count": float64(1)} {
 		if wire[key] != want {
 			t.Fatalf("%s=%v want %v", key, wire[key], want)
 		}

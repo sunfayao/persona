@@ -9,7 +9,6 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/host"
 	"github.com/sunfayao/persona/server/internal/lazyre"
-	"github.com/sunfayao/persona/server/internal/orcart"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
 )
@@ -236,7 +235,7 @@ func (n *Node) settleShell(ctx context.Context, pane string) error {
 	var asked time.Time // since when a question has been on screen
 	for {
 		screen, err := n.readPane(ctx, pane, "visible", 60)
-		if err != nil && !errors.Is(err, orcart.ErrNoScreen) {
+		if err != nil {
 			return nil
 		}
 		now := time.Now()

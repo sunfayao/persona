@@ -33,12 +33,7 @@
             "cores": 2,
             "memory": 1073741824
           },
-          "engine": "herdr",
-          "engines": [],
-          "engine_hosts": [
-            "herdr"
-          ],
-          "engine_default": "herdr"
+          "engines": []
         },
         {
           "id": "m2",
@@ -50,12 +45,7 @@
           "last_seen": "0001-01-01T00:00:00Z",
           "can_deploy": false,
           "deploy_reason": "这台电脑不在线，连上以后再更新",
-          "engine": "herdr",
-          "engines": [],
-          "engine_hosts": [
-            "herdr"
-          ],
-          "engine_default": "herdr"
+          "engines": []
         }
       ]
     },
@@ -102,12 +92,7 @@
             "cores": 2,
             "memory": 1073741824
           },
-          "engine": "herdr",
-          "engines": [],
-          "engine_hosts": [
-            "herdr"
-          ],
-          "engine_default": "herdr"
+          "engines": []
         },
         {
           "id": "m2",
@@ -119,12 +104,7 @@
           "last_seen": "0001-01-01T00:00:00Z",
           "can_deploy": false,
           "deploy_reason": "这台电脑不在线，连上以后再更新",
-          "engine": "herdr",
-          "engines": [],
-          "engine_hosts": [
-            "herdr"
-          ],
-          "engine_default": "herdr"
+          "engines": []
         }
       ],
       "type": "machines"

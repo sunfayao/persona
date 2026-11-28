@@ -391,7 +391,7 @@ func TestNodeReconcileDoesNotClearTokensBeforeFirstSync(t *testing.T) {
 }
 
 func TestNodeReconcileSkipsNonHerdrPanes(t *testing.T) {
-	// The host lists a pane whose id names another host (Orca), with a stale persona_ mark on it: reconciling reaches
+	// The host lists a pane whose id names another host (botmux), with a stale persona_ mark on it: reconciling reaches
 	// the host-kind check for it, and nothing is written to it through the herdr reporter (#948).
 	fh := &fakeMetadataHost{
 		agents: []host.Agent{
@@ -404,7 +404,7 @@ func TestNodeReconcileSkipsNonHerdrPanes(t *testing.T) {
 				Tokens: map[string]string{},
 			},
 			{
-				PaneID: "orca:t1:p1",
+				PaneID: "botmux:t1",
 				Tokens: map[string]string{"persona_todo": "stale"},
 			},
 		},
@@ -412,17 +412,17 @@ func TestNodeReconcileSkipsNonHerdrPanes(t *testing.T) {
 	n := &Node{
 		hosts: host.NewRegistry(fh),
 		agents: map[string]host.Agent{
-			"s_herdr": {PaneID: "w1:p1"},
-			"s_orca":  {PaneID: "orca:t1:p1"},
+			"s_herdr":  {PaneID: "w1:p1"},
+			"s_botmux": {PaneID: "botmux:t1"},
 		},
 	}
 	ctx := context.Background()
 
-	// Expected contains an orca session and a herdr session
+	// Expected contains a botmux session and a herdr session
 	expected := map[string]map[string]string{
-		"s_orca": {
-			"persona_todo":     "orca_todo",
-			"persona_todo_ref": "todo_1@m1/s_orca",
+		"s_botmux": {
+			"persona_todo":     "botmux_todo",
+			"persona_todo_ref": "todo_1@m1/s_botmux",
 		},
 		"s_herdr": {
 			"persona_todo":     "herdr_todo",
@@ -438,8 +438,8 @@ func TestNodeReconcileSkipsNonHerdrPanes(t *testing.T) {
 	defer fh.mu.Unlock()
 	herdrWritten := false
 	for _, call := range fh.reportCalls {
-		if call["pane"] == "orca:t1:p1" || call["pane"] == "t1:p1" {
-			t.Fatalf("herdr reporter should not receive report for orca pane: %+v", call)
+		if call["pane"] == "botmux:t1" || call["pane"] == "t1" {
+			t.Fatalf("herdr reporter should not receive report for a botmux pane: %+v", call)
 		}
 		if call["pane"] == "w1:p1" {
 			herdrWritten = true

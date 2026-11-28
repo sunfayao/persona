@@ -139,11 +139,8 @@ func taskSpaceLabel(title, id string) string {
 	return clip(oneLine(firstNonEmpty(strings.TrimSpace(title), id)), taskSpaceLabelMax)
 }
 
-func herdrTaskHost(m Device, params map[string]any) bool {
+func herdrTaskHost(params map[string]any) bool {
 	host, _ := params["host"].(string)
-	if host == "" {
-		host = proto.EngineHostsOf(m.Engine).Default
-	}
 	return host == "" || host == proto.EngineHerdr
 }
 
@@ -152,7 +149,7 @@ func herdrTaskHost(m Device, params map[string]any) bool {
 // that predates this change); non-herdr leaders never lose their explicit workspace_id.
 func (s *Service) withTaskSpaceStart(ctx context.Context, t PlanTask, m Device, params map[string]any) (context.Context, func(), error) {
 	root := taskSpaceRoot(t)
-	if t.backendWorkspace() || root == "" || !herdrTaskHost(m, params) {
+	if t.backendWorkspace() || root == "" || !herdrTaskHost(params) {
 		return ctx, func() {}, nil
 	}
 	unlock := s.lockTaskSpace(root)
@@ -187,8 +184,7 @@ func (s *Service) taskCheckoutOnly(ctx context.Context, t PlanTask) bool {
 	if root == "" {
 		return false
 	}
-	m, ok := s.machineByName(ctx, t.Machine)
-	if !ok || !herdrTaskHost(m, nil) {
+	if _, ok := s.machineByName(ctx, t.Machine); !ok {
 		return false
 	}
 	if t.Role == roleLeader && t.Parent == "" {

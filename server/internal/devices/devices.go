@@ -149,7 +149,6 @@ type Devices struct {
 
 	fleet   fleet
 	tailcat tailcatDialer
-	engines engineChoices
 	// clipboard: the machines the user turned clipboard sharing on for (clipboard.go).
 	clipboard clipboardSwitches
 	// fileTransfer: the machines the user turned file transfer on for (transfer_settings.go).

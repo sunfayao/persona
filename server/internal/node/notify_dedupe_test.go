@@ -5,11 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
@@ -148,30 +146,5 @@ func TestSessionsChangedOnlyWhenTheBytesDiffer(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-// engine.use pushes the new engine's list once (protocol.md), also when it is the very list pushed before the switch.
-func TestEngineSwitchPushesItsListOnce(t *testing.T) {
-	t.Setenv("HC_SOCKET", filepath.Join(t.TempDir(), "none.sock")) // no Herdr App to reach
-	n, w, _ := dedupeNode(t)
-	writeTranscript(t, n.home, "/w/app", sidA, time.Now().Add(-time.Minute), `{"type":"custom-title","customTitle":"a"}`)
-	n.setKept([]string{sidA}) // listed however short
-	list := n.sessionList(context.Background(), false)
-	if len(list) != 1 {
-		t.Fatalf("listed %d sessions, want the one transcript", len(list))
-	}
-	n.notifyList(list)
-	n.notifyList(list)
-	if got := len(w.changed()); got != 1 {
-		t.Fatalf("%d lists before the switch, want 1", got)
-	}
-	if err := n.useEngine(context.Background(), proto.EngineHerdrCore); err != nil {
-		t.Fatal(err)
-	}
-	n.engLists.Wait()
-	got := w.changed()
-	if len(got) != 2 || !bytes.Equal(got[0], got[1]) {
-		t.Fatalf("after the switch: %d lists (want 2, the same bytes)", len(got))
 	}
 }

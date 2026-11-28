@@ -15,7 +15,6 @@ import (
 	"github.com/sunfayao/persona/server/internal/compat"
 	"github.com/sunfayao/persona/server/internal/herdr"
 	"github.com/sunfayao/persona/server/internal/host"
-	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A machine that rebooted has the node back (launchd / systemd start it) but not herdr: nobody opened a terminal and
@@ -80,13 +79,10 @@ func herdrAlive(ctx context.Context, sock string) bool {
 	return true
 }
 
-// ensureHerdr starts herdr's server when the engine is classic herdr, starting it is on, and its socket does not
-// answer; it returns once the socket does. nil also when there is nothing to do (another engine, turned off, already
-// running): callers go on and report what herdr then says. why goes into the log.
+// ensureHerdr starts herdr's server when starting it is on and its socket does not answer; it returns once the socket
+// does. nil also when there is nothing to do (turned off, already running): callers go on and report what herdr then
+// says. why goes into the log.
 func (n *Node) ensureHerdr(ctx context.Context, why string) error {
-	if !n.hostEnabled(proto.EngineHerdr) {
-		return nil
-	}
 	h, ok := n.hosts.Get(host.Herdr).(*herdrHost)
 	if !ok || h.c == nil || n.hstart.off.Load() {
 		return nil
@@ -98,9 +94,6 @@ func (n *Node) ensureHerdr(ctx context.Context, why string) error {
 // that — the switch only says whether the node may do it on its own), installing herdr first when there is none.
 // It reports why when it could not.
 func (n *Node) startHerdrServer(ctx context.Context) (map[string]any, error) {
-	if !n.hostEnabled(proto.EngineHerdr) {
-		return nil, fmt.Errorf("这台电脑没有启用 herdr 引擎")
-	}
 	h, ok := n.hosts.Get(host.Herdr).(*herdrHost)
 	if !ok || h.c == nil {
 		return nil, fmt.Errorf("这台电脑没有 herdr")

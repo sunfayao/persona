@@ -65,7 +65,7 @@ Details: read .claude/skills/persona-work/references/agent-start.md in your work
     },
     "host": {
       "type": "string",
-      "description": "agy (Antigravity companion) or an enabled engine"
+      "description": "agy (Antigravity companion) or herdr (the computer's terminal); leave out to let Persona choose"
     },
     "speed": {
       "type": "string",

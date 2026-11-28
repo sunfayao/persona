@@ -117,19 +117,13 @@ func TestOmpNewAgentModelLeavesOtherStartsAndResumesAlone(t *testing.T) {
 	if err != nil || params["model"] != bound || params["effort"] != "high" {
 		t.Fatalf("resume lost its fallback binding: %+v, %v", params, err)
 	}
-	for _, tc := range []struct{ name, host, agent, source string }{
-		{"Paseo provider of the same name", proto.EnginePaseo, "codex", "paseo"},
-		{"shell launcher running Claude", proto.EngineHerdr, "claude", "zshrc"},
-		{"non-herdr terminal", proto.EngineTern, "omp", "path"},
+	for _, tc := range []struct{ name, agent, source string }{
+		{"shell launcher running Claude", "claude", "zshrc"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFakeHub().withMachine()
-			f.devices = []Device{{ID: "box", Online: true, Reachable: true, Engine: tc.host}}
+			f.devices = []Device{{ID: "box", Online: true, Reachable: true}}
 			f.launcherList = []proto.Launcher{{Name: "omp", Agent: tc.agent, Source: tc.source}}
-			if proto.RuntimeEngine(tc.host) {
-				f.hostLaunchers = map[string][]proto.Launcher{"box": f.launcherList}
-				f.launcherList = []proto.Launcher{{Name: "omp", Agent: "omp", Source: "path"}}
-			}
 			s := newServiceOn(t, f, &memStore{})
 			setModel(t, s, "agent.new", binding)
 			for _, pick := range []map[string]any{{"launcher": "omp"}, {}} {
@@ -169,7 +163,6 @@ func TestOmpNewAgentModelCatalogRelaysTheNodesHostCapability(t *testing.T) {
 	}{
 		{name: "herdr", launcher: "omp", host: "herdr", supported: true},
 		{name: "old node", launcher: "omp", host: "herdr", legacy: true},
-		{name: "other host", launcher: "omp", host: "tern", locked: "requires herdr"},
 		{name: "fixed model", launcher: "omp", host: "herdr", locked: "launcher fixes the model"},
 		{name: "alias", launcher: "my-omp", host: "herdr", locked: "requires native omp"},
 	} {

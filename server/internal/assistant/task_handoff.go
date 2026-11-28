@@ -22,12 +22,12 @@ func (s *Service) taskHandoff(ctx context.Context, machine string, fit startAgen
 func (s *Service) taskEntry(ctx context.Context, machine string, fit startAgent) prompts.TaskHandoff {
 	source := compat.Source(fit.source)
 	// Empty is a legacy shell launcher (proto.Launcher). A runtime or app's same-family agent does not establish
-	// terminal caller identity. Paseo injects the existing Persona MCP server into its Claude and Codex providers.
+	// terminal caller identity.
 	terminal := source == "" || source == "zshrc" || source == "path" || source == "persona" || source == "builtin" && fit.agent == "claude"
 	if source == "persona" && fit.agent == "agy" {
 		terminal = false // managed agy starts on its runtime (node/runtimes_start.go), not a pane
 	}
-	mcp := terminal && fit.agent == "claude" || source == proto.EnginePaseo && (fit.agent == "claude" || fit.agent == "codex")
+	mcp := terminal && fit.agent == "claude"
 	return s.taskEntryFor(ctx, machine, fit.agent, mcp, terminal)
 }
 

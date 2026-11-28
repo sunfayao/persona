@@ -25,7 +25,7 @@ func taskHerdrHub(t *testing.T, store Store) (*Service, *fakeHub) {
 	f.answerNode("session.info", func(string, json.RawMessage) (any, error) {
 		return map[string]any{"task_id": root, "task_workspace_id": taskHerdrWorkspaceID}, nil
 	})
-	f.startReply = func(params map[string]any, session *proto.Session) *proto.StartInstead {
+	f.startReply = func(params map[string]any, session *proto.Session) {
 		root, _ = params["task_id"].(string)
 		if session.SessionID == "s1" {
 			session.WorkspaceID = taskHerdrWorkspaceID
@@ -33,7 +33,6 @@ func taskHerdrHub(t *testing.T, store Store) (*Service, *fakeHub) {
 		if id, _ := params["workspace_id"].(string); id != "" {
 			session.WorkspaceID = id
 		}
-		return nil
 	}
 	return s, f
 }
@@ -55,10 +54,9 @@ func stoppedTaskLeader(t *testing.T) (*Service, *fakeHub, Todo) {
 	t.Helper()
 	s, f := taskHerdrHub(t, nil)
 	startReply := f.startReply
-	f.startReply = func(params map[string]any, session *proto.Session) *proto.StartInstead {
-		instead := startReply(params, session)
+	f.startReply = func(params map[string]any, session *proto.Session) {
+		startReply(params, session)
 		session.SessionID = resumedTaskLeaderSession
-		return instead
 	}
 	leader := startTaskLeader(t, s, f)
 	f.setSessions("box", stoppedBoxAgent(resumedTaskLeaderSession))
@@ -201,30 +199,21 @@ func TestTaskWorkspaceClosesOnlyAfterWholeLeaderTaskRetires(t *testing.T) {
 	}
 }
 
-func TestTaskWorkspacePlacementOnlyChangesHerdrLeaderTasks(t *testing.T) {
+func TestTaskWorkspacePlacementLeavesTasksThatAreNoLeaders(t *testing.T) {
 	for _, tc := range []struct {
-		name, engine, launcher string
-		leader                 bool
+		name, launcher string
 	}{
 		{name: "ordinary herdr session", launcher: "claude"},
-		{name: "leader on Orca", engine: proto.EngineOrca, launcher: "claude", leader: true},
-		{name: "leader on Paseo", engine: proto.EnginePaseo, launcher: "claude-sub", leader: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s, f := newQuietService(t)
 			f.devices = []Device{
 				{ID: "server", Name: "server", Home: "/home/me", Online: true, Reachable: true},
-				{ID: "box", Name: "box", Home: "/home/me", Online: true, Reachable: true, Engine: tc.engine},
+				{ID: "box", Name: "box", Home: "/home/me", Online: true, Reachable: true},
 			}
 			f.launcherList = []proto.Launcher{{Name: "claude", Agent: "claude"}}
-			if tc.engine == proto.EnginePaseo {
-				f.hostLaunchers = map[string][]proto.Launcher{"box": {{Name: tc.launcher, Source: "paseo", Agent: "claude"}}}
-			}
 			task := PlanTask{Title: "Inspect only", Prompt: "read the project", Machine: "box", Cwd: "/code/app",
 				Readonly: true, Permission: "plan", Launcher: tc.launcher}
-			if tc.leader {
-				task.Role = roleLeader
-			}
 			if _, _, err := s.startTaskAgent(context.Background(), &task, false); err != nil {
 				t.Fatal(err)
 			}
@@ -301,25 +290,6 @@ func TestStoppedTaskReworkChecksContextAndWritesResumeNote(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("rework wrote no resume note on the task card: %+v", items)
-	}
-}
-
-func TestTaskLeaderHerdrBothUsesTaskWorkspace(t *testing.T) {
-	s, f := taskHerdrHub(t, nil)
-	for i := range f.devices {
-		if f.devices[i].ID == "box" {
-			f.devices[i].Engine = proto.EngineHerdrBoth
-		}
-	}
-	leader := startTaskLeader(t, s, f)
-	worker := planWorker(t, s, f, nil)
-	starts := f.started()
-	if len(starts) != 2 || starts[0]["workspace_label"] != leader.Title || starts[1]["workspace_id"] != taskHerdrWorkspaceID {
-		t.Fatalf("herdr-both leader/worker placement = %v", starts)
-	}
-	create := taskWorktreeCreate(f)
-	if create == nil || create["open_workspace"] != false || starts[1]["cwd"] != create["path"] || worker.ID == leader.ID {
-		t.Fatalf("herdr-both worker lost checkout-only placement: start=%v create=%v", starts[1], create)
 	}
 }
 

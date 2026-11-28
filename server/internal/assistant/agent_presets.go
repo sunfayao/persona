@@ -84,7 +84,7 @@ func (s *Service) presetsOn(ctx context.Context, machines []Device) map[string]c
 	var wg sync.WaitGroup
 	for _, m := range machines {
 		wg.Go(func() {
-			presets, err := s.machinePresets(ctx, m.ID, agentStartHost(m, ""))
+			presets, err := s.machinePresets(ctx, m.ID)
 			mu.Lock()
 			out[m.ID] = computerPresets{Presets: presets, Err: err}
 			mu.Unlock()

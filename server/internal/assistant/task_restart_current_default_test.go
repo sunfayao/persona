@@ -264,69 +264,6 @@ func TestAnEarlierTrysSwapIsNotALaterTrysDefault(t *testing.T) {
 	}
 }
 
-// What an engine ran in place of what the task asked for (#8140) is what the task names from then on: its launcher
-// (without the tier) and that launcher's own default model, as the card shows it.
-func TestEngineInsteadIsWhatThePlanKeeps(t *testing.T) {
-	s, f := paseoFitHub(t)
-	ctx := context.Background()
-	f.startReply = func(params map[string]any, sess *proto.Session) *proto.StartInstead {
-		sess.Launcher = "krcc"
-		return &proto.StartInstead{Launcher: "claude-sub", Model: "model-three"}
-	}
-	res, err := s.toolTaskPlan(ctx, "conv9", json.RawMessage(`{"tasks":[{"title":"Ping","permission":"bypassPermissions",
-		"prompt":"Reply with pong","machine":"pbox","cwd":"~/code/app","launcher":"claude-sub","model":"model-three","why":"A quick check"}]}`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	id := planID(t, res)
-	if _, err := s.startPlan(ctx, id, nil, false); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "the start's bookkeeping", func() bool { return len(startsOf(f)) == 1 && s.taskStarting.Load() == 0 })
-	p, err := s.loadPlan(ctx, id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pt := p.Tasks[0]; pt.Launcher != "krcc" || pt.Model != "" || pt.Tier != "" || !containsAll(pt.Why, "krcc", "claude-sub") {
-		t.Fatalf("the plan keeps %q/%q/%q (%q), want what the engine ran", pt.Launcher, pt.Model, pt.Tier, pt.Why)
-	}
-}
-
-// A launcher the engine stands in at dispatch for the one the task named (the card could not tell when it was made)
-// keeps the task's own model when it offers it: the plan names the stand-in and still the task's model.
-func TestDispatchStandInKeepsTheTasksModel(t *testing.T) {
-	s, f := paseoFitHub(t)
-	ctx := context.Background()
-	f.agentModels = map[string][]proto.AgentModel{"codex-cpa": {{ID: "model-three"}}}
-	f.mu.Lock()
-	host := f.hostLaunchers["pbox"]
-	delete(f.hostLaunchers, "pbox") // no engine list while the plan is made
-	f.mu.Unlock()
-	res, err := s.toolTaskPlan(ctx, "conv9", json.RawMessage(`{"tasks":[{"title":"Ping","permission":"bypassPermissions",
-		"prompt":"Reply with pong","machine":"pbox","cwd":"~/code/app","launcher":"codex","model":"model-three","why":"A quick check"}]}`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	id := planID(t, res)
-	f.mu.Lock()
-	f.hostLaunchers["pbox"] = host
-	f.mu.Unlock()
-	if _, err := s.startPlan(ctx, id, nil, false); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "the start's bookkeeping", func() bool { return len(startsOf(f)) == 1 && s.taskStarting.Load() == 0 })
-	if st := startsOf(f)[0]; st["launcher"] != "codex-cpa" || st["model"] != "model-three" {
-		t.Fatalf("started %v", st)
-	}
-	p, err := s.loadPlan(ctx, id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pt := p.Tasks[0]; pt.Launcher != "codex-cpa" || pt.Model != "model-three" || !containsAll(pt.Why, "codex-cpa") {
-		t.Fatalf("the plan keeps %q/%q (%q), want the stand-in with the task's model", pt.Launcher, pt.Model, pt.Why)
-	}
-}
-
 // A launcher the computer has, swapped in at dispatch for a default it lacks (#2661), runs its own default model, not
 // the model the task named for the default: the plan names the swapped launcher with no model, as the card shows it, so
 // a later retry does not hand that model to the swapped launcher.

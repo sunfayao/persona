@@ -16,15 +16,11 @@ import (
 
 // renameSpace renames a workspace (what the phone calls a space) in the host it is in (spaceOrganizer) and returns the
 // name it shows now: a named herdr session's with the session in front (sessionLabel, #2196), which the hub keys pins
-// and to-do links by. An engine runtime's space (Paseo's project, by its id or one of its workspaces') is renamed in the
-// runtime (runtimeworkspaces_manage.go).
+// and to-do links by.
 func (n *Node) renameSpace(ctx context.Context, workspaceID, name string) (string, error) {
 	name = strings.TrimSpace(name)
 	if workspaceID == "" || name == "" {
 		return "", fmt.Errorf("workspace and name are required")
-	}
-	if h, space := n.runtimeSpace(workspaceID); h != nil {
-		return n.runtimeRenameSpace(ctx, h, space, name)
 	}
 	org, err := n.spaceOrganizer(ctx, workspaceID)
 	if err != nil {
@@ -54,8 +50,8 @@ func (n *Node) spaceOrganizer(ctx context.Context, space string) (host.Organizer
 			hs = append(hs, h)
 		}
 	}
-	def := n.defaultKind()
-	terminal := n.hosts.Get(def) != nil // the default engine is one of the terminal hosts
+	def := host.Herdr
+	terminal := n.hosts.Get(def) != nil
 	if len(hs) > 1 || len(hs) == 1 && !terminal {
 		slices.SortStableFunc(hs, func(a, b host.Host) int {
 			return boolRank(b.Kind() == def) - boolRank(a.Kind() == def)
@@ -150,7 +146,7 @@ func (n *Node) renameObservedTab(ctx context.Context, id, tab, expected, name st
 		return err
 	}
 	org, ok := h.(host.Organizer)
-	if !ok || h.Kind() != host.Herdr && h.Kind() != host.HerdrCore {
+	if !ok || h.Kind() != host.Herdr {
 		return unsupported(h)
 	}
 	layout, err := h.Snapshot(ctx)

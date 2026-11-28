@@ -14,7 +14,7 @@ import (
 const traexOwnerPane = "w1:p2"
 
 func TestTraexPaginatedConversationDirectoryDiffersFromContainer(t *testing.T) {
-	n, _, _ := startNode(t)
+	n, _ := startNode(t)
 	traexHistoryFixture(t, n, nil)
 	writeOwner(t, n, threadMain, time.Now())
 	cacheTraexOwnerPane(t, os.Getpid())
@@ -31,7 +31,7 @@ func traexPaneOwnerFixture(t *testing.T) *Node {
 	if !alive(os.Getppid()) {
 		t.Skip("the test's parent is not this user's live process")
 	}
-	n, _, _ := startNode(t)
+	n, _ := startNode(t)
 	traexHistoryFixture(t, n, nil)
 	writeCodexApp(t, n.traexHome(), "/work/app", `UPDATE threads SET id = '`+threadNew+
 		`', archived = 0, source = 'cli', name = 'Nested task' WHERE id = '`+threadOld+`';`)
@@ -138,7 +138,7 @@ func TestTraexPaneOwnersPreferConversationActivityOverAnotherLockInSameProcess(t
 }
 
 func TestTraexPaginatedGuardianRolloutIdentifiesPane(t *testing.T) {
-	n, _, _ := startNode(t)
+	n, _ := startNode(t)
 	traexHistoryFixture(t, n, nil)
 	writeMetaRollout(t, n.traexHome(), threadGuardian, `{"id":"`+threadGuardian+`","session_id":"`+threadMain+
 		`","thread_source":"subagent"}`, time.Now())

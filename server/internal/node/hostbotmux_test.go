@@ -651,14 +651,9 @@ func TestBotmuxFoundOutsidePATH(t *testing.T) {
 func botmuxNode(t *testing.T) (*Node, *fakeBotmux) {
 	t.Helper()
 	n, hf, home := herdrNode(t)
-	// An engine switch makes its hosts from the environment: the fake herdr, and no herdr-core, not this computer's.
-	t.Setenv("HERDR_SOCKET_PATH", hf.sock)
-	t.Setenv("HC_SOCKET", filepath.Join(t.TempDir(), "hc.sock"))
 	f := newFakeBotmux(t)
 	f.herdr, f.home = hf, home
 	stubBotmux(t, f)
-	// Runs before stubBotmux puts botmuxBin back: an engine switch's list, still being built, reads it (publish).
-	t.Cleanup(n.engLists.Wait)
 	f.rows = []map[string]any{bmxRow(sidA, "claude-code", "alive", "working", false, "a")}
 	writeTranscript(t, home, bmxCwd, sidA, time.Now().Add(-time.Minute), `{"type":"user","message":{"role":"user","content":"hi"}}`)
 	return n, f
@@ -702,22 +697,15 @@ func TestNewNodeWaitsForTheHubOnBotmux(t *testing.T) {
 }
 
 // Turned off for the machine (hub.json machines[].botmux false), botmux is no host: no observe and no sessions, and a
-// node.configure that says nothing of botmux (only keep_sessions, only claude_dirs) leaves it off; so does an engine
-// switch, before and after the hub's word.
+// node.configure that says nothing of botmux (only keep_sessions, only claude_dirs) leaves it off.
 func TestBotmuxOffRunsNoBotmux(t *testing.T) {
 	n, f := botmuxNode(t)
-	if err := n.useEngine(context.Background(), proto.EngineHerdrBoth); err != nil {
-		t.Fatal(err)
-	}
 	if kinds := hostKinds(n); slices.Contains(kinds, host.Botmux) {
-		t.Fatalf("engine.use before the hub's word registered botmux: %v", kinds)
+		t.Fatalf("botmux registered before the hub's word: %v", kinds)
 	}
 	configureNode(t, n, map[string]any{"botmux": false})
 	configureNode(t, n, map[string]any{"keep_sessions": []string{}})
 	configureNode(t, n, map[string]any{"claude_dirs": []string{}})
-	if err := n.useEngine(context.Background(), proto.EngineHerdr); err != nil {
-		t.Fatal(err)
-	}
 	if kinds := hostKinds(n); slices.Contains(kinds, host.Botmux) {
 		t.Fatalf("botmux registered while off: %v", kinds)
 	}
@@ -726,14 +714,11 @@ func TestBotmuxOffRunsNoBotmux(t *testing.T) {
 	}
 }
 
-// Turned on, botmux's sessions are listed (an engine switch keeps them); turned off again they leave the list and
-// botmux is not asked any more; on again, they come back.
+// Turned on, botmux's sessions are listed; turned off again they leave the list and botmux is not asked any more; on
+// again, they come back.
 func TestBotmuxComesAndGoesWithTheHubsWord(t *testing.T) {
 	n, f := botmuxNode(t)
 	configureNode(t, n, map[string]any{"botmux": true})
-	if err := n.useEngine(context.Background(), proto.EngineHerdrBoth); err != nil {
-		t.Fatal(err)
-	}
 	if !botmuxListed(t, n, sidA) {
 		t.Fatalf("on: %v", ids(listSessions(t, n)))
 	}

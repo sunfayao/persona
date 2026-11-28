@@ -19,8 +19,8 @@ func writeGitFile(t *testing.T, path, body string) {
 	}
 }
 
-// The layouts git itself writes: a main checkout, a linked worktree elsewhere on disk (Orca, Claude Code and herdr keep
-// them in their own folders), a submodule and a detached HEAD.
+// The layouts git itself writes: a main checkout, a linked worktree elsewhere on disk (Claude Code and herdr keep them in
+// their own folders), a submodule and a detached HEAD.
 func TestReadGitPlace(t *testing.T) {
 	home := t.TempDir()
 	// readGitPlace walks the filesystem itself, so GIT_CEILING_DIRECTORIES does not apply. An empty .git file
@@ -32,8 +32,8 @@ func TestReadGitPlace(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// git worktree add ~/orca/workspaces/app/fix-login -b fix/login: an absolute gitdir, a relative commondir.
-	tree := filepath.Join(home, "orca", "workspaces", "app", "fix-login")
+	// git worktree add ~/trees/app/fix-login -b fix/login: an absolute gitdir, a relative commondir.
+	tree := filepath.Join(home, "trees", "app", "fix-login")
 	meta := filepath.Join(repo, ".git", "worktrees", "fix-login")
 	writeGitFile(t, filepath.Join(tree, ".git"), "gitdir: "+meta+"\n")
 	writeGitFile(t, filepath.Join(meta, "commondir"), "../..\n")

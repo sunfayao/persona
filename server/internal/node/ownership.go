@@ -9,16 +9,14 @@ import (
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
-// Ownership (#2576): with several hosts enabled, the same Claude session can be live in
-// two of them at once — resumed in herdr while its Orca pane still runs it, say. A session is listed once, in the host
-// that owns it; every send, key and interrupt goes there (they route by the listed pane), its state comes from there,
-// and its row names the other hosts it is also open in (proto.Session.AlsoOpenIn) so the apps can warn of the
-// conflict. The owner, in order:
+// Ownership (#2576): the same Claude session can be live in two hosts at once — resumed in herdr while a botmux session
+// still runs it, say. A session is listed once, in the host that owns it; every send, key and interrupt goes there
+// (they route by the listed pane), and its state comes from there. The owner, in order:
 //
 //  1. the pane whose own claude process runs the session (~/.claude/sessions/<pid>.json, sessionFromProcess);
 //  2. else the pane whose SessionStart hook named the session last;
-//  3. else the pane in the machine's default host;
-//  4. else the first host in proto.EngineHostIDs' order, then the lowest pane id (stable across refreshes).
+//  3. else the pane in herdr;
+//  4. else the lowest pane id (stable across refreshes).
 //
 // Two live panes of the same host keep the behaviour from before hosts could be combined (the later one listed).
 
@@ -26,7 +24,6 @@ import (
 type ownership struct {
 	mu        sync.Mutex
 	starts    map[string]paneStart // pane ref → the session its last SessionStart hook named, and when
-	alsoOpen  map[string][]string  // session id → the other host kinds it is live in (the last refresh)
 	ownerKind map[string]string    // session id → the host kind that owns it (the last refresh), for tests and logs
 }
 
@@ -77,34 +74,25 @@ func crossHost(m map[string]host.Agent, id string, a host.Agent) bool {
 		host.ParsePane(prev.PaneID).Kind != host.ParsePane(a.PaneID).Kind
 }
 
-// resolve settles every contested session in m (the owner listed, the others recorded) and remembers which other
-// hosts each is also open in. Called without n.mu: rule 1 asks the panes' processes, every candidate's host even in a
-// refresh of another host (unlike the rest of setAgentsAt, #5816): a contest is rare, and its owner must not depend on
-// which host refreshed last.
-func (n *Node) resolve(m map[string]host.Agent, c contest) map[string][]string {
-	also := map[string][]string{}
+// resolve settles every contested session in m (the owner listed, the others left out). Called without n.mu: rule 1
+// asks the panes' processes, every candidate's host even in a refresh of another host (unlike the rest of
+// setAgentsAt, #5816): a contest is rare, and its owner must not depend on which host refreshed last.
+func (n *Node) resolve(m map[string]host.Agent, c contest) {
 	owners := map[string]string{}
 	for id, cands := range c {
 		owner := n.ownerOf(id, cands)
 		m[id] = owner
 		owners[id] = host.ParsePane(owner.PaneID).Kind
-		for _, a := range cands {
-			if k := host.ParsePane(a.PaneID).Kind; a.PaneID != owner.PaneID && !slices.Contains(also[id], k) {
-				also[id] = append(also[id], k)
-			}
-		}
-		slices.Sort(also[id])
 	}
 	n.owners.mu.Lock()
 	prev := n.owners.ownerKind
-	n.owners.alsoOpen, n.owners.ownerKind = also, owners
+	n.owners.ownerKind = owners
 	n.owners.mu.Unlock()
 	for id, k := range owners {
 		if prev[id] != k {
-			n.logf("session %s: live in %v, owned by %s", id, also[id], k)
+			n.logf("session %s: live in several hosts, owned by %s", id, k)
 		}
 	}
-	return also
 }
 
 // ownerOf picks the owner among the live panes listing session id (the rules above).
@@ -141,22 +129,18 @@ func (n *Node) ownerOf(id string, cands []host.Agent) host.Agent {
 	if len(latest) > 1 {
 		cands = latest
 	}
-	// 3. the default host
-	def := n.defaultKind()
-	var inDefault []host.Agent
+	// 3. herdr
+	var inHerdr []host.Agent
 	for _, a := range cands {
-		if host.ParsePane(a.PaneID).Kind == def {
-			inDefault = append(inDefault, a)
+		if host.ParsePane(a.PaneID).Kind == host.Herdr {
+			inHerdr = append(inHerdr, a)
 		}
 	}
-	if len(inDefault) >= 1 {
-		cands = inDefault
+	if len(inHerdr) >= 1 {
+		cands = inHerdr
 	}
 	// 4. stable order
 	return slices.MinFunc(cands, func(a, b host.Agent) int {
-		if d := hostRank(a.PaneID) - hostRank(b.PaneID); d != 0 {
-			return d
-		}
 		switch {
 		case a.PaneID < b.PaneID:
 			return -1
@@ -165,19 +149,4 @@ func (n *Node) ownerOf(id string, cands []host.Agent) host.Agent {
 		}
 		return 0
 	})
-}
-
-// hostRank orders a pane's host by proto.EngineHostIDs; hosts outside it (botmux) last.
-func hostRank(pane string) int {
-	if i := slices.Index(proto.EngineHostIDs, host.ParsePane(pane).Kind); i >= 0 {
-		return i
-	}
-	return len(proto.EngineHostIDs)
-}
-
-// alsoOpenIn are the other hosts session id was live in at the last refresh (its row's AlsoOpenIn).
-func (n *Node) alsoOpenIn(id string) []string {
-	n.owners.mu.Lock()
-	defer n.owners.mu.Unlock()
-	return slices.Clone(n.owners.alsoOpen[id])
 }

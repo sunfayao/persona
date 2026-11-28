@@ -16,7 +16,3 @@ func updateProcessArgv(pid int) ([]string, error) {
 	}
 	return p.argv, nil
 }
-
-func processExecPath(int) (string, error) {
-	return "", errors.New("process executables unsupported on this platform")
-}

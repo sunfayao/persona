@@ -17,13 +17,10 @@ import (
 // run in it; nothing closed it, and the shells piled up by the dozen. The node now closes such a pane once it has sat
 // unchanged for agentTerminalGrace, checking everything again under the session's recovery lock right before:
 //
-//   - Persona opened it for an Agent: herdr's persona_tab mark (personatab.go), or, on an engine without metadata
-//     tokens (Orca), the node's own record of the terminals it opened for Agents (agentTerms; a node restart forgets
-//     it, and those terminals are then left alone);
+//   - Persona opened it for an Agent: herdr's persona_tab mark (personatab.go);
 //   - no Agent is in it: the engine lists none there, no session the node tracks is bound to it, no failed start keeps
 //     it for a retry and no Codex waits for its thread there;
-//   - only a shell is in front (herdr: pane.process_info), or, on an engine that cannot say (Orca), no agent process
-//     carries the pane's key;
+//   - only a shell is in front (herdr: pane.process_info);
 //   - no client has its terminal open;
 //   - its screen has not changed for the whole grace period; any change starts the clock again.
 //
@@ -80,23 +77,6 @@ type finishedPane struct {
 	p  host.Agent
 	h  host.Host
 	id string // the session the mark names; "" or "agent" when the start did not know it yet
-}
-
-// agentTerminalOpened records pane as a terminal Persona opened for an Agent on an engine that keeps no marks of its
-// own (herdr's are personaTabToken): the in-memory ownership finished_close.go needs there.
-func (n *Node) agentTerminalOpened(launch host.Launcher, pane host.PaneRef) {
-	if pane.ID == "" {
-		return
-	}
-	if _, marks := launch.(host.MetadataReporter); marks {
-		return
-	}
-	n.mu.Lock()
-	if n.agentTerms == nil {
-		n.agentTerms = map[string]bool{}
-	}
-	n.agentTerms[pane.String()] = true
-	n.mu.Unlock()
 }
 
 // closeFinishedLoop closes finished Agents' terminals after the grace period until ctx ends.
@@ -157,13 +137,6 @@ func (n *Node) closeFinishedRound(ctx context.Context, grace time.Duration, now 
 			delete(n.finishedSince, pane)
 		}
 	}
-	for _, recs := range []map[string]bool{n.agentTerms, n.agentRoots} {
-		for pane := range recs {
-			if !n.inFreshLayout(pane, start) {
-				delete(recs, pane) // closed, or its engine restarted: a record never outlives its terminal
-			}
-		}
-	}
 	n.mu.Unlock()
 	if len(closed) > 0 {
 		_ = n.refreshHosts(ctx)
@@ -203,9 +176,9 @@ func (n *Node) finishedPanes(since time.Time, only string) []finishedPane {
 	var out []finishedPane
 	for _, h := range n.hosts.All() {
 		switch h.Kind() {
-		case host.Herdr, host.Orca:
+		case host.Herdr:
 		default:
-			continue // other engines keep their terminals as before
+			continue // other hosts keep their terminals as before
 		}
 		l, ok := n.layouts[h.Kind()]
 		if !ok || l.at.Before(since) {
@@ -257,7 +230,7 @@ func (n *Node) finishedAgentPaneLocked(h host.Host, p host.Agent, marks bool, in
 		return finishedPane{}, false
 	}
 	id := p.Tokens[personaTabToken]
-	if marks && id == "" || !marks && !n.agentTerms[p.PaneID] {
+	if !marks || id == "" {
 		return finishedPane{}, false // not one Persona opened for an Agent
 	}
 	if bound := n.panes[p.PaneID]; bound != "" {
@@ -291,10 +264,7 @@ func (n *Node) worktreeShellLocked(p host.Agent, marks bool, inUse map[string]bo
 	if _, kept := n.keptStarts[p.PaneID]; kept || n.codexWaiting[p.PaneID] != nil {
 		return false
 	}
-	if marks {
-		return p.Tokens[personaWorktreeToken] != "" && p.Tokens[personaTabToken] == ""
-	}
-	return n.agentRoots[p.PaneID]
+	return marks && p.Tokens[personaWorktreeToken] != "" && p.Tokens[personaTabToken] == ""
 }
 
 // finishedAtRest says whether only a shell is in front of c's pane, and hashes its screen; ok false when the engine
@@ -358,8 +328,6 @@ func (n *Node) closeFinishedPane(ctx context.Context, c finishedPane, screen [32
 	}
 	n.mu.Lock()
 	delete(n.finishedSince, p.PaneID)
-	delete(n.agentTerms, p.PaneID)
-	delete(n.agentRoots, p.PaneID)
 	n.mu.Unlock()
 	log.Printf("finished terminal %s (session %s): closed after its grace period", p.PaneID, c.id)
 	return true

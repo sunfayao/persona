@@ -159,7 +159,7 @@ func (s *Service) fitNewLauncher(ctx context.Context, m Device, own startPick, p
 
 func (s *Service) applyOmpStartDefaults(ctx context.Context, m Device, own startPick, agent startAgent, params map[string]any) error {
 	declared, _ := params["agent_type"].(string)
-	if params["launcher"] != "omp" || agent.agent != "omp" || (declared != "" && declared != "omp") || !herdrTaskHost(m, params) {
+	if params["launcher"] != "omp" || agent.agent != "omp" || (declared != "" && declared != "omp") || !herdrTaskHost(params) {
 		return nil
 	}
 	if source := compat.Source(agent.source); source != "" && source != "builtin" && !machineSource(source) {
@@ -256,13 +256,6 @@ func (s *Service) fitLauncher(ctx context.Context, m Device, own startPick, para
 	name, _ := params["launcher"].(string)
 	if proto.IsExternalLauncher(name) {
 		return "", startAgent{}, i18n.Err("external-adapter.purpose_unsupported")
-	}
-	asked, _ := params["host"].(string)
-	if host := agentStartHost(m, asked); host != "" {
-		// Where the start's engine runs only its own launchers, plain claude and a managed launcher do not run either.
-		if note, agent, err, done := s.fitEngineLauncher(ctx, m, host, params); done {
-			return note, agent, err
-		}
 	}
 	if s.launcherEverywhere(ctx, name) {
 		if name == "" || name == "claude" {
@@ -416,4 +409,34 @@ func launcherNamesOn(m Device, list []proto.Launcher) []string {
 		names = append(names, "claude")
 	}
 	return names
+}
+
+// launcherKindOn is the kind of agent launcher name starts for a start on machine (claude, codex, traex…): a provider
+// kept in Persona's agent, hub.json's word for it there, the machine's last list's, else what its name says (codex,
+// traex and omp by name, else Claude Code).
+func (s *Service) launcherKindOn(ctx context.Context, machine, name string) string {
+	if m, ok := s.managedNamed(ctx, name); ok {
+		return m.AgentType()
+	}
+	if l, ok := s.configuredLauncher(ctx, machine, name); ok && l.AgentType != "" {
+		return l.AgentType
+	}
+	if a := s.lastSeenAgent(ctx, machine, name).agent; a != "" {
+		return a
+	}
+	switch name {
+	case "codex", "traex", "omp":
+		return name
+	}
+	return "claude"
+}
+
+// kindName is how a refusal names a kind of agent: the harness's name, or the kind itself for one Persona has no name
+// for (traex).
+func kindName(kind string) string {
+	switch kind {
+	case "claude", "codex", "agy", "omp":
+		return harnessName(kind)
+	}
+	return kind
 }

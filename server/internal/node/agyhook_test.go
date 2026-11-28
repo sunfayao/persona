@@ -97,9 +97,6 @@ func TestAgyHookUnknownWhenHerdrDoesNotAnswer(t *testing.T) {
 	if err := n.checkAgyPane(context.Background(), launch, ""); err != nil {
 		t.Fatalf("unreachable herdr refused the start: %v", err)
 	}
-	if got := n.agyHook(context.Background(), &herdrCoreHost{}, ""); got != "" {
-		t.Fatalf("the Herdr App host: hook state %q, want unknown", got)
-	}
 }
 
 func TestAgyHookFiles(t *testing.T) {

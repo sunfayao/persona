@@ -39,8 +39,8 @@ func (h *bareHost) PaneProcesses(context.Context, host.PaneRef) ([]int, error) {
 func (h *bareHost) PaneEnv() string                                            { return "BARE_PANE_ID" }
 
 func TestCloseOnHostThatCannotCloseSendsNothing(t *testing.T) {
-	h := &bareHost{kind: host.Orca}
-	n := &Node{hosts: host.NewRegistry(h), agents: map[string]host.Agent{"s1": {Agent: "claude", PaneID: "orca:t1:l1"}},
+	h := &bareHost{kind: host.Tmux}
+	n := &Node{hosts: host.NewRegistry(h), agents: map[string]host.Agent{"s1": {Agent: "claude", PaneID: "tmux:%1"}},
 		state: newState()}
 	err := n.close(context.Background(), "s1")
 	if !errors.Is(err, host.ErrUnsupported) || !strings.HasPrefix(err.Error(), "unsupported") {
@@ -60,11 +60,11 @@ func TestMissingCapabilityIsUnsupported(t *testing.T) {
 		t.Fatalf("hostCap = %v", err)
 	}
 	// A pane of a known host that this machine does not have is not sent to herdr.
-	_, _, err := n.paneHost("orca:a:b")
-	if err == nil || err.Error() != "no orca host on this machine" {
-		t.Fatalf("paneHost(orca:a:b) = %v", err)
+	_, _, err := n.paneHost("botmux:a")
+	if err == nil || err.Error() != "no botmux host on this machine" {
+		t.Fatalf("paneHost(botmux:a) = %v", err)
 	}
-	if _, err := hostCap[host.Launcher](&Node{hosts: host.NewRegistry(&bareHost{kind: host.Orca})}); err == nil ||
+	if _, err := hostCap[host.Launcher](&Node{hosts: host.NewRegistry(&bareHost{kind: host.Tmux})}); err == nil ||
 		err.Error() != "no herdr host on this machine" {
 		t.Fatalf("hostCap without herdr = %v", err)
 	}

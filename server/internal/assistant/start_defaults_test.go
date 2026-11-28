@@ -961,27 +961,20 @@ func TestStartDefaultsRefusedDefaultGoalLeavesNoNote(t *testing.T) {
 	}
 }
 
-// What the hub already knows refuses a goal: a start in an engine runtime (the machine's own or the one asked for) and
-// a desktop app's launcher; a terminal launcher is left to the node.
+// What the hub already knows refuses a goal: a desktop app's launcher; a terminal launcher is left to the node.
 func TestDefaultGoalRefusedOn(t *testing.T) {
-	term, paseo := Device{ID: "box"}, Device{ID: "box", Engine: proto.EnginePaseo}
 	for _, c := range []struct {
-		name   string
-		m      Device
-		params map[string]any
-		agent  startAgent
-		want   bool
+		name  string
+		agent startAgent
+		want  bool
 	}{
-		{"terminal codex", term, map[string]any{}, startAgent{agent: "codex", source: "zshrc"}, false},
-		{"managed launcher", term, map[string]any{}, startAgent{agent: "codex", source: "persona"}, false},
-		{"unknown source", term, map[string]any{}, startAgent{agent: "codex"}, false},
-		{"codex app", term, map[string]any{}, startAgent{agent: "codex", source: "codex_app"}, true},
-		{"claude desktop", term, map[string]any{}, startAgent{agent: "claude", source: "claude_desktop"}, true},
-		{"a runtime's launcher", term, map[string]any{}, startAgent{agent: "codex", source: proto.EnginePaseo}, true},
-		{"a runtime machine", paseo, map[string]any{}, startAgent{agent: "codex", source: "zshrc"}, true},
-		{"a runtime asked for", term, map[string]any{"host": proto.EngineCindy}, startAgent{agent: "codex"}, true},
+		{"terminal codex", startAgent{agent: "codex", source: "zshrc"}, false},
+		{"managed launcher", startAgent{agent: "codex", source: "persona"}, false},
+		{"unknown source", startAgent{agent: "codex"}, false},
+		{"codex app", startAgent{agent: "codex", source: "codex_app"}, true},
+		{"claude desktop", startAgent{agent: "claude", source: "claude_desktop"}, true},
 	} {
-		if got := defaultGoalRefusedOn(c.m, c.params, c.agent); got != c.want {
+		if got := defaultGoalRefusedOn(c.agent); got != c.want {
 			t.Errorf("%s: %v, want %v", c.name, got, c.want)
 		}
 	}

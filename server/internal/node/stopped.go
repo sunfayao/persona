@@ -33,7 +33,7 @@ func (n *Node) terminalExitLaunch(id string) (sessionState, bool) {
 	}
 	kind := host.ParsePane(st.Pane).Kind
 	_, canLaunch := n.hosts.Get(kind).(host.Launcher)
-	return st, canLaunch && n.hostEnabled(kind)
+	return st, canLaunch && kind == host.Herdr
 }
 
 // The input lock is held by send. Explicit Resume acquires the recovery lock before the input lock, so never
@@ -115,10 +115,10 @@ func (n *Node) markStopped(s *proto.Session) {
 		if pane != "" {
 			kind = host.ParsePane(pane).Kind
 		} else {
-			kind = n.defaultKind() // Older transcripts may have no recorded host.
+			kind = host.Herdr // Older transcripts may have no recorded host.
 		}
 	}
-	if _, runtime := engineRuntimes[kind]; runtime || n.hosts.Get(kind) == nil {
+	if n.hosts.Get(kind) == nil {
 		return
 	}
 	if n.isAssistantSession(s.SessionID) || n.runtimeAssistant(s.SessionID) || n.freshFork(s.SessionID) {

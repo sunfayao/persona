@@ -107,13 +107,6 @@ func TestOmpModelChecksPrecedeTab(t *testing.T) {
 			t.Fatalf("start error = %v, tabs = %v", err, f.trace("tab.create"))
 		}
 	})
-	t.Run("unsupported host", func(t *testing.T) {
-		n, herdr, orca := startNode(t)
-		_, err := request(t, n, "session.start", map[string]any{"cwd": t.TempDir(), "launcher": "omp", "host": "orca", "model": "opus"})
-		if code, _ := refusalOf(t, err); code != "omp_options" || herdr.asked() != 0 || orca.asked() != 0 {
-			t.Fatalf("start error = %v, herdr = %d, Orca = %d", err, herdr.asked(), orca.asked())
-		}
-	})
 	t.Run("managed launcher named omp", func(t *testing.T) {
 		n, f, home := herdrNode(t)
 		n.setManaged([]proto.ManagedLauncher{{Name: "omp", Agent: "omp", Kind: "api"}})
@@ -150,7 +143,7 @@ func TestOmpModelPickerLocksUnsupportedLaunch(t *testing.T) {
 		t.Fatal(err)
 	}
 	n, f, cwd := herdrNode(t)
-	for _, tc := range []struct{ launcher, host string }{{"omp", "herdr"}, {"my-omp", "herdr"}, {"omp", "orca"}} {
+	for _, tc := range []struct{ launcher, host string }{{"omp", "herdr"}, {"my-omp", "herdr"}, {"omp", "agy"}} {
 		got, err := request(t, n, "launchers.models", map[string]any{"name": tc.launcher, "agent_type": "omp", "host": tc.host})
 		if _, advertised := got["supports_start_model"]; err != nil || got["locked"] == nil || advertised {
 			t.Errorf("%s on %s: launcher models = %v, %v", tc.launcher, tc.host, got, err)

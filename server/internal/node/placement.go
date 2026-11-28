@@ -550,7 +550,7 @@ func (n *Node) setAgentsAt(agents []host.Agent, epoch uint64, heard map[string]b
 		}
 		if _, taken := m[id]; id == "" || taken {
 			kind := host.ParsePane(a.PaneID).Kind
-			if kind == host.Herdr || kind == host.HerdrCore {
+			if kind == host.Herdr {
 				if a.PaneID != "" && reported == "" && bound == "" && a.AgentStatus != proto.StatusOffline {
 					manual = append(manual, a)
 				}

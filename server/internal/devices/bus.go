@@ -68,22 +68,6 @@ func (d *Devices) Request(ctx context.Context, method string, params json.RawMes
 			return nil, true, err
 		}
 		return devicewire.MachineEntry{Entry: entry}, true, nil
-	case devicewire.MethodEngineGet:
-		var p devicewire.MachineRef
-		if err := decode(&p); err != nil {
-			return nil, true, err
-		}
-		c, err := d.engineChoiceToMove(p.MachineID)
-		return devicewire.MachineEngine{MachineID: p.MachineID, Choice: c}, true, err
-	case devicewire.MethodEnginePut:
-		var p devicewire.MachineEngine
-		if err := decode(&p); err != nil {
-			return nil, true, err
-		}
-		if p.MachineID == "" || p.Choice == nil {
-			return nil, true, &rpc.Error{Code: "invalid_params", Message: method + ": machine_id and choice are required"}
-		}
-		return map[string]any{}, true, d.setEngineHosts(ctx, p.MachineID, p.Choice.Hosts, p.Choice.Default)
 	case devicewire.MethodUpdateNodes:
 		go d.updateNodes(context.WithoutCancel(ctx))
 		return map[string]any{}, true, nil
@@ -284,7 +268,6 @@ func (d *Devices) Handler(next http.Handler) http.Handler {
 	route("POST /api/v1/sessions/{mid}/{sid}/held/{msg}/retry", d.postHeldRetry)
 	route("DELETE /api/v1/sessions/{mid}/{sid}/held/{msg}", d.deleteHeld)
 	route("POST /api/v1/machines/{mid}/codex/{sid}/takeover", d.commitCodexTakeover)
-	route("PUT /api/v1/machines/{mid}/engine", d.putEngine)
 	route("GET /api/v1/machines/{mid}/herdr", d.getHerdr)
 	route("PUT /api/v1/machines/{mid}/herdr", d.putHerdr)
 	route("POST /api/v1/machines/{mid}/herdr/start", d.postHerdrStart)

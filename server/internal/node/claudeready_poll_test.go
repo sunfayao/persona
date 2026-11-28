@@ -46,11 +46,11 @@ func TestReadyPollKeepsFixtureAndProductionCadence(t *testing.T) {
 				if fixture {
 					n, _ = testNode(t)
 				}
-				h := &readinessFrames{stateless: stateless{screenHost{bareHost: bareHost{kind: host.Orca}}},
+				h := &readinessFrames{stateless: stateless{screenHost{bareHost: bareHost{kind: host.Tmux}}},
 					frames: []string{empty, empty + "\nesc to interrupt\n", empty, empty}}
 				n.hosts = host.NewRegistry(h)
 				began := time.Now()
-				if agent, err := n.waitReady(context.Background(), "orca:t1:l1", nil); err != nil || agent == nil {
+				if agent, err := n.waitReady(context.Background(), "tmux:%1", nil); err != nil || agent == nil {
 					t.Fatalf("ready frames were not accepted: %v", err)
 				}
 				if len(h.reads) != 4 {
@@ -69,12 +69,12 @@ func TestReadyPollKeepsFixtureAndProductionCadence(t *testing.T) {
 func TestReadyPollCancellationDoesNotReadTheHost(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		n, _ := testNode(t)
-		h := &readinessFrames{stateless: stateless{screenHost{bareHost: bareHost{kind: host.Orca}}}, frames: []string{"unused"}}
+		h := &readinessFrames{stateless: stateless{screenHost{bareHost: bareHost{kind: host.Tmux}}}, frames: []string{"unused"}}
 		n.hosts = host.NewRegistry(h)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		done := make(chan error, 1)
-		go func() { _, err := n.waitReady(ctx, "orca:t1:l1", nil); done <- err }()
+		go func() { _, err := n.waitReady(ctx, "tmux:%1", nil); done <- err }()
 		time.Sleep(10 * time.Millisecond) // sleep-ok: advance virtual time before cancelling the pending poll
 		cancel()
 		if err := <-done; !errors.Is(err, context.Canceled) || len(h.reads) != 0 {
@@ -87,10 +87,10 @@ func TestReadyPollFixtureKeepsTheStartDeadline(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		n, _ := testNode(t)
 		n.claudeStart = 100 * time.Millisecond
-		h := &readinessFrames{stateless: stateless{screenHost{bareHost: bareHost{kind: host.Orca}}}, frames: []string{"shell prompt"}, missing: true}
+		h := &readinessFrames{stateless: stateless{screenHost{bareHost: bareHost{kind: host.Tmux}}}, frames: []string{"shell prompt"}, missing: true}
 		n.hosts = host.NewRegistry(h)
 		began := time.Now()
-		_, err := n.waitReady(context.Background(), "orca:t1:l1", nil)
+		_, err := n.waitReady(context.Background(), "tmux:%1", nil)
 		if err == nil || !strings.Contains(err.Error(), "the tab's shell had not run it yet") || len(h.reads) != 5 || time.Since(began) != n.claudeStart {
 			t.Fatalf("start deadline changed: %d reads in %v, %v", len(h.reads), time.Since(began), err)
 		}

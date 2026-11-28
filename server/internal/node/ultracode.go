@@ -685,9 +685,6 @@ func (n *Node) checkUltracodeStart(ctx context.Context, on *bool, agent string) 
 	if agent != "claude" {
 		return ultracodeUnsupported("只有 Claude Code Agent 支持 ultracode")
 	}
-	if h := n.defaultHost(); h != nil && !drivesScreen(h) {
-		return ultracodeUnsupported(ultracodeScreenlessNote)
-	}
 	if note := ultracodeVersionNote(n.claudeV.get(ctx)); note != "" {
 		return ultracodeUnsupported(note)
 	}

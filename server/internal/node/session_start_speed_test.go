@@ -83,7 +83,7 @@ func TestSessionStartSpeedRefusesExternalAndPaseoRuntimes(t *testing.T) {
 		}
 	})
 
-	t.Run("Paseo provider", func(t *testing.T) {
+	t.Run("runtime provider", func(t *testing.T) {
 		n, _ := runtimeNode(t)
 		host := dialRuntime(t, n, paseoEngineHello())
 		host.answer = func(method string, _ json.RawMessage) (any, error) {
@@ -92,7 +92,6 @@ func TestSessionStartSpeedRefusesExternalAndPaseoRuntimes(t *testing.T) {
 			}
 			return map[string]any{"ok": true}, nil
 		}
-		enablePaseo(n)
 		_, err := request(t, n, "session.start", map[string]any{
 			"cwd": t.TempDir(), "launcher": "paseo-codex", "prompt": "hello", "speed": "fast",
 		})
@@ -100,7 +99,7 @@ func TestSessionStartSpeedRefusesExternalAndPaseoRuntimes(t *testing.T) {
 			t.Errorf("refusal = %q (%v), want agent_speed_unsupported", code, err)
 		}
 		if got := host.got("session.start"); len(got) != 0 {
-			t.Errorf("speed reached the Paseo provider: %s", got)
+			t.Errorf("speed reached the runtime's provider: %s", got)
 		}
 	})
 }

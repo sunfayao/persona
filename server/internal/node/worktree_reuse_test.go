@@ -113,7 +113,7 @@ func TestWorktreePrepareCheckedOutBranchRequiresCompleteInventory(t *testing.T) 
 	// spelling, the one a terminal opens (#10365). The same on a home that is no link.
 	at := filepath.Join(w.home, "retained")
 	runPullGit(t, w.repo, "worktree", "add", "-b", "fix/reuse", "--", at)
-	h := &inventoryHost{bareHost: bareHost{kind: host.Orca}, snapshotErr: errors.New("source unavailable"), listErr: errors.New("source unavailable")}
+	h := &inventoryHost{bareHost: bareHost{kind: host.Botmux}, snapshotErr: errors.New("source unavailable"), listErr: errors.New("source unavailable")}
 	w.n.hosts = host.NewRegistry(w.n.hosts.Get(host.Herdr), h)
 	_, err := request(t, w.n, "worktree.prepare", map[string]any{"kind": host.Herdr, "cwd": w.repo, "branch": "fix/reuse", "lang": "en"})
 	if err == nil || !strings.Contains(err.Error(), at) {
@@ -131,7 +131,7 @@ func TestWorktreePrepareBranchLookupDoesNotChangeCreation(t *testing.T) {
 			t.Fatalf("unused branch %q should preserve normal preparation: %v %v", branch, got, err)
 		}
 	}
-	if _, err := w.n.worktreeCreate(t.Context(), "", "", w.repo, "fix/reuse", filepath.Join(w.home, "duplicate"), "", nil); err == nil {
+	if _, err := w.n.worktreeCreate(t.Context(), "", "", w.repo, "fix/reuse", filepath.Join(w.home, "duplicate"), nil); err == nil {
 		t.Fatal("general worktree creation must still refuse a branch checked out elsewhere")
 	}
 }

@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-// HerdrTabName returns the live tab label for an Agent in herdr or Herdr App.
+// HerdrTabName returns the live tab label for an Agent in herdr.
 func (s Session) HerdrTabName() string {
 	if s.Assistant || s.SlotID == "" && s.TabID == "" {
 		return ""
@@ -15,7 +15,7 @@ func (s Session) HerdrTabName() string {
 	if kind == "" {
 		kind = s.Host
 	}
-	if kind != "" && kind != "herdr" && kind != "herdr-core" {
+	if kind != "" && kind != "herdr" {
 		return ""
 	}
 	return strings.TrimSpace(s.SlotName)

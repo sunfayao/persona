@@ -551,20 +551,3 @@ func TestReadonlyTaskPlanUnknownLauncherGoesToNode(t *testing.T) {
 		}
 	})
 }
-
-// A start an engine runtime runs is the runtime's to refuse (Paseo holds a read-only start to its Claude Code providers,
-// caps.readonly): a read-only task on its pi provider is not refused when it is planned, and goes to the engine.
-func TestReadonlyTaskPlanOnEngineRuntimeGoesToEngine(t *testing.T) {
-	s, f := paseoFitHub(t)
-	f.hostLaunchers["pbox"] = append(f.hostLaunchers["pbox"], proto.Launcher{Name: "pi-paseo", Source: "paseo", Agent: "pi"})
-	task := readonlyTestTask("")
-	task.Machine, task.Cwd, task.Launcher = "pbox", "~/code/app", "pi-paseo"
-	if _, err := s.toolTaskPlan(context.Background(), "readonly-chat", readonlyTaskArgs(t, task)); err != nil {
-		t.Fatalf("a read-only task on an engine's provider was refused before the engine: %v", err)
-	}
-	waitFor(t, "read-only start on Paseo", func() bool {
-		f.mu.Lock()
-		defer f.mu.Unlock()
-		return len(f.starts) == 1 && f.starts[0]["launcher"] == "pi-paseo"
-	})
-}

@@ -9,16 +9,10 @@ import (
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
-func provenanceHerdr(n *Node) {
-	n.eng.name = proto.EngineHerdr
-	n.eng.set = &proto.EngineChoice{Hosts: []string{proto.EngineHerdr}, Default: proto.EngineHerdr}
-}
-
 func TestRestartStatusDoesNotAuthorizeUnknownStopCause(t *testing.T) {
 	for _, cause := range []proto.StopCause{proto.StopUnknown, proto.StopUser, proto.StopIdle, proto.StopRestart, proto.StopCause("future")} {
 		t.Run(cause.String(), func(t *testing.T) {
 			n, _, home := herdrNode(t)
-			provenanceHerdr(n)
 			cwd := mkdir(t, filepath.Join(home, "project"))
 			n.state.put(sidA, sessionState{Launcher: "claude", Cwd: cwd, Pane: "w1:p1", AppMode: "plan",
 				StartedAt: n.bootAt.Add(-time.Hour), StopCause: cause})
@@ -74,7 +68,6 @@ func TestGuardedResumeRejectsStaleRowsAndPermissionOverrides(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			n, f, _ := keptAgent(t)
-			provenanceHerdr(n)
 			n.claudeStart, n.claudeReady = 20*time.Millisecond, 20*time.Millisecond
 			n.state.stopped(sidA, tc.cause)
 			_, err := request(t, n, "session.start", map[string]any{
@@ -95,7 +88,6 @@ func TestGuardedResumeRejectsStaleRowsAndPermissionOverrides(t *testing.T) {
 
 	t.Run("owner closed after the assistant listed the row", func(t *testing.T) {
 		n, f, _ := keptAgent(t)
-		provenanceHerdr(n)
 		n.claudeStart, n.claudeReady = 20*time.Millisecond, 20*time.Millisecond
 		n.state.setPane(sidA, "w1:p1")
 		n.state.stopped(sidA, proto.StopIdle)
@@ -124,7 +116,6 @@ func TestClosingStoppedTerminalsRecordsUserIntent(t *testing.T) {
 	for _, action := range []string{"pane", "finished terminals", "exit"} {
 		t.Run(action, func(t *testing.T) {
 			n, _, _ := keptAgent(t)
-			provenanceHerdr(n)
 			n.state.stopped(sidA, proto.StopIdle)
 			switch action {
 			case "pane":
@@ -159,7 +150,6 @@ func TestClosingStoppedTerminalsRecordsUserIntent(t *testing.T) {
 
 func TestOwnerResumeStillUsesItsExplicitPathAfterUserStop(t *testing.T) {
 	n, f, _ := keptAgent(t)
-	provenanceHerdr(n)
 	n.state.stopped(sidA, proto.StopUser)
 	n.claudeStart, n.claudeReady = 20*time.Millisecond, 20*time.Millisecond
 	// The scripted shell does not launch Claude; reaching its resume command is the boundary under test.
@@ -179,7 +169,6 @@ func TestResumeConsumesItsPreviousStopEvenWhenStartFails(t *testing.T) {
 	for _, automatic := range []bool{false, true} {
 		t.Run(map[bool]string{false: "owner", true: "supervisor"}[automatic], func(t *testing.T) {
 			n, f, _ := keptAgent(t)
-			provenanceHerdr(n)
 			n.claudeStart, n.claudeReady = 20*time.Millisecond, 20*time.Millisecond
 			n.state.stopped(sidA, proto.StopIdle)
 			_, _ = request(t, n, "session.start", map[string]any{
@@ -228,7 +217,6 @@ func TestDelegatedResumeTakesAnAgentThatEndedWithoutAnOwnersStop(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			n, f, _ := keptAgent(t)
-			provenanceHerdr(n)
 			n.claudeStart, n.claudeReady = 20*time.Millisecond, 20*time.Millisecond
 			if tc.cause != proto.StopUnknown {
 				n.state.stopped(sidA, tc.cause)
@@ -276,7 +264,6 @@ func TestDelegatedResumeTakesAnAgentThatEndedWithoutAnOwnersStop(t *testing.T) {
 // delegatedResumeSettle is refused with nothing touched, so it is never started twice (#8214); after it, one goes.
 func TestDelegatedResumeWaitsOutAnUncertainStart(t *testing.T) {
 	n, f, _ := keptAgent(t)
-	provenanceHerdr(n)
 	n.claudeStart, n.claudeReady = 20*time.Millisecond, 20*time.Millisecond
 	n.state.stopped(sidA, proto.StopExit)
 	params := map[string]any{"resume_session_id": sidA, "resume_automatic": true, "resume_delegated": true, "prompt": "Continue"}
@@ -310,7 +297,6 @@ func TestStoppedRowSaysWhetherItTakesADelegatedResume(t *testing.T) {
 	for cause, want := range map[proto.StopCause]bool{proto.StopUnknown: true, proto.StopExit: true, proto.StopIdle: true,
 		proto.StopUser: false, proto.StopCause("future"): false} {
 		n, _, _ := keptAgent(t)
-		provenanceHerdr(n)
 		n.state.stopped(sidA, cause)
 		row := proto.Session{SessionID: sidA, Agent: "claude", Host: proto.EngineHerdr, Status: proto.StatusOffline}
 		n.markStopped(&row)

@@ -19,7 +19,7 @@ import (
 // On Windows persona-link runs from a scheduled task of the user's own: `install`
 // writes the task, registers it with schtasks and starts it; `uninstall` takes it away. The task starts at sign-in
 // in the user's session and needs no administrator: Task Scheduler refuses a standard user a task that runs without
-// a sign-in (S4U), and the node has to see the user's Orca and its agents anyway. What it runs is the supervisor
+// a sign-in (S4U), and the node has to see the user's terminals and their agents anyway. What it runs is the supervisor
 // (`persona-link supervise`, supervise_windows.go) from a console-less copy of persona-link, which keeps persona-link and
 // the resident node running: the one task stands for both systemd units of Linux.
 

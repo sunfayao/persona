@@ -321,8 +321,7 @@ func (n *Node) switchSession(ctx context.Context, id string, engine bool) (host.
 	if a.Agent != "" && a.Agent != "claude" && (!engine || a.Agent != "codex") {
 		return a, nil, ref, unsupported(a.Agent + " runs in this terminal")
 	}
-	kind := host.ParsePane(a.PaneID).Kind
-	if _, runtime := engineRuntimes[kind]; runtime || kind == host.Botmux {
+	if kind := host.ParsePane(a.PaneID).Kind; kind == host.Botmux {
 		return a, nil, ref, unsupported(kind + " runs this agent itself")
 	}
 	h, ref, err := n.paneHost(a.PaneID)

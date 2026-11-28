@@ -12,10 +12,9 @@ import (
 )
 
 // Every connection is a new Node with an empty Codex registry; the hub hands it the inventory it keeps for the
-// computer (the homes, the app-servers, the threads the user joined) in node.configure. The engine is settled before
-// that (engine.use is the first call of the manager's handshake), and a report then would have the hub store the empty
-// registry over what it kept. The node's reports wait for node.configure's codex, and the first one after it carries
-// the hub's inventory with what the node found meanwhile.
+// computer (the homes, the app-servers, the threads the user joined) in node.configure. A report before that would have
+// the hub store the empty registry over what it kept. The node's reports wait for node.configure's codex, and the first
+// one after it carries the hub's inventory with what the node found meanwhile.
 func TestCodexInventoryReportWaitsForTheHubsInventory(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		n, home := testNode(t)
@@ -33,7 +32,6 @@ func TestCodexInventoryReportWaitsForTheHubsInventory(t *testing.T) {
 		go func() { defer close(done); n.runCodex(ctx) }()
 		defer func() { cancel(); <-done }()
 
-		n.configured() // engine.use's handler ends with this (node.go "engine.use")
 		synctest.Wait()
 		select {
 		case c := <-reports:

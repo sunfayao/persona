@@ -145,7 +145,6 @@ func (n *Node) sendLocked(ctx context.Context, id, text string, images []proto.I
 	var stoppedLaunch sessionState
 	var resumeClaim func()
 	if err != nil {
-		ctx = n.withResumeHost(ctx, id)
 		stoppedLaunch, resumeClaim = n.claimTerminalExitSend(ctx, id)
 		if resumeClaim != nil {
 			defer resumeClaim()
@@ -240,10 +239,6 @@ func (n *Node) sendLocked(ctx context.Context, id, text string, images []proto.I
 		// not to a claude --resume of ours (claudedesktop_open.go).
 		if handled, err := n.sendThroughDesktopApp(ctx, id, text, images); handled {
 			return err
-		}
-		// A session continuing in a runtime is taken over there (runtimecontrol.go).
-		if _, ok := engineRuntimes[n.startKind(ctx)]; ok {
-			return n.continueInRuntime(ctx, id, text, images, opts.ClientMsgID)
 		}
 		if r := n.notRunningRefusal(ctx, id); r != nil {
 			return r

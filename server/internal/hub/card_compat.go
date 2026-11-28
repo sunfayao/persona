@@ -81,7 +81,6 @@ func cardCompatItems(l i18n.Lang, ring, markdownCloseout bool, items []proto.Ite
 		if !ring {
 			text = ringCardsDowngraded(l, text)
 		}
-		text = paseoUIConverted(l, text)
 		if text == it.Text {
 			continue
 		}

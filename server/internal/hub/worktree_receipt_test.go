@@ -15,7 +15,7 @@ import (
 
 const worktreeReceiptID = "00000000-0000-4000-8000-000000001399"
 const worktreeReceiptPath = "/api/v1/machines/machine/worktree/create"
-const worktreeReceiptBody = `{"workspace_id":"repo::/code","kind":"orca","parent_workspace_id":"other::/collection","auto_name":true}`
+const worktreeReceiptBody = `{"workspace_id":"w1","kind":"herdr","auto_name":true}`
 
 func worktreeReceiptRequest(path, body, id, device, role string) *http.Request {
 	r := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
@@ -45,8 +45,8 @@ func TestWorktreeCreateReceiptSurvivesLostResponse(t *testing.T) {
 		creates.Add(1)
 		var p map[string]any
 		_ = json.Unmarshal(raw, &p)
-		if p["auto_name"] != true || p["workspace_id"] != "repo::/code" || p["parent_workspace_id"] != "other::/collection" {
-			t.Errorf("source, parent or naming mode changed: %s", raw)
+		if p["auto_name"] != true || p["workspace_id"] != "w1" || p["kind"] != "herdr" {
+			t.Errorf("source or naming mode changed: %s", raw)
 		}
 		return map[string]any{"workspace_id": "repo::/worktrees/manta", "branch": "dev/manta", "path": "/worktrees/manta"}, nil
 	})
@@ -60,7 +60,7 @@ func TestWorktreeCreateReceiptSurvivesLostResponse(t *testing.T) {
 	restarted.store = store
 	replay := httptest.NewRecorder()
 	worktreeReceiptRoutes(restarted).ServeHTTP(replay, worktreeReceiptRequest(worktreeReceiptPath,
-		` { "auto_name": true, "parent_workspace_id":"other::/collection", "kind":"orca", "workspace_id":"repo::/code" } `,
+		` { "auto_name": true, "kind":"herdr", "workspace_id":"w1" } `,
 		worktreeReceiptID, "device", roleFull))
 	if replay.Code != http.StatusOK || !strings.Contains(replay.Body.String(), `"branch":"dev/manta"`) || creates.Load() != 1 {
 		t.Fatalf("retry: %d %s, creates=%d", replay.Code, replay.Body, creates.Load())
@@ -70,7 +70,7 @@ func TestWorktreeCreateReceiptSurvivesLostResponse(t *testing.T) {
 		t.Fatalf("receipt: %+v, %v", op, err)
 	}
 	for _, tc := range []struct{ path, body, device string }{
-		{worktreeReceiptPath, strings.Replace(worktreeReceiptBody, "/collection", "/other", 1), "device"},
+		{worktreeReceiptPath, strings.Replace(worktreeReceiptBody, `"w1"`, `"w2"`, 1), "device"},
 		{strings.Replace(worktreeReceiptPath, "/machine/", "/other/", 1), worktreeReceiptBody, "device"},
 		{strings.Replace(worktreeReceiptPath, "/create", "/rename", 1), worktreeReceiptBody, "device"},
 		{worktreeReceiptPath, worktreeReceiptBody, "another-device"},

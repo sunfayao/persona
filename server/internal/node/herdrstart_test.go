@@ -146,8 +146,8 @@ func TestEnsureHerdrStartsOneServer(t *testing.T) {
 	}
 }
 
-// A herdr that answers is left alone; so is a machine whose engine is not classic herdr (Herdr App's herdr-core has its
-// own lifecycle), and one where the user turned starting off — then a `herdr server stop` stays stopped.
+// A herdr that answers is left alone; so is one where the user turned starting off — then a `herdr server stop` stays
+// stopped.
 func TestEnsureHerdrLeavesItAlone(t *testing.T) {
 	t.Run("running", func(t *testing.T) {
 		n, sock := downHerdrNode(t)
@@ -159,17 +159,6 @@ func TestEnsureHerdrLeavesItAlone(t *testing.T) {
 			t.Fatalf("%v, %d starts", err, fl.starts.Load())
 		}
 	})
-	for _, engine := range []string{proto.EngineHerdrCore, proto.EngineOrca, proto.EngineRex, proto.EnginePaseo, proto.EngineCindy, proto.EngineT3Code} {
-		t.Run(engine, func(t *testing.T) {
-			n, _ := downHerdrNode(t)
-			n.eng.name = engine
-			fl := &fakeLaunch{}
-			withLaunchHerdr(t, fl)
-			if err := n.ensureHerdr(context.Background(), "test"); err != nil || fl.starts.Load() != 0 {
-				t.Fatalf("%v, %d starts", err, fl.starts.Load())
-			}
-		})
-	}
 	t.Run("off", func(t *testing.T) {
 		n, _ := downHerdrNode(t)
 		fl := &fakeLaunch{}
@@ -209,20 +198,9 @@ func TestHerdrServerStatus(t *testing.T) {
 	if got := status(); got["running"] != true || got["known"] != true {
 		t.Fatalf("up: %v", got)
 	}
-	n.hosts = herdrHosts(nil) // Herdr App's herdr-core: no classic socket, nothing claimed
+	n.hosts = herdrHosts(nil) // a herdr host without a client: no socket, nothing claimed
 	if got := status(); got["known"] != false {
 		t.Fatalf("no classic herdr: %v", got)
-	}
-}
-
-// herdr + Herdr App: the classic herdr half is started like herdr alone.
-func TestEnsureHerdrStartsTheCombinedEnginesHerdr(t *testing.T) {
-	n, _ := downHerdrNode(t)
-	n.eng.name = proto.EngineHerdrBoth
-	fl := &fakeLaunch{}
-	withLaunchHerdr(t, fl)
-	if err := n.ensureHerdr(context.Background(), "test"); err != nil || fl.starts.Load() != 1 {
-		t.Fatalf("%v, %d starts", err, fl.starts.Load())
 	}
 }
 
@@ -383,7 +361,7 @@ func TestHerdrServerOfACustomDataDirIsItsOwn(t *testing.T) {
 	t.Setenv("HERDR_SESSION", "")
 	clientOf := func(persona string) *herdr.Client {
 		t.Setenv("PERSONA_HOME", persona)
-		return engineHostsFor(proto.EngineChoice{Hosts: []string{proto.EngineHerdr}}, nil)[0].(*herdrHost).c
+		return newHerdr(nil).(*herdrHost).c
 	}
 	def, a, b := clientOf(""), clientOf(filepath.Join(home, "test-a")), clientOf(filepath.Join(home, "test-b"))
 	if def.Session != "" || def.Socket != filepath.Join(cfg, "herdr", "herdr.sock") {

@@ -133,7 +133,7 @@ func retireRefusalKey(why string) string {
 	switch {
 	case strings.HasPrefix(why, "the agent is"), strings.HasPrefix(why, "still starting"):
 		return "hub-agent_archives.close_busy"
-	case strings.Contains(why, "another tool"), strings.Contains(why, "engine"), strings.HasPrefix(why, "Orca"):
+	case strings.Contains(why, "another tool"), strings.Contains(why, "engine"):
 		return "hub-agent_archives.close_engine"
 	case strings.Contains(why, "transcript"), strings.Contains(why, "launcher"), strings.HasPrefix(why, "cannot resume"):
 		return "hub-agent_archives.close_not_resumable"

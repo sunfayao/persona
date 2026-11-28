@@ -16,13 +16,10 @@ const (
 	devicesWarmStale = 2 * time.Minute
 )
 
-// devicesWarm is the hand-over: the online machines as reported, every machine's engine, when.
+// devicesWarm is the hand-over: the online machines as reported, when.
 type devicesWarm struct {
 	Machines map[string]devicesWarmMachine `json:"machines"`
-	Engines  map[string]string             `json:"engines,omitempty"`
-	// EngineHosts are their sets of hosts (#2576), as the managers reported them.
-	EngineHosts map[string]proto.EngineChoice `json:"engine_hosts,omitempty"`
-	SavedAt     time.Time                     `json:"saved_at"`
+	SavedAt  time.Time                     `json:"saved_at"`
 }
 
 type devicesWarmMachine struct {
@@ -43,8 +40,7 @@ func (h *Hub) saveDevicesWarm(ctx context.Context) {
 	if h.store == nil {
 		return
 	}
-	saved := devicesWarm{Machines: map[string]devicesWarmMachine{}, Engines: map[string]string{},
-		EngineHosts: map[string]proto.EngineChoice{}, SavedAt: time.Now()}
+	saved := devicesWarm{Machines: map[string]devicesWarmMachine{}, SavedAt: time.Now()}
 	for _, m := range h.machinesNow() {
 		if h.knownEntry(m.cfg.ID) == nil {
 			continue
@@ -53,16 +49,6 @@ func (h *Hub) saveDevicesWarm(ctx context.Context) {
 		if m.managed && !m.derived {
 			// Online, or still shown from the last hand-over (a second restart within the grace keeps it).
 			shown := m.online || m.warmLocked(saved.SavedAt)
-			if m.snap != nil && m.snap.Engine != "" {
-				saved.Engines[m.cfg.ID] = m.snap.Engine
-			} else if m.engine != "" {
-				saved.Engines[m.cfg.ID] = m.engine
-			}
-			if m.snap != nil && m.snap.EngineHosts != nil {
-				saved.EngineHosts[m.cfg.ID] = proto.EngineChoice{Hosts: m.snap.EngineHosts, Default: m.snap.EngineDefault}
-			} else if m.engineHosts != nil {
-				saved.EngineHosts[m.cfg.ID] = *m.engineHosts
-			}
 			if shown {
 				w := devicesWarmMachine{Info: m.info, Sessions: slices.Clone(m.sessions), Archived: slices.Clone(m.archived),
 					ArchivedBy: m.archivedBy}

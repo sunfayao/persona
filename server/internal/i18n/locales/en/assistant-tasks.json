@@ -30,7 +30,6 @@
   "start_answer_read_only": "This device can’t answer a question in a computer’s terminal.",
   "start_answer_need_choice": "Choose one of the answers.",
   "start_answer_node_outdated": "Update Persona on {machine} to answer its terminal’s question from here. Nothing was typed.",
-  "launcher_kind_missing": "{engine} on {machine} has no {launcher} and no other {kind} provider, so nothing was started and no other kind of agent runs in its place. Its providers there: {launchers}",
   "readonly_launcher_unsupported": "{launcher} on {machine} starts {agent}, which has no read-only mode, so this read-only task was refused: nothing was started, and no other launcher runs in its place. Plan it writable (readonly false), or read-only on one of that computer’s Claude Code or Codex launchers: {launchers}",
   "readonly_agy_unsupported": "{launcher} on {machine} starts the Antigravity CLI, which runs a read-only task only on the Antigravity companion, in plan mode, and that computer lists no companion running it: nothing was started. If the companion runs there (an agy defined in the login shell hides it from the list), plan the task again with host \"agy\". Or plan it writable (readonly false), or read-only on one of that computer’s Claude Code or Codex launchers ({launchers}). With assistant.readonly_mode set to prompt, agy takes read-only as an instruction instead (not a security boundary).",
   "start_identity_conflict": "The start response did not identify a session on the requested computer.",

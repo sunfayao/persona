@@ -128,10 +128,10 @@ func codeOf(err error) string {
 // transcript has with no hint on the screen is refused the same way.
 func TestSendQueuedNowUnrecognized(t *testing.T) {
 	node := func(h *queueHost) *Node {
-		return &Node{hosts: host.NewRegistry(h), agents: map[string]host.Agent{"s1": {Agent: "claude", PaneID: "orca:t1:l1"}}, paths: map[string]string{}, metas: map[string]quickMeta{}, bgScans: map[string]*bgScan{}}
+		return &Node{hosts: host.NewRegistry(h), agents: map[string]host.Agent{"s1": {Agent: "claude", PaneID: "tmux:%1"}}, paths: map[string]string{}, metas: map[string]quickMeta{}, bgScans: map[string]*bgScan{}}
 	}
 
-	h := &queueHost{bareHost: bareHost{kind: host.Orca}, first: queuedScreenOtherKeys}
+	h := &queueHost{bareHost: bareHost{kind: host.Tmux}, first: queuedScreenOtherKeys}
 	err := node(h).sendQueuedNow(context.Background(), "s1")
 	var re *rpc.Error
 	if !errors.As(err, &re) || re.Code != "send_now_unrecognized" || len(h.keys) != 0 {
@@ -144,13 +144,13 @@ func TestSendQueuedNowUnrecognized(t *testing.T) {
 		t.Fatalf("data %s", re.Data)
 	}
 
-	h = &queueHost{bareHost: bareHost{kind: host.Orca}, first: "❯ Also run the linter at the end.\n  click to send now"}
+	h = &queueHost{bareHost: bareHost{kind: host.Tmux}, first: "❯ Also run the linter at the end.\n  click to send now"}
 	err = node(h).sendQueuedNow(context.Background(), "s1")
 	if !errors.As(err, &re) || re.Code != "send_now_unrecognized" || len(h.keys) != 0 || !strings.Contains(re.Message, `"click to send now"`) {
 		t.Fatalf("a click: %v, keys %q", err, h.keys)
 	}
 
-	h = &queueHost{bareHost: bareHost{kind: host.Orca}, first: queuedScreenNoHint}
+	h = &queueHost{bareHost: bareHost{kind: host.Tmux}, first: queuedScreenNoHint}
 	n := node(h)
 	p := filepath.Join(t.TempDir(), "s1.jsonl")
 	writeLines(t, p, []string{`{"type":"queue-operation","operation":"enqueue","content":"Also run the linter at the end."}`})
@@ -162,7 +162,7 @@ func TestSendQueuedNowUnrecognized(t *testing.T) {
 
 	// the same screen with the transcript's queue empty: nothing queued, not unrecognized
 	writeLines(t, p, []string{`{"type":"queue-operation","operation":"enqueue","content":"x"}`, `{"type":"queue-operation","operation":"remove","content":"x"}`})
-	h = &queueHost{bareHost: bareHost{kind: host.Orca}, first: queuedScreenNoHint}
+	h = &queueHost{bareHost: bareHost{kind: host.Tmux}, first: queuedScreenNoHint}
 	n = node(h)
 	n.paths["s1"] = p
 	if err := n.sendQueuedNow(context.Background(), "s1"); codeOf(err) != "nothing_queued" || len(h.keys) != 0 {

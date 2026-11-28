@@ -1,7 +1,6 @@
 package node
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"path/filepath"
@@ -111,62 +110,6 @@ func TestRuntimeAwayKeepsItsClaudeConversations(t *testing.T) {
 	freshOffline()
 	if s, ok := listed(t, n)[claudeID]; ok {
 		t.Fatalf("listed long after its runtime left: %+v", s)
-	}
-}
-
-// An agent Paseo archived that it listed under its Claude session id (one started in Paseo's app, closed from Persona
-// or in Paseo) is a Claude session not running once Paseo names its transcript as unlisted (#8131): its content is
-// the transcript, read by the node, and a message has Paseo take it over (session.start with resume) before it is
-// sent. Sent to the runtime that listed it, every call was refused until the node restarted and forgot the id.
-func TestRuntimeArchivedTranscriptIsTheNodes(t *testing.T) {
-	const id = "5d510000-0000-4000-8000-0000000000b7"
-	t.Setenv("PERSONA_HOME", "")
-	n, _ := runtimeNode(t)
-	t.Cleanup(freshOffline)
-	writeClaudeRun(t, filepath.Join(n.home, ".claude", "projects", "-src-app"), id, time.Minute, "sdk-cli", "sdk-cli")
-	if err := n.useEngine(context.Background(), proto.EnginePaseo); err != nil {
-		t.Fatal(err)
-	}
-	host := dialRuntime(t, n, paseoEngineHello())
-	archived := false
-	host.mu.Lock()
-	host.answer = func(method string, params json.RawMessage) (any, error) {
-		var p struct {
-			SessionID string `json:"session_id"`
-			Resume    string `json:"resume"`
-		}
-		_ = json.Unmarshal(params, &p)
-		if method == "session.start" && p.Resume == id {
-			archived = false // Paseo restores the archived agent
-			return map[string]any{"session": map[string]any{"session_id": id, "transcript": id, "agent": "claude", "status": "idle", "cwd": "/src/app"}}, nil
-		}
-		if archived && p.SessionID == id {
-			return nil, &rpc.Error{Message: "Paseo has no such session (" + id + "): it may have been archived or deleted", Code: "not_found"}
-		}
-		return map[string]any{"ok": true, "items": []any{}}, nil
-	}
-	host.mu.Unlock()
-	row := map[string]any{"session_id": id, "transcript": id, "agent": "claude", "title": "Fix the build", "cwd": "/src/app", "status": "idle"}
-	_ = host.peer.Notify("runtime.sessions", map[string]any{"sessions": []map[string]any{row}, "unlisted_transcripts": []string{}})
-	waitFor(t, "listed by Paseo", func() bool { return listed(t, n)[id].SourceKind == proto.SourceRuntime })
-
-	// Archived in Paseo: no row, its transcript named as unlisted.
-	host.mu.Lock()
-	archived = true
-	host.mu.Unlock()
-	_ = host.peer.Notify("runtime.sessions", map[string]any{"sessions": []map[string]any{}, "unlisted_transcripts": []string{id}})
-	waitFor(t, "listed as not running", func() bool { s := listed(t, n)[id]; return s.Status == proto.StatusOffline && s.SourceKind == "" })
-
-	raw, err := nodeCall(t, n, "session.items", map[string]any{"session_id": id, "limit": 20})
-	if err != nil || !strings.Contains(string(raw), `"summarize the diff"`) || len(host.got("session.items")) != 0 {
-		t.Fatalf("its content: %s %v (the runtime was asked %d times)", raw, err, len(host.got("session.items")))
-	}
-	if _, err := nodeCall(t, n, "session.send", map[string]any{"session_id": id, "text": "go on", "client_msg_id": "m1"}); err != nil {
-		t.Fatalf("a message to it: %v", err)
-	}
-	starts, sends := host.got("session.start"), host.got("session.send")
-	if len(starts) != 1 || !strings.Contains(string(starts[0]), `"resume":"`+id+`"`) || len(sends) != 1 || !strings.Contains(string(sends[0]), "go on") {
-		t.Fatalf("taken over %d times (%s), sent %d times", len(starts), starts, len(sends))
 	}
 }
 

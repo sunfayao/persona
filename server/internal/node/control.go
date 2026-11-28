@@ -148,17 +148,14 @@ func (n *Node) start(ctx context.Context, cwd, launcher, prompt, resume, workspa
 			// session.start holds n.recovery.lock(resume) (node.go), as a send to a stopped row does (ompcalls.go): a
 			// second start or send waits for this resume and finds the session running above, so no second omp runs.
 			// The guards a resume of any other agent passes (below): a session open elsewhere or owned by a runtime
-			// is not started again, and not on Orca.
+			// is not started again.
 			if r := n.openElsewhereRefusal(resume); r != nil {
 				return nil, r
 			}
 			// Only a runtime still connected owns it: one that listed it and left (its omp exited) does not keep the
 			// session from its file.
 			if h, _, _ := n.runtimes.belongs(resume); h != nil {
-				return nil, refusal("runtime_session", "这个会话属于另一个工具（例如 Orca 的原生对话），请在那里继续，这次没有启动。", nil)
-			}
-			if n.startKind(ctx) == proto.EngineOrca {
-				return nil, refusal("orca_resume", "Orca 上只能从手机继续 Claude 会话：其它 Agent 请在电脑上恢复，这次没有启动。", nil)
+				return nil, refusal("runtime_session", "这个会话属于另一个工具，请在那里继续，这次没有启动。", nil)
 			}
 			if _, err := n.resumeOmp(ctx, resume, ompResumeParams(ctx, resume, prompt)); err != nil { // ompresume.go
 				return nil, err
@@ -171,17 +168,6 @@ func (n *Node) start(ctx context.Context, cwd, launcher, prompt, resume, workspa
 	}
 	if !proto.FasterSpeed(execution.Speed) {
 		argv, codex = n.codexLauncher(ctx, launcher)
-	}
-	var launch host.Launcher
-	if codex && kind == "codex" && resume == "" && mode == "" && stockOrcaCodexArgv(launcher, argv) && n.startKind(ctx) == proto.EngineOrca {
-		launch, err = n.launcherFor(n.startKind(ctx))
-		if err != nil {
-			return nil, err
-		}
-		argv, err = codexOrcaLaunchDefaults(ctx, launch, argv)
-		if err != nil {
-			return nil, err
-		}
 	}
 	if backend := backendLaunchFrom(ctx); backend != nil && codex && mode != "plan" {
 		for _, repo := range backend.executor.journal.Repositories {
@@ -222,16 +208,13 @@ func (n *Node) start(ctx context.Context, cwd, launcher, prompt, resume, workspa
 			return n.sessionFor(resume, a), nil // already running
 		}
 		// A claude still alive on the session (Claude's desktop app, another terminal, suspended there) refuses: two
-		// writers would corrupt its transcript. Otherwise a Claude session resumes in the start's host, Orca like herdr: a
-		// terminal opened in the session's worktree (#5548).
+		// writers would corrupt its transcript. Otherwise a Claude session resumes in herdr: a terminal opened in the
+		// session's worktree (#5548).
 		if r := n.openElsewhereRefusal(resume); r != nil { // open in Claude's desktop app or a terminal (openelsewhere.go)
 			return nil, r
 		}
-		if _, _, known := n.runtimes.belongs(resume); known { // an Orca native chat and the like: its runtime's, not a terminal's
-			return nil, refusal("runtime_session", "这个会话属于另一个工具（例如 Orca 的原生对话），请在那里继续，这次没有启动。", nil)
-		}
-		if n.startKind(ctx) == proto.EngineOrca && kind != "claude" { // the start's host
-			return nil, refusal("orca_resume", "Orca 上只能从手机继续 Claude 会话：其它 Agent 请在电脑上恢复，这次没有启动。", nil)
+		if _, _, known := n.runtimes.belongs(resume); known { // a runtime's session, not a terminal's
+			return nil, refusal("runtime_session", "这个会话属于另一个工具，请在那里继续，这次没有启动。", nil)
 		}
 		// An id this computer has no transcript, record or start of is not one to resume, as `claude --resume` would
 		// say: started under it, a new conversation would be listed under the id of another, which the manager tells
@@ -264,12 +247,10 @@ func (n *Node) start(ctx context.Context, cwd, launcher, prompt, resume, workspa
 	}
 	prompt = taskFallback(prompt, execution.TaskAttachments)
 
-	// New sessions start in the host the start named, else the default host.
-	if launch == nil {
-		launch, err = n.launcherFor(n.startKind(ctx))
-		if err != nil {
-			return nil, err
-		}
+	// New sessions start in the host the start named, else herdr.
+	launch, err := n.launcherFor(n.startKind(ctx))
+	if err != nil {
+		return nil, err
 	}
 	ws, err := n.tabSpace(ctx, launch, cwd, workspaceID)
 	if err != nil {
@@ -492,9 +473,8 @@ func (n *Node) resumeKnown(ctx context.Context, id string) bool {
 // only way back to one the extension started.
 //
 // Where it started is read only from what no resume rewrites: its transcript's or rollout's head (where it started and
-// last was, the assistant's own health project too), its omp session file (where `omp --resume` opens it, one Persona
-// did not start too), or the record of an engine runtime's start (EngineRuntime: the node has no transcript under the
-// id Persona named such an Agent by). Its terminal record, a start of it and its running agent only add directories to
+// last was, the assistant's own health project too), or its omp session file (where `omp --resume` opens it, one
+// Persona did not start too). Its terminal record, a start of it and its running agent only add directories to
 // refuse on: a resume writes a terminal record anew with the folder the resume names, and the apps name a run's latest
 // folder, so once a health run's transcript is gone its record alone could say outside (#12097). One it has nothing of,
 // nothing else of, or a transcript whose head names no directory, is refused like one of the space: either would let
@@ -531,7 +511,6 @@ func (n *Node) resumeOutsideHealth(ctx context.Context, id string) bool {
 		}
 		if st, ok := n.state.get(id); ok {
 			dirs = append(dirs, st.Cwd)
-			started = started || st.EngineRuntime != "" && st.Cwd != ""
 		}
 	}
 	for _, d := range dirs {
@@ -667,11 +646,6 @@ func tabLabel(name string, taken map[string]bool) string {
 
 // workspaceFor reuses the workspace named after the project directory (the user keeps one workspace per project).
 func (n *Node) workspaceFor(ctx context.Context, launch host.Launcher, cwd string) (string, error) {
-	if _, ok := launch.(*herdrCoreHost); ok {
-		// The app's folder identity is resolved on each layout retry. Passing an id here would turn an automatic
-		// choice into an explicit destination and miss a space created concurrently for the same directory.
-		return "", nil
-	}
 	var startErr error
 	if _, ok := launch.(*herdrHost); ok {
 		startErr = n.ensureHerdr(ctx, "start or resume a session") // herdrstart.go
@@ -680,10 +654,7 @@ func (n *Node) workspaceFor(ctx context.Context, launch host.Launcher, cwd strin
 	if err != nil {
 		// Nothing was started or typed: say so, and what to do, instead of herdr's own words (the app showed
 		// "herdr workspace list: exec: \"herdr\": executable file not found").
-		name := n.defaultEngineName()
-		if k := n.startKind(ctx); proto.EngineNames[k] != "" && k != n.defaultKind() {
-			name = proto.EngineNames[k] // a start that named its host
-		}
+		name := proto.EngineHerdr
 		msg := fmt.Sprintf("这台电脑上的 %s 没在运行（或没装），不能在这里新开或接着会话，这次没有发送。"+
 			"要从手机接着电脑上开着的会话，在那边继续；要从手机新开，先在这台电脑上装好并打开 %s。", name, name)
 		if startErr != nil && !errors.Is(startErr, errHerdrNotInstalled) {

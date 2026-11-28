@@ -273,31 +273,6 @@ func TestHerdrRowAfterStart(t *testing.T) {
 	}
 }
 
-// A machine driving something else has no such row.
-func TestHerdrRowOnlyForAHerdrEngine(t *testing.T) {
-	h := newTestDevices(t)
-	herdrMac(t, h, "mac", true)
-	mux := h.Handler(http.NotFoundHandler())
-	h.engines.mu.Lock()
-	if h.engines.byID == nil {
-		h.engines.byID = map[string]string{}
-	}
-	h.engines.byID["mac"] = proto.EngineHerdrBoth
-	h.engines.loaded = true
-	h.engines.mu.Unlock()
-	if code, _ := call(t, mux, "PUT", "/api/v1/machines/mac/herdr", `{"autostart": false}`); code != 200 {
-		t.Fatalf("herdr-both has the row: %d", code)
-	}
-
-	herdrMac(t, h, "orca-box", true)
-	h.engines.mu.Lock()
-	h.engines.byID["orca-box"] = proto.EngineOrca
-	h.engines.mu.Unlock()
-	if code, _ := call(t, mux, "PUT", "/api/v1/machines/orca-box/herdr", `{"autostart": false}`); code != 404 {
-		t.Fatalf("an orca machine has no herdr row: %d", code)
-	}
-}
-
 // call serves one request on mux and decodes its JSON answer.
 func call(t *testing.T, mux http.Handler, method, path, body string) (int, map[string]any) {
 	t.Helper()

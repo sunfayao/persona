@@ -88,9 +88,6 @@ type runtimeHello struct {
 		Models bool `json:"models"`
 		// Check performs the launcher availability probe in the runtime's authenticated context.
 		Check bool `json:"check"`
-		// Resume: session.start with resume takes a Claude session it does not have over, under that id (the machine's
-		// engine continuing a session not running anywhere, runtimecontrol.go).
-		Resume bool `json:"resume"`
 		// KeepAlways: the runtime keeps no session rule of its own and asks the hub to remember "Always allow for this session" for it
 		// (#3974): its permission cards that offer always get the node's key for the tool. A runtime that keeps its own
 		// rule (opencode's save rule, Paseo's suggestions) does not say it, so its grant is never widened to the tool.
@@ -105,16 +102,6 @@ type runtimeHello struct {
 		// prompt runs or is refused with readonly_unsupported; it never falls back to a writable provider (#3238).
 		Readonly             bool `json:"readonly"`
 		BackendWorkspaceRoot bool `json:"backend_workspace_root"`
-		// SameKind: its starts run only its own launchers (#8140). One it does not have runs on one of its launchers
-		// of the agent kind session.start names (agent_type), or is refused (launcher_kind_missing), never another
-		// kind of agent; what it asked for and does not run with comes back with the session (instead). As the start's
-		// engine host its launchers are then all a start there can run (runtimes_samekind.go). Without it the node sends a
-		// launcher it does not have as shell_launcher, as before (Cindy).
-		SameKind bool `json:"same_kind"`
-		// Workspaces: it keeps workspaces of its own, pushes them (runtime.workspaces) and makes worktrees as its
-		// workspaces (workspace.prepare, workspace.create): as the machine's engine, they are the catalog's and its
-		// worktrees are made by it (runtimeworkspaces.go).
-		Workspaces bool `json:"workspaces"`
 		// History: sessions.history goes to it (its driver's listHistory), for sessions active in a time window,
 		// inactive ones too (sessions_history.go).
 		History bool `json:"history"`
@@ -151,10 +138,6 @@ type runtimeConn struct {
 	resume       map[string][]string
 	transcripts  map[string]string
 	codexThreads map[string]string
-	// workspaces are its own workspaces, as its last runtime.workspaces said (caps.workspaces, runtimeworkspaces.go);
-	// workspacesSaid: it said them on this connection (a workspace missing from them is gone).
-	workspaces     []runtimeWorkspace
-	workspacesSaid bool
 	// daemon is its id in daemons.json when the node dialed it (daemons.go), "" for a runtime on the socket.
 	daemon string
 	// builtinAgy is true only when RuntimeHost.registerRuntime verified this connection matches the built-in

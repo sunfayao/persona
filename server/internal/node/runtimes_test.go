@@ -155,9 +155,6 @@ func runtimeNodeTapped(t *testing.T, shared *RuntimeHost, tap io.Writer) (*Node,
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { cancel(); _ = n2hW.Close(); _ = h2nW.Close() })
-	// Runs first, while the hub still reads: an engine switch's list, still being built, goes to it and reads package
-	// state (botmuxBin) that later tests swap.
-	t.Cleanup(n.engLists.Wait)
 	return n, end
 }
 
@@ -522,13 +519,11 @@ func TestRuntimeModesCapability(t *testing.T) {
 		agent           string
 		want            bool
 	}{
-		{true, "orca", "", "session-1", "claude", true},
+		{true, "acme", "", "session-1", "claude", true},
 		{true, "agy", "agy", "session-1", "agy", true},
 		{true, "opencode-4242", "opencode", "session-1", "opencode", true},
-		{true, "paseo", "", "session-1", "codex", false},
-		{true, "paseo", "", "session-1", "claude", true},
-		{true, "paseo", "paseo", "session-1", "paseo", false}, // Paseo's catch-all (opencode, grok, ...): its modes refuses them
-		{true, "orca", "", "session-1" + subagentSep + "a1", "claude", false},
+		{true, "acme", "", "session-1", "codex", false},
+		{true, "acme", "", "session-1" + subagentSep + "a1", "claude", false},
 		{false, "dsh", "dsh", "session-1", "dsh", false},
 	} {
 		if got := runtimeModes(c.declared, c.rt, c.rtAgent, proto.Session{SessionID: c.id, Agent: c.agent}); got != c.want {
@@ -545,8 +540,8 @@ func TestRuntimeModesCapability(t *testing.T) {
 }
 
 // A row narrows modes and model for its own session as it narrows rewind (#8133): an agent the runtime keeps archived
-// takes none of them (Paseo refuses them), and the efforts a row lists go with its modes. A row that says nothing keeps
-// what the runtime declared, as an older bridge's rows do; a runtime that declared no modes lists no efforts.
+// takes none of them (the runtime refuses them), and the efforts a row lists go with its modes. A row that says nothing
+// keeps what the runtime declared, as an older bridge's rows do; a runtime that declared no modes lists no efforts.
 func TestRuntimeRowNarrowsModesAndModel(t *testing.T) {
 	n, _ := runtimeNode(t)
 	hello := paseoHello()
@@ -557,8 +552,8 @@ func TestRuntimeRowNarrowsModesAndModel(t *testing.T) {
 	_ = h.peer.Notify("runtime.sessions", map[string]any{"sessions": []map[string]any{
 		{"session_id": "live-claude", "status": "idle", "agent": "claude", "capabilities": map[string]any{"rewind": true}},
 		{"session_id": "archived-claude", "status": "offline", "agent": "claude", "capabilities": archived},
-		{"session_id": "live-grok", "status": "idle", "agent": "paseo", "efforts": []string{"low", "high"}},
-		{"session_id": "archived-grok", "status": "offline", "agent": "paseo", "efforts": []string{"low"}, "capabilities": archived},
+		{"session_id": "live-grok", "status": "idle", "agent": "grok", "efforts": []string{"low", "high"}},
+		{"session_id": "archived-grok", "status": "offline", "agent": "grok", "efforts": []string{"low"}, "capabilities": archived},
 		{"session_id": "older-bridge", "status": "idle", "agent": "claude"},
 	}})
 	waitFor(t, "rows listed", func() bool { _, ok := listed(t, n)["older-bridge"]; return ok })
@@ -577,7 +572,7 @@ func TestRuntimeRowNarrowsModesAndModel(t *testing.T) {
 	}{
 		{"live-claude", true, true, nil},
 		{"archived-claude", false, false, nil},
-		{"live-grok", false, true, []string{"low", "high"}}, // Paseo's catch-all takes no Claude modes, its efforts all the same
+		{"live-grok", false, true, []string{"low", "high"}}, // an agent other than Claude Code takes no Claude modes, its efforts all the same
 		{"archived-grok", false, false, nil},
 		{"older-bridge", true, true, nil},
 	} {
@@ -606,12 +601,12 @@ func TestRuntimeRowListsItsPermissionModes(t *testing.T) {
 	both := []string{"default", "bypassPermissions"}
 	listedModes := map[string]any{"permission_modes": []string{"default", "yolo", "bypassPermissions", "default"}}
 	_ = h.peer.Notify("runtime.sessions", map[string]any{"sessions": []map[string]any{
-		{"session_id": "grok", "status": "idle", "agent": "paseo", "capabilities": listedModes},
-		{"session_id": "pi", "status": "idle", "agent": "paseo", "capabilities": map[string]any{"permission_modes": []string{"default"}}},
+		{"session_id": "grok", "status": "idle", "agent": "grok", "capabilities": listedModes},
+		{"session_id": "pi", "status": "idle", "agent": "kimi", "capabilities": map[string]any{"permission_modes": []string{"default"}}},
 		{"session_id": "claude", "status": "idle", "agent": "claude", "capabilities": listedModes},
-		{"session_id": "archived", "status": "offline", "agent": "paseo",
+		{"session_id": "archived", "status": "offline", "agent": "grok",
 			"capabilities": map[string]any{"modes": false, "permission_modes": both}},
-		{"session_id": "older-bridge", "status": "idle", "agent": "paseo"},
+		{"session_id": "older-bridge", "status": "idle", "agent": "grok"},
 	}})
 	waitFor(t, "rows listed", func() bool { _, ok := listed(t, n)["older-bridge"]; return ok })
 	rows := listed(t, n)
@@ -911,7 +906,7 @@ func TestRuntimeStartForwardsAntigravityImageOnlyPrompt(t *testing.T) {
 		return nil, nil
 	}
 	images := []proto.Image{{Mime: "image/png", Data: "aW1hZ2U="}}
-	_, err := nodeCall(t, node, "session.start", map[string]any{"cwd": "/work", "host": proto.EngineOrca,
+	_, err := nodeCall(t, node, "session.start", map[string]any{"cwd": "/work", "host": proto.HostAgy,
 		"launcher": "agy", "client_msg_id": "start-photo", "images": images})
 	if err != nil {
 		t.Fatal(err)

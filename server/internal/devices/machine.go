@@ -134,7 +134,6 @@ type Machine struct {
 	reconnectGrace             time.Duration // shown as it was this long after its node disconnected (warm.go; tests: shorter)
 	reloadUntil                time.Time     // a resident announced exec; never extends display/reconnect grace
 	storeWait                  time.Duration // how long a node event waits on the store (nodeStoreWait; tests: shorter)
-	engineMu                   sync.Mutex
 	// eventRetire admits an ordinary event callback or retires its connection; never lets a retired event follow the replacement.
 	eventRetire sync.Mutex
 	link        *mgrLink      // kind link: the link Persona Link keeps open, nil while there is none
@@ -240,8 +239,6 @@ func (m *Machine) setName(name string) bool {
 // snapshot is the machine as the apps get it, but for what the hub adds (computer, browser).
 func (m *Machine) snapshot() proto.Machine {
 	d := m.d
-	engine := d.engineOf(m.cfg.ID) // before m.mu: it may read settings
-	choice := d.engineChoiceOf(m.cfg.ID)
 	info, online, deploying := m.linkSwitchFacts()
 	// Switching to Persona Link (link_switch.go): before m.mu, as it reads the hub's handover.
 	linkSwitch := d.linkSwitchView(m, info, online, deploying)
@@ -255,18 +252,16 @@ func (m *Machine) snapshot() proto.Machine {
 	fileTransferOn := d.fileTransferOn(m.cfg.ID)
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	engines := []proto.Engine{} // what the node found: none while offline
+	engines := []proto.Engine{} // herdr as the node found it: none while offline
 	warm := m.warmLocked(time.Now())
-	var suggested *proto.EngineChoice
 	if m.online || warm {
-		engines = append(engines, m.info.Engines...)
-		if len(engines) > 0 {
-			s := proto.SuggestEngineHosts(engines)
-			suggested = &s
+		// An older node reports the engines Persona drove before herdr alone (Orca, Paseo…): only herdr's row is said.
+		for _, e := range m.info.Engines {
+			if e.ID == proto.EngineHerdr {
+				engines = append(engines, e)
+			}
 		}
 	}
-	// A node without sets runs the single engine; say so when that is not the set chosen (docs/protocol/protocol.md "Engines").
-	setsUnsupported := (m.online || warm) && m.info.EngineHosts == nil && !proto.LegacyExpresses(choice)
 	icon := m.cfg.Icon
 	if icon == "" {
 		icon = "laptop"
@@ -306,8 +301,7 @@ func (m *Machine) snapshot() proto.Machine {
 		Deploying: m.deploying, DeployError: deployErr,
 		CanDeploy: &canDeploy, DeployReason: deployReason, DeployNoPackage: onlyPackage, DeployPhase: m.deployPhase,
 		Transport: m.via, TailcatPath: m.path, Tailcat: m.cfg.TailcatAddr != "",
-		Engine: engine, Engines: engines, EngineHosts: choice.Hosts, EngineDefault: choice.Default,
-		EngineSuggested: suggested, EngineSetsUnsupported: setsUnsupported, Link: link, System: d.metrics.system(m.cfg.ID),
+		Engines: engines, Link: link, System: d.metrics.system(m.cfg.ID),
 		Clipboard:    m.clipboardStateLocked(clipboardOn),
 		FileTransfer: m.fileTransferState(fileTransferOn),
 		ClaudePlugin: m.info.ClaudePlugin,
@@ -543,10 +537,6 @@ func (m *Machine) callOnce(ctx context.Context, method string, params any, out a
 		m.mu.Lock()
 		p, info = m.peer, m.info
 		m.mu.Unlock()
-	}
-	if info.Version != "" && info.EngineHosts == nil && devicewire.IsSessionStart(method) && proto.StartHost(params) != "" {
-		// An older node ignores host and would start in its engine instead (#2576): refused, nothing started.
-		return &rpc.Error{Code: proto.CodeNodeOutdated, Message: i18n.T(i18n.From(ctx), "hub-machine.node_no_engine_hosts")}
 	}
 	if c := compatOf(info); c.Incompatible != "" && !usableWhileIncompatible(method) {
 		key := "hub-machine.node_protocol_old"

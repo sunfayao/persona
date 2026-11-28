@@ -568,7 +568,7 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 			Speed          string `json:"speed"`
 			PermissionMode string `json:"permission_mode"`
 			Tier           string `json:"tier"`
-			Host           string `json:"host"` // agy (the Antigravity companion) or an engine host; "": the hub's choice (start_host.go)
+			Host           string `json:"host"` // agy (the Antigravity companion) or herdr; "": the hub's choice (start_host.go)
 			Worktree       struct {
 				Branch string `json:"branch"`
 			} `json:"worktree"`
@@ -638,7 +638,7 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		// the computer lacks starts nothing; a default it lacks gives way to one it has, and the card and answer say so.
 		run := map[string]any{"launcher": a.Launcher, "model": a.Model, "effort": a.Effort, "speed": a.Speed, "permission_mode": a.PermissionMode}
 		if a.Host != "" {
-			run["host"] = a.Host // an engine host's runtime runs its own launchers (#8140)
+			run["host"] = a.Host // the Antigravity companion runs only agy (start_host.go)
 		}
 		if err := s.applyModel(ctx, "agent.new", run); err != nil {
 			return "", err
@@ -714,8 +714,6 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		}
 		var res struct {
 			Session proto.Session `json:"session"`
-			// What an engine that runs only its own launchers ran in place of what was asked (#8140).
-			Instead *proto.StartInstead `json:"instead"`
 		}
 		// The node builds the session and starts the agent before answering; a machine waking from sleep or a
 		// launcher cold start can take minutes. Like agent_send's resume branch, this wait is detached from the
@@ -810,7 +808,7 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		if swapped != "" {
 			note = " Note: " + swapped + "." + note
 		}
-		if branch != "" { // the machine's engine makes the worktree (herdr's or Orca's own), the agent starts in it
+		if branch != "" { // the machine's engine makes the worktree (herdr's own), the agent starts in it
 			wt, err := s.newWorktree(sctx, am.ID, a.Cwd, branch)
 			if err != nil {
 				return "", fmt.Errorf("the worktree on branch %s was not made, no agent was started: %w", branch, err)
@@ -925,10 +923,7 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 			return "", err
 		}
 		s.nameStartedAgent(sctx, am.ID, res.Session, title)
-		s.recordStartSuccess(ctx, am.ID, ranLauncher(launcher, res.Instead, res.Session))
-		if said := s.startInsteadNote(ctx, am, res.Instead, res.Session); said != "" {
-			note += " Note: " + said + "." // the engine ran another of the same kind, its default model, a lower effort (#8140)
-		}
+		s.recordStartSuccess(ctx, am.ID, launcher)
 		finish := func(receipt string) string {
 			return s.waitAgentReply(ctx, receipt, inputID, wait, fixedWaitTarget(am.ID, res.Session.SessionID))
 		}

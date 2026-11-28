@@ -46,7 +46,7 @@ func TestCodexStartsInSameDirectoryRunConcurrently(t *testing.T) {
 			var wg sync.WaitGroup
 			defer func() { cancel(); wg.Wait() }()
 			cwd := filepath.Join(filepath.Dir(n.dir), "proj")
-			launch := n.defaultHost().(host.Launcher)
+			launch := n.hosts.Get(host.Herdr).(host.Launcher)
 			panes := map[string]bool{}
 			for i := range 2 {
 				wg.Add(1)
@@ -133,7 +133,7 @@ func TestCodexSamePromptStartsClaimDistinctThreads(t *testing.T) {
 	var wg sync.WaitGroup
 	defer func() { cancel(); wg.Wait() }()
 	cwd := filepath.Join(filepath.Dir(n.dir), "proj")
-	launch := n.defaultHost().(host.Launcher)
+	launch := n.hosts.Get(host.Herdr).(host.Launcher)
 	const prompt = "the same first message"
 	for range 2 {
 		wg.Add(1)

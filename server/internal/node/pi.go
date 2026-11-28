@@ -89,16 +89,12 @@ func (n *Node) resumeInEngine(ctx context.Context, h *runtimeConn, id string, ar
 // other than isNewOwner's owns the session, and sends the phone's message there. The pi family (pi.go, ompdisk.go)
 // uses it: a pi from its runtime's resume_argv, an omp from the session file on disk.
 func (n *Node) resumeInTerminal(ctx context.Context, cwd string, argv []string, id string, params json.RawMessage, isNewOwner func(*runtimeConn) bool) (any, error) {
-	if n.defaultKind() == proto.EngineOrca { // it would start in the default host: Orca cannot reopen one
-		return nil, refusal("orca_resume", "Orca 会话请在电脑上恢复：这次没有启动，也没有发送。", nil)
-	}
 	if st, err := os.Stat(cwd); cwd == "" || err != nil || !st.IsDir() {
 		return nil, refusal("not_running", "这个会话的目录不在了，没法在终端里接着它，这次没有发送。", nil)
 	}
 	launch, err := hostCap[host.Launcher](n)
 	if err != nil {
-		name := n.defaultEngineName()
-		return nil, refusal(engineMissing, fmt.Sprintf("这个会话是在 %s 里跑的，要在 %s 里接着它，可这台电脑上的 %s 没在运行（或没装），这次没有发送。", name, name, name), nil)
+		return nil, refusal(engineMissing, "这个会话是在 herdr 里跑的，要在 herdr 里接着它，可这台电脑上的 herdr 没在运行（或没装），这次没有发送。", nil)
 	}
 	ws, err := n.workspaceFor(ctx, launch, cwd)
 	if err != nil {

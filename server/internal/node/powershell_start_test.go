@@ -13,8 +13,6 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/compat"
 	"github.com/sunfayao/persona/server/internal/host"
-	"github.com/sunfayao/persona/server/internal/orcart"
-	"github.com/sunfayao/persona/server/internal/orcart/orcarttest"
 )
 
 const powerShellTestBash = `C:\Program Files\Git\bin\bash.exe`
@@ -195,7 +193,6 @@ unset PERSONA_ASSISTANT JARVIS_ASSISTANT PERSONA_ASSISTANT_BIN JARVIS_ASSISTANT_
 `
 	r3MainHostBashTyped = `. 'C:'\\'node dir'\\'agent start.sh' && true 'session id'`
 	r3MainResume        = `claude --resume 0e000000-0000-4000-8000-0000000000aa --settings "C:\\Users\\u\\settings.json" --mcp-config "C:\\node dir/mcp.json" --allowedTools mcp__persona__report_to_supervisor,mcp__jarvis__report_to_supervisor,mcp__persona__todo_decisions,mcp__jarvis__todo_decisions,mcp__persona__todo_decision_add,mcp__jarvis__todo_decision_add,mcp__persona__todo_bind_thread,mcp__jarvis__todo_bind_thread,mcp__persona__task_plan,mcp__jarvis__task_plan,mcp__persona__task_review,mcp__jarvis__task_review`
-	r3MainOrca          = "cd -- /tmp/r3-main-orca && " + r3MainDirect + "\r"
 )
 
 func TestWindowsUnchangedDirectStartsUseMainBytes(t *testing.T) {
@@ -216,9 +213,6 @@ func TestWindowsUnchangedDirectStartsUseMainBytes(t *testing.T) {
 		{"host-named unknown", false, "unknown-program.exe", nil, "", &herdrHost{}},
 		{"host-named cmd", false, "cmd.exe", nil, "", &herdrHost{}},
 		{"config unknown", true, "", nil, "unknown-program.exe", &herdrHost{}},
-		{"Orca unnamed", false, "", nil, "", &orcaHost{}},
-		{"Tern unnamed", false, "", nil, "", &ternHost{}},
-		{"herdr-core unnamed", false, "", nil, "", &herdrCoreHost{}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			shells := windowsPaneShellDecision(tc.classic, tc.host, tc.foreground, tc.config)
@@ -268,7 +262,7 @@ func TestWindowsHostNamedBashKeepsMainBytesAndClearsModelSource(t *testing.T) {
 }
 
 func TestWindowsHostNamedPowerShellUsesHandoff(t *testing.T) {
-	for _, launch := range []host.Launcher{&herdrCoreHost{}, &ternHost{}} {
+	for _, launch := range []host.Launcher{&herdrHost{}} {
 		shells := windowsPaneShellDecision(false, `C:\Program Files\PowerShell\7\pwsh.exe`, nil, "")
 		if !(&Node{dir: `C:\node dir`}).typesStartFile(launch, shells...) {
 			t.Fatalf("%T did not make a host-named PowerShell start-file eligible", launch)
@@ -460,35 +454,6 @@ func TestWindowsHerdrRestoreUsesMainBytes(t *testing.T) {
 	argv, ok := n.claudeResumeArgv(claudeLaunch{Launcher: "claude", Settings: `C:\Users\u\settings.json`}, startID)
 	if !ok || !reflect.DeepEqual(argv, []string{"eval", r3MainResume}) {
 		t.Fatalf("resume_argv = %q, %v, want main %q", argv, ok, []string{"eval", r3MainResume})
-	}
-}
-
-func TestWindowsOrcaUnnamedShellUsesMainBytes(t *testing.T) {
-	const cwd = "/tmp/r3-main-orca"
-	if err := os.MkdirAll(cwd, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.RemoveAll(cwd) })
-	fake := orcarttest.New(t)
-	fake.SetWorktrees(orcarttest.Worktree("wt-r3", cwd, "refs/heads/main"))
-	h := newOrcaHost(&orcart.Client{MetaPath: fake.MetaPath})
-	created, err := h.CreateSpace(context.Background(), cwd, "tab")
-	if err != nil {
-		t.Fatal(err)
-	}
-	shells := windowsPaneShellDecision(false, created.Shell, nil, "")
-	n := &Node{dir: `C:\node dir`}
-	cmd := n.agentStartCommand(r3MainDirect, shellQuote, shells...)
-	useStartFile := n.typesStartFile(h, shells...)
-	typed := startLineChoice(cmd, r3MainStartPath, r3MainAnchor, powerShellTestBash, useStartFile, shells...)
-	if typed != r3MainDirect {
-		t.Fatalf("Orca command = %q, want main %q", typed, r3MainDirect)
-	}
-	if err := h.Run(context.Background(), created.Pane, typed); err != nil {
-		t.Fatal(err)
-	}
-	if writes := fake.Writes(); len(writes) != 1 || writes[0].Text != r3MainOrca {
-		t.Fatalf("Orca writes = %v, want main %q", writes, r3MainOrca)
 	}
 }
 

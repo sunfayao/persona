@@ -43,7 +43,7 @@ func (n *Node) sessionSkillCatalog(ctx context.Context, owner, id string) (assis
 		return unavailable()
 	}
 	h, _, err := n.paneHost(a.PaneID)
-	if err != nil || h.Kind() != host.Herdr && h.Kind() != host.HerdrCore && h.Kind() != host.Orca {
+	if err != nil || h.Kind() != host.Herdr {
 		return unavailable() // an external runtime needs its own catalog and delivery contract
 	}
 	st, _ := n.state.get(id)

@@ -106,7 +106,7 @@ func TestPlaceInFolders(t *testing.T) {
 	// /home/me is a link to /vol/me; /gone was removed.
 	dirs := map[string]string{
 		"/code/app": "/code/app", "/code/site": "/code/site", "/code/docs": "/code/docs", "/code/both": "/code/both",
-		"/code/tasks": "/code/tasks", "/code/kit": "/code/kit", "/code/kit/child": "/code/kit/child",
+		"/code/tasks":    "/code/tasks",
 		"/home/me/notes": "/vol/me/notes", "/vol/me/notes": "/vol/me/notes",
 	}
 	physical := func(p string) string { return dirs[p] }
@@ -122,18 +122,16 @@ func TestPlaceInFolders(t *testing.T) {
 	assistant.Assistant = true
 	workspaces := []folderWorkspace{
 		{host.Herdr, host.Space{ID: "w1", Label: "app", Number: 1, Cwd: "/code/app"}},
-		// /code/docs: herdr-core's terminals outside its app's spaces and botmux's topics go after a host's workspace
-		{host.HerdrCore, host.Space{ID: dirSpace + "/code/docs", Label: "docs", Number: 1, Cwd: "/code/docs"}},
+		// /code/docs: botmux's topics (a directory group) go after a host's workspace
+		{host.Botmux, host.Space{ID: dirSpace + "/code/docs", Label: "docs", Number: 1, Cwd: "/code/docs"}},
 		{host.Herdr, host.Space{ID: "w4", Label: "Fix the build", Number: 4, Cwd: "/code/docs"}},
-		// /code/both: of two named after the folder, the default engine's
-		{host.HerdrCore, host.Space{ID: "sp1", Label: "both", Number: 1, Cwd: "/code/both"}},
+		// /code/both: of two named after the folder, herdr's
+		{host.Botmux, host.Space{ID: "sp1", Label: "both", Number: 1, Cwd: "/code/both"}},
 		{host.Herdr, host.Space{ID: "w7", Label: "both", Number: 7, Cwd: "/code/both"}},
 		{host.Herdr, host.Space{ID: "w2", Label: "Release", Number: 2, Cwd: "/code/both"}},
 		// /code/tasks: two task workspaces, neither the folder's
 		{host.Herdr, host.Space{ID: "w5", Label: "Task one", Number: 5, Cwd: "/code/tasks"}},
 		{host.Herdr, host.Space{ID: "w6", Label: "Task two", Number: 6, Cwd: "/code/tasks"}},
-		// /code/kit/child: an Orca worktree nested under its repository's
-		{host.Orca, host.Space{ID: "kit::/code/kit/child", Label: "child", Number: 2, Cwd: "/code/kit/child", ParentID: "kit::/code/kit"}},
 		// a workspace whose folder is gone joins nothing
 		{host.Herdr, host.Space{ID: "w9", Label: "gone", Number: 9, Cwd: "/gone"}},
 	}
@@ -154,18 +152,15 @@ func TestPlaceInFolders(t *testing.T) {
 		space(proto.SourceClaudeDesktop, projectSpace+"/code/both", "both"),
 		// 10: several, none named after the folder: which is the folder's is not known, so its own space
 		runtimeRow(agyAgent, "/code/tasks"),
-		// 11: an Orca worktree, under its parent
-		runtimeRow(agyAgent, "/code/kit/child"),
-		// 12 to 16, as they are: an engine's project, the assistant's (in no project), a folder this computer does not
-		// have, no folder, the Codex App's chats in no project
-		runtimeRow(proto.EngineT3Code, "/code/app"),
+		// 11 to 14, as they are: the assistant's (in no project), a folder this computer does not have, no folder, the
+		// Codex App's chats in no project
 		assistant,
 		runtimeRow(agyAgent, "/gone"),
 		runtimeRow(agyAgent, "relative"),
 		space(codexAppKind, "codex-chats:/home/me/.codex", "Codex chats"),
-		// 17: in no space (a claude in an IDE's terminal) in a workspace's folder: it joins the workspace
+		// 15: in no space (a claude in an IDE's terminal) in a workspace's folder: it joins the workspace
 		{SourceKind: proto.SourceClaudeTerminal, Cwd: "/code/app"},
-		// 18 to 23, in no project still: at rest in a folder no workspace is rooted in (through a link), in a folder
+		// 16 to 21, in no project still: at rest in a folder no workspace is rooted in (through a link), in a folder
 		// whose workspace is not known, the assistant's, one under the session that started it, one in the health space,
 		// one with no absolute folder
 		{Cwd: "/home/me/notes"},
@@ -191,8 +186,6 @@ func TestPlaceInFolders(t *testing.T) {
 		{"w4", "Fix the build", 4, ""},
 		{"w7", "both", 7, ""},
 		{projectSpace + "/code/tasks", "tasks", 0, ""},
-		{"kit::/code/kit/child", "child", 2, "kit::/code/kit"},
-		{"/code/app", "app", 0, ""},
 		{"/code/app", "app", 0, ""},
 		{"/gone", "gone", 0, ""},
 		{"relative", "relative", 0, ""},
@@ -222,11 +215,10 @@ func TestPlaceInFolders(t *testing.T) {
 	}
 }
 
-// A space action names its host by a session's space_kind; one that is no host's or engine's goes to the workspace's.
+// A space action names its host by a session's space_kind; one that is no host's goes to the workspace's.
 func TestSpaceHostKind(t *testing.T) {
 	for kind, want := range map[string]string{
-		"": "", host.Herdr: host.Herdr, host.HerdrCore: host.HerdrCore, host.Orca: host.Orca, host.Tern: host.Tern,
-		proto.EnginePaseo: proto.EnginePaseo, proto.EngineT3Code: proto.EngineT3Code,
+		"": "", host.Herdr: host.Herdr, host.Botmux: host.Botmux, host.Tmux: host.Tmux, "orca": "", "paseo": "",
 		proto.SourceClaudeDesktop: "", codexAppKind: "", agyAgent: "", "dsh": "",
 	} {
 		if got := spaceHostKind(kind); got != want {

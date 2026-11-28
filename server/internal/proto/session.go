@@ -492,12 +492,8 @@ type Session struct {
 	Chat       string   `json:"chat,omitempty"`
 	Topic      string   `json:"topic,omitempty"`
 	Dispatched []string `json:"dispatched,omitempty"`
-	// AlsoOpenIn are the other hosts (host kinds: herdr, herdr-core, orca…) the session is live in at the same time
-	// (#2576): it is listed and driven in the host that owns it (node/ownership.go); the apps warn of the conflict.
-	AlsoOpenIn []string `json:"also_open_in,omitempty"`
-	// Host is the engine host the session lives in (#2576): the kind of its pane (herdr, herdr-core, orca, botmux) or
-	// paseo for the Paseo runtime's; empty for transcripts with no live host and for other runtimes. The apps label a
-	// row with it when the machine enables more than one host.
+	// Host is the terminal host the session lives in: the kind of its pane (herdr, tmux, botmux); empty for transcripts
+	// with no live host and for runtimes.
 	Host string `json:"host,omitempty"`
 	// Hierarchy is where the session stands among the sessions that started one another, and when it began
 	// (docs/protocol/protocol.md "Session hierarchy"); nil for most rows. Its members are written on the row itself

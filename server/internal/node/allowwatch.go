@@ -128,7 +128,7 @@ func (n *Node) forgetAllowDialog(pane string) {
 // allowPane is the pane a hook's session runs in: the hook's own when this machine's hosts can drive it, else the
 // agent's.
 func (n *Node) allowPane(req sockRequest, session string) string {
-	if req.Pane != "" && paneKindOK(n, req.Pane) {
+	if req.Pane != "" {
 		return req.Pane
 	}
 	if a, ok := n.agent(session); ok {

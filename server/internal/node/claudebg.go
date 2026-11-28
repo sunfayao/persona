@@ -647,19 +647,13 @@ func (n *Node) enginePaneRefs(env map[string]string) []string {
 	if p := n.envPane(func(name string) string { return env[name] }); p != "" {
 		out = append(out, p) // herdr's pane ids are stored as they are, a named session's qualified (#2196)
 	}
-	add(host.HerdrCore, env[herdrCorePaneEnv])
-	add(host.Orca, env[orcaPaneEnv])
-	add(host.Orca, env[orcaLegacyPaneEnv])
 	add(host.Botmux, env[botmuxPaneEnv])
-	add(host.Tern, env[ternPaneEnv])
-	add(host.Rex, env[rexPaneEnv])
 	return out
 }
 
 // enginePaneEnvs are the variables Persona's engines set in their panes' processes.
 // herdrSessionEnv and herdrSocketEnv come along to tell which herdr server's pane HERDR_PANE_ID is.
-var enginePaneEnvs = []string{herdrPaneEnv, herdrSessionEnv, herdrSocketEnv, herdrCorePaneEnv, orcaPaneEnv, orcaLegacyPaneEnv,
-	botmuxPaneEnv, ternPaneEnv, rexPaneEnv}
+var enginePaneEnvs = []string{herdrPaneEnv, herdrSessionEnv, herdrSocketEnv, botmuxPaneEnv}
 
 // tmuxEnv is tmux's own variable in a pane's processes: "<socket>,<server pid>,<session index>". Its socket names the
 // server the pane belongs to, which a pane id alone does not (tmuxHost).

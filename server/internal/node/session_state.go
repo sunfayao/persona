@@ -121,12 +121,6 @@ type sessionState struct {
 	// PendingHandoff: the handoff of a switch to this session whose first message a dialog held back (engine_switch.go
 	// startEngine): put in front of the next message sent to the session, then cleared (send.go).
 	PendingHandoff *pendingHandoff `json:"pending_handoff,omitempty"`
-	// EngineRuntime: the engine runtime (Paseo, Cindy) whose new start wrote this record (recordEngineStart). The
-	// runtime keeps the Agent and none of its resumes writes the record again, so Cwd is where the Agent started; a
-	// terminal start or resume writes a whole new record without it, and a launcher switch carries the switch's. An
-	// extension's resume of a conversation its computer does not list passes on such a record alone, with no transcript
-	// (resumeOutsideHealth, #10941).
-	EngineRuntime string `json:"engine_runtime,omitempty"`
 	// RoundForkOf names the base background supervisor session when a supervision round's process forked a separate
 	// Claude session id (assistant_round.go). Forked round branches inherit assistant identity and stay hidden from
 	// the ordinary Agents list across node restarts.
@@ -293,7 +287,7 @@ func (s *stateFile) restoreLaunch(id string, prev sessionState, had bool, launch
 	}
 	if had {
 		v.Launcher, v.Model, v.ModelFingerprint, v.ModelEffort = prev.Launcher, prev.Model, prev.ModelFingerprint, prev.ModelEffort
-		v.Cwd, v.StartedAt, v.PlanThen, v.EngineRuntime = prev.Cwd, prev.StartedAt, prev.PlanThen, prev.EngineRuntime
+		v.Cwd, v.StartedAt, v.PlanThen = prev.Cwd, prev.StartedAt, prev.PlanThen
 	} else {
 		v.Launcher, v.Model, v.ModelFingerprint = launcher, "", ""
 	}
@@ -307,8 +301,8 @@ func (s *stateFile) restoreLaunch(id string, prev sessionState, had bool, launch
 }
 
 // adoptSwitch takes v, what a launcher switch carried out on another Node wrote of session id (switch_share.go), and
-// writes it through this Node's hub: the fields the switch owns (launcher, model, directory and the engine runtime whose
-// start it is, start time, plan mode, pane, pending switch, the conversation's earlier stretches and a handoff waiting
+// writes it through this Node's hub: the fields the switch owns (launcher, model, directory, start time, plan mode,
+// pane, pending switch, the conversation's earlier stretches and a handoff waiting
 // for the next message) over this Node's record, the rest of it as this Node has it (an ultracode observation the new
 // claude's hooks made on this connection); v whole when there is no record.
 func (s *stateFile) adoptSwitch(id string, v sessionState) {
@@ -320,7 +314,6 @@ func (s *stateFile) adoptSwitch(id string, v sessionState) {
 		cur.Launcher, cur.Model, cur.ModelFingerprint, cur.ModelEffort = v.Launcher, v.Model, v.ModelFingerprint, v.ModelEffort
 		cur.Cwd, cur.StartedAt, cur.PlanThen, cur.Pane, cur.PendingSwitch = v.Cwd, v.StartedAt, v.PlanThen, v.Pane, v.PendingSwitch
 		cur.EngineHistory, cur.PendingHandoff = v.EngineHistory, v.PendingHandoff // a switch to another engine (engine_switch.go)
-		cur.EngineRuntime = v.EngineRuntime
 		v = cur
 	}
 	s.Sessions[id] = v

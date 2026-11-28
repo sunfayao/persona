@@ -50,11 +50,7 @@ func (n *Node) codexResumableIn(ctx context.Context, id string, pass *codexListP
 	if _, live := n.agent(id); live {
 		return false
 	}
-	kind := n.startKind(n.withResumeHost(ctx, id))
-	if _, runtime := engineRuntimes[kind]; runtime || kind == proto.EngineOrca {
-		return false
-	}
-	if _, err := hostCapFor[host.Launcher](n, kind); err != nil {
+	if _, err := hostCapFor[host.Launcher](n, n.startKind(ctx)); err != nil {
 		return false
 	}
 	n.codices.mu.Lock()

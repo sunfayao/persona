@@ -35,11 +35,11 @@ func (d *Devices) fileTransferOn(machine string) bool {
 	c := &d.fileTransfer
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if time.Since(c.loadedAt) >= fileTransferFresh && (c.failedAt.IsZero() || time.Since(c.failedAt) >= engineRetry) {
+	if time.Since(c.loadedAt) >= fileTransferFresh && (c.failedAt.IsZero() || time.Since(c.failedAt) >= settingsRetry) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := d.loadFileTransferLocked(ctx); err != nil {
-			d.logf("file transfer switches: %v (retried in %s)", err, engineRetry)
+			d.logf("file transfer switches: %v (retried in %s)", err, settingsRetry)
 			c.failedAt, c.on = time.Now(), nil // fails closed
 		}
 	}

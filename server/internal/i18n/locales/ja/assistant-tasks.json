@@ -30,7 +30,6 @@
   "start_answer_read_only": "このデバイスからは、コンピューターのターミナルの質問に答えられません。",
   "start_answer_need_choice": "回答を1つ選んでください。",
   "start_answer_node_outdated": "ここから答えるには、{machine} の Persona を更新してください。何も入力していません。",
-  "launcher_kind_missing": "{machine} の {engine} には {launcher} も他の {kind} のプロバイダーもないため、何も起動せず、別の種類のエージェントでも実行しません。そこにあるプロバイダー：{launchers}",
   "readonly_launcher_unsupported": "{machine} の {launcher} が起動する {agent} には読み取り専用モードがないため、この読み取り専用タスクは拒否されました。何も起動しておらず、別のランチャーで代わりに実行することもありません。書き込み可能なタスク（readonly false）として計画するか、このコンピューターの Claude Code または Codex のランチャーで読み取り専用として計画してください：{launchers}",
   "readonly_agy_unsupported": "{machine} の {launcher} が起動するのは Antigravity CLI で、読み取り専用タスクは Antigravity コンパニオン上のプランモードでしか実行できませんが、このコンピューターのランチャー一覧にそれを実行するコンパニオンがありません。何も起動していません。コンパニオンがそこで動いている場合（ログインシェルで定義した agy があると一覧に表示されません）、host \"agy\" を付けて計画し直してください。書き込み可能なタスク（readonly false）として計画するか、このコンピューターの Claude Code または Codex のランチャー（{launchers}）で読み取り専用として計画することもできます。assistant.readonly_mode を prompt にすると、agy は読み取り専用を指示として扱います（セキュリティ境界ではありません）。",
   "start_identity_conflict": "起動応答で、指定したコンピューター上のセッションを確認できませんでした。",

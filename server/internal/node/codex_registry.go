@@ -332,12 +332,6 @@ func (n *Node) discoverCodex() {
 }
 
 func (n *Node) runCodex(ctx context.Context) {
-	select {
-	case <-n.readyCh():
-	case <-time.After(configWait):
-	case <-ctx.Done():
-		return
-	}
 	n.configureCodex(proto.CodexConfig{})
 	go n.publishCodex(ctx)
 	n.rememberCodex()

@@ -76,16 +76,15 @@ func fillSpaceDirectories(spaces []host.Space, panes []host.Agent) {
 	}
 }
 
-// listWorkspaces is the machine's workspace catalog: native desktop projects, each terminal host's workspaces, and
-// those of each engine runtime that keeps workspaces of its own (Paseo's, runtimeworkspaces.go), with or without sessions.
+// listWorkspaces is the machine's workspace catalog: native desktop projects and each terminal host's workspaces, with
+// or without sessions.
 func (n *Node) listWorkspaces(ctx context.Context) (proto.WorkspacesResponse, error) {
 	out := proto.WorkspacesResponse{Workspaces: []proto.Workspace{}}
 	desktop, desktopSources, desktopErrors := n.desktopWorkspaces()
 	out.Workspaces = append(out.Workspaces, desktop...)
 	out.Errors = append(out.Errors, desktopErrors...)
 	hs := n.hosts.All()
-	runtimes, runtimeEngine := n.catalogRuntimes()
-	if len(hs) == 0 && !runtimeEngine && desktopSources == 0 && len(desktopErrors) == 0 {
+	if len(hs) == 0 && desktopSources == 0 && len(desktopErrors) == 0 {
 		return out, fmt.Errorf("unsupported: this node has no workspace host")
 	}
 	var failures []error
@@ -116,8 +115,8 @@ func (n *Node) listWorkspaces(ctx context.Context) (proto.WorkspacesResponse, er
 			}
 		}
 		if errors.Is(err, host.ErrNotRunning) {
-			// Not running on this computer (Orca not started, no botmux daemon): it has no workspaces, as in the agents
-			// list. Not a source error the board should show.
+			// Not running on this computer (no botmux daemon): it has no workspaces, as in the agents list. Not a source
+			// error the board should show.
 			continue
 		}
 		if err != nil {
@@ -139,15 +138,22 @@ func (n *Node) listWorkspaces(ctx context.Context) (proto.WorkspacesResponse, er
 				Unread: s.Unread, SidebarStatus: s.SidebarStatus, WorkspaceKind: s.WorkspaceKind, Head: s.Head})
 		}
 	}
-	for _, h := range runtimes {
-		succeeded++
-		out.Workspaces = append(out.Workspaces, n.runtimeWorkspaceRows(h)...)
-	}
 	if succeeded == 0 && len(failures) > 0 {
 		// Every source that runs here failed: an error, not an empty catalog.
 		return proto.WorkspacesResponse{}, errors.Join(failures...)
 	}
 	return out, nil
+}
+
+// catalogDir is a workspace's folder as the catalog names it: its physical directory (symbolic links resolved), as
+// the node names a session's working tree; as written when it cannot be resolved (gone, or in iCloud Drive).
+func (n *Node) catalogDir(cwd string) string {
+	if path := pathutil.Resolve(cwd, "", n.home); path != "" && !inICloud(path) {
+		if real, err := filepath.EvalSymlinks(path); err == nil && !inICloud(real) {
+			return real
+		}
+	}
+	return cwd
 }
 
 // resolveWorkspace validates a directory binding on the machine that owns it.

@@ -45,10 +45,6 @@ func (h *Hub) startDevices(ctx context.Context) {
 			continue
 		}
 		m := h.newManagedMachine(mc)
-		m.engine = saved.Engines[mc.ID]
-		if c, ok := saved.EngineHosts[mc.ID]; ok {
-			m.engineHosts = &c
-		}
 		if w, ok := saved.Machines[mc.ID]; ok && (w.Until.IsZero() || w.Until.After(time.Now())) {
 			m.info, m.sessions, m.listedOnce, m.warmUntil = w.Info, w.Sessions, true, until
 			if len(w.Archived) > 0 {

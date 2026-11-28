@@ -545,22 +545,16 @@ const (
 	inFrontReason = "Claude 不在前台（可能被挂起），没有发送：在电脑上把它切回前台再发。"
 )
 
-// notRunningRefusal refuses, with nothing typed, a send to a session that is not live when the machine's engine
-// cannot start sessions (no host.Launcher) or is Orca, instead of trying to resume it there: when the pane it was last
-// seen in is still there, its agent is not in front (suspended, in the background); otherwise it is gone. nil when the
-// engine can resume it: herdr, and Orca for a Claude session (its own <id>.jsonl; Codex, TRAE CLI and pi sessions are
-// not resumed in Orca).
-// orcaContinues: Orca can continue session id once its agent is gone — a Claude session (its own <id>.jsonl, not a
-// Codex or TRAE CLI rollout); Codex, TRAE CLI and pi sessions are not resumed in Orca (#5548). Send (notRunningRefusal) and
-// retire share it, so the task closer never closes an agent a message cannot bring back.
-func (n *Node) orcaContinues(id string) bool { return n.claudeTranscript(id, true) != "" }
-
+// notRunningRefusal refuses, with nothing typed, a send to a session that is not live when the start's host cannot
+// start sessions (no host.Launcher), instead of trying to resume it there: when the pane it was last seen in is still
+// there, its agent is not in front (suspended, in the background); otherwise it is gone. nil when the host can resume
+// it (herdr).
 func (n *Node) notRunningRefusal(ctx context.Context, id string) error {
 	h := n.hosts.Get(n.startKind(ctx))
 	if h == nil {
 		return nil
 	}
-	if _, ok := h.(host.Launcher); ok && h.Kind() != host.Orca {
+	if _, ok := h.(host.Launcher); ok {
 		return nil
 	}
 	n.mu.Lock()
@@ -574,11 +568,6 @@ func (n *Node) notRunningRefusal(ctx context.Context, id string) error {
 			}
 		}
 	}
-	if h.Kind() == host.Orca && n.orcaContinues(id) {
-		log.Printf("send %s: not on the live list (last pane %q): resuming it in Orca", id, pane)
-		return nil
-	}
 	log.Printf("send %s: not on the live list (last pane %q): refused as not running", id, pane)
-	name := proto.EngineNames[h.Kind()]
-	return refusal(notRunning, fmt.Sprintf("这个会话现在没有在运行（可能被挂起或已退出），%s 里的会话要在电脑上重新打开，这次没有发送。", name), nil)
+	return refusal(notRunning, fmt.Sprintf("这个会话现在没有在运行（可能被挂起或已退出），%s 里的会话要在电脑上重新打开，这次没有发送。", h.Kind()), nil)
 }

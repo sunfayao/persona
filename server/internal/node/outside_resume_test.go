@@ -1,7 +1,6 @@
 package node
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,31 +67,6 @@ func TestOutsideSessionResumesInATerminalTab(t *testing.T) {
 	}
 	if !created || !typed {
 		t.Fatalf("no tab in %s running claude --resume: %v", cwd, f.trace())
-	}
-}
-
-// No terminal engine (the empty set): the row offers no terminal (the clients say why instead), and a resume that
-// comes anyway is refused with nothing opened.
-func TestOutsideSessionWithoutATerminalEngine(t *testing.T) {
-	n, f, home := herdrNode(t)
-	noPaneEnv(t)
-	outsideSession(t, home, startID)
-	if err := n.useEngineChoice(context.Background(), proto.EngineChoice{Hosts: []string{}}); err != nil {
-		t.Fatal(err)
-	}
-	row := byID(listSessions(t, n))[startID]
-	if row.SessionID != startID || row.Status != proto.StatusOffline || row.Capabilities != nil && row.Capabilities.Terminal {
-		t.Fatalf("no engine: status %q capabilities %+v", row.Status, row.Capabilities)
-	}
-	f.reset()
-	_, err := request(t, n, "session.start", map[string]any{"resume_session_id": startID})
-	if code, _ := refusalOf(t, err); code != engineMissing {
-		t.Fatalf("resume with no terminal engine: %v", err)
-	}
-	for _, c := range f.trace() {
-		if strings.Contains(c, "workspace.create") || strings.Contains(c, "tab.create") || strings.Contains(c, "pane.send_input") {
-			t.Fatalf("something was started: %v", f.trace())
-		}
 	}
 }
 

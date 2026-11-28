@@ -27,11 +27,10 @@ func TestTheHubShowsTheHandOverUntilTheManagerReports(t *testing.T) {
 	box := newMeshNode("uid-box", "box", "s1")
 	box.resident = true
 	_ = st.PutSetting(context.Background(), devicesWarmKey, map[string]any{"saved_at": time.Now(), "machines": map[string]any{
-		"box": map[string]any{"info": proto.NodeInfo{Hostname: "box", Version: "test"}, "sessions": []proto.Session{{SessionID: "s1", Title: "旧的", Status: proto.StatusIdle}}}},
-		"engines": map[string]string{"box": proto.EngineHerdrCore}})
+		"box": map[string]any{"info": proto.NodeInfo{Hostname: "box", Version: "test"}, "sessions": []proto.Session{{SessionID: "s1", Title: "旧的", Status: proto.StatusIdle}}}}})
 	h.startDevices(context.Background())
 	m := h.machineByID("box")
-	if s := m.snapshot(); !s.Online || s.Hostname != "box" || len(m.sessionList()) != 1 || s.Engine != proto.EngineHerdrCore {
+	if s := m.snapshot(); !s.Online || s.Hostname != "box" || len(m.sessionList()) != 1 {
 		t.Fatalf("before the manager: %+v %v", s, m.sessionList())
 	}
 	var got struct {

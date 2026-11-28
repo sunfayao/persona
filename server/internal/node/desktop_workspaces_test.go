@@ -63,51 +63,20 @@ func TestDesktopWorkspacesWithoutTerminalOrSessions(t *testing.T) {
 	}
 }
 
-func TestDesktopWorkspacesKeepRuntimeCatalog(t *testing.T) {
-	n, _ := runtimeNode(t)
-	if err := n.useEngine(context.Background(), proto.EnginePaseo); err != nil {
-		t.Fatal(err)
-	}
-	dir := resolved(t, t.TempDir())
-	desktopCatalogJSON(t, filepath.Join(n.codexHome(), ".codex-global-state.json"), map[string]any{
-		"local-projects": map[string]codexAppProject{"desktop": {Name: "Desktop project", RootPaths: []string{dir}}},
-	})
-	if got := catalog(t, n); len(got) != 1 {
-		t.Fatalf("desktop catalog while the runtime is away: %+v", got)
-	}
-	rt := dialRuntime(t, n, paseoWorkspacesHello())
-	if err := rt.peer.Notify("runtime.workspaces", map[string]any{"workspaces": []any{
-		map[string]any{"workspace_id": "wks_main", "title": "Runtime project", "cwd": dir, "kind": "checkout", "space_id": "prj_1", "space_name": "Runtime project", "repo_root": dir},
-	}}); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "desktop and runtime catalogs", func() bool { return len(catalog(t, n)) == 2 })
-	got := catalog(t, n)
-	if got["wks_main"].Source != proto.EnginePaseo || got["wks_main"].ProjectID != "prj_1" {
-		t.Fatalf("runtime project lost its identity: %+v", got)
-	}
-	for _, row := range got {
-		if row.Source == codexAppSource && row.Title == "Desktop project" && row.Cwd == dir {
-			return
-		}
-	}
-	t.Fatalf("runtime catalog hid the desktop project in the same directory: %+v", got)
-}
-
 func TestDesktopWorkspacesKeepPartialSourcesAndEmptyCatalog(t *testing.T) {
 	home := t.TempDir()
 	state := filepath.Join(home, ".codex", ".codex-global-state.json")
 	desktopCatalogJSON(t, state, map[string]any{"local-projects": map[string]any{}})
-	failed := &workspaceHost{bareHost: bareHost{kind: host.Orca}, err: errors.New("snapshot failed")}
+	failed := &workspaceHost{bareHost: bareHost{kind: host.Herdr}, err: errors.New("snapshot failed")}
 	n := &Node{home: home, hosts: host.NewRegistry(failed)}
 	got, err := n.listWorkspaces(context.Background())
-	if err != nil || got.Workspaces == nil || len(got.Workspaces) != 0 || len(got.Errors) != 1 || got.Errors[0].Source != host.Orca {
+	if err != nil || got.Workspaces == nil || len(got.Workspaces) != 0 || len(got.Errors) != 1 || got.Errors[0].Source != host.Herdr {
 		t.Fatalf("valid empty desktop source with failed host = %+v, %v", got, err)
 	}
 	if err := os.Remove(state); err != nil {
 		t.Fatal(err)
 	}
-	// With neither a saved desktop source nor a successful engine, a failure remains a failure.
+	// With neither a saved desktop source nor a successful host, a failure remains a failure.
 	if _, err := n.listWorkspaces(context.Background()); err == nil || !strings.Contains(err.Error(), "snapshot failed") {
 		t.Fatalf("failed source without desktop = %v", err)
 	}

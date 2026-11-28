@@ -45,44 +45,35 @@ func TestPanesChangedResubscribes(t *testing.T) {
 
 func TestHostDue(t *testing.T) {
 	herdrSig := newWatcherSignals()
-	coreSig := newWatcherSignals()
 	n := &Node{
 		agents:  map[string]host.Agent{"s1": {Agent: "claude", PaneID: "w1:p1"}},
-		hostSig: map[string]*watcherSignals{host.Herdr: herdrSig, host.HerdrCore: coreSig},
+		hostSig: map[string]*watcherSignals{host.Herdr: herdrSig},
 	}
 	now := time.Now()
-	// Without a live stream every host is polled every tick.
+	// Without a live stream herdr is polled every tick.
 	if !n.hostDue(host.Herdr, now, false) {
 		t.Fatal("without an event stream herdr is polled every tick")
 	}
 	herdrSig.setLive(herdrSig.watcherID())
-	coreSig.setLive(coreSig.watcherID())
 	if n.hostDue(host.Herdr, now, false) {
 		t.Fatal("with events, a fresh snapshot is enough")
 	}
 	if !n.hostDue(host.Herdr, now.Add(-slowSnapshot), false) {
 		t.Fatal("the slow snapshot still runs")
 	}
-	// herdr-core announcing a change schedules only herdr-core, not herdr (the combined engine's isolation).
-	if n.hostDue(host.Herdr, now, false) {
-		t.Fatal("herdr-core's event must not snapshot herdr")
-	}
-	if !n.hostDue(host.HerdrCore, now, true) {
+	if !n.hostDue(host.Herdr, now, true) {
 		t.Fatal("the kicked host is due")
 	}
-	// a compatible CLI state lives in the title spinner, which sends no event: its own host stays due, the other one not.
-	n.agents["t1"] = host.Agent{Agent: traexAgent, PaneID: "herdr-core:t9"}
-	if n.hostDue(host.Herdr, now, false) {
-		t.Fatal("TRAE CLI in herdr-core must not make herdr poll")
-	}
-	if !n.hostDue(host.HerdrCore, now, false) {
-		t.Fatal("TRAE CLI in herdr-core keeps it polling")
+	// a compatible CLI state lives in the title spinner, which sends no event: its host stays due.
+	n.agents["t1"] = host.Agent{Agent: traexAgent, PaneID: "w1:p9"}
+	if !n.hostDue(host.Herdr, now, false) {
+		t.Fatal("TRAE CLI in herdr keeps it polling")
 	}
 }
 
 func TestHostWithoutWatcherAlwaysDue(t *testing.T) {
-	n := &Node{} // Orca has no Watcher: hostDue is true on every tick
-	if !n.hostDue(host.Orca, time.Now(), false) {
+	n := &Node{} // botmux has no Watcher: hostDue is true on every tick
+	if !n.hostDue(host.Botmux, time.Now(), false) {
 		t.Fatal("a host without an event stream is polled every tick")
 	}
 }
@@ -91,11 +82,11 @@ func TestHostWithoutWatcherAlwaysDue(t *testing.T) {
 // #611 it was then not counted, and an agent turning blocked waited for the slow snapshot, up to 10 s).
 func TestALoneEventSnapshotsItsHost(t *testing.T) {
 	sig := newWatcherSignals()
-	sigs := map[string]*watcherSignals{host.Herdr: sig, host.HerdrCore: newWatcherSignals()}
+	sigs := map[string]*watcherSignals{host.Herdr: sig, host.Botmux: newWatcherSignals()}
 	sig.poke(false)
 	start := time.Now()
 	kicked, ok := nextChange(context.Background(), nil, sigs, time.Time{})
-	if !ok || !kicked[host.Herdr] || kicked[host.HerdrCore] || time.Since(start) > 500*time.Millisecond {
+	if !ok || !kicked[host.Herdr] || kicked[host.Botmux] || time.Since(start) > 500*time.Millisecond {
 		t.Fatalf("kicked %v after %v", kicked, time.Since(start))
 	}
 }
@@ -182,8 +173,8 @@ func TestHostFailBackoff(t *testing.T) {
 		if !b.skip(host.Herdr, now.Add(want-time.Millisecond), false) {
 			t.Fatalf("step %d: expected skip before %s", i, want)
 		}
-		if b.skip(host.HerdrCore, now.Add(time.Millisecond), false) {
-			t.Fatalf("step %d: failing herdr must not back off herdr-core", i)
+		if b.skip(host.Botmux, now.Add(time.Millisecond), false) {
+			t.Fatalf("step %d: failing herdr must not back off botmux", i)
 		}
 		if b.skip(host.Herdr, now.Add(want), false) {
 			t.Fatalf("step %d: expected due at %s", i, want)
@@ -217,8 +208,8 @@ func TestRefreshHostsWithFailuresReportsOnlyFailingHosts(t *testing.T) {
 	n, _, _ := herdrNode(t)
 	failErr := fmt.Errorf("herdr socket unavailable")
 	hFail := &inventoryHost{bareHost: bareHost{kind: host.Herdr}, snapshotErr: failErr, listErr: failErr}
-	hNotRunning := &inventoryHost{bareHost: bareHost{kind: host.HerdrCore}, snapshotErr: host.ErrNotRunning, listErr: host.ErrNotRunning}
-	hOK := &inventoryHost{bareHost: bareHost{kind: host.Orca}}
+	hNotRunning := &inventoryHost{bareHost: bareHost{kind: host.Botmux}, snapshotErr: host.ErrNotRunning, listErr: host.ErrNotRunning}
+	hOK := &inventoryHost{bareHost: bareHost{kind: host.Tmux}}
 	n.hosts = host.NewRegistry(hFail, hNotRunning, hOK)
 
 	failed, err := n.refreshHostsWithFailures(context.Background())
@@ -228,7 +219,7 @@ func TestRefreshHostsWithFailuresReportsOnlyFailingHosts(t *testing.T) {
 	if !failed[host.Herdr] {
 		t.Fatalf("expected failing host to be marked failed: %v", failed)
 	}
-	if failed[host.HerdrCore] || failed[host.Orca] {
+	if failed[host.Botmux] || failed[host.Tmux] {
 		t.Fatalf("answered or ErrNotRunning hosts must not be marked failed: %v", failed)
 	}
 }

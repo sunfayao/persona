@@ -1028,9 +1028,6 @@ func (h *Hub) startSessionWith(w http.ResponseWriter, r *http.Request, p session
 		p.Images = append(p.Images, handoffImages...)
 	}
 	async := startsAsync(p.Async, p.ResumeSessionID, p.Launcher, p.AgentType) && !desktopStartLauncher(p.Launcher)
-	m.mu.Lock()
-	defaultHost := startEngine(m.info)
-	m.mu.Unlock()
 	parent := r.Context()
 	if r.Header.Get("X-Persona-Op-Id") != "" {
 		// Finish an accepted start even if its HTTP response is lost; client_ops records the outcome.
@@ -1042,16 +1039,13 @@ func (h *Hub) startSessionWith(w http.ResponseWriter, r *http.Request, p session
 	var res struct {
 		Session      proto.Session `json:"session"`
 		LauncherNote string        `json:"launcher_note,omitempty"` // a default it lacks gave way to another (#4661)
-		// Instead: what an engine that runs only its own launchers ran in place of what was asked (#8140, the node's
-		// answer passed on); launcher_note says it.
-		Instead *proto.StartInstead `json:"instead,omitempty"`
 	}
 	raw, _ := json.Marshal(p)
 	params := map[string]any{}
 	_ = json.Unmarshal(raw, &params)
 	name := "" // a tab named now, before it opens; one started in the background is renamed when its name comes (below)
 	if !async && p.TabName == "" && p.ResumeSessionID == "" &&
-		!nativeTraeTab(p.Launcher, p.AgentType, cmp.Or(p.Host, defaultHost)) {
+		!nativeTraeTab(p.Launcher, p.AgentType, p.Host) {
 		name = nameFrom
 	}
 	// The manager says what it runs on (Models › Agents, a model picked for this start) and names its tab
@@ -1100,7 +1094,7 @@ func (h *Hub) startSessionWith(w http.ResponseWriter, r *http.Request, p session
 	resolvedHost, _ := params["host"].(string)
 	ownerForTab := ""
 	if p.TabName == "" && p.ResumeSessionID == "" && strings.TrimSpace(tabName) == "" && strings.TrimSpace(nameFrom) != "" &&
-		nativeTraeTab(resolvedLauncher, resolvedAgent, cmp.Or(resolvedHost, defaultHost)) {
+		nativeTraeTab(resolvedLauncher, resolvedAgent, resolvedHost) {
 		ownerForTab = h.machineOwner(m.cfg.ID)
 	}
 	if !async && ownerForTab == "" && name == "" && nameFrom != "" && strings.TrimSpace(tabName) == "" && p.ResumeSessionID == "" {
@@ -1159,16 +1153,10 @@ func (h *Hub) startSessionWith(w http.ResponseWriter, r *http.Request, p session
 		callErr(w, apierr.OnMachine(err, m.name())) // a launcher the new tab cannot run "on <name>'s MacBook"
 		return
 	}
-	// An engine that runs only its own launchers may have started one of the same kind in place of the launcher asked
-	// for (#8140): its health and a model's use go to the launcher that ran, not to the one that did not.
-	if res.Instead != nil && res.Instead.Launcher != "" && res.Session.Launcher != "" {
-		params["launcher"] = res.Session.Launcher
-	}
 	if !async {
 		h.startEnded(m.cfg.ID, p.ResumeSessionID, params, nil)
 	}
-	if model, _ := params["model"].(string); p.Model != "" && p.ResumeSessionID == "" && model == strings.TrimSpace(p.Model) &&
-		(res.Instead == nil || res.Instead.Model == "") { // a model the launcher that ran does not offer did not run
+	if model, _ := params["model"].(string); p.Model != "" && p.ResumeSessionID == "" && model == strings.TrimSpace(p.Model) {
 		launcher, _ := params["launcher"].(string) // the one it ran with: the manager filled it in
 		if async {
 			// Acknowledged before it ran: the launcher's check and the agent coming up are still to come.
@@ -1198,10 +1186,7 @@ func (h *Hub) startSessionWith(w http.ResponseWriter, r *http.Request, p session
 			res.Session.Todo = &proto.TodoRef{ID: p.TodoID, Title: linked.Title}
 		}
 	}
-	m.mu.Lock()
-	engine := proto.EngineNames[cmp.Or(p.Host, startEngine(m.info))]
-	m.mu.Unlock()
-	res.LauncherNote = apierr.JoinNotes(h.requestLang(r), note, apierr.StartInstead(h.requestLang(r), engine, m.name(), res.Instead, res.Session))
+	res.LauncherNote = note
 	writeJSON(w, res)
 	if ownerForTab != "" {
 		go h.nameStartedTraeTab(m, ownerForTab, res.Session, nameFrom)
@@ -1248,15 +1233,6 @@ func (h *Hub) startEnded(mid, resume string, params map[string]any, err error) {
 		}
 	}
 	h.asstOf(h.machineOwner(mid)).notify(assistantwire.EventStartEnded, r)
-}
-
-// startEngine is the host a machine's starts open in when they name none (its default engine host), as its node
-// reports it; "" from a node that reports none.
-func startEngine(info proto.NodeInfo) string {
-	if info.EngineHosts != nil && info.EngineHosts.Default != "" {
-		return info.EngineHosts.Default
-	}
-	return info.Engine
 }
 
 // startsAsync: a start the app asked to have answered at once is, when the node can acknowledge it before the session

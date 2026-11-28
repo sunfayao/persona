@@ -6,11 +6,11 @@ import (
 	"github.com/sunfayao/persona/server/internal/assistant/agents"
 )
 
-// machinePresets are the Agent presets machine (an id) can start in host ("": its own launcher list): the profile in
-// use's tiers whose launcher it has (pickerTiers), each marked unavailable while its launcher's latest check says it
-// does not work. Agents read them through dispatch_read and a2a_sessions before starting one.
-func (s *Service) machinePresets(ctx context.Context, machine, host string) ([]workerPreset, error) {
-	launchers, err := s.pickerLaunchersOn(ctx, machine, host)
+// machinePresets are the Agent presets machine (an id) can start: the profile in use's tiers whose launcher it has
+// (pickerTiers), each marked unavailable while its launcher's latest check says it does not work. Agents read them
+// through dispatch_read and a2a_sessions before starting one.
+func (s *Service) machinePresets(ctx context.Context, machine string) ([]workerPreset, error) {
+	launchers, err := s.pickerLaunchers(ctx, machine)
 	if err != nil {
 		return nil, err
 	}

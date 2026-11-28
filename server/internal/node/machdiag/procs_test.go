@@ -65,7 +65,7 @@ func TestReportGroupsByNameAndKind(t *testing.T) {
 		{name: "herdr", rss: 50},
 		{name: "personad", rss: 40, cpu: cpu(0)},
 		{name: "node", rss: 300, cpu: cpu(1)},
-		{name: "Orca", rss: 10},
+		{name: "Tmux", rss: 10},
 		{name: "kworker/0:1", rss: 0}, // a kernel thread: counted, not grouped
 	}
 	r := report(procs)
@@ -76,7 +76,7 @@ func TestReportGroupsByNameAndKind(t *testing.T) {
 	for _, g := range r.Groups {
 		names = append(names, g.Name)
 	}
-	if !slices.Equal(names, []string{"claude", "node", "herdr", "personad", "Orca"}) {
+	if !slices.Equal(names, []string{"claude", "node", "herdr", "personad", "Tmux"}) {
 		t.Fatalf("groups by RSS = %v", names)
 	}
 	claude := r.Groups[0]
@@ -87,8 +87,8 @@ func TestReportGroupsByNameAndKind(t *testing.T) {
 	for _, g := range r.Groups {
 		kinds[g.Name] = g.Kind
 	}
-	// node cannot be attributed by name; Orca matches its engine case-insensitively.
-	if kinds["node"] != proto.ProcessKindOther || kinds["herdr"] != proto.ProcessKindEngine || kinds["personad"] != proto.ProcessKindPersona || kinds["Orca"] != proto.ProcessKindEngine {
+	// node cannot be attributed by name; Tmux matches its kind case-insensitively.
+	if kinds["node"] != proto.ProcessKindOther || kinds["herdr"] != proto.ProcessKindEngine || kinds["personad"] != proto.ProcessKindPersona || kinds["Tmux"] != proto.ProcessKindEngine {
 		t.Fatalf("kinds = %v", kinds)
 	}
 	if r.Groups[2].CPU != nil {

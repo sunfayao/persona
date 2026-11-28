@@ -14,6 +14,3 @@ type updateSnapshotSource interface {
 func (h *herdrHost) SnapshotForUpdate(ctx context.Context) (*host.Layout, error) {
 	return h.Snapshot(ctx)
 }
-func (h *herdrCoreHost) SnapshotForUpdate(ctx context.Context) (*host.Layout, error) {
-	return h.snapshot(ctx, true)
-}

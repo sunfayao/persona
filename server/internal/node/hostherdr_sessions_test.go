@@ -639,14 +639,14 @@ func TestHookPanesOfNamedSessions(t *testing.T) {
 	// A node whose own herdr server is a named session writes that session's panes bare and the default server's
 	// qualified: it translates what hooks, CLIs and runtimes send (written as the default server sees them).
 	n, _, _ := herdrNode(t)
-	for in, want := range map[string]string{"@work:w1:p1": "@work:w1:p1", "w1:p1": "w1:p1", "": "", "orca:t1:l1": "orca:t1:l1"} {
+	for in, want := range map[string]string{"@work:w1:p1": "@work:w1:p1", "w1:p1": "w1:p1", "": "", "botmux:s1": "botmux:s1"} {
 		if got := n.ownPane(in); got != want {
 			t.Errorf("default-server node: ownPane(%q) = %q, want %q", in, got, want)
 		}
 	}
 	n.hosts = herdrHosts(&herdr.Client{Socket: "/tmp/x/h.sock", Session: "work"})
 	for in, want := range map[string]string{"@work:w1:p1": "w1:p1", "w1:p1": "@default:w1:p1", "@build:w1:p1": "@build:w1:p1",
-		"": "", "orca:t1:l1": "orca:t1:l1", "herdr-core:t7": "herdr-core:t7"} {
+		"": "", "botmux:s1": "botmux:s1", "tmux:%7": "tmux:%7"} {
 		if got := n.ownPane(in); got != want {
 			t.Errorf("node on session work: ownPane(%q) = %q, want %q", in, got, want)
 		}
@@ -883,12 +883,12 @@ func TestEngineHerdrHostDrivesNamedSessions(t *testing.T) {
 	t.Setenv("HERDR_SOCKET_PATH", "")
 	t.Setenv("HERDR_SESSION", "")
 	t.Setenv("PERSONA_HOME", "")
-	hs := engineHosts(proto.EngineHerdr, nil)
-	if h, ok := hs[0].(*herdrHost); !ok || h.named == nil {
-		t.Fatalf("engine host %#v drives no named sessions", hs[0])
+	hs := newHerdr(nil)
+	if h, ok := hs.(*herdrHost); !ok || h.named == nil {
+		t.Fatalf("engine host %#v drives no named sessions", hs)
 	}
 	t.Setenv("HERDR_SESSION", "work") // a node told to use a session of its own
-	if h := engineHosts(proto.EngineHerdr, nil)[0].(*herdrHost); h.named != nil || h.ownSession() != "work" {
+	if h := newHerdr(nil).(*herdrHost); h.named != nil || h.ownSession() != "work" {
 		t.Errorf("a node on session work: named %v, own %q", h.named, h.ownSession())
 	}
 }

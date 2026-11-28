@@ -24,7 +24,7 @@ func TestCodexReadyPollFindsOnlyTheMatchingRollout(t *testing.T) {
 				if fixture {
 					n, _ = testNode(t)
 				}
-				h := &readinessFrames{stateless: stateless{screenHost{bareHost: bareHost{kind: host.Orca}}},
+				h := &readinessFrames{stateless: stateless{screenHost{bareHost: bareHost{kind: host.Tmux}}},
 					frames: []string{codexStartError + " no matching rollout"}}
 				n.hosts = host.NewRegistry(h)
 				cwd := mkdir(t, filepath.Join(n.home, "project"))
@@ -43,11 +43,11 @@ func TestCodexReadyPollFindsOnlyTheMatchingRollout(t *testing.T) {
 func TestCodexReadyPollReportsLauncherFailure(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		n, _ := testNode(t)
-		h := &readinessFrames{stateless: stateless{screenHost{bareHost: bareHost{kind: host.Orca}}},
+		h := &readinessFrames{stateless: stateless{screenHost{bareHost: bareHost{kind: host.Tmux}}},
 			frames: []string{codexStartError + " scripted launcher failure"}}
 		n.hosts = host.NewRegistry(h)
 		began := time.Now()
-		_, err := n.waitCodexThread(context.Background(), "orca:t1:l1", n.home, "prompt", began)
+		_, err := n.waitCodexThread(context.Background(), "tmux:%1", n.home, "prompt", began)
 		if err == nil || !strings.Contains(err.Error(), "scripted launcher failure") || len(h.reads) != 1 || time.Since(began) != 20*time.Millisecond {
 			t.Fatalf("launcher failure: reads=%d, elapsed=%v, error=%v", len(h.reads), time.Since(began), err)
 		}
@@ -66,7 +66,7 @@ func TestCodexReadyPollKeepsCancellationAndDeadline(t *testing.T) {
 			t.Cleanup(func() { codexStartWait = old })
 			synctest.Test(t, func(t *testing.T) {
 				n, _ := testNode(t)
-				h := &readinessFrames{stateless: stateless{screenHost{bareHost: bareHost{kind: host.Orca}}},
+				h := &readinessFrames{stateless: stateless{screenHost{bareHost: bareHost{kind: host.Tmux}}},
 					frames: []string{"waiting for a rollout"}}
 				n.hosts = host.NewRegistry(h)
 				ctx, cancel := context.WithCancel(context.Background())
@@ -78,7 +78,7 @@ func TestCodexReadyPollKeepsCancellationAndDeadline(t *testing.T) {
 						cancel()
 					}()
 				}
-				_, err := n.waitCodexThread(ctx, "orca:t1:l1", n.home, "prompt", began)
+				_, err := n.waitCodexThread(ctx, "tmux:%1", n.home, "prompt", began)
 				if cancellation {
 					if !errors.Is(err, context.Canceled) || len(h.reads) != 0 || time.Since(began) != 10*time.Millisecond {
 						t.Fatalf("cancelled poll: reads=%d, elapsed=%v, error=%v", len(h.reads), time.Since(began), err)

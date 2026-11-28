@@ -479,12 +479,10 @@ var startRequestErr = lazyre.New(`^directory .* does not exist$|^invalid launche
 
 // startRefusalCodes are the node's (and the hub's) coded refusals of the request itself (node/control.go,
 // node/codex_start.go, node/openelsewhere.go…). Codes about the machine's state (engine_missing, runtime_away,
-// not_running, orca_not_registered) are not here: the launcher cannot run there now, and a task may go elsewhere.
-// An engine with no provider of the launcher's kind (launcher_kind_missing, #8140) is the request's: the launcher is
-// not broken, and its check, which runs it on the command line, would pass and clear any record of it.
-var startRefusalCodes = []string{"codex_needs_prompt", "codex_resume", "codex_read_only", "orca_resume", "open_elsewhere", "runtime_session",
+// not_running) are not here: the launcher cannot run there now, and a task may go elsewhere.
+var startRefusalCodes = []string{"codex_needs_prompt", "codex_resume", "codex_read_only", "open_elsewhere", "runtime_session",
 	proto.CodeResumeUnknown, "identity_conflict", "ultracode_unsupported", "readonly_unsupported", proto.CodeDirectoryUntypable, proto.CodeNodeOutdated,
-	proto.CodeLauncherKindMissing, proto.CodeAgyCompanionOffline}
+	proto.CodeAgyCompanionOffline}
 
 // startRefused: the start failed on the request, not the launcher: the node checked it and said no before running
 // anything (one of startRefusalCodes, or of startRequestErr).

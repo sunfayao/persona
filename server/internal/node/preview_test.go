@@ -12,7 +12,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunfayao/persona/server/internal/host"
 	"github.com/sunfayao/persona/server/internal/node/preview"
 )
 
@@ -71,43 +70,5 @@ func TestPreviewServersProbes(t *testing.T) {
 	}
 	if _, err := n.previewServersRPC(context.Background(), json.RawMessage(`{"cwd":"relative"}`)); err == nil {
 		t.Error("a relative folder was read")
-	}
-}
-
-// paseoWorkspaceOn gives n a connected runtime that keeps workspaces (Paseo's), listing workspace id in dir: enough for
-// n to tell the id from a terminal host's (no socket: nothing here calls it).
-func paseoWorkspaceOn(n *Node, id, dir string) {
-	if n.runtimes == nil {
-		n.runtimes = newRuntimeRegistry()
-	}
-	h := n.runtimes.add(nil)
-	h.mu.Lock()
-	h.ready, h.hello.Runtime, h.hello.Caps.Workspaces = true, paseoRuntimeID, true
-	h.workspaces = []runtimeWorkspace{{ID: id, Cwd: dir, Kind: workspaceCheckout}}
-	h.mu.Unlock()
-}
-
-// herdrSpaces is herdr with workspace w1 in other and w2 in proj, as the layout (session.snapshot) and as the list the
-// node reads the workspaces' folders from (workspace.list).
-func herdrSpaces(f *fakeHerdr, other, proj string) map[string]any {
-	spaces := snapshot([]any{map[string]any{"workspace_id": "w1", "label": "other", "number": 1, "cwd": other},
-		map[string]any{"workspace_id": "w2", "label": "proj", "number": 2, "cwd": proj}}, nil, nil, nil)
-	f.reply("session.snapshot", spaces)
-	f.reply("workspace.list", map[string]any{"workspaces": []any{map[string]any{"workspace_id": "w1", "label": "other", "cwd": other},
-		map[string]any{"workspace_id": "w2", "label": "proj", "cwd": proj}}})
-	return spaces
-}
-
-// A computer whose engines open no tabs has nowhere to run a runtime session's server: a coded refusal the hub words
-// in the reader's language, and nothing started.
-func TestPreviewStartWithNoTerminalEngine(t *testing.T) {
-	n, _ := runtimeNode(t)
-	n.hosts = host.NewRegistry()
-	cwd := mkdir(t, filepath.Join(t.TempDir(), "proj"))
-	writeLaunch(t, cwd, `{"configurations": [{"name": "web", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 5173}]}`)
-	paseoWorkspaceOn(n, "wks_1", cwd)
-	_, err := request(t, n, "preview.start", map[string]any{"cwd": cwd, "name": "web", "workspace": "wks_1", "kind": "paseo"})
-	if rpcCode(err) != codePreviewNoTerminal {
-		t.Fatalf("no terminal engine: %v (code %q)", err, rpcCode(err))
 	}
 }

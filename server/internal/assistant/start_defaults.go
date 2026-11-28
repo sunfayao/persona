@@ -597,16 +597,12 @@ func (s *Service) applyStartGoal(t *PlanTask, d StartDefaults, ruled bool, agent
 	return byDefault
 }
 
-// defaultGoalRefusedOn says, from what the hub already knows, that m's node refuses a goal for this start: one in an
-// engine runtime (Paseo, Cindy) or a desktop app's launcher (claude-desktop, codex-app), which have no screen to type
-// /goal at (node/startgoal.go). Other refusals (an old node, a screenless terminal host) show only when it answers.
-func defaultGoalRefusedOn(m Device, params map[string]any, agent startAgent) bool {
-	host, _ := params["host"].(string)
-	if agentStartHost(m, host) != "" {
-		return true
-	}
+// defaultGoalRefusedOn says, from what the hub already knows, that m's node refuses a goal for this start: one in a
+// desktop app's launcher (claude-desktop, codex-app), which has no screen to type /goal at (node/startgoal.go). Other
+// refusals (an old node, a screenless terminal host) show only when it answers.
+func defaultGoalRefusedOn(agent startAgent) bool {
 	switch source := compat.Source(agent.source); {
-	case source == "codex_app", source == "claude_desktop", proto.RuntimeEngine(source):
+	case source == "codex_app", source == "claude_desktop":
 		return true
 	}
 	return false

@@ -266,7 +266,7 @@ func TestHerdrTaskResumeDoesNotAdoptAUserWorkspace(t *testing.T) {
 func TestHerdrTaskCloseUsesFreshHerdrSnapshot(t *testing.T) {
 	n, f, _, cwd := startHerdrWorkspaceSession(t, true)
 	h := n.hosts.Get(host.Herdr).(*herdrHost)
-	n.hosts = host.NewRegistry(h, &launchHost{setHost: newSetHost(host.Orca)}) // an unrelated host that cannot refresh
+	n.hosts = host.NewRegistry(h, newOwnHost(host.Botmux)) // an unrelated host with no layout of its own
 	workspace := map[string]any{"workspace_id": "w-task", "label": "Ship the change", "cwd": cwd}
 	f.reply("session.snapshot", snapshot([]any{workspace}, nil, []any{claudeAgent(startID, proto.StatusWorking, "w-task:p1", "w-task:t1", "w-task", cwd, "working")}, nil))
 	if _, err := n.closeTaskSpace(context.Background(), "todo-1", "w-task"); err == nil {

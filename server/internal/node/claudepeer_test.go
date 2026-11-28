@@ -97,8 +97,8 @@ func TestOutsideClaudeQueueCallsWithoutPane(t *testing.T) {
 }
 
 // A claude in a pane its engine lists with a claude in it is that engine's, not one outside. A claude whose pane
-// variable names a pane no engine in use lists as a claude (Orca's terminals on a node that enables herdr alone, a
-// claude the engine's process scan missed) is listed live as a terminal claude, never left to the offline list.
+// variable names a pane no engine lists as a claude (a pane herdr does not list, a claude its process scan missed) is
+// listed live as a terminal claude, never left to the offline list.
 func TestClaudeInEnginePaneNotOutside(t *testing.T) {
 	n, f, home := herdrNode(t)
 	old := paneEnvOfPID
@@ -111,9 +111,9 @@ func TestClaudeInEnginePaneNotOutside(t *testing.T) {
 		t.Errorf("a claude in an engine pane listed as outside: %+v", s)
 	}
 
-	// An Orca pane on a node that does not enable Orca: nothing lists it. Just seen, it is left to its engine for a
-	// moment (an engine reports a claude typed into its pane a little after it starts); then it is a live terminal claude.
-	paneEnvOfPID = func(int) map[string]string { return map[string]string{orcaPaneEnv: "tab-1:leaf-1"} }
+	// A herdr pane herdr does not list: nothing lists it. Just seen, it is left to its engine for a moment (an engine
+	// reports a claude typed into its pane a little after it starts); then it is a live terminal claude.
+	paneEnvOfPID = func(int) map[string]string { return map[string]string{herdrPaneEnv: "w8:p8"} }
 	f.reply("session.snapshot", snapshot(nil, nil, nil, nil))
 	if s, ok := byID(listSessions(t, n))[sidA]; ok && s.SourceKind != "" {
 		t.Errorf("a claude just seen in an engine pane listed as outside: %+v", s)

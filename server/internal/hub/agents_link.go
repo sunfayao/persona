@@ -172,9 +172,8 @@ func (h *Hub) autoTabNameOn(ctx context.Context, owner, prompt string) string {
 	return res.Name
 }
 
-func nativeTraeTab(launcher, agent, engine string) bool {
-	return (agent == "traex" || agent == "" && launcher == "traex") &&
-		(engine == proto.EngineHerdr || engine == proto.EngineHerdrCore)
+func nativeTraeTab(launcher, agent, host string) bool {
+	return (agent == "traex" || agent == "" && launcher == "traex") && (host == "" || host == proto.EngineHerdr)
 }
 
 var newAgentTabLabel = lazyre.New(`^agent-[0-9]+$`)

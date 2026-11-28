@@ -20,11 +20,10 @@ import (
 // launcherListing is a node's launchers.list: the launchers, and the shell and rc file they came from ("" from an
 // older node).
 type launcherListing struct {
-	Source      string           `json:"source,omitempty"`
-	Launchers   []proto.Launcher `json:"launchers"`
-	HostRuntime bool             `json:"host_runtime,omitempty"`
-	Shell       string           `json:"shell"`
-	RCFile      string           `json:"rc_file"`
+	Source    string           `json:"source,omitempty"`
+	Launchers []proto.Launcher `json:"launchers"`
+	Shell     string           `json:"shell"`
+	RCFile    string           `json:"rc_file"`
 }
 
 // listLaunchers asks one online machine for its list, giving it launcherSyncTimeout in total.
@@ -218,19 +217,13 @@ func launcherSyncList(zshrc []zshrcLaunchers) []LauncherSync {
 // machineLaunchers is what a machine can start (the pickers: new chat, the assistant's model): its own launchers
 // (the node's list) but the hidden ones, its reported built-in claude, then the managed ones.
 func (s *Service) machineLaunchers(ctx context.Context, machine string) ([]proto.Launcher, error) {
-	list, _, _, err := s.machineLaunchersOn(ctx, machine, "")
+	list, _, err := s.machineLaunchersKnown(ctx, machine)
 	return list, err
 }
 
-// machineLaunchersOn is machineLaunchers for a new Agent's start in host (its engine host; "": the machine's own list,
-// which Settings and the main chat read, the assistant running on the command line). hostRuntime: the node answered
-// that every start there goes to an engine runtime that runs only its own launchers (#8140, Paseo): the list is its
-// providers and what starts elsewhere whatever the host. A provider kept in Persona and plain claude are not added
-// then (the engine would run one of its own in their place), and one named like an engine provider is that provider;
-// only a managed Antigravity launcher, which its own runtime runs on any host, still is.
+// machineLauncherListing is a node's launchers.list as machineLaunchersKnown reads it.
 type machineLauncherListing struct {
-	Launchers   []proto.LauncherEnvelope `json:"launchers"`
-	HostRuntime bool                     `json:"host_runtime"`
+	Launchers []proto.LauncherEnvelope `json:"launchers"`
 }
 
 type launcherRefreshKey struct{}
@@ -241,27 +234,24 @@ func withLauncherRefresh(ctx context.Context) context.Context {
 	return context.WithValue(ctx, launcherRefreshKey{}, true)
 }
 
-// known distinguishes an explicit node list (including []) from a missing/null catalog on an older node.
-func (s *Service) machineLaunchersOn(ctx context.Context, machine, host string) (list []proto.Launcher, hostRuntime, known bool, err error) {
+// machineLaunchersKnown is machineLaunchers, and whether the node sent a list: known distinguishes an explicit node
+// list (including []) from a missing/null catalog on an older node.
+func (s *Service) machineLaunchersKnown(ctx context.Context, machine string) (list []proto.Launcher, known bool, err error) {
 	var res machineLauncherListing
 	params := map[string]any{}
 	if refresh, _ := ctx.Value(launcherRefreshKey{}).(bool); refresh {
 		params["refresh"] = true
 	}
-	if host != "" {
-		params["host"] = host
-	}
 	if err := s.call(ctx, machine, DeviceLaunchersList, params, &res); err != nil {
-		return nil, false, false, err
+		return nil, false, err
 	}
-	list, hostRuntime = s.machineLaunchersFrom(ctx, machine, res, true)
-	return list, hostRuntime, res.Launchers != nil, nil
+	return s.machineLaunchersFrom(ctx, machine, res, true), res.Launchers != nil, nil
 }
 
 // machineLaunchersFrom is machine's list from res, its node's answer. ask: a provider's own-service rule may ask the
 // node as the pickers do (usableOn); false goes by what it said before only (usableOnAsking), for a status that asks no
 // node.
-func (s *Service) machineLaunchersFrom(ctx context.Context, machine string, res machineLauncherListing, ask bool) ([]proto.Launcher, bool) {
+func (s *Service) machineLaunchersFrom(ctx context.Context, machine string, res machineLauncherListing, ask bool) []proto.Launcher {
 	d, _ := s.device(ctx, machine)
 	hidden := s.hiddenLaunchers(ctx)
 	// Only the providers in this computer's scope: one out of it is not named to the node, whose own launcher by
@@ -269,9 +259,6 @@ func (s *Service) machineLaunchersFrom(ctx context.Context, machine string, res 
 	managed := slices.DeleteFunc(slices.Clone(s.storedLaunchers(ctx)), func(m storedLauncher) bool {
 		return proto.IsExternalLauncher(m.Name) || !s.usableOnAsking(ctx, m, machine, ask)
 	})
-	if res.HostRuntime {
-		managed = slices.DeleteFunc(managed, func(m storedLauncher) bool { return m.Agent != "agy" })
-	}
 	out := make([]proto.Launcher, 0, len(res.Launchers)+len(managed))
 	for _, envelope := range res.Launchers {
 		l := proto.Launcher(envelope)
@@ -294,7 +281,7 @@ func (s *Service) machineLaunchersFrom(ctx context.Context, machine string, res 
 	codexHere := slices.ContainsFunc(res.Launchers, func(l proto.LauncherEnvelope) bool { return l.Agent == "codex" && l.RunHere })
 	// The node leaves plain claude out when its shell has another Claude launcher. devices.list's version is the
 	// same installation signal used by the built-in provider and Agent-start fallback, and works with older nodes.
-	if !res.HostRuntime && d.ClaudeVersion != "" && !slices.Contains(hidden, "claude") &&
+	if d.ClaudeVersion != "" && !slices.Contains(hidden, "claude") &&
 		!slices.ContainsFunc(out, func(l proto.Launcher) bool { return l.Name == "claude" }) {
 		out = append(out, proto.Launcher{Name: "claude", Source: "builtin"})
 	}
@@ -307,23 +294,18 @@ func (s *Service) machineLaunchersFrom(ctx context.Context, machine string, res 
 		out = append(out, proto.Launcher{Name: m.Name, BaseURL: m.BaseURL, Model: m.Model, Source: "persona", Agent: m.Agent, Assistant: m.Agent == "agy" && agyAssistant, SupervisionPolicy: m.Agent == "agy" && agyPolicy,
 			PromptOptional: m.Agent == "codex" && codexOptional, RunHere: m.Agent == "codex" && codexHere, Pi: m.PiAPI() != ""})
 	}
-	return out, res.HostRuntime
+	return out
 }
 
 // pickerLaunchers is what machine can start, as New Agent's picker lists it: machineLaunchers with hub.json's
 // launchers for it applied (sessionLaunchers).
 func (s *Service) pickerLaunchers(ctx context.Context, machine string) ([]ConfiguredLauncher, error) {
-	return s.pickerLaunchersOn(ctx, machine, "")
-}
-
-// pickerLaunchersOn is pickerLaunchers for a new Agent's start in host (machineLaunchersOn).
-func (s *Service) pickerLaunchersOn(ctx context.Context, machine, host string) ([]ConfiguredLauncher, error) {
-	ls, _, err := s.pickerLaunchersKnown(ctx, machine, host)
+	ls, _, err := s.pickerLaunchersKnown(ctx, machine)
 	return ls, err
 }
 
-func (s *Service) pickerLaunchersKnown(ctx context.Context, machine, host string) ([]ConfiguredLauncher, bool, error) {
-	ls, _, known, err := s.machineLaunchersOn(ctx, machine, host)
+func (s *Service) pickerLaunchersKnown(ctx context.Context, machine string) ([]ConfiguredLauncher, bool, error) {
+	ls, known, err := s.machineLaunchersKnown(ctx, machine)
 	if err != nil {
 		return nil, false, err
 	}
@@ -355,7 +337,7 @@ func (s *Service) assistantPickerLaunchers(ctx context.Context, d Device, refres
 			if ctx.Err() != nil || apierr.NodeCode(syncErr) != "timeout" {
 				return nil, nil, nil, syncErr
 			}
-			listing = launcherListing{} // the saved snapshot was requested without an engine host
+			listing = launcherListing{}
 			lastSeen, _ := s.zshrcLaunchersLastSeen(ctx)
 			if i := slices.IndexFunc(lastSeen, func(m zshrcLaunchers) bool { return m.MachineID == d.ID }); i >= 0 {
 				// A saved runtime advertisement does not establish that the runtime is still connected.
@@ -366,14 +348,11 @@ func (s *Service) assistantPickerLaunchers(ctx context.Context, d Device, refres
 				}
 			}
 		}
-		res := machineLauncherListing{
-			Launchers:   make([]proto.LauncherEnvelope, 0, len(listing.Launchers)),
-			HostRuntime: listing.HostRuntime,
-		}
+		res := machineLauncherListing{Launchers: make([]proto.LauncherEnvelope, 0, len(listing.Launchers))}
 		for _, l := range listing.Launchers {
 			res.Launchers = append(res.Launchers, proto.LauncherEnvelope(l))
 		}
-		launchers, _ := s.machineLaunchersFrom(ctx, d.ID, res, true)
+		launchers := s.machineLaunchersFrom(ctx, d.ID, res, true)
 		picker = s.pickerLaunchersFrom(ctx, d.ID, launchers)
 	}
 	fits, err = s.assistantLaunchersOf(ctx, d.ID, picker)
@@ -396,7 +375,7 @@ func (s *Service) pickerLaunchersSeen(ctx context.Context, machine string, seen 
 	for _, l := range seen {
 		res.Launchers = append(res.Launchers, proto.LauncherEnvelope(l))
 	}
-	list, _ := s.machineLaunchersFrom(ctx, machine, res, ask)
+	list := s.machineLaunchersFrom(ctx, machine, res, ask)
 	return s.pickerLaunchersFrom(ctx, machine, list)
 }
 

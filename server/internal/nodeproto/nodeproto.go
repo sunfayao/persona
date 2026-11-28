@@ -90,8 +90,6 @@ const (
 	// NodeUpdate: the node.update.* methods. Whether an update can run right now is still
 	// node.info's node_update / node_update_reason.
 	NodeUpdate = "node_update"
-	// Engines: engine.use and node.info's engine / engines.
-	Engines = "engines"
 	// MachineUID: node.info's machine_uid.
 	MachineUID = "machine_uid"
 	// HerdrServer: herdr.server.status / herdr.server.start and node.info's herdr_running / herdr_running_known.
@@ -251,7 +249,7 @@ const TaskWorkspace = "task_workspace_v1"
 const MarkdownCloseout = "closeout.markdown.v1"
 
 // Announced is what a node built from this code announces.
-var Announced = []string{MarkdownCloseout, TaskWorkspace, TaskInstructions, SourcePermissions, OwnerControls, SessionSkills, ShareProjection, CreationReceipt, PersonaContracts, ManagerUpdateInventory, MCPWait, Sessions, SessionEchoStatus, ModelConfiguration, AssistantConfigDir, AssistantSupervisionInstructions, AssistantServiceTier, SessionStartSpeed, TaskExecution, TaskInput, NodeUpdate, Engines, MachineUID, HerdrServer, PluginNodeCall, Ultracode, Preview, SecretRun, Clipboard, SecretEnv, LauncherSwitch, ModelHTTP, EngineSwitch, ModelRun, LauncherSwitchNow, LauncherSwitchIdle, PaneCwd, NodeUpdateIdle, PaneNewSpace, MachineDiagnose, StartGoal, StartContinue, LauncherCheckAssistantTurn, StartAnswer, AssistantToolSearchFallback, AgentDirsBlocked, NodeLanes, ResumeOutsideHealth, DenyDirs}
+var Announced = []string{MarkdownCloseout, TaskWorkspace, TaskInstructions, SourcePermissions, OwnerControls, SessionSkills, ShareProjection, CreationReceipt, PersonaContracts, ManagerUpdateInventory, MCPWait, Sessions, SessionEchoStatus, ModelConfiguration, AssistantConfigDir, AssistantSupervisionInstructions, AssistantServiceTier, SessionStartSpeed, TaskExecution, TaskInput, NodeUpdate, MachineUID, HerdrServer, PluginNodeCall, Ultracode, Preview, SecretRun, Clipboard, SecretEnv, LauncherSwitch, ModelHTTP, EngineSwitch, ModelRun, LauncherSwitchNow, LauncherSwitchIdle, PaneCwd, NodeUpdateIdle, PaneNewSpace, MachineDiagnose, StartGoal, StartContinue, LauncherCheckAssistantTurn, StartAnswer, AssistantToolSearchFallback, AgentDirsBlocked, NodeLanes, ResumeOutsideHealth, DenyDirs}
 
 // ShareProjection is the bounded complete-source sharing projection, not light Items.
 const ShareProjection = "share_projection.v1"

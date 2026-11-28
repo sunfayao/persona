@@ -51,7 +51,7 @@ func TestReadOnlyCodexTerminalStart(t *testing.T) {
 }
 
 func TestReadOnlyCodexArgumentsRejectConflicts(t *testing.T) {
-	n, _, _ := startNode(t)
+	n, _ := startNode(t)
 	for _, args := range [][]string{
 		{"--full-auto"}, {"--dangerously-bypass-approvals-and-sandbox"}, {"--yolo"}, {"--approve-for-me"},
 		{"--sandbox", "workspace-write"}, {"--sandbox=workspace-write"},
@@ -82,7 +82,7 @@ func TestReadOnlyCodexArgumentsRejectConflicts(t *testing.T) {
 
 func TestReadOnlyTerminalStartRefusesUnsupportedLaunchers(t *testing.T) {
 	withCodexLaunchers(t, map[string][]string{"code-alias": {"codex", "--full-auto"}})
-	n, hh, oh := startNode(t)
+	n, hh := startNode(t)
 	n.setManaged([]proto.ManagedLauncher{{Name: "managed-codex", Agent: "codex", Args: []string{"--full-auto"}}})
 	for _, tc := range []struct{ launcher, agent string }{
 		{"code-alias", ""}, {"managed-codex", ""}, {"wrapper", "codex"}, {traexAgent, ""},
@@ -94,8 +94,8 @@ func TestReadOnlyTerminalStartRefusesUnsupportedLaunchers(t *testing.T) {
 			}
 		})
 	}
-	if hh.asked()+oh.asked() != 0 {
-		t.Fatalf("a refused start reached an engine: herdr %d, Orca %d", hh.asked(), oh.asked())
+	if hh.asked() != 0 {
+		t.Fatalf("a refused start reached herdr %d times", hh.asked())
 	}
 }
 
@@ -114,7 +114,7 @@ func TestReadOnlyCodexResumeRefusesConflictingLauncherBeforeOpeningATab(t *testi
 }
 
 func TestReadOnlyCodexLiveResumeWithoutLocalRollout(t *testing.T) {
-	n, hh, oh := startNode(t)
+	n, hh := startNode(t)
 	cwd := t.TempDir()
 	n.mu.Lock()
 	n.agents[startThread] = host.Agent{Agent: "codex", Cwd: cwd, PaneID: "w1:p1", AgentStatus: proto.StatusIdle}
@@ -126,13 +126,13 @@ func TestReadOnlyCodexLiveResumeWithoutLocalRollout(t *testing.T) {
 	if code, data := refusalOf(t, err); code != "readonly_unsupported" || data["delivered"] != deliveredNone {
 		t.Fatalf("live resume: %v (%v)", err, data)
 	}
-	if hh.asked()+oh.asked() != 0 {
+	if hh.asked() != 0 {
 		t.Fatal("a refused live resume created a workspace")
 	}
 }
 
 func TestReadOnlyCodexArgumentsKeepOptionValues(t *testing.T) {
-	n, _, _ := startNode(t)
+	n, _ := startNode(t)
 	argv := []string{"codex", "--model", "-sample", "--config", "model_reasoning_effort=low"}
 	want := append(slices.Clone(argv), "--sandbox", "read-only", "--ask-for-approval", "never")
 	got, err := n.codexReadonlyArgs("codex", argv, "plan")
@@ -145,53 +145,6 @@ func TestReadOnlyCodexArgumentsKeepOptionValues(t *testing.T) {
 	got, err = n.codexReadonlyArgs("managed-codex", wrapper, "plan")
 	if err != nil || !slices.Equal(got, want) {
 		t.Fatalf("safe managed arguments were refused: %q (%v)", got, err)
-	}
-}
-
-func TestReadOnlyRuntimeStartRefusesEveryProvider(t *testing.T) {
-	n, _ := runtimeNode(t)
-	if err := n.useEngine(context.Background(), proto.EnginePaseo); err != nil {
-		t.Fatal(err)
-	}
-	host := dialRuntime(t, n, paseoEngineHello())
-	host.answer = func(method string, params json.RawMessage) (any, error) {
-		return map[string]any{"session": map[string]any{"session_id": "paseo-readonly", "status": "idle", "cwd": "/w/app"}}, nil
-	}
-	for _, launcher := range []string{"paseo-claude", "paseo-codex", "claude", ""} {
-		t.Run(launcher, func(t *testing.T) {
-			_, err := nodeCall(t, n, "session.start", map[string]any{
-				"cwd": "/w/app", "launcher": launcher, "permission_mode": "plan", "prompt": "Inspect the project",
-			})
-			if rpcCode(err) != "readonly_unsupported" {
-				t.Fatalf("start: %v", err)
-			}
-		})
-	}
-	// Paseo's takeover path does not apply modes, even for a named Claude provider.
-	if _, err := nodeCall(t, n, "session.start", map[string]any{
-		"cwd": "/w/app", "launcher": "paseo-claude", "permission_mode": "plan", "resume_session_id": sdkSession,
-	}); rpcCode(err) != "readonly_unsupported" {
-		t.Fatalf("takeover: %v", err)
-	}
-	if got := host.got("session.start"); len(got) != 0 {
-		t.Fatalf("refused starts reached the runtime: %v", got)
-	}
-	for _, tc := range []struct{ launcher, mode string }{
-		{"paseo-claude", "default"}, {"paseo-codex", "acceptEdits"}, {"claude", ""},
-	} {
-		if _, err := nodeCall(t, n, "session.start", map[string]any{
-			"cwd": "/w/app", "launcher": tc.launcher, "permission_mode": tc.mode, "prompt": "Inspect the project",
-		}); err != nil {
-			t.Fatalf("%s / %s: %v", tc.launcher, tc.mode, err)
-		}
-	}
-	got := host.got("session.start")
-	if len(got) != 3 {
-		t.Fatalf("allowed starts: %v", got)
-	}
-	var start map[string]any
-	if err := json.Unmarshal(got[0], &start); err != nil || start["permission_mode"] != "default" {
-		t.Fatalf("Claude mode: %s (%v)", got[0], err)
 	}
 }
 
@@ -212,20 +165,17 @@ func TestReadOnlyRuntimeStartRefusesUnverifiedRuntimes(t *testing.T) {
 	}
 }
 
-// A runtime that promises read-only starts (caps.readonly, as the Paseo bridge does) gets them: the plan mode reaches
-// it as is, for a new session and a takeover alike; whether it can honor them is its to refuse (#3238).
+// A runtime that promises read-only starts (caps.readonly) gets them: the plan mode reaches it as is; whether it can
+// honor them is its to refuse (#3238).
 func TestReadOnlyRuntimeStartReachesReadonlyRuntime(t *testing.T) {
 	n, _ := runtimeNode(t)
-	if err := n.useEngine(context.Background(), proto.EnginePaseo); err != nil {
-		t.Fatal(err)
-	}
 	hello := paseoEngineHello()
 	hello["caps"].(map[string]any)["readonly"] = true
 	host := dialRuntime(t, n, hello)
 	host.answer = func(method string, params json.RawMessage) (any, error) {
 		return map[string]any{"session": map[string]any{"session_id": "paseo-readonly", "status": "idle", "cwd": "/w/app"}}, nil
 	}
-	for _, launcher := range []string{"paseo-claude", "claude", ""} {
+	for _, launcher := range []string{"paseo-claude", "paseo-codex"} {
 		if _, err := nodeCall(t, n, "session.start", map[string]any{
 			"cwd": "/w/app", "launcher": launcher, "permission_mode": "plan", "prompt": "Inspect the project",
 		}); err != nil {
@@ -233,7 +183,7 @@ func TestReadOnlyRuntimeStartReachesReadonlyRuntime(t *testing.T) {
 		}
 	}
 	got := host.got("session.start")
-	if len(got) != 3 {
+	if len(got) != 2 {
 		t.Fatalf("starts: %v", got)
 	}
 	for _, raw := range got {

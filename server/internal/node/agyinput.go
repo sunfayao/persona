@@ -491,6 +491,20 @@ type agyLS struct {
 // stand in for it.
 var agyProcEnv = readAgyProcEnv
 
+// procChildren is each process's children, in pid order.
+func procChildren(procs map[int]processtable.Process) map[int][]int {
+	children := map[int][]int{}
+	for pid, p := range procs {
+		if p.PPID > 0 && p.PPID != pid {
+			children[p.PPID] = append(children[p.PPID], pid)
+		}
+	}
+	for _, c := range children {
+		slices.Sort(c)
+	}
+	return children
+}
+
 // agyLanguageServer is the language server of the agy running pane. agy gives its address and token to every command
 // it runs, so they are read from the environment of a process under the pane's agy: the waiting command's own, or
 // another one's. Only a loopback address is taken: the line and the token never leave the computer.

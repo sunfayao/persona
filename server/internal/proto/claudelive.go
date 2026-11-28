@@ -6,7 +6,7 @@ const (
 	SourceClaudeBg = "claude_bg"
 	// SourceClaudeDesktop: a session open in Claude's desktop app (entrypoint claude-desktop…).
 	SourceClaudeDesktop = "claude_desktop"
-	// SourceClaudeTerminal: claude in a terminal herdr, Orca and botmux do not run (entrypoint cli).
+	// SourceClaudeTerminal: claude in a terminal herdr and botmux do not run (entrypoint cli).
 	SourceClaudeTerminal = "claude_cli"
 )
 

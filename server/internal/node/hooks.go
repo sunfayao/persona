@@ -18,7 +18,6 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/acceptloop"
 	"github.com/sunfayao/persona/server/internal/assistantwire"
-	"github.com/sunfayao/persona/server/internal/host"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/identity"
 	"github.com/sunfayao/persona/server/internal/nodeclient"
@@ -446,13 +445,9 @@ func (n *Node) handleHook(ctx context.Context, req sockRequest) (any, error) {
 		n.notifyHookEvent(ctx, req, in, stopSig)
 		return nil, nil
 	}
-	// An Orca pane is bound only on a machine that enables Orca: elsewhere nothing could drive it, and the hook
-	// reported no pane for it before Orca was a host (a herdr machine behaves as it did).
-	if paneKindOK(n, req.Pane) {
-		n.bindPane(req.Pane, in.SessionID)
-		if in.HookEventName == "SessionStart" {
-			n.noteSessionStart(req.Pane, in.SessionID) // rule 2 of a session's owner (ownership.go)
-		}
+	n.bindPane(req.Pane, in.SessionID)
+	if in.HookEventName == "SessionStart" {
+		n.noteSessionStart(req.Pane, in.SessionID) // rule 2 of a session's owner (ownership.go)
 	}
 	if in.HookEventName == "SessionStart" {
 		n.resumeOnSessionStart(req.Pane, in.SessionID) // herdr's restore follows it to the new session (herdrresume.go)
@@ -753,20 +748,6 @@ func (n *Node) notifyHookEvent(ctx context.Context, req sockRequest, in hookInpu
 	case <-e.sent:
 	case <-time.After(hookEventWait):
 	}
-}
-
-// paneKindOK: a hook's pane is one this machine's hosts can drive (an Orca or Tern pane only where the set enables
-// that host: both name the pane in every terminal of theirs, driven or not).
-func paneKindOK(n *Node, pane string) bool {
-	switch host.ParsePane(pane).Kind {
-	case host.Orca:
-		return n.hostEnabled(proto.EngineOrca)
-	case host.Tern:
-		return n.hostEnabled(proto.EngineTern)
-	case host.Rex:
-		return n.hostEnabled(proto.EngineRex)
-	}
-	return true
 }
 
 // hookEventParams is hook.event's params for what a hook saw.

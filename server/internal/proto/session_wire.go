@@ -21,7 +21,7 @@ import (
 // fields differ from them (a field added, renamed, retyped or retagged by a change that did not update this file),
 // appendSession leaves every session to the reflect encoder: the session is sent whole, only slower, until its line
 // here and this hash are brought up to date. TestSessionWireMatchesReflect fails meanwhile and prints the new hash.
-const sessionWireLayout = 0xa8b13db3cab31849
+const sessionWireLayout = 0x81c0a875b367840e
 
 var sessionWireCurrent = sessionLayout() == sessionWireLayout && hierarchyLayout() == hierarchyWireLayout
 
@@ -279,7 +279,6 @@ func appendSession(b []byte, s *Session) ([]byte, bool) {
 	w.str(`"chat":`, s.Chat, true)
 	w.str(`"topic":`, s.Topic, true)
 	w.strs(`"dispatched":`, s.Dispatched)
-	w.strs(`"also_open_in":`, s.AlsoOpenIn)
 	w.str(`"host":`, s.Host, true)
 	if h := s.Hierarchy; h != nil { // sessionWire's hierarchy members, keys of the row itself (compatibility.go)
 		w.boolean(`"hidden_by_directory":`, h.HiddenByDirectory, true)

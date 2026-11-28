@@ -4,12 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"slices"
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/i18n"
-
-	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // herdrAutostartKey is where a machine's own choice is kept. hub.json's machines[].herdr_autostart is only the
@@ -113,18 +110,13 @@ func (d *Devices) getHerdr(w http.ResponseWriter, r *http.Request, m *Machine) {
 	writeJSON(w, d.herdrAutostartState(r.Context(), m))
 }
 
-// putHerdr: PUT /api/v1/machines/{mid}/herdr {"autostart": bool}, the switch under Settings › Machines › Engine. Only for a
-// machine whose set holds classic herdr: Herdr App runs its own herdr-core and has no server for the node to start.
+// putHerdr: PUT /api/v1/machines/{mid}/herdr {"autostart": bool}, the switch "Start herdr when needed".
 func (d *Devices) putHerdr(w http.ResponseWriter, r *http.Request, m *Machine) {
 	var in struct {
 		Autostart *bool `json:"autostart"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Autostart == nil {
 		writeErr(w, http.StatusBadRequest, i18n.Err("devices-api.need_autostart"))
-		return
-	}
-	if !slices.Contains(d.engineChoiceOf(m.cfg.ID).Hosts, proto.EngineHerdr) {
-		writeErr(w, http.StatusNotFound, i18n.Err("devices-api.not_herdr"))
 		return
 	}
 	if err := m.setHerdrAutostart(r.Context(), *in.Autostart); err != nil {

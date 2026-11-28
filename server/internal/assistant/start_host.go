@@ -27,14 +27,14 @@ import (
 // out, since a launch can wait in the queue while its computer is away. A companion that went away meanwhile sends a
 // writable start to the default host; a read-only one fails with the node's reason, as only the companion holds it.
 
-// checkStartHostName refuses a host no start can name: agy, the Antigravity companion, or an engine host. "" is the
-// computer's default host.
+// checkStartHostName refuses a host no start can name: agy, the Antigravity companion, or herdr, the computer's
+// terminal (which keeps an agy launcher in a herdr pane). "" lets the hub choose.
 func checkStartHostName(host string) error {
-	if host == "" || host == proto.HostAgy || proto.IsEngineHost(host) {
+	if host == "" || host == proto.HostAgy || host == proto.EngineHerdr {
 		return nil
 	}
-	return fmt.Errorf("host %q is not where an Agent can start: name agy (the Antigravity companion) or an engine host (%s), "+
-		"or leave it out", host, strings.Join(proto.EngineHostIDs, ", "))
+	return fmt.Errorf("host %q is not where an Agent can start: name agy (the Antigravity companion) or herdr (the "+
+		"computer's terminal), or leave it out", host)
 }
 
 // checkHostLauncher refuses a start that names the companion for a launcher that does not start the Antigravity CLI:

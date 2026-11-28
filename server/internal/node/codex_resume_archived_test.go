@@ -20,7 +20,6 @@ func TestArchivedCodexResumeRefusesFailedUnarchive(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			n, f, cwd := codexHistoryNode(t)
-			provenanceHerdr(n)
 			listSessions(t, n)
 			n.state.put(startThread, sessionState{Launcher: "cx", Cwd: cwd, StopCause: proto.StopTaskCompleted})
 			moveCodexRollout(t, n.codexHome(), startThread, true)
@@ -49,7 +48,6 @@ func TestArchivedCodexResumeChecksStopCauseBeforeUnarchive(t *testing.T) {
 	for _, cause := range []proto.StopCause{"", proto.StopUnknown, proto.StopUser, "future"} {
 		t.Run(string(cause), func(t *testing.T) {
 			n, f, cwd := codexHistoryNode(t)
-			provenanceHerdr(n)
 			listSessions(t, n)
 			n.state.put(startThread, sessionState{Launcher: "cx", Cwd: cwd, StopCause: cause})
 			moveCodexRollout(t, n.codexHome(), startThread, true)
@@ -74,7 +72,6 @@ func TestArchivedCodexResumeChecksStopCauseBeforeUnarchive(t *testing.T) {
 func TestArchivedCodexResumeChecksHoldersBeforeUnarchive(t *testing.T) {
 	withCodexLaunchers(t, map[string][]string{"cx": {"codex"}})
 	n, f, cwd := codexHistoryNode(t)
-	provenanceHerdr(n)
 	listSessions(t, n)
 	n.state.put(startThread, sessionState{Launcher: "cx", Cwd: cwd, StopCause: proto.StopTaskCompleted})
 	moveCodexRollout(t, n.codexHome(), startThread, true)

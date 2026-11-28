@@ -20,7 +20,6 @@ func localizedMachines(l i18n.Lang, machines []proto.Machine) []proto.Machine {
 		out[i].Computer = i18n.ComputerStatus(l, out[i].Computer)
 		out[i].Browser = i18n.BrowserStatus(l, out[i].Browser)
 		out[i].Clipboard = i18n.ClipboardStatus(l, out[i].Clipboard)
-		out[i].Engines = i18n.EngineNotes(l, out[i].Engines)
 	}
 	return out
 }

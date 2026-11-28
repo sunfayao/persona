@@ -48,16 +48,8 @@ type RuntimeHost struct {
 	daemonsSum [32]byte      // daemons.json as last applied
 	dtimes     daemonTimings // zero: defaultDaemonTimings (tests make them quick)
 
-	// ctx is Listen's: what runs for the socket's sake (the Paseo bridge) ends with it.
+	// ctx is Listen's: what runs for the socket's sake (the companions' bridges) ends with it.
 	ctx context.Context
-	// paseo runs the Paseo bridge while the machine's engine is Paseo (paseobridge.go).
-	paseo paseoBridge
-	// orca runs the bridge to Orca's structured sessions while the machine's engine is Orca (orcabridge.go).
-	orca orcaBridgeState
-	// cindy runs the Cindy bridge while the machine's engine is Cindy (cindybridge.go).
-	cindy cindyBridgeState
-	// t3code runs the T3 Code bridge while the machine's engine is T3 Code (t3codebridge.go).
-	t3code t3codeBridgeState
 	// agy runs the Antigravity CLI companion when agy is installed and autoCompanions is enabled (agybridge.go).
 	agy agyBridge
 	// opencode runs the opencode ACP companion when opencode is installed and autoCompanions is enabled (opencodebridge.go).
@@ -87,7 +79,6 @@ func (rh *RuntimeHost) current() *Node {
 // connection watched is forgotten (the new one watches afresh); runtimes hear that a hub is there.
 func (rh *RuntimeHost) attach(n *Node) {
 	n.runtimes = rh.reg
-	rh.reg.setHostOff(n.engineHostOff)
 	n.runtimeHost = rh
 	rh.mu.Lock()
 	if rh.node != n {
@@ -355,11 +346,8 @@ func (rh *RuntimeHost) request(ctx context.Context, h *runtimeConn, method strin
 		// the sessions not running (runtimeunlisted.go).
 		// launchers: hello's launchers and runtime.launchers are offered; start_params: session.start carries the
 		// launcher picked and the form's model, permission mode, effort and space; modes: session.modes reaches a
-		// runtime with caps.modes; resume: a runtime with caps.resume that is the machine's engine is asked to take
-		// sessions over (runtimecontrol.go). workspaces: runtime.workspaces is kept and, for a runtime with
-		// caps.workspaces that is the machine's engine, listed as its catalog and asked to make worktrees
-		// (runtimeworkspaces.go).
-		features := []string{"prefer_running", "resume_argv", "handover", "transcript", "launchers", "start_params", "modes", "resume", "codex_thread", "unlisted_transcripts", "workspaces", "usage"}
+		// runtime with caps.modes.
+		features := []string{"prefer_running", "resume_argv", "handover", "transcript", "launchers", "start_params", "modes", "codex_thread", "unlisted_transcripts", "usage"}
 		if !h.isDaemon() {
 			features = append(features, "usage_windows", "leader_tools", "supervision_policy", "a2a_mcp")
 			if hello.Caps.Assistant {
@@ -496,15 +484,6 @@ func (rh *RuntimeHost) event(h *runtimeConn, event string, params json.RawMessag
 			if rh.autoCompanions && n != nil && n.peer != nil {
 				_ = n.peer.Notify("launchers.changed", map[string]any{})
 			}
-		}
-		return
-	}
-	if event == "runtime.workspaces" { // its own workspaces (runtimeworkspaces.go): only from one that keeps them
-		var p struct {
-			Workspaces []runtimeWorkspace `json:"workspaces"`
-		}
-		if h.makesWorkspaces() && json.Unmarshal(params, &p) == nil {
-			h.setWorkspaces(cleanWorkspaces(p.Workspaces))
 		}
 		return
 	}

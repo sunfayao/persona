@@ -57,6 +57,13 @@ type codexTakeovers struct {
 	stop    func(context.Context, codexWriter) error
 }
 
+// stopCodexWriter would quit a Codex CLI that still writes the thread, in the terminal it runs in. Persona drives no
+// terminal it could quit it in safely (its own herdr panes' Agents are no takeover's), so a running writer keeps the
+// takeover from going ahead: the user quits it where it runs. Tests stand in a stop of their own.
+func (*Node) stopCodexWriter(context.Context, codexWriter) error {
+	return takeoverRefusal("unavailable")
+}
+
 func takeoverRefusal(key string) error {
 	return refusal("codex_takeover_"+key, i18n.Err("codex-takeover."+key).Error(), nil)
 }
@@ -82,9 +89,6 @@ func (n *Node) takeoverSource(id string) (codexSource, bool) {
 
 func (n *Node) takeoverHost(ctx context.Context) (context.Context, error) {
 	kind := n.startKind(ctx)
-	if kind == host.Orca {
-		kind = host.Herdr
-	}
 	if err := n.checkStartHost(kind); err != nil {
 		return ctx, err
 	}
@@ -161,13 +165,8 @@ func (n *Node) prepareCodexTakeover(ctx context.Context, id string) (*codexTakeo
 		state.CanResume, state.Reason = false, "unavailable"
 	}
 	state.Running = len(writers) > 0
-	if state.Running && runtime.GOOS == "windows" {
-		state.CanResume, state.Reason = false, "unavailable"
-	}
-	if state.Running && state.CanResume && n.takeovers.stop == nil {
-		if _, err := prepareCodexWriterQuit(ctx, writers[0]); err != nil {
-			state.CanResume, state.Reason = false, "unavailable"
-		}
+	if state.Running && n.takeovers.stop == nil {
+		state.CanResume, state.Reason = false, "unavailable" // stopCodexWriter
 	}
 	recent, err := codexContinuation(src.path)
 	if err != nil {

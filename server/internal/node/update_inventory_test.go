@@ -19,7 +19,6 @@ func updateInventoryFixture(t *testing.T) (*Node, nodeclient.UpdateInventoryTarg
 	n.stateReady = make(chan struct{})
 	close(n.stateReady)
 	n.runtimes = newRuntimeRegistry()
-	n.configured()
 	off := false
 	n.eng.botmux = &off
 	n.hosts = host.NewRegistry(&inventoryHost{bareHost: bareHost{kind: host.Herdr}})

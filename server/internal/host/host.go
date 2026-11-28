@@ -1,4 +1,4 @@
-// Package host is what the node needs from a terminal host — where the terminals run (herdr, later Orca): its panes,
+// Package host is what the node needs from a terminal host — where the terminals run (herdr, tmux, botmux): its panes,
 // reading their screens, typing into them, opening and closing them. What runs inside a pane (Claude Code, Codex,
 // a compatible CLI) is the agent; telling agents apart, finding their sessions and judging their state stay in the node, on top
 // of any host.
@@ -17,18 +17,8 @@ import (
 // Host kinds. Herdr panes are stored and sent without a prefix (see PaneRef).
 const (
 	Herdr = "herdr"
-	// Orca is the Orca desktop app's runtime; its pane ids are Orca's pane keys "<tabId>:<leafId>".
-	Orca = "orca"
-	// HerdrCore is herdr-core (hc), the runtime behind the Herdr desktop app: not classic herdr, a host of its own.
-	HerdrCore = "herdr-core"
 	// Botmux is botmux, the Feishu topic ↔ AI CLI bridge: a pane is a botmux session, its id the session id.
 	Botmux = "botmux"
-	// Tern is Tern, Stencil's multiplexing terminal: a pane is a Tern block, its id the block's number (what Tern puts in
-	// the block's processes as TERN_PANE).
-	Tern = "tern"
-	// Rex is Rex, a multiplexing terminal: a pane is a terminal block, its id the block's full ID ("block:<uuid>", what
-	// Rex puts in the block's processes as REX_BLOCK).
-	Rex = "rex"
 	// Tmux is a tmux server the user opened: a pane is tmux's own id ("%11"), read and typed into through the tmux
 	// command. No space, slot or agent comes from it: a session running there is listed by claudebg.go (#2562).
 	Tmux = "tmux"
@@ -36,7 +26,7 @@ const (
 
 // Kinds are the host kinds a stored pane may be prefixed with; the list is fixed, not what a machine registers, so
 // a stored pane means the same everywhere.
-var Kinds = []string{Herdr, Orca, HerdrCore, Botmux, Tern, Rex, Tmux}
+var Kinds = []string{Herdr, Botmux, Tmux}
 
 // Host is what every terminal host provides. Pane ids in what it returns (Agent.PaneID, Created.Pane) are PaneRefs
 // of its own kind; the PaneRefs it is given are always of its kind.
@@ -349,10 +339,6 @@ type Agent struct {
 	// PaneID is the pane as a PaneRef string (String): a herdr pane id as is ("@<session>:<id>" for a named herdr
 	// session's, herdr.QualifyID).
 	PaneID string
-	// ParentPaneID is the pane that started this one as a PaneRef string (String), "" when the host says it belongs to
-	// none. A host that knows its panes' parent (herdr-core's terminal.parent) reports it: the node draws the session
-	// under its parent's while both are listed (linkHerdrChildren).
-	ParentPaneID string
 	// TabID, WorkspaceID: the host's slot and space ids.
 	TabID       string
 	WorkspaceID string

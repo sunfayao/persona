@@ -163,8 +163,7 @@ func blankRow(row string) bool {
 
 // Persona's key names (host.Host.SendKeys: "enter", "shift+tab", "ctrl+u", "alt+left", "f5"...) become tmux's key
 // names, so that tmux sends the bytes the pane's terminal would. tmux's send-keys types a string it does not know as a
-// key as literal characters, so every name is translated here and an unknown one is refused, never passed through. The
-// vocabulary is the Orca host's (node/hostorca_keys.go): the same name presses the same key on either host.
+// key as literal characters, so every name is translated here and an unknown one is refused, never passed through.
 
 // tmuxNamedKeys take any of shift, alt and ctrl as tmux's S-, M- and C- prefixes ("shift+right" is "S-Right").
 var tmuxNamedKeys = map[string]string{
@@ -180,15 +179,15 @@ var tmuxPlainKeys = map[string]string{
 	"backspace": "BSpace", "space": "Space",
 }
 
-// tmuxFullKeys are keys whose tmux name does not follow from their parts, by their full name. shift+enter is ESC CR,
-// what Orca sends; tmux types C-BSpace as text, so ctrl+backspace is C-h (BS).
+// tmuxFullKeys are keys whose tmux name does not follow from their parts, by their full name. shift+enter is ESC CR;
+// tmux types C-BSpace as text, so ctrl+backspace is C-h (BS).
 var tmuxFullKeys = map[string]string{
 	"shift+tab": "BTab", "backtab": "BTab", "shift+enter": "M-Enter", "ctrl+backspace": "C-h",
 	"ctrl+space": "C-Space",
 }
 
 // tmuxHexKeys are keys tmux has no name for, as the bytes send-keys -H sends. ctrl+enter has no legacy bytes: it is
-// the CSI u form ("\x1b[13;5u", as on Orca), which Claude Code reads as its send-now (#2467).
+// the CSI u form ("\x1b[13;5u"), which Claude Code reads as its send-now (#2467).
 var tmuxHexKeys = map[string][]string{
 	"ctrl+enter": {"1b", "5b", "31", "33", "3b", "35", "75"},
 }
@@ -258,7 +257,7 @@ func tmuxKey(k string) (args []string, raw bool, ok bool) {
 		case r[0] == '2':
 			c = "@"
 		default:
-			return nil, false, false // no control byte, as on Orca
+			return nil, false, false // no control byte
 		}
 	}
 	return []string{tmuxArg(prefix + c)}, false, true

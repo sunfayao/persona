@@ -425,33 +425,6 @@ func TestTaskHandoffWorkTrustIsExcluded(t *testing.T) {
 	}
 }
 
-func TestTaskHandoffPaseoKeepsBridgedMCP(t *testing.T) {
-	for _, tool := range []string{"task_plan", "agent_start"} {
-		t.Run(tool, func(t *testing.T) {
-			s, f := paseoFitHub(t)
-			h := &taskHandoffTestHub{fakeHub: f, info: map[string]proto.NodeInfo{"pbox": {Executable: "/paseo/node"}}}
-			s.hub = h
-			args := json.RawMessage(`{"machine":"pbox","cwd":"/home/me/code","prompt":"Inspect the regression"}`)
-			if tool == "task_plan" {
-				args = json.RawMessage(`{"tasks":[{"title":"Inspect","machine":"pbox","cwd":"/home/me/code","prompt":"Inspect the regression","role":"worker","user_requested":true}]}`)
-			}
-			prompt := taskHandoffTestCall(t, s, f, tool, args)
-			if startsOf(f)[0]["launcher"] != "codex-cpa" {
-				t.Fatalf("fixture did not fit Paseo's Codex provider: %v", startsOf(f))
-			}
-			for _, supported := range []string{"use `task_spawn`", "todo_decisions", "todo_repositories_get", "todo_repository_links_add"} {
-				if !strings.Contains(prompt, supported) {
-					t.Errorf("Paseo's bridged MCP lost %q: %s", supported, prompt)
-				}
-			}
-			if taskHandoffTestExecutable(t, prompt) != "" || len(h.infoCalls) != 0 {
-				t.Errorf("runtime Agent was sent to terminal CLI identity: %s, %v", prompt, h.infoCalls)
-			}
-			assertScopedHandoff(t, prompt)
-		})
-	}
-}
-
 func TestTaskHandoffUnverifiedRuntimeAndAppEntries(t *testing.T) {
 	for _, source := range []string{"cindy", "other-runtime", "claude_desktop", "codex_app"} {
 		for _, agent := range []string{"claude", "codex"} {
@@ -485,7 +458,7 @@ func TestTaskHandoffTerminalSourceProvenance(t *testing.T) {
 }
 
 func TestTaskHandoffLastSeenLauncherRetainsSource(t *testing.T) {
-	for _, source := range []string{"path", "paseo", "cindy"} {
+	for _, source := range []string{"path", "dsh"} {
 		t.Run(source, func(t *testing.T) {
 			s, f, h := taskHandoffTestFixture(t, "codex")
 			f.launcherList = nil
@@ -494,7 +467,7 @@ func TestTaskHandoffLastSeenLauncherRetainsSource(t *testing.T) {
 			s.models.zshrcMu.Unlock()
 			prompt := taskHandoffTestStart(t, s, f, "agent_start")
 			if (source == "path") != (taskHandoffTestExecutable(t, prompt) == h.info["box"].Executable) ||
-				(source == "paseo") != strings.Contains(prompt, "use `task_spawn`") {
+				strings.Contains(prompt, "use `task_spawn`") {
 				t.Fatalf("last-seen provenance was lost: %s", prompt)
 			}
 			if source != "path" && len(h.infoCalls) != 0 {

@@ -81,14 +81,7 @@ func (n *Node) markWorktreeShell(ctx context.Context, h host.Host, created *host
 	if r, ok := h.(host.MetadataReporter); ok {
 		mark := "1"
 		_ = r.ReportMetadata(ctx, created.Pane, "persona", map[string]*string{personaWorktreeToken: &mark})
-		return
 	}
-	n.mu.Lock()
-	if n.agentRoots == nil {
-		n.agentRoots = map[string]bool{}
-	}
-	n.agentRoots[created.Pane.String()] = true
-	n.mu.Unlock()
 }
 
 // closeWorktreeShells closes the first shell of an Agent's worktree in workspace ws (markWorktreeShell) once the
@@ -118,11 +111,6 @@ func (n *Node) closeWorktreeShells(ctx context.Context, launch host.Launcher, ws
 	}
 	n.mu.Unlock()
 	for _, p := range shells {
-		if err := org.Close(ctx, n.hosts.Ref(p.PaneID), p.WorkspaceID, p.TabID); err != nil {
-			continue
-		}
-		n.mu.Lock()
-		delete(n.agentRoots, p.PaneID)
-		n.mu.Unlock()
+		_ = org.Close(ctx, n.hosts.Ref(p.PaneID), p.WorkspaceID, p.TabID)
 	}
 }

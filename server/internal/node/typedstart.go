@@ -208,13 +208,10 @@ func (n *Node) typesStartFile(launch host.Launcher, shells ...string) bool {
 	return n.dir != "" && (powerShellPane(shells...) || startsFromFile(launch) && takesAssign(shells...))
 }
 
-// startsFromFile: the launcher's panes get a start file (herdr, herdr-core, Orca) rather than the command typed out.
+// startsFromFile: the launcher's panes get a start file (herdr) rather than the command typed out.
 func startsFromFile(launch host.Launcher) bool {
-	switch launch.(type) {
-	case *herdrHost, *herdrCoreHost, *orcaHost:
-		return true
-	}
-	return false
+	_, ok := launch.(*herdrHost)
+	return ok
 }
 
 // startRunError is the error of a start whose command the pane did not take: terminalNotReady for herdr's

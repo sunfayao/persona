@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -43,14 +44,6 @@ func agentBranch(nameHint string) string {
 // existing one checked out, a new one made from the repository's HEAD.
 func (n *Node) worktreeAdd(ctx context.Context, kind, cwd, branch, nameHint string) (proto.WorktreeAdded, error) {
 	var res proto.WorktreeAdded
-	// On an engine runtime (Paseo) the runtime makes it, as a workspace of its own its start then finds
-	// (runtimeworkspaces.go): a bare git worktree would be a folder it files under a project of its own.
-	if rt, runtime, err := n.worktreeRuntime(ctx, kind); runtime {
-		if err != nil {
-			return res, refusal("worktree_failed", err.Error(), nil)
-		}
-		return n.runtimeWorktreeAdd(ctx, rt, cwd, branch, nameHint)
-	}
 	dir := proto.ExpandHome(strings.TrimSpace(cwd), n.home)
 	if dir == "" || !filepath.IsAbs(dir) {
 		return res, refusal("not_a_repository", "the folder is not in a Git repository", nil)
@@ -99,7 +92,7 @@ func (n *Node) worktreeAdd(ctx context.Context, kind, cwd, branch, nameHint stri
 
 // noAgentBranch is the refusal when the agent's own branch name and the next 49 are all taken.
 func noAgentBranch(ctx context.Context) error {
-	return refusal("worktree_failed", composerError(ctx, "agent_branch_exhausted").Error(), nil)
+	return refusal("worktree_failed", i18n.T(i18n.From(ctx), "worktree-composer.agent_branch_exhausted"), nil)
 }
 
 func branchExists(ctx context.Context, root, branch string) bool {
@@ -121,13 +114,6 @@ func pathTaken(p string) bool {
 // for any folder in a repository, where worktree.add would put a new agent's worktree. A folder outside any repository
 // is simply not a worktree.
 func (n *Node) worktreeStatus(ctx context.Context, kind, cwd string) (proto.WorktreeStatus, error) {
-	rt, runtime, _ := n.worktreeRuntime(ctx, kind)
-	return n.worktreeStatusOn(ctx, kind, cwd, rt, runtime)
-}
-
-// worktreeStatusOn is worktreeStatus where rt makes kind's worktrees (runtime: an engine runtime, nil when it cannot;
-// not runtime: a terminal host, whose worktrees the node makes itself).
-func (n *Node) worktreeStatusOn(ctx context.Context, kind, cwd string, rt *runtimeConn, runtime bool) (proto.WorktreeStatus, error) {
 	var st proto.WorktreeStatus
 	dir := proto.ExpandHome(strings.TrimSpace(cwd), n.home)
 	if dir == "" || !filepath.IsAbs(dir) {
@@ -143,26 +129,15 @@ func (n *Node) worktreeStatusOn(ctx context.Context, kind, cwd string, rt *runti
 		return st, nil
 	}
 	st.Branch = repo.branch
-	if runtime {
-		st.Checkouts = n.runtimeCheckoutsOf(ctx, rt, st.Path) // the runtime's folder ("" when it cannot say)
-	} else {
-		h, _ := n.hostOfKind(kind)
-		st.Checkouts = n.worktreesDir(h, repo.name)
-	}
+	h, _ := n.hostOfKind(kind)
+	st.Checkouts = n.worktreesDir(h, repo.name)
 	gitDir, err1 := absGit(ctx, st.Path, "--git-dir")
 	common, err2 := absGit(ctx, st.Path, "--git-common-dir")
 	if err1 != nil || err2 != nil || gitDir == common {
 		return st, nil // the main checkout, not a linked worktree
 	}
 	st.Worktree = true
-	// A runtime's worktree is its workspace too: Persona's to remove only when it is the folder of a worktree workspace
-	// the runtime made, which worktree.remove then has the runtime archive (runtimeAgentWorktreeRemove); removing only
-	// the checkout would leave the runtime a workspace in a folder that is gone.
-	if runtime {
-		_, st.Ours = rt.ownedWorktreeAt(st.Path)
-	} else {
-		st.Ours = within(realPath(st.Path), realPath(st.Checkouts))
-	}
+	st.Ours = within(realPath(st.Path), realPath(st.Checkouts))
 	if out, err := git(ctx, st.Path, "status", "--porcelain"); err == nil {
 		for _, line := range strings.Split(out, "\n") {
 			if strings.TrimSpace(line) != "" {
@@ -211,19 +186,7 @@ func absGit(ctx context.Context, dir, option string) (string, error) {
 func (n *Node) worktreeRemove(ctx context.Context, kind, path string, deleteBranch, force bool) (proto.WorktreeRemoved, error) {
 	var res proto.WorktreeRemoved
 	p := proto.ExpandHome(strings.TrimSpace(path), n.home)
-	rt, runtime, _ := n.worktreeRuntime(ctx, kind)
-	// A reviewer's copy is a plain worktree in the node's own checkouts folder on every engine, and goes the way the node
-	// made it (reviewsnapshot.go). An engine runtime made no workspace of it, so the runtime's way refused it as
-	// not_our_worktree, which the manager reads as gone already: every copy stayed on the disk (#8135).
-	if runtime && n.isReviewCopy(ctx, kind, p) {
-		rt, runtime = nil, false
-	}
-	if runtime { // the checks and the runtime's archive, inside the hub's 150 s
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, runtimeRemoveDeadline)
-		defer cancel()
-	}
-	st, err := n.worktreeStatusOn(ctx, kind, p, rt, runtime)
+	st, err := n.worktreeStatus(ctx, kind, p)
 	if err != nil {
 		return res, err
 	}
@@ -239,9 +202,6 @@ func (n *Node) worktreeRemove(ctx context.Context, kind, path string, deleteBran
 	if deleteBranch && st.Unmerged > 0 && !force {
 		return res, refusal("worktree_unmerged", "the branch has commits that are not on the main branch",
 			map[string]any{"unmerged": st.Unmerged, "main_branch": st.MainBranch})
-	}
-	if runtime { // ours: a worktree workspace the runtime made
-		return n.runtimeAgentWorktreeRemove(ctx, rt, st, deleteBranch, force)
 	}
 	args := []string{"worktree", "remove"}
 	if force {

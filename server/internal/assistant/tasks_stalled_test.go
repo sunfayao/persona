@@ -342,7 +342,7 @@ func TestTaskStalledPollingStopFailureRetriesWithoutReset(t *testing.T) {
 // tasks timed out.
 func TestTaskStalledRuntimeOnlyReminds(t *testing.T) {
 	s, f, todo, agent, base := stalledTaskFixture(t, 0)
-	agent.Host, agent.SourceKind, agent.SourceInstanceID = proto.EnginePaseo, proto.SourceRuntime, "paseo"
+	agent.Host, agent.SourceKind, agent.SourceInstanceID = "", proto.SourceRuntime, "dsh"
 	f.setSessions("box", agent)
 	ctx := context.Background()
 	s.superviseWatch(ctx, base)

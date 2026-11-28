@@ -131,11 +131,6 @@ func normalizeRuntimeSessions(h *runtimeConn, list []proto.Session) []proto.Sess
 	if !caps.Send {
 		readOnly = label + " 没有开放从手机发消息"
 	}
-	// A row names the workspace it is in only for an engine runtime whose workspaces are the catalog's
-	// (runtimeworkspaces.go): the apps tie the session to that catalog row by it. Any other runtime's workspace_id is no
-	// workspace the apps know, and would only keep them from placing the session by its folder.
-	_, engine := engineRuntimes[rt]
-	ownWorkspaces := engine && caps.Workspaces && !daemon
 	seen := make(map[string]bool, len(list))
 	capsByValue := map[proto.SessionCapabilities]*proto.SessionCapabilities{}
 	boolTrue, boolFalse := true, false
@@ -194,11 +189,7 @@ func normalizeRuntimeSessions(h *runtimeConn, list []proto.Session) []proto.Sess
 		// sending, interrupting, answering cards and every terminal control on capabilities, the hub guards sends.
 		// What a runtime declared, never more: no terminal, no attach, cards always answerable (they are its own asks).
 		s.SourceKind, s.SourceInstanceID, s.SourceThreadID, s.ParentThreadID = proto.SourceRuntime, rt, "", ""
-		if rt == paseoRuntimeID || rt == cindyRuntimeID || rt == t3codeRuntimeID {
-			s.Host = rt // an engine host, though no terminal (#2576)
-		} else {
-			s.Host = ""
-		}
+		s.Host = ""
 		// Rename and rewind (#6294) are for the runtime's own top-level sessions, not a sub-Agent's row: a "<session>@<id>"
 		// is an agent inside a session, not one the runtime lists, and a session another one started folds under it.
 		sub := s.IsSubagent || strings.Contains(s.SessionID, subagentSep)
@@ -244,10 +235,9 @@ func normalizeRuntimeSessions(h *runtimeConn, list []proto.Session) []proto.Sess
 		if s.PaneID != "" && validPane(s.PaneID) {
 			panes[s.SessionID] = s.PaneID
 		}
-		s.PaneID, s.TabID = "", ""
-		if !ownWorkspaces || !runtimeIDRe.MatchString(s.WorkspaceID) {
-			s.WorkspaceID = ""
-		}
+		// A runtime's workspace_id is no workspace the apps know, and would only keep them from placing the session by
+		// its folder.
+		s.PaneID, s.TabID, s.WorkspaceID = "", "", ""
 		switch s.Status {
 		case proto.StatusWorking, proto.StatusDone, proto.StatusIdle, proto.StatusOffline:
 		case proto.StatusBlocked:
@@ -438,12 +428,8 @@ func runtimeInSpace(h *runtimeConn, ix proto.Interaction) bool {
 
 // runtimeModes is a runtime row's modes capability, the apps' Claude Code chips: the runtime declared caps.modes (the
 // node refuses session.modes otherwise, runtimes_calls.go), the row is not a subagent's, and its agent takes Claude
-// Code's modes (claude: Orca, Paseo's Claude providers) or is the runtime's own (agy). Paseo has no agent of its own:
-// its bridge calls every agent other than Claude Code and Codex "paseo" (integrations/paseo/lib/map.js appAgent), and
-// takes only its own approval and Allow all for those and for Codex (bridge.js modes). So a Paseo row running Codex,
-// opencode or any other agent gets none, and older apps show no chips there; its row lists the modes it takes instead
-// (capabilities.permission_modes, #8261).
+// Code's modes (claude) or is the runtime's own (agy).
 func runtimeModes(declared bool, rt, rtAgent string, s proto.Session) bool {
-	own := (s.Agent == rt || (rtAgent != "" && s.Agent == rtAgent)) && rt != paseoRuntimeID
+	own := s.Agent == rt || (rtAgent != "" && s.Agent == rtAgent)
 	return declared && !strings.Contains(s.SessionID, subagentSep) && (s.Agent == "claude" || own)
 }

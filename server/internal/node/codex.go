@@ -608,7 +608,7 @@ func (n *Node) codexByTitle(a host.Agent, prefer string, taken map[string]host.A
 		}
 	}
 	kind := host.ParsePane(a.PaneID).Kind
-	if matches > 1 && (kind == host.Herdr || kind == host.HerdrCore) {
+	if matches > 1 && kind == host.Herdr {
 		return "", false // an ambiguous name neither identifies a thread nor contradicts a reported id
 	}
 	return best, claimed

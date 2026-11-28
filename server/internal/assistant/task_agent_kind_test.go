@@ -32,9 +32,8 @@ func startAgentKindPlanTask(t *testing.T, s *Service, task PlanTask) Todo {
 func TestPlannedTaskAgentKindUsesStartAnswerWithoutChangingStart(t *testing.T) {
 	s, f := newTaskService(t)
 	f.launcherList = []proto.Launcher{{Name: "codex", Agent: "gemini"}}
-	f.startReply = func(_ map[string]any, sess *proto.Session) *proto.StartInstead {
+	f.startReply = func(_ map[string]any, sess *proto.Session) {
 		sess.Agent = "codex"
-		return nil
 	}
 	before := f.callCount()
 	todo := startAgentKindPlanTask(t, s, PlanTask{
@@ -67,9 +66,8 @@ func TestPlannedTaskAgentKindUsesStartAnswerWithoutChangingStart(t *testing.T) {
 func TestPlannedTaskAgentKindFallsBackToResolvedLauncher(t *testing.T) {
 	s, f := newTaskService(t)
 	f.launcherList = []proto.Launcher{{Name: "cx", Agent: "codex"}}
-	f.startReply = func(_ map[string]any, sess *proto.Session) *proto.StartInstead {
+	f.startReply = func(_ map[string]any, sess *proto.Session) {
 		sess.Agent = ""
-		return nil
 	}
 	todo := startAgentKindPlanTask(t, s, PlanTask{
 		Title: "Use the resolved kind", Prompt: "Inspect the regression", Machine: "box", Cwd: "/code/app",
@@ -85,9 +83,8 @@ func TestPlannedTaskAgentKindFallsBackToResolvedLauncher(t *testing.T) {
 func TestPlannedTaskAgentKindStaysEmptyWhenBothSourcesAreUnknown(t *testing.T) {
 	s, f := newTaskService(t)
 	f.launcherList = []proto.Launcher{{Name: "mystery"}}
-	f.startReply = func(_ map[string]any, sess *proto.Session) *proto.StartInstead {
+	f.startReply = func(_ map[string]any, sess *proto.Session) {
 		sess.Agent = ""
-		return nil
 	}
 	todo := startAgentKindPlanTask(t, s, PlanTask{
 		Title: "Keep an unknown kind", Prompt: "Inspect the regression", Machine: "box", Cwd: "/code/app",
@@ -102,9 +99,8 @@ func TestPlannedTaskAgentKindStaysEmptyWhenBothSourcesAreUnknown(t *testing.T) {
 func TestPlannedTaskAgentKindOnTaskFinishedDuringStart(t *testing.T) {
 	s, f := newTaskService(t)
 	f.launcherList = []proto.Launcher{{Name: "codex", Agent: "codex"}}
-	f.startReply = func(_ map[string]any, sess *proto.Session) *proto.StartInstead {
+	f.startReply = func(_ map[string]any, sess *proto.Session) {
 		sess.Agent = "codex"
-		return nil
 	}
 	ctx := context.Background()
 	todo, err := s.createTodo(ctx, "Finished during start", "Inspect the regression", "conv1", "plan_agent_kind")
@@ -135,14 +131,13 @@ func TestPlannedTaskAgentKindOnTaskFinishedDuringStart(t *testing.T) {
 func TestTaskLeaderAndWorkerAgentKindsComeFromTheirOwnStarts(t *testing.T) {
 	s, f := newQuietService(t)
 	f.launcherList = []proto.Launcher{{Name: "codex-leader", Agent: "codex"}, {Name: "gemini-worker", Agent: "gemini"}}
-	f.startReply = func(params map[string]any, sess *proto.Session) *proto.StartInstead {
+	f.startReply = func(params map[string]any, sess *proto.Session) {
 		switch params["launcher"] {
 		case "codex-leader":
 			sess.Agent = "codex"
 		case "gemini-worker":
 			sess.Agent = "gemini"
 		}
-		return nil
 	}
 	var args map[string]any
 	if err := json.Unmarshal(leaderPlanArgs("leader"), &args); err != nil {
@@ -180,9 +175,8 @@ func TestTaskLeaderAndWorkerAgentKindsComeFromTheirOwnStarts(t *testing.T) {
 // A spawned child has no session row lookup to rely on later: its historical link carries the child's start answer.
 func TestTaskSpawnAgentKindComesFromChildStart(t *testing.T) {
 	s, f, todo := spawnFixture(t, "codex", "plan")
-	f.startReply = func(_ map[string]any, sess *proto.Session) *proto.StartInstead {
+	f.startReply = func(_ map[string]any, sess *proto.Session) {
 		sess.Agent = "codex"
-		return nil
 	}
 	res := s.mcpCall(context.Background(), "box", "s1", "task_spawn", json.RawMessage(spawnArgs), false)
 	if res.IsError {
@@ -204,11 +198,10 @@ func supervisedAgentKindReview(t *testing.T, st Store) (*Service, *fakeHub, Todo
 	s, f, todo := newSupervisedServiceOn(t, st)
 	f.mu.Lock()
 	f.hello.Agents.Review = assistantwire.ReviewConfig{Launcher: "codex-review", Model: "review-model"}
-	f.startReply = func(params map[string]any, sess *proto.Session) *proto.StartInstead {
+	f.startReply = func(params map[string]any, sess *proto.Session) {
 		if params["launcher"] == "codex-review" {
 			sess.Agent = "codex"
 		}
-		return nil
 	}
 	f.mu.Unlock()
 	withReviewNode(f, &reviewNode{change: reviewChangeOf()})

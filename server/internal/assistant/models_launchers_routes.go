@@ -457,14 +457,7 @@ func (s *Service) machineLauncherRoutes() {
 			apierr.Write(w, http.StatusNotFound, errUnknownMachine)
 			return
 		}
-		// New Agent lists what a start in its host can run (?host=, else the computer's default): where that is an
-		// engine that runs only its own launchers (Paseo), its providers alone (#8140). The main chat's menu lists the
-		// computer's own launchers: the assistant runs them on its command line, whatever the engine.
 		purpose := r.URL.Query().Get("purpose")
-		host := ""
-		if purpose == "" || purpose == "agent.new" {
-			host = agentStartHost(d, r.URL.Query().Get("host"))
-		}
 		var list []ConfiguredLauncher
 		var err error
 		var unavailable []unavailableLauncher
@@ -477,7 +470,7 @@ func (s *Service) machineLauncherRoutes() {
 			}
 			all, list, unavailable, err = s.assistantPickerLaunchers(ctx, d, r.URL.Query().Get("refresh") == "1", s.requestLang(r))
 		case "task":
-			all, err = s.pickerLaunchersOn(ctx, mid, "")
+			all, err = s.pickerLaunchers(ctx, mid)
 			if err == nil {
 				list, err = s.assistantLaunchersOf(ctx, mid, all)
 				if err == nil {
@@ -485,7 +478,7 @@ func (s *Service) machineLauncherRoutes() {
 				}
 			}
 		default:
-			list, err = s.pickerLaunchersOn(ctx, mid, host)
+			list, err = s.pickerLaunchers(ctx, mid)
 			list = slices.DeleteFunc(list, func(l ConfiguredLauncher) bool {
 				return proto.IsExternalLauncher(l.Name) || l.Source == proto.ExternalLauncherSource
 			})
@@ -543,7 +536,7 @@ func (s *Service) machineLauncherRoutes() {
 			apierr.Write(w, http.StatusNotFound, errUnknownMachine)
 			return
 		}
-		if host := r.URL.Query().Get("host"); launcherPurpose(ctx) == "" && (host == "agy" || proto.IsEngineHost(host)) {
+		if host := r.URL.Query().Get("host"); launcherPurpose(ctx) == "" && host != "" && checkStartHostName(host) == nil {
 			ctx = context.WithValue(ctx, launcherModelHostKey{}, host)
 		}
 		res, err := s.askLauncherModels(ctx, mid, r.PathValue("name"), r.URL.Query().Get("refresh") == "1")

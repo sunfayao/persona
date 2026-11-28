@@ -168,9 +168,6 @@ func (n *Node) stoppable(id string, retire bool) (unlock func(), a host.Agent, o
 		return nil, a, false, nil
 	}
 	kind := host.ParsePane(a.PaneID).Kind
-	if _, runtime := engineRuntimes[kind]; runtime {
-		return fail(noTerminal, "this engine runs its agents without a terminal")
-	}
 	if n.hosts.Get(kind) == nil {
 		return fail(noTerminal, "this session host is not available")
 	}
@@ -363,7 +360,6 @@ func (n *Node) resumeTabName(id string) string {
 // Resume (#4754): with the launcher, directory and model to resume with (st): the session's own, or
 // what a Codex thread started outside Persona is resumed with (codex_resume.go).
 func (n *Node) resumeOtherWith(ctx context.Context, id string, st sessionState, text string, images []proto.Image) error {
-	ctx = n.withResumeHost(ctx, id)
 	if st.TaskID != "" {
 		ctx, _ = withTaskSpace(ctx, st.TaskID, st.WorkspaceID, st.WorkspaceLabel)
 	}
@@ -514,11 +510,7 @@ func (n *Node) newTab(ctx context.Context, launch host.Launcher, cwd, ws, tabNam
 			label = ts.label
 		}
 		if created, err = createStartSpace(ctx, launch, cwd, label); err == nil && created.SlotID != "" {
-			var taken map[string]bool
-			if _, ok := launch.(*herdrCoreHost); ok {
-				taken = n.tabLabels(ctx, launch, created.SpaceID) // CreateSpace can reuse an app space by its folder.
-			}
-			_ = renameSlot(ctx, launch, created.SlotID, tabLabel(tabName, taken))
+			_ = renameSlot(ctx, launch, created.SlotID, tabLabel(tabName, nil))
 		}
 	} else {
 		created, err = createStartSlot(ctx, launch, ws, cwd, tabLabel(tabName, n.tabLabels(ctx, launch, ws)))
@@ -541,7 +533,6 @@ func (n *Node) newTab(ctx context.Context, launch host.Launcher, cwd, ws, tabNam
 	ts.opened(created.SpaceID)
 	markPersonaTab(ctx, launch, created.Pane, id)
 	markTaskTerminal(ctx, launch, created.Pane)
-	n.agentTerminalOpened(launch, created.Pane) // finished_close.go
 	return created, nil
 }
 

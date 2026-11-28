@@ -160,10 +160,10 @@ func TestOneTool(t *testing.T) {
 func TestOneToolCarriesPaneWithoutSession(t *testing.T) {
 	old := dial
 	t.Cleanup(func() { dial = old })
-	// Herdr's and herdr-core's panes come before Orca's (nodeclient.HookPane): a run inside either must not see its own.
-	t.Setenv(nodeclient.HerdrPaneEnv, "")
-	t.Setenv(nodeclient.HerdrCorePaneEnv, "")
-	t.Setenv(nodeclient.OrcaPaneEnv, "tab:leaf")
+	// The pane is herdr's, from the environment it runs in (nodeclient.HookPane), in the default server.
+	t.Setenv(nodeclient.HerdrPaneEnv, "w1:p2")
+	t.Setenv(nodeclient.HerdrSessionEnv, "")
+	t.Setenv(nodeclient.HerdrSocketEnv, "")
 	t.Setenv("CODEX_THREAD_ID", "10000000-0000-0000-0000-000000000001")
 	var request map[string]any
 	dial = func(_ context.Context, req any) ([]byte, error) {
@@ -175,7 +175,7 @@ func TestOneToolCarriesPaneWithoutSession(t *testing.T) {
 	if code := Main(context.Background(), []string{"task_spawn", `{"prompt":"work","title":"task"}`}, strings.NewReader(""), &out, &errOut); code != exitOK {
 		t.Fatalf("exit %d, stderr %q", code, errOut.String())
 	}
-	if request["pane"] != "orca:tab:leaf" || request["session_id"] != nil || request["assistant"] != nil || request["name"] != "task_spawn" ||
+	if request["pane"] != "w1:p2" || request["session_id"] != nil || request["assistant"] != nil || request["name"] != "task_spawn" ||
 		request["codex_thread_id"] != os.Getenv("CODEX_THREAD_ID") {
 		t.Fatalf("node request %v, want pane metadata and no caller-supplied session or assistant", request)
 	}

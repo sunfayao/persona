@@ -160,8 +160,6 @@ var actionBodies = map[string]string{
 	"tabs/close":       `{"tab_id":"w1:t2"}`,
 	"tabs/rename":      `{"tab_id":"w1:t2","label":"build"}`,
 	"worktree/prepare": `{"workspace_id":"w1"}`,
-	"worktree/source":  `{"workspace_id":"w1","kind":"orca"}`,
-	"worktree/preset":  `{"workspace_id":"w1","kind":"orca","name":"UI","directories":"src"}`,
 	"worktree/create":  `{"workspace_id":"w1","branch":"feat/x","path":"/tmp/wt/feat-x"}`,
 	"worktree/add":     `{"cwd":"/tmp/proj","name_hint":"fix the crash"}`,
 	"worktree/status":  `{"cwd":"/tmp/wt/persona-fix-the-crash"}`,
@@ -217,7 +215,7 @@ func TestNodeActionsNeedAFullDevice(t *testing.T) {
 		}
 	}
 	want := map[string]bool{"panes.close": true, "panes.split": true, "panes.agent": true, "panes.git": true, "tabs.close": true, "tabs.rename": true,
-		"worktree.source": true, "worktree.preset": true, "worktree.prepare": true, "worktree.create": true, "worktree.add": true, "worktree.status": true, "worktree.remove": true}
+		"worktree.prepare": true, "worktree.create": true, "worktree.add": true, "worktree.status": true, "worktree.remove": true}
 	for _, m := range tn.await(t, len(want)) {
 		delete(want, m)
 	}
@@ -345,7 +343,7 @@ func TestNodeActionsSendTheRequestsLanguage(t *testing.T) {
 		}
 		return got
 	}
-	if got := post("worktree/add", `{"cwd":"/tmp/proj","kind":"paseo"}`, "ja-JP,ja;q=0.9"); got["locale"] != "ja" || got["kind"] != "paseo" {
+	if got := post("worktree/add", `{"cwd":"/tmp/proj","kind":"herdr"}`, "ja-JP,ja;q=0.9"); got["locale"] != "ja" || got["kind"] != "herdr" {
 		t.Errorf("add: %v", got)
 	}
 	if got := post("worktree/create", `{"workspace_id":"w1","branch":"x","path":"/tmp/wt/x","locale":"en"}`, "ja"); got["locale"] != "en" {
@@ -366,7 +364,7 @@ func TestAutomaticWorktreeCreateRequiresABooleanFlagAndFullCredentials(t *testin
 			t.Fatalf("invalid automatic create %s = %d", body, code)
 		}
 	}
-	body := `{"workspace_id":"w1","kind":"orca","parent_workspace_id":"folder","auto_name":true,"command":"ignored"}`
+	body := `{"workspace_id":"w1","kind":"herdr","auto_name":true,"command":"ignored"}`
 	for _, role := range []string{roleRetiredAnswer, roleLink, roleExtension} {
 		if code := postAction(tn.hub, role, "worktree/create", body); code != http.StatusForbidden {
 			t.Fatalf("%s: automatic create = %d", role, code)
@@ -381,7 +379,7 @@ func TestAutomaticWorktreeCreateRequiresABooleanFlagAndFullCredentials(t *testin
 	tn.mu.Lock()
 	got := tn.args["worktree.create"]
 	tn.mu.Unlock()
-	if got != `{"auto_name":true,"kind":"orca","locale":"zh-Hans","parent_workspace_id":"folder","workspace_id":"w1"}` {
+	if got != `{"auto_name":true,"kind":"herdr","locale":"zh-Hans","workspace_id":"w1"}` {
 		t.Fatalf("automatic create fields: %s", got)
 	}
 }

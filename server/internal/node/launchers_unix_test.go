@@ -511,7 +511,7 @@ func TestLaunchersKeepTheLastListWhenTheShellEndsBeforeListing(t *testing.T) {
 	}
 
 	write("alias recovered='claude --model new-model'\n")
-	if got := launchersFor(t, n, "").names(); !slices.Contains(got, "mycc/") || slices.Contains(got, "recovered/zshrc") {
+	if got := launchersFor(t, n).names(); !slices.Contains(got, "mycc/") || slices.Contains(got, "recovered/zshrc") {
 		t.Fatalf("ordinary launcher list after fallback = %v, want cached mycc", got)
 	}
 	raw, err := nodeCall(t, n, "launchers.list", map[string]any{"refresh": true})
@@ -525,4 +525,33 @@ func TestLaunchersKeepTheLastListWhenTheShellEndsBeforeListing(t *testing.T) {
 	if got := refreshed.names(); !slices.Contains(got, "recovered/zshrc") || slices.Contains(got, "mycc/") {
 		t.Fatalf("refreshed launcher list = %v, want recovered without mycc", got)
 	}
+}
+
+// listedLaunchers is the node's launchers.list.
+type listedLaunchers struct {
+	Launchers []struct {
+		proto.Launcher
+		AgentType string `json:"agent_type"`
+	} `json:"launchers"`
+}
+
+func launchersFor(t *testing.T, n *Node) listedLaunchers {
+	t.Helper()
+	raw, err := nodeCall(t, n, "launchers.list", map[string]any{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ls listedLaunchers
+	if err := json.Unmarshal(raw, &ls); err != nil {
+		t.Fatal(err)
+	}
+	return ls
+}
+
+func (ls listedLaunchers) names() []string {
+	var out []string
+	for _, l := range ls.Launchers {
+		out = append(out, l.Name+"/"+l.Source)
+	}
+	return out
 }

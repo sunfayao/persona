@@ -274,7 +274,7 @@ func (m *Machine) establishVia(ctx context.Context, p *nodePath, via string) (*n
 	}
 }
 
-// Repeating this pre-operation handshake is safe: only engine selection and node.info have been sent.
+// Repeating this pre-operation handshake is safe: only node.info has been sent.
 func (m *Machine) establishViaOnce(ctx context.Context, p *nodePath, via string, wait time.Duration) (*nodeConn, error) {
 	cctx, cancel := context.WithCancel(ctx)
 	l, err := m.openPipe(cctx, p, via)
@@ -353,11 +353,7 @@ func (m *Machine) establishViaOnce(ctx context.Context, p *nodePath, via string,
 	go func() { c.served <- peer.Serve(cctx, l.r) }()
 
 	ictx, icancel := context.WithTimeout(cctx, wait)
-	// The engine first. An explicit reload refusal or closed handshake is retried; old nodes keep their fallback.
-	err = m.useEngine(ictx, peer)
-	if !handshakeInterrupted(err) {
-		err = peer.Call(ictx, "node.info", nodeproto.NodeInfoQuery{ManagerFeatures: []string{nodeproto.SourcePermissions}}, &c.info)
-	}
+	err = peer.Call(ictx, "node.info", nodeproto.NodeInfoQuery{ManagerFeatures: []string{nodeproto.SourcePermissions}}, &c.info)
 	if off := m.lanesOff(); err == nil && nodeHas(c.info, nodeproto.NodeLanes) && !off.IsZero() {
 		m.d.logf("[%s] lanes over %s: not asked until %s (frames broke this computer's connections)", m.cfg.ID, via, off.Format(time.TimeOnly))
 	} else if err == nil && nodeHas(c.info, nodeproto.NodeLanes) {

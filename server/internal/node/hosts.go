@@ -11,8 +11,8 @@ import (
 
 	"github.com/sunfayao/persona/server/internal/herdr"
 	"github.com/sunfayao/persona/server/internal/host"
-	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
 )
 
 // The node drives every terminal through the host its pane belongs to (internal/host). Panes are kept as PaneRef
@@ -270,43 +270,8 @@ func pasteControl(r rune) bool {
 	return unicode.Is(unicode.Cc, r) && r != '\n' && r != '\r' && r != '\t'
 }
 
-// defaultHost is where new sessions start and where spaces without a host kind live: the set's default host (#2576;
-// host kinds are engine names), classic herdr for herdr + Herdr App, its full-capability host. nil for the empty set,
-// and for a default that is no terminal (Paseo).
-func (n *Node) defaultHost() host.Host {
-	kind := n.defaultKind()
-	if kind == "" {
-		return nil
-	}
-	return n.hosts.Get(kind)
-}
-
-// defaultEngineName names the host pane-less operations run on, for user-facing messages: herdr + Herdr App starts and
-// resumes on classic herdr, so it says herdr, not "herdr + Herdr App".
-func (n *Node) defaultEngineName() string {
-	if name := proto.EngineNames[n.defaultKind()]; name != "" {
-		return name
-	}
-	return n.engine()
-}
-
-// hostCap is the default host as capability C; with no host enabled, noEngineRefusal.
-func hostCap[C any](n *Node) (C, error) {
-	var none C
-	kind := n.defaultKind()
-	if kind == "" {
-		return none, noEngineRefusal()
-	}
-	h := n.hosts.Get(kind)
-	if h == nil {
-		return none, fmt.Errorf("no %s host on this machine", kind)
-	}
-	c, ok := h.(C)
-	if !ok {
-		return none, unsupported(h)
-	}
-	return c, nil
-}
+// hostCap is herdr, where new sessions start and where spaces without a host kind live, as capability C.
+func hostCap[C any](n *Node) (C, error) { return hostCapFor[C](n, host.Herdr) }
 
 func (n *Node) paneProcesses(ctx context.Context, pane string) ([]int, error) {
 	h, ref, err := n.paneHost(pane)
@@ -333,6 +298,18 @@ func renameSlot(ctx context.Context, launch host.Launcher, slot, name string) er
 	}
 	return org.RenameSlot(ctx, slot, name)
 }
+
+// firstOf is the first of s that names a directory ("", "." and "/" do not).
+func firstOf(s ...string) string {
+	for _, v := range s {
+		if v != "" && v != "." && v != "/" {
+			return v
+		}
+	}
+	return ""
+}
+
+func shellProgram(name string) bool { return shellcmd.IsShellProgram(name) }
 
 // unsupported: the host lacks the capability asked for ("unsupported: …", errors.Is host.ErrUnsupported).
 func unsupported(h host.Host) error {

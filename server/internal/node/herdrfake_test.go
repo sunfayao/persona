@@ -378,7 +378,6 @@ func herdrNode(t *testing.T, concurrent ...bool) (*Node, *fakeHerdr, string) {
 	withFirstPromptWaits(t, 400*time.Millisecond, 3*time.Second)
 	ctx, cancel := context.WithCancel(context.Background())
 	n.firstPromptParent = ctx
-	t.Cleanup(n.engLists.Wait) // a prompt check can still request a list before it stops
 	t.Cleanup(func() {
 		cancel()           // assertions are finished; do not wait out recovery on a fake that never writes a transcript
 		n.firstWait.Wait() // before restoring waits or closing the socket used by an in-flight check

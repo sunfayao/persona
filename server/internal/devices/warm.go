@@ -32,11 +32,7 @@ type warmMachine struct {
 
 type savedWarm struct {
 	Machines map[string]warmMachine `json:"machines"`
-	// Engines are every hub.json machine's engine: the hub shows them until the next manager reports.
-	Engines map[string]string `json:"engines,omitempty"`
-	// EngineHosts are their sets (#2576), next to Engines for a hub that reads only those.
-	EngineHosts map[string]proto.EngineChoice `json:"engine_hosts,omitempty"`
-	SavedAt     time.Time                     `json:"saved_at"`
+	SavedAt  time.Time              `json:"saved_at"`
 }
 
 // saveWarm hands the online machines to the next manager (Run, before their connections close).
@@ -44,13 +40,8 @@ func (d *Devices) saveWarm(ctx context.Context) {
 	if d.opts.Store == nil {
 		return
 	}
-	saved := savedWarm{Machines: map[string]warmMachine{}, Engines: map[string]string{},
-		EngineHosts: map[string]proto.EngineChoice{}, SavedAt: time.Now()}
+	saved := savedWarm{Machines: map[string]warmMachine{}, SavedAt: time.Now()}
 	for _, m := range d.machinesNow() {
-		if !m.derived {
-			saved.Engines[m.cfg.ID] = d.engineOf(m.cfg.ID) // before m.mu: it may read settings
-			saved.EngineHosts[m.cfg.ID] = d.engineChoiceOf(m.cfg.ID)
-		}
 		m.mu.Lock()
 		if m.online && !m.derived {
 			saved.Machines[m.cfg.ID] = warmMachine{Info: m.info, Sessions: append([]proto.Session(nil), m.sessions...)}

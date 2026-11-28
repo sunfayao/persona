@@ -9,10 +9,10 @@ import (
 	"github.com/sunfayao/persona/server/internal/host"
 )
 
-// An Orca terminal can use an unrelated workspace as a container, then cd into
+// A terminal can sit in an unrelated workspace used as a container, then cd into
 // the requested directory. The conversation directory is not that container.
 func TestTraexConversationDirectoryDiffersFromTerminalContainer(t *testing.T) {
-	n, _, _ := startNode(t)
+	n, _ := startNode(t)
 	const pane = "w1:p2"
 	const cwd = "/work/isolated-probe"
 	writeMetaRollout(t, n.traexHome(), threadMain,

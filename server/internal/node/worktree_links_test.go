@@ -66,10 +66,11 @@ func assertHomeLinks(t *testing.T, home, real, repo, dest string) {
 	}
 }
 
-// A task checkout made by git (herdr-core, or a host that makes none) on a linked home: git resolved the paths it wrote,
-// and the node rewrites both links to the home's spelling a container's terminal has (#10365).
+// A task checkout made by git (a herdr without its worktree API) on a linked home: git resolved the paths it wrote, and
+// the node rewrites both links to the home's spelling a container's terminal has (#10365).
 func TestWorktreeByGitWritesHomeSpelledLinks(t *testing.T) {
-	w, _ := herdrCoreWorktreeNode(t)
+	w := worktreeNode(t)
+	setWorktreeSupport(t, false)
 	real := linkHome(t, &w)
 	prep, err := request(t, w.n, "worktree.prepare", map[string]any{"cwd": w.repo})
 	if err != nil {

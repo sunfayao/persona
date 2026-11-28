@@ -347,10 +347,10 @@ func TestTaskSpawnReadsOnlyTheParentsCatalog(t *testing.T) {
 	const launcher, reply, route = "relay", "upstream/model-x", "relay/model-x"
 	requested, launcherDefault := "explicit/model", ""
 	for _, tc := range []struct {
-		name, host, defaultHost, source, reported, assigned, want string
-		requested                                                 *string
-		exact                                                     bool
-		reads                                                     int
+		name, host, source, reported, assigned, want string
+		requested                                    *string
+		exact                                        bool
+		reads                                        int
 	}{
 		{name: "assignment", reported: reply, requested: &requested, assigned: "plan/model", want: "plan/model"},
 		{name: "requested", reported: reply, requested: &requested, want: requested},
@@ -358,13 +358,11 @@ func TestTaskSpawnReadsOnlyTheParentsCatalog(t *testing.T) {
 		{name: "no model"},
 		{name: "exact node row on cold fleet", host: "herdr", exact: true, reported: reply, want: reply, reads: 1},
 		{name: "shell provider", host: "herdr", reported: reply, want: reply, reads: 1},
-		{name: "runtime owns the same name", host: "paseo", reported: reply, want: route, reads: 1},
-		{name: "default engine owns the same name", defaultHost: "paseo", reported: reply, want: route, reads: 1},
 		{name: "runtime source without a host", source: proto.SourceRuntime, reported: reply, want: route, reads: 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s, f := newQuietServiceOn(t, &memStore{})
-			f.devices = []Device{{ID: "box", Online: true, Engine: tc.defaultHost}, {ID: "other", Online: true}}
+			f.devices = []Device{{ID: "box", Online: true}, {ID: "other", Online: true}}
 			if !tc.exact {
 				putLaunchers(t, s, storedLauncher{ManagedLauncher: proto.ManagedLauncher{Name: launcher, Model: reply}})
 			}

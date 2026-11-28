@@ -7,7 +7,7 @@ type PanesResponse struct {
 	Hosts []PaneHost `json:"hosts"`
 }
 
-// PaneHost is one terminal host (herdr, herdr-core, Orca…) and what it can do with a pane.
+// PaneHost is one terminal host (herdr, tmux, botmux) and what it can do with a pane.
 type PaneHost struct {
 	Kind string `json:"kind"`
 	// Stream: the host streams a pane's terminal (observe); without it a pane can only be read once a second.
@@ -105,8 +105,6 @@ type WorktreePrepare struct {
 	ChooseParent bool `json:"choose_parent,omitempty"`
 	// AutomaticName permits an unnamed create. The host owns naming when supported, otherwise the node chooses a unique name.
 	AutomaticName bool `json:"automatic_name,omitempty"`
-	// Composer exposes the owning runtime's creation choices; absent on older nodes.
-	Composer *WorktreeComposer `json:"composer,omitempty"`
 	// Existing is a successfully inspected clean, idle checkout of the requested branch.
 	// Absent when the branch is not checked out, no branch was requested, or the node predates branch lookup.
 	Existing *WorktreeCheckout `json:"existing,omitempty"`
@@ -120,27 +118,11 @@ type WorktreeCheckout struct {
 	InCheckouts bool `json:"in_checkouts,omitempty"`
 }
 
-type WorktreeComposer struct {
-	Capabilities []string         `json:"capabilities"`
-	Project      string           `json:"project"`
-	BaseRef      string           `json:"base_ref"`
-	Refs         []string         `json:"refs"`
-	Presets      []WorktreePreset `json:"presets"`
-}
-
-type WorktreePreset struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name,omitempty"`
-	Directories []string `json:"directories"`
-}
-
 // WorktreeAdded is the worktree worktree.add made for a new agent (#6115): its checkout, its branch, the repository's root.
-// WorkspaceID is the workspace a runtime engine made it as (Paseo's, docs/integrations/runtimes.md "Workspaces"), when one did.
 type WorktreeAdded struct {
-	Path        string `json:"path"`
-	Branch      string `json:"branch"`
-	Root        string `json:"root"`
-	WorkspaceID string `json:"workspace_id,omitempty"`
+	Path   string `json:"path"`
+	Branch string `json:"branch"`
+	Root   string `json:"root"`
 }
 
 // WorktreeSnapshot is what worktree.snapshot made (#2173): a detached checkout of Root's HEAD at Path with Root's

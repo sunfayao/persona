@@ -47,10 +47,6 @@ type Machine struct {
 	// connectedAt: when the node's current connection began, as the manager says (sessions.changed carries it to the
 	// assistant).
 	connectedAt time.Time
-	// engine is the engine the manager handed over at its last stop, shown until it reports (snap has it then).
-	engine string
-	// engineHosts: the set the last manager handed over (#2576), nil when it handed over none (a single engine then).
-	engineHosts *proto.EngineChoice
 	// warmUntil: shown as before a restart until then — the hub's, while the manager comes back (calls wait for it in
 	// busNode), or the manager's, while the node comes back (its report's) (devices_warm.go).
 	warmUntil time.Time
@@ -218,17 +214,17 @@ func (m *Machine) snapshot() proto.Machine {
 		}
 		s = proto.Machine{ID: m.cfg.ID, Name: m.name(), Kind: m.kind(), Icon: icon, SSHHost: m.cfg.SSHHost,
 			Hostname: m.info.Hostname, OS: m.info.OS, Arch: m.info.Arch, Home: m.info.Home, HerdrVersion: m.info.HerdrVersion,
-			ClaudeVersion: m.info.ClaudeVersion, LastSeen: m.lastSeen, NodeVersion: m.info.Version, Engine: cmp.Or(m.engine, proto.EngineHerdr),
+			ClaudeVersion: m.info.ClaudeVersion, LastSeen: m.lastSeen, NodeVersion: m.info.Version,
 			Tailcat: m.cfg.TailcatAddr != ""}
 		s.Engines = []proto.Engine{}
 		if m.online || warm {
-			s.Engines = append(s.Engines, m.info.Engines...)
+			// An older node reports the engines Persona drove before herdr alone (Orca, Paseo…): only herdr's row is said.
+			for _, e := range m.info.Engines {
+				if e.ID == proto.EngineHerdr {
+					s.Engines = append(s.Engines, e)
+				}
+			}
 		}
-		choice := proto.EngineHostsOf(s.Engine)
-		if m.engineHosts != nil {
-			choice = *m.engineHosts
-		}
-		s.EngineHosts, s.EngineDefault = choice.Hosts, choice.Default
 		s.NodeMismatch = m.online && nodeMismatch(m.hub.version, m.info.Version)
 		can, why := m.canDeployLocked()
 		s.CanDeploy, s.DeployReason = &can, why
@@ -239,10 +235,6 @@ func (m *Machine) snapshot() proto.Machine {
 	}
 	if s.Engines == nil {
 		s.Engines = []proto.Engine{}
-	}
-	if s.EngineHosts == nil { // a manager older than sets: the set its single engine stands for
-		c := proto.EngineHostsOf(cmp.Or(s.Engine, proto.EngineHerdr))
-		s.EngineHosts, s.EngineDefault = c.Hosts, c.Default
 	}
 	s.Computer, s.Browser = computer, browser // the system is in the manager's report (its monitoring)
 	return s
@@ -282,10 +274,6 @@ func (m *Machine) call(ctx context.Context, method string, params any, out any) 
 	p := m.peer
 	info := m.info
 	m.mu.Unlock()
-	if info.Version != "" && info.EngineHosts == nil && devicewire.IsSessionStart(method) && proto.StartHost(params) != "" {
-		// An older node ignores host and would start in its engine instead (#2576): refused, nothing started.
-		return &rpc.Error{Code: proto.CodeNodeOutdated, Message: i18n.T(m.hub.contextLang(ctx), "hub-machine.node_no_engine_hosts")}
-	}
 	if info.Version != "" && !info.ModelConfiguration && (method == "assistant.send" || method == "assistant.warm" || devicewire.IsSessionStart(method) || method == "session.send") {
 		raw, _ := json.Marshal(params)
 		var fields struct {

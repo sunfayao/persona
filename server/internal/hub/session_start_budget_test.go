@@ -278,7 +278,6 @@ func TestSessionStartTraeNamesTabAfterResponse(t *testing.T) {
 				})
 				m := h.byID["machine"]
 				m.mu.Lock()
-				m.info.Engine = proto.EngineHerdr
 				m.cfg.Launchers = []assistantwire.ConfiguredLauncher{{Launcher: proto.Launcher{Name: "trae-wrapper"}, AgentType: "traex"}}
 				renamed := make(chan map[string]any, 1)
 				m.peer = traeTabRenameObserver{nodeCaller: m.peer, params: renamed}

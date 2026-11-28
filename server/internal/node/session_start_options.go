@@ -31,9 +31,8 @@ func (n *Node) workSessionOptions(ctx context.Context, name, configuredAgent, ho
 		return opts, workStartRefused("work_launcher_unavailable", "Choose an available launcher on this computer.")
 	}
 	ctx = withStartHost(ctx, host)
-	// A runtime's launcher as a start in that host runs it: where the host's engine runs only its own launchers, its
-	// provider of the name, whatever launcher of the shell's or of Persona's has it too (#8140).
-	if runtime, model := n.startRuntimeIn(ctx, name); runtime != nil {
+	// A runtime's launcher runs in its runtime.
+	if runtime, model := n.startRuntime(name); runtime != nil {
 		opts.runtime, opts.runtimeModel = runtime, model
 		opts.AgentType = configuredAgent
 		l, own := runtime.launcherNamed(name)
@@ -46,7 +45,7 @@ func (n *Node) workSessionOptions(ctx context.Context, name, configuredAgent, ho
 		if opts.AgentType == "" {
 			opts.AgentType = launcherAgentType(name)
 		}
-		// A Codex the runtime creates with no first message (Paseo's) does not need one.
+		// A Codex the runtime creates with no first message does not need one.
 		opts.PromptRequired = opts.AgentType == "codex" && !(own && l.PromptOptional)
 		opts.InlinePrompt = true
 		return opts, nil
@@ -55,11 +54,6 @@ func (n *Node) workSessionOptions(ctx context.Context, name, configuredAgent, ho
 	opts.host = kind
 	if err := n.checkStartHost(kind); err != nil {
 		return opts, workStartRefused("work_launcher_unavailable", "The session host cannot start this launcher.")
-	}
-	if _, isRuntime := engineRuntimes[kind]; isRuntime {
-		// A launcher the engine does not have would run on another of its providers (one of the same kind, said on the
-		// answer, or its default): not the selected harness.
-		return opts, workStartRefused("work_launcher_unavailable", "Choose a launcher offered by the active runtime.")
 	}
 	if _, err := n.launcherFor(kind); err != nil {
 		return opts, workStartRefused("work_launcher_unavailable", "No session host can start this launcher.")

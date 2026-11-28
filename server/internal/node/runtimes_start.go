@@ -1,7 +1,6 @@
 package node
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,12 +10,9 @@ import (
 )
 
 // runtimeOf is the runtime that runs launcher name in a terminal host's start: the one offering it, unless the login
-// shell or a launcher kept in Persona has that name. Those run instead, as that host's pickers list them under the
-// name: a managed launcher made from a Paseo provider of the same name is started with personad launch, not through
-// Paseo. nil when no runtime runs it. Where every start goes to an engine runtime that runs only its own launchers
-// (Paseo with caps.same_kind) its provider of that name runs instead, whatever else has it: runtimeOfIn. Engine
-// runtimes this machine does not enable never offer launchers (runtimeRegistry.hostOff), so they cannot take a name
-// from an enabled runtime.
+// shell or a launcher kept in Persona has that name. Those run instead, as the pickers list them under the name: a
+// managed launcher made from a runtime's launcher of the same name is started with personad launch, not through the
+// runtime. nil when no runtime runs it.
 func (n *Node) runtimeOf(name string) *runtimeConn {
 	if shellLauncherNames()[name] {
 		return nil
@@ -27,17 +23,9 @@ func (n *Node) runtimeOf(name string) *runtimeConn {
 	return n.runtimes.launcherRuntime(name)
 }
 
-// engineHostOff: runtime is an engine host (Paseo, Cindy) this machine does not enable. Its providers start nothing
-// here and are not listed (launchers.list), even while its runtime is connected.
-func (n *Node) engineHostOff(runtime string) bool {
-	_, engine := engineRuntimes[runtime]
-	return engine && !n.hostEnabled(runtime)
-}
-
 // startRuntime is the runtime a terminal host's start with launcher name goes to, and the model it starts with when
 // the form chose none: runtimeOf, or the runtime's own agy launcher for a managed Antigravity launcher, whatever its
-// name. Checks about an agent already in a terminal (a launcher switch) ask here; a new start asks startRuntimeIn.
-// nil when the start is not a runtime's.
+// name. nil when the start is not a runtime's.
 func (n *Node) startRuntime(name string) (h *runtimeConn, model string) {
 	if h = n.runtimeOf(name); h != nil {
 		return h, ""
@@ -48,26 +36,24 @@ func (n *Node) startRuntime(name string) (h *runtimeConn, model string) {
 	return nil, ""
 }
 
-// runtimeStart starts a session in the runtime a start in ctx with the launcher goes to (startRuntimeIn: on a host
-// whose engine runtime runs only its own launchers, that runtime for every name it offers); false when none does.
-func (n *Node) runtimeStart(ctx context.Context, p runtimeStartParams) (*proto.Session, *proto.StartInstead, error, bool) {
-	h, model := n.startRuntimeIn(ctx, p.Launcher)
+// runtimeStart starts a session in the runtime a start in ctx with the launcher goes to (startRuntime); false when
+// none does.
+func (n *Node) runtimeStart(ctx context.Context, p runtimeStartParams) (*proto.Session, error, bool) {
+	h, model := n.startRuntime(p.Launcher)
 	if h == nil || n.usesAgyPane(ctx, p.Launcher, p.AgentType) {
-		return nil, nil, nil, false
+		return nil, nil, false
 	}
 	if p.Model == "" {
 		p.Model = model
 	}
-	s, instead, err := n.runtimeStartOn(ctx, h, p)
-	return s, instead, err, true
+	s, err := n.runtimeStartOn(ctx, h, p)
+	return s, err, true
 }
 
-// runtimeStartOn starts a session in runtime h (session.start): the directory, the first message, the launcher picked
-// and what the form chose with it (model, permission mode, effort), the kind of agent a launcher it does not have
-// starts (agent_type, caps.same_kind), the session to continue. Fields are sent only when set: a runtime that knows
-// none of them still starts its own way. Its answer is the session and what it was asked for and does not run with
-// (instead: a runtime that runs only its own launchers says it), nil when it runs as asked.
-func (n *Node) runtimeStartOn(ctx context.Context, h *runtimeConn, p runtimeStartParams) (*proto.Session, *proto.StartInstead, error) {
+// runtimeStartOn starts a new session in runtime h (session.start): the directory, the first message, the launcher
+// picked and what the form chose with it (model, permission mode, effort). Fields are sent only when set: a runtime
+// that knows none of them still starts its own way.
+func (n *Node) runtimeStartOn(ctx context.Context, h *runtimeConn, p runtimeStartParams) (*proto.Session, error) {
 	if p.PermissionMode == "plan" {
 		// Only a runtime that promises read-only starts (caps.readonly) gets one: without that promise its provider
 		// may ignore the mode, or fall back to a writable one.
@@ -75,18 +61,14 @@ func (n *Node) runtimeStartOn(ctx context.Context, h *runtimeConn, p runtimeStar
 		readonly := h.hello.Caps.Readonly
 		h.mu.Unlock()
 		if !readonly {
-			return nil, nil, readonlyStartUnsupported()
+			return nil, readonlyStartUnsupported()
 		}
-	}
-	if p.AgentType != "" && !sameKind(h) {
-		p.AgentType = "" // only a runtime that runs a launcher it lacks by its kind is told the kind
 	}
 	ctx, cancel := context.WithTimeout(ctx, runtimeCallTimeout)
 	defer cancel()
 	params := map[string]any{"cwd": p.Cwd, "prompt": p.Prompt}
 	for k, v := range map[string]string{"launcher": p.Launcher, "model": p.Model, "permission_mode": p.PermissionMode,
-		"effort": p.Effort, "workspace_id": p.WorkspaceID, "resume": p.Resume, "session_id": p.SessionID, "agent_type": p.AgentType,
-		"client_msg_id": p.ClientMsgID} {
+		"effort": p.Effort, "workspace_id": p.WorkspaceID, "session_id": p.SessionID, "client_msg_id": p.ClientMsgID} {
 		if v != "" {
 			params[k] = v
 		}
@@ -94,26 +76,19 @@ func (n *Node) runtimeStartOn(ctx context.Context, h *runtimeConn, p runtimeStar
 	if len(p.Images) > 0 {
 		params["images"] = p.Images
 	}
-	if p.Shell {
-		params["shell_launcher"] = true
-	}
-	if p.OpenElsewhere {
-		params["open_elsewhere"] = true
-	}
 	var res struct {
-		Session json.RawMessage     `json:"session"`
-		Instead *proto.StartInstead `json:"instead"`
+		Session json.RawMessage `json:"session"`
 	}
 	if b := backendLaunchFrom(ctx); b != nil {
 		h.mu.Lock()
 		supported := h.hello.Caps.BackendWorkspaceRoot
 		h.mu.Unlock()
 		if !supported {
-			return nil, nil, refusal("backend_workspace_unsupported", "This runtime cannot start in a prepared task directory.", nil)
+			return nil, refusal("backend_workspace_unsupported", "This runtime cannot start in a prepared task directory.", nil)
 		}
 		params["backend_workspace_root"] = true
 		if err := b.beforeDispatch(p.SessionID); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 	sentAt := time.Now()
@@ -124,7 +99,7 @@ func (n *Node) runtimeStartOn(ctx context.Context, h *runtimeConn, p runtimeStar
 		if p.SessionID != "" && p.Prompt != "" && !maybeDelivered(err) {
 			n.ttft.disarm(p.SessionID, sentAt)
 		}
-		return nil, nil, err
+		return nil, err
 	}
 	var s proto.Session
 	var row struct {
@@ -132,38 +107,18 @@ func (n *Node) runtimeStartOn(ctx context.Context, h *runtimeConn, p runtimeStar
 	}
 	if len(res.Session) > 0 {
 		if err := json.Unmarshal(res.Session, &s); err != nil {
-			return nil, nil, fmt.Errorf("%s: the started session: %w", h.label(), err)
+			return nil, fmt.Errorf("%s: the started session: %w", h.label(), err)
 		}
 		_ = json.Unmarshal(res.Session, &row)
 	}
 	started, err := n.listStarted(h, s, row.Transcript)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if p.Prompt != "" && started.SessionID != "" && p.SessionID == "" {
 		n.ttft.armIfUnarmed(started.SessionID, sentAt, "")
 	}
-	if p.Resume == "" {
-		n.recordEngineStart(h, started, p.Cwd)
-	}
-	return started, cleanInstead(res.Instead), nil
-}
-
-// recordEngineStart keeps the node's record of a session an engine runtime (Paseo, Cindy) has just started, as a
-// terminal start keeps one (putAgentState) and a start with a creation identity already did (creationResult): its
-// launcher, its directory, when, and the runtime that started it (EngineRuntime). The engine lists an archived Agent
-// only for a while (Paseo: the 80 newest archived in the last 7 days) and the node has no transcript under the id
-// Persona named it by, so without the record the computer would have nothing of it once it is not listed, and refuse
-// an extension's resume of it (resumeOutsideHealth) that the engine takes back (#10941). A session that has a record
-// keeps it.
-func (n *Node) recordEngineStart(h *runtimeConn, s *proto.Session, cwd string) {
-	if _, engine := engineRuntimes[h.id()]; !engine || s == nil || s.SessionID == "" || n.state == nil {
-		return
-	}
-	if _, ok := n.state.get(s.SessionID); ok {
-		return
-	}
-	n.state.put(s.SessionID, sessionState{Launcher: s.Launcher, Cwd: cmp.Or(s.Cwd, cwd), StartedAt: time.Now().UTC(), EngineRuntime: h.id()})
+	return started, nil
 }
 
 // listStarted lists a session h just started right away, before the runtime's next runtime.sessions, so the chat

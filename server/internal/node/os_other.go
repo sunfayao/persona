@@ -12,8 +12,6 @@ import (
 // msysCmdLine: only Windows passes a command line to a program as one string (shell_windows.go).
 func msysCmdLine(*exec.Cmd) {}
 
-func scanOrcaProcsOS() (map[string][]orcaProc, error) { return nil, errors.New("no process scan here") }
-
 // scanClaudeProcessesOS uses the Windows process table on Windows only.
 func scanClaudeProcessesOS() map[int]procEnv { return map[int]procEnv{} }
 

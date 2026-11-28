@@ -30,18 +30,15 @@ import (
 const codexAppKind = "codex_app"
 
 // spaceFolder is the folder s's space stands for: a desktop app's project (projectSpace and its root), or the directory a
-// runtime that keeps no workspaces names its space by. "" for a space a host keeps (a terminal host's workspace, an
-// engine's project: Paseo, Cindy, T3 Code), for no space, and for the assistant's own conversations, which are in no
-// project (fillGitPlace).
+// runtime names its space by. "" for a space a host keeps (a terminal host's workspace), for no space, and for the
+// assistant's own conversations, which are in no project (fillGitPlace).
 func spaceFolder(s *proto.Session) string {
 	if s.Assistant || s.SpaceID == "" {
 		return ""
 	}
 	dir, project := strings.CutPrefix(s.SpaceID, projectSpace)
-	if !project {
-		if _, engine := engineRuntimes[s.SourceInstanceID]; s.SourceKind != proto.SourceRuntime || engine {
-			return ""
-		}
+	if !project && s.SourceKind != proto.SourceRuntime {
+		return ""
 	}
 	if !filepath.IsAbs(dir) {
 		return ""
@@ -84,7 +81,7 @@ func (n *Node) terminalWorkspaces() []folderWorkspace {
 func (n *Node) joinFolderSpaces(list []proto.Session) {
 	for i := range list { // by index: a range value copies every (large) session it passes
 		if spaceFolder(&list[i]) != "" || restFolder(&list[i]) != "" {
-			placeInFolders(list[i:], n.terminalWorkspaces(), n.defaultKind(), n.sessionWorkspaceCwd)
+			placeInFolders(list[i:], n.terminalWorkspaces(), host.Herdr, n.sessionWorkspaceCwd)
 			return
 		}
 	}
@@ -169,8 +166,7 @@ func numberedBefore(ai int32, an string, bi int32, bn string) bool {
 }
 
 // folderWorkspaces is the workspace each folder's other sessions join, by the folder's key (folderKey of its physical
-// path), of the workspaces rooted in it. A host's own workspace goes before a directory group (dirSpace: herdr-core's
-// terminals outside the app's spaces, botmux's topics). Of several, the one named after its folder, as New Agent reuses
+// path), of the workspaces rooted in it. A host's own workspace goes before a directory group (dirSpace: botmux's topics). Of several, the one named after its folder, as New Agent reuses
 // it for the folder (workspaceFor): the default engine's first, then by host and the host's numbering. A folder with
 // several workspaces and none named after it joins none, since which one is the folder's is not known.
 func folderWorkspaces(workspaces []folderWorkspace, def string, physical func(string) string) map[string]host.Space {

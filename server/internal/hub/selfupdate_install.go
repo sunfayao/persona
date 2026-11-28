@@ -490,7 +490,7 @@ func (h *Hub) updateBusy() []busyItem {
 				// Terminal-host sessions outlive the node transport. Unknown hosts and
 				// direct assistant processes still wait: an ephemeral SSH node may own them.
 				if h.slot != nil && !h.upd.nodesEnabled() && m.cfg.Kind != "local" &&
-					(resident || s.Host == proto.EngineHerdr || s.Host == proto.EngineHerdrCore) {
+					(resident || s.Host == proto.EngineHerdr) {
 					continue
 				}
 				// On a turn, not working on in the background (#2228): a server an agent left running would hold the

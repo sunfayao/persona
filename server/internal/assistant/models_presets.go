@@ -339,13 +339,10 @@ func (s *Service) presetModels(ctx context.Context, machine, name string, res pr
 // after the node returned one possible reverse mapping. The picker's merged rows hide this distinction.
 func (s *Service) declaredSpawnModel(ctx context.Context, machine string, parent proto.Session) bool {
 	name, model := parent.Launcher, parent.Model
-	if proto.IsExternalLauncher(name) || parent.SourceKind == proto.SourceRuntime || proto.RuntimeEngine(parent.Host) {
+	if proto.IsExternalLauncher(name) || parent.SourceKind == proto.SourceRuntime {
 		return false // a runtime's rows belong to its provider, even when a shell launcher shares its name
 	}
 	if parent.Host == "" {
-		if d, ok := s.device(ctx, machine); ok && proto.RuntimeEngine(d.Engine) {
-			return false // the node used its default host for this catalog
-		}
 	}
 	if s.isCustomModel(ctx, machine, name, model) {
 		return true // this exact pick already ran on this machine and launcher

@@ -34,7 +34,7 @@ func unsupportedStartSpeed(launcher, speed string) error {
 
 // prepareSessionStartSpeed rejects requests that would otherwise reach a
 // desktop app or external runtime before those dispatch paths can start anything.
-func (n *Node) prepareSessionStartSpeed(ctx context.Context, speed, launcher, host, resume string) (string, error) {
+func (n *Node) prepareSessionStartSpeed(speed, launcher, resume string) (string, error) {
 	speed = strings.TrimSpace(speed)
 	if err := checkStartSpeedValue(speed, resume); err != nil {
 		return "", err
@@ -45,10 +45,7 @@ func (n *Node) prepareSessionStartSpeed(ctx context.Context, speed, launcher, ho
 	if proto.IsExternalLauncher(launcher) || isDesktopLauncher(launcher) || isCodexAppLauncher(launcher) {
 		return "", unsupportedStartSpeed(launcher, speed)
 	}
-	if _, runtime := engineRuntimes[cmp.Or(host, n.defaultKind())]; runtime {
-		return "", unsupportedStartSpeed(launcher, speed)
-	}
-	if h, _ := n.startRuntimeIn(withStartHost(ctx, host), launcher); h != nil {
+	if h, _ := n.startRuntime(launcher); h != nil {
 		return "", unsupportedStartSpeed(launcher, speed)
 	}
 	return speed, nil

@@ -99,17 +99,11 @@ func findBotmux() string {
 	return ""
 }
 
-// nodeHosts are the hosts a node drives: its engine's, and botmux's when botmux is installed and wanted (useBotmux).
-func nodeHosts(engine string, botmux bool, logf func(format string, args ...any)) []host.Host {
-	return nodeHostsFor(proto.EngineHostsOf(engine), botmux, logf)
-}
-
-// nodeHostsFor are a set's hosts, and botmux's as for nodeHosts.
-func nodeHostsFor(c proto.EngineChoice, botmux bool, logf func(format string, args ...any)) []host.Host {
-	hs := engineHostsFor(c, logf)
-	// tmux is not an engine to choose: it lists nothing and opens nothing. It is how a pane a Claude Code waits in is
-	// read and answered (#2562), so it is always there, next to whichever engine the machine chose.
-	hs = append(hs, newTmuxHost())
+// nodeHosts are the hosts a node drives: herdr, tmux, and botmux when botmux is installed and wanted (useBotmux).
+func nodeHosts(botmux bool, logf func(format string, args ...any)) []host.Host {
+	// tmux lists nothing and opens nothing. It is how a pane a Claude Code waits in is read and answered (#2562), so
+	// it is always there, next to herdr.
+	hs := []host.Host{newHerdr(logf), newTmuxHost()}
 	if !botmux {
 		return hs
 	}
@@ -118,6 +112,9 @@ func nodeHostsFor(c proto.EngineChoice, botmux bool, logf func(format string, ar
 	}
 	return hs
 }
+
+// dirSpace prefixes the space of a session no host places in a workspace of its own (botmux's topics): its directory.
+const dirSpace = "dir:"
 
 // newBotmux makes the botmux host (tests: one on a fake CLI).
 var newBotmux = func(bin string, logf func(format string, args ...any)) host.Host { return newBotmuxHost(bin, logf) }
@@ -137,7 +134,7 @@ func (n *Node) useBotmux(on, fallback bool) {
 	}
 	n.eng.botmux = &on
 	n.eng.botmuxSaid.Store(true)
-	// The engine's hosts stay as they are (their watchers hold them); only botmux comes or goes.
+	// herdr and tmux stay as they are (their watchers hold them); only botmux comes or goes.
 	all := n.hosts.All()
 	hs := slices.DeleteFunc(slices.Clone(all), func(h host.Host) bool { return h.Kind() == host.Botmux })
 	removed := !on && len(hs) < len(all)

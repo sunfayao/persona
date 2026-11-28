@@ -22,7 +22,7 @@ func (stub) PaneProcesses(context.Context, PaneRef) ([]int, error)   { return ni
 func (stub) PaneEnv() string                                         { return "" }
 
 func TestPaneRefStoredForm(t *testing.T) {
-	r := NewRegistry(stub{Herdr}, stub{"orca"})
+	r := NewRegistry(stub{Herdr}, stub{Botmux})
 	for _, c := range []struct {
 		stored string
 		want   PaneRef
@@ -31,12 +31,13 @@ func TestPaneRefStoredForm(t *testing.T) {
 		{"p7", PaneRef{Herdr, "p7"}},
 		{"", PaneRef{Herdr, ""}},
 		{"herdr:w1:p2", PaneRef{Herdr, "herdr:w1:p2"}}, // herdr is never a prefix
-		{"orca:tab1:leaf2", PaneRef{"orca", "tab1:leaf2"}},
+		{"botmux:s1", PaneRef{Botmux, "s1"}},
 		{"tmux:%3", PaneRef{Tmux, "%3"}},               // a tmux pane (#2562)
 		{"nonesuch:%3", PaneRef{Herdr, "nonesuch:%3"}}, // not a known host kind
-		{"orca:a:b", PaneRef{Orca, "a:b"}},
-		{"tern:42", PaneRef{Tern, "42"}},
-		// An Orca pane key without the prefix is not an Orca pane: unprefixed means herdr.
+		// A pane of a host Persona no longer has (an Orca pane key, a herdr-core pane) is a herdr pane id that herdr
+		// does not know: unprefixed or unknown means herdr.
+		{"orca:a:b", PaneRef{Herdr, "orca:a:b"}},
+		{"herdr-core:t1b", PaneRef{Herdr, "herdr-core:t1b"}},
 		{"0b0e2c1a-0000-4000-8000-000000000001:0b0e2c1a-0000-4000-8000-000000000002",
 			PaneRef{Herdr, "0b0e2c1a-0000-4000-8000-000000000001:0b0e2c1a-0000-4000-8000-000000000002"}},
 	} {
@@ -48,17 +49,17 @@ func TestPaneRefStoredForm(t *testing.T) {
 			t.Errorf("Ref(%q).String() = %q", c.stored, got.String())
 		}
 	}
-	if h, ref := r.Pane("orca:x"); h == nil || h.Kind() != "orca" || ref.ID != "x" {
-		t.Errorf("Pane(orca:x) = %v, %+v", h, ref)
+	if h, ref := r.Pane("botmux:x"); h == nil || h.Kind() != Botmux || ref.ID != "x" {
+		t.Errorf("Pane(botmux:x) = %v, %+v", h, ref)
 	}
-	if h, _ := NewRegistry(stub{"orca"}).Pane("w1:p1"); h != nil {
+	if h, _ := NewRegistry(stub{Botmux}).Pane("w1:p1"); h != nil {
 		t.Errorf("a herdr pane without a herdr host has no host, got %v", h)
 	}
-	// Parsing does not depend on what is registered: an Orca pane on a machine without Orca stays an Orca pane (no
+	// Parsing does not depend on what is registered: a botmux pane on a machine without botmux stays a botmux pane (no
 	// host), never a herdr pane.
 	herdrOnly := NewRegistry(stub{Herdr})
-	if h, ref := herdrOnly.Pane("orca:a:b"); h != nil || ref != (PaneRef{Orca, "a:b"}) || ref.String() != "orca:a:b" {
-		t.Errorf("Pane(orca:a:b) without orca = %v, %+v", h, ref)
+	if h, ref := herdrOnly.Pane("botmux:a"); h != nil || ref != (PaneRef{Botmux, "a"}) || ref.String() != "botmux:a" {
+		t.Errorf("Pane(botmux:a) without botmux = %v, %+v", h, ref)
 	}
 	if ParsePane("w79:p2") != (PaneRef{Herdr, "w79:p2"}) {
 		t.Error("herdr ids stay herdr")
@@ -66,7 +67,7 @@ func TestPaneRefStoredForm(t *testing.T) {
 }
 
 func TestErrUnsupported(t *testing.T) {
-	err := Mark(errors.New("unsupported: orca cannot do this"), ErrUnsupported)
+	err := Mark(errors.New("unsupported: botmux cannot do this"), ErrUnsupported)
 	if !errors.Is(err, ErrUnsupported) || ErrUnsupported.Error() != "unsupported" {
 		t.Fatalf("ErrUnsupported = %v", err)
 	}
@@ -74,8 +75,8 @@ func TestErrUnsupported(t *testing.T) {
 
 func TestRegistryKeepsFirstOfAKind(t *testing.T) {
 	a, b := stub{Herdr}, stub{Herdr}
-	r := NewRegistry(a, nil, b, stub{"orca"})
-	if len(r.All()) != 2 || r.All()[0].Kind() != Herdr || r.All()[1].Kind() != "orca" {
+	r := NewRegistry(a, nil, b, stub{Tmux})
+	if len(r.All()) != 2 || r.All()[0].Kind() != Herdr || r.All()[1].Kind() != Tmux {
 		t.Fatalf("All = %v", r.All())
 	}
 	var nilReg *Registry
@@ -92,15 +93,5 @@ func TestMark(t *testing.T) {
 	}
 	if Mark(nil, ErrNoAgent) != nil {
 		t.Fatal("Mark(nil) must stay nil")
-	}
-}
-
-func TestParsePaneHerdrCore(t *testing.T) {
-	ref := ParsePane("herdr-core:t1b")
-	if ref != (PaneRef{HerdrCore, "t1b"}) || ref.String() != "herdr-core:t1b" {
-		t.Errorf("ParsePane(herdr-core:t1b) = %+v (%s)", ref, ref.String())
-	}
-	if h, ref := NewRegistry(stub{Herdr}).Pane("herdr-core:t7"); h != nil || ref.Kind != HerdrCore {
-		t.Errorf("a herdr-core pane without that host went to %v, %+v", h, ref)
 	}
 }

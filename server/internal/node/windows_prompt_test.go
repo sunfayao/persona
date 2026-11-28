@@ -29,7 +29,7 @@ func TestWindowsHerdrPromptDoesNotSubmitIntoADialog(t *testing.T) {
 					f.reply("agent.get", map[string]any{"agent": agentOf("claude", startThread, proto.StatusBlocked, "w1:p2", "w1:t2", "w1", home, "")})
 				}
 			})
-			err := n.defaultHost().(*herdrHost).prompt(context.Background(), host.ParsePane("w1:p2"), "title\nbody", true)
+			err := n.hosts.Get(host.Herdr).(*herdrHost).prompt(context.Background(), host.ParsePane("w1:p2"), "title\nbody", true)
 			if err == nil || len(f.trace("pane.send_keys")) != 0 {
 				t.Fatalf("dialog received a submit: %v", err)
 			}
@@ -68,7 +68,7 @@ func TestCodexStartKeepsTheCompleteFirstMessageOutOfTerminalInput(t *testing.T) 
 		mu.Unlock()
 		writeWaitRollout(t, home, cwd, startThread, time.Now(), start.Prompt)
 	})
-	session, err := n.startCodex(context.Background(), n.defaultHost().(host.Launcher), cwd, "codex", []string{"codex"}, modelExecution{}, prompt, "w1", "", "")
+	session, err := n.startCodex(context.Background(), n.hosts.Get(host.Herdr).(host.Launcher), cwd, "codex", []string{"codex"}, modelExecution{}, prompt, "w1", "", "")
 	if err != nil || session.SessionID != startThread {
 		t.Fatalf("complete first message not matched: %+v %v", session, err)
 	}

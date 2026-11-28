@@ -36,30 +36,26 @@ func TestStoppedAgentRowIsReadOnly(t *testing.T) {
 }
 
 func TestStoppedRuntimeRowIsUnchanged(t *testing.T) {
-	for _, def := range []string{proto.EnginePaseo, proto.EngineHerdr} {
-		for _, ownership := range []string{"known", "unlisted"} {
-			t.Run(def+"/"+ownership, func(t *testing.T) {
-				n, _, home := herdrNode(t)
-				choice := proto.EngineChoice{Hosts: []string{proto.EngineHerdr, proto.EnginePaseo}, Default: def}
-				n.eng.name, n.eng.set = proto.LegacyEngine(choice), &choice
-				cwd := mkdir(t, filepath.Join(home, "proj"))
-				writeTranscript(t, home, cwd, sidA, time.Now().Add(-time.Hour),
-					`{"type":"user","cwd":"`+cwd+`","message":{"role":"user","content":"hi"},"uuid":"u1"}`,
-					`{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"`+strings.Repeat("done ", 600)+`"}]},"uuid":"a1","parentUuid":"u1"}`)
-				// A runtime takeover can leave the old terminal in the node's state.
-				n.state.put(sidA, sessionState{Pane: "w1:p1", Launcher: "cc", Cwd: cwd})
-				n.runtimes = newRuntimeRegistry()
-				if ownership == "known" {
-					n.runtimes.known[sidA] = knownSession{runtime: proto.EnginePaseo, label: "Paseo", at: time.Now()}
-				} else {
-					n.runtimes.unlisted = map[string]unlistedOf{proto.EnginePaseo: {set: map[string]bool{sidA: true}}}
-				}
-				row := byID(listSessions(t, n))[sidA]
-				if row.SessionID != sidA || row.Status != proto.StatusOffline || row.Capabilities != nil || row.ReadOnlyReason != "" {
-					t.Fatalf("runtime history row: status=%q capabilities=%+v reason=%q", row.Status, row.Capabilities, row.ReadOnlyReason)
-				}
-			})
-		}
+	for _, ownership := range []string{"known", "unlisted"} {
+		t.Run(ownership, func(t *testing.T) {
+			n, _, home := herdrNode(t)
+			cwd := mkdir(t, filepath.Join(home, "proj"))
+			writeTranscript(t, home, cwd, sidA, time.Now().Add(-time.Hour),
+				`{"type":"user","cwd":"`+cwd+`","message":{"role":"user","content":"hi"},"uuid":"u1"}`,
+				`{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"`+strings.Repeat("done ", 600)+`"}]},"uuid":"a1","parentUuid":"u1"}`)
+			// A session a runtime lists can have an old terminal left in the node's state.
+			n.state.put(sidA, sessionState{Pane: "w1:p1", Launcher: "cc", Cwd: cwd})
+			n.runtimes = newRuntimeRegistry()
+			if ownership == "known" {
+				n.runtimes.known[sidA] = knownSession{runtime: "dsh", label: "DSH", at: time.Now()}
+			} else {
+				n.runtimes.unlisted = map[string]unlistedOf{"dsh": {set: map[string]bool{sidA: true}}}
+			}
+			row := byID(listSessions(t, n))[sidA]
+			if row.SessionID != sidA || row.Status != proto.StatusOffline || row.Capabilities != nil || row.ReadOnlyReason != "" {
+				t.Fatalf("runtime history row: status=%q capabilities=%+v reason=%q", row.Status, row.Capabilities, row.ReadOnlyReason)
+			}
+		})
 	}
 }
 

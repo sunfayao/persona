@@ -321,10 +321,7 @@ var rpcFailureKeys = map[string]string{
 	proto.CodeAgyIntegrationMissing:      "rpc-errors.agy_integration_missing", // an agy start herdr could not make readable (node/agyhook.go)
 	"assistant_supervision_runtime":      "rpc-errors.assistant_supervision_runtime",
 	"assistant_supervision_account":      "rpc-errors.assistant_supervision_account",
-	// a start whose engine runs only its own launchers and has none of the launcher's kind (#8140); the engine's own
-	// words, naming the launcher, stay in detail
-	proto.CodeLauncherKindMissing: "rpc-errors.launcher_kind_missing",
-	"assistant_in_doubt":          "rpc-errors.in_doubt",
+	"assistant_in_doubt":                 "rpc-errors.in_doubt",
 	// queued messages sent now (#6088)
 	"nothing_queued":        "rpc-errors.nothing_queued",
 	"send_now_unsupported":  "rpc-errors.send_now_unsupported",
@@ -339,7 +336,6 @@ var rpcFailureKeys = map[string]string{
 	"worktree_dirty":    "rpc-errors.worktree_dirty",
 	"worktree_unmerged": "rpc-errors.worktree_unmerged",
 	// a preview's server with no terminal engine to run in (node/preview_launch.go)
-	"preview_no_terminal": "rpc-errors.preview_no_terminal",
 	// a space to rename that no engine of the computer lists any more (node/rename.go)
 	"space_gone": "rpc-errors.space_gone",
 	// a Claude session outside Persona's terminals, through its peer inbox (node/claudepeer.go)

@@ -8,8 +8,8 @@
       "lines": 197454
     },
     "internal/devices": {
-      "files": 67,
-      "lines": 21171
+      "files": 66,
+      "lines": 20876
     },
     "internal/extension": {
       "files": 73,
@@ -20,16 +20,16 @@
       "lines": 39728
     },
     "internal/hub": {
-      "files": 241,
-      "lines": 61139
+      "files": 240,
+      "lines": 60252
     },
     "internal/node": {
-      "files": 604,
-      "lines": 157656
+      "files": 583,
+      "lines": 148569
     },
     "internal/proto": {
-      "files": 91,
-      "lines": 10216
+      "files": 90,
+      "lines": 9995
     }
   }
 }

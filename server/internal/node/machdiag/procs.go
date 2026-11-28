@@ -34,11 +34,8 @@ const (
 var kinds = map[string]string{
 	"claude": proto.ProcessKindAgent, "codex": proto.ProcessKindAgent, "opencode": proto.ProcessKindAgent,
 	"pi": proto.ProcessKindAgent, "gemini": proto.ProcessKindAgent,
-	// The engines (proto.Engine*) and the terminal multiplexer Agents may run in.
-	proto.EngineHerdr: proto.ProcessKindEngine, proto.EngineOrca: proto.ProcessKindEngine,
-	proto.EngineTern: proto.ProcessKindEngine, proto.EngineRex: proto.ProcessKindEngine,
-	proto.EnginePaseo: proto.ProcessKindEngine,
-	proto.EngineCindy: proto.ProcessKindEngine, "t3": proto.ProcessKindEngine, "tmux": proto.ProcessKindEngine,
+	// The engine (herdr) and the terminal multiplexer Agents may run in.
+	proto.EngineHerdr: proto.ProcessKindEngine, "tmux": proto.ProcessKindEngine,
 	"personad": proto.ProcessKindPersona, "persona-node": proto.ProcessKindPersona,
 	"persona-link": proto.ProcessKindPersona, "persona": proto.ProcessKindPersona,
 }

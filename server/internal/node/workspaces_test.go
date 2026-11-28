@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/host"
-	"github.com/sunfayao/persona/server/internal/orcart/orcarttest"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -47,97 +46,6 @@ func TestWorkspacesListHerdrEmptyAndShellSpaces(t *testing.T) {
 	assertTrace(t, f.trace(), []string{"session.snapshot {}"})
 }
 
-func TestWorkspacesListOrcaKeepsWorktreesWithoutTerminals(t *testing.T) {
-	n, f, o, procs, _ := orcaNode(t)
-	o.SetWorktrees(
-		orcarttest.Worktree("empty", "/tmp/empty-tree", "refs/heads/feature-empty"),
-		orcarttest.Worktree("unknown-path", "", ""),
-	)
-	w := workspaceList(t, n)
-	if len(w) != 2 || w[0].SourceID != "empty" || w[0].Cwd != "/tmp/empty-tree" || w[0].Branch != "feature-empty" || w[1].Cwd != "" {
-		t.Fatalf("workspaces = %+v", w)
-	}
-	if procs.scans != 0 || len(o.Trace("terminal.list", "terminal.send", "terminal.close")) != 0 || len(f.trace()) != 0 {
-		t.Fatal("workspace catalog inspected processes or touched terminals")
-	}
-	// A catalog error cannot be mistaken for an empty, successful refresh.
-	o.Handle("worktree.ps", func(map[string]any) any { return orcarttest.Fail{Code: "method_not_found"} })
-	if _, err := n.handle(context.Background(), "workspaces.list", nil); err == nil || !strings.Contains(err.Error(), "orca") {
-		t.Fatalf("unsupported catalog = %v", err)
-	}
-}
-
-func TestWorkspacesCatalogPreservesOrcaHierarchyWithoutAgents(t *testing.T) {
-	n, _, o, procs, _ := orcaNode(t)
-	root := orcarttest.Worktree("root", "/tmp/root", "")
-	root["displayName"] = "Workspace collection"
-	child := orcarttest.Worktree("child", "/tmp/elsewhere", "refs/heads/feature")
-	child["parentWorktreeId"] = "root"
-	grandchild := orcarttest.Worktree("grandchild", "/tmp/third", "")
-	grandchild["parentWorktreeId"] = "child"
-	o.SetWorktrees(root, child, grandchild)
-	w := workspaceList(t, n)
-	if len(w) != 3 || w[0].Title != "Workspace collection" || w[0].ParentSourceID != "" ||
-		w[1].ParentSourceID != "root" || w[2].ParentSourceID != "child" || w[2].Index != 3 {
-		t.Fatalf("hierarchy = %+v", w)
-	}
-	if procs.scans != 0 || len(o.Trace("terminal.list", "terminal.send", "terminal.close")) != 0 {
-		t.Fatal("reading workspace containers inspected or changed agents")
-	}
-}
-
-func TestWorkspacesCatalogKeepsProjectSeparateFromWorkspaceParents(t *testing.T) {
-	n, _, o, procs, _ := orcaNode(t)
-	main := orcarttest.Worktree("app::/code/app", "/code/app", "")
-	main["repoId"], main["repo"], main["isMainWorktree"] = "app", "App", true
-	main["unread"], main["sidebarStatus"], main["workspaceKind"] = true, "working", "git"
-	o.Handle("worktree.list", func(map[string]any) any {
-		return map[string]any{"worktrees": []any{map[string]any{"id": "app::/code/app", "head": "abcdef1234567890"}}}
-	})
-	a := orcarttest.Worktree("app::/external/a", "/external/a", "a")
-	a["repoId"], a["repo"], a["isMainWorktree"] = "app", "App", false
-	b := orcarttest.Worktree("app::/external/b", "/external/b", "b")
-	b["repo"], b["isMainWorktree"], b["parentWorktreeId"] = "App", false, "foreign::/folder"
-	o.SetWorktrees(main, a, b)
-	ws := workspaceList(t, n)
-	if len(ws) != 3 {
-		t.Fatalf("workspaces = %+v", ws)
-	}
-	for _, w := range ws {
-		if w.ProjectID != "app" || w.ProjectName != "App" || w.ProjectPath != "/code/app" || w.IsMain == nil {
-			t.Fatalf("project metadata = %+v", w)
-		}
-	}
-	if !*ws[0].IsMain || *ws[1].IsMain || ws[1].ParentSourceID != "" || ws[2].ParentSourceID != "foreign::/folder" {
-		t.Fatalf("project changed workspace lineage: %+v", ws)
-	}
-	if ws[0].Unread == nil || !*ws[0].Unread || ws[0].SidebarStatus != "working" || ws[0].WorkspaceKind != "git" || ws[0].Head != "abcdef1234567890" {
-		t.Fatal("workspace presentation metadata was lost")
-	}
-	if procs.scans != 0 || len(o.Trace("terminal.list", "terminal.send", "terminal.close")) != 0 {
-		t.Fatal("project inventory touched agent processes or terminals")
-	}
-}
-
-func TestWorkspacesListHerdrCoreEmptySpaces(t *testing.T) {
-	n, f, hc, _ := hcNode(t)
-	hc.doc = map[string]any{"spaces": []any{
-		map[string]any{"id": "empty", "name": "project", "folder": "/tmp/empty-space"},
-		map[string]any{"id": "unknown", "name": "project"},
-	}}
-	w := workspaceList(t, n)
-	if len(w) != 2 || w[0].Cwd != "/tmp/empty-space" || w[1].Cwd != "" || w[0].Source != host.HerdrCore {
-		t.Fatalf("workspaces = %+v", w)
-	}
-	if len(f.trace()) != 0 {
-		t.Fatalf("classic herdr called: %v", f.trace())
-	}
-	hc.handle("doc.get", func(map[string]any) any { return hcFail{Kind: "unavailable"} })
-	if _, err := n.handle(context.Background(), "workspaces.list", nil); err == nil || !strings.Contains(err.Error(), "unavailable") {
-		t.Fatalf("failed document = %v", err)
-	}
-}
-
 type workspaceHost struct {
 	bareHost
 	spaces []host.Space
@@ -149,8 +57,8 @@ func (h *workspaceHost) Snapshot(context.Context) (*host.Layout, error) {
 }
 
 func TestWorkspacesListKeepsSameNamedSourcesAndReportsFailure(t *testing.T) {
-	a := &workspaceHost{bareHost: bareHost{kind: host.Orca}, spaces: []host.Space{{ID: "same", Label: "project"}}}
-	b := &workspaceHost{bareHost: bareHost{kind: host.HerdrCore}, spaces: []host.Space{{ID: "same", Label: "project"}}}
+	a := &workspaceHost{bareHost: bareHost{kind: host.Herdr}, spaces: []host.Space{{ID: "same", Label: "project"}}}
+	b := &workspaceHost{bareHost: bareHost{kind: host.Botmux}, spaces: []host.Space{{ID: "same", Label: "project"}}}
 	n := &Node{hosts: host.NewRegistry(a, b), state: newState()}
 	w := workspaceList(t, n)
 	if len(w) != 2 || w[0].Source == w[1].Source || w[0].SourceID != w[1].SourceID || w[0].Cwd != "" {
@@ -158,8 +66,8 @@ func TestWorkspacesListKeepsSameNamedSourcesAndReportsFailure(t *testing.T) {
 	}
 	b.err = errors.New("doc.get: unavailable")
 	partial, err := n.listWorkspaces(context.Background())
-	if err != nil || len(partial.Workspaces) != 1 || partial.Workspaces[0].Source != host.Orca ||
-		len(partial.Errors) != 1 || partial.Errors[0].Source != host.HerdrCore || partial.Errors[0].Error != b.err.Error() {
+	if err != nil || len(partial.Workspaces) != 1 || partial.Workspaces[0].Source != host.Herdr ||
+		len(partial.Errors) != 1 || partial.Errors[0].Source != host.Botmux || partial.Errors[0].Error != b.err.Error() {
 		t.Fatalf("partial catalog = %+v, %v", partial, err)
 	}
 	a.err = host.ErrUnsupported
@@ -192,20 +100,20 @@ func TestWorkspacesListEmptyHostWithFailedSource(t *testing.T) {
 	}
 }
 
-// An engine that is not running on this computer (Orca not started, botmux without a daemon or too old) has no
-// workspaces: not a source error for the board, and not a failure even when nothing else runs (#3023).
+// A host that is not running on this computer (no tmux server, botmux without a daemon or too old) has no workspaces:
+// not a source error for the board, and not a failure even when nothing else runs (#3023).
 func TestWorkspacesListSkipsHostsNotRunning(t *testing.T) {
 	herdr := &workspaceHost{bareHost: bareHost{kind: host.Herdr}, spaces: []host.Space{{ID: "w1", Label: "project"}}}
-	orca := &workspaceHost{bareHost: bareHost{kind: host.Orca},
-		err: host.Mark(errors.New("orca is not running: open orca-runtime.json: no such file or directory"), host.ErrNotRunning)}
+	tmux := &workspaceHost{bareHost: bareHost{kind: host.Tmux},
+		err: host.Mark(errors.New("no tmux server is running"), host.ErrNotRunning)}
 	botmux := &workspaceHost{bareHost: bareHost{kind: host.Botmux},
 		err: host.Mark(errors.New("botmux is too old to list its sessions"), host.ErrNotRunning)}
-	n := &Node{hosts: host.NewRegistry(herdr, orca, botmux), state: newState()}
+	n := &Node{hosts: host.NewRegistry(herdr, tmux, botmux), state: newState()}
 	got, err := n.listWorkspaces(context.Background())
 	if err != nil || len(got.Workspaces) != 1 || got.Workspaces[0].Source != host.Herdr || len(got.Errors) != 0 {
-		t.Fatalf("with engines not running = %+v, %v", got, err)
+		t.Fatalf("with hosts not running = %+v, %v", got, err)
 	}
-	n.hosts = host.NewRegistry(orca, botmux)
+	n.hosts = host.NewRegistry(tmux, botmux)
 	got, err = n.listWorkspaces(context.Background())
 	if err != nil || got.Workspaces == nil || len(got.Workspaces) != 0 || len(got.Errors) != 0 {
 		t.Fatalf("nothing running = %+v, %v", got, err)

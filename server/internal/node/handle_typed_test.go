@@ -132,10 +132,9 @@ func TestTypedHandleParamsDecodeAsTheSharedStructDid(t *testing.T) {
 		},
 		{
 			name:   methodWorktreePrepare,
-			sample: `{"composer":true,"kind":"herdr","workspace_id":"w1","cwd":"/repo","branch":"b","allow_untracked":true}`,
+			sample: `{"kind":"herdr","workspace_id":"w1","cwd":"/repo","branch":"b","allow_untracked":true}`,
 			// Branch inspection and untracked-file reuse extend the shared request shape after the typed split.
 			legacy: &struct {
-				Composer       bool   `json:"composer"`
 				Kind           string `json:"kind"`
 				WorkspaceID    string `json:"workspace_id"`
 				Cwd            string `json:"cwd"`
@@ -149,34 +148,20 @@ func TestTypedHandleParamsDecodeAsTheSharedStructDid(t *testing.T) {
 		},
 		{
 			name:   methodWorktreeCreate,
-			sample: `{"composer":false,"kind":"herdr","workspace_id":"w1","cwd":"/repo","branch":"feat","path":"/wt","parent_workspace_id":"w0","auto_name":true,"for_agent":true,"open_workspace":false,"locale":"en"}`,
+			sample: `{"kind":"herdr","workspace_id":"w1","cwd":"/repo","branch":"feat","path":"/wt","auto_name":true,"for_agent":true,"open_workspace":false,"locale":"en"}`,
 			legacy: &struct {
-				Composer          bool   `json:"composer"`
-				Kind              string `json:"kind"`
-				WorkspaceID       string `json:"workspace_id"`
-				Cwd               string `json:"cwd"`
-				Branch            string `json:"branch"`
-				Path              string `json:"path"`
-				ParentWorkspaceID string `json:"parent_workspace_id"`
-				AutoName          bool   `json:"auto_name"`
-				ForAgent          bool   `json:"for_agent"` // added after the split (#10624)
-				OpenWorkspace     *bool  `json:"open_workspace"`
+				Kind          string `json:"kind"`
+				WorkspaceID   string `json:"workspace_id"`
+				Cwd           string `json:"cwd"`
+				Branch        string `json:"branch"`
+				Path          string `json:"path"`
+				AutoName      bool   `json:"auto_name"`
+				ForAgent      bool   `json:"for_agent"` // added after the split (#10624)
+				OpenWorkspace *bool  `json:"open_workspace"`
 			}{},
 			typed: &worktreeCreateParams{},
 			same: func(l, n any) bool {
 				return reflect.DeepEqual(reflect.ValueOf(l).Elem().Convert(reflect.TypeOf(worktreeCreateParams{})).Interface(), *n.(*worktreeCreateParams))
-			},
-		},
-		{
-			name:   methodWorktreeSource,
-			sample: `{"kind":"orca","workspace_id":"w1","cwd":"/repo","name":"x"}`,
-			legacy: &struct {
-				Kind        string `json:"kind"`
-				WorkspaceID string `json:"workspace_id"`
-			}{},
-			typed: &worktreeSourceParams{},
-			same: func(l, n any) bool {
-				return reflect.DeepEqual(reflect.ValueOf(l).Elem().Convert(reflect.TypeOf(worktreeSourceParams{})).Interface(), *n.(*worktreeSourceParams))
 			},
 		},
 		{

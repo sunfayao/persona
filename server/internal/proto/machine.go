@@ -59,19 +59,9 @@ type Machine struct {
 	Transport   string `json:"transport,omitempty"`
 	Tailcat     bool   `json:"tailcat,omitempty"`
 	TailcatPath string `json:"tailcat_path,omitempty"`
-	// Engine is the terminal host the machine's node drives (EngineHerdr when never chosen); Engines, what the node
-	// found on the machine (empty while offline). docs/protocol/protocol.md "Engines".
-	Engine  string   `json:"engine"`
+	// Engines is herdr as the node found it on the machine (one entry; empty while offline): the capability check shows
+	// it, and says so when herdr is missing. docs/protocol/protocol.md "Engine".
 	Engines []Engine `json:"engines"`
-	// EngineHosts and EngineDefault are the hosts the machine enables side by side and its default host (#2576,
-	// enginehosts.go): Engine is the single engine closest to them, for older clients. A machine never set has
-	// [herdr]; the empty set has no default. EngineSuggested is the set to preselect when the machine is paired
-	// (what the node found available, else herdr; only while online). EngineSetsUnsupported: the node is online, too
-	// old for sets, and the chosen set is not one it can run as chosen — it runs Engine until it is updated.
-	EngineHosts           []string      `json:"engine_hosts"`
-	EngineDefault         string        `json:"engine_default"`
-	EngineSuggested       *EngineChoice `json:"engine_suggested,omitempty"`
-	EngineSetsUnsupported bool          `json:"engine_sets_unsupported,omitempty"`
 	// Computer: operating it through Cua Driver, while the plugin cua is on and it is a Mac (Computer).
 	Computer *Computer `json:"computer,omitempty"`
 	// Browser: its ego lite, while the plugin ego is on and it is a Mac (Browser).
@@ -201,13 +191,8 @@ type NodeInfo struct {
 	// machine's remote_bin).
 	Program    string `json:"program,omitempty"`
 	Executable string `json:"executable,omitempty"`
-	// Engine is the engine the node drives now; Engines, what it found (proto.Machine.Engines). Older nodes leave
-	// both out.
-	Engine  string   `json:"engine,omitempty"`
+	// Engines is herdr as the node found it (proto.Machine.Engines). Older nodes leave it out.
 	Engines []Engine `json:"engines,omitempty"`
-	// EngineHosts is the set of hosts the node drives now (enginehosts.go): reported by nodes that take a set in
-	// engine.use (its hosts and default fields), left out by older ones — the hub then sends them only the engine.
-	EngineHosts *EngineChoice `json:"engine_hosts,omitempty"`
 	// MachineUID is the computer's own id (~/.persona/machine-uid, a UUIDv4 made on the node's first run): hubs that
 	// both reach it tell it is the same computer. Older nodes leave it out.
 	MachineUID string `json:"machine_uid,omitempty"`

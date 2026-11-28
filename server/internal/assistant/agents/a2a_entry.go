@@ -61,11 +61,10 @@ func a2aRelay(m prompts.A2AMessage, from Ref, id string) string {
 
 // SessionEntry is how running session c reaches its own Persona tools: whether it has the Persona MCP tools, and
 // whether it calls them from a terminal the node verifies. A Codex app-server thread can identify its caller through
-// CODEX_THREAD_ID even when it has no terminal pane. Paseo injects the Persona MCP server into its Claude and Codex.
+// CODEX_THREAD_ID even when it has no terminal pane.
 func SessionEntry(c proto.Session) (mcp, terminal bool) {
-	paseo := c.Host == proto.EnginePaseo
-	terminal = !paseo && (c.SourceKind == "" || c.SourceKind == proto.SourceClaudeTerminal ||
-		c.Agent == "codex" && c.SourceThreadID != "" && (c.SourceKind == "codex_app_server" || c.SourceKind == "codex_history"))
-	mcp = terminal && c.Agent == "claude" || paseo && (c.Agent == "claude" || c.Agent == "codex")
+	terminal = c.SourceKind == "" || c.SourceKind == proto.SourceClaudeTerminal ||
+		c.Agent == "codex" && c.SourceThreadID != "" && (c.SourceKind == "codex_app_server" || c.SourceKind == "codex_history")
+	mcp = terminal && c.Agent == "claude"
 	return mcp, terminal
 }

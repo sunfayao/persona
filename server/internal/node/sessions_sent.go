@@ -105,9 +105,6 @@ func (n *Node) sendRevs(revs map[string]int64) {
 	_ = n.peer.Notify("sessions.revs", map[string]any{"revs": revs})
 }
 
-// forget: the next list goes out whatever the last one was (an engine switch).
-func (s *sentList) forget() { s.epoch.Add(1) }
-
 // answering marks a sessions.list answer of the request ctx until it is written: rpc ends a request's ctx after its
 // answer is on the wire (Peer.handle), or when the request or the connection is cancelled, when the manager takes no
 // answer. A ctx that never ends (tests calling handle directly) keeps every later list going out, as before.

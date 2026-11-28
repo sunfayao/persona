@@ -26,17 +26,21 @@ type clipboardSwitches struct {
 // blue-green switch) may have turned one off, and an off switch must not stay on here for long.
 const clipboardFresh = 10 * time.Second
 
+// settingsRetry: after settings could not be read, how long a switch read answers from what it has before trying
+// again (clipboard and file transfer: they are read while machine lists are built).
+const settingsRetry = 30 * time.Second
+
 // clipboardOn is whether the user turned clipboard sharing on for machine; off when never set, and off while the
 // settings cannot be read (it fails closed).
 func (d *Devices) clipboardOn(machine string) bool {
 	c := &d.clipboard
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if time.Since(c.loadedAt) >= clipboardFresh && (c.failedAt.IsZero() || time.Since(c.failedAt) >= engineRetry) {
+	if time.Since(c.loadedAt) >= clipboardFresh && (c.failedAt.IsZero() || time.Since(c.failedAt) >= settingsRetry) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := d.loadClipboardLocked(ctx); err != nil {
-			d.logf("clipboard switches: %v (retried in %s)", err, engineRetry)
+			d.logf("clipboard switches: %v (retried in %s)", err, settingsRetry)
 			c.failedAt, c.on = time.Now(), nil // fails closed
 		}
 	}

@@ -225,7 +225,6 @@ type Node struct {
 	dialogs   paneDialogs                // pane -> the dialog its last screen read showed (dialogstatus.go)
 	allowed   allowWatches               // session -> its pane, followed after an allow (allowwatch.go)
 	firstWait sync.WaitGroup             // first messages being checked (firstprompt.go)
-	engLists  sync.WaitGroup             // new engines' session lists being built in the background (useEngine)
 	lostFirst lostPrompts                // session id -> why its first message did not go in (firstprompt.go)
 	workSent  workSent                   // Cursor / agy pane -> when a message last went in (worksent.go)
 	agyProofs map[string]agyProof        // herdr pane -> the agy conversation a Persona start proved there (agyproof.go)
@@ -349,11 +348,9 @@ type Node struct {
 	codexAbandoned map[string][]codexAbandonedStart
 	// keptStarts: the tabs of failed starts kept open for a while, by pane (shellsettle.go keepStartTab); n.mu.
 	keptStarts map[string]keptStart
-	// finishedSince: when each finished Agent's terminal was first seen at rest, with its screen; agentTerms: the
-	// terminals opened for Agents on engines without marks of their own (finished_close.go); n.mu.
+	// finishedSince: when each finished Agent's terminal was first seen at rest, with its screen (finished_close.go);
+	// n.mu.
 	finishedSince map[string]finishedClock
-	agentTerms    map[string]bool
-	agentRoots    map[string]bool // first shells of Agent worktrees on engines without tokens (personatab.go)
 
 	expectedTokensMu sync.Mutex
 	expectedTokens   map[string]map[string]string
@@ -529,7 +526,7 @@ func New(version string) (*Node, error) {
 		n.links.EnableDirect(d)
 	}
 	n.configureCodex(proto.CodexConfig{})
-	n.hosts = host.NewRegistry(nodeHosts(proto.EngineHerdr, false, n.logger.Printf)...) // herdr until engine.use, botmux until the hub says
+	n.hosts = host.NewRegistry(nodeHosts(false, n.logger.Printf)...) // botmux once the hub says
 	n.resetSignals()
 	n.state = newState()
 	go sweepTerminalUploads(dir, time.Now()) // pasted files older than a week (upload_sweep.go)
@@ -627,7 +624,7 @@ func (n *Node) Serve(ctx context.Context, r io.Reader, w io.Writer) error {
 	} else {
 		defer ln.Close()
 	}
-	go n.startWhenConfigured(ctx) // polling and the engine's events, once the hub said which engine (engine.go)
+	go n.startPolling(ctx) // polling the hosts and their events (engine.go)
 	go n.warmTranscripts(ctx)
 	reaped := make(chan struct{})
 	go func() { defer close(reaped); n.reapAssistants(ctx) }()
@@ -1058,10 +1055,9 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 	}
 	// Before anything else reads the id (a backend session's pin, an alias, a Codex thread, a runtime's session): an
 	// extension's resume of a conversation the hub does not list goes on only for one this computer has outside the
-	// health space (#10941). A refusal that holds for any id comes first (resumeHostRefusal): an engine that is away
-	// may have it, and the owner's resume is told the same, whatever the id.
+	// health space (#10941). A refusal that holds for any id comes first: a host the start cannot open in.
 	if devicewire.IsSessionStart(method) && p.ResumeOutsideHealth && p.ResumeSessionID != "" && !n.resumeOutsideHealth(ctx, p.ResumeSessionID) {
-		if err := n.resumeHostRefusal(ctx, p.Host); err != nil {
+		if err := n.checkStartHost(p.Host); err != nil {
 			return nil, err
 		}
 		return nil, resumeUnknown()
@@ -1310,37 +1306,6 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		}
 		_ = json.Unmarshal(params, &c)
 		return ghToken(ctx, c.Host)
-	case "engine.use": // the engine the user chose for this machine (engine.go)
-		// A hub with sets (#2576) sends hosts and default beside the single engine; an older one, the engine alone.
-		var e struct {
-			Engine  string    `json:"engine"`
-			Hosts   *[]string `json:"hosts"`
-			Default string    `json:"default"`
-		}
-		if err := json.Unmarshal(params, &e); err != nil {
-			return nil, err
-		}
-		var err error
-		if e.Hosts != nil {
-			err = n.useEngineChoice(ctx, proto.EngineChoice{Hosts: *e.Hosts, Default: e.Default})
-		} else {
-			err = n.useEngine(ctx, e.Engine)
-		}
-		if err != nil {
-			return nil, err
-		}
-		if n.runtimeHost != nil { // Paseo's agents come through its bridge, which the node runs (paseobridge.go)
-			n.runtimeHost.setPaseoBridge(n.hostEnabled(proto.EnginePaseo))
-			// Orca's chats come through a bridge the node runs too (orcabridge.go); its terminals, the Orca host.
-			n.runtimeHost.setOrcaBridge(n.hostEnabled(proto.EngineOrca))
-			// Cindy's agents come through its bridge (cindybridge.go).
-			n.runtimeHost.setCindyBridge(n.hostEnabled(proto.EngineCindy))
-			// T3 Code's threads come through its bridge (t3codebridge.go).
-			n.runtimeHost.setT3CodeBridge(n.hostEnabled(proto.EngineT3Code))
-		}
-		n.configured()
-		c := n.engineChoice()
-		return map[string]any{"engine": n.engine(), "hosts": c.Hosts, "default": c.Default}, nil
 	case "node.configure":
 		var c struct {
 			// HubFeatures comes from the authenticated hub through devices.connected. Partial
@@ -1451,20 +1416,6 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		if p.Source == proto.ExternalLauncherSource {
 			return n.externalLauncherList(ctx, p.Refresh)
 		}
-		if p.Host != "" {
-			// What a start in that host can run (the manager's New Agent and its starts, #8140): where it is an engine
-			// runtime that runs only its own launchers, its providers and what starts elsewhere whatever the host.
-			if h := n.exclusiveRuntime(withStartHost(ctx, p.Host)); h != nil {
-				ls := n.engineHostLaunchers(h)
-				if withDesktop, added := n.withDesktopLauncher(ls); added {
-					ls = withDesktop
-				}
-				if withApp, added := n.withCodexAppLauncher(ls); added {
-					ls = withApp
-				}
-				return map[string]any{"launchers": typedLaunchers(ls), "host": p.Host, "host_runtime": true}, nil
-			}
-		}
 		forced := p.Refresh
 		cacheOnly := p.CacheOnly && !forced && p.Host == "" && p.Source == ""
 		var ls []proto.Launcher
@@ -1567,7 +1518,6 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 	case "dirs.list":
 		return n.dirs(p.Path)
 	case "workspaces.list":
-		n.configured()
 		n.useBotmux(true, true)
 		return n.listWorkspaces(ctx)
 	case "workspace.resolve":
@@ -1584,8 +1534,7 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		if handoff.UpdateHandoff != nil {
 			n.reload.SetHeadlessPaused(*handoff.UpdateHandoff)
 		}
-		n.configured()          // a hub that lists without engine.use keeps herdr (engine.go)
-		n.useBotmux(true, true) // and one that lists without saying botmux keeps it, as before (hostbotmux.go)
+		n.useBotmux(true, true) // a hub that lists without saying botmux keeps it, as before (hostbotmux.go)
 		n.sent.answering(ctx)   // the manager may take this list as its own: the next push goes whatever it is
 		list := n.sessionList(ctx, true)
 		// update_busy: node.update.commit would refuse now; the manager waits on it before sending a build (node_update_idle).
@@ -1599,7 +1548,7 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		if p.ResumeSessionID == "" {
 			p.TaskInstructions = n.agentStartRules(p.TaskInstructions)
 		}
-		speed, err := n.prepareSessionStartSpeed(ctx, p.Speed, p.Launcher, p.Host, p.ResumeSessionID)
+		speed, err := n.prepareSessionStartSpeed(p.Speed, p.Launcher, p.ResumeSessionID)
 		if err != nil {
 			return nil, err
 		}
@@ -1612,8 +1561,7 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 			(p.ResumeSessionID == "" || p.AgentType != ompAgent && launcherAgentType(p.Launcher) != ompAgent) {
 			echoImages = len(p.Images)
 			startCtx := withStartHost(ctx, p.Host)
-			runtime, _ := n.startRuntimeIn(startCtx, p.Launcher)
-			_, engineRuntime := engineRuntimes[n.startKind(startCtx)]
+			runtime, _ := n.startRuntime(p.Launcher)
 			desktopCodex := isCodexAppLauncher(p.Launcher)
 			if p.ResumeSessionID == "" && (desktopCodex || runtime != nil && runtime.id() == agyAgent && !n.usesAgyPane(startCtx, p.Launcher, p.AgentType)) {
 				runtimeImages = p.Images
@@ -1623,7 +1571,7 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 					return nil, err
 				}
 				agent := n.startAgentType(p.Launcher, p.AgentType)
-				if p.ResumeSessionID == "" && runtime == nil && !engineRuntime &&
+				if p.ResumeSessionID == "" && runtime == nil &&
 					(agent == traexAgent || agent == "codex" && !p.Async) {
 					initialImages = paths
 				} else {
@@ -1690,9 +1638,6 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 				return nil, err
 			}
 		}
-		if p.ResumeSessionID != "" && p.Host == "" {
-			p.Host = n.startKind(n.withResumeHost(ctx, p.ResumeSessionID))
-		}
 		var work workStartOptions
 		if method == devicewire.MethodStartWorkSession {
 			if p.ResumeSessionID != "" {
@@ -1731,10 +1676,7 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 			if kind == ompAgent {
 				return nil, ompOptionsRefusal(ctx)
 			}
-			if _, runtime := engineRuntimes[cmp.Or(p.Host, n.defaultKind())]; runtime { // the start's host is a runtime (Paseo)
-				kind = "runtime"
-			}
-			if h, _ := n.startRuntimeIn(withStartHost(ctx, p.Host), p.Launcher); h != nil { // what runtimeStart below would start it in
+			if h, _ := n.startRuntime(p.Launcher); h != nil { // what runtimeStart below would start it in
 				kind = "runtime"
 			}
 			if err := n.checkUltracodeStart(ctx, p.Ultracode, kind); err != nil {
@@ -1749,16 +1691,13 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 			if kind == "" {
 				kind = launcherAgentType(p.Launcher)
 			}
-			if _, runtime := engineRuntimes[cmp.Or(p.Host, n.defaultKind())]; runtime {
-				kind = "runtime"
-			}
 			if h, _ := n.startRuntime(p.Launcher); h != nil {
 				kind = "runtime"
 			}
 			if isDesktopLauncher(p.Launcher) || isCodexAppLauncher(p.Launcher) {
 				kind = "app"
 			}
-			if err := n.checkStartGoal(goal, kind, cmp.Or(p.Host, n.defaultKind()), p.ResumeSessionID, p.Prompt); err != nil {
+			if err := n.checkStartGoal(goal, kind, cmp.Or(p.Host, host.Herdr), p.ResumeSessionID, p.Prompt); err != nil {
 				return nil, err
 			}
 		}
@@ -1774,13 +1713,12 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 			rp.Prompt = ""
 		}
 		if p.ResumeSessionID == "" && runtimeIDRe.MatchString(p.SessionID) {
-			// The id the hub named for a new session goes to a runtime too (Paseo gives its session that id, #8130), so
-			// a start whose answer never comes back is found by it there as in a terminal (the start below).
+			// The id the hub named for a new session goes to a runtime too (#8130), so a start whose answer never comes
+			// back is found by it there as in a terminal (the start below).
 			rp.SessionID = p.SessionID
 		}
 		if p.SecretTicket != "" { // only a new Claude Code start in a terminal takes one (control.go secretStartProblem)
-			_, onRuntime := engineRuntimes[cmp.Or(p.Host, n.defaultKind())]
-			if h, _ := n.startRuntimeIn(withStartHost(ctx, p.Host), p.Launcher); h != nil || onRuntime || p.ResumeSessionID != "" || isDesktopLauncher(p.Launcher) || isCodexAppLauncher(p.Launcher) {
+			if h, _ := n.startRuntime(p.Launcher); h != nil || p.ResumeSessionID != "" || isDesktopLauncher(p.Launcher) || isCodexAppLauncher(p.Launcher) {
 				return nil, refusal(secretEnvAgentCode, secretEnvAgentText, nil)
 			}
 			if !n.handoffs().has(p.SecretTicket) {
@@ -1789,9 +1727,8 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		}
 		if work.runtime != nil {
 			rp.Model = work.runtimeModel // the runtime's configured default, never a caller override
-			s, instead, err := n.runtimeStartOn(ctx, work.runtime, rp)
-			res, err := n.creationResult(s, err, p.ResumeSessionID, p.CreationID, p.Incarnation, taskSpace)
-			return withInstead(res, err, instead)
+			s, err := n.runtimeStartOn(ctx, work.runtime, rp)
+			return n.creationResult(s, err, p.ResumeSessionID, p.CreationID, p.Incarnation, taskSpace)
 		}
 		if method == "session.start" {
 			if s, err, ok := n.startInDesktopApp(ctx, rp, p.NameHint); ok { // a new session in Claude's desktop app (claudedesktop_new.go)
@@ -1802,21 +1739,15 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 			if s, err, ok := n.startInCodexApp(ctx, rp, p.NameHint); ok { // a new chat in the Codex App (codexapp_new.go)
 				return n.creationResult(s, err, p.ResumeSessionID, p.CreationID, p.Incarnation, taskSpace)
 			}
-			// A runtime's launcher; on a host whose engine runs only its own launchers, any name it offers (#8140).
-			if s, instead, err, ok := n.runtimeStart(withStartHost(ctx, p.Host), rp); ok {
-				res, err := n.creationResult(s, err, p.ResumeSessionID, p.CreationID, p.Incarnation, taskSpace)
-				return withInstead(res, err, instead)
+			// A runtime's launcher.
+			if s, err, ok := n.runtimeStart(withStartHost(ctx, p.Host), rp); ok {
+				return n.creationResult(s, err, p.ResumeSessionID, p.CreationID, p.Incarnation, taskSpace)
 			}
 		}
 		if err := n.checkStartHost(p.Host); err != nil {
 			return nil, err
 		}
 		ctx = withStartHost(ctx, p.Host)
-		if _, ok := engineRuntimes[n.startKind(ctx)]; ok { // the start's host is a runtime (Paseo): it is its (runtimecontrol.go)
-			s, instead, err := n.startOnEngineRuntime(ctx, rp)
-			res, err := n.creationResult(s, err, p.ResumeSessionID, p.CreationID, p.Incarnation, taskSpace)
-			return withInstead(res, err, instead)
-		}
 		// Only Claude Code has a session id before it starts; another agent picks its own (start_agent.go).
 		asyncAgent := n.startAgentType(p.Launcher, p.AgentType)
 		if p.Async && p.ResumeSessionID == "" && (p.AgentType == "" || p.AgentType == "claude") &&
@@ -2264,7 +2195,6 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		_ = json.Unmarshal(params, &a)
 		return n.terminalWatch(ctx, p.SessionID, a.Control)
 	case "panes.list": // the terminal browser: every workspace, tab and pane, agent or shell (panes.go)
-		n.configured()
 		res, err := n.listPanes(ctx)
 		if err == nil {
 			n.paneForegrounds(ctx, &res)
@@ -2311,10 +2241,7 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 				return nil, err
 			}
 		}
-		if in.Composer {
-			return n.worktreeComposerPrepare(worktreeComposerContext(ctx, params), in.Kind, in.WorkspaceID)
-		}
-		return n.worktreePrepareBranch(worktreeComposerContext(ctx, params), in)
+		return n.worktreePrepareBranch(worktreeLocale(ctx, params), in)
 	case methodWorktreeCreate: // a Git worktree of a workspace's repository, opened as a workspace (worktree.go)
 		var in worktreeCreateParams
 		if err := json.Unmarshal(params, &in); err != nil {
@@ -2325,30 +2252,15 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 				return nil, err
 			}
 		}
-		if in.Composer {
-			return n.worktreeCompose(worktreeComposerContext(ctx, params), in.Kind, in.WorkspaceID, params)
-		}
-		if err := rejectComposerFields(ctx, params); err != nil {
-			return nil, err
-		}
 		if in.AutoName {
 			if strings.TrimSpace(in.Branch) != "" || strings.TrimSpace(in.Path) != "" {
 				return nil, errors.New("Choose automatic naming or an explicit branch and path")
 			}
-			return n.worktreeCreateAutomatic(withAgentWorktree(worktreeComposerContext(ctx, params), in.ForAgent), in.Kind, in.WorkspaceID, in.Cwd, in.ParentWorkspaceID)
+			return n.worktreeCreateAutomatic(withAgentWorktree(worktreeLocale(ctx, params), in.ForAgent), in.Kind, in.WorkspaceID, in.Cwd)
 		}
-		return n.worktreeCreate(withAgentWorktree(worktreeComposerContext(ctx, params), in.ForAgent), in.Kind, in.WorkspaceID, in.Cwd, in.Branch, in.Path, in.ParentWorkspaceID, in.OpenWorkspace)
-	case methodWorktreeSource, methodWorktreePreset:
-		var in worktreeSourceParams
-		if err := json.Unmarshal(params, &in); err != nil {
-			return nil, fmt.Errorf("bad params: %w", err)
-		}
-		if method == methodWorktreeSource {
-			return n.worktreeSources(worktreeComposerContext(ctx, params), in.Kind, in.WorkspaceID, params)
-		}
-		return n.worktreeSavePreset(worktreeComposerContext(ctx, params), in.Kind, in.WorkspaceID, params)
+		return n.worktreeCreate(withAgentWorktree(worktreeLocale(ctx, params), in.ForAgent), in.Kind, in.WorkspaceID, in.Cwd, in.Branch, in.Path, in.OpenWorkspace)
 	case methodWorktreeAdd, methodWorktreeStatus, methodWorktreeRemove: // a new agent's own worktree (agentworktree.go, #6115)
-		ctx = worktreeComposerContext(ctx, params) // its refusals in the request's language (the hub sends it)
+		ctx = worktreeLocale(ctx, params) // its refusals in the request's language (the hub sends it)
 		switch method {
 		case methodWorktreeAdd:
 			var in worktreeAddParams
@@ -3077,7 +2989,6 @@ func managedUser(method, launcher, name string) string {
 }
 
 func (n *Node) info(ctx context.Context) proto.NodeInfo {
-	choice := n.engineChoice()
 	host, _ := os.Hostname()
 	hv := n.herdrVersion(ctx)
 	canUpdate, updateReason := n.updater.Capability()
@@ -3103,9 +3014,7 @@ func (n *Node) info(ctx context.Context) proto.NodeInfo {
 		ClaudeVersion:      n.claudeV.set(claudeVersionOf(ctx)),
 		Version:            n.Version,
 		System:             n.system(ctx),
-		Engine:             n.engine(),
-		Engines:            n.engines(ctx, hv),
-		EngineHosts:        &choice, // this node takes sets in engine.use (the hub then sends it hosts and default)
+		Engines:            engines(hv),
 		MachineUID:         n.uid,
 		BuiltinPrograms:    builtinProgramIDs,
 		Clipboard:          clipshare.Support(),

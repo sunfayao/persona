@@ -127,9 +127,8 @@ func TestDispatchStartsOnAnotherComputerAndReadsTheResult(t *testing.T) {
 func TestDispatchStartsWithMatchingTabAndSessionNames(t *testing.T) {
 	s, f, st := newDispatchService(t, true)
 	f.tabReply = "Linux test results"
-	f.startReply = func(_ map[string]any, sess *proto.Session) *proto.StartInstead {
+	f.startReply = func(_ map[string]any, sess *proto.Session) {
 		sess.SlotID, sess.SpaceKind, sess.SlotName = "w1:t1", "herdr", "linux-test-results-2"
-		return nil
 	}
 	result := dispatchCall(s, "mac", "caller-0001", "dispatch_start", `{"machine":"box","cwd":"/code/app","prompt":"run the Linux tests"}`)
 	if result.IsError || len(f.starts) != 1 || f.starts[0]["tab_name"] != "linux-test-results" || f.starts[0]["title"] != f.starts[0]["tab_name"] {

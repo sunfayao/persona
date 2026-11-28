@@ -52,7 +52,11 @@ func TestHelperLCUProcess(t *testing.T) {
 			_ = os.Stdin.Close()
 			child := exec.Command("sleep", "5")
 			child.Stdout = os.Stdout
-			_ = child.Start()
+			if child.Start() == nil {
+				if f := os.Getenv("PERSONA_LCU_HELPER_ORPHAN_PID"); f != "" {
+					_ = os.WriteFile(f, []byte(strconv.Itoa(child.Process.Pid)), 0o600)
+				}
+			}
 			fmt.Fprintf(os.Stdout, "%s\n", frame)
 			os.Exit(0)
 		}
@@ -125,6 +129,18 @@ func TestLCUThatEndsBehindAChildFailsAtOnceAndRestarts(t *testing.T) {
 	var starts atomic.Int32
 	useHelperLCU(t, &starts)
 	t.Setenv("PERSONA_LCU_HELPER_ORPHAN", "1")
+	// The child the stand-in leaves behind is this process's once its parent exits (the node reaps what it inherits):
+	// gone before the next test, which may count this process's children (task_terminal_test.go).
+	orphan := filepath.Join(t.TempDir(), "orphan.pid")
+	t.Setenv("PERSONA_LCU_HELPER_ORPHAN_PID", orphan)
+	t.Cleanup(func() {
+		if b, err := os.ReadFile(orphan); err == nil {
+			if pid, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil && pid > 0 {
+				_ = osproc.Kill(pid)
+				waitGone(pid, 2*time.Second)
+			}
+		}
+	})
 	sess := newLCUSession(nil)
 	defer stopLCU(sess)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)

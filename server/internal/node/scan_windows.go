@@ -1,82 +1,14 @@
 package node
 
 import (
-	"slices"
 	"strings"
-	"time"
 
-	"github.com/sunfayao/persona/server/internal/node/engine/orca"
 	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // agentImages are the programs an agent process runs as on Windows: Claude Code's native binary, Codex's, or either's
 // script under node / bun (agentOfCmd decides from the command line).
 var agentImages = map[string]bool{"claude": true, "codex": true, "node": true, "bun": true}
-
-// scanOrcaProcsOS is scanOrcaProcs from Windows' process table. Windows has no terminal foreground group and no
-// stopped state, so an agent process with the pane's ORCA_PANE_KEY counts unless an agent process of the same pane is
-// among its ancestors (a claude started by a claude is not what the terminal shows). Claude first, then by start.
-func scanOrcaProcsOS() (map[string][]orcaProc, error) {
-	procs, parents, err := listWinProcs(func(name string) bool { return agentImages[name] },
-		orcaPaneEnv, orcaLegacyPaneEnv, herdrPaneEnv, herdrCorePaneEnv)
-	if err != nil {
-		return nil, err
-	}
-	type cand struct {
-		orcaProc
-		pane string
-	}
-	byPID := map[int]cand{}
-	for _, p := range procs {
-		agent := osproc.AgentOfCommand(p.argv)
-		if agent == "" {
-			continue
-		}
-		pane := orca.PaneOfEnvironment(envListing(p.env))
-		if pane == "" {
-			continue
-		}
-		byPID[p.pid] = cand{orcaProc{PID: p.pid, Agent: agent, Cwd: p.cwd, Start: p.start.Truncate(time.Second)}, pane}
-	}
-	out := map[string][]orcaProc{}
-	for pid, c := range byPID {
-		if !nestedAgent(pid, c.pane, c.Start.UnixNano(), parents, func(pid int) (string, int64, bool) {
-			a, ok := byPID[pid]
-			return a.pane, a.Start.UnixNano(), ok
-		}) {
-			out[c.pane] = append(out[c.pane], c.orcaProc)
-		}
-	}
-	for _, ps := range out {
-		slices.SortFunc(ps, func(a, b orcaProc) int {
-			if (a.Agent == "claude") != (b.Agent == "claude") {
-				if a.Agent == "claude" {
-					return -1
-				}
-				return 1
-			}
-			if c := a.Start.Compare(b.Start); c != 0 {
-				return c
-			}
-			return a.PID - b.PID
-		})
-	}
-	return out, nil
-}
-
-// nestedAgent: an agent process of the same pane, started before pid, is among pid's ancestors (parents maps a pid to
-// its parent's). The start check keeps a reused pid from making a stranger an ancestor.
-func nestedAgent(pid int, pane string, start int64, parents map[int]int,
-	agentOf func(pid int) (pane string, start int64, ok bool)) bool {
-	seen := map[int]bool{pid: true}
-	for p := parents[pid]; p != 0 && !seen[p]; p = parents[p] {
-		seen[p] = true
-		if apane, astart, ok := agentOf(p); ok && apane == pane && astart <= start {
-			return true
-		}
-	}
-	return false
-}
 
 // envListing writes picked variables as an environment listing (NAME=value, NUL-separated) for the parsers shared
 // with /proc and ps.

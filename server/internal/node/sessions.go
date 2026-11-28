@@ -506,7 +506,6 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 	n.markAgyStopped(out, agyRuntimeIDs)    // and one the user closed, stopped by them (agystopped.go)
 	parents, origins := n.offlineDesktop()
 	linkSideSessions(out, parents)           // the desktop app's side sessions under the sessions that started them (#5935)
-	linkHerdrChildren(out, agents)           // herdr's sub-agent terminals under the session of the terminal that started them
 	linkAgyChildren(out, agyConversations)   // agy's subagents under the pane row that lists their parent (agychildren.go)
 	placeClaudeDesktop(out, origins, n.home) // and in their projects (#8521)
 	n.joinFolderSpaces(out)                  // one folder, one space, whichever app placed a session there (folderspace.go)
@@ -547,7 +546,6 @@ func (n *Node) decorate(s *proto.Session) { n.decorateIn(s, nil) }
 
 // decorateIn is decorate looking up through a list pass (codexListPass; nil: each time).
 func (n *Node) decorateIn(s *proto.Session, pass *codexListPass) {
-	s.AlsoOpenIn = n.alsoOpenIn(s.SessionID) // live in another host too (ownership.go)
 	if s.PaneID != "" && s.Host == "" {
 		s.Host = host.ParsePane(s.PaneID).Kind // the host it runs in (#2576)
 	}

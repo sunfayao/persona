@@ -135,15 +135,14 @@ func (s *Service) fitTaskLauncher(ctx context.Context, t *PlanTask, m Device, ow
 // the prompt does not (pi's tools write files), so Persona does not start one for a task the owner marked read-only;
 // the node refuses their plan-mode start too (node/control.go). No other launcher is put in its place: the plan named
 // that agent. Anything else goes on as before: a launcher whose agent the computer's list does not say goes to the node
-// with plan, which refuses what it cannot hold read-only (nothing is refused here on a guess), and a start an engine
-// runtime runs is the runtime's to refuse (Paseo holds only its Claude Code providers read-only, caps.readonly). So is
-// an agy start on the Antigravity companion (host agy, fitTaskLauncher), which runs plan in agy's own plan mode (#13464).
+// with plan, which refuses what it cannot hold read-only (nothing is refused here on a guess). An agy start on the
+// Antigravity companion (host agy, fitTaskLauncher) is the companion's to refuse: it runs plan in agy's own plan mode
+// (#13464).
 func (s *Service) readonlyLauncherRefusal(ctx context.Context, m Device, params map[string]any, agent startAgent) error {
 	if !proto.IsWorkAgentType(agent.agent) {
 		return nil
 	}
-	host, _ := params["host"].(string)
-	if agentStartHost(m, host) != "" || agent.agent == "agy" && host == proto.HostAgy {
+	if host, _ := params["host"].(string); agent.agent == "agy" && host == proto.HostAgy {
 		return nil
 	}
 	// With assistant.readonly_mode prompt the owner takes read-only as an instruction (normal launcher permissions; not
@@ -236,8 +235,8 @@ func (s *Service) startTaskAgent(ctx context.Context, t *PlanTask, retry bool) (
 	// A self-planning constraint applies only while a policy rule asks for it on this try.
 	t.planFirst = false
 	params := map[string]any{"model_source": planModelSource(*t), "launcher": t.Launcher, "model": t.Model, "effort": t.Effort, "speed": t.Speed, "tier": t.Tier}
-	if t.Host != "" {
-		params["host"] = t.Host // before the fit: an engine host's runtime runs its own launchers (#8140)
+	if checkStartHostName(t.Host) == nil && t.Host != "" {
+		params["host"] = t.Host // before the fit: the Antigravity companion runs only agy (start_host.go)
 	}
 	// The start-defaults policy: its preset goes in before the start is resolved, as if the task had named that tier;
 	// its effort and ultracode after the launcher fit, and the goal (a rule's or the Codex default) after that.
@@ -349,7 +348,7 @@ func (s *Service) startTaskAgent(ctx context.Context, t *PlanTask, retry bool) (
 	}
 	// The goal: a rule's, else the Codex default for a task with criteria (startGoalSource); the default is not sent
 	// where the node is known to refuse it, and its refusal elsewhere is only logged (below).
-	defaultGoal := s.applyStartGoal(t, defaults, withDefaults, fit.agent, defaultGoalRefusedOn(m, params, fit), params)
+	defaultGoal := s.applyStartGoal(t, defaults, withDefaults, fit.agent, defaultGoalRefusedOn(fit), params)
 	if t.MachinePolicy == machineFixed {
 		// Only an actual terminal start can recheck a repaired terminal shell.
 		// An explicit retry keeps that existing recovery path on the fixed target;
@@ -517,8 +516,6 @@ func (s *Service) startTaskAgent(ctx context.Context, t *PlanTask, retry bool) (
 	var res struct {
 		Session  proto.Session            `json:"session"`
 		Terminal *devicewire.TaskTerminal `json:"task_terminal,omitempty"`
-		// What an engine that runs only its own launchers ran in place of what was asked (#8140).
-		Instead *proto.StartInstead `json:"instead"`
 	}
 	picked, _ := params["launcher"].(string)
 	t.TerminalTarget = taskTerminalTarget{}
@@ -666,7 +663,7 @@ func (s *Service) startTaskAgent(ctx context.Context, t *PlanTask, retry bool) (
 		res.Terminal.SessionID == res.Session.SessionID && res.Terminal.PaneID == res.Session.PaneID && !res.Session.Starting {
 		t.TerminalTarget = taskTerminalTarget{Machine: m.ID, TaskTerminal: *res.Terminal}
 	}
-	ran := ranLauncher(s.startLauncher(ctx, picked), res.Instead, res.Session)
+	ran := s.startLauncher(ctx, picked)
 	if res.Session.StartError != "" || res.Session.Starting {
 		observed := res.Session
 		observed.Launcher = ran
@@ -677,23 +674,6 @@ func (s *Service) startTaskAgent(ctx context.Context, t *PlanTask, retry bool) (
 	}
 	if !res.Session.Starting {
 		s.recordStartSuccess(ctx, m.ID, ran)
-	}
-	// The engine ran a launcher of the same kind, its own default model or a lower effort in place of what the task
-	// asked for (#8140): the task names what runs, and its why says so.
-	if note := s.startInsteadNote(ctx, m, res.Instead, res.Session); note != "" {
-		if res.Instead.Launcher != "" && ran != picked {
-			t.Launcher, t.Tier = ran, ""
-			t.startNamed.launcher = true
-		}
-		if res.Instead.Model != "" {
-			t.Model = ""
-			t.startNamed.noModel = true
-		}
-		if res.Instead.Effort != "" {
-			t.Effort = res.Session.Effort
-			t.startNamed.effort = true
-		}
-		t.noteWhy(note)
 	}
 	if refused { // only once it started here: a task moved elsewhere after a failed start asks again
 		off := false

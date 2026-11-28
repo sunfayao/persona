@@ -16,8 +16,8 @@ import (
 // A hand-off goes only to a node that announces secret_env: an older one would answer secret.stage "unknown method"
 // and, worse, start an Agent without the values its ticket stands for.
 func TestSecretHandOffNeedsANodeWithSecretEnv(t *testing.T) {
-	_, _, m, _ := engineHub(t)
-	f, _ := connectEngineNode(t, m)
+	_, _, m := machineDevices(t)
+	f, _ := connectNode(t, m)
 	outdated := func(what string, err error) {
 		t.Helper()
 		var rerr *rpc.Error
@@ -49,8 +49,8 @@ func TestSecretHandOffNeedsANodeWithSecretEnv(t *testing.T) {
 // Only the manager that connects the computer makes a hand-off (CallNode, in its own process, after its card): the
 // hub's and other managers' calls (Devices.Call) cannot stage values or start an Agent with a ticket, whatever node.
 func TestSecretHandOffIsTheManagersOwn(t *testing.T) {
-	d, _, m, _ := engineHub(t)
-	f, _ := connectEngineNode(t, m)
+	d, _, m := machineDevices(t)
+	f, _ := connectNode(t, m)
 	m.mu.Lock()
 	m.info.Version, m.info.Protocol, m.info.Capabilities = "new", 1, []string{nodeproto.Sessions, nodeproto.SecretEnv}
 	m.mu.Unlock()

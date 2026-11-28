@@ -2,15 +2,12 @@ package node
 
 import (
 	"context"
-	"encoding/json"
-	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
-	"time"
 )
 
 // spawnEnvOf is a recorded call's env param (nil when it has none).
@@ -65,63 +62,6 @@ func TestUserShellTabHasNoStartupEnv(t *testing.T) {
 	}
 	if splits := callsOf(af, "pane.split"); len(splits) != 1 || spawnEnvOf(splits[0]) != nil {
 		t.Errorf("a split: %v", af.trace("pane.split"))
-	}
-}
-
-// The Herdr App's new terminal for a start gets the app's terminal identity and the start's environment; one for the
-// user's own shell only the identity.
-func TestHerdrCoreStartTerminalEnv(t *testing.T) {
-	n, _, hc, home := hcNode(t)
-	n.claudeStart, n.claudeReady = 200*time.Millisecond, 200*time.Millisecond
-	proj := mkdir(t, filepath.Join(home, "proj"))
-	hc.doc = appDoc(proj)
-	hc.setTerminals(hcTerminal("t1", "", "", 50, "zsh", proj, "S1", "T1", "proj / 1"))
-	_, _ = request(t, n, "session.start", map[string]any{"session_id": "0e000000-0000-4000-8000-000000010365", "cwd": proj})
-	runs := hc.trace("terminal.run")
-	if len(runs) != 1 {
-		t.Fatalf("terminal.run %v", runs)
-	}
-	var run struct {
-		Env map[string]string `json:"env"`
-	}
-	_ = json.Unmarshal([]byte(strings.TrimPrefix(runs[0], "terminal.run ")), &run)
-	want := startEnvVars()
-	maps.Copy(want, hcAppTerminalEnv)
-	if !maps.Equal(run.Env, want) {
-		t.Errorf("a start's terminal env %v, want %v", run.Env, want)
-	}
-
-	if got := shellEnv(nil); !maps.Equal(got, hcAppTerminalEnv) {
-		t.Errorf("a user's terminal env %v", got)
-	}
-	// The app's identity is never replaced by a start's variable of the same name.
-	if got := shellEnv([]string{"TERM=dumb", "X=1"}); got["TERM"] != "xterm-256color" || got["X"] != "1" {
-		t.Errorf("merged env %v", got)
-	}
-}
-
-// A terminal the user opens in the Herdr App gets only the app's terminal identity: no Agent mark, no startup env.
-func TestHerdrCoreUserTerminalHasNoStartupEnv(t *testing.T) {
-	n, _, hc, home := hcNode(t)
-	proj := mkdir(t, filepath.Join(home, "proj"))
-	hc.doc = appDoc(proj)
-	hc.setTerminals(hcTerminal("t1", "", "", 50, "zsh", proj, "S1", "T1", "proj / 1"))
-	if _, err := n.listPanes(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := request(t, n, "panes.new", map[string]any{"workspace_id": "S1"}); err != nil {
-		t.Fatal(err)
-	}
-	runs := hc.trace("terminal.run")
-	if len(runs) != 1 {
-		t.Fatalf("terminal.run %v", runs)
-	}
-	var run struct {
-		Env map[string]string `json:"env"`
-	}
-	_ = json.Unmarshal([]byte(strings.TrimPrefix(runs[0], "terminal.run ")), &run)
-	if !maps.Equal(run.Env, hcAppTerminalEnv) {
-		t.Errorf("a user's terminal env %v, want %v", run.Env, hcAppTerminalEnv)
 	}
 }
 

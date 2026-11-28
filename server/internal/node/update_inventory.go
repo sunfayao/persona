@@ -289,14 +289,9 @@ func (n *Node) updateSourceCoverage(ctx context.Context, processes []*assistantP
 		}
 	}
 	n.eng.mu.Lock()
-	ready, configured := n.eng.ready, n.eng.botmux != nil
+	configured := n.eng.botmux != nil
 	n.eng.mu.Unlock()
-	if ready == nil || !configured {
-		return errors.New("host configuration has not settled")
-	}
-	select {
-	case <-ready:
-	default:
+	if !configured {
 		return errors.New("host configuration has not settled")
 	}
 	if n.hosts == nil {
