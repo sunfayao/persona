@@ -200,7 +200,7 @@ func namedTools(text string) []string {
 var roundPassingMentions = map[string][]string{
 	"agent_archive":      {"agent_unarchive"},
 	"agent_send":         {"agent_start", "ask_user"},
-	"agents_list":        {"agent_start", "agent_switch", "agent_unarchive"},
+	"agents_list":        {"agent_unarchive"},
 	"conversation_read":  {"conversations_list"},
 	"supervision_finish": {"ask_user"},
 	"task_plan":          {"task_retry"},

@@ -30,7 +30,8 @@ func TestMCPToolsPointAtShippedReferences(t *testing.T) {
 			}
 		}
 	}
-	for _, n := range []string{"task_plan", "task_review", "agent_start", "schedule_routine", "schedule_followup"} {
+	for _, n := range []string{"task_plan", "task_review", "agent_start", "schedule_routine", "schedule_followup",
+		"agent_send", "ask_user", "persona_settings", "agents_list"} {
 		if !ref.MatchString(Tool(n).Description) {
 			t.Errorf("%s no longer points at its reference", n)
 		}

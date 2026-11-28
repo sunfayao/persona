@@ -1,12 +1,8 @@
-Send what the user asked for to an Agent. A busy Agent may queue it. Follow-up work on what an Agent already did (same computer and directory: agents_list shows its reuse=) goes to that Agent in its own context instead of a new one. A stopped Agent needs resume and resume_why. Recorded non-user stops (including quota/capacity errors) allow resume; the main conversation, acting for the owner, also resumes an Agent that ended without the owner's Stop (exit, or unknown: it ended on its own). An owner's Stop (user) needs the owner's Resume. It must be supervised (give task with the follow-up's title and done_when unless on an open task of yours). A nearly full Agent is compacted first. For unrelated work use agent_start. Unsure: ask_user. An unstarted branch starts on its first message. Only /exit or /quit stops a running Agent and keeps the tab. The owner's controls close another conversation's Agent.
-
-For dialog_open, retry with dismiss_notice only when Enter alone closes the notice. For permissions and pickers, tell the user or use interaction_answer.
-
-Give task to supervise new work, including done_when in text. More on your existing task keeps its title and updates its criteria. A different title, the user's own to-do or another conversation's task is refused. A failed send creates no task. Omit task for a reply, nudge or decision.
-
-Use `handoff` for an already-stopped to-do you supervise. A node acknowledgement starts its wait for the receiving Agent's result.
+Send what the user asked for to a coding Agent. Follow-up on an Agent's own work (same computer and directory) goes to it as agents_list's reuse= says; unrelated work: agent_start; unsure: ask_user. Give task for new work, so you supervise it, and say its done_when in text too; omit task for a reply, nudge or decision.
 
 `wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, with known input/session ids. Observation never answers questions, accepts tasks, resends or cancels work; normal supervision/`task_review` applies. Older nodes may time out rather than return an unrelated reply.
+
+Details: read .claude/skills/persona-work/references/agent-send.md in your working directory.
 
 ```json
 {
@@ -28,22 +24,20 @@ Use `handoff` for an already-stopped to-do you supervise. A node acknowledgement
       "type": "string"
     },
     "resume": {
-      "type": "boolean",
-      "description": "resume this stopped agent with its context on its own launcher, text as its first message"
+      "type": "boolean"
     },
     "resume_why": {
       "type": "string",
       "description": "shown to the user"
     },
     "dismiss_notice": {
-      "type": "boolean",
-      "description": "Press Enter first to close a notice that only says \"Enter to continue\" (no options). Any other dialog still refuses the send."
+      "type": "boolean"
     },
     "attachments": {
       "type": "array",
       "maxItems": 8,
       "items": { "type": "string" },
-      "description": "absolute paths of pictures/files the user gave in this conversation (Claude Code path or app attachment); copied to the agent, appended to its message with mentions updated; others refused"
+      "description": "files the owner gave in this chat, by absolute path"
     },
     "handoff": {
       "type": "object",
@@ -52,29 +46,27 @@ Use `handoff` for an already-stopped to-do you supervise. A node acknowledgement
       "properties": {
         "todo_id": { "type": "string" },
         "receiving_todo_id": { "type": "string" },
-        "head": { "type": "string", "description": "Full candidate commit ID" },
+        "head": { "type": "string" },
         "check": { "type": "string" },
-        "until": { "type": "string", "description": "Duration or RFC 3339 deadline" }
+        "until": { "type": "string" }
       }
     },
     "task": {
       "type": ["object", "null"],
-      "description": "new work: make it your supervised task first (main or a lead); null for a reply",
       "additionalProperties": false,
       "properties": {
         "title": {
           "type": "string",
-          "description": "the task in a short line ({{lang .Lang}}, under 20 characters)"
+          "description": "a short line ({{lang .Lang}}, under 20 characters)"
         },
         "done_when": {
           "type": "array",
           "maxItems": 6,
           "items": { "type": "string" },
-          "description": "results you can check when it says it is done (a PR merged, a sheet's link, what the live system answers)"
+          "description": "results you can check"
         },
         "expect_minutes": {
-          "type": "integer",
-          "description": "how long it should take from now; longer without progress counts as stuck"
+          "type": "integer"
         }
       }
     }
