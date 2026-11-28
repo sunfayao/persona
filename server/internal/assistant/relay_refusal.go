@@ -300,7 +300,7 @@ func (s *Service) tellRelayRefused(ctx context.Context, machine, to string, msg 
 	if c, ok := s.session(ctx, machine, to); ok {
 		name = conversationName(c, s.settings(ctx).Main)
 	}
-	text := prompts.RenderRelayRefused(prompts.RelayRefused{Language: answerLanguage(s.hello(ctx).Locale), Tool: msg.Tool,
+	text := prompts.RenderRelayRefused(prompts.RelayRefused{Language: s.replyLang(ctx, s.hello(ctx).Locale), Tool: msg.Tool,
 		ID: to, Title: name, Code: code, Excerpt: clip(oneLine(msg.Text), 120)})
 	s.relayOrQueue(ctx, msg.From, relayMsg{From: to, FromTitle: "对话「" + name + "」", Tool: relayRefusedTool, Text: text, // i18n-ignore: the queue's label, as the task notices'
 		At: time.Now().UTC()})

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/replylang"
 	"github.com/sunfayao/persona/server/internal/assistant/saved"
 	"github.com/sunfayao/persona/server/internal/i18n"
 )
@@ -262,6 +263,9 @@ func (s *Service) profileFields() []settingField {
 			},
 			get:   s.fromSettings(func(v Settings) any { return ownerApprovalPhrasesForView(v) }),
 			write: s.profileWrite(func(v *Settings, val any) { v.OwnerApprovalPhrases = val.([]string) })},
+		{key: "assistant.reply_language", kind: kindEnum, enum: append([]string{""}, replylang.Choices...), value: `"English", "Simplified Chinese", "Japanese", or "" for the interface language`,
+			about: "the language every model Persona runs answers and writes in (main conversation, summaries, Agents' replies and close-outs); empty follows the interface language. Rewrites the rule files like About me; what the user reads in the app keeps the interface language",
+			get:   s.fromSettings(func(v Settings) any { return v.ReplyLanguage }), write: s.profileWrite(func(v *Settings, val any) { v.ReplyLanguage = val.(string) })},
 		s.machineField(),
 		s.machineExecField(), // machine_exec.go
 	}

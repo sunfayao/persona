@@ -1,5 +1,6 @@
 {
   "change": "“{title}”: {before} → {after}",
+  "title_assistant_reply_language": "Reply language for models",
   "title_assistant_cache_keepalive": "Keep the prompt cache warm",
   "title_assistant_cache_keepalive_minutes": "Cache keep-alive interval (minutes)",
   "title_assistant_cache_keepalive_max": "Most cache keep-alive requests",

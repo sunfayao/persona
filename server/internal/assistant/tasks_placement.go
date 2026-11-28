@@ -389,7 +389,7 @@ func (s *Service) startTaskAgent(ctx context.Context, t *PlanTask, retry bool) (
 		if err != nil {
 			return "", "", err
 		}
-		prompt += "\n\n" + prompts.RenderWorkspaceRepositories(string(rows), answerLanguage(s.hello(ctx).Locale))
+		prompt += "\n\n" + prompts.RenderWorkspaceRepositories(string(rows), s.replyLang(ctx, s.hello(ctx).Locale))
 	}
 	var rules []string
 	if strings.TrimSpace(t.Context) != "" {
@@ -399,7 +399,7 @@ func (s *Service) startTaskAgent(ctx context.Context, t *PlanTask, retry bool) (
 		prompt += "\n\n" + prompts.RenderTaskContinuation(prompts.TaskContinuation{TodoID: t.Continues, Readonly: t.Readonly})
 	}
 	if t.Readonly {
-		prompt += "\n\n" + prompts.RenderReadonlyTaskConstraint(answerLanguage(s.hello(ctx).Locale))
+		prompt += "\n\n" + prompts.RenderReadonlyTaskConstraint(s.replyLang(ctx, s.hello(ctx).Locale))
 	}
 	if t.planFirst {
 		prompt += "\n\n" + prompts.RenderPlanFirstTaskConstraint()
@@ -427,7 +427,7 @@ func (s *Service) startTaskAgent(ctx context.Context, t *PlanTask, retry bool) (
 	// Files for the user are named by path, never pasted into the reply (task_files.go, #10511): by the closeout's
 	// `artifact: file` line, or by the files note while the closeout's switch is off.
 	if brief == "" {
-		rules = append(rules, prompts.RenderTaskFiles(answerLanguage(s.hello(ctx).Locale)))
+		rules = append(rules, prompts.RenderTaskFiles(s.replyLang(ctx, s.hello(ctx).Locale)))
 	}
 	if delivery { // what done means: live and checked (delivery.go)
 		rules = append(rules, prompts.RenderTaskDelivery(brief != ""))

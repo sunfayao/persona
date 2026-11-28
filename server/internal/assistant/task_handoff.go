@@ -38,7 +38,7 @@ func (s *Service) adoptedTaskEntry(ctx context.Context, machine string, c proto.
 }
 
 func (s *Service) taskEntryFor(ctx context.Context, machine, agent string, mcp, terminal bool) prompts.TaskHandoff {
-	h := prompts.TaskHandoff{Language: answerLanguage(s.hello(ctx).Locale), MCP: mcp}
+	h := prompts.TaskHandoff{Language: s.replyLang(ctx, s.hello(ctx).Locale), MCP: mcp}
 	if terminal && (agent == "codex" || proto.IsWorkAgentType(agent) || proto.IsNoModeAgentType(agent)) {
 		h.Executable = s.nodeExecutable(ctx, machine)
 	}

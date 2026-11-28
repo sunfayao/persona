@@ -119,7 +119,7 @@ func (s *Service) needsUserExternalInfoStillHolds(t Todo, g superviseSignal) boo
 func (s *Service) needsUserExternalInfoEntry(ctx context.Context, t Todo, source, summary string) *prompts.NeedsUserExternalInfo {
 	question, recommend := s.pendingNeedsUserSummary(t)
 	return &prompts.NeedsUserExternalInfo{
-		Language:         answerLanguage(string(s.botLang(ctx))),
+		Language:         s.replyLang(ctx, string(s.botLang(ctx))),
 		Source:           clip(oneLine(strings.TrimSpace(source)), 160),
 		Summary:          clip(oneLine(strings.TrimSpace(summary)), 500),
 		PendingQuestion:  question,

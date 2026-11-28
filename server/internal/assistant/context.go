@@ -59,7 +59,7 @@ func (s *Service) contextResult(ctx context.Context, p ContextParams, text, back
 	if backgroundStarted != "" {
 		receipts = append(receipts, assistantwire.ViewErrorReceipt{ItemID: backgroundAnnounceReceipt, Digest: backgroundStarted})
 	}
-	out := ContextResult{Text: text, ViewErrors: errs, Receipts: receipts, CompactInstructions: prompts.RenderCompactInstructions(answerLanguage(s.hello(ctx).Locale))}
+	out := ContextResult{Text: text, ViewErrors: errs, Receipts: receipts, CompactInstructions: prompts.RenderCompactInstructions(s.replyLang(ctx, s.hello(ctx).Locale))}
 	if !cleanRound {
 		if p.PrepareRecovery && p.RecoveryID == "" {
 			s.prepareCompactRecovery(ctx, p)

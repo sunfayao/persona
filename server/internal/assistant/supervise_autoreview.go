@@ -207,7 +207,7 @@ func (s *Service) runAutoReview(ctx context.Context, todoID string, run AutoRevi
 	run.Worktree = snap.Path
 
 	cfg := s.reviewConfig(ctx)
-	prompt := prompts.RenderAgentReview(prompts.AgentReview{Language: answerLanguage(s.hello(ctx).Locale), Title: t.Title,
+	prompt := prompts.RenderAgentReview(prompts.AgentReview{Language: s.replyLang(ctx, s.hello(ctx).Locale), Title: t.Title,
 		Ask: clipMiddle(strings.TrimSpace(t.Notes), reviewAskBudget), DoneWhen: t.Supervision.DoneWhen, Scope: scope, Diff: diff,
 		Omitted: omitted})
 	params := map[string]any{"cwd": snap.Path, "launcher": cfg.Launcher, "prompt": prompt,

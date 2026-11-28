@@ -926,7 +926,7 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 			return prompts.SuperviseEntry{}, false // a member resumed or gained a wake/card while queued
 		}
 		g.Detail, g.Minutes = fresh.Detail, fresh.Minutes
-		if note := breakerNote(g, answerLanguage(string(s.botLang(ctx)))); note != "" {
+		if note := breakerNote(g, s.replyLang(ctx, string(s.botLang(ctx)))); note != "" {
 			if g.Detail != "" {
 				g.Detail = note + "\n" + g.Detail
 			} else {
@@ -1048,7 +1048,7 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 	}
 	e := prompts.SuperviseEntry{ID: t.ID, Title: t.Title, Kind: g.Kind, Detail: g.Detail, Minutes: g.Minutes, DoneWhen: v.DoneWhen,
 		Round: v.Round, Link: todoLink(web, t.ID), Quiet: t.Quiet}
-	if note := breakerNote(g, answerLanguage(string(s.botLang(ctx)))); note != "" && g.Kind != sigAllStopped {
+	if note := breakerNote(g, s.replyLang(ctx, string(s.botLang(ctx)))); note != "" && g.Kind != sigAllStopped {
 		if e.Detail != "" {
 			e.Detail = note + "\n" + e.Detail
 		} else {
@@ -1056,11 +1056,11 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 		}
 	}
 	if draft != nil {
-		e.Detail = prompts.RenderDraftPR(prompts.DraftPR{Language: answerLanguage(string(s.botLang(ctx))),
+		e.Detail = prompts.RenderDraftPR(prompts.DraftPR{Language: s.replyLang(ctx, string(s.botLang(ctx))),
 			URL: draft.URL, Head: draft.HeadOID})
 	}
 	if estimateBrief != nil {
-		e.Detail = prompts.RenderEstimateDue(prompts.EstimateDue{Language: answerLanguage(string(s.botLang(ctx))),
+		e.Detail = prompts.RenderEstimateDue(prompts.EstimateDue{Language: s.replyLang(ctx, string(s.botLang(ctx))),
 			Expected: estimateBrief.ExpectNow, Elapsed: g.Minutes})
 	}
 	if g.Kind == sigNeedsUserExternalInfo {
@@ -1074,7 +1074,7 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 	// that review put to the owner.
 	e.LastReview = s.lastReviewEntry(ctx, v)
 	if g.Kind == sigDecisionReply {
-		e.AgentReply = &prompts.DecisionAgentReply{Language: answerLanguage(string(s.botLang(ctx))),
+		e.AgentReply = &prompts.DecisionAgentReply{Language: s.replyLang(ctx, string(s.botLang(ctx))),
 			Machine: replyAsk.AgentReply.MachineID, Session: replyAsk.AgentReply.SessionID, Handled: replyAsk.AgentReply.Handled,
 			Text: replyAsk.AgentReply.Text, Closeout: replyAsk.AgentReply.Closeout}
 		return e, true // the reply's exact session is in AgentReply; no arbitrary last Agent is evidence
