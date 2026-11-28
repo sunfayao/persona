@@ -852,9 +852,8 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 			a.PermissionMode, _ = run["permission_mode"].(string)
 			tier = "" // the tier's launcher is not what runs
 		}
-		// traex, omp…: no effort or permission mode (launcher_modes.go). One this call names is refused before the user is asked, rather
-		// than by the computer after they said yes; one a tier filled in is dropped. pi, cursor: dropped either way.
-		if !startTakesModes(fit.agent) {
+		// Check unsupported modes before showing the approval card.
+		if !s.startTakesModes(am.ID, fit.agent) {
 			launcher, _ := run["launcher"].(string)
 			if err := startModesRefused(launcher, fit.agent, own.permission, own.effort); err != nil {
 				return "", fmt.Errorf("%w; no agent was started", err)
@@ -949,7 +948,7 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 			return "", fmt.Errorf("%w; no agent was started", err)
 		}
 		// Precedence: explicit permission_mode > tier preset > agent.new binding > Allow all (Claude / Auto Accept) > CLI default.
-		if !startTakesModes(fit.agent) { // the machine a health detour landed on may run another agent under this name
+		if !s.startTakesModes(am.ID, fit.agent) { // the machine a health detour landed on may run another agent under this name
 			if err := startModesRefused(picked, fit.agent, own.permission, own.effort); err != nil {
 				return "", fmt.Errorf("%w; no agent was started", err)
 			}

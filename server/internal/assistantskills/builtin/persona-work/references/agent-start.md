@@ -13,7 +13,7 @@ The tool's description holds what every call needs. This page holds the rest: la
 - The launcher decides the Agent. Claude Code's starts Claude Code. pi or cursor (or a launcher listed as that agent) starts pi or the Cursor CLI in a herdr pane with the model you give. agy starts the Antigravity CLI on the computer's companion when it is connected, otherwise in a pane.
 - `launcher`: a launcher listed for that computer; an unknown name is refused with the choices. Empty takes the default, then the fallback, Claude Code first, and the answer says which.
 - Claude-family launchers, and Paseo providers with Auto Accept, always start in bypassPermissions. agy runs in Allow all by default.
-- `effort`: Claude Code, Codex and agy take it; pi and cursor ignore it; TRAE CLI and omp refuse one you name, so leave it out for them.
+- `effort`: Claude Code, Codex, agy and current TRAE nodes take it. For `traex-ferry`, also name the model. pi and cursor ignore it. Leave it out for omp.
 - `tier`: an Agent preset from the snapshot's Model profile line, chosen by purpose, resolved before approval and shown on the card. An explicit `launcher`, `model`, `effort` or `speed` overrides it; omit them for the tier's or the purpose's default.
 - `speed`: `standard` (or omitted) is the launcher's default; Codex takes `fast` and `ultrafast`, Claude Code `fast` only.
 - `host`: `agy` for the Antigravity companion, or an enabled engine.

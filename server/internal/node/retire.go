@@ -410,7 +410,7 @@ func (n *Node) resumeOtherWith(ctx context.Context, id string, st sessionState, 
 	tab := n.resumeTabName(id)
 	if !codex { // a compatible CLI: `<launcher> resume <id> <message>`
 		ctx = n.inKeptTerminal(ctx, id, st.Cwd)
-		_, err = n.startOtherAgent(ctx, launch, st.Cwd, st.Launcher, traexAgent, text, id, ws, tab)
+		_, err = n.startOtherAgent(ctx, launch, st.Cwd, st.Launcher, traexAgent, text, id, ws, tab, st.AppMode, modelExecution{Model: st.Model, Effort: st.ModelEffort})
 		return uncertain(err)
 	}
 	return uncertain(n.resumeCodex(ctx, launch, id, st, argv, text, ws, tab))

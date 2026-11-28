@@ -102,11 +102,16 @@ func assertHandoffContract(t *testing.T, prompt string) {
 	t.Helper()
 	if strings.Contains(prompt, "only with `task_spawn`") {
 		prompt = prompts.Tool("task_spawn").Description
+		if !strings.Contains(prompt, "no more access than you have") {
+			t.Errorf("the spawn description omits the permission limit: %s", prompt)
+		}
+	} else if !strings.Contains(prompt, "works in your directory with your permissions") {
+		t.Errorf("the terminal handoff omits the scope: %s", prompt)
 	}
 	for _, want := range []string{"only to hand a separate part of this assignment", "never hand over all of it", "do the rest yourself",
-		"works in your directory with your permissions", "reports to your supervisor, not to you", "leave the files it changes alone",
+		"reports to your supervisor, not to you", "leave the files it changes alone",
 		"do not poll it, read its transcript or wait for it"} {
-		if !strings.Contains(prompt, want) {
+		if !strings.Contains(strings.ToLower(prompt), want) {
 			t.Errorf("the handoff note lacks %q: %s", want, prompt)
 		}
 	}

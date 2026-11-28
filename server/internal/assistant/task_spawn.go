@@ -18,8 +18,12 @@ import (
 // role or supervision level. The node supplies the caller; none of those identities come from tool arguments.
 func (s *Service) taskSpawn(ctx context.Context, machine, session string, args json.RawMessage) (string, error) {
 	var a struct {
-		Title  string `json:"title"`
-		Prompt string `json:"prompt"`
+		Title    string `json:"title"`
+		Prompt   string `json:"prompt"`
+		Launcher string `json:"launcher"`
+		Model    string `json:"model"`
+		Effort   string `json:"effort"`
+		Tier     string `json:"tier"`
 	}
 	dec := json.NewDecoder(bytes.NewReader(args))
 	dec.DisallowUnknownFields()
@@ -67,12 +71,30 @@ func (s *Service) taskSpawn(ctx context.Context, machine, session string, args j
 			mode = assignment.Permission
 		}
 	}
-	project := t.Project
-	child := PlanTask{TodoID: t.ID, Project: project, Supervisor: t.Supervision.Supervisor,
-		Title: a.Title, Prompt: a.Prompt, Machine: machine, Cwd: parent.Cwd,
-		Launcher: parent.Launcher, Model: s.taskSpawnModel(ctx, machine, parent, assignment), Effort: parent.Effort,
-		Permission: mode, Readonly: mode == "plan", preservePermission: true,
-		launcherDefaultModel: parent.RequestedModel != nil && *parent.RequestedModel == ""}
+	if !slices.Contains(proto.PermissionModes, mode) {
+		mode = "plan"
+	}
+	child := PlanTask{TodoID: t.ID, Project: t.Project, Supervisor: t.Supervision.Supervisor,
+		Title: a.Title, Prompt: a.Prompt, Machine: machine, Cwd: parent.Cwd, MachinePolicy: machineFixed,
+		Host: proto.EngineHerdr, Launcher: strings.TrimSpace(a.Launcher), Model: strings.TrimSpace(a.Model),
+		Effort: strings.TrimSpace(a.Effort), Tier: strings.TrimSpace(a.Tier),
+		Permission: mode, Readonly: mode == "plan", preservePermission: true}
+	if child.Tier == "" {
+		if child.Launcher == "" {
+			child.Launcher = parent.Launcher
+		}
+		if child.Launcher == parent.Launcher && child.Model == "" {
+			child.Model = s.taskSpawnModel(ctx, machine, parent, assignment)
+			child.launcherDefaultModel = parent.RequestedModel != nil && *parent.RequestedModel == ""
+			if child.Effort == "" {
+				child.Effort = parent.Effort
+			}
+		}
+	}
+	// The intermediate modes have different semantics across launchers. Only the two endpoints are portable.
+	if (child.Launcher != parent.Launcher || child.Tier != "") && mode != proto.ModeBypass {
+		child.Permission, child.Readonly = "plan", true
+	}
 	// A caller disconnecting must not abandon a start before its ownership is recorded.
 	startCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Minute)
 	defer cancel()

@@ -42,18 +42,19 @@ A started task keeps a brief that the hub records and never rewrites: the owner'
 ## Read-only tasks and permissions
 
 - `readonly: true` is for work that must not change project files, commit or write to external systems. The Agent's first message then says: "This task is read-only: do not change project files, commit, or write to external systems."
-- Claude-family launchers run read-only tasks with bypassPermissions. Codex and agy (agy through its Antigravity companion) run them in plan mode, unless `assistant.readonly_mode` is `prompt`: then read-only is an instruction to the Agent, not a security boundary. pi and cursor refuse read-only tasks.
+- Claude-family launchers run read-only tasks with bypassPermissions. Codex, TRAE and agy (agy through its Antigravity companion) run them in plan mode on current nodes, unless `assistant.readonly_mode` is `prompt`: then read-only is an instruction to the Agent, not a security boundary. pi and cursor refuse read-only tasks.
 - Changes need `readonly: false` and the owner's authorization. A read-only Codex sandbox cannot be made writable in place: to fix what it found, plan a writable task, which may continue the same to-do. When the permissions already match, send the follow-up to the live Agent with `agent_send`.
-- `permission` sets a writable task's mode; empty means the launcher's default. TRAE CLI and omp take no permission mode and no effort.
+- `permission` sets a writable task's mode; empty means the launcher's default. TRAE and Ferry take `bypassPermissions` and `effort` on current nodes. omp takes neither.
 
 ## Machines, launchers and models
 
 - `machine` is a `machines_list` id. With `machine_policy` `fixed` (the default) the task stays there, retries included, and a launcher that is unavailable there is refused. `flexible` lets portable work move to another computer when its launcher fails a health check, and `why` then says so.
 - `launcher`: a launcher listed for that machine; an unknown name is refused with the choices. `host`: `agy` for the Antigravity companion, or an enabled engine.
 - `tier`: an Agent preset from the snapshot's Model profile line, chosen by purpose and resolved at Start with its profile. An explicit `launcher`, `model`, `effort` or `speed` overrides it. Omit `effort` for the tier's default.
+- For `traex-ferry`, name a `model` with `effort`, for example `ferry-gpt-6-2-sol` with `xhigh`. You can also pass `ferry-gpt-6-2-sol@xhigh` as the model ID. `traex` takes native reasoning effort.
 - `speed`: `standard` (the launcher's default), `fast` or `ultrafast` for Codex, `fast` for Claude Code.
 - `ultracode: true` runs every substantial step of a large task (many files, checks from several angles) as a Claude Code multi-agent workflow: slower and costlier, so leave it off for small work and never write the word into the prompt or the title. Only Claude Code 2.1.284 or later takes it.
-- `role`: `worker` for ordinary work; `leader` when the task's Agent will hand work to direct workers through its own restricted `task_plan` and `task_review`. Workers cannot hand work on.
+- `role`: `worker` for ordinary work; `leader` when the task's Agent will hand work to direct workers through its own restricted `task_plan` and `task_review`. Workers can use `task_spawn` to hand off part of their assignment on the same to-do. They can name `launcher`, `model`, `effort` or `tier`. Persona fixes the child's computer and directory to the parent's and caps its permission.
 
 ## Workspaces
 

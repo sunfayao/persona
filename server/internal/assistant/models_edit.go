@@ -179,7 +179,7 @@ func effortLevelsForPurpose(kind string, provider *ModelProvider, agent string) 
 // permissionModesForAgent returns the permission modes supported by an agent launcher.
 // Claude Code always has Persona's five modes; proto.Launcher.PermissionModes describes other agents.
 // For them an explicitly declared list governs. Otherwise Codex and Antigravity (agy) support all standard
-// modes, while no-mode/legacy work agents (omp, traex, pi, cursor) take no permission mode.
+// modes. TRAE startup support also depends on the destination node.
 func permissionModesForAgent(agent string, listed proto.PermissionModeSet) []string {
 	if agent == "" || agent == "claude" {
 		return proto.PermissionModes
@@ -188,9 +188,9 @@ func permissionModesForAgent(agent string, listed proto.PermissionModeSet) []str
 		return listed.List()
 	}
 	switch agent {
-	case "codex", "agy":
+	case "codex", "agy", "traex":
 		return proto.PermissionModes
-	case "omp", "traex", "pi", "cursor":
+	case "omp", "pi", "cursor":
 		return nil
 	default:
 		return proto.PermissionModes

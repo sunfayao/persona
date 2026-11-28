@@ -129,7 +129,7 @@ func validModesFor(launcher, mode, effort string) error {
 	switch launcherAgentType(launcher) {
 	case "codex":
 		levels = append([]string{effortAuto}, proto.CodexEffortLevels...)
-	case agyAgent:
+	case agyAgent, traexAgent:
 		levels = proto.EffortLevels
 	}
 	if effort != "" && !slices.Contains(levels, effort) {

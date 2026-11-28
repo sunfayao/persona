@@ -11,6 +11,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -37,6 +38,66 @@ func spawnFixtureOn(t *testing.T, launcher, mode string, store Store) (*Service,
 }
 
 const spawnArgs = `{"title":"Check the regression","prompt":"Inspect the tests and return the command and result."}`
+
+type traexModesDevices struct{ *fleetDevs }
+
+func (traexModesDevices) NodeAnnounced(id, capability string) bool {
+	return id == "box" && capability == nodeproto.TraexStartModes
+}
+
+func TestTaskSpawnSelectsFerryWithinTheParentsAuthority(t *testing.T) {
+	for _, tc := range []struct {
+		name, mode, args, model, effort, wantMode string
+		updateNode                                bool
+	}{
+		{"explicit", proto.ModeBypass, `,"launcher":"traex-ferry","model":"ferry-example","effort":"xhigh"`, "ferry-example", "xhigh", proto.ModeBypass, true},
+		{"read-only", "plan", `,"launcher":"traex-ferry","model":"ferry-example@xhigh"`, "ferry-example@xhigh", "", "plan", true},
+		{"tier cannot elevate", "plan", `,"tier":"ferry"`, "ferry-example", "high", "plan", true},
+		{"old node", "plan", `,"tier":"ferry"`, "", "", "", false},
+		{"different intermediate mode", "acceptEdits", `,"tier":"ferry","effort":"xhigh"`, "ferry-example", "xhigh", "plan", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, f, todo := spawnFixtureOn(t, "claude", tc.mode, &profileTaskStore{memStore: &memStore{}, plans: map[string]db.TaskPlanRow{}})
+			if tc.updateNode {
+				devices := newFleetDevs()
+				devices.add("box", "box")
+				devices.setSessions("box", []proto.Session{{SessionID: "s1", Agent: "claude", Launcher: "claude",
+					Cwd: "/code/app", PermissionMode: tc.mode, Status: proto.StatusWorking}})
+				s.devs = traexModesDevices{devices}
+			}
+			setSettings(t, s, func(v *Settings) { v.DefaultPermissionMode = proto.ModeBypass })
+			saveTier(t, s, "ferry", ModelTier{Launcher: "traex-ferry", Model: "ferry-example", Effort: "high", PermissionMode: proto.ModeBypass})
+			f.launcherList = append(f.launcherList, proto.Launcher{Name: "traex-ferry", Agent: "traex"})
+			f.startReply = func(_ map[string]any, child *proto.Session) { child.Agent = "traex" }
+			before := len(f.started())
+			args := strings.TrimSuffix(spawnArgs, "}") + tc.args + "}"
+			res := s.mcpCall(t.Context(), "box", "s1", "task_spawn", json.RawMessage(args), false)
+			starts := f.started()
+			if !tc.updateNode {
+				if !res.IsError || !strings.Contains(resultText(res), "permission limit") ||
+					len(starts) != before || len(todoNow(s, todo.ID).Agents) != 1 {
+					t.Fatalf("old node must refuse the constrained start: %v, starts %v", res.Content, starts)
+				}
+				return
+			}
+			if res.IsError || len(starts) != before+1 {
+				t.Fatalf("spawn result %v, starts %v", res.Content, starts)
+			}
+			start := starts[before]
+			effort, _ := start["effort"].(string)
+			if start["launcher"] != "traex-ferry" || start["model"] != tc.model || effort != tc.effort ||
+				start["permission_mode"] != tc.wantMode || start["plan_then"] != nil ||
+				start["host"] != proto.EngineHerdr || start["cwd"] != "/code/app" {
+				t.Fatalf("child start: %+v", start)
+			}
+			after := todoNow(s, todo.ID)
+			if len(after.Agents) != 2 || after.Agents[1].Source != "spawned" || after.Agents[1].Agent != "traex" ||
+				after.Agents[1].Via != "box/s1" || after.Agents[1].MachineID != "box" {
+				t.Fatalf("spawn link: %+v", after.Agents)
+			}
+		})
+	}
+}
 
 func TestTaskSpawnStaysOnCallersSupervisedTodo(t *testing.T) {
 	s, f, before := spawnFixture(t, "codex", "plan")

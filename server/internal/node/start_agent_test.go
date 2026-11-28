@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestOtherAgentStartCommand(t *testing.T) {
@@ -60,7 +61,7 @@ func TestOtherAgentStartCommandLineBreaks(t *testing.T) {
 // tcsh pane (no `.`) gets it typed out with the first message on one line.
 func TestOtherAgentStartTypesForThePaneShell(t *testing.T) {
 	for shell, tc := range map[string]struct{ model, want string }{
-		"/bin/zsh":  {"", "traex 'a b\nc'"},
+		"/bin/zsh":  {"", "traex -- 'a b\nc'"},
 		"/bin/tcsh": {"example-fast", "traex --model example-fast -- 'a b c'"},
 	} {
 		t.Run(shell, func(t *testing.T) {
@@ -75,7 +76,7 @@ func TestOtherAgentStartTypesForThePaneShell(t *testing.T) {
 					cancel()
 				}
 			})
-			_, _ = n.startOtherAgent(ctx, n.hosts.Get(host.Herdr).(*herdrHost), home, traexAgent, traexAgent, "a\tb\nc", "", "w1", "", modelExecution{Model: tc.model})
+			_, _ = n.startOtherAgent(ctx, n.hosts.Get(host.Herdr).(*herdrHost), home, traexAgent, traexAgent, "a\tb\nc", "", "w1", "", "", modelExecution{Model: tc.model})
 			want := tc.want
 			if shell == "/bin/zsh" {
 				want = inAgentEnv(n.dir, want, shellQuote)
@@ -88,6 +89,38 @@ func TestOtherAgentStartTypesForThePaneShell(t *testing.T) {
 				if c.Method == "pane.send_input" && (c.Typed != "") != (shell == "/bin/zsh") {
 					t.Errorf("typed %q: a start file only for zsh", c.Typed)
 				}
+			}
+		})
+	}
+}
+
+func TestTraexStartAndResumeKeepPermissionAndEffort(t *testing.T) {
+	const id = "00000000-0000-4000-8000-000000000001"
+	for _, tc := range []struct {
+		name, model, effort, mode, start, resume string
+	}{
+		{"traex-ferry", "ferry-example", "xhigh", proto.ModeBypass,
+			" --model 'ferry-example@xhigh' --dangerously-bypass-approvals-and-sandbox",
+			" --dangerously-bypass-approvals-and-sandbox"},
+		{"traex-ferry", "ferry-example@xhigh", "", "plan",
+			" --model 'ferry-example@xhigh' --sandbox read-only --ask-for-approval never",
+			" --sandbox read-only --ask-for-approval never"},
+		{"traex-ferry", "ferry-example@high", "xhigh", "default",
+			" --model 'ferry-example@xhigh' --permission-mode default", " --permission-mode default"},
+		{"traex", "native-example", "xhigh", "plan",
+			" -c 'model_reasoning_effort=xhigh' --model native-example --sandbox read-only --ask-for-approval never",
+			" -c model_reasoning_effort=xhigh --sandbox read-only --ask-for-approval never"},
+	} {
+		t.Run(tc.name+"/"+tc.mode, func(t *testing.T) {
+			spec := agentLaunch{Agent: traexAgent, Launcher: tc.name, Model: tc.model, Effort: tc.effort, Mode: tc.mode}
+			if got := traexCommandQ(tc.name, spec, "", shellQuote); got != tc.name+tc.start {
+				t.Fatalf("start = %q, want %q", got, tc.name+tc.start)
+			}
+			n, _ := testNode(t)
+			argv, ok := n.agentResumeArgv(spec, id)
+			want := tc.name + " resume " + dquote(id) + tc.resume
+			if !ok || len(argv) != 2 || !strings.Contains(argv[1], want) {
+				t.Fatalf("herdr resume argv = %q (%v), want %q", argv, ok, want)
 			}
 		})
 	}

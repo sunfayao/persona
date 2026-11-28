@@ -338,8 +338,11 @@ func (s *Service) startTaskAgent(ctx context.Context, t *PlanTask, retry bool) (
 			t.Permission = "bypassPermissions"
 		}
 	}
-	modes := startTakesModes(fit.agent)
-	if !modes { // traex, omp…: no mode and no effort, whatever a default or a tier filled in (launcher_modes.go)
+	modes := s.startTakesModes(m.ID, fit.agent)
+	if t.preservePermission && (!modes || !fit.supportsPermissionMode(t.Permission)) {
+		return "", "", fmt.Errorf("launcher %s cannot keep the parent Agent's permission limit on this computer", t.Launcher)
+	}
+	if !modes { // the node cannot apply a mode or an effort for this agent
 		delete(params, "effort")
 		t.Effort = ""
 	}
@@ -545,7 +548,9 @@ func (s *Service) startTaskAgent(ctx context.Context, t *PlanTask, retry bool) (
 		params["session_id"] = expectID
 	}
 	clearStandardSpeed(params)
-	s.setPlanThen(ctx, m.ID, params)
+	if !t.preservePermission {
+		s.setPlanThen(ctx, m.ID, params)
+	}
 	if err := s.checkContinuationScope(t); err != nil {
 		return "", "", err
 	}

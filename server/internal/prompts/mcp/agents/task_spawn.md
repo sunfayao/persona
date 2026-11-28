@@ -1,4 +1,4 @@
-Start a separate coding Agent for part of your current supervised task, on your current computer and directory. Use it only to hand a separate part of this assignment to a new session; never hand over all of it, and do the rest yourself. It joins the SAME to-do with the SAME supervisor; this does not make you a task leader or create a new task. It works in your directory with your permissions and reports to your supervisor, not to you: leave the files it changes alone, and do not poll it, read its transcript or wait for it. Use this instead of a runtime's standalone new-conversation tool (for example Codex create_thread). Title and prompt must describe work within the existing assignment; ask your supervisor for an unrelated task. The server chooses the task, parent, launcher and permission from your verified assignment, never from arguments. Unknown permission stays read-only. The result names the child session, to-do and supervisor. Do not retry a start with an uncertain result.
+Use this only to hand a separate part of this assignment to a sidebar Agent. You must never hand over all of it, and do the rest yourself. The child joins the same to-do with no more access than you have and reports to your supervisor, not to you. Leave the files it changes alone, and do not poll it, read its transcript or wait for it. Use this instead of standalone thread tools like Codex create_thread. Omit launch options to inherit your run. Do not retry an uncertain start.
 
 ```json
 {
@@ -10,7 +10,23 @@ Start a separate coding Agent for part of your current supervised task, on your 
     },
     "prompt": {
       "type": "string",
-      "description": "Self-contained assignment within the current task; include what evidence to return"
+      "description": "Assignment and evidence to return"
+    },
+    "launcher": {
+      "type": "string",
+      "description": "Launcher on this computer, e.g. traex-ferry"
+    },
+    "model": {
+      "type": "string",
+      "description": "Model ID for the launcher"
+    },
+    "effort": {
+      "type": "string",
+      "description": "Thinking level, e.g. xhigh"
+    },
+    "tier": {
+      "type": "string",
+      "description": "Agent preset from the active model profile"
     }
   },
   "required": ["title", "prompt"],

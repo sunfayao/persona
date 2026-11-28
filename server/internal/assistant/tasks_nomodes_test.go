@@ -8,6 +8,7 @@ import (
 	"testing"
 	"testing/synctest"
 
+	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
 )
@@ -18,6 +19,53 @@ import (
 // starts with the two ignored: the hub drops them, the caller's own included, without refusing.
 
 const readonlyConstraint = "This task is read-only: do not change project files, commit, or write to external systems."
+
+func TestFerryLeaderAndWorkerKeepTheirEffortAndPermission(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := newFakeHub()
+		f.sessions["box"] = nil
+		f.ownModels = true
+		f.launcherList = []proto.Launcher{
+			{Name: "claude", Agent: "claude"}, {Name: "traex-ferry", Agent: "traex"}, {Name: "traex", Agent: "traex"},
+		}
+		s := newServiceOn(t, f, &profileTaskStore{memStore: &memStore{}, plans: map[string]db.TaskPlanRow{}})
+		s.devs = traexModesDevices{newFleetDevs()}
+		raw := json.RawMessage(`{"tasks":[{"title":"Coordinate the fix","prompt":"Assign work to each worker.","machine":"box","cwd":"/code/app","role":"leader","launcher":"traex-ferry","model":"ferry-example","effort":"xhigh","permission":"bypassPermissions","done_when":["Workers have reported their checks."]}]}`)
+		ctx := context.Background()
+		out, err := s.toolTaskPlan(ctx, "conv1", raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.startPlan(ctx, planIDRe.FindString(out), nil, false); err != nil {
+			t.Fatal(err)
+		}
+		synctest.Wait()
+		leader := onlyTodo(s)
+		if len(leader.Agents) != 1 || leader.Agents[0].Source != sourceLeader {
+			t.Fatalf("leader link = %+v", leader.Agents)
+		}
+		f.setSessions("box", proto.Session{SessionID: leader.Agents[0].SessionID, MachineID: "box", Cwd: "/code/app",
+			Agent: "traex", Launcher: "traex-ferry", PermissionMode: proto.ModeBypass, Status: proto.StatusWorking})
+		res := s.mcpCall(ctx, "box", leader.Agents[0].SessionID, "task_plan",
+			workerArgs(map[string]any{"launcher": "traex", "model": "native-example", "effort": "high"}), false)
+		if res.IsError {
+			t.Fatal(res.Content)
+		}
+		synctest.Wait()
+		starts := f.started()
+		if len(starts) != 2 {
+			t.Fatalf("starts = %+v, want a leader and a worker", starts)
+		}
+		for i, pick := range []struct{ launcher, model, effort string }{
+			{"traex-ferry", "ferry-example", "xhigh"}, {"traex", "native-example", "high"},
+		} {
+			if start := starts[i]; start["launcher"] != pick.launcher || start["model"] != pick.model ||
+				start["effort"] != pick.effort || start["permission_mode"] != proto.ModeBypass {
+				t.Fatalf("start %d: %+v", i, start)
+			}
+		}
+	})
+}
 
 // noModesService is readonlyTaskService with a store (model profiles live there), and launcher agent besides claude.
 func noModesService(t *testing.T, agent string) (*Service, *fakeHub) {

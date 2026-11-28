@@ -79,7 +79,7 @@ Hand a part of your to-do to a worker: each task starts a new coding Agent at on
               "bypassPermissions",
               "plan"
             ],
-            "description": "empty: the default mode for a writable task. Claude-family launchers always use bypassPermissions; readonly=true adds a first-prompt constraint; Codex keeps plan; TRAE CLI and omp take none"
+            "description": "Writable mode. TRAE and Ferry take bypassPermissions and effort; omp takes neither."
           },
           "readonly": {
             "type": "boolean",

@@ -182,7 +182,7 @@ func (n *Node) start(ctx context.Context, cwd, launcher, prompt, resume, workspa
 			if argv, err = n.codexReadonlyArgs(launcher, argv, mode); err != nil {
 				return nil, err
 			}
-		} else if kind != "claude" {
+		} else if kind != "claude" && kind != traexAgent {
 			// This launcher path has no verified read-only argument mapping.
 			return nil, readonlyStartUnsupported()
 		}
@@ -275,10 +275,11 @@ func (n *Node) start(ctx context.Context, cwd, launcher, prompt, resume, workspa
 		return n.startWorkAgent(ctx, launch, cwd, launcher, work, execution.Model, effort, mode, prompt, ws, tabName)
 	}
 	if kind != "claude" { // start_agent.go
-		if mode != "" || effort != "" {
-			return nil, fmt.Errorf("permission mode and effort are only supported for Claude starts")
+		if kind != traexAgent && (mode != "" || effort != "") {
+			return nil, fmt.Errorf("launcher %s does not support permission mode or effort", launcher)
 		}
-		return n.startOtherAgent(ctx, launch, cwd, launcher, kind, prompt, resume, ws, tabName, execution)
+		execution.Effort = effort
+		return n.startOtherAgent(ctx, launch, cwd, launcher, kind, prompt, resume, ws, tabName, mode, execution)
 	}
 	if err := n.codexFunctionLauncher(ctx, launcher, true); err != nil {
 		return nil, err

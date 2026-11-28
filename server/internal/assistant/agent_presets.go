@@ -58,7 +58,7 @@ func (s *Service) agentStartTier(ctx context.Context, m Device, tier, launcher s
 	if err := checkStartSpeed(probe, fit, ""); err != nil {
 		return agents.Run{}, err
 	}
-	if !startTakesModes(fit.agent) {
+	if !s.startTakesModes(m.ID, fit.agent) {
 		run.Effort = ""
 	}
 	return run, nil

@@ -3,7 +3,7 @@ Inspect the regression
 Persona task handoffs: use the terminal entry below only to hand a separate part of this assignment to a new session; never hand over all of it, and do the rest yourself. That session joins this to-do, works in your directory with your permissions and reports to your supervisor, not to you: leave the files it changes alone, and do not poll it, read its transcript or wait for it.
 
 Executable (JSON string, decode as a path and quote for your terminal's shell): "/opt/task tools/persona-node"
-Arguments: `tool task_spawn`, followed by one JSON object with `title` and `prompt` as the next argument (or `-` with that JSON on stdin).
+Arguments: `tool task_spawn`, followed by one JSON object with `title`, `prompt` and optional `launcher`, `model`, `effort`, `tier` (or `-` with JSON on stdin).
 The same entry runs this Agent's own Persona tools, each as `tool <name>` and one JSON object in the same way: `todo_decisions` with `{}` reads the decisions in force on this to-do (reread them after your context is compacted); `todo_decision_add` with `{"question":"…","choice":"…","reason":"…"}` notes a call you made; `report_to_supervisor` with `{"kind":"done","text":"…","evidence":["…"]}` (kind progress, question, blocked or done) reports to your supervisor, not the user. It is not a general Persona tool entry: Persona decides each call for this Agent and its to-do, and refuses tools that are not this Agent's own. In-session subagents are fine; never use Codex create_thread or other standalone thread tools. Reply in English.
 
 Keep hub credentials private: never read ~/.persona/hub.json, extract its token or call privileged /api/v1 endpoints yourself, even after a tool refusal; use your Persona tools or ask your supervisor.

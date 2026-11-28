@@ -38,7 +38,7 @@ func TestOmpStartCommand(t *testing.T) {
 		}
 	})
 	const prompt = `a 'quoted' prompt; $(printf unexpected)`
-	_, _ = n.startOtherAgent(ctx, n.hosts.Get(host.Herdr).(*herdrHost), home, "omp", ompAgent, prompt, "", "w1", "")
+	_, _ = n.startOtherAgent(ctx, n.hosts.Get(host.Herdr).(*herdrHost), home, "omp", ompAgent, prompt, "", "w1", "", "", modelExecution{})
 	want := call("pane.send_input", map[string]any{"pane_id": "w1:p2", "keys": []string{"Enter"},
 		"text": inAgentEnv(n.dir, "omp "+shellQuote(prompt), shellQuote)})
 	if got := f.trace("pane.send_input"); len(got) != 1 || got[0] != want {

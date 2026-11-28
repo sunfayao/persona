@@ -200,9 +200,8 @@ func (s *Service) taskPlanFrom(ctx context.Context, machine, sessionID string, a
 			case fit.allowAllOver(t.Permission):
 				t.Permission = "bypassPermissions"
 			}
-			// traex, omp…: no mode, no effort (launcher_modes.go). One the call names is refused now, rather than by
-			// the computer once the task starts; one a tier filled in is dropped. pi, cursor: dropped either way.
-			if takesModes = startTakesModes(fit.agent); !takesModes {
+			// For launchers that cannot apply modes, refuse explicit choices or omit defaults as appropriate.
+			if takesModes = s.startTakesModes(t.Machine, fit.agent); !takesModes {
 				if err := startModesRefused(t.Launcher, fit.agent, asked, own.effort); err != nil {
 					return "", fmt.Errorf("task %d: %w", i+1, err)
 				}

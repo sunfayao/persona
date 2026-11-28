@@ -107,16 +107,67 @@ func typedArg(text string, shells ...string) string {
 	return text
 }
 
+// traexCommandQ is shared by starts and both resume paths. Ferry takes model@effort and restores its
+// last native choice on resume. Plain TRAE CLI takes the reasoning effort as a config override.
+func traexCommandQ(cmd string, spec agentLaunch, resume string, q func(string) string) string {
+	if resume != "" {
+		cmd += " resume " + q(resume)
+	}
+	model, effort := spec.Model, spec.Effort
+	if base, suffix, ok := splitTraexEffortModel(model); ok {
+		model = base
+		if effort == "" {
+			effort = suffix
+		}
+	}
+	if spec.Launcher == "traex-ferry" {
+		if effort != "" && model != "" {
+			model += "@" + effort
+		}
+	} else if effort != "" {
+		cmd += " -c " + q("model_reasoning_effort="+effort)
+	}
+	if resume == "" && model != "" {
+		cmd += " --model " + q(model)
+	}
+	switch spec.Mode {
+	case proto.ModeBypass:
+		cmd += " --dangerously-bypass-approvals-and-sandbox"
+	case "plan":
+		cmd += " --sandbox read-only --ask-for-approval never"
+	case "default", "acceptEdits":
+		cmd += " --permission-mode default"
+	case "auto":
+		cmd += " --permission-mode auto"
+	}
+	return cmd
+}
+
 type terminalInitialImagesKey struct{}
 
 // startOtherAgent opens a new tab in ws (a new space when ""), runs the launcher there (resuming a session when
 // resume is set, with the first message as its argument) and waits until the host reports an agent of that kind in
 // the tab with a session id that was not running before (or the one resumed).
-func (n *Node) startOtherAgent(ctx context.Context, launch host.Launcher, cwd, launcher, kind, prompt, resume, ws, tabName string, options ...modelExecution) (*proto.Session, error) {
+func (n *Node) startOtherAgent(ctx context.Context, launch host.Launcher, cwd, launcher, kind, prompt, resume, ws, tabName, mode string, execution modelExecution) (*proto.Session, error) {
 	images, _ := ctx.Value(terminalInitialImagesKey{}).([]string)
 	freshTraex := kind == traexAgent && resume == ""
 	if freshTraex && strings.TrimSpace(prompt) == "" && len(images) == 0 {
 		return nil, refusal("traex_needs_prompt", i18n.T(i18n.From(ctx), "rpc-errors.traex_needs_prompt"), nil)
+	}
+	spec := agentLaunch{Agent: kind, Launcher: launcher}
+	switch kind {
+	case traexAgent:
+		spec.Model, spec.Effort, spec.Mode = execution.Model, execution.Effort, mode
+		if resume != "" {
+			if previous, ok := n.state.get(resume); ok {
+				spec.Model, spec.Effort, spec.Mode = previous.Model, previous.ModelEffort, previous.AppMode
+			}
+		}
+	case ompAgent:
+		spec.Model = execution.Model
+	}
+	if freshTraex && launcher == "traex-ferry" && spec.Effort != "" && spec.Model == "" {
+		return nil, fmt.Errorf("launcher %s requires a model when specifying effort", launcher)
 	}
 	created, err := n.newTab(ctx, launch, cwd, ws, tabName, resume) // retire.go
 	if err != nil {
@@ -152,22 +203,24 @@ func (n *Node) startOtherAgent(ctx context.Context, launch host.Launcher, cwd, l
 		argShells = nil
 	}
 	command := n.launcherCommand(launcher)
-	var model string
-	if selected := executionOption(options).Model; (kind == ompAgent || kind == traexAgent) && resume == "" && selected != "" {
-		model = selected
-		command += " --model " + shellQuote(model)
-	}
 	var agentCommand string
-	if freshTraex && len(images) != 0 {
-		for _, path := range images {
-			command += " --image " + shellQuote(path)
+	if kind == traexAgent {
+		agentCommand = traexCommandQ(command, spec, resume, shellQuote)
+		if freshTraex {
+			for _, path := range images {
+				agentCommand += " --image " + shellQuote(path)
+			}
 		}
-		// An explicit positional prompt also submits image-only input. "--" ends the image list and keeps
-		// the first message positional even when it begins with a dash.
-		agentCommand = command + " -- " + shellQuote(typedArg(prompt, argShells...))
+		if prompt != "" || freshTraex && len(images) != 0 {
+			// Keep the first message positional even when it begins with a dash, including image-only input.
+			agentCommand += " -- " + shellQuote(typedArg(prompt, argShells...))
+		}
 	} else {
-		if model != "" && prompt != "" {
-			command += " --"
+		if kind == ompAgent && resume == "" && spec.Model != "" {
+			command += " --model " + shellQuote(spec.Model)
+			if prompt != "" {
+				command += " --"
+			}
 		}
 		agentCommand = otherAgentCommand(command, resume, prompt, argShells...)
 	}
@@ -220,7 +273,8 @@ func (n *Node) startOtherAgent(ctx context.Context, launch host.Launcher, cwd, l
 				continue
 			}
 		}
-		state := sessionState{Pane: pane, Launcher: launcher, Cwd: cwd, Model: model, StartedAt: time.Now().UTC()}
+		state := sessionState{Pane: pane, Launcher: launcher, Cwd: cwd, Model: spec.Model,
+			ModelEffort: spec.Effort, AppMode: spec.Mode, StartedAt: time.Now().UTC()}
 		if resume != "" && kind == traexAgent {
 			if previous, ok := n.state.get(id); ok {
 				state = previous
@@ -233,7 +287,7 @@ func (n *Node) startOtherAgent(ctx context.Context, launch host.Launcher, cwd, l
 		n.bindPane(pane, id)
 		session := n.sessionFor(id, agent)
 		session.Agent = kind
-		n.holdResume(ctx, launch, pane, id, agentLaunch{Agent: kind, Launcher: launcher, ID: id, Model: model})
+		n.holdResume(ctx, launch, pane, id, spec)
 		return session, nil
 	}
 }

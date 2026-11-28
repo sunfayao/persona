@@ -66,7 +66,7 @@ func TestOtherAgentStartTellsHerdrCodex(t *testing.T) {
 	for _, tc := range []struct{ kind, launcher, shell, want string }{
 		{"codex", "cxw", "/bin/zsh", "HERDR_AGENT=codex cxw hi"},
 		{"codex", "cxw", "/bin/tcsh", "cxw hi"},
-		{traexAgent, traexAgent, "/bin/zsh", "traex hi"},
+		{traexAgent, traexAgent, "/bin/zsh", "traex -- hi"},
 	} {
 		t.Run(tc.kind+" "+tc.shell, func(t *testing.T) {
 			withPaneShell(t, tc.shell)
@@ -80,7 +80,7 @@ func TestOtherAgentStartTellsHerdrCodex(t *testing.T) {
 					cancel() // what was typed is all this test looks at
 				}
 			})
-			_, _ = n.startOtherAgent(ctx, n.hosts.Get(host.Herdr).(*herdrHost), home, tc.launcher, tc.kind, "hi", "", "w1", "")
+			_, _ = n.startOtherAgent(ctx, n.hosts.Get(host.Herdr).(*herdrHost), home, tc.launcher, tc.kind, "hi", "", "w1", "", "", modelExecution{})
 			text := tc.want
 			if tc.shell == "/bin/zsh" { // with the node's directory, without the assistant's environment (agentenv.go)
 				text = inAgentEnv(n.dir, text, shellQuote)
