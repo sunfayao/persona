@@ -141,7 +141,7 @@ func TestTaskNoteHeadsMatchTheNode(t *testing.T) {
 
 func mustHead(t *testing.T, n *proto.TaskNote) string {
 	t.Helper()
-	key, args := taskNoteHead(n)
+	key, args := transcript.LegacyTaskNoteHead(n)
 	if key == "" || args != nil {
 		t.Fatalf("no plain heading for %+v", n)
 	}
