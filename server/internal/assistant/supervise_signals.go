@@ -136,6 +136,9 @@ type superviseSignal struct {
 	// a persisted relay payload: once admitted, the existing queue owns delivery.
 	batchTo    string
 	batchUntil time.Time
+	// ReportSaid: the done report of this review's to-do that rides on the review (foldDoneReports): its words, which
+	// Evidence, Step and Steps then describe; the review is the one entry of the completion.
+	ReportSaid string `json:"report_said,omitempty"`
 	// Breaker: why the background supervisor's circuit breaker handed this signal once to the main conversation;
 	// digestEntry puts it above the entry in the digest's language (breakerNote).
 	Breaker *breakerFallback `json:"breaker,omitempty"`
@@ -250,6 +253,7 @@ type superviseBook struct {
 	pendingLoaded       bool                         // the durable pending has been merged into pending
 	sent                map[string]string            // todo|kind → the key last told
 	asks                map[string]string            // todo → what its agent last asked (InteractionRaised)
+	toldSaid            map[string]string            // todo → the done report a supervision message carried (not repeated by its review)
 	last                time.Time                    // when the last supervision message went out
 	queued              map[string][]superviseSignal // conversation → the signals of the message still waiting in its queue
 	batch               map[string]time.Time         // conversation → its routine batch's first-signal deadline

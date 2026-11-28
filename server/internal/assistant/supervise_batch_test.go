@@ -233,7 +233,7 @@ func TestSupervisionBatchDueDigestsUseExistingBusyQueue(t *testing.T) {
 	shortSupervise(t, s)
 	bg := withBackgroundBG1(t, s, f)
 	setSettings(t, s, func(v *Settings) { v.SupervisionBatchMinutes = ptr(1) })
-	listRound(f, bg, proto.StatusWorking, true)
+	listRound(f, bg, proto.StatusWorking, false)
 	wakeRound(s, superviseSignal{Todo: todo.ID, Kind: sigStalled, Key: "batch-one", To: bg, At: time.Now().Add(-2 * time.Minute), Minutes: 50})
 	wakeRound(s, superviseSignal{Todo: todo.ID, Kind: sigInterrupted, Key: "batch-two", To: bg, At: time.Now().Add(-2 * time.Minute)})
 	if n := s.queuedFor(bg); n != 1 || len(assistantSendsTo(f, bg)) != 0 {

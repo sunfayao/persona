@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistant/criteria"
+	"github.com/sunfayao/persona/server/internal/assistant/signalrule"
 )
 
 // ---- scope changes and the clock (#3822) ----
@@ -416,11 +417,46 @@ func (s *Service) estimateDueSignal(ctx context.Context, t Todo, now time.Time) 
 		return
 	}
 	key := estimateDueKey(brief)
-	if !s.estimateDueCurrent(t, brief, key) {
+	if !s.estimateDueCurrent(t, brief, key) || s.extendEstimate(ctx, t, brief, now) {
 		return
 	}
 	s.signal(superviseSignal{Todo: t.ID, Kind: sigEstimateDue, Key: key, At: now,
 		Minutes: int(now.Sub(brief.EstimateClockAt).Minutes())})
+}
+
+// extendEstimate: an Agent that made real progress lately gets its due estimate extended on its own (by half, twice
+// between two estimates a supervisor or the owner set), logged on the brief; nothing is raised (true). An idle one is
+// raised as ever.
+func (s *Service) extendEstimate(ctx context.Context, t Todo, brief TaskBrief, now time.Time) bool {
+	since, progressed := now.Add(-signalrule.ProgressWindow(brief.ExpectNow)), false
+	for _, a := range t.Agents {
+		progressed = progressed || a.ReleasedAt == nil && a.DismissedAt == nil && s.progressAfter(a.MachineID, a.SessionID, since)
+	}
+	next, ok := signalrule.Extension(brief.ExpectNow, brief.EstimateAutoExtended, progressed)
+	if !ok {
+		return false
+	}
+	_, changed, err := s.changeBrief(ctx, brief.ID, func(tb *taskBrief) bool {
+		if tb.expect() != brief.ExpectNow || tb.autoExtensions() != brief.EstimateAutoExtended {
+			return false // a supervisor or the owner set it meanwhile
+		}
+		tb.st.Log = append(tb.st.Log, BriefEvent{At: now.UTC(), Kind: briefEventEstimate, Todo: t.ID, By: "hub", Auto: true,
+			ExpectMinutes: next, Change: fmt.Sprintf("estimate extended automatically to %d min: progress was observed", next)})
+		return true
+	})
+	if err != nil {
+		s.logf("task %s: automatic estimate extension: %v", t.ID, err)
+		return false
+	}
+	if changed {
+		for _, id := range s.briefTodos(brief.ID) {
+			if _, _, err := s.updateSupervision(ctx, id, func(v *Supervision) bool { v.ExpectMinutes = next; return true }); err != nil {
+				s.logf("task %s: extended estimate: ledger: %v", id, err)
+			}
+		}
+		s.todosChanged(ctx)
+	}
+	return true
 }
 
 // estimateDueTold persists accepted delivery for every supervisor route (conversation, direct leader, resumed leader).

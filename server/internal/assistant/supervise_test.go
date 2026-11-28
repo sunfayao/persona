@@ -227,9 +227,6 @@ func TestDuplicateHints(t *testing.T) {
 			t.Errorf("has %q:\n%s", not, got)
 		}
 	}
-	if refs := issueRefs("修 #12 和 #2813，见 https://github.com/o/r/pull/3001"); strings.Join(refs, ",") != "#2813,#3001" {
-		t.Fatalf("refs = %q", refs)
-	}
 }
 
 // task_plan says what looks like work already going on, and plans it all the same.

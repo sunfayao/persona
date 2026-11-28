@@ -48,7 +48,9 @@ func queuedRelays(s *Service, id string) []relayMsg {
 	return append([]relayMsg(nil), b.st.Queue[id]...)
 }
 
-// A failed delivery keeps its digest and preserves decision priority when later signals merge into it.
+// The supervision message itself (deliverDigest): held for the owner in an idle conversation, it waits on a decision
+// exactly when one of its signals does, also once a later signal merged into the one still queued, and its
+// relayDecisionMax then counts from that merge.
 func TestSupervisionMessageWaitsOnADecisionByItsSignals(t *testing.T) {
 	presenceTimes(t, time.Hour, time.Hour)
 	s, f := newQuietService(t)
@@ -66,9 +68,6 @@ func TestSupervisionMessageWaitsOnADecisionByItsSignals(t *testing.T) {
 	if _, _, err := s.updateSupervision(ctx, ids[0], func(v *Supervision) bool { v.State = reviewPending; return true }); err != nil {
 		t.Fatal(err)
 	}
-	f.mu.Lock()
-	f.failAssistant = errors.New("runtime temporarily unavailable")
-	f.mu.Unlock()
 	s.UserSpoke(ctx, SessionRef{MachineID: "server", SessionID: "conv1"})
 	s.signal(superviseSignal{Todo: ids[0], Kind: sigReview, Key: "1", Detail: "looks finished"})
 	waitFor(t, "the supervision message to queue", func() bool { return s.queuedFor("conv1") == 1 })
@@ -98,9 +97,6 @@ func TestSupervisionMessageWithADecisionIsQueuedUrgent(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.superviseTodo(ctx, todo.ID, "conv1", []string{"merged"}, 0)
-	f.mu.Lock()
-	f.failAssistant = errors.New("runtime temporarily unavailable")
-	f.mu.Unlock()
 	s.UserSpoke(ctx, SessionRef{MachineID: "server", SessionID: "conv1"})
 	s.signal(superviseSignal{Todo: todo.ID, Kind: sigFailed, Key: "x", Detail: "its computer is offline"})
 	waitFor(t, "the supervision message to queue", func() bool { return s.queuedFor("conv1") == 1 })
@@ -180,7 +176,7 @@ func TestDecisionWaitingMessagesAreHeldAtMost(t *testing.T) {
 		want time.Duration
 	}{
 		{"an ordinary message waits out the owner's round", relayMsg{Tool: noticeTool, At: now.Add(-10 * time.Minute)}, gateWait},
-		{"a fresh decision waits just as long", relayMsg{Tool: noticeTool, State: "needs", At: now}, gateWait},
+		{"a fresh decision waits just as long", relayMsg{Tool: superviseTool, Urgent: true, At: now}, gateWait},
 		{"a decision past the old five-minute cap still waits", relayMsg{Tool: askAnswerTool, At: now.Add(-5 * time.Minute)}, gateWait},
 		{"the owner's own answer is not held", relayMsg{Tool: askAnswerTool, Owner: true, At: now}, 0},
 	} {
@@ -207,14 +203,14 @@ func TestDecisionWaitingMessagesAreHeldAtMost(t *testing.T) {
 		want time.Duration
 	}{
 		{"an ordinary message waits out the owner", relayMsg{Tool: noticeTool, At: now.Add(-10 * time.Minute)}, 90 * time.Second},
-		{"a fresh decision waits as long", relayMsg{Tool: noticeTool, State: "needs", At: now}, 90 * time.Second},
-		{"a decision that waited 4 minutes has one more", relayMsg{Tool: noticeTool, State: "needs", At: now.Add(-4 * time.Minute)}, time.Minute},
+		{"a fresh decision waits as long", relayMsg{Tool: superviseTool, Urgent: true, At: now}, 90 * time.Second},
+		{"a decision that waited 4 minutes has one more", relayMsg{Tool: superviseTool, Urgent: true, At: now.Add(-4 * time.Minute)}, time.Minute},
 		{"a decision that waited 5 minutes goes", relayMsg{Tool: askAnswerTool, At: now.Add(-5 * time.Minute)}, 0},
 		{"a decision that does not say when it queued goes", relayMsg{Tool: askAnswerTool}, 0},
 		// Since #5006 a queued message says when it queued (queued_at): the 5 minutes count from then, not from when
 		// the message was written.
 		{"a decision written long ago that queued a minute ago", relayMsg{Tool: askAnswerTool, At: now.Add(-time.Hour), QueuedAt: now.Add(-time.Minute)}, 90 * time.Second},
-		{"a decision that queued 4 minutes ago has one more", relayMsg{Tool: noticeTool, State: "needs", At: now, QueuedAt: now.Add(-4 * time.Minute)}, time.Minute},
+		{"a decision that queued 4 minutes ago has one more", relayMsg{Tool: superviseTool, Urgent: true, At: now, QueuedAt: now.Add(-4 * time.Minute)}, time.Minute},
 		{"a decision that queued 5 minutes ago goes", relayMsg{Tool: askAnswerTool, At: now, QueuedAt: now.Add(-5 * time.Minute)}, 0},
 		{"a message that began to wait on a decision a minute ago", relayMsg{Tool: noticeTool, State: "needs", QueuedAt: now.Add(-10 * time.Minute), DecisionAt: now.Add(-time.Minute)}, 90 * time.Second},
 	} {
@@ -228,7 +224,7 @@ func TestDecisionWaitingMessagesAreHeldAtMost(t *testing.T) {
 	// The pick skips what is held and says how long until the first may go.
 	b.st.Queue["conv1"] = []relayMsg{
 		{Tool: noticeTool, Text: "other", At: now.Add(-10 * time.Minute)},
-		{Tool: noticeTool, State: "needs", Text: "soon", At: now.Add(-4 * time.Minute)},
+		{Tool: superviseTool, Urgent: true, Text: "soon", At: now.Add(-4 * time.Minute)},
 	}
 	if i, wait := b.pickLocked("conv1", now, false); i != -1 || wait != time.Minute {
 		t.Fatalf("pick %d, wait %s", i, wait)
@@ -457,7 +453,9 @@ func TestConversationFollowUpReachesRunningRuntimeDuringOwnerTurn(t *testing.T) 
 	}
 }
 
-func TestNativeFollowUpCanRetryWhileRecipientIsWorking(t *testing.T) {
+// While the conversation runs, only what goes into its own input queue may be picked: a message from another
+// conversation and a supervisor Agent's completion; a routine digest waits for the turn to end.
+func TestOnlyNativeFollowUpsAreRetriedWhileRecipientIsWorking(t *testing.T) {
 	now := time.Now()
 	book := relayBook{st: relayState{Queue: map[string][]relayMsg{
 		"conv1": {
@@ -465,9 +463,13 @@ func TestNativeFollowUpCanRetryWhileRecipientIsWorking(t *testing.T) {
 			{Tool: superviseTool, At: now},
 			{Tool: "conversation_send", At: now},
 		},
+		"conv2": {{Tool: superviseTool, At: now}, {Tool: superviseTool, SentUp: true, At: now}},
+		"conv3": {{Tool: superviseTool, At: now}},
 	}}}
 	book.ownerSpokeLocked("conv1", now)
-	if i, wait := book.pickLocked("conv1", now, true); i != 1 || wait != 0 {
-		t.Fatalf("selected %d after %s during the owner's turn", i, wait)
+	for to, want := range map[string]int{"conv1": 2, "conv2": 1, "conv3": -1} {
+		if i, wait := book.pickLocked(to, now, true); i != want || wait != 0 {
+			t.Fatalf("%s: selected %d after %s during the owner's turn, want %d", to, i, wait, want)
+		}
 	}
 }

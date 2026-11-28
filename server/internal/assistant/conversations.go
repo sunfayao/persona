@@ -214,6 +214,9 @@ type relayMsg struct {
 	// Interject: this supervision message contains a validated decision_reply for a pending round; the node may bring
 	// it into a running assistant turn and move foreground work to the background. It is never persisted in the relay queue.
 	Interject bool `json:"interject,omitempty"`
+	// SentUp: this supervision message carries what a supervisor Agent sends up (signalrule.SentUp), so it goes into the
+	// conversation's own input queue while that works. A message queued without it is routine.
+	SentUp bool `json:"sent_up,omitempty"`
 	// QueuedAt and Depth are when it was first queued and how long the queue was with it then (the queue wait,
 	// availability.go): kept by a message that takes its place (queuedAs).
 	QueuedAt time.Time `json:"queued_at,omitzero"`
@@ -763,6 +766,10 @@ func (s *Service) queuedRelays() (map[string][]string, bool) {
 			if msg.nativeFollowUp() {
 				continue // retries are transport bookkeeping, not pending chat input
 			}
+			if msg.Tool == superviseTool { // the tasks to follow up (supervise_digest.go)
+				out[id] = append(out[id], "督办消息")
+				continue
+			}
 			if msg.Tool == noticeTool || msg.Tool == askAnswerTool || msg.Tool == taskEndTool || msg.Tool == prFollowupTool || msg.Tool == relayRefusedTool { // a quiet task's notice (quiet.go), a question's answer (ask_todo.go): its title is enough
 				out[id] = append(out[id], msg.FromTitle+"的通知")
 				continue
@@ -777,9 +784,10 @@ func (s *Service) queuedRelays() (map[string][]string, bool) {
 	return out, true
 }
 
-// nativeFollowUp uses the runtime input queue even while another turn is running.
+// nativeFollowUp uses the runtime input queue even while another turn is running: a message from another conversation
+// and a supervisor Agent's completion or decision. A routine supervision digest waits in the relay queue.
 func (msg relayMsg) nativeFollowUp() bool {
-	return msg.Tool == superviseTool || msg.Tool == "conversation_send"
+	return msg.Tool == "conversation_send" || msg.Tool == superviseTool && msg.SentUp
 }
 
 func (msg relayMsg) source() *proto.MessageSource {

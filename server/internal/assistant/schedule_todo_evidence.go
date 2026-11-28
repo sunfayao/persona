@@ -5,6 +5,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/signalrule"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/transcript"
@@ -37,7 +38,7 @@ func scheduleCalls(items []proto.Item) []scheduleToolCall {
 			continue
 		}
 		out = append(out, scheduleToolCall{at: it.TS, key: scheduleCallKey(it.ToolName, it.ToolInput),
-			wait: activityCall(transcript.Activity(it.ToolName, it.ToolInput)) == callWait})
+			wait: signalrule.ActivityCall(transcript.Activity(it.ToolName, it.ToolInput)) == signalrule.CallWait})
 	}
 	return out
 }

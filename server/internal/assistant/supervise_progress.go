@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/signalrule"
 	"github.com/sunfayao/persona/server/internal/proto"
-	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // The no_progress signal (#10089): a supervised task's agent keeps its session moving, so `stalled` never comes, but
@@ -85,35 +85,6 @@ func (b *progressBook) watchLocked(k [2]string, now time.Time) *spinWatch {
 	return w
 }
 
-// activity kinds, for the watch
-const (
-	callNeutral = iota
-	callWait
-	callProgress
-)
-
-var (
-	waitActivities     = []string{"act_waiting", "act_waiting_task", "act_ci"}
-	progressActivities = []string{"act_edit", "act_write", "act_commit", "act_push", "act_pr_create", "act_pr_merge", "act_release", "act_deploy"}
-)
-
-// activityCall is what kind of call an activity line (transcript.Activity) says: its fixed line, or its verb.
-func activityCall(line string) int {
-	key, _ := transcript.ActivityKey(line)
-	if key == "" {
-		if verb, _, ok := strings.Cut(line, " "); ok {
-			key, _ = transcript.ActivityKey(verb)
-		}
-	}
-	switch {
-	case slices.Contains(waitActivities, key):
-		return callWait
-	case slices.Contains(progressActivities, key):
-		return callProgress
-	}
-	return callNeutral
-}
-
 // observeProgress takes in what c shows now: a plan that moved, and a tool call not seen yet.
 func (s *Service) observeProgress(c proto.Session, now time.Time) {
 	if c.SessionID == "" || c.Assistant {
@@ -134,12 +105,12 @@ func (s *Service) observeProgress(c proto.Session, now time.Time) {
 	}
 	w.lastCall = *c.ActivityAt
 	line := strings.TrimSpace(c.Activity)
-	switch kind := activityCall(line); {
-	case kind == callProgress:
+	switch kind := signalrule.ActivityCall(line); {
+	case kind == signalrule.CallProgress:
 		w.restart(now)
 	default:
 		w.calls++
-		if kind == callWait || w.lines[line] > 0 {
+		if kind == signalrule.CallWait || w.lines[line] > 0 {
 			w.waits++
 		}
 		if w.lines == nil {

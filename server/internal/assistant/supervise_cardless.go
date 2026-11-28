@@ -2,8 +2,11 @@ package assistant
 
 import (
 	"context"
+	"slices"
+	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/signalrule"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -32,6 +35,39 @@ func cardlessSince(t Todo) time.Time {
 		return *v.PendingSince
 	}
 	return v.UpdatedAt
+}
+
+// cardlessStart is when the settle clock of t's pending_review round starts: when its review signal reached the
+// supervisor (the turn ledger's told mark), else the round's own start. No clock while that signal still waits: gathered
+// (supervise.pending, the durable outbox), queued in the relay queue, or marked on the ledger as not told yet.
+func (s *Service) cardlessStart(t Todo) (time.Time, bool) {
+	id := t.ID + "|" + sigReview
+	b := &s.supervise
+	b.mu.Lock()
+	_, open := b.pending[id]
+	b.mu.Unlock()
+	r := &s.relays
+	r.mu.Lock()
+	if s.relayLocked(context.Background()) {
+		_, durable := r.st.SupervisePending[id]
+		open = open || durable
+		for _, q := range r.st.Queue {
+			for _, msg := range q {
+				queued, _ := decodeDigestSignals(msg.Signals)
+				open = open || msg.Tool == superviseTool && strings.Contains(msg.Signals, t.ID) &&
+					slices.ContainsFunc(queued, func(g superviseSignal) bool { return g.Todo == t.ID && g.Kind == sigReview })
+			}
+		}
+	}
+	r.mu.Unlock()
+	var told *time.Time
+	k := &s.tasks.turns
+	k.mu.Lock()
+	if sig := k.doc.Turns[t.ID].Signal; sig != nil && sig.Kind == sigReview {
+		told, open = sig.Told, open || sig.Told == nil
+	}
+	k.mu.Unlock()
+	return signalrule.CardlessStart(cardlessSince(t), told, open)
 }
 
 // cardlessWorkersStopped says none of the task's active workers still works or holds a card the owner can answer.
@@ -73,8 +109,8 @@ func (s *Service) cardlessWaitSignal(ctx context.Context, t Todo, agents []proto
 	if v == nil || t.DoneAt != nil || v.state(t) != reviewPending || v.CardlessToldAt != nil {
 		return superviseSignal{}, false
 	}
-	since := cardlessSince(t)
-	if since.IsZero() || now.Sub(since) < cardlessSettle {
+	since, counting := s.cardlessStart(t)
+	if !counting || since.IsZero() || now.Sub(since) < cardlessSettle {
 		return superviseSignal{}, false
 	}
 	// An acceptance/conclusion ask from the current review round that the owner has not answered already gives them

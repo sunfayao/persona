@@ -127,10 +127,10 @@ func outgrownOf(s *Service, id string) string {
 
 // A wake while a round runs (its conversation working, or starting while its process restarts) queues: later wakes
 // merge into the one queued message, nothing is sent, and once it is idle exactly one round goes in.
-func TestBackgroundWakesMergeDuringRuntimeStart(t *testing.T) {
+func TestBackgroundWakeWhileARoundRuns(t *testing.T) {
 	s, f, todo := newBackgroundService(t)
 	bg := withBackgroundBG1(t, s, f)
-	listRound(f, bg, proto.StatusWorking, true)
+	listRound(f, bg, proto.StatusWorking, false)
 	wakeRound(s, superviseSignal{Todo: todo.ID, Kind: sigStalled, Key: "k1", Minutes: 50})
 	wakeRound(s, superviseSignal{Todo: todo.ID, Kind: sigIdle, Key: "k2", Detail: "停在提问上"})
 	listRound(f, bg, proto.StatusIdle, true) // restarting for a round: Starting
@@ -191,7 +191,7 @@ func TestBackgroundSwitchFlippedWithAQueuedWake(t *testing.T) {
 	bg := withBackgroundBG1(t, s, f)
 	on, off := true, false
 
-	listRound(f, bg, proto.StatusWorking, true)
+	listRound(f, bg, proto.StatusWorking, false)
 	wakeRound(s, superviseSignal{Todo: todo.ID, Kind: sigStalled, Key: "k1", Minutes: 30})
 	setSettings(t, s, func(v *Settings) { v.BackgroundSupervisorKeepsContext = &on })
 	s.drainRelays("server", listRound(f, bg, proto.StatusIdle, false))
@@ -200,7 +200,7 @@ func TestBackgroundSwitchFlippedWithAQueuedWake(t *testing.T) {
 		t.Fatalf("rendered as a round, switched on: %v", a[superviseRoundParam])
 	}
 
-	listRound(f, bg, proto.StatusWorking, true)
+	listRound(f, bg, proto.StatusWorking, false)
 	wakeRound(s, superviseSignal{Todo: todo.ID, Kind: sigIdle, Key: "k2"})
 	setSettings(t, s, func(v *Settings) { v.BackgroundSupervisorKeepsContext = &off })
 	s.drainRelays("server", listRound(f, bg, proto.StatusIdle, false))
@@ -259,7 +259,7 @@ func TestBackgroundWithoutAnchorMovesLegacyWorkToMain(t *testing.T) {
 	waitFor(t, "the answer noted", func() bool { return outgrownOf(s, old) == "no_anchor" })
 
 	// Working: it stays, and the explicitly legacy wake queues for it.
-	listRound(f, old, proto.StatusWorking, true)
+	listRound(f, old, proto.StatusWorking, false)
 	wakeRound(s, superviseSignal{Todo: todo.ID, Kind: sigStalled, Key: "k1", Minutes: 50})
 	if got := s.settings(ctx).BackgroundSupervisor; got != old || len(conversationStarts(f)) != 0 || s.queuedFor(old) != 1 {
 		t.Fatalf("retired while it works: %q, %d starts, %d queued", got, len(conversationStarts(f)), s.queuedFor(old))

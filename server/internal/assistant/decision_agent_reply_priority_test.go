@@ -121,17 +121,14 @@ func TestDecisionReplyInterjectDoesNotSendAnsweredRound(t *testing.T) {
 	before := f.sent()
 	ordinary := superviseSignal{Todo: todo.ID, Kind: sigStalled, Key: "fresh-stall", Detail: "no recent progress"}
 	dispatchSupervisionNow(t, s, g, ordinary)
-	if got := f.sent(); got != before+1 {
-		t.Fatalf("the valid stalled signal should be delivered once: %d sends", got-before)
-	}
-	if text, _ := f.lastSend(t)["text"].(string); strings.Contains(text, "signal="+sigDecisionReply) {
-		t.Fatalf("the stale decision was attached to the valid signal: %s", text)
+	if got := f.sent(); got != before {
+		t.Fatalf("stale decision sent %d assistant messages", got-before)
 	}
 	if a := askOf(s, todo.ID); a == nil || a.AgentReply == nil || !a.AgentReply.ToldAt.IsZero() {
 		t.Fatalf("answered round was marked told by stale dispatch: %+v", a)
 	}
-	if s.queuedFor("conv1") != 0 {
-		t.Fatalf("the valid signal remained in the manager queue")
+	if s.queuedFor("conv1") != 1 {
+		t.Fatalf("the still-valid ordinary signal did not retain queue behavior: %d", s.queuedFor("conv1"))
 	}
 }
 
@@ -196,14 +193,14 @@ func TestDecisionReplyInterjectRefusalRemainsRecoverable(t *testing.T) {
 	}
 }
 
-func TestNonDecisionSupervisionFollowsUpWithWorkingSupervisor(t *testing.T) {
+func TestNonDecisionSupervisionStillQueuesBehindWorkingSupervisor(t *testing.T) {
 	s, f, todo := decisionAgentReplyService(t)
 	setSupervisorWorking(f)
 	g := superviseSignal{Todo: todo.ID, Kind: sigStalled, Key: "ordinary-stall", Detail: "no recent progress"}
 	before := f.sent()
 	dispatchSupervisionNow(t, s, g)
-	if s.queuedFor("conv1") != 0 || f.sent() != before+1 {
-		t.Fatalf("ordinary signal did not reach the running supervisor: queued=%d sends=%d before=%d", s.queuedFor("conv1"), f.sent(), before)
+	if s.queuedFor("conv1") != 1 || f.sent() != before {
+		t.Fatalf("ordinary signal bypassed the running turn: queued=%d sends=%d before=%d", s.queuedFor("conv1"), f.sent(), before)
 	}
 }
 

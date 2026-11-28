@@ -74,7 +74,7 @@ func queuedIdleWakeFixture(t *testing.T) (*Service, *fakeHub, Todo, superviseSig
 		State: proto.StateUnread, LastText: "synthetic turn complete", TurnError: "synthetic turn failure", UpdatedAt: now.Add(-time.Minute),
 		Loop: &proto.LoopInfo{Kind: "wakeup", NextAt: now.Add(time.Hour)}}
 	f.setSessions("box", agent)
-	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusWorking, Starting: true})
+	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusWorking})
 	idle := superviseSignal{Todo: todo.ID, Kind: sigIdle, Key: "turn-wake", Machine: "box", Session: sid,
 		Detail: "synthetic idle after a failed turn", At: now.Add(-time.Minute)}
 	turns := &s.tasks.turns
@@ -236,7 +236,7 @@ func TestUndeliveredDecisionQueuedDrainIgnoresFutureWake(t *testing.T) {
 	s.superviseTimes = superviseTimings{gather: time.Hour, every: time.Hour, urgent: time.Hour}
 	now := time.Now()
 	futureWakeAgent(f, todo, now)
-	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusWorking, Starting: true})
+	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusWorking})
 	s.decisionNotDelivered(ctx, todo.ID, now.Add(-time.Minute), "use the safe option", errors.New("synthetic send failure"))
 	s.supervise.mu.Lock()
 	var handoff superviseSignal

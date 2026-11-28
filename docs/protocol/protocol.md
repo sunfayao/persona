@@ -1065,10 +1065,11 @@ Provider responses carry only the description and `has_key`, never secrets.
                  {"at":"...","kind":"scope","todo_id":"todo_…","by":"<chat id>","change":"…","why":"…","done_when":["…"],"expect_minutes":90,"estimate_source":"override",
                   "added":["…"],"dropped":["…"],"approval":{"text":"…","at":"...","conversation":"…","message_id":"…"}},   // approval: the owner's message that allowed a risky step
                  {"at":"...","kind":"completion","source":"report_to_supervisor|task_review|judge","todo_id":"todo_…","round_id":"plan_…/todo_…@...","actual_minutes":45},
+                 {"at":"...","kind":"estimate","todo_id":"todo_…","by":"hub","auto":true,"expect_minutes":45,"change":"…"},   // the hub extended a due estimate by half because its Agent made progress; the clock does not restart
                  {"at":"...","kind":"estimate_due","todo_id":"todo_…"},   // accepted delivery of the current estimate_due review cue
                  {"at":"...","kind":"overdue","todo_id":"todo_…"}],
           "criteria":["…"],"expect_minutes_now":90,     // done_when and expect_minutes as the scope changes left them
-          "estimate_source_now":"override","estimate_clock_at":"...","estimate_due_at":"...","estimate_due_told_at":"...",
+          "estimate_source_now":"override","estimate_clock_at":"...","estimate_due_at":"...","estimate_due_told_at":"...","estimate_auto_extended":1,   // automatic extensions since a supervisor or the owner last set the estimate (at most 2)
           // estimate_evidence_now is present when the current estimate has automatic evidence; an override clears it.
           // Evidence cohort is repo_machine, machine, comparable, default (too few samples), or history_unavailable.
           "actual_minutes":45,"completion_reported_at":"...",   // latest completion; every round remains in log

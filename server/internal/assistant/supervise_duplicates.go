@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"unicode/utf8"
 
+	"github.com/sunfayao/persona/server/internal/assistant/signalrule"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
@@ -16,7 +16,7 @@ import (
 // duplicateHints are the tasks going on and the agents at work that look like the same work as task t: a shared
 // issue / PR number, or the same machine and directory with a similar title, or a very similar title anywhere.
 func duplicateHints(t PlanTask, todos []Todo, sessions []proto.Session) []string {
-	refs := issueRefs(t.Title + " " + t.Prompt)
+	refs := signalrule.IssueRefs(t.Title + " " + t.Prompt)
 	var out []string
 	seen := map[string]bool{}
 	add := func(key, line string) {
@@ -31,13 +31,13 @@ func duplicateHints(t PlanTask, todos []Todo, sessions []proto.Session) []string
 		}
 		sameDir := false
 		for _, a := range o.Agents {
-			if a.ReleasedAt == nil && a.DismissedAt == nil && a.MachineID == t.Machine && dirsOverlap(a.Cwd, t.Cwd) {
+			if a.ReleasedAt == nil && a.DismissedAt == nil && a.MachineID == t.Machine && signalrule.DirsOverlap(a.Cwd, t.Cwd) {
 				sameDir = true
 			}
 		}
-		if shared := sharedRef(refs, issueRefs(o.Title+" "+o.Notes+" "+o.PRURL)); shared != "" {
+		if shared := signalrule.SharedRef(refs, signalrule.IssueRefs(o.Title+" "+o.Notes+" "+o.PRURL)); shared != "" {
 			add("todo:"+o.ID, fmt.Sprintf("task “%s” (%s) also mentions %s", o.Title, o.ID, shared))
-		} else if sim := titleSimilarity(t.Title, o.Title); sim >= 0.7 || sameDir && sim >= 0.4 {
+		} else if sim := signalrule.TitleSimilarity(t.Title, o.Title); sim >= 0.7 || sameDir && sim >= 0.4 {
 			add("todo:"+o.ID, fmt.Sprintf("task “%s” (%s) has a similar title%s", o.Title, o.ID, map[bool]string{true: ", in the same directory", false: ""}[sameDir]))
 		}
 	}
@@ -47,96 +47,12 @@ func duplicateHints(t PlanTask, todos []Todo, sessions []proto.Session) []string
 		}
 		title := cmp.Or(c.Title, c.LastText)
 		where := fmt.Sprintf("the Agent “%s” on %s (session_id=%s)", clip(oneLine(title), 40), c.MachineID, short(c.SessionID))
-		sameDir := c.MachineID == t.Machine && dirsOverlap(c.Cwd, t.Cwd)
-		if shared := sharedRef(refs, issueRefs(c.Title+" "+c.LastText)); shared != "" {
+		sameDir := c.MachineID == t.Machine && signalrule.DirsOverlap(c.Cwd, t.Cwd)
+		if shared := signalrule.SharedRef(refs, signalrule.IssueRefs(c.Title+" "+c.LastText)); shared != "" {
 			add("agent:"+c.MachineID+"/"+c.SessionID, where+" is also working on "+shared)
-		} else if sim := titleSimilarity(t.Title, c.Title); sim >= 0.7 || sameDir && sim >= 0.4 {
+		} else if sim := signalrule.TitleSimilarity(t.Title, c.Title); sim >= 0.7 || sameDir && sim >= 0.4 {
 			add("agent:"+c.MachineID+"/"+c.SessionID, where+" is working on something similar")
 		}
-	}
-	return out
-}
-
-// issueRefs are the issue / PR numbers s names: #123, issues/123, pull/123 (three digits or more: not a list's #1).
-func issueRefs(s string) []string {
-	var out []string
-	for i := 0; i < len(s); i++ {
-		var rest string
-		switch {
-		case s[i] == '#':
-			rest = s[i+1:]
-		case strings.HasPrefix(s[i:], "issues/"):
-			rest = s[i+len("issues/"):]
-		case strings.HasPrefix(s[i:], "pull/"):
-			rest = s[i+len("pull/"):]
-		default:
-			continue
-		}
-		n := 0
-		for n < len(rest) && rest[n] >= '0' && rest[n] <= '9' {
-			n++
-		}
-		if n >= 3 && n <= 7 {
-			ref := "#" + rest[:n]
-			if !slices.Contains(out, ref) {
-				out = append(out, ref)
-			}
-		}
-	}
-	return out
-}
-
-func sharedRef(a, b []string) string {
-	for _, x := range a {
-		if slices.Contains(b, x) {
-			return x
-		}
-	}
-	return ""
-}
-
-// dirsOverlap: one directory is the other or inside it.
-func dirsOverlap(a, b string) bool {
-	a, b = strings.TrimRight(a, "/"), strings.TrimRight(b, "/")
-	if a == "" || b == "" {
-		return false
-	}
-	return a == b || strings.HasPrefix(a, b+"/") || strings.HasPrefix(b, a+"/")
-}
-
-// titleSimilarity is how alike two short titles are: the Dice coefficient of their character bigrams (spaces and
-// punctuation dropped, letters folded), 0 to 1.
-func titleSimilarity(a, b string) float64 {
-	ga, gb := bigrams(a), bigrams(b)
-	if len(ga) == 0 || len(gb) == 0 {
-		return 0
-	}
-	common := 0
-	left := map[string]int{}
-	for _, g := range gb {
-		left[g]++
-	}
-	for _, g := range ga {
-		if left[g] > 0 {
-			left[g]--
-			common++
-		}
-	}
-	return 2 * float64(common) / float64(len(ga)+len(gb))
-}
-
-func bigrams(s string) []string {
-	var r []rune
-	for _, c := range strings.ToLower(s) {
-		if c == ' ' || c == '\t' || utf8.RuneLen(c) == 1 && !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9') ||
-			strings.ContainsRune("，。、：；！？「」（）《》【】·…—", c) {
-			continue
-		}
-		r = append(r, c)
-	}
-	out := make([]string, 0, len(r))
-	for i := 0; i+1 < len(r); i++ {
-		out = append(out, string(r[i:i+2]))
 	}
 	return out
 }

@@ -19,6 +19,7 @@ func TestReviewCardlessWaitGoesBackOnce(t *testing.T) {
 	holdDigest(s)
 	ctx := context.Background()
 	waitsForReview(t, s, f, todo.ID, "做完了，你看下要不要这样发布。")
+	reviewToldAlready(t, s, f)
 	if got := todoNow(s, todo.ID).Supervision.State; got != reviewPending {
 		t.Fatalf("state = %q, want pending_review", got)
 	}
@@ -59,6 +60,7 @@ func TestReviewCardlessWaitSkipsPendingCard(t *testing.T) {
 	holdDigest(s)
 	ctx := context.Background()
 	waitsForReview(t, s, f, todo.ID, "做完了。")
+	reviewToldAlready(t, s, f)
 	// The worker comes back with a question of its own: a real pending interaction stands for the owner.
 	agentTurn(s, f, proto.StatusBlocked, "选哪个方案？", 1)
 	s.superviseWatch(ctx, time.Now().Add(cardlessSettle+time.Hour))
@@ -73,6 +75,7 @@ func TestReviewCardlessWaitSkipsOpenAsk(t *testing.T) {
 	holdDigest(s)
 	ctx := context.Background()
 	waitsForReview(t, s, f, todo.ID, "做完了。")
+	reviewToldAlready(t, s, f)
 	// In the fake hub the bot card send fails, but the ask is still kept in the acceptance book (as the undecidable
 	// tests rely on): the book is what the backstop reads.
 	s.askConclusion(ctx, todoNow(s, todo.ID), conclusionInput{Outcome: outcomeDecide, Reason: "要不要发布", Recommend: "发布"})
@@ -91,6 +94,7 @@ func TestReviewCardlessWaitRearmsOnNewRound(t *testing.T) {
 	holdDigest(s)
 	ctx := context.Background()
 	waitsForReview(t, s, f, todo.ID, "做完了。")
+	reviewToldAlready(t, s, f)
 	s.superviseWatch(ctx, time.Now().Add(cardlessSettle+time.Minute))
 	if !slices.Contains(pendingKinds(s, todo.ID), sigCardlessWait) {
 		t.Fatalf("first round not handed back: %v", pendingKinds(s, todo.ID))
@@ -105,6 +109,7 @@ func TestReviewCardlessWaitRearmsOnNewRound(t *testing.T) {
 	forgetSignals(t, s)
 	holdDigest(s)
 	waitsForReview(t, s, f, todo.ID, "补上了，再看。")
+	reviewToldAlready(t, s, f)
 	cur := todoNow(s, todo.ID)
 	if cur.Supervision.State != reviewPending || cur.Supervision.CardlessToldAt != nil {
 		t.Fatalf("the new round did not start clean: %+v", cur.Supervision)
@@ -156,6 +161,7 @@ func TestReviewCardlessWaitWaitsForAReachableWorker(t *testing.T) {
 	holdDigest(s)
 	ctx := context.Background()
 	waitsForReview(t, s, f, todo.ID, "做完了。")
+	reviewToldAlready(t, s, f)
 	f.sessionsFail["box"] = 100
 	s.superviseWatch(ctx, time.Now().Add(cardlessSettle+time.Hour))
 	if slices.Contains(pendingKinds(s, todo.ID), sigCardlessWait) {
@@ -179,6 +185,7 @@ func TestCardlessDigestDropsWhenACardAppears(t *testing.T) {
 	holdDigest(s)
 	ctx := context.Background()
 	waitsForReview(t, s, f, todo.ID, "做完了。")
+	reviewToldAlready(t, s, f)
 	s.superviseWatch(ctx, time.Now().Add(cardlessSettle+time.Minute))
 	g := pendingCardlessSignal(t, s, todo.ID)
 	if _, ok := s.digestEntry(ctx, g, ""); !ok {
@@ -202,6 +209,7 @@ func TestCardlessDigestDropsWhenAWorkerResumes(t *testing.T) {
 	holdDigest(s)
 	ctx := context.Background()
 	waitsForReview(t, s, f, todo.ID, "做完了。")
+	reviewToldAlready(t, s, f)
 	s.superviseWatch(ctx, time.Now().Add(cardlessSettle+time.Minute))
 	g := pendingCardlessSignal(t, s, todo.ID)
 	f.setSessions("box", proto.Session{SessionID: "s1", MachineID: "box", Cwd: "/code/app", Agent: "claude",
@@ -225,4 +233,15 @@ func TestCardlessWaitRenderedForTaskLeader(t *testing.T) {
 			t.Errorf("worker cardless_wait render lacks %q:\n%s", want, got)
 		}
 	}
+}
+
+// reviewToldAlready lets the review signal of the round that just began reach its supervisor, then holds the digest
+// again: the settle clock of a card-less review counts from that delivery (cardlessStart).
+func reviewToldAlready(t *testing.T, s *Service, f *fakeHub) {
+	t.Helper()
+	n := len(f.notices())
+	releaseDigest(s)
+	waitFor(t, "the review message", func() bool { return len(f.notices()) > n })
+	forgetSignals(t, s)
+	holdDigest(s)
 }
