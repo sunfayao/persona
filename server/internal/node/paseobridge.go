@@ -493,7 +493,7 @@ var paseoBridgeCommand = func(ctx context.Context, rh *RuntimeHost) (*exec.Cmd, 
 func paseoBridgeArgs(dir, socket, home string) []string {
 	return []string{filepath.Join(dir, "paseo", "bridge.mjs"), "--socket", socket, "--paseo-home", home,
 		"--mcp-config", filepath.Join(filepath.Dir(socket), "mcp.json"),
-		"--allow-tools", strings.Join(compat.MCPAllowedToolNames(assistantwire.AgentOwnTools, true), ",")}
+		"--allow-tools", strings.Join(compat.MCPAllowedToolNames(assistantwire.AgentOwnTools, false), ",")}
 }
 
 // runPaseoBridge runs the bridge once, until it exits or ctx ends (then it is stopped: SIGTERM to its group, SIGKILL

@@ -136,10 +136,11 @@ func generatedFiles(bin, dir string) ([]generatedFile, error) {
 	if dir != "" {
 		server["env"] = map[string]string{"PERSONA_HOME": dir}
 	}
-	// This shared file also serves automatic Agent resumes, before any hub handshake.
-	// Keep both namespaces here so historical tool calls remain available. Assistant
-	// starts choose their own per-process registration after capability negotiation.
-	mcp, err := marshalJSON(map[string]any{"mcpServers": compat.MCPRegistrationServers(map[string]any{"persona": server}, true)})
+	// This shared file also serves automatic Agent resumes, before any hub handshake. It registers Persona's server
+	// once, under its own name: the legacy alias doubled every Agent's tool list and its personad mcp processes, and
+	// transcripts that name the alias are still read (compat.MCPToolNames). Assistant starts choose their own
+	// per-process registration after capability negotiation.
+	mcp, err := marshalJSON(map[string]any{"mcpServers": compat.MCPRegistrationServers(map[string]any{"persona": server}, false)})
 	if err != nil {
 		return nil, err
 	}
