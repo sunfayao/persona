@@ -52,8 +52,18 @@ func TestUnmergeTool(t *testing.T) {
 		{"todo_update", `{"id":"t1","state":"open","report":"r"}`, "", "", "report goes with state done"},
 		{"todo_update", `{"id":"t1","report":"r"}`, "", "", "report goes with state done"},
 		{"todo_update", `{"id":"t1","state":"archived"}`, "", "", "state must be done, open or deleted"},
+		{"agents_list", `{"kind":"conversations","query":"q","limit":5}`, "conversations_list", `{"query":"q","limit":5}`, ""},
+		{"agents_list", `{"kind":"agents","state":"all"}`, "agents_list", `{"state":"all"}`, ""},
+		{"agents_list", `{"state":"all"}`, "agents_list", "", ""},
+		{"agents_list", `{"kind":"conversations","machine":"m"}`, "", "", "machine is for the Agents"},
+		{"agents_list", `{"limit":5}`, "agents_list", "", ""}, // no kind: as it was, the handler's to judge
+		{"agents_list", `{"kind":"agents","include_archived":true}`, "", "", "include_archived is for kind conversations"},
+		{"agents_list", `{"kind":"chats"}`, "", "", "kind must be agents or conversations"},
+		{"agent_read", `{"conversation":"c1","turns":3}`, "conversation_read", `{"id":"c1","turns":3}`, ""},
+		{"agent_read", `{"machine":"m","session_id":"s"}`, "agent_read", "", ""},
+		{"agent_read", `{"conversation":"c1","session_id":"s"}`, "", "", "conversation goes without session_id"},
 		{"todo_complete", `{"id":"t1"}`, "todo_complete", "", ""}, // an older name runs as it is
-		{"agent_read", `{"x":1}`, "agent_read", "", ""},
+		{"task_review", `{"x":1}`, "task_review", "", ""},
 	} {
 		name, args, err := unmergeTool(tt.name, json.RawMessage(tt.args))
 		if tt.err != "" {

@@ -62,7 +62,7 @@ func toolSetOf(ctx context.Context) string {
 
 // roundToolNames are the tools a round lists, and why each is in: the ones its supervision work uses (follow-ups,
 // computers and agents, an agent's cards, the tasks' plans, reviews and scope, a conversation's
-// words), and the ones its prompts point it to: ask_escalate for a card (the supervision instructions), task_decided for
+// words through agent_read), and the ones its prompts point it to: ask_escalate for a card (the supervision instructions), task_decided for
 // a decision_reply entry (its message asks it to confirm the owner's answer with it, and the tool lets the background
 // supervisor record it), todo_get where its message says what crosses rounds is kept, and todo_list, agents_list,
 // list_followups where the snapshot leaves items out. lark_search, or larkcli_search from the lark-cli
@@ -79,7 +79,7 @@ func toolSetOf(ctx context.Context) string {
 // starts with task_plan on the same todo, and what needs another conversation is the main conversation's).
 var roundToolNames = []string{"notify_user", "supervision_finish", "schedule_followup", "list_followups", "cancel_followup",
 	"machines_list", "agents_list", "agent_read", "agent_send", "agent_interrupt", "agent_archive", "interaction_answer",
-	"ask_escalate", "conversation_read", "task_plan", "task_review", "task_scope",
+	"ask_escalate", "task_plan", "task_review", "task_scope",
 	"task_decided", "todo_get", "todo_list", "lark_search", "larkcli_search"}
 
 // roundToolsWithheld are the tools the supervision instructions name that a round does not list, each with why the

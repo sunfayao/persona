@@ -42,9 +42,9 @@ var coreTools = []string{
 	// for use too rare to declare in every request: agent_interrupt, agent_start, agent_supervise, cancel_followup,
 	// interaction_answer and schedule_routine (none or one call), list_followups (three) and model_profiles
 	// (model_profiles_list's six): under the five a week a declared tool needs, they load on demand like any other.
-	"ask_user", "browser_look", "browser_run", "conversation_read", "conversation_send", "conversations_list",
-	"lark_chats", "lark_messages", "lark_search", "larkcli_chats", "larkcli_messages", "larkcli_search", "notify_user",
-	"schedule_followup",
+	// conversations_list and conversation_read are agents_list's and agent_read's now, their calls counted there.
+	"ask_user", "browser_look", "browser_run", "conversation_send", "lark_chats", "lark_messages", "lark_search",
+	"larkcli_chats", "larkcli_messages", "larkcli_search", "notify_user", "schedule_followup",
 }
 
 // The operations taught by persona-work. Match built-in names exactly: an
@@ -53,7 +53,7 @@ var workGuideTools = []string{
 	"machines_list", "agents_list", "agent_read", "agent_send", "agent_start", "agent_interrupt",
 	"agent_switch", "agent_archive", "agent_supervise", "task_plan", "task_plan_withdraw", "task_scope",
 	"task_start_repair", "task_review", "task_decided", "todo_list", "todo_get", "todo_create", "todo_update",
-	"conversations_list", "conversation_read", "conversation_send", "repositories", "todo_links",
+	"conversation_send", "repositories", "todo_links",
 }
 
 // withToolLoading is a conversation's tools with DeferLoading, CoreRank and Fill set by the manager alone, whatever the

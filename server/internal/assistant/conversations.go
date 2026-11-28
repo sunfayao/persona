@@ -1181,7 +1181,7 @@ func (s *Service) spaceConversation(ctx context.Context, id string, in *string) 
 	case 1:
 		return found[0], nil
 	case 0:
-		return proto.Session{}, fmt.Errorf("no conversation %q (conversations_list has the ids)", id)
+		return proto.Session{}, fmt.Errorf("no conversation %q (agents_list kind conversations has the ids)", id)
 	}
 	return proto.Session{}, fmt.Errorf("%q is the start of %d conversations: give more of the id", id, len(found))
 }

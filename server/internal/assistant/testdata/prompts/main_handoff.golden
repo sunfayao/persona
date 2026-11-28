@@ -1,5 +1,5 @@
 <persona-context kind="context" title="Continuing from the previous main conversation" url="">
-This is the new main conversation: the user archived the previous main conversation (a1b2c3d4-0000-4000-8000-000000000001) at 11月4日 21:30 and switched to this one. Below is the background the previous one left, for reference only; do what this message itself asks. To see more, read a1b2c3d4-0000-4000-8000-000000000001 with conversation_read. Do not respond to this background specially.
+This is the new main conversation: the user archived the previous main conversation (a1b2c3d4-0000-4000-8000-000000000001) at 11月4日 21:30 and switched to this one. Below is the background the previous one left, for reference only; do what this message itself asks. To see more, read a1b2c3d4-0000-4000-8000-000000000001 with agent_read (conversation). Do not respond to this background specially.
 
 Summary from when the previous conversation was compacted:
 示例摘要：用户在整理周末出游计划，酒店已订好，还差火车票。

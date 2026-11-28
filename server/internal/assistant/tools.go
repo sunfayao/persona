@@ -40,7 +40,7 @@ import (
 var toolNames = []string{"resource_status", "ask_user", "notify_user", "supervision_finish", "schedule_followup", "schedule_routine", "schedule_state_set", "delete_routine", "list_followups",
 	"cancel_followup", "machines_list", "machine_redeploy", "machine_exec", "agents_list", "agent_read", "agent_send", "agent_switch", "agent_interrupt", "agent_start", "agent_supervise", "agent_archive", "interaction_answer", "ask_escalate", "inbox_suggest",
 	"inbox_folders", "inbox_move", "inbox_post", "persona_settings", "secret_run", "skill", "model_profiles", "repositories", "view",
-	"conversations_list", "conversation_read", "conversation_send", "task_plan", "task_plan_withdraw", "task_review", "task_scope", "task_decided", "task_start_repair",
+	"conversation_send", "task_plan", "task_plan_withdraw", "task_review", "task_scope", "task_decided", "task_start_repair",
 	"todo_links", "todo_list", "todo_get", "todo_create", "todo_update", "decision_record", "decisions_query", "tool_note"}
 
 // retiredToolNames are tools no list offers any more whose calls still route through runTool, so a conversation that
@@ -52,7 +52,7 @@ var retiredToolNames = []string{"agent_autoname", "agent_autoname_receipt", "tod
 	"model_profile_switch", "model_profile_rollback", "repositories_list", "repository_get", "repository_add",
 	"todo_repositories_get", "todo_repositories_set", "todo_repository_links_set", "todo_repository_links_add",
 	"task_start_screen", "task_start_keys", "task_retry", "agents_switch", "agent_unarchive", "todo_complete",
-	"todo_reopen", "todo_delete", "concern_report"}
+	"todo_reopen", "todo_delete", "concern_report", "conversations_list", "conversation_read"}
 
 // mergedTools are the tools that stand for several older ones, one an action: a call runs the older tool its action
 // names with the other arguments (unmergeTool), so each keeps its own checks, access class and answer.
@@ -67,7 +67,8 @@ var mergedTools = map[string]map[string]string{
 
 // mergedInto is the tool each older one of mergedTools and of unmergeTool's parameters is now part of.
 var mergedInto = func() map[string]string {
-	out := map[string]string{"agents_switch": "agent_switch", "agent_unarchive": "agent_archive", "concern_report": "todo_update"}
+	out := map[string]string{"agents_switch": "agent_switch", "agent_unarchive": "agent_archive", "concern_report": "todo_update",
+		"conversations_list": "agents_list", "conversation_read": "agent_read"}
 	for _, old := range todoStates {
 		out[old] = "todo_update"
 	}
@@ -92,12 +93,14 @@ var todoStates = map[string]string{"done": "todo_complete", "open": "todo_reopen
 
 // unmergeTool is the older tool a call of a merged tool stands for, and its arguments for it: an action of
 // mergedTools; agent_switch without session_id (agents_switch); agent_archive with restore (agent_unarchive);
-// todo_update with state (todo_complete, todo_reopen, todo_delete, or concern_report with a report). Any other call
-// is returned as it is. The policies that go by a tool's name (guards, the Inbox's and a grant's read-only lists) see
+// todo_update with state (todo_complete, todo_reopen, todo_delete, or concern_report with a report); agents_list of
+// kind conversations (conversations_list); agent_read of a conversation (conversation_read). Any other call is
+// returned as it is. The policies that go by a tool's name (guards, the Inbox's and a grant's read-only lists) see
 // the older name, so a merged tool reads where it read and writes where it wrote.
 func unmergeTool(name string, args json.RawMessage) (string, json.RawMessage, error) {
 	actions, merged := mergedTools[name]
-	if !merged && name != "agent_switch" && name != "agent_archive" && name != "todo_update" {
+	if !merged && name != "agent_switch" && name != "agent_archive" && name != "todo_update" && name != "agents_list" &&
+		name != "agent_read" {
 		return name, args, nil
 	}
 	fields := map[string]json.RawMessage{}
@@ -154,6 +157,43 @@ func unmergeTool(name string, args json.RawMessage) (string, json.RawMessage, er
 		if _, given := fields["restore"]; given {
 			return name, rest("restore"), nil
 		}
+	case name == "agents_list":
+		kind, given := fields["kind"]
+		if !given {
+			break
+		}
+		var k string
+		_ = json.Unmarshal(kind, &k)
+		switch k {
+		case "conversations":
+			for _, f := range []string{"state", "machine"} {
+				if _, agents := fields[f]; agents {
+					return "", nil, fmt.Errorf("agents_list: %s is for the Agents, not kind conversations", f)
+				}
+			}
+			return "conversations_list", rest("kind"), nil
+		case "agents", "":
+			for _, f := range []string{"include_archived", "limit"} {
+				if _, conversations := fields[f]; conversations {
+					return "", nil, fmt.Errorf("agents_list: %s is for kind conversations", f)
+				}
+			}
+			return name, rest("kind"), nil
+		}
+		return "", nil, errors.New("agents_list: kind must be agents or conversations")
+	case name == "agent_read":
+		id, given := fields["conversation"]
+		if !given {
+			break
+		}
+		for _, f := range []string{"machine", "session_id"} {
+			if _, agent := fields[f]; agent {
+				return "", nil, fmt.Errorf("agent_read: conversation goes without %s", f)
+			}
+		}
+		delete(fields, "conversation")
+		fields["id"] = id
+		return "conversation_read", rest(), nil
 	case name == "todo_update":
 		state, given := fields["state"]
 		if !given {

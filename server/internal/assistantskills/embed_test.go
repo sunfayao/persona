@@ -363,7 +363,7 @@ func TestWorkGuideRoutesToNativeReferences(t *testing.T) {
 		{"review", "review", "task_review"},
 		{"Agent", "agents-and-machines", "agents_list"},
 		{"machine", "agents-and-machines", "machines_list"},
-		{"conversation", "conversations", "conversations_list"},
+		{"conversation", "conversations", `kind: "conversations"`},
 		{"repository", "repositories", "todo_links"},
 	} {
 		ref := "references/" + area.reference + ".md"

@@ -36,8 +36,6 @@ skill
 model_profiles
 repositories
 view
-conversations_list
-conversation_read
 conversation_send
 task_plan
 task_plan_withdraw

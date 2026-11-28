@@ -18,12 +18,12 @@ const (
 	supervisionInstructionsBudget = 6_650
 	// assistantToolsBudget: the tools an assistant conversation's own list can hold (toolNames), before the gates
 	// leave out those of features that are off.
-	assistantToolsBudget = 50
+	assistantToolsBudget = 48
 	// agentToolsBudget: the Agents' own tools an Agent always lists (listedAgentTools).
 	agentToolsBudget = 4
 	// coreToolBytesBudget: the static core tools declared up front, in wire bytes ({name, description, input_schema}
 	// as JSON), the extensions' and the Lark tools aside.
-	coreToolBytesBudget = 41_800
+	coreToolBytesBudget = 41_600
 	// readonlyRulesBudget and writeRulesBudget: the framework rules an Agent with the Persona tools gets with a
 	// read-only task, and with a task that changes things and has no delivery standard, in bytes.
 	readonlyRulesBudget = 1_050

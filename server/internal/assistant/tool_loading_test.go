@@ -22,9 +22,8 @@ func TestCoreToolsPinned(t *testing.T) {
 		"agent_read", "agents_list", "todo_get", "persona_settings", "task_review", "supervision_finish", "task_plan",
 		"agent_send", "machines_list", "schedule_state_set", "agent_archive", "task_scope", "todo_list", "todo_update",
 		"todo_create", "computer_run", "computer_state", "machine_exec",
-		"ask_user", "browser_look", "browser_run", "conversation_read", "conversation_send", "conversations_list",
-		"lark_chats", "lark_messages", "lark_search", "larkcli_chats", "larkcli_messages", "larkcli_search", "notify_user",
-		"schedule_followup",
+		"ask_user", "browser_look", "browser_run", "conversation_send", "lark_chats", "lark_messages", "lark_search",
+		"larkcli_chats", "larkcli_messages", "larkcli_search", "notify_user", "schedule_followup",
 	}
 	if !slices.Equal(coreTools, want) {
 		t.Fatalf("core tools changed:\n got %q\nwant %q", coreTools, want)

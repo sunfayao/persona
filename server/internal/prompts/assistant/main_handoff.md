@@ -1,5 +1,5 @@
 <persona-context kind="context" title="Continuing from the previous main conversation" url="">
-This is the new main conversation: the user archived the previous main conversation ({{.FromID}}) at {{.Until}} and switched to this one. Below is the background the previous one left, for reference only; do what this message itself asks. To see more, read {{.FromID}} with conversation_read. Do not respond to this background specially.
+This is the new main conversation: the user archived the previous main conversation ({{.FromID}}) at {{.Until}} and switched to this one. Below is the background the previous one left, for reference only; do what this message itself asks. To see more, read {{.FromID}} with agent_read (conversation). Do not respond to this background specially.
 {{- if .Summary}}
 
 Summary from when the previous conversation was compacted:
