@@ -70,7 +70,7 @@ export function effortTitle(id?: string): string {
 }
 
 /** The two chips (Claude Code's TUI bottom bar). The node says where they work (`capabilities.modes`, #1843): a runtime
- *  that applies them (Orca, Antigravity), never a Claude outside Persona's terminals nor an agent in a terminal whose mode
+ *  that applies them (Antigravity), never a Claude outside Persona's terminals nor an agent in a terminal whose mode
  *  is its start's (cursor, agy: the node refuses the switch). An older node does not say, and the chips follow the agent:
  *  Claude Code in Persona's terminals, Antigravity's runtime; Codex, agy in a terminal pane and other sources not, as on
  *  iOS and Android (`canChangeModes`). */
@@ -86,7 +86,7 @@ export function hasModes(s: Session | undefined): boolean {
 export const LAUNCHER_DEFAULT: ModeOption = { id: "default", title: t("lib-session-actions.mode_launcher_default"), detail: t("lib-session-actions.mode_launcher_default_detail") };
 
 /** The permission modes the composer switches a session of an agent that is not Claude Code between (#8261, the node's
- *  `capabilities.permission_modes`): its own approval and Full access, on Paseo's Grok, OpenCode or Codex. Undefined with
+ *  `capabilities.permission_modes`): its own approval and Full access, on OpenCode or Codex. Undefined with
  *  fewer than two, for a Persona conversation, and where Claude Code's chips stand (`hasModes`). */
 export function listedModesOf(s: Session | undefined): string[] | undefined {
   const modes = s?.capabilities?.permission_modes;

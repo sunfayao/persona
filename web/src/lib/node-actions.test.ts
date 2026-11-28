@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { MenuItem } from "../ui/menu-model";
-import { canChangeHost, canRenameIn, gitOutcomeText, machineNode, nodeActions, sessionNode, termPaneNode, termSpaceNode, termTabNode, type MenuNode, type NodeActionDeps } from "./node-actions";
+import { canChangeHost, gitOutcomeText, machineNode, nodeActions, sessionNode, termPaneNode, termSpaceNode, termTabNode, type MenuNode, type NodeActionDeps } from "./node-actions";
 import { buildTerminalTree, type PanesResponse } from "./terminals";
 import type { Session } from "./types";
 import zhNode from "../i18n/locales/zh-Hans/lib-node-actions.json";
@@ -279,7 +279,7 @@ describe("read-only items", () => {
     expect(k).toContain("node-copy-id");
   });
   it("copies the branch from the top level when there is no Git menu to hold it", () => {
-    expect(keys(nodeActions({ ...tab, host: "orca" }, deps()))).toContain("node-copy-branch");
+    expect(keys(nodeActions({ ...tab, host: "botmux" }, deps()))).toContain("node-copy-branch");
   });
   it("leaves out what the row's own menu has", () => {
     expect(keys(nodeActions(pane, deps(), { omit: ["node-copy-path", "node-rename"] }))).not.toContain("node-copy-path");
@@ -331,38 +331,13 @@ describe("closing a pane (#7125)", () => {
 
 describe("what a computer that cannot be changed is offered", () => {
   it("an offline machine or another host's node only copies", () => {
-    for (const node of [{ ...tab, online: false }, { ...tab, host: "orca" }, { ...tab, host: "botmux" }]) {
+    for (const node of [{ ...tab, online: false }, { ...tab, host: "tmux" }, { ...tab, host: "botmux" }]) {
       const k = keys(nodeActions(node, deps()));
       expect(k).toEqual(["node-copy-path", "node-copy-id", "node-copy-branch"]);
     }
     expect(canChangeHost(undefined)).toBe(true);
     expect(canChangeHost("herdr")).toBe(true);
-    expect(canChangeHost("herdr-core")).toBe(false);
-  });
-});
-
-describe("a Tern node (#2154)", () => {
-  const ternTab: MenuNode = { ...tab, host: "tern", workspaceId: "s1", tabId: "t2", paneId: "tern:5" };
-  const ternSpace: MenuNode = { kind: "workspace", mid: "m1", host: "tern", label: "proj", workspaceId: "s1", cwd: "/home/me/proj", branch: "main", canWorktree: true };
-
-  it("renames its tabs and workspaces, and is not asked to split, run an agent, git, close or make a worktree", async () => {
-    const d = deps({ newWorktree: vi.fn() });
-    expect(keys(nodeActions(ternTab, d))).toEqual(["node-rename", "node-copy-path", "node-copy-id", "node-copy-branch"]);
-    expect(keys(nodeActions(ternSpace, d))).toEqual(["node-new-agent", "node-rename", "node-copy-path", "node-copy-id", "node-copy-branch"]);
-    await by(nodeActions(ternTab, d), "node-rename").rename!.commit("deploy");
-    expect(d.renameTab).toHaveBeenCalledWith(ternTab, "deploy");
-    await by(nodeActions(ternSpace, d), "node-rename").rename!.commit("docs");
-    expect(d.renameWorkspace).toHaveBeenCalledWith(ternSpace, "docs");
-  });
-
-  it("renames nothing while its machine is offline; the other hosts still rename nothing", () => {
-    expect(keys(nodeActions({ ...ternTab, online: false }, deps()))).not.toContain("node-rename");
-    for (const host of ["orca", "herdr-core", "botmux"]) expect(keys(nodeActions({ ...ternTab, host }, deps()))).not.toContain("node-rename");
-    expect(canRenameIn("tern")).toBe(true);
-    expect(canRenameIn("rex")).toBe(true);
-    expect(canRenameIn(undefined)).toBe(true);
-    expect(canChangeHost("tern")).toBe(false);
-    expect(canChangeHost("rex")).toBe(false);
+    expect(canChangeHost("tmux")).toBe(false);
   });
 });
 
@@ -410,7 +385,7 @@ describe("新建 worktree… (#2431)", () => {
     expect(keys(nodeActions({ ...ws, canWorktree: false }, d))).not.toContain("node-worktree");
     expect(keys(nodeActions({ ...ws, canWorktree: undefined }, d))).not.toContain("node-worktree");
     expect(keys(nodeActions({ ...ws, online: false }, d))).not.toContain("node-worktree");
-    expect(keys(nodeActions({ ...ws, host: "orca" }, d))).not.toContain("node-worktree");
+    expect(keys(nodeActions({ ...ws, host: "botmux" }, d))).not.toContain("node-worktree");
     expect(keys(nodeActions({ ...ws, workspaceId: undefined }, d))).not.toContain("node-worktree");
     expect(keys(nodeActions({ ...ws, kind: "tab", tabId: "w1:t1", paneId: "w1:p1" }, d))).not.toContain("node-worktree");
     expect(keys(nodeActions(ws, deps()))).not.toContain("node-worktree");
@@ -465,7 +440,7 @@ describe("the nodes of the two trees", () => {
 
 
 describe("session menus keep pane operations in the terminal toolbar (#10239)", () => {
-  it.each(["herdr", "orca", "tern", "botmux"])("removes pane controls for a %s session", (host) => {
+  it.each(["herdr", "tmux", "botmux"])("removes pane controls for a %s session", (host) => {
     const node = sessionNode({ machine_id: "m1", session_id: "s1", pane_id: "w1:p1", space_kind: host, cwd: "/project" } as Session, true);
     const items = keys(nodeActions(node, deps()));
     for (const key of ["node-split", "node-close-pane", "node-copy-id"]) expect(items).not.toContain(key);

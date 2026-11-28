@@ -83,7 +83,7 @@ export function defaultNodeDeps(changed: () => void = () => {}): NodeActionDeps 
         : api(`/machines/${enc(node.mid)}/tabs/rename`, { method: "POST", json: { tab_id: node.tabId, label: name, ...(node.host ? { kind: node.host } : {}) } }),
     launchers: (mid) => api<{ launchers: Launcher[] }>(`/machines/${enc(mid)}/launchers`).then((r) => r.launchers ?? []),
     newAgent: (mid, cwd, node) => openNewAgent({
-      machineId: mid, cwd, host: node?.host,
+      machineId: mid, cwd,
       workspace: node?.workspaceId ? { machineId: mid, cwd, workspaceId: node.workspaceId, host: node.host || "herdr", label: node.label } : undefined,
     }),
     newWorktree: (node) => openNewWorktree(node, changed),
@@ -100,12 +100,9 @@ export interface NodeActionOptions {
   omit?: readonly string[];
 }
 
-/** Closing, splitting, git and running an agent in a shell are herdr's: another host (Orca, herdr-core, Tern, Rex, botmux) is
- *  not asked to do them. */
+/** Closing, splitting, renaming, git and running an agent in a shell are herdr's: another host (tmux, botmux) is not
+ *  asked to do them. */
 export const canChangeHost = (host: string | undefined) => !host || host === "herdr";
-
-/** Renaming a workspace or a tab is herdr's, Tern's and Rex's (the capability table in docs/integrations/engines.md). */
-export const canRenameIn = (host: string | undefined) => canChangeHost(host) || host === "tern" || host === "rex";
 
 /** Claude Code, and a launcher the computer says it starts in a pane the user picked, keeping that pane when the start
  *  fails (`run_here`: its Codex launchers, #5504). An older computer's failed Codex start closes its pane, here the
@@ -148,7 +145,6 @@ export function nodeActions(node: MenuNode, deps: NodeActionDeps, opts: NodeActi
   const { mid } = node;
   const online = node.online !== false;
   const writes = online && canChangeHost(node.host);
-  const renames = online && canRenameIn(node.host);
   const kind = node.host ? { kind: node.host } : {};
   const fail = (key: string, e: unknown) => new Error(t(key, { error: errorText(e) }));
 
@@ -176,7 +172,7 @@ export function nodeActions(node: MenuNode, deps: NodeActionDeps, opts: NodeActi
   // ── rename ──
   const renameValue = node.label ?? "";
   group(
-    node.kind === "workspace" && renames && Boolean(node.workspaceId) && {
+    node.kind === "workspace" && writes && Boolean(node.workspaceId) && {
       key: "node-rename",
       label: t("lib-node-actions.rename"),
       icon: "pencil",
@@ -192,7 +188,7 @@ export function nodeActions(node: MenuNode, deps: NodeActionDeps, opts: NodeActi
         },
       },
     },
-    node.kind === "tab" && renames && Boolean(node.tabId) && {
+    node.kind === "tab" && writes && Boolean(node.tabId) && {
       key: "node-rename",
       label: t("lib-node-actions.rename"),
       icon: "pencil",

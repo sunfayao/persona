@@ -363,11 +363,11 @@ describe("the pick drawn before the hub answers (#6476)", () => {
   });
 });
 
-// #8261: a session of an agent that is not Claude Code lists the modes it takes (Paseo's Grok): the chip names its own
+// #8261: a session of an agent that is not Claude Code lists the modes it takes (a runtime's Grok): the chip names its own
 // approval "Launcher default" (no mode reported is it), the menu offers that and Full access alone, and a pick goes to
 // the session as any mode does.
 describe("a session that lists its modes (#8261)", () => {
-  const grok = (permission_mode?: string) => ({ machine_id: "mac", session_id: "g1", agent: "paseo", agent_label: "Grok", source_kind: "runtime", status: "idle",
+  const grok = (permission_mode?: string) => ({ machine_id: "mac", session_id: "g1", agent: "grok", agent_label: "Grok", source_kind: "runtime", status: "idle",
     permission_mode, capabilities: { read: true, send: true, modes: false, permission_modes: ["default", "bypassPermissions"] } }) as unknown as Session;
 
   it("names its own approval, offers it and Full access alone, and switches", async () => {

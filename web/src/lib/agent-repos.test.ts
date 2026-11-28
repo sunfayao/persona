@@ -36,7 +36,7 @@ describe("从 cwd 推断仓库与工作树", () => {
   });
 
   it("宿主给了仓库（repo_root，#2840）时按它分：在它里面是主工作树，别处是它的工作树", () => {
-    const wt = "/home/me/.paseo/worktrees/1a2b3c4d/brave-fox";
+    const wt = "/home/me/checkouts/app/brave-fox";
     expect(repoOf(wt, "/code/app")).toEqual({ repo: "/code/app", name: "app", worktree: wt, main: false });
     expect(repoOf("/code/app", "/code/app/")).toEqual({ repo: "/code/app", name: "app", worktree: "/code/app", main: true });
     expect(repoOf("/code/app/server", "/code/app")).toEqual({ repo: "/code/app", name: "app", worktree: "/code/app", main: true });

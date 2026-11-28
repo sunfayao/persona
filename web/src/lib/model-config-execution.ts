@@ -48,7 +48,8 @@ export function executionForm(p: ModelPurpose, providers: ModelProvider[] = [], 
       : runtimeLabel("cli", agent);
   } else {
     const machine = p.machine_id ? machines.find((m) => m.id === p.machine_id) : undefined;
-    backend = `${machine ? machine.engine_default || machine.engine || "herdr" : t("lib-agent-groups.by_machine")} · ${agent}`;
+    // a chosen computer's Agents run in herdr, built into every computer
+    backend = `${machine ? "herdr" : t("lib-agent-groups.by_machine")} · ${agent}`;
   }
   return { label: executionLabel(launch || p.kind), backend };
 }

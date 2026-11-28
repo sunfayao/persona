@@ -107,7 +107,6 @@
   "resume": "再開",
   "resume_failed": "このエージェントを再開できませんでした。{error}",
   "resume_in_terminal": "ターミナルで再開",
-  "resume_no_engine": "{computer} ではターミナルエンジンが有効になっていません",
   "codex_waiting": "Codexは「{computer}」で開いています。下で最初のメッセージを送るか、ターミナルに直接入力してください。",
   "codex_first_placeholder": "Codex への最初のメッセージ",
   "team": "コラボ",

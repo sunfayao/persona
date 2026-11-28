@@ -58,7 +58,7 @@ describe("session metadata extractors & facet building", () => {
   it("finds TRAE CLI by the product name and its command spelling", () => {
     const aliases = ["traex", "traecli", "trae-cli"];
     const sessions = aliases.map((agent, index) => mkSession(`cli-${index}`, { agent }));
-    sessions.push(mkSession("paseo", { agent: "paseo", launcher: "trae-cli" }), mkSession("launcher", { agent: "", launcher: "trae-cli" }));
+    sessions.push(mkSession("launcher", { agent: "", launcher: "trae-cli" }));
     for (const session of sessions) {
       expect(agentSearchHit(session, "TRAE CLI", baseCtx).score).toBe(40);
       expect(agentSearchHit(session, "traecli", baseCtx).score).toBe(40);
@@ -70,7 +70,7 @@ describe("session metadata extractors & facet building", () => {
     const list = [...sessions, genericTrae];
     const facets = buildAgentFacets(list, machines, baseCtx.pins);
     expect(facets.harnesses).toEqual([
-      { id: "traex", label: "TRAE CLI", count: 5 },
+      { id: "traex", label: "TRAE CLI", count: 4 },
       { id: "trae", label: "TRAE", count: 1 },
     ]);
     expect(applyDimensionFilters(list, { ...DEFAULT_DIMENSION_FILTERS, harnesses: ["trae"] }, baseCtx).sessions).toEqual([genericTrae]);
@@ -118,21 +118,6 @@ describe("session metadata extractors & facet building", () => {
       ["gcp", 2],
       ["mac", 1],
     ]);
-  });
-
-  it("keys Paseo's providers by provider, each under its own label, never one 'paseo' (#8142)", () => {
-    const paseo = (id: string, launcher: string, agent_label: string) => mkSession(id, { agent: "paseo", source_kind: "runtime", source_instance_id: "paseo", launcher, agent_label });
-    const list = [paseo("g1", "grok", "Grok"), paseo("k1", "kimi", "Kimi"), paseo("g2", "grok", "Grok"), paseo("c1", "cursor", "Cursor"), mkSession("cc", { agent: "claude", source_kind: "runtime", launcher: "my-claude" })];
-    const facets = buildAgentFacets(list, machines, baseCtx.pins);
-    expect(facets.harnesses.map((h) => [h.id, h.label, h.count])).toEqual([
-      ["grok", "Grok", 2],
-      ["claude", "Claude Code", 1],
-      ["cursor", "Cursor", 1],
-      ["kimi", "Kimi", 1],
-    ]);
-    const only = (harnesses: string[]) => applyDimensionFilters(list, { ...DEFAULT_DIMENSION_FILTERS, harnesses }, baseCtx).sessions.map((s) => s.session_id);
-    expect(only(["grok"])).toEqual(["g1", "g2"]);
-    expect(only(["kimi"])).toEqual(["k1"]);
   });
 
   it("toggles facet values with Orca All/multi-select collapse semantics", () => {

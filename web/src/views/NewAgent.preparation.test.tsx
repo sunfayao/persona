@@ -7,7 +7,6 @@ import { applyMachine, getState } from "../lib/store";
 import { credentialOwner, handleUnauthorized, setToken } from "../lib/api";
 import { onOpenNewAgent, openNewAgent, type NewAgentPreset, type WorkspaceTarget } from "../lib/new-agent";
 import { resetManagerChoice, setRosterDefault } from "../lib/manager-choice";
-import { refreshWorkspaceCatalog } from "../lib/workspace-catalog";
 import { NewAgent } from "./NewAgent";
 import { resetModelListsForTests } from "../lib/session-models";
 import type { LauncherModels } from "../lib/launcher-models";
@@ -60,7 +59,7 @@ function Harness() {
     <NewAgent open={open} preset={preset} onClose={() => { closes++; setOpen(false); }} /><Toasts /></>;
 }
 const workspace = (overrides: Partial<WorkspaceTarget> = {}): WorkspaceTarget => ({
-  machineId: "computer", workspaceId: "nested-empty", host: "orca", cwd: "/projects/demo",
+  machineId: "computer", workspaceId: "nested-empty", host: "herdr", cwd: "/projects/demo",
   label: "Empty nested workspace", owner: credentialOwner(), manager: "assistant", ...overrides,
 });
 async function target(next: WorkspaceTarget) {
@@ -126,9 +125,7 @@ beforeEach(async () => {
       const launcher = launcherRows.find((l) => url.includes(`/launchers/${l.name}/`));
       if (modelsStatus !== 200) return json({ error: "Synthetic model list unavailable" }, modelsStatus);
       const catalog = launcherModels[launcher?.name ?? ""] ?? { models: [{ id: "synthetic-model", name: "Synthetic model", efforts: ["low", "high"] }] };
-      const host = new URL(url, "http://localhost").searchParams.get("host");
-      return json({ agent: launcher?.agent_type || launcher?.agent || "claude", ...catalog,
-        supports_start_model: host === "herdr" ? catalog.supports_start_model : undefined });
+      return json({ agent: launcher?.agent_type || launcher?.agent || "claude", ...catalog });
     }
     if (url.endsWith("/launchers")) return json({ launchers: launcherRows });
     if (url.includes("/dirs?")) return json({ path: "/projects", entries: [] });
@@ -296,16 +293,13 @@ describe("New Agent preparation ownership", () => {
     expect(document.querySelector('img[alt="submitted.png"]')).toBeNull();
   });
 
-  it("keeps the admitted model settings and host while later choices remain editable", async () => {
+  it("keeps the admitted model settings while later choices remain editable", async () => {
     configured = true;
-    await act(async () => applyMachine({ id: "computer", name: "Synthetic computer", online: true, engine_hosts: ["herdr", "orca"], engine_default: "herdr" }));
     await click(t("common.cancel")); await click("Reopen start"); await flush();
-    await click("Orca");
     const request = await prepare();
-    // the engine it opens in says where its worktree goes, and makes it
-    expect(calls.filter((c) => c.url.endsWith("/worktree/status")).at(-1)?.body).toMatchObject({ kind: "orca" });
-    expect(request.body).toMatchObject({ kind: "orca" });
-    await act(async () => document.querySelector<HTMLButtonElement>('[data-testid="start-host"] button')!.click());
+    // herdr makes the worktree: no host is named
+    expect(calls.filter((c) => c.url.endsWith("/worktree/status")).at(-1)?.body).toEqual({ cwd: "/projects/demo" });
+    expect(request.body).not.toHaveProperty("kind");
     // a model picked in the panel after admission changes the form, not the start on its way
     await act(async () => document.querySelector<HTMLButtonElement>("[data-testid=new-agent-model] [data-model-pill]")!.click());
     await act(async () => vi.dynamicImportSettled());
@@ -315,7 +309,8 @@ describe("New Agent preparation ownership", () => {
     expect(document.querySelector("[data-model-panel]")).toBeNull();
     await answer(request);
     expect(starts()).toHaveLength(1);
-    expect(starts()[0].body).toMatchObject({ cwd: worktree.path, host: "orca" });
+    expect(starts()[0].body).toMatchObject({ cwd: worktree.path });
+    expect(starts()[0].body).not.toHaveProperty("host");
     // Following the shared purpose leaves model/effort resolution to the hub.
     expect(starts()[0].body!.launcher).toBeUndefined();
     expect(starts()[0].body!.model).toBeUndefined();
@@ -337,13 +332,8 @@ describe("New Agent preparation ownership", () => {
 });
 
 describe("New Agent exact workspace destinations", () => {
-  it.each([
-    { host: "orca", initial: "herdr", current: "herdr" },
-    { host: "herdr", initial: "herdr", current: "orca" },
-    { host: "herdr-core", initial: "herdr-core", current: "herdr-core" },
-  ])("retains $host when the machine default goes from $initial to $current", async ({ host, initial, current }) => {
-    await act(async () => applyMachine({ id: "computer", name: "Synthetic computer", online: true, engine_hosts: ["herdr", "herdr-core", "orca"], engine_default: initial }));
-    const selected = workspace({ host });
+  it("starts in the exact workspace it was given, naming no terminal host", async () => {
+    const selected = workspace();
     await target(selected);
     const card = document.querySelector('[data-testid="new-agent-workspace"]')!;
     expect(card.textContent).toContain(selected.label);
@@ -351,15 +341,14 @@ describe("New Agent exact workspace destinations", () => {
     expect(card.textContent).not.toContain(selected.workspaceId);
     expect(card.textContent).not.toContain(selected.owner);
     expect(document.querySelector('input[placeholder="' + t("newagent.folder_placeholder") + '"]')).toBeNull();
-    expect(document.querySelector('[data-testid="start-host"]')).toBeNull();
     expect(button("Second computer").disabled).toBe(true);
     await tick(401);
     expect(document.querySelector('[data-testid="new-agent-worktree"]')).toBeNull();
     expect(calls.filter((c) => c.url.endsWith("/worktree/status"))).toHaveLength(0);
-    await act(async () => applyMachine({ id: "computer", name: "Synthetic computer", online: true, engine_hosts: ["herdr", "herdr-core", "orca"], engine_default: current }));
     await click(t("newagent.start")); await tick();
     expect(starts()).toHaveLength(1);
-    expect(starts()[0].body).toMatchObject({ machine_id: "computer", cwd: selected.cwd, workspace_id: selected.workspaceId, host, launcher: "claude", async: true });
+    expect(starts()[0].body).toMatchObject({ machine_id: "computer", cwd: selected.cwd, workspace_id: selected.workspaceId, launcher: "claude", async: true });
+    expect(starts()[0].body).not.toHaveProperty("host");
     expect(pending).toHaveLength(0);
     expect(messages()[0].body!.text).toBe("Submitted task");
   });
@@ -370,7 +359,7 @@ describe("New Agent exact workspace destinations", () => {
     expect(document.querySelector('[data-testid="new-agent-workspace"]')!.textContent).not.toContain("Parent workspace");
     await click(t("newagent.start")); await tick();
     expect(starts()).toHaveLength(1);
-    expect(starts()[0].body).toMatchObject({ workspace_id: "nested-empty", host: "orca", cwd: "/projects/demo" });
+    expect(starts()[0].body).toMatchObject({ workspace_id: "nested-empty", cwd: "/projects/demo" });
   });
 
   it("uses the workspace's machine and directory over legacy preset fields", async () => {
@@ -378,7 +367,7 @@ describe("New Agent exact workspace destinations", () => {
     await act(async () => openNewAgent({ machineId: "computer", cwd: "/ignored", workspace: selected }));
     await flush();
     await click(t("newagent.start")); await tick();
-    expect(starts()[0].body).toMatchObject({ machine_id: "second", cwd: selected.cwd, workspace_id: selected.workspaceId, host: "orca" });
+    expect(starts()[0].body).toMatchObject({ machine_id: "second", cwd: selected.cwd, workspace_id: selected.workspaceId });
   });
 
   it("refreshes Git eligibility when folder mode clears an unchanged directory's target", async () => {
@@ -444,106 +433,8 @@ describe("New Agent exact workspace destinations", () => {
     expect(closes).toBe(0);
     await click(t("newagent.start")); await tick();
     expect(starts()).toHaveLength(1);
-    expect(starts()[0].body).toMatchObject({ workspace_id: "nested-empty", host: "orca", cwd: "/projects/demo" });
+    expect(starts()[0].body).toMatchObject({ workspace_id: "nested-empty", cwd: "/projects/demo" });
     expect(messages()[0].body!.text).toBe("Next task\n/uploads/submitted.txt");
-  });
-});
-
-describe("New Agent workspace list (#7259)", () => {
-  const paseo = (id: string, extra: Record<string, unknown> = {}) => ({
-    id: `computer/paseo/${id}`, machine_id: "computer", source: "paseo", source_id: id, cwd: `/projects/${id}`, title: id,
-    project_id: "demo", project_name: "demo", workspace_kind: "git", ...extra,
-  });
-  async function list(rows: Record<string, unknown>[]) {
-    catalogRows = rows;
-    await act(async () => { await refreshWorkspaceCatalog(); });
-    await flush();
-  }
-  const choices = () => [...document.querySelectorAll<HTMLButtonElement>("[data-workspace-choice]")];
-  afterEach(async () => {
-    catalogRows = [];
-    await act(async () => { await refreshWorkspaceCatalog(); });
-  });
-
-  it("lists the computer's Paseo workspaces by project and starts the Agent in the one chosen", async () => {
-    await list([
-      paseo("fix-login", { branch: "fix-login" }),
-      paseo("demo-main", { title: "demo", branch: "main", is_main: true }),
-      paseo("notes", { project_id: undefined, project_name: undefined, workspace_kind: "folder" }),
-      paseo("elsewhere", { machine_id: "second" }),
-      { ...paseo("space"), source: "herdr" },
-      paseo("gone", { available: false }),
-    ]);
-    const box = document.querySelector('[data-testid="new-agent-workspaces"]')!;
-    expect([...box.querySelectorAll('[role="group"]')].map((g) => g.getAttribute("aria-label"))).toEqual(["demo", t("newagent-workspace.other")]);
-    expect(choices().map((b) => b.textContent)).toEqual([
-      `demo${t("newagent-workspace.kind_main")} · main/projects/demo-main`,
-      `fix-login${t("newagent-workspace.kind_worktree")}/projects/fix-login`,
-      `notes${t("newagent-workspace.kind_folder")}/projects/notes`,
-    ]);
-    expect(box.textContent).not.toContain("paseo");
-    await act(async () => choices()[1].click());
-    const card = document.querySelector('[data-testid="new-agent-workspace"]')!;
-    expect(card.textContent).toContain("fix-login");
-    expect(document.querySelector('[data-testid="new-agent-workspaces"]')).toBeNull();
-    expect(document.querySelector('input[placeholder="' + t("newagent.folder_placeholder") + '"]')).toBeNull();
-    await tick(401);
-    // its repository can still give the Agent a worktree of its own (#8856), off until turned on
-    expect(document.querySelector('[data-testid="new-agent-worktree"] [role="switch"]')!.getAttribute("aria-checked")).toBe("false");
-    expect(button("Second computer").disabled).toBe(false);
-    await click(t("newagent.start")); await tick();
-    expect(starts()).toHaveLength(1);
-    expect(starts()[0].body).toMatchObject({ machine_id: "computer", cwd: "/projects/fix-login", workspace_id: "fix-login", host: "paseo" });
-    expect(pending).toHaveLength(0);
-  });
-
-  it("starts in a new worktree Paseo makes from the Paseo workspace chosen (#8856)", async () => {
-    await list([paseo("demo-main", { title: "demo", branch: "main", is_main: true })]);
-    await act(async () => choices()[0].click());
-    const request = await prepare();
-    // Paseo says where its worktree goes and makes it, from the workspace's folder
-    expect(calls.filter((c) => c.url.endsWith("/worktree/status")).at(-1)?.body).toEqual({ cwd: "/projects/demo-main", kind: "paseo" });
-    expect(request.body).toMatchObject({ cwd: "/projects/demo-main", kind: "paseo" });
-    await answer(request, { path: "/paseo/demo/persona-submitted-task", branch: "persona/submitted-task", root: "/projects/demo-main", workspace_id: "made-for-it" });
-    expect(starts()).toHaveLength(1);
-    // into the workspace made for the worktree, not the one chosen
-    expect(starts()[0].body).toMatchObject({ machine_id: "computer", cwd: "/paseo/demo/persona-submitted-task", workspace_id: "made-for-it", host: "paseo" });
-  });
-
-  it("offers no worktree for a chosen Orca workspace, and a switch turned on does not carry to the next choice", async () => {
-    await list([paseo("fix-login"), { ...paseo("orca-row"), source: "orca" }]);
-    await act(async () => choices().find((b) => b.textContent?.includes("fix-login"))!.click());
-    await tick(401);
-    await act(async () => document.querySelector<HTMLButtonElement>('[data-testid="new-agent-worktree"] [role="switch"]')!.click());
-    await click(t("newagent-workspace.choose_folder"));
-    await act(async () => choices().find((b) => b.textContent?.includes("orca-row"))!.click());
-    await tick(401);
-    expect(document.querySelector('[data-testid="new-agent-worktree"]')).toBeNull();
-    await click(t("newagent.start")); await tick();
-    expect(pending).toHaveLength(0);
-    expect(starts()[0].body).toMatchObject({ cwd: "/projects/orca-row", workspace_id: "orca-row", host: "orca" });
-  });
-
-  it("goes back to a folder, and another computer drops the choice", async () => {
-    await list([paseo("fix-login")]);
-    await act(async () => choices()[0].click());
-    await click(t("newagent-workspace.choose_folder"));
-    expect(document.querySelector('[data-testid="new-agent-workspace"]')).toBeNull();
-    expect(choices()).toHaveLength(1);
-    await act(async () => choices()[0].click());
-    await click("Second computer"); await flush();
-    expect(document.querySelector('[data-testid="new-agent-workspace"]')).toBeNull();
-    expect(document.querySelector('[data-testid="new-agent-workspaces"]')).toBeNull();
-    await click(t("newagent.start")); await tick();
-    expect(starts()[0].body).toMatchObject({ machine_id: "second", cwd: "/projects/other" });
-    expect(starts()[0].body).not.toHaveProperty("workspace_id");
-    expect(starts()[0].body).not.toHaveProperty("host");
-  });
-
-  it("shows no list when the computer has no Orca or Paseo workspace", async () => {
-    await list([{ ...paseo("space"), source: "herdr" }, paseo("offline", { online: false })]);
-    expect(document.querySelector('[data-testid="new-agent-workspaces"]')).toBeNull();
-    expect(document.querySelector('input[placeholder="' + t("newagent.folder_placeholder") + '"]')).not.toBeNull();
   });
 });
 
@@ -594,39 +485,13 @@ describe("New Agent with an omp launcher (#11964)", () => {
     }
   });
 
-  it("drops a typed omp model when the user changes from herdr to another host", async () => {
-    await click("Close externally");
-    launcherRows = [{ name: launcher, agent: "omp", source: "zshrc" }];
-    launcherModels[launcher] = { models: [], supports_start_model: true };
-    await act(async () => applyMachine({ id: "computer", name: "Synthetic computer", online: true, engine_hosts: ["herdr", "orca"], engine_default: "herdr" }));
-    resetModelListsForTests();
-    await click("Reopen start"); await flush();
-    await openPanel();
-    await input(document.querySelector<HTMLInputElement>("[data-model-panel] input")!, model);
-    const typed = row(`typed:${launcher}\n${model}`);
-    expect(typed).toBeDefined();
-    await act(async () => typed!.click());
-    expect(pill().title).toContain(model);
-    await click("Orca"); await flush();
-    expect(pill().title).not.toContain(model);
-    await openPanel();
-    await input(document.querySelector<HTMLInputElement>("[data-model-panel] input")!, model);
-    expect(row(`typed:${launcher}\n${model}`)).toBeUndefined();
-    await act(async () => pill().click());
-    await click(t("newagent.start")); await tick();
-    expect(starts()[0].body).toMatchObject({ launcher, host: "orca" });
-    expect(starts()[0].body).not.toHaveProperty("model");
-  });
-
   it("checks the terminal host for omp even while a desktop launcher has its own destination", async () => {
     await click("Close externally");
     launcherRows = [{ name: launcher, agent: "omp", source: "zshrc" }, { name: "codex-app", agent: "codex", source: "codex_app" }];
     launcherModels[launcher] = { models: [], supports_start_model: true };
     launcherModels["codex-app"] = { models: [] };
-    await act(async () => applyMachine({ id: "computer", name: "Synthetic computer", online: true, engine_hosts: ["herdr", "orca"], engine_default: "herdr" }));
     resetModelListsForTests();
     await click("Reopen start"); await flush();
-    await click("Orca"); await flush();
     await openPanel("codex-app");
     const desktop = row("model:codex-app\ndefault");
     expect(desktop).toBeDefined();
@@ -634,7 +499,11 @@ describe("New Agent with an omp launcher (#11964)", () => {
     await openPanel();
     await input(document.querySelector<HTMLInputElement>("[data-model-panel] input")!, model);
     expect(row(`typed:codex-app\n${model}`)).toBeDefined();
-    expect(row(`typed:${launcher}\n${model}`)).toBeUndefined();
+    // omp still opens in herdr, whose catalog (the default one: no host named) says it takes a typed model
+    expect(row(`typed:${launcher}\n${model}`)).toBeDefined();
+    const reads = calls.filter((c) => c.url.includes("/launchers/") && c.url.includes("/models"));
+    expect(reads.length).toBeGreaterThan(0);
+    expect(reads.filter((c) => new URL(c.url, "http://localhost").searchParams.has("host"))).toEqual([]);
   });
 
   it.each([
@@ -753,17 +622,15 @@ describe("known terminal CLI text starts (#1842)", () => {
 });
 
 it.each([
-  { kind: "claude", attachment: false, engine: "herdr", source: undefined },
-  { kind: "agy", attachment: false, engine: "herdr", source: undefined },
-  { kind: "omp", attachment: false, engine: "herdr", source: undefined },
-  { kind: undefined, attachment: false, engine: "herdr", source: undefined },
-  { kind: "traex", attachment: false, engine: "paseo", source: undefined },
-  { kind: "traex", attachment: false, engine: "herdr", source: "future-desktop" },
-])("preserves existing negotiation for $kind/$engine/attachment=$attachment/source=$source", async ({ kind, attachment, engine, source }) => {
+  { kind: "claude", attachment: false, source: undefined },
+  { kind: "agy", attachment: false, source: undefined },
+  { kind: "omp", attachment: false, source: undefined },
+  { kind: undefined, attachment: false, source: undefined },
+  { kind: "traex", attachment: false, source: "future-desktop" },
+])("preserves existing negotiation for $kind/attachment=$attachment/source=$source", async ({ kind, attachment, source }) => {
   await click("Close externally");
   launcherRows = [{ name: "work", agent_type: kind, source }];
   resetModelListsForTests();
-  await act(async () => applyMachine({ id: "computer", name: "Synthetic computer", online: true, engine_hosts: [engine], engine_default: engine }));
   await click("Reopen start"); await flush();
   await type("Preserved task");
   if (attachment) await attach("retained.txt");
@@ -815,7 +682,8 @@ it.each([false, true])("creates a terminal TRAE session with its first attachmen
   expect(button(t("newagent.start")).disabled).toBe(false);
   await click(t("newagent.start")); await tick();
   expect(starts()).toHaveLength(1);
-  expect(starts()[0].body).toMatchObject({ launcher: "work", agent_type: "traex", host: "herdr" });
+  expect(starts()[0].body).toMatchObject({ launcher: "work", agent_type: "traex" });
+  expect(starts()[0].body).not.toHaveProperty("host");
   expect(starts()[0].body).not.toHaveProperty("async");
   if (image) {
     expect(starts()[0].body?.images).toEqual([{ mime: "image/png", data: "AQID" }]);

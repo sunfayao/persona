@@ -1,10 +1,10 @@
 // The sidebar's "By machine" tree, laid out the way herdr arranges agents: machine → workspace (a herdr space) → tab (a
 // slot) → panes. A Session is one agent pane; the sessions of one slot are that tab's panes. When the tab's first pane is an
 // Agent, the hub folds the others under it as its workers (lib/team.ts, #5180): the lists hold the lead alone and its page
-// has them in its Team panel, so a tab here lists several panes only when they are peers. Hosts without tabs (Paseo, botmux, runtimes) list their sessions right under the
+// has them in its Team panel, so a tab here lists several panes only when they are peers. Hosts without tabs (botmux, runtimes) list their sessions right under the
 // space; sessions outside any space go to the machine's "Other". Shell panes never reach the hub, so they are not here.
-// A space the host nests under another (Orca's child worktrees, `parent_space_id`) is listed inside its parent, as
-// Orca's sidebar does with "N children"; when the parent has no live agent the child stays at the top (#2073).
+// A space the host nests under another (`parent_space_id`) is listed inside its parent, as Orca's sidebar does with
+// "N children"; when the parent has no live agent the child stays at the top (#2073).
 import { splitAgentSessions } from "./agent-groups";
 import { foldedState } from "./child-sessions";
 import { backgroundWaiting, stateOf, tabLabel } from "./format";
@@ -32,9 +32,8 @@ export function summaryState(list: readonly Session[]): AgentState | undefined {
   return s && stateOf(s);
 }
 
-// herdr counts its panes up in base 36 ("w4R:pW", "w4R:p2E", "w4R:p3A"): the order they were opened in. Herdr App's
-// terminals are numbered in decimal ("herdr-core:t1", "herdr-core:t2"). Other hosts' ids ("botmux:<uuid>") carry no
-// order and go last.
+// herdr counts its panes up in base 36 ("w4R:pW", "w4R:p2E", "w4R:p3A"): the order they were opened in. Another host's
+// ids that end in a decimal number ("tmux:%11") are ordered by it; the rest ("botmux:<uuid>") carry no order and go last.
 function paneNumber(s: Session): number {
   const herdr = s.pane_id?.match(/:p([0-9A-Za-z]+)$/);
   if (herdr) {
@@ -267,7 +266,7 @@ export interface HerdrSpace {
   loose: Session[];
   state?: AgentState;
   pinned: boolean;
-  /** Spaces nested under this one (Orca's child worktrees), in the machine's space order. */
+  /** Spaces nested under this one, in the machine's space order. */
   children: HerdrSpace[];
   /** Its own sessions and every descendant's: what the space's row stands for when folded. `state` sums these. */
   tree: Session[];

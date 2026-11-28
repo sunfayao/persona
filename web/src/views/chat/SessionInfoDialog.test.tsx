@@ -17,7 +17,7 @@ import { SessionInfoDialog } from "./SessionInfoDialog";
 let info: Record<string, unknown>;
 let host: HTMLDivElement;
 let root: Root;
-const grok = { machine_id: "m", session_id: "paseo-g1", title: "Fix the build", agent: "paseo", agent_label: "Grok", source_kind: "runtime", status: "idle",
+const grok = { machine_id: "m", session_id: "runtime-g1", title: "Fix the build", agent: "grok", agent_label: "Grok", source_kind: "runtime", status: "idle",
   capabilities: { read: true, send: true, modes: false, permission_modes: ["default", "bypassPermissions"] } } as unknown as Session;
 const claude = { machine_id: "m", session_id: "c1", title: "Fix the build", agent: "claude", status: "idle" } as unknown as Session;
 
@@ -48,7 +48,7 @@ afterEach(async () => {
 
 describe("Session info", () => {
   it("leaves out counts nobody gives, and names a listed session's own approval", async () => {
-    info = { session_id: "paseo-g1", model: "grok-5", context_tokens: 0, output_tokens: 0, compactions: 0, turns: 0, usage_unknown: true, last_activity: new Date().toISOString() };
+    info = { session_id: "runtime-g1", model: "grok-5", context_tokens: 0, output_tokens: 0, compactions: 0, turns: 0, usage_unknown: true, last_activity: new Date().toISOString() };
     await show(grok);
     const rows = rowsOf();
     expect(rows.Model).toBe("grok-5");

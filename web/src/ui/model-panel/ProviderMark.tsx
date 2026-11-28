@@ -8,7 +8,7 @@ import { cx } from "../atoms";
 import { Icon } from "../icons";
 
 /** Decorative: the provider's name is said by what it stands beside. `engine` is the launcher's (`claude`, `codex`,
- * `traex`, `agy`… resolved via `markId`), `label` the runtime's own name for an engine the app has no id for (Paseo's Grok, #8142). */
+ * `traex`, `agy`… resolved via `markId`), `label` the runtime's own name for an engine the app has no id for (#8142). */
 export function ProviderMark({ engine, label, size = 15, className }: { engine: string; label?: string; size?: number; className?: string }) {
   // a marked engine (including CLI aliases like traex → trae) or a runtime that names itself gets AgentMark
   if (isMarked(markId(engine, label)) || label?.trim()) return <AgentMark agent={engine} label={label} size={size} decorative className={cx("shrink-0", className)} />;

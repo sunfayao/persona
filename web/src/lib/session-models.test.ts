@@ -177,13 +177,6 @@ describe("what the pill says", () => {
     expect(pillView(session({ launcher: undefined, agent: undefined }), {})).toMatchObject({ engine: "claude", provider: "claude" });
   });
 
-  it("draws one of Paseo's providers as that provider, by its label, never 'paseo' (#8142)", () => {
-    const grok = session({ agent: "paseo", agent_label: "Grok", launcher: "grok", source_kind: "runtime", source_instance_id: "paseo", model: "grok-4", effort: undefined });
-    expect(pillView(grok, {})).toMatchObject({ engine: "grok", engineLabel: "Grok", provider: "grok" });
-    expect(pillView(session({ agent: "paseo", agent_label: "Cursor", launcher: "cursor", source_kind: "runtime" }), {}).engine).toBe("cursor");
-    expect(pillView(session(), {}).engineLabel).toBeUndefined();
-  });
-
   it("loading or failed only while there is no list; no model before one is known, the default entry's name once read", () => {
     expect(pillView(session({ model: undefined }), { loading: true })).toMatchObject({ loading: true, failed: false });
     expect(pillView(session({ model: undefined }), { loading: true }).model).toBeUndefined();
@@ -295,7 +288,7 @@ describe("reading the lists", () => {
   });
 
   it("forgets a shared custom model across hosts and purposes with one request", async () => {
-    const catalogs = [{}, { purpose: "assistant" }, { host: "herdr" }] as const;
+    const catalogs = [{}, { purpose: "assistant" }, { host: "agy" }] as const;
     for (const catalog of catalogs) {
       void readModels("m-shared-forget", "gateway", catalog);
       await flush();
@@ -306,7 +299,7 @@ describe("reading the lists", () => {
     await flush();
     expect(modelList("m-shared-forget", "gateway").list!.models.some((m) => m.id === "vendor/model-x")).toBe(false);
     expect(modelList("m-shared-forget", "gateway", "assistant").list!.models.some((m) => m.id === "vendor/model-x")).toBe(false);
-    expect(modelList("m-shared-forget", "gateway", undefined, "herdr").list!.models.some((m) => m.id === "vendor/model-x")).toBe(false);
+    expect(modelList("m-shared-forget", "gateway", undefined, "agy").list!.models.some((m) => m.id === "vendor/model-x")).toBe(false);
     expect(calls.filter((c) => c.method === "DELETE")).toHaveLength(1);
     await answer("/models/custom", json({}));
     expect(await Promise.all([one, duplicate])).toEqual(["", ""]);

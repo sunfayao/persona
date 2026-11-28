@@ -1,4 +1,4 @@
-// Worktree creation transport and legacy terminal-menu helpers. Advanced choices require the owner’s advertised capabilities.
+// Worktree creation transport and terminal-menu helpers.
 import { t as tr } from "../i18n";
 import { api, ApiError, credentialOwner, enc, errorText } from "./api";
 import { navigate } from "./router";
@@ -6,13 +6,8 @@ import { defaultManager, MANAGER_HEADER } from "./manager-choice";
 import { folderName } from "./mentions";
 import { getState } from "./store";
 
-export interface SparsePreset { id: string; name?: string; directories: string[] }
-export interface WorktreeSource { type: "pr" | "issue"; number: number; title: string; url: string; branchName?: string; baseRefName?: string; isCrossRepository?: boolean }
-interface ComposerOptions { project: string; base_ref: string; refs: string[]; presets: SparsePreset[]; capabilities: string[] }
 /** Repository metadata and capabilities returned by worktree/prepare. */
 export interface WorktreePrepare {
-  composer?: ComposerOptions;
-  choose_parent?: boolean;
   automatic_name?: boolean;
   root: string;
   repoName: string;
@@ -24,7 +19,6 @@ export interface WorktreePrepare {
 
 /** What worktree/create opened. */
 export interface WorktreeCreated {
-  parent_workspace_id?: string;
   workspace_id: string;
   tab_id?: string;
   pane?: string;
@@ -119,7 +113,7 @@ export interface WorktreeTarget {
 
 const kindOf = (t: WorktreeTarget) => (t.host ? { kind: t.host } : {});
 
-/** Every composer request stays bound to its original credentials and discovery manager. */
+/** Every creation request stays bound to its original credentials and discovery manager. */
 export function worktreeAdmission(target: WorktreeTarget): boolean {
   return (!target.owner || target.owner === credentialOwner())
     && (!target.manager || target.manager === (getState().machines.find((m) => m.id === target.mid)?.manager || defaultManager()));
@@ -130,26 +124,12 @@ function worktreeHeaders(target: WorktreeTarget): Record<string, string> {
   return { [MANAGER_HEADER]: target.manager || getState().machines.find((m) => m.id === target.mid)?.manager || defaultManager() };
 }
 
-export function prepareWorktree(t: WorktreeTarget, options: { composer?: boolean; signal?: AbortSignal } = {}): Promise<WorktreePrepare> {
+export function prepareWorktree(t: WorktreeTarget, options: { signal?: AbortSignal } = {}): Promise<WorktreePrepare> {
   return api<WorktreePrepare>(`/machines/${enc(t.mid)}/worktree/prepare`, { method: "POST", signal: options.signal, timeout: 45_000,
-    headers: worktreeHeaders(t), json: { workspace_id: t.workspaceId, ...kindOf(t), ...(options.composer !== undefined && t.host === "orca" ? { composer: options.composer } : {}) } });
+    headers: worktreeHeaders(t), json: { workspace_id: t.workspaceId, ...kindOf(t) } });
 }
 
-export function worktreeSources(t: WorktreeTarget, query: string, signal?: AbortSignal) {
-  return api<{ items: WorktreeSource[]; errors?: string[] | Record<string, { message?: string }>; warning?: string }>(`/machines/${enc(t.mid)}/worktree/source`, {
-    method: "POST", headers: worktreeHeaders(t), signal, timeout: 45_000, json: { workspace_id: t.workspaceId, ...kindOf(t), query },
-  });
-}
-
-export function saveWorktreePreset(t: WorktreeTarget, name: string, directories: string) {
-  return api<{ preset: SparsePreset }>(`/machines/${enc(t.mid)}/worktree/preset`, {
-    method: "POST", headers: worktreeHeaders(t), timeout: 45_000, json: { workspace_id: t.workspaceId, ...kindOf(t), name, directories },
-  });
-}
-
-export type WorktreeCreateBody = { workspace_id: string; kind?: string; composer?: true; branch?: string; path?: string; auto_name?: true;
-  name?: string; branch_override?: string; base_ref?: string; parent_workspace_id?: string; no_parent?: true; note?: string;
-  sparse_preset_id?: string; source_id?: string; source_url?: string };
+export type WorktreeCreateBody = { workspace_id: string; kind?: string; branch?: string; path?: string; auto_name?: true };
 export type CreateOutcome = WorktreeCreated | { state: "pending" | "unknown" };
 
 export function worktreeReceipt(t: WorktreeTarget, opId: string) {
@@ -193,8 +173,6 @@ export interface WorktreeAdded {
   path: string;
   branch: string;
   root: string;
-  /** The workspace a runtime engine made for it (Paseo, #8856); absent for a worktree a terminal host makes. */
-  workspace_id?: string;
 }
 
 /** The branch a new agent's worktree gets, as the node names it: persona/<its name as a slug, 40 at most>, "agent"
@@ -213,12 +191,11 @@ export function agentNameHint(prompt: string, cwd: string): string {
   return branchSlug(p) ? p : folderName(cwd.trim());
 }
 
-/** kind: the engine the agent opens in, which makes the worktree (Paseo, as a workspace of its own); none, the
- *  computer's default. */
-export function addAgentWorktree(mid: string, cwd: string, nameHint: string, branch = "", owner: Pick<NonNullable<Parameters<typeof api>[1]>, "signal" | "token" | "tokenOwner"> = {}, kind?: string): Promise<WorktreeAdded> {
+/** Made by herdr, the computer's terminal host, in its checkouts folder. */
+export function addAgentWorktree(mid: string, cwd: string, nameHint: string, branch = "", owner: Pick<NonNullable<Parameters<typeof api>[1]>, "signal" | "token" | "tokenOwner"> = {}): Promise<WorktreeAdded> {
   return api<WorktreeAdded>(`/machines/${enc(mid)}/worktree/add`, {
     method: "POST",
-    json: { cwd, ...(nameHint ? { name_hint: nameHint } : {}), ...(branch.trim() ? { branch: branch.trim() } : {}), ...(kind ? { kind } : {}) },
+    json: { cwd, ...(nameHint ? { name_hint: nameHint } : {}), ...(branch.trim() ? { branch: branch.trim() } : {}) },
     ...owner,
   });
 }

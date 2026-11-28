@@ -4,7 +4,7 @@
 // theirs, else the launcher's own), the setup that runs now, what a pick puts in the form and what the pill says. Pure:
 // views/NewAgentModel.tsx draws it, views/NewAgent.tsx holds the form.
 import { t } from "../i18n";
-import { agentId, providerAgent } from "./agent-kind";
+import { agentId } from "./agent-kind";
 import {
   ALL_EFFORTS, defaultModel, effortChoices, effortRule, followedBinding, launcherAgent, modelName, nativeOmpStart, takesEffort, terminalOmp, typedModelOffered, type AgentModel, type LauncherModels,
   type UnavailableLauncher,
@@ -64,8 +64,6 @@ function defaultRuns(l: Launcher | undefined, list: LauncherModels | null | unde
 }
 
 export interface NewAgentPanelInput {
-  /** The workspace or computer host on which this form will start the session. */
-  startHost?: string;
   launchers: Launcher[];
   listOf: (launcher: string) => ModelList;
   choice: ModelChoice;
@@ -90,16 +88,15 @@ export interface NewAgentPanel {
  * off and its reason, never hidden. The row lit is the model picked, else the Default row of the launcher that runs.
  * No Recommended group (a new task has none in Cindy).
  */
-export function newAgentPanel({ launchers, listOf, choice, configured, runs, unavailable = [], startHost }: NewAgentPanelInput): NewAgentPanel {
+export function newAgentPanel({ launchers, listOf, choice, configured, runs, unavailable = [] }: NewAgentPanelInput): NewAgentPanel {
   const providers = launchers.map((l): PanelProvider => {
     const e = listOf(l.name);
     const list = e.list;
     const agent = launcherAgent(l.name, launchers, list);
-    const nativeOmp = nativeOmpStart(agent, l, startHost);
+    const nativeOmp = nativeOmpStart(agent, l);
     // Selecting this provider row explicitly chooses the native launcher's own default.
     const followed = nativeOmp ? {} : followedBinding(l.name, configured);
-    // one of Paseo's providers is its own engine, by its name: its mark where the app has one (#8142)
-    const p: PanelProvider = { id: l.name, name: providerTitle(l), engine: agentId(providerAgent(agent, l.name)), models: null };
+    const p: PanelProvider = { id: l.name, name: providerTitle(l), engine: agentId(agent), models: null };
     p.defaultModel = l.model;
     p.isDefault = Boolean(configured?.provider === `launcher.${l.name}`);
     const idNote = providerIdNote(l);
@@ -116,7 +113,7 @@ export function newAgentPanel({ launchers, listOf, choice, configured, runs, una
     // Codex still take a typed ID (the old picker's "Enter model ID…" beside the error)
     if (list === undefined && e.error) p.error = e.error;
     // the efforts a start on it takes: its models' own, all of them for a model whose levels nobody lists, except on a
-    // launcher that lists its permission modes (Paseo's other providers, #8261), which takes only what its model lists
+    // launcher that lists its permission modes (#8261), which takes only what its model lists
     const terminal = terminalOmp(agent, l);
     const rule = terminal ? "none" : effortRule(agent, l, list);
     const effortsOf = (m: AgentModel | undefined): string[] => (rule === "none" ? [] : m && !m.custom ? (m.efforts ?? []) : rule === "listed" ? [] : ALL_EFFORTS);
@@ -194,12 +191,12 @@ export function formChoice(config: PanelConfig): ModelChoice {
 /** The pill: the engine and provider of the launcher that runs, the model it runs (its list's name for it), the effort
  *  it starts with (the one picked, else the model settings' on their launcher); `loading` while that launcher's list is
  *  read the first time, `failed` when that failed. */
-export function newAgentPill(o: { launchers: Launcher[]; runs: string; list: ModelList; choice: ModelChoice; configured: ModelBinding | null; fallback: string; startHost?: string }): PillSetup & { loading: boolean; failed: boolean } {
+export function newAgentPill(o: { launchers: Launcher[]; runs: string; list: ModelList; choice: ModelChoice; configured: ModelBinding | null; fallback: string }): PillSetup & { loading: boolean; failed: boolean } {
   const { runs, list: e, choice } = o;
   const list = e.list;
   const agent = launcherAgent(runs, o.launchers, list);
   const l = o.launchers.find((x) => x.name === runs);
-  const nativeOmp = nativeOmpStart(agent, l, o.startHost);
+  const nativeOmp = nativeOmpStart(agent, l);
   const followed = nativeOmp && choice.launcher ? {} : followedBinding(runs, o.configured);
   const d = list ? defaultModel(list.models) : undefined;
   // the model picked, else what the launcher's Default row runs; with nothing to say once the list is in, its default
@@ -209,7 +206,7 @@ export function newAgentPill(o: { launchers: Launcher[]; runs: string; list: Mod
   const fallback = nativeOmp && choice.launcher ? t("newagent.follow_launcher") : t("chat-modelpill.default_model");
   const model = !runs ? o.fallback : named || (list !== undefined ? (d ? modelName(d) : fallback) : undefined);
   const out: PillSetup & { loading: boolean; failed: boolean } = {
-    engine: agentId(providerAgent(agent, runs)),
+    engine: agentId(agent),
     provider: l ? providerTitle(l) : runs,
     loading: list === undefined && Boolean(e.loading),
     failed: list === undefined && Boolean(e.error),

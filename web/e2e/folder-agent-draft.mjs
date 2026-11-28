@@ -59,7 +59,7 @@ async function verifyDesktopProjectFolder(theme, selected) {
     assert.equal(body.cwd, cwd);
     assert.equal(body.launcher, selected);
     assert.equal(body.workspace_id, undefined);
-    assert.equal(body.host, selected === "claude-desktop" ? undefined : "herdr");
+    assert.equal(body.host, undefined, "a start names no terminal host");
     assert.equal(body.desktop_project_id, selected === "claude-desktop" ? target.source_id : undefined);
     console.log(`PASS ${theme}: all Mac launchers remain selectable in a desktop project folder; ${selected} keeps the correct destination`);
   } finally {
@@ -168,7 +168,7 @@ try {
         assert.equal(body.machine_id, target.machine_id);
         assert.equal(body.cwd, target.cwd);
         assert.equal(body.workspace_id, target.source_id);
-        assert.equal(body.host, target.source);
+        assert.equal(body.host, undefined);
         if (theme === "light") assert.equal(body.model, fixtureModel.id);
       }
       assert.ok(messages[0].text.startsWith(firstText));

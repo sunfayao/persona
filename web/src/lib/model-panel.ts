@@ -69,7 +69,7 @@ export interface PanelProvider {
   id: string;
   /** What the rail tooltip, group header and second lines call it. */
   name: string;
-  /** The engine it runs (AgentMark ids): claude, codex, agy…; one of Paseo's providers is that provider (grok…, #8142). */
+  /** The engine it runs (AgentMark ids): claude, codex, agy… */
   engine: string;
   /** What the engine is called when the app has no name of its own for it: the session's own provider's label ("Grok",
    *  the row's agent_label); its mark and its name on the rows and in the flyout. */

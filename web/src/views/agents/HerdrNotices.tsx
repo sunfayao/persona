@@ -1,5 +1,5 @@
 // "herdr is not running on <computer>" with "Start", at the top of the Agents list (#1916, lib/herdr-notice.ts): one row per online
-// machine on classic herdr whose server does not answer. Asked while the page is visible; a failed start says why in
+// machine whose herdr server does not answer. Asked while the page is visible; a failed start says why in
 // words, and the hub's own text with its request id is behind "Copy details" (right click / the copy button), not in the row.
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
@@ -12,9 +12,9 @@ import { Menu, Spinner, copyText } from "../../ui/atoms";
 import type { MenuAt } from "../../ui/menu-model";
 import { t } from "../../i18n";
 
-/** The machines the rows can be about, as a key: their ids and engines, not each heartbeat of theirs. */
+/** The machines the rows can be about, as a key: their ids, not each heartbeat of theirs. */
 function watchKey(machines: Machine[]): string {
-  return machines.filter(herdrWatched).map((m) => `${m.id} ${m.engine ?? ""}`).sort().join("|");
+  return machines.filter(herdrWatched).map((m) => m.id).sort().join("|");
 }
 
 export function HerdrNotices({ watch: given }: { watch?: HerdrWatch } = {}) {
@@ -42,7 +42,7 @@ export function HerdrNotices({ watch: given }: { watch?: HerdrWatch } = {}) {
     };
   }, [watch, watched]);
 
-  // Polling depends on ids and engines; labels must follow a rename even when that polling set stays the same.
+  // Polling depends on ids; labels must follow a rename even when that polling set stays the same.
   const rows = machines.filter((m) => herdrWatched(m) && snap.stopped.has(m.id));
   if (!rows.length) return null;
   return (

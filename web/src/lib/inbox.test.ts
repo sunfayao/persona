@@ -171,10 +171,10 @@ describe("等你的 Agent", () => {
     expect(interactionAsk(ix("a", { kind: "permission", tool_name: "Bash", tool_input: { command: "swift test" } }))).toBe("swift test");
   });
 
-  it("names another agent's card by the name it carries, never the engine's id (#8142)", () => {
-    // one of Paseo's providers runs under Paseo's own id; the card carries the provider's label
-    expect(interactionTitle(ix("a", { agent: "paseo", agent_label: "Grok", kind: "permission" }))).toBe("Grok 在等你批准");
-    expect(interactionTitle(ix("a", { agent: "paseo", agent_label: "Grok" }))).toBe("Grok 在问你");
+  it("names another agent's card by the name it carries, never its id (#8142)", () => {
+    // a runtime's agent the app has no name for: the card carries the runtime's label
+    expect(interactionTitle(ix("a", { agent: "grok-cli", agent_label: "Grok", kind: "permission" }))).toBe("Grok 在等你批准");
+    expect(interactionTitle(ix("a", { agent: "grok-cli", agent_label: "Grok" }))).toBe("Grok 在问你");
     expect(interactionTitle(ix("a", { agent: "dsh", agent_label: "DSH" }))).toBe("DSH 在问你");
     expect(interactionTitle(ix("a", { agent: "traex", kind: "permission" }))).toBe("TRAE CLI 在等你批准");
   });

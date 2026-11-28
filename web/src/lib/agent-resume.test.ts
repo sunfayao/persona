@@ -71,36 +71,25 @@ describe("Resume in terminal: when an Agent's ⋯ offers it (#5521)", () => {
   // a Claude Code typed into a terminal of its own, closed since: the node lists it stopped (read and terminal)
   const stopped = { machine_id: "m1", session_id: "s1", title: "", cwd: "/w", status: "offline", agent: "claude", agent_surface: "cli",
     capabilities: { read: true, terminal: true }, read_only_reason: "Agent 已停止" } as Session;
-  const herdr = { engine_hosts: ["herdr"] };
-  const none = { engine_hosts: [] as string[] };
 
   it("offers a stopped Agent, Claude Code or a Codex thread nothing has open", () => {
-    expect(terminalResume(stopped, herdr)).toBe("available");
-    expect(terminalResume({ ...stopped, status: "interrupted" }, herdr)).toBe("available");
-    expect(terminalResume({ ...stopped, agent: "codex", source_kind: "codex_history" }, herdr)).toBe("available");
-    expect(terminalResume(stopped, undefined)).toBe("available"); // a hub before engine sets: the node's word holds
-  });
-
-  it("is disabled, with why, for an Agent that isn't running on a computer with no terminal engine", () => {
-    const listed = { ...stopped, capabilities: undefined, read_only_reason: undefined }; // as the node lists it there
-    expect(terminalResume(listed, none)).toBe("no_engine");
-    expect(terminalResume({ ...listed, agent: "codex", source_kind: "codex_history", capabilities: { read: true } }, none)).toBe("no_engine");
-    expect(terminalResume(stopped, none)).toBe("no_engine"); // engines turned off since the row was listed
+    expect(terminalResume(stopped)).toBe("available");
+    expect(terminalResume({ ...stopped, status: "interrupted" })).toBe("available");
+    expect(terminalResume({ ...stopped, agent: "codex", source_kind: "codex_history" })).toBe("available");
   });
 
   it("is not offered while it runs, here or in a terminal of its own", () => {
-    expect(terminalResume({ ...stopped, status: "idle", capabilities: undefined }, herdr)).toBe("hidden");
-    expect(terminalResume({ ...stopped, status: "idle", source_kind: "claude_cli", capabilities: { read: true, send: true } }, herdr)).toBe("hidden");
-    expect(terminalResume({ ...stopped, status: "idle", source_kind: "claude_cli", capabilities: { read: true } }, none)).toBe("hidden");
-    expect(terminalResume({ ...stopped, starting: true }, herdr)).toBe("hidden");
+    expect(terminalResume({ ...stopped, status: "idle", capabilities: undefined })).toBe("hidden");
+    expect(terminalResume({ ...stopped, status: "idle", source_kind: "claude_cli", capabilities: { read: true, send: true } })).toBe("hidden");
+    expect(terminalResume({ ...stopped, status: "idle", source_kind: "claude_cli", capabilities: { read: true } })).toBe("hidden");
+    expect(terminalResume({ ...stopped, starting: true })).toBe("hidden");
   });
 
   it("leaves out assistant conversations, the desktop apps' sessions, other sources and older nodes' rows", () => {
-    expect(terminalResume({ ...stopped, assistant: true }, herdr)).toBe("hidden");
-    expect(terminalResume({ ...stopped, assistant: true }, none)).toBe("hidden");
-    expect(terminalResume({ ...stopped, agent_surface: "desktop", capabilities: undefined }, none)).toBe("hidden");
-    expect(terminalResume({ ...stopped, source_kind: "runtime", agent: "dsh", capabilities: { read: true } }, none)).toBe("hidden");
-    expect(terminalResume({ ...stopped, capabilities: undefined, read_only_reason: undefined }, herdr)).toBe("hidden");
-    expect(terminalResume(undefined, herdr)).toBe("hidden");
+    expect(terminalResume({ ...stopped, assistant: true })).toBe("hidden");
+    expect(terminalResume({ ...stopped, agent_surface: "desktop", capabilities: undefined })).toBe("hidden");
+    expect(terminalResume({ ...stopped, source_kind: "runtime", agent: "dsh", capabilities: { read: true } })).toBe("hidden");
+    expect(terminalResume({ ...stopped, capabilities: undefined, read_only_reason: undefined })).toBe("hidden");
+    expect(terminalResume(undefined)).toBe("hidden");
   });
 });

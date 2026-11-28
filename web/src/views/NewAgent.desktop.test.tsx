@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // New agent in a desktop app (#5480 Claude's desktop app, #5726 the Codex App), as iOS's DesktopStartUITests: with a
 // launcher whose `source` says so, no folder picked is a temporary session (the start carries no folder, the computer
-// picks it), browsing starts in the folder holding the app's projects, a new folder may be named, and the engine host
-// choice is not offered. Every other launcher keeps New agent as it was.
+// picks it), browsing starts in the folder holding the app's projects, and a new folder may be named. Every other
+// launcher keeps New agent as it was.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -60,7 +60,7 @@ beforeEach(() => {
   state.desktopSource = true;
   state.codexPromptOptional = false;
   state.workspaces = [];
-  state.machines = [{ id: "mac", name: "MacBook", online: true, engine_hosts: ["herdr", "orca"], engine_default: "herdr" } as Machine];
+  state.machines = [{ id: "mac", name: "MacBook", online: true } as Machine];
   // the app's projects are in /Users/me/code (two), one in /Users/me/notes; a terminal claude's folder doesn't count
   state.sessions = { mac: [desktop("/Users/me/code/app"), desktop("/Users/me/code/web"), desktop("/Users/me/notes/plan"), { ...desktop("/Users/me/other/x"), agent_surface: "cli" }] };
   launched.length = 0;
@@ -110,12 +110,12 @@ describe("New agent in Claude's desktop app (#5480)", () => {
     expect(temporary()?.textContent).toContain("在 Claude 桌面版侧边栏里归为一组");
     expect(folderInput().value).toBe(""); // the last start's folder is not this one's
     expect(q('[data-testid="new-agent-desktop-hint"]')?.textContent).toContain("在 Claude 桌面版里新建会话");
-    // browsing starts where the app's projects are; no engine host to pick
+    // browsing starts where the app's projects are
     expect(listed).toContain("/Users/me/code");
-    expect(q('[data-testid="start-host"]')).toBeNull();
     expect(button("启动")!.disabled).toBe(false);
     act(() => button("启动")!.click());
-    expect(launched).toEqual([expect.objectContaining({ launcher: "claude-desktop", cwd: "", host: undefined })]);
+    expect(launched).toEqual([expect.objectContaining({ launcher: "claude-desktop", cwd: "" })]);
+    expect(launched[0]).not.toHaveProperty("host");
     // the last real folder stays for the next start; the recent setup is a temporary session
     expect(localStorage.getItem("new.cwd.mac")).toBe("/code/app");
     expect(loadRecentSetups()).toEqual([expect.objectContaining({ launcher: "claude-desktop", cwd: "" })]);
@@ -179,14 +179,13 @@ describe("New agent in the Codex App (#5726)", () => {
 });
 
 describe("New agent with any other launcher", () => {
-  it("needs a folder, offers no new folder and keeps the engine host choice", async () => {
+  it("needs a folder, and offers no new folder", async () => {
     localStorage.setItem("new.launcher.mac", "claude");
     localStorage.removeItem("new.cwd.mac");
     await open();
     expect(temporary()).toBeNull();
     expect(q('[data-testid="new-agent-new-folder"]')).toBeNull();
     expect(q('[data-testid="new-agent-desktop-hint"]')).toBeNull();
-    expect(q('[data-testid="start-host"]')).not.toBeNull();
     expect(listed).toEqual(["/Users/me"]);
     expect(button("启动")!.disabled).toBe(true);
   });
@@ -202,7 +201,7 @@ const type = (selector: string, value: string) => act(() => {
 
 describe("New Agent desktop project presets", () => {
   beforeEach(() => {
-    state.machines = [{ id: "pc", name: "Computer", online: true, engine_hosts: ["herdr", "orca"] }];
+    state.machines = [{ id: "pc", name: "Computer", online: true }];
     state.sessions = { pc: [] };
     localStorage.setItem("new.machine", "pc");
     localStorage.setItem("new.mode.pc", "plan");
@@ -213,7 +212,7 @@ describe("New Agent desktop project presets", () => {
     expect(host.textContent).toContain(t("newagent.permission_mode"));
     expect(button(t("newagent.start"))!.disabled).toBe(false);
     act(() => button(t("newagent.start"))!.click());
-    expect(launched).toEqual([expect.objectContaining({ launcher: "claude-desktop", cwd: "", permissionMode: "plan", host: undefined, workspaceId: undefined })]);
+    expect(launched).toEqual([expect.objectContaining({ launcher: "claude-desktop", cwd: "", permissionMode: "plan", workspaceId: undefined })]);
     expect(localStorage.getItem("new.mode.pc")).toBe("plan");
   });
 
@@ -235,7 +234,7 @@ describe("New Agent desktop project presets", () => {
   it("passes a chosen Windows project directory to its desktop launcher", async () => {
     await openPreset("claude-desktop", "C:\\Projects\\Sample");
     act(() => button(t("newagent.start"))!.click());
-    expect(launched).toEqual([expect.objectContaining({ launcher: "claude-desktop", cwd: "C:\\Projects\\Sample", workspaceId: undefined, host: undefined })]);
+    expect(launched).toEqual([expect.objectContaining({ launcher: "claude-desktop", cwd: "C:\\Projects\\Sample", workspaceId: undefined })]);
   });
 
   it.each([["codex-app", "codex-project:home:second"], ["claude-desktop", "claude-environment:account:second"]])("keeps the exact native project for %s when projects share a directory", async (launcher, desktopProjectId) => {

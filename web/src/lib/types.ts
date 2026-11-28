@@ -4,13 +4,12 @@ import type { RuleSuggestion } from "./rule-suggestion";
 
 export type AgentState = "needs_you" | "working" | "unread" | "idle" | "offline" | "unknown";
 
-/** An engine as the machine's node found it: `note` says why one that is there cannot be used. */
+/** herdr as the machine's node found it: `available` when its server answers, its socket is there or its command is. */
 export interface DetectedEngine {
   id: string;
   name: string;
   available: boolean;
   version?: string;
-  note?: string;
 }
 
 export interface Machine {
@@ -32,16 +31,8 @@ export interface Machine {
   deploy_phase?: "waiting_idle" | "transferring" | "restarting" | "confirming";
   deploy_error?: string;
   system?: { name?: string; model?: string; cpu?: string; cores?: number; memory?: number };
-  /** The terminal engine its sessions come from (herdr when absent); `engines`: what its node found, empty while offline. */
-  engine?: string;
+  /** What its node found of the built-in herdr (only herdr is listed), empty while offline. */
   engines?: DetectedEngine[];
-  /** The hosts enabled side by side and the default one (#2576); absent from older hubs. */
-  engine_hosts?: string[];
-  engine_default?: string;
-  /** What to preselect when the machine is paired: what its node found available, else herdr (only while online). */
-  engine_suggested?: { hosts: string[]; default: string };
-  /** The node is too old for sets and runs `engine` alone until it is updated. */
-  engine_sets_unsupported?: boolean;
   kind?: string;
   arch?: string;
   home?: string;
@@ -238,12 +229,11 @@ export interface Port {
 export interface Session {
   /** Explicit references to a deleted Assistant conversation return a scrubbed tombstone. */
   deleted?: boolean;
-  /** The engine host it lives in (herdr, herdr-core, orca, paseo…), and the other hosts it is live in at once (#2576). */
+  /** The terminal host it lives in (herdr, tmux, botmux); none for transcripts and runtimes' sessions. */
   host?: string;
-  also_open_in?: string[];
   /** Node-verified physical working directory; the original cwd stays available for existing session flows. */
   workspace_cwd?: string;
-  /** The main checkout of the repository cwd belongs to: the node reads it off git (#1805), Paseo names its own (#2840).
+  /** The main checkout of the repository cwd belongs to: the node reads it off git (#1805).
    *  "By repo" groups by it. */
   repo_root?: string;
   /** The top of the git working tree cwd is in (repo_root for the main checkout) and its branch, from the node (#1805). */
@@ -330,7 +320,7 @@ export interface Session {
   space_id?: string;
   space_name?: string;
   space_index?: number;
-  /** The space this one is nested under in its host, same machine and kind (Orca: a child worktree's parent, #2073). */
+  /** The space this one is nested under in its host, same machine and kind (#2073). */
   parent_space_id?: string;
   slot_id?: string;
   slot_name?: string;
@@ -343,7 +333,7 @@ export interface Session {
   pane_id?: string;
   tab_id?: string;
   workspace_id?: string;
-  /** Which host the space belongs to ("herdr", "orca", a runtime id…): space ids are unique only within one. */
+  /** Which host the space belongs to ("herdr", a runtime id…): space ids are unique only within one. */
   space_kind?: string;
   updated_at?: string;
   seen_at?: string;
@@ -406,9 +396,9 @@ export interface Session {
   parent_session_id?: string;
   root_session_id?: string;
   is_subagent?: boolean;
-  /** The listed session this child folds under (an Agent another Agent started: a Codex subagent, an Agent a Paseo Agent
-   *  created), set by the hub's manager (docs/protocol/protocol.md "Session hierarchy", #5120): the web never lists or
-   *  counts it on its own, and draws it as a card in that session's chat. */
+  /** The listed session this child folds under (an Agent another Agent started, such as a Codex subagent), set by the
+   *  hub's manager (docs/protocol/protocol.md "Session hierarchy", #5120): the web never lists or counts it on its own,
+   *  and draws it as a card in that session's chat. */
   folded_under?: string;
   /** The session on the same machine this one is drawn under while staying a session of its own (#5935): a Claude
    *  desktop app's side chat, /btw question or spawned session names the one it was started from. Unlike `folded_under`
@@ -982,7 +972,7 @@ export interface Launcher {
   supervision_policy?: boolean;
   assistant?: boolean;
   /** A Persona-managed provider's name for people, any language (#5029), or a runtime's name for a provider it runs
-   *  (Paseo's label, "Grok", #8261); absent for an rc alias or from an older hub. Show it through lib/provider-names.ts. */
+   *  (#8261); absent for an rc alias or from an older hub. Show it through lib/provider-names.ts. */
   display_name?: string;
   model?: string;
   /** What it starts when not Claude Code ("codex"); agent_type: what the hub's machine config says it runs. */
@@ -991,7 +981,7 @@ export interface Launcher {
   /** A Codex launcher the computer starts with no first message too; absent from an older computer, whose Codex
    *  starts need one. */
   prompt_optional?: boolean;
-  /** The permission modes a start on a runtime's provider of another agent takes (#8261, Paseo's): its own approval
+  /** The permission modes a start on a runtime's provider of another agent takes (#8261): its own approval
    *  (`default`, sent as no mode) and, where it has one, Full access. Such a launcher's start also takes only the efforts
    *  its model lists (lib/launcher-models.ts `effortRule`). Absent: Claude Code's five, or none. */
   permission_modes?: string[];

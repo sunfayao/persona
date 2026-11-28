@@ -62,8 +62,6 @@ describe("which mode a terminal opens in", () => {
     expect(inHerdrClient("sid-1", undefined)).toBe(true); // nothing says it is another host's: as before
     expect(inHerdrClient("sid-2", "botmux:id1")).toBe(false); // a botmux session, in botmux's own tmux
     expect(inHerdrClient("pane:botmux:id1", undefined)).toBe(false); // the same, by its pane's address
-    expect(inHerdrClient("pane:orca:t1:l1", undefined)).toBe(false);
-    expect(inHerdrClient("sid-3", "herdr-core:t1")).toBe(false);
   });
 });
 

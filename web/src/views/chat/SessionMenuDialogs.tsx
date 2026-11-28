@@ -85,7 +85,7 @@ export function RenameDialog({ session, open, onClose }: { session: Session; ope
   );
 }
 
-// "Rename space": herdr's workspace, or Paseo's project (and the pins / mutes that name it). The hint is herdr's.
+// "Rename space": herdr's workspace (and the pins / mutes that name it).
 export function RenameSpaceDialog({ session, open, onClose }: { session: Session; open: boolean; onClose: () => void }) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -133,7 +133,7 @@ export function RenameSpaceDialog({ session, open, onClose }: { session: Session
         }}
       >
         <Field label={t("chat-sessiondialogs.space_name")} value={name} onChange={setName} autoFocus />
-        {session.space_kind !== "paseo" && <p className="text-label leading-relaxed text-ink-3">{t("chat-sessiondialogs.rename_space_hint")}</p>}
+        <p className="text-label leading-relaxed text-ink-3">{t("chat-sessiondialogs.rename_space_hint")}</p>
         <button type="submit" hidden />
       </form>
     </Dialog>

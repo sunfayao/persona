@@ -1,13 +1,11 @@
 // The Agents list's "herdr isn't running on <computer>" rows with "Start" (#1916), as on iOS
-// (HerdrNotice.swift) and Android (#2066): told before a message to an agent there fails, not after. Only classic herdr
-// (engines herdr and herdr-both): Herdr App's herdr-core has no server for the node to start.
+// (HerdrNotice.swift) and Android (#2066): told before a message to an agent there fails, not after.
 
 import { ApiError, api, enc } from "./api";
-import { currentEngine } from "./engines";
 import type { Machine } from "./types";
 import { t } from "../i18n";
 
-/** GET /api/v1/machines/{mid}/herdr. `known` false: the node could not say (offline, older, Herdr App), which is not
+/** GET /api/v1/machines/{mid}/herdr. `known` false: the node could not say (offline, older), which is not
  *  "it does not run". */
 export interface HerdrState {
   autostart: boolean;
@@ -23,13 +21,12 @@ export interface HerdrFailure {
 }
 
 /** How often the list asks while it is shown: once a minute, as on Apple (#4685). Each read is a node round trip on the hub,
- *  and the list asks again at once when a watched machine comes online or changes engine, or the tab is shown (#5060). */
+ *  and the list asks again at once when a watched machine comes online, or the tab is shown (#5060). */
 export const HERDR_POLL_MS = 60_000;
 
-/** A machine the row can be about: online, on classic herdr. */
-export function herdrWatched(m: Pick<Machine, "online" | "engine">): boolean {
-  const e = currentEngine(m);
-  return m.online && (e === "herdr" || e === "herdr-both");
+/** A machine the row can be about: an online one (herdr is built into every computer). */
+export function herdrWatched(m: Pick<Machine, "online">): boolean {
+  return m.online;
 }
 
 /** The node's and the hub's known failures of herdr.server.start (server/internal/node/herdrstart.go) in words;
@@ -112,8 +109,8 @@ export class HerdrWatch {
   }
 
   /** Asks about each watched machine. A failed read keeps what the row showed (one lost poll must not flash it); a
-   *  machine no longer watched (offline, another engine) loses its row. */
-  async refresh(machines: Pick<Machine, "id" | "online" | "engine">[]): Promise<void> {
+   *  machine no longer watched (offline) loses its row. */
+  async refresh(machines: Pick<Machine, "id" | "online">[]): Promise<void> {
     const ids = new Set(machines.filter(herdrWatched).map((m) => m.id));
     for (const id of [...this.started]) if (!ids.has(id)) this.started.delete(id);
     const next = new Set([...this.snap.stopped].filter((id) => ids.has(id)));

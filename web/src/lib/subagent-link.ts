@@ -1,7 +1,7 @@
 // A subagent is a card in the chat that launched it, never a conversation of its own (#5030, cindy). A link to its
 // conversation from before ("<parent>@<agent>": a page `/s/<machine>/<parent>@<agent>`, an "agent" side panel, a link in
 // a message) opens the parent's chat instead, and that chat brings the subagent's card into view, opened (ChatView).
-// A child session's (#5120: a Codex subagent, an Agent a Paseo Agent created; its row says which session it folds under)
+// A child session's (#5120: a Codex subagent; its row says which session it folds under)
 // the same way: its parent's chat, at the child's card.
 import { useSyncExternalStore } from "react";
 import { childCall } from "./child-cards";

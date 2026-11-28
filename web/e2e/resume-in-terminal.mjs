@@ -1,8 +1,8 @@
 // End-to-end check of Resume in terminal (#5521): the chat's ⋯ of an Agent that isn't
-// running offers it where its computer has a terminal engine. On the fake hub's MacBook (herdr): a Claude Code from a
-// terminal that has been closed since and a Codex thread nothing has open, both stopped, offer it; picking it opens the
-// terminal and resumes the Agent there (the fake hub's start with resume_session_id). A claude still running in a
-// terminal of its own offers none. On the Mac mini, which enables no terminal engine, it is there, disabled, with why.
+// running offers it. On the fake hub's MacBook: a Claude Code from a terminal that has been closed since and a Codex
+// thread nothing has open, both stopped, offer it; picking it opens the terminal and resumes the Agent there (the fake
+// hub's start with resume_session_id). A claude still running in a terminal of its own offers none, and neither does a
+// stopped Claude Code on the Mac mini, whose herdr is missing (its node lists it with nothing to resume it in).
 //
 // Needs the web page against the fake hub with MOCK_RESUME_TERMINAL=1, and Chrome or Edge (playwright-core drives it):
 //
@@ -35,8 +35,8 @@ if (shots) mkdirSync(shots, { recursive: true });
 // the fake hub's sessions (scripts/mock/mock_hub.py MOCK_RESUME_TERMINAL)
 const STOPPED = "macbook/5e000000-0000-4000-8000-000000005521";
 const CODEX = "macbook/019a5521-0000-7000-8000-000000000001";
+const NO_HERDR = "mini/5e000000-0000-4000-8000-000000005523";
 const LIVE = "macbook/5e000000-0000-4000-8000-000000005522";
-const NO_ENGINE = "mini/5e000000-0000-4000-8000-000000005523";
 const ITEM = "在终端里恢复";
 
 const ok = (msg) => console.log(`ok  ${msg}`);
@@ -137,16 +137,12 @@ async function run(browser, theme, width) {
   if (!before) ok(`${tag}: not offered while it runs in another terminal`);
   await closeMenu(page);
 
-  // No terminal engine on its computer: there, disabled, saying why.
-  await chat(page, NO_ENGINE, tag);
+  // A computer whose herdr is missing: nothing to resume it in.
+  await chat(page, NO_HERDR, tag);
   m = await menu(page, tag);
-  await shot(page, `${width}-${theme}-no-engine-menu`);
-  if (!before) {
-    const item = m.getByRole("menuitem", { name: new RegExp(`^${ITEM}`) });
-    if (!(await item.count()) || !(await item.isDisabled())) fail(`${tag}: no disabled Resume in terminal on a computer without a terminal engine`);
-    if (!(await item.textContent()).includes("Mac mini 没有启用终端引擎")) fail(`${tag}: the disabled item doesn't say why: ${await item.textContent()}`);
-    ok(`${tag}: disabled with its reason where no terminal engine is enabled`);
-  }
+  await shot(page, `${width}-${theme}-no-herdr-menu`);
+  if (!before && (await m.getByRole("menuitem", { name: new RegExp(`^${ITEM}`) }).count())) fail(`${tag}: Resume in terminal offered on a computer without herdr`);
+  if (!before) ok(`${tag}: not offered on a computer without herdr`);
   await closeMenu(page);
   await ctx.close();
 }

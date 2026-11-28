@@ -110,7 +110,6 @@ describe("web model selector omits hub Agent presets (tiers)", () => {
             manager: defaultManager(),
             machine: "mac",
             cwd: "/code/app",
-            host: "",
             label: "app",
             choice: { launcher: "", model: "", effort: "" },
             permissionMode: "",

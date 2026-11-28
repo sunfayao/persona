@@ -2,7 +2,6 @@
 import { useAssistantIdentity } from "../../lib/assistant-identity";
 import { useAssistantTitle, useManagerOffline } from "../ManagerParts";
 import { LinkManager, useShownManager } from "../../lib/manager-choice";
-import { alsoOpenText } from "../../lib/engines";
 import { lazy, memo, Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, errorText, pastHub, sessionPath } from "../../lib/api";
 import { attentionReason, externalLink, failureReason, isStoppedAgent, resumeCommand, sessionCan, sessionCanRename, sessionDeletable, sessionDisplayTab, sessionMenuActions, sourceSubtitle, sessionTitle, sessionTitleDetail, shortPath, stateOf, tabLabel, uuid } from "../../lib/format";
@@ -1711,7 +1710,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
     const last = lines.findLast((line) => line.kind === "segment");
     return last?.kind === "segment" ? last.seg : undefined;
   }, [closeoutShown, lines]);
-  // The child sessions folded under this one (#5120, a Codex subagent, an Agent a Paseo Agent created): each a card in
+  // The child sessions folded under this one (#5120, a Codex subagent): each a card in
   // the exchange during which it started (lib/child-cards.ts). The placement is kept while nothing moves it, so a push
   // for a child redraws only its card, and a streamed item none of the exchanges.
   // read while the row says it has some, or a link to one waits (its parent's rollup may not be in yet)
@@ -1763,7 +1762,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
     jump(childCall(linkedChild));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkedChild, session, tr.loading, tr.loadingEarlier, tr.hasMore, detail.loading, kids.loaded, childRows, places, mid, sid, jump]);
-  // what runs its subagents: its own agent (a Paseo provider's subagent cards say "Grok", #8142)
+  // what runs its subagents: its own agent, by its name (#8142)
   const harness = session && !assistant ? sessionAgentName(session) : undefined;
   // Streaming makes the turn live again, but an Agent's existing wait / subagent bar stays as it was while the answer
   // streams. Only the new command line is withheld there; in a quiet turn the four-kind order decides the bar.
@@ -2552,7 +2551,6 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
         <ChatOnlyNote gate={gate} />
         {gate.dialog}
         {session && !assistant && <AttentionNote session={session} />}
-        {session && !assistant && <ConflictNote session={session} />}
         {/* a resume turned ultracode off (#3428): one line with "Turn back on" */}
         {session && !assistant && <UltracodeLostNote session={session} />}
         {session && failureNote && (
@@ -2826,18 +2824,6 @@ export function footerRows(session: Session, assistant?: boolean): MenuItem[] {
   return rows.filter(([, , v]) => v).map(([key, what, v]) => ({ key, label: v!, hint: what, wrap: true, onSelect: key === "source" ? () => {} : () => void copyText(key === "folder" ? session.cwd! : v!) }));
 }
 
-/** The session is live in another engine host too (#2576): this one owns it, and messages go here only. */
-function ConflictNote({ session }: { session: Session }) {
-  const text = alsoOpenText(session);
-  if (!text) return null;
-  return (
-    <div role="status" data-testid="chat-also-open" className="flex items-start gap-2 rounded-[12px] bg-orange-tint px-3 py-2 text-[12.5px]" style={{ animation: "fade-up 200ms var(--ease-out-strong) both" }}>
-      <span className="flex h-[18px] shrink-0 items-center text-orange"><Icon name="warning" size={13} /></span>
-      <span className="line-clamp-2 min-w-0 flex-1 text-ink-2">{text}</span>
-    </div>
-  );
-}
-
 /** Above the composer while a session needs you and its host says why (a botmux attention, iOS AttentionNote):
  *  the reason and "Open in Lark" its topic. */
 function AttentionNote({ session }: { session: Session }) {
@@ -2972,8 +2958,7 @@ export const Header = memo(function Header({
   const attach = () => session && import("../../lib/attach-live").then((m) => m.attachLive(session));
   // Resume in terminal (#5521): a stopped Agent comes back in a terminal on its computer. The same action as its stopped
   // line's Resume: the terminal shown as that line's Terminal shows it, then the Resume both share.
-  const machine = useStore((s) => s.machines.find((m) => m.id === session?.machine_id));
-  const resumeOffer = onTerminal ? terminalResume(session, machine) : "hidden";
+  const resumeOffer = onTerminal ? terminalResume(session) : "hidden";
   const resumeHere = () => {
     if (session && onTerminal) void resumeInTerminal(session.machine_id, session.session_id, onTerminal);
   };
@@ -3094,7 +3079,7 @@ export const Header = memo(function Header({
         ...(showTerminal ? [{ key: "terminal", label: t("chat-chatview.terminal"), icon: "terminal" as const, checked: view === "term", onSelect: flipView }] : []),
         ...(jumpTerminal ? [{ key: "terminal", label: t("chat-chatview.terminal"), icon: "terminal" as const, onSelect: openTerminalPage }] : []),
         ...(resumeOffer !== "hidden"
-          ? [{ key: "resume-terminal", label: t("chat-chatview.resume_in_terminal"), icon: "play" as const, disabled: resumeOffer === "no_engine", detail: resumeOffer === "no_engine" ? t("chat-chatview.resume_no_engine", { computer: machineName }) : undefined, onSelect: resumeHere }]
+          ? [{ key: "resume-terminal", label: t("chat-chatview.resume_in_terminal"), icon: "play" as const, onSelect: resumeHere }]
           : []),
         ...(showFiles ? [{ key: "files", label: t("chat-chatview.files"), icon: "folder" as const, checked: here(panel, "files"), onSelect: openFiles }, { key: "git", label: "Git", icon: "git" as const, checked: here(panel, "git"), onSelect: openGit }, ...(reviews ? [{ key: "review", label: t("chat-chatview.review_changes"), icon: "pullRequest" as const, checked: here(panel, "review"), onSelect: openReview }] : [])] : []),
         ...tasksItem,

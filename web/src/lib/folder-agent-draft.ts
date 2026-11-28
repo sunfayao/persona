@@ -1,7 +1,5 @@
 import { credentialOwner, onCredentialChange } from "./api";
-import { startsInDesktopApp } from "./desktop-start";
 import { storeDraft, type DraftImage } from "./drafts";
-import { currentHosts } from "./engines";
 import { baseName, uuid } from "./format";
 import { addContext } from "./links";
 import { defaultManager } from "./manager-choice";
@@ -17,7 +15,6 @@ export interface FolderAgentDraft {
   manager: string;
   owner: string;
   cwd: string;
-  host: string;
   label: string;
   spaceId?: string;
   workspace?: WorkspaceTarget;
@@ -53,9 +50,7 @@ export function openFolderAgentDraft(preset: NewAgentPreset): boolean {
   const manager = workspace?.manager || selected.manager || defaultManager();
   const owner = workspace?.owner || credentialOwner();
   if (owner !== credentialOwner()) return false;
-  const sourceHost = workspace?.host || preset.host;
-  const host = (!startsInDesktopApp({ source: sourceHost }) && sourceHost) || currentHosts(selected).default;
-  const key = JSON.stringify([owner, manager, machine, cwd, host, workspace?.workspaceId, preset.spaceId, preset.desktopProjectId, preset.launcher]);
+  const key = JSON.stringify([owner, manager, machine, cwd, workspace?.host, workspace?.workspaceId, preset.spaceId, preset.desktopProjectId, preset.launcher]);
   const seeded = preset.prompt || preset.forwards?.length || preset.images?.length || preset.onStarted;
   const existing = seeded ? undefined : [...drafts.values()].find((d) => d.key === key && !d.submitting);
   if (existing) {
@@ -64,7 +59,7 @@ export function openFolderAgentDraft(preset: NewAgentPreset): boolean {
   }
   const id = uuid();
   const draft = {
-    id, key, machine, manager, owner, cwd, host, label: workspace?.label || baseName(cwd) || cwd,
+    id, key, machine, manager, owner, cwd, label: workspace?.label || baseName(cwd) || cwd,
     spaceId: preset.spaceId, workspace, desktopProjectId: preset.desktopProjectId,
     attachments: { images: [...(preset.images ?? [])] },
     choice: { launcher: preset.launcher || "", model: "", effort: "" },

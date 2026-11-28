@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ApiError } from "./api";
 import { HerdrWatch, herdrFailure, herdrFailureText, herdrWatched, type HerdrApi, type HerdrState } from "./herdr-notice";
 
-const m = (id: string, online = true, engine?: string) => ({ id, online, engine });
+const m = (id: string, online = true) => ({ id, online });
 const state = (running: boolean, known = true): HerdrState => ({ autostart: false, running, known });
 
 /** A hub answering each machine's row from `rows`; a function throws or answers per call. */
@@ -26,22 +26,19 @@ function fakeHub(rows: Record<string, HerdrState | (() => HerdrState)>, start?: 
 }
 
 describe("herdrWatched", () => {
-  it("only online machines on classic herdr", () => {
-    expect(herdrWatched(m("a"))).toBe(true); // no engine: herdr
-    expect(herdrWatched(m("a", true, "herdr-both"))).toBe(true);
-    expect(herdrWatched(m("a", true, "herdr-core"))).toBe(false);
-    expect(herdrWatched(m("a", true, "orca"))).toBe(false);
+  it("only online machines", () => {
+    expect(herdrWatched(m("a"))).toBe(true);
     expect(herdrWatched(m("a", false))).toBe(false);
   });
 });
 
 describe("HerdrWatch", () => {
-  it("a row only when known not running; Herdr App is not asked", async () => {
+  it("a row only when known not running; an offline machine is not asked", async () => {
     const f = fakeHub({ down: state(false), up: state(true), unsure: state(false, false) });
     const w = new HerdrWatch(f.hub);
-    await w.refresh([m("down"), m("up"), m("unsure"), m("app", true, "herdr-core")]);
+    await w.refresh([m("down"), m("up"), m("unsure"), m("away", false)]);
     expect([...w.snapshot().stopped]).toEqual(["down"]);
-    expect(f.reads).not.toContain("app");
+    expect(f.reads).not.toContain("away");
   });
 
   it("a lost read keeps the row, an older hub is not asked again, offline drops it", async () => {

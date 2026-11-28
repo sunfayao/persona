@@ -1,7 +1,7 @@
 // Machine details (/machines/<id>, iOS MachineDetailView): one page, the most used on top — how the
 // computer is (online, system, which hub when there are several), its agents by herdr space (a row opens the chat),
 // its values now, CPU / memory / network / load over 1, 6 or 24 hours (hover a chart to read a moment, all follow) and
-// each core now (Linux), the system, the launchers. Its engine (which one the agents come from) follows the agents. A Mac the hub's extension cua is on for gets "Computer control" after that, and "Browser" (ego lite) while ego is on.
+// each core now (Linux), the system, the launchers. A Mac the hub's extension cua is on for gets "Computer control" after that, and "Browser" (ego lite) while ego is on.
 // A Mac whose live screen can be shown (showsScreen) gets "View screen" in the top bar, the page's one way to it: it stays in view
 // while the page scrolls, and does not wait for Cua Driver, which the screen does not use.
 import { MoveToManager } from "../ManagerParts";
@@ -53,10 +53,7 @@ import { MachineDeploy } from "./MachineDeploy";
 import { homeUser, LinkSwitch } from "./LinkSwitch";
 import { BrowserSection } from "./BrowserSection";
 import { ComputerSection } from "./ComputerSection";
-import { EngineSection } from "./EngineSection";
-import { openEngineSection } from "./engine-anchor";
 import { BotmuxSwitch } from "./BotmuxSwitch";
-import { currentEngine, currentHosts, engineName, hostsName, supportsHostSets } from "../../lib/engines";
 import { NodeHealth } from "./NodeHealth";
 import { UsageSection } from "./UsageSection";
 import { MachineExtensionSections } from "../extensions/ExtensionSlots";
@@ -286,17 +283,7 @@ export function MachineDetail({ mid, onToggleSidebar }: { mid: string; onToggleS
                   {hub}
                 </span>
               )}
-              {/* its engine and botmux, one click away (#2842): the engine opens Engine below, botmux flips */}
-              <button
-                type="button"
-                data-testid="engine-pill"
-                title={t("machines-machinedetail.engine_pill_hint")}
-                onClick={() => openEngineSection()}
-                className="touch-hit inline-flex h-5 items-center gap-1 whitespace-nowrap rounded-full bg-inset px-1.5 text-[11px] font-medium text-ink-2 shadow-hairline transition-colors hover:bg-hover"
-              >
-                <Icon name="terminal" size={11} />
-                {supportsHostSets(m) ? hostsName(currentHosts(m), m) : engineName(currentEngine(m), m)}
-              </button>
+              {/* botmux, one click away (#2842) */}
               <BotmuxSwitch key={m.id} machineID={m.id} />
             </div>
             <p className="mt-0.5 truncate text-[12px] text-ink-3" title={systemLine(system, m)}>
@@ -384,7 +371,7 @@ export function MachineDetail({ mid, onToggleSidebar }: { mid: string; onToggleS
         )}
       </section>
 
-      {/* its token usage, then how busy it is, then the engine and what it can do (#4973, as in the apps) */}
+      {/* its token usage, then how busy it is, then what it can do (#4973, as in the apps) */}
       <UsageSection mid={mid} heading={(right) => <Heading title={t("machines-usage.title")} right={right} />} />
 
       {/* monitoring */}
@@ -428,9 +415,6 @@ export function MachineDetail({ mid, onToggleSidebar }: { mid: string; onToggleS
         {data && failure && <p className="mt-2 px-1 text-[11.5px] text-red">{t("machines-machinedetail.refresh_failed", { error: failure })}</p>}
         <p className="mt-2 px-1 text-[11.5px] leading-relaxed text-ink-3">{t("machines-machinedetail.metrics_note")}</p>
       </section>
-
-      {/* which engine the agents above come from (iOS engineRow) */}
-      <EngineSection machine={m} heading={<Heading title={t("machines-machinedetail.engine")} />} />
 
       {/* what this computer can do for Persona, from the node's self-check */}
       <NodeHealth machine={m} heading={<Heading title={t("node-health.title")} />} />

@@ -173,6 +173,8 @@ describe("alert chips on the Machines page", () => {
 
 describe("the Capabilities view", () => {
   it("lists every computer with what it can run, reads tools and launchers lazily, and is remembered", async () => {
+    fake.machines = fake.machines.map((m) => m.id === "laptop" ? { ...m, engines: [{ id: "herdr", name: "herdr", available: true, version: "0.9.5" }] }
+      : m.id === "box" ? { ...m, engines: [{ id: "herdr", name: "herdr", available: false }] } : m);
     act(() => root.render(<Machines onToggleSidebar={() => {}} />));
     await flush();
     await click([...host.querySelectorAll("[role=radio]")].find((b) => b.textContent === "能力") ?? null);
@@ -184,7 +186,15 @@ describe("the Capabilities view", () => {
     expect(laptop).toContain("Claude Code");
     expect(laptop).toContain("Codex");
     expect(laptop).toContain("Git 2.47");
+    expect(laptop).toContain("herdr 0.9.5");
+    expect($("[data-row=laptop] [data-herdr=missing]")).toBeNull();
+    // herdr is built in: a computer whose node cannot use it says so, with the alert chips' warning mark
+    const missing = $("[data-row=box] [data-herdr=missing]");
+    expect(missing?.textContent).toContain("缺少 herdr");
+    expect(missing?.textContent).toContain("请在这台电脑上安装它");
+    expect(missing?.querySelector("svg")?.getAttribute("class")).toContain("text-orange");
     expect($("[data-row=nas]")?.textContent).toContain("连上后才能看到");
+    expect($("[data-row=nas] [data-herdr=missing]")).toBeNull();
     // only the online computers are asked, once each
     expect(requests.filter((r) => r.includes("/diagnosis?sections=tools")).sort()).toEqual(["GET /api/v1/machines/box/diagnosis?sections=tools", "GET /api/v1/machines/laptop/diagnosis?sections=tools", "GET /api/v1/machines/ok/diagnosis?sections=tools"]);
     expect(localStorage.getItem("persona.machines.view")).toBe("capabilities");

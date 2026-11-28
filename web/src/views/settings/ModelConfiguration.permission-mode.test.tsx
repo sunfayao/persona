@@ -21,7 +21,7 @@ const PROVIDERS: ModelProvider[] = [
   { id: "launcher.codex", name: "Codex", kind: "launcher", agent: "codex" },
   { id: "launcher.agy", name: "Antigravity", kind: "launcher", agent: "agy" },
   { id: "launcher.omp", name: "omp", kind: "launcher", agent: "omp" },
-  { id: "launcher.grok", name: "Grok", kind: "launcher", agent: "paseo", permission_modes: ["default", "bypassPermissions"] },
+  { id: "launcher.grok", name: "Grok", kind: "launcher", agent: "opencode", permission_modes: ["default", "bypassPermissions"] },
   { id: "launcher.messages", name: "Direct API", kind: "api", api: "messages", model: "api-model", has_key: true },
 ];
 

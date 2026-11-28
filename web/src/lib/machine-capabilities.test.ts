@@ -10,7 +10,7 @@ const sample = (mid: string, used: number, total: number, extra: Partial<NonNull
 
 describe("capabilityRow", () => {
   it("lists what a computer is and can run", () => {
-    const m = { ...mac(), kind: "link", arch: "arm64", engines: [{ id: "herdr", name: "herdr", available: true, version: "0.9.5" }, { id: "orca", name: "Orca", available: false }], system: { name: "macOS 26.1", model: "Mac mini", cores: 10, memory: 32 * GB } } as Machine;
+    const m = { ...mac(), kind: "link", arch: "arm64", engines: [{ id: "herdr", name: "herdr", available: true, version: "0.9.5" }], system: { name: "macOS 26.1", model: "Mac mini", cores: 10, memory: 32 * GB } } as Machine;
     const row = capabilityRow({
       machine: m,
       machines: [m],
@@ -18,7 +18,7 @@ describe("capabilityRow", () => {
       launchers: [{ name: "claude" }, { name: "team", display_name: "Team relay", agent: "claude" }, { name: "codex", agent: "codex" }],
       tools: { state: "ok", tools: [{ id: "docker", version: "27.3.1" }, { id: "git", version: "" }] },
     });
-    expect(row).toMatchObject({ name: "Studio Mac", presence: "online", system: "macOS 26.1 · arm64", model: "Mac mini", cores: 10, memory: 32 * GB, diskFree: 200 * GB, engines: ["herdr 0.9.5"] });
+    expect(row).toMatchObject({ name: "Studio Mac", presence: "online", system: "macOS 26.1 · arm64", model: "Mac mini", cores: 10, memory: 32 * GB, diskFree: 200 * GB, herdr: { state: "ok", text: "herdr 0.9.5" } });
     expect(row.runtimes).toEqual({ state: "ok", value: [{ id: "claude", name: "Claude Code", entries: ["claude", "Team relay"] }, { id: "codex", name: "Codex", entries: ["codex"] }] });
     expect(row.tools.state === "ok" && toolsText(row.tools.value)).toBe("Docker 27.3.1 · Git");
     expect(row.reach).not.toBe("");
@@ -32,6 +32,18 @@ describe("capabilityRow", () => {
     expect(capabilityRow({ machine: mac(), machines: [], tools: { state: "failed", failure: { kind: "node_outdated", text: "" } } }).tools).toEqual({ state: "unavailable", text: "这台电脑的 Persona 太旧，更新后可见" });
     expect(capabilityRow({ machine: mac(), machines: [], tools: { state: "failed", failure: { kind: "hub_outdated", text: "" } } }).tools).toEqual({ state: "unavailable", text: "hub 太旧，更新后可见" });
     expect(capabilityRow({ machine: mac(), machines: [], launchers: null }).runtimes.state).toBe("unavailable");
+  });
+
+  it("checks the built-in herdr: its version, missing when an online computer's node cannot use it", () => {
+    const herdr = (available: boolean, version?: string) => [{ id: "herdr", name: "herdr", available, ...(version ? { version } : {}) }];
+    const row = (over: Partial<Machine>) => capabilityRow({ machine: mac(over), machines: [] }).herdr;
+    expect(row({ engines: herdr(true) })).toEqual({ state: "ok", text: "herdr" });
+    expect(row({ engines: herdr(false) })).toEqual({ state: "missing" });
+    // nothing to say while its node says nothing: offline, waiting to be confirmed, an older node
+    expect(row({ online: false, engines: [] })).toEqual({ state: "unknown" });
+    expect(row({ online: false, engines: herdr(false) })).toEqual({ state: "unknown" });
+    expect(row({ trust: "pending", engines: herdr(false) })).toEqual({ state: "unknown" });
+    expect(row({})).toEqual({ state: "unknown" });
   });
 
   it("groups one runtime's named entries", () => {

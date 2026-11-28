@@ -56,7 +56,7 @@ describe("stable sidebar order (#11801)", () => {
 
   it("puts an unindexed workspace before Other in both paged and legacy placement", () => {
     const base = { machine_id: "mac", title: "", cwd: "/tmp", status: "idle" as const, state: "idle" as const };
-    const spaced: Session = { ...base, session_id: "spaced", space_kind: "paseo", space_id: "prj_app", space_name: "app" };
+    const spaced: Session = { ...base, session_id: "spaced", space_kind: "agy", space_id: "prj_app", space_name: "app" };
     const loose: Session = { ...base, session_id: "loose" };
     const flat = [spaced, loose].sort(machineSessionOrder(machines)).map((s) => s.session_id);
     const tree = buildMachineTree(machines, [loose, spaced])[0]!;

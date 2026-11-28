@@ -88,7 +88,7 @@ describe("modes", () => {
   });
 
   it("follows the node's modes capability when it gives one (#1843)", () => {
-    // Orca's conversations: a runtime that applies the modes
+    // a runtime that applies the modes
     expect(hasModes(s({ agent: "claude", source_kind: "runtime", capabilities: { read: true, send: true, modes: true } }))).toBe(true);
     // a row the node says no for (a runtime that did not declare them), whatever its agent
     expect(hasModes(s({ agent: "agy", source_kind: "runtime", capabilities: { read: true, send: true, modes: false } }))).toBe(false);
@@ -141,8 +141,8 @@ describe("the mode a composer names where it cannot switch it", () => {
 
   it("reads a session that lists its modes as its picker does, and leaves a Persona conversation to its picker", () => {
     const caps = { read: true, send: true, modes: false, permission_modes: ["default", "bypassPermissions"] };
-    expect(shownModeOf(s({ agent: "paseo", source_kind: "runtime", capabilities: caps }))).toBe(LAUNCHER_DEFAULT);
-    expect(shownModeOf(s({ agent: "paseo", source_kind: "runtime", capabilities: caps, permission_mode: "bypassPermissions" }))?.id).toBe("bypassPermissions");
+    expect(shownModeOf(s({ agent: "opencode", source_kind: "runtime", capabilities: caps }))).toBe(LAUNCHER_DEFAULT);
+    expect(shownModeOf(s({ agent: "opencode", source_kind: "runtime", capabilities: caps, permission_mode: "bypassPermissions" }))?.id).toBe("bypassPermissions");
     expect(shownModeOf(s({ assistant: true, permission_mode: "bypassPermissions" }))).toBeUndefined();
     expect(shownModeOf(undefined)).toBeUndefined();
   });

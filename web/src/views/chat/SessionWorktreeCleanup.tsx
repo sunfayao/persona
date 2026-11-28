@@ -25,7 +25,7 @@ export function useAgentWorktree(s: Session, open: boolean): WorktreeStatus | nu
     setSt(null);
     if (!open || !s.cwd) return;
     const c = new AbortController();
-    // asked of the engine it ran in, which made it (a Paseo agent's is Paseo's)
+    // asked of the host it ran in
     void worktreeStatus(s.machine_id, s.cwd, c.signal, s.host).then((x) => {
       if (!c.signal.aborted) setSt(x?.ours && x.path ? x : null);
     });

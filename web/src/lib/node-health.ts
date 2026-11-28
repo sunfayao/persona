@@ -3,8 +3,6 @@
 // wants to know whether phone approvals work, so each feature below is a set of those checks and takes the worst
 // state among them. The raw list stays one click away.
 import { t } from "../i18n";
-import { currentEngine } from "./engines";
-import type { Machine } from "./types";
 
 export type CheckStatus = "ok" | "warn" | "fail";
 
@@ -44,16 +42,9 @@ interface FeatureSpec {
   detail: string;
   /** The checks it stands on (DoctorCheck.name). */
   checks: string[];
-  /** Something a computer may well not use (an engine other than herdr, no runtimes): a warning alone means "Off". */
-  optional?: boolean;
-  /** For an optional one: whether this computer needs it, which turns the warning into "Problem". */
-  needed?: (ctx: HealthContext) => boolean;
-}
-
-/** What the hub knows about the computer that the node's report does not say. */
-export interface HealthContext {
-  /** The machine's engine (engines.ts `currentEngine`). */
-  engine?: string;
+  /** What a warning alone means: "off" for something a computer may well not use (no runtimes), "broken" for what every
+   *  computer needs (herdr, built into each); otherwise "partial". */
+  warn?: "off" | "broken";
 }
 
 /** The checks the node reports and no feature stands on: the user's own settings, shown as information. */
@@ -72,12 +63,11 @@ export const FEATURES: FeatureSpec[] = [
     name: t("node-health.feature_terminal_name"),
     detail: t("node-health.feature_terminal_detail"),
     checks: ["herdr"],
-    optional: true,
-    needed: (c) => ["herdr", "herdr-both"].includes(c.engine ?? "herdr"),
+    warn: "broken",
   },
   { id: "mcp", name: t("node-health.feature_mcp_name"), detail: t("node-health.feature_mcp_detail"), checks: ["node.sock", "mcp.json", "command-paths"] },
   { id: "skills", name: t("node-health.feature_skills_name"), detail: t("node-health.feature_skills_detail"), checks: ["agent-plugin", "claude-version"] },
-  { id: "runtimes", name: t("node-health.feature_runtimes_name"), detail: t("node-health.feature_runtimes_detail"), checks: ["runtime.sock"], optional: true },
+  { id: "runtimes", name: t("node-health.feature_runtimes_name"), detail: t("node-health.feature_runtimes_detail"), checks: ["runtime.sock"], warn: "off" },
 ];
 
 export interface FeatureView {
@@ -110,7 +100,7 @@ function noteOf(c: DoctorCheck | undefined): string {
 
 /** The report as features, in a fixed order. A feature none of whose checks the report has (an older node reports
  * fewer) is left out; a check no feature covers and that is not fine makes "Other checks" so nothing hides. */
-export function deriveFeatures(report: DoctorReport, ctx: HealthContext = {}): FeatureView[] {
+export function deriveFeatures(report: DoctorReport): FeatureView[] {
   const byName = new Map(report.checks.map((c) => [c.name, c]));
   const out: FeatureView[] = [];
   for (const spec of FEATURES) {
@@ -119,7 +109,7 @@ export function deriveFeatures(report: DoctorReport, ctx: HealthContext = {}): F
     const w = worst(checks);
     let state: FeatureState = "ready";
     if (w?.status === "fail") state = "broken";
-    else if (w?.status === "warn") state = spec.optional ? (spec.needed?.(ctx) ? "broken" : "off") : "partial";
+    else if (w?.status === "warn") state = spec.warn ?? "partial";
     out.push({ id: spec.id, name: spec.name, detail: spec.detail, state, checks, note: noteOf(w) });
   }
   const covered = new Set([...FEATURES.flatMap((f) => f.checks), ...INFO_CHECKS]);
@@ -179,8 +169,3 @@ export function doctorUnavailable(e: { status?: number; message?: string; isJson
 }
 
 export { classifyConnection,   } from "./connection-failure";
-
-/** `currentEngine` for the derivation, so the card needs one import. */
-export function healthContext(m: Pick<Machine, "engine">): HealthContext {
-  return { engine: currentEngine(m) };
-}

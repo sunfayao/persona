@@ -7,6 +7,8 @@
   "col_runtimes": "Agent 运行时",
   "col_tools": "工具",
   "col_reach": "连接方式",
+  "herdr_missing": "缺少 herdr",
+  "herdr_missing_hint": "Persona 在 herdr 里运行终端 Agent，请在这台电脑上安装它。",
   "online": "在线",
   "offline": "离线",
   "pending": "等待确认",

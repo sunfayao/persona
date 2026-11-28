@@ -38,11 +38,8 @@ describe("sessionHost", () => {
   it("names the host from the pane ref; a bare id is herdr's", () => {
     const s = (pane_id?: string) => ({ machine_id: "m", session_id: "s", status: "idle", pane_id }) as never;
     expect(sessionHost(s("w1:p2"))).toBe("herdr");
-    expect(sessionHost(s("orca:t1:l2"))).toBe("orca");
     expect(sessionHost(s("p2"))).toBe("herdr");
     expect(sessionHost(s("botmux:abc"))).toBe("botmux");
-    expect(sessionHost(s("tern:42"))).toBe("tern");
-    expect(sessionHost(s("rex:block:b1"))).toBe("rex");
     expect(sessionHost(s())).toBe("");
   });
 });

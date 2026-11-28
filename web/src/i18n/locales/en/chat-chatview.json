@@ -107,7 +107,6 @@
   "resume": "Resume",
   "resume_failed": "Couldn't resume this Agent. {error}",
   "resume_in_terminal": "Resume in terminal",
-  "resume_no_engine": "No terminal engine on {computer}",
   "codex_waiting": "Codex is open on {computer}. Send its first message below, or type it in its terminal.",
   "codex_first_placeholder": "First message to Codex",
   "team": "Team",

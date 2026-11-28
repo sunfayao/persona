@@ -1,6 +1,6 @@
 // What each computer can do (#8037): one table that feeds people (the Machines page's
 // Capabilities view) and placement (the hand-off's target picker, rankTargets). Rows come from the machine list
-// (system, engines), the latest metric sample (free disk and memory), the computer's launchers (Agent runtimes, each
+// (system, herdr), the latest metric sample (free disk and memory), the computer's launchers (Agent runtimes, each
 // runtime with its named entries) and the node's detected tools. Pure: the page fetches, this only reads.
 import { t } from "../i18n";
 import { isPending, neverConnected } from "./add-computer";
@@ -24,6 +24,11 @@ export interface RuntimeGroup {
 
 export type ListState<T> = { state: "loading" } | { state: "ok"; value: T } | { state: "unavailable"; text: string };
 
+/** herdr, the terminal engine built into every computer, as its node found it: "ok" with its name and version,
+ *  "missing" when an online computer's node says it cannot use it, "unknown" while the node says nothing (offline,
+ *  waiting to be confirmed, an older node). */
+export type HerdrCell = { state: "ok"; text: string } | { state: "missing" } | { state: "unknown" };
+
 export interface CapabilityRow {
   id: string;
   name: string;
@@ -36,7 +41,7 @@ export interface CapabilityRow {
   cores?: number;
   memory?: number;
   diskFree?: number;
-  engines: string[];
+  herdr: HerdrCell;
   runtimes: ListState<RuntimeGroup[]>;
   tools: ListState<DiagnosisTool[]>;
   reach: string;
@@ -98,13 +103,20 @@ export function capabilityRow({ machine: m, machines, metrics, launcherIssues = 
     cores: sys.cores || undefined,
     memory: latest?.mem_total || sys.memory || undefined,
     diskFree,
-    engines: (m.engines ?? []).filter((e) => e.available).map((e) => (e.version ? `${e.name} ${e.version}` : e.name)),
+    herdr: herdrCell(m, presence),
     runtimes: launchers === undefined ? (presence === "online" ? { state: "loading" } : { state: "unavailable", text: t("lib-machine-capabilities.when_online") })
       : launchers === null ? { state: "unavailable", text: t("lib-machine-capabilities.not_read") }
       : { state: "ok", value: runtimeGroups(launchers) },
     tools: toolsCell(tools, presence),
     reach: routeText(m, machines) || connectionText(d),
   };
+}
+
+function herdrCell(m: Machine, presence: MachinePresence): HerdrCell {
+  const herdr = presence === "online" ? m.engines?.find((e) => e.id === "herdr") : undefined;
+  if (!herdr) return { state: "unknown" };
+  if (!herdr.available) return { state: "missing" };
+  return { state: "ok", text: herdr.version ? `${herdr.name} ${herdr.version}` : herdr.name };
 }
 
 function toolsCell(tools: ToolsState | undefined, presence: MachinePresence): ListState<DiagnosisTool[]> {

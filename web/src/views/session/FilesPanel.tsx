@@ -161,9 +161,8 @@ export function FilesPanel({ mid, sid, cwd, path, file, highlight: marked, onClo
   const canChmod = writable && hubHas(features, FILE_CHMOD_FEATURE) && machine?.os?.toLowerCase() !== "windows";
   // Open Terminal Here (#5832): a new tab on the computer in that folder, in the session's workspace when it has one
   const canTerminal = hubHas(features, PANE_CWD_FEATURE);
-  // A runtime engine's session (Paseo's) names a workspace of its own, with no terminal. It goes all the same, as iOS
-  // sends it: the node then opens the tab in the terminal engine's workspace that holds the folder, where without it the
-  // computer's first workspace took the tab (#8135).
+  // The session's workspace goes along, as iOS sends it: the node opens the tab in herdr's workspace that holds the
+  // folder, where without it the computer's first workspace took the tab (#8135).
   const workspace = useStore((s) => s.sessions[mid]?.find((y) => y.session_id === sid)?.workspace_id || undefined);
   const openTerminal = async (folder: string) => {
     try {

@@ -437,14 +437,14 @@ describe("a slow refresh() does not put back an older snapshot", () => {
     const turns = holdFetch(["/machines"]);
     online();
     await settle();
-    turns["/machines"][0]({ machines: [{ id: "a", name: "A", online: true, engine: "herdr" }] });
+    turns["/machines"][0]({ machines: [{ id: "a", name: "A", online: true, herdr_version: "0.9.4" }] });
     await settle();
     const later = refresh();
     await settle();
-    applyMachine({ id: "a", name: "A", online: true, engine: "orca" });
-    turns["/machines"][1]({ machines: [{ id: "a", name: "A", online: true, engine: "herdr" }] });
+    applyMachine({ id: "a", name: "A", online: true, herdr_version: "0.9.5" });
+    turns["/machines"][1]({ machines: [{ id: "a", name: "A", online: true, herdr_version: "0.9.4" }] });
     await later;
-    expect(getState().machines[0].engine).toBe("orca");
+    expect(getState().machines[0].herdr_version).toBe("0.9.5");
   });
 
   it("a hub without deltas: a sessions push while GET /sessions is out keeps that machine's pushed list", async () => {

@@ -15,7 +15,7 @@ describe("the assistant's launchers", () => {
   });
 
   it("keeps managed native engines and requires an assistant contract from runtime providers", () => {
-    expect(runsAssistant({ name: "cc-relay", source: "paseo" })).toBe(false);
+    expect(runsAssistant({ name: "cc-relay", source: "opencode" })).toBe(false);
     expect(runsAssistant({ name: "agy-rt", source: "agy", agent: "agy", assistant: true })).toBe(true);
     expect(runsAssistant({ name: "codex-gw", source: "jarvis", agent: "codex" })).toBe(true);
     expect(runsAssistant({ name: "codex-gw", source: "persona", agent: "codex" })).toBe(true);

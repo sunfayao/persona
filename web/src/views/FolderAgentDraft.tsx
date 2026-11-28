@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { t } from "../i18n";
 import { api, ApiError, credentialOwner, errorText } from "../lib/api";
-import { agentId, providerAgent } from "../lib/agent-kind";
+import { agentId } from "../lib/agent-kind";
 import { base64File, pickAttachment, releaseAttachments, type LocalAttachment } from "../lib/attachments";
 import { CODEX_APP_SOURCE, startsInDesktopApp } from "../lib/desktop-start";
-import { currentHosts, startHosts } from "../lib/engines";
 import { takeFolderAgentDraft, type FolderAgentDraft as Draft } from "../lib/folder-agent-draft";
 import { shortPath, uuid } from "../lib/format";
-import { followedBinding, launcherAgent, listedModes, machineLaunchers, nativeOmpStart, pickerLauncher, startCatalogHost, startPicks, terminalTraeStart, type MachineLaunchers } from "../lib/launcher-models";
+import { followedBinding, launcherAgent, listedModes, machineLaunchers, nativeOmpStart, pickerLauncher, startPicks, terminalTraeStart, type MachineLaunchers } from "../lib/launcher-models";
 import { initialLauncher } from "../lib/launcher-health";
 import { defaultManager, MANAGER_HEADER } from "../lib/manager-choice";
 import { modelPurpose, type ModelBinding } from "../lib/model-config";
@@ -82,8 +81,6 @@ export function FolderAgentDraft({ draft, onToggleSidebar }: { draft: Draft; onT
     : draft.desktopProjectId && choice.launcher === "claude-desktop" ? CLAUDE_DESKTOP : undefined;
   const folderDesktopSource = startsInDesktopApp({ source: workspace?.host }) ? workspace?.host : undefined;
   const terminalWorkspace = folderDesktopSource ? undefined : workspace;
-  const host = pinnedDesktopSource ? undefined : terminalWorkspace?.host || draft.host || undefined;
-  const startHost = host || (machine ? currentHosts(machine).default : "");
   const launchers = (options?.list.launchers ?? []).filter((l) => pinnedDesktopSource ? l.source === pinnedDesktopSource
     : !startsInDesktopApp(l) || l.source === folderDesktopSource);
   const configuredProvider = pickerLauncher("", options?.effective ?? {});
@@ -92,9 +89,11 @@ export function FolderAgentDraft({ draft, onToggleSidebar }: { draft: Draft; onT
   const runs = pickerLauncher(picked, followedBinding(picked, configured));
   const launcher = launchers.find((l) => l.name === runs);
   const desktopStart = startsInDesktopApp(launcher);
-  const hostCurrent = desktopStart || !host || !machine || startHosts(machine).includes(host);
+  // a start outside a desktop app opens in herdr, the terminal host built into every computer, never in another host's
+  // workspace
+  const hostCurrent = desktopStart || Boolean(pinnedDesktopSource) || (terminalWorkspace?.host || "herdr") === "herdr";
   const followed = followedBinding(picked, configured);
-  const models = useModelList(mid, runs, startCatalogHost(launcher, host, startHost));
+  const models = useModelList(mid, runs);
   const agent = launcherAgent(runs, launchers, models.list);
   const providerModes = listedModes(launcher);
   const modes = providerModes ?? (launcher && (agent === "claude" || agent === "agy") ? PERMISSION_MODES.map((m) => m.id) : []);
@@ -129,15 +128,15 @@ export function FolderAgentDraft({ draft, onToggleSidebar }: { draft: Draft; onT
       for (const file of message.localFiles ?? []) {
         attachments.push({ id: uuid(), name: file.name, mime: "application/octet-stream", file, fileTag: true });
       }
-      const picks = startPicks({ agent, list: models.list, followed, launcher, nativeOmp: nativeOmpStart(agent, launcher, startHost), model: choice.model, effort: choice.effort });
-      const inline = terminalTraeStart(launcher, startHost);
+      const picks = startPicks({ agent, list: models.list, followed, launcher, nativeOmp: nativeOmpStart(agent, launcher), model: choice.model, effort: choice.effort });
+      const inline = terminalTraeStart(launcher);
       const target = agent === "codex" ? { agentType: "codex", inlinePrompt: true } : inline;
       draft.submitting = true;
       const id = launchAgent({
-        machineId: mid, cwd, host: desktopStart ? undefined : host, workspaceId: desktopStart ? undefined : terminalWorkspace?.workspaceId,
+        machineId: mid, cwd, workspaceId: desktopStart ? undefined : terminalWorkspace?.workspaceId,
         desktopProjectId: desktopStart ? (folderDesktopSource === launcher?.source ? workspace?.workspaceId : undefined) || draft.desktopProjectId : undefined,
         launcher: desktopStart ? runs : picked, ...picks, permissionMode,
-        displayLauncher: runs || undefined, displayEngine: runs ? agentId(providerAgent(agent, runs)) : undefined,
+        displayLauncher: runs || undefined, displayEngine: runs ? agentId(agent) : undefined,
         displayModel: resolvedStartModel({ model: picks.model, followed, launcher, list: models.list }),
         launcherDefaultEffort: (agent === "agy" || agent === "codex" && models.list?.supports_start_effort) && Boolean(picked) && !picks.effort || undefined,
         ...target, text: message.text, attachments,
@@ -154,7 +153,7 @@ export function FolderAgentDraft({ draft, onToggleSidebar }: { draft: Draft; onT
   };
 
   const modelControl = (
-    <NewAgentModel mid={mid} host={host} startHost={startHost} launchers={launchers} ready={Boolean(options)}
+    <NewAgentModel mid={mid} launchers={launchers} ready={Boolean(options)}
       onRetry={failed ? retryCatalog : undefined}
       choice={choice} runs={runs} configured={configured} unavailable={options?.list.unavailable}
       follow={configured ? { active: !choice.launcher, label: t("newagent.follow_row"), detail: formatFollowDetail(configured, configuredProvider, models.list, launchers) } : undefined}

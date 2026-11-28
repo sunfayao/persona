@@ -23,8 +23,6 @@ export interface CompareStart {
   branch: string;
   count: number;
   spec: RunSpec & { nameHint?: string };
-  /** The start goes into the workspace Paseo makes for each worktree (New agent's picked Paseo workspace, #8856). */
-  paseo: boolean;
   text: string;
   attachments: LocalAttachment[];
 }
@@ -34,7 +32,6 @@ interface Held {
   text: string;
   attachments: LocalAttachment[];
   nameHint: string;
-  paseo: boolean;
   /** The credential the runs were started with: a sign-out or another pairing stops the rest. */
   token: string;
   owner: string;
@@ -63,7 +60,7 @@ export function startCompare(input: CompareStart): string {
     attachments: input.attachments.length > 0,
     runs: runBranches(input.branch, input.count).map((branch, i) => ({ n: i + 1, branch, phase: "waiting" })),
   });
-  held.set(id, { sessionNameHint, text: input.text, attachments: input.attachments, nameHint: input.nameHint, paseo: input.paseo, token: getToken(), owner: credentialOwner() });
+  held.set(id, { sessionNameHint, text: input.text, attachments: input.attachments, nameHint: input.nameHint, token: getToken(), owner: credentialOwner() });
   void work(id);
   return id;
 }
@@ -95,15 +92,13 @@ async function runOne(id: string, n: number) {
   if (h.owner !== credentialOwner()) return fail(t("lib-compare-runs.signed_out"));
   if (!getState().machines.some((m) => m.id === g.mid && m.online)) return fail(t("lib-compare-runs.offline"));
   let path = run.path;
-  let workspaceId = run.workspaceId;
   // a run whose worktree was made before it failed starts in that one again
   if (!path) {
     updateRun(id, n, { phase: "worktree", error: undefined });
     try {
-      const wt = await addAgentWorktree(g.mid, g.cwd, h.nameHint, run.branch, { token: h.token, tokenOwner: h.owner }, g.spec.host);
+      const wt = await addAgentWorktree(g.mid, g.cwd, h.nameHint, run.branch, { token: h.token, tokenOwner: h.owner });
       path = wt.path;
-      workspaceId = h.paseo ? wt.workspace_id || undefined : undefined;
-      updateRun(id, n, { path, workspaceId });
+      updateRun(id, n, { path });
     } catch (e) {
       return fail(errorText(e));
     }
@@ -111,7 +106,7 @@ async function runOne(id: string, n: number) {
   }
   // The launch owns its previews, as New agent's own start does.
   const attachments = h.attachments.map((a) => ({ ...a, url: a.url ? URL.createObjectURL(a.file) : undefined }));
-  const launch = launchAgent({ machineId: g.mid, cwd: path, workspaceId, ...g.spec, nameHint: h.sessionNameHint, text: h.text, attachments }, { open: false });
+  const launch = launchAgent({ machineId: g.mid, cwd: path, ...g.spec, nameHint: h.sessionNameHint, text: h.text, attachments }, { open: false });
   updateRun(id, n, { phase: "launched", launch, error: undefined });
   whenStarted(launch, (s) => updateRun(id, n, { sid: s.session_id }));
 }

@@ -128,8 +128,8 @@ describe("执行形态", () => {
     expect(executionForm({ ...chat, effective: { runtime: "agentsdk" } }, providers).backend).toBe("Agent SDK");
     const agent: ModelPurpose = { ...chat, id: "agent.new", launch: "engine" };
     expect(executionForm(agent, providers)).toEqual({ label: "交互式", backend: "按机器 · claude" });
-    const machine = { id: "box", name: "Computer", online: true, engine_default: "orca" };
-    expect(executionForm({ ...agent, machine_id: "box" }, providers, [machine]).backend).toBe("orca · claude");
+    const machine = { id: "box", name: "Computer", online: true };
+    expect(executionForm({ ...agent, machine_id: "box" }, providers, [machine]).backend).toBe("herdr · claude");
     expect(executionForm(agent, providers, [machine]).backend).toBe("按机器 · claude");
     for (const [protocol, backend] of [["messages", "Messages"], ["responses", "Responses"], ["chat", "Chat"]] as const) {
       const direct: ModelPurpose = { ...chat, id: "kb", kind: "api", launch: undefined, effective: { provider: "direct" } };

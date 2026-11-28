@@ -177,23 +177,23 @@ describe("思考强度", () => {
     expect(fitEffort("", all)).toBe("");
   });
 
-  // A launcher that lists its own permission modes (#8261, Paseo's other providers) takes the efforts its model lists and
+  // A launcher that lists its own permission modes (#8261: an OpenCode launcher's) takes the efforts its model lists and
   // nothing else: no list, or a model it doesn't list, offers none rather than Claude Code's five.
   it("a launcher that lists its permission modes takes only the efforts its model lists", () => {
-    const grok = { name: "grok", agent: "paseo", source: "paseo", permission_modes: ["default", "bypassPermissions"] };
-    const list: LauncherModels = { agent: "paseo", models: [{ id: "grok-4", name: "Grok 4", default: true, efforts: ["low", "high"] }, { id: "grok-mini", name: "Grok mini" }] };
-    expect([effortRule("claude"), effortRule("agy"), effortRule("paseo", grok), effortRule("codex", grok), effortRule("paseo"), effortRule("codex")])
+    const runtime = { name: "opencode", agent: "opencode", source: "opencode", permission_modes: ["default", "bypassPermissions"] };
+    const list: LauncherModels = { agent: "opencode", models: [{ id: "grok-4", name: "Grok 4", default: true, efforts: ["low", "high"] }, { id: "grok-mini", name: "Grok mini" }] };
+    expect([effortRule("claude"), effortRule("agy"), effortRule("opencode", runtime), effortRule("codex", runtime), effortRule("opencode"), effortRule("codex")])
       .toEqual(["any", "any", "listed", "listed", "none", "none"]);
-    expect([listedModes(grok), listedModes({ permission_modes: [] }), listedModes(undefined)]).toEqual([["default", "bypassPermissions"], undefined, undefined]);
-    expect([takesEffort("paseo", grok), takesEffort("paseo"), takesEffort("claude")]).toEqual([true, false, true]);
+    expect([listedModes(runtime), listedModes({ permission_modes: [] }), listedModes(undefined)]).toEqual([["default", "bypassPermissions"], undefined, undefined]);
+    expect([takesEffort("opencode", runtime), takesEffort("opencode"), takesEffort("claude")]).toEqual([true, false, true]);
     expect(effortChoices(list, "", {}, "listed")).toEqual(["low", "high"]);
     expect(effortChoices(list, "grok-mini", {}, "listed")).toEqual([]);
     expect(effortChoices(list, "typed-id", {}, "listed")).toEqual([]);
     expect(effortChoices(null, "", {}, "listed")).toEqual([]);
     expect(effortChoices(list, "", {}, "none")).toEqual([]);
-    expect(startPicks({ agent: "paseo", list, model: "", effort: "high", launcher: grok })).toEqual({ effort: "high" });
-    expect(startPicks({ agent: "paseo", list, model: "", effort: "max", launcher: grok })).toEqual({});
-    expect(startPicks({ agent: "paseo", list, model: "", effort: "high" }), "an older computer's launcher: no effort, as before").toEqual({});
+    expect(startPicks({ agent: "opencode", list, model: "", effort: "high", launcher: runtime })).toEqual({ effort: "high" });
+    expect(startPicks({ agent: "opencode", list, model: "", effort: "max", launcher: runtime })).toEqual({});
+    expect(startPicks({ agent: "opencode", list, model: "", effort: "high" }), "an older computer's launcher: no effort, as before").toEqual({});
   });
 });
 
@@ -288,14 +288,13 @@ describe("手动输入的模型 ID（#1644）", () => {
 
   it("offers a typed omp model only for a new, unlocked start", () => {
     const list = { agent: "omp", models: [], supports_start_model: true };
-    const pick = { agent: "omp", model: "openai/gpt-5.2", effort: "high", nativeOmp: nativeOmpStart("omp", { name: "omp" }, "herdr") };
+    const pick = { agent: "omp", model: "openai/gpt-5.2", effort: "high", nativeOmp: nativeOmpStart("omp", { name: "omp" }) };
     expect(typedModelOffered("omp", list)).toBe(false);
     expect(startPicks({ ...pick, list })).toEqual({ model: pick.model });
     expect(startPicks({ ...pick, list, model: "opus" })).toEqual({ model: "opus" });
-    expect(nativeOmpStart("omp", { name: "alias" }, "herdr")).toBe(false);
-    expect(nativeOmpStart("omp", { name: "omp", source: "paseo" }, "herdr")).toBe(false);
-    expect(nativeOmpStart("omp", { name: "omp" }, "herdr-core")).toBe(false);
-    expect(nativeOmpStart("codex", { name: "omp" }, "herdr")).toBe(false);
+    expect(nativeOmpStart("omp", { name: "alias" })).toBe(false);
+    expect(nativeOmpStart("omp", { name: "omp", source: "omp-provider" })).toBe(false);
+    expect(nativeOmpStart("codex", { name: "omp" })).toBe(false);
     expect(startPicks({ ...pick, list: { ...list, locked: "Launcher fixes its model" } })).toEqual({});
     expect(startPicks({ ...pick, list: null })).toEqual({});
     expect(startPicks({ ...pick, list: undefined })).toEqual({});

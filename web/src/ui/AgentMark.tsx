@@ -52,7 +52,7 @@ const MARKS: Record<MarkedAgent, { src: string; template?: boolean; fit: number 
 
 /**
  * `agent` is what the node reports ("" is Claude Code); `label` the runtime's own name for an agent the app does not
- * know, whose mark is drawn when it names an agent that has one (a Paseo provider named "Cursor", markId); `surface`
+ * know, whose mark is drawn when it names an agent that has one (a runtime's provider named "Cursor", markId); `surface`
  * the client it runs in (#6390): the command line's mark carries a </> badge on its lower right, the desktop app's
  * none. `size` is the box. The mark says what it is (role=img, "Claude Code, command line"); `decorative` for a place
  * that names the agent in text right beside it.

@@ -125,10 +125,10 @@ describe("空间的顺序", () => {
 });
 
 describe("筛选栏的「botmux」显示 / 隐藏（#2786）", () => {
-  it("隐藏时去掉 botmux 会话，herdr、Orca 和没有窗格的留着；显示时原样", () => {
-    const all = [session("b", "working", { pane_id: "botmux:oc_1/t1" }), session("h", "working", { pane_id: "w1:p1" }), session("o", "idle", { pane_id: "orca:x" }), session("r", "idle")];
+  it("隐藏时去掉 botmux 会话，herdr 和没有窗格的留着；显示时原样", () => {
+    const all = [session("b", "working", { pane_id: "botmux:oc_1/t1" }), session("h", "working", { pane_id: "w1:p1" }), session("r", "idle")];
     expect(all.filter(isBotmux).map((s) => s.session_id)).toEqual(["b"]);
-    expect(ids(withoutBotmux(all, true))).toEqual(["h", "o", "r"]);
+    expect(ids(withoutBotmux(all, true))).toEqual(["h", "r"]);
     expect(withoutBotmux(all, false)).toBe(all);
   });
 

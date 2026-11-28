@@ -7,9 +7,6 @@ export interface WorktreeRequest {
   target: WorktreeTarget;
   /** The computer's tree changed (the new workspace is in it): read it again. */
   changed: () => void;
-  source?: WorkspaceTarget;
-  /** Undefined follows the source; null requests a top-level workspace. */
-  parent?: WorkspaceTarget | null;
   onCreated?: (created: WorktreeCreated, target: WorkspaceTarget) => void;
 }
 

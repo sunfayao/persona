@@ -277,26 +277,27 @@ describe("本地优先启动", () => {
   it("requests the native agy effort with no effort override", async () => {
     const fetcher = vi.fn().mockResolvedValueOnce(response({ session })).mockResolvedValueOnce(response({}));
     vi.stubGlobal("fetch", fetcher);
-    launchAgent({ ...input, launcher: "agy", host: "herdr", launcherDefaultEffort: true });
+    launchAgent({ ...input, launcher: "agy", launcherDefaultEffort: true });
     await advanceDelivery(0);
     const body = JSON.parse(fetcher.mock.calls[0][1].body);
-    expect(body).toMatchObject({ launcher: "agy", host: "herdr", launcher_default_effort: true });
+    expect(body).toMatchObject({ launcher: "agy", launcher_default_effort: true });
     expect(body).not.toHaveProperty("effort");
   });
 
-  it("keeps exact host/workspace IDs through retries and the legacy Codex prompt fallback", async () => {
+  it("keeps exact workspace IDs through retries and the legacy Codex prompt fallback, and names no terminal host", async () => {
     const fetcher = vi.fn().mockRejectedValueOnce(new TypeError("network"))
       .mockResolvedValueOnce(response({ code: "codex_needs_prompt", error: "needs prompt" }, 409))
       .mockResolvedValueOnce(response({ session }));
     vi.stubGlobal("fetch", fetcher);
-    const id = launchAgent({ ...input, workspaceId: "empty-nested", host: "orca", launcher: "custom-codex", model: "typed-model", effort: "high" });
+    const id = launchAgent({ ...input, workspaceId: "empty-nested", launcher: "custom-codex", model: "typed-model", effort: "high" });
     await advanceDelivery(2000);
-    expect(getState().launches[id]).toMatchObject({ phase: "ready", workspaceId: "empty-nested", host: "orca" });
+    expect(getState().launches[id]).toMatchObject({ phase: "ready", workspaceId: "empty-nested" });
     expect(fetcher).toHaveBeenCalledTimes(3);
     const bodies = fetcher.mock.calls.map((c) => JSON.parse(c[1].body));
     expect(bodies[0]).toEqual(bodies[1]);
     for (const body of bodies) {
-      expect(body).toMatchObject({ workspace_id: "empty-nested", host: "orca", cwd: input.cwd, launcher: "custom-codex", model: "typed-model" });
+      expect(body).toMatchObject({ workspace_id: "empty-nested", cwd: input.cwd, launcher: "custom-codex", model: "typed-model" });
+      expect(body).not.toHaveProperty("host");
       for (const field of ["permission_mode", "approval_policy", "approvals_reviewer", "sandbox_mode", "network_access", "permissions"]) expect(body).not.toHaveProperty(field);
     }
     expect(bodies[2]).toMatchObject({ prompt: input.text });
@@ -382,7 +383,7 @@ describe("opened from another page", () => {
   it("exports an exact workspace preset to consumers", () => {
     const got: unknown[] = [];
     const off = onOpenNewAgent((p) => got.push(p));
-    const workspace = { machineId: "desktop", workspaceId: "child", cwd: input.cwd, host: "orca", owner: "opaque-owner", manager: "assistant" };
+    const workspace = { machineId: "desktop", workspaceId: "child", cwd: input.cwd, host: "herdr", owner: "opaque-owner", manager: "assistant" };
     openNewAgent({ workspace });
     off();
     expect(got).toEqual([{ workspace }]);

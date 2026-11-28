@@ -135,7 +135,7 @@ beforeEach(() => {
   localStorage.setItem("new.machine", "computer");
   localStorage.setItem("new.cwd.computer", "/projects/demo");
   Object.assign(getState(), { loaded: true, machines: [
-    { id: "computer", name: "Synthetic computer", manager: "assistant", online: true, engine_hosts: ["herdr", "paseo"], engine_default: "herdr" },
+    { id: "computer", name: "Synthetic computer", manager: "assistant", online: true },
   ], sessions: {}, launches: {}, features: [], interactions: [], answered: {} });
   posts = [];
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
@@ -202,7 +202,8 @@ it("previews plaintext, attaches an immutable source, and sends the exact body a
   await act(async () => { const control = start(); control.click(); control.click(); });
   await tick();
   expect(posts.filter((item) => item.path.endsWith("/sessions"))).toHaveLength(1);
-  expect(posts.find((item) => item.path.endsWith("/sessions"))?.body).toMatchObject({ launcher: "claude", host: "herdr", name_hint: "project-one/plan r7" });
+  expect(posts.find((item) => item.path.endsWith("/sessions"))?.body).toMatchObject({ launcher: "claude", name_hint: "project-one/plan r7" });
+  expect(posts.find((item) => item.path.endsWith("/sessions"))?.body).not.toHaveProperty("host");
   const sends = posts.filter((item) => item.path.endsWith("/messages"));
   expect(sends).toHaveLength(1);
   expect(sends[0].body.text).toBe(`Edited task\n\n${renderExpectedSource()}`);
@@ -236,10 +237,17 @@ it("starts with only the user's draft when a loaded preview was not attached", a
 });
 
 it("keeps the source visible and blocks an unsupported start until it is removed", async () => {
+  launchers = [...defaultLaunchers, { name: "local-pi", agent: "pi" }];
   await show();
   await attach();
   await type(textarea(), "Plain task");
-  await click("Paseo");
+  // a launcher of another family takes no project document
+  await act(async () => document.querySelector<HTMLButtonElement>("[data-testid=new-agent-model] [data-model-pill]")!.click());
+  await tick();
+  const header = document.querySelector<HTMLButtonElement>('[data-panel-launcher="local-pi"][aria-expanded=false]');
+  if (header) await act(async () => header.click());
+  await act(async () => [...document.querySelectorAll<HTMLElement>("[data-panel-row]")].find((row) => row.dataset.panelRow === "model:local-pi\ndefault")!.click());
+  await tick();
   expect(button(label("use"))).toBeUndefined();
   expect(button(label("remove"))).toBeDefined();
   expect(document.body.textContent).toContain(label("unsupported"));

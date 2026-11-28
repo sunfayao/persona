@@ -45,7 +45,7 @@ describe("a parent's sidebar row (#5120)", () => {
   });
 
   it("counts a parent's own background agents and its children once", () => {
-    // a Paseo parent that lists its running children as its own background agents too
+    // a parent that lists its running children as its own background agents too
     const html = render({ ...parent, waiting: false, running_subagents: 3, children: { total: 3, working: 2 } });
     expect(childLine(html)).toBe("子 Agent 3 个在跑");
   });

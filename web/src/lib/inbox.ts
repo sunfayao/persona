@@ -496,7 +496,7 @@ export function interactionMuted(ix: Interaction, sessions: Record<string, Sessi
 }
 
 /** What it waits for: "Claude is asking you", "Plan waiting for your approval"…; Persona's ask_user and other agents by
- *  name: the card's own name for an agent the app doesn't know (a Paseo provider's label, "Grok", #8142), never its id. */
+ *  name: the card's own name for an agent the app doesn't know (a runtime's label for it, #8142), never its id. */
 export function interactionTitle(ix: Interaction): string {
   if (ix.tool_name === "ask_user") return t("lib-inbox.ix_persona_asks");
   const name = ix.agent && ix.agent !== "claude" ? agentName(ix.agent, ix.agent_label) : "";

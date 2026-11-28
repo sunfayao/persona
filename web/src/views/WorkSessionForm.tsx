@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { t } from "../i18n";
-import { agentName, providerAgent } from "../lib/agent-kind";
+import { agentName } from "../lib/agent-kind";
 import { api, ApiError, credentialOwner, enc, errorText, pastHub, subscribeCredentialOwner } from "../lib/api";
 import { pickAttachment, releaseAttachments, type LocalAttachment } from "../lib/attachments";
 import { useScopedMachines } from "../lib/current-assistant";
@@ -84,17 +84,16 @@ export function WorkSessionForm({ open, onClose }: { open: boolean; onClose: () 
 
   const machine = machines.find((m) => m.id === mid);
   const offline = !!mid && (!machine?.online || machine.trust === "pending");
-  const target = open && machine?.online && machine.trust !== "pending" ? JSON.stringify([owner, mid, machine.manager, machine.engine, machine.engine_default, revision]) : "";
+  const target = open && machine?.online && machine.trust !== "pending" ? JSON.stringify([owner, mid, machine.manager, revision]) : "";
   const dirPath = `/machines/${enc(mid)}/dirs?path=`;
   const dirs = useTarget(target && JSON.stringify([target, browse]), (signal) => api<Dirs>(dirPath + enc(browse), { signal }));
   const project = useTarget(target && cwd && JSON.stringify([target, cwd]), (signal) => api<Dirs>(dirPath + enc(cwd), { signal }));
   const launcherList = useTarget(target, (signal) => machineLaunchers(mid, { signal }));
-  // The Harness choices, by what each launcher starts: each of Paseo's providers is one of its own, by its name, never
-  // the engine's "paseo" (providerAgent, #8142); a start still sends the launcher's own agent type.
+  // The Harness choices, by what each launcher starts.
   const groups = new Map<string, Launcher[]>();
   for (const l of launcherList?.data?.launchers ?? []) {
     if (launcherBlock(l)) continue;
-    const agent = providerAgent(agentType(l), l.name);
+    const agent = agentType(l);
     if (!groups.has(agent)) groups.set(agent, []);
     groups.get(agent)!.push(l);
   }
@@ -140,8 +139,7 @@ export function WorkSessionForm({ open, onClose }: { open: boolean; onClose: () 
   const start = () => {
     const live = getState().machines.find((m) => m.id === mid);
     if (!canStart || submitted.current || !opts || !live?.online || live.trust === "pending"
-      || live.manager !== machine?.manager || live.engine !== machine?.engine || live.engine_default !== machine?.engine_default
-      || credentialOwner() !== owner) return;
+      || live.manager !== machine?.manager || credentialOwner() !== owner) return;
     submitted.current = true;
     launchAgent({ machineId: mid, cwd: project!.data!.path, launcher, agentType: kind, workSession: true,
       model: model || undefined, inlinePrompt: opts.inline_prompt, text: prompt.trim(), attachments });

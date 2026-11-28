@@ -23,7 +23,6 @@ export interface RunSpec {
   effort?: string;
   launcherDefaultEffort?: boolean;
   permissionMode?: string;
-  host?: string;
   ultracode?: boolean;
 }
 
@@ -34,9 +33,8 @@ export interface CompareRun {
   n: number;
   branch: string;
   phase: "waiting" | "worktree" | "launched" | "failed";
-  /** The worktree made for it, and the runtime workspace an engine made with it (Paseo). */
+  /** The worktree made for it. */
   path?: string;
-  workspaceId?: string;
   /** The local launch (lib/new-agent.ts; this tab only) and the session it became. */
   launch?: string;
   sid?: string;
@@ -66,7 +64,7 @@ function readRun(v: unknown): CompareRun | null {
   const r = v as Record<string, unknown>;
   if (typeof r.n !== "number" || typeof r.branch !== "string" || !PHASES.has(r.phase as CompareRun["phase"])) return null;
   const run: CompareRun = { n: r.n, branch: r.branch, phase: r.phase as CompareRun["phase"] };
-  for (const k of ["path", "workspaceId", "launch", "sid", "error"] as const) {
+  for (const k of ["path", "launch", "sid", "error"] as const) {
     const s = str(r[k]);
     if (s) run[k] = s;
   }
@@ -78,7 +76,7 @@ function readSpec(v: unknown): RunSpec | null {
   const s = v as Record<string, unknown>;
   if (typeof s.launcher !== "string") return null;
   const spec: RunSpec = { launcher: s.launcher };
-  for (const k of ["agentType", "model", "effort", "permissionMode", "host"] as const) {
+  for (const k of ["agentType", "model", "effort", "permissionMode"] as const) {
     const x = str(s[k]);
     if (x) spec[k] = x;
   }

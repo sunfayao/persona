@@ -102,7 +102,7 @@ export function SpaceSection({ sp, machineName, reg, hover, activeKey, go, pinne
             <SpaceTodoTag sp={sp} onNavigate={onNavigate} />
             <span className={MENU_HIDES}><SessionTally sessions={sp.sessions} folded={folded} /></span>
             {online && place && cwd && <SectionAdd label={t("agents-groupedsessions.new_agent_in", { name: sp.name })}
-              onClick={() => openNewAgent({ machineId: sp.machineId, cwd, host: place.host, spaceId: place.workspace_id ?? place.space_id })}
+              onClick={() => openNewAgent({ machineId: sp.machineId, cwd, spaceId: place.workspace_id ?? place.space_id })}
               className="rounded-[6px] hover:bg-hover-2 [@media(pointer:coarse)]:size-9" />}
           </span>
           <SpaceMenuButton sp={sp} onMenu={onMenu} />

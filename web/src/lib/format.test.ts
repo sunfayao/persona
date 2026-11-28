@@ -46,7 +46,7 @@ describe("sessionTitle", () => {
     expect(sessionTitle(session({ title: first, title_source: "manual" }))).toBe(first);
   });
   it("keeps the CLI name in other engines and for sessions without a tab", () => {
-    for (const s of [session({ ...tab, assistant: true }), session({ ...tab, space_kind: "orca" }), session({ slot_name: "Workspace" }), session({})]) {
+    for (const s of [session({ ...tab, assistant: true }), session({ ...tab, space_kind: "tmux" }), session({ slot_name: "Workspace" }), session({})]) {
       expect(sessionTitle({ ...s, title: "CLI session name" }, true)).toBe("CLI session name");
     }
   });

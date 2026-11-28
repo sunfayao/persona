@@ -20,7 +20,7 @@ it("agrees with the pane-source contract across 8,000 mixed rows", () => {
     expect(sessionSource(row) ?? "unknown", `${n}: ${c.name}`).toBe(c.want);
     counts[c.want] = (counts[c.want] ?? 0) + 1;
   }
-  // Every origin is exercised; the split follows the corpus, which gains a case with each new host (Tern, #2154).
+  // Every origin is exercised; the split follows the corpus.
   expect(Object.keys(counts).sort()).toEqual(["desktop", "feishu", "terminal", "unknown"]);
   expect(counts.feishu).toBe(800);
 });

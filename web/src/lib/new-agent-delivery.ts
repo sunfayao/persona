@@ -52,7 +52,7 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
       machine_id: launch.machineId, cwd: launch.cwd, workspace_id: launch.workspaceId || undefined,
       desktop_project_id: launch.desktopProjectId || undefined,
       launcher: launch.launcher || undefined, agent_type: launch.agentType, work_session: launch.workSession,
-      model: launch.model || undefined, host: launch.host || undefined, todo_id: launch.todoId || undefined,
+      model: launch.model || undefined, todo_id: launch.todoId || undefined,
       launcher_default_effort: launch.launcherDefaultEffort,
       permission_mode: launch.permissionMode || undefined,
     };

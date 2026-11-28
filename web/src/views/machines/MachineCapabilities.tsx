@@ -1,19 +1,20 @@
 // The Machines page's Capabilities view (#8037): one row per computer saying what it can
-// take on: its state and alerts, system and architecture (and model), cores and memory, free disk, engines, the Agent
-// runtimes its launchers start (each runtime with its named entries), the tools its node detected, and how the hub
-// reaches it. A table where the page is wide enough, one card per computer where it is not (a container query, so
-// the sidebar's width counts). Launchers and tools are read lazily for the online computers, at most three at a time,
-// and kept 10 minutes (lib/machine-diagnosis.ts for the tools); the cards never wait for them.
+// take on: its state and alerts, system and architecture (and model), cores and memory, free disk, herdr (a warning when
+// its node cannot use it), the Agent runtimes its launchers start (each runtime with its named entries), the tools its
+// node detected, and how the hub reaches it. A table where the page is wide enough, one card per computer where it is
+// not (a container query, so the sidebar's width counts). Launchers and tools are read lazily for the online computers,
+// at most three at a time, and kept 10 minutes (lib/machine-diagnosis.ts for the tools); the cards never wait for them.
 import { useEffect, useMemo, useState } from "react";
 import { t } from "../../i18n";
 import { api, enc } from "../../lib/api";
 import { bytesBin } from "../../lib/machine-detail";
-import { capabilityRow, toolsText, type CapabilityRow, type ListState } from "../../lib/machine-capabilities";
+import { capabilityRow, toolsText, type CapabilityRow, type HerdrCell, type ListState } from "../../lib/machine-capabilities";
 import { onToolsChange, requestTools, toolsOf } from "../../lib/machine-diagnosis";
 import type { AlertKind } from "../../lib/machine-alerts";
 import { href, onLinkClick } from "../../lib/router";
 import type { Launcher, Machine, MachineMetrics } from "../../lib/types";
 import { cx } from "../../ui/atoms";
+import { Icon } from "../../ui/icons";
 import { AlertChip } from "./MachineAlertChips";
 
 // ── launchers, per computer: lazily, three at a time, kept 10 minutes ──
@@ -140,7 +141,7 @@ function Row({ row: r, heads, onAlert }: { row: CapabilityRow; heads: string[]; 
         {r.diskFree !== undefined && <span className="block text-submeta text-ink-3 tabular-nums">{t("machines-capabilities.disk_free", { size: bytesBin(r.diskFree) })}</span>}
       </Cell>
       <Cell label={heads[3]}>
-        <span className="block text-meta text-ink">{r.engines.length ? r.engines.join(" · ") : "—"}</span>
+        <Herdr cell={r.herdr} />
       </Cell>
       <Cell label={heads[4]}>
         <ListCell state={r.runtimes} render={(groups) => groups.length ? (
@@ -169,6 +170,22 @@ function Cell({ label, children, wide }: { label: string; children: React.ReactN
     <div role="cell" className={cx("min-w-0", wide && "border-b border-line pb-2 @min-[66rem]:border-0 @min-[66rem]:pb-0")}>
       {!wide && <span className="block text-submeta text-ink-3 @min-[66rem]:hidden">{label}</span>}
       {children}
+    </div>
+  );
+}
+
+/** herdr, built into every computer: its version, or why the computer cannot run terminal Agents (the alert chips'
+ *  warning mark and words, never colour alone). Nothing to say while its node says nothing. */
+function Herdr({ cell }: { cell: HerdrCell }) {
+  if (cell.state === "unknown") return <span className="block text-meta text-ink">—</span>;
+  if (cell.state === "ok") return <span className="block text-meta text-ink">{cell.text}</span>;
+  return (
+    <div data-herdr="missing">
+      <span className="flex items-center gap-1 text-meta font-medium text-ink">
+        <Icon name="warning" size={12} className="shrink-0 text-orange" />
+        {t("machines-capabilities.herdr_missing")}
+      </span>
+      <span className="block text-submeta text-ink-3">{t("machines-capabilities.herdr_missing_hint")}</span>
     </div>
   );
 }

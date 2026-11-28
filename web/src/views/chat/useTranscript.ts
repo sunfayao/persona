@@ -42,8 +42,8 @@ export function waitForEarlierRetry(ms: number, signal: AbortSignal): Promise<vo
   });
 }
 
-/** The first page refused because reading it would start the agent: one its engine let go (Paseo's closed and archived
- *  agents), which only a watched chat reads (#8132). The subscribe that follows
+/** The first page refused because reading it would start the agent: one its runtime let go (docs/integrations/runtimes.md),
+ *  which only a watched chat reads (#8132). The subscribe that follows
  *  loads it, and its backlog brings the page. */
 const isNotLoaded = (e: unknown) => e instanceof ApiError && e.code === "not_loaded";
 

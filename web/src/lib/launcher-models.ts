@@ -5,7 +5,6 @@
 import { MANAGER_HEADER } from "./manager-choice";
 import { t } from "../i18n";
 import { api, ApiError, enc, pastHub } from "./api";
-import { startsInDesktopApp } from "./desktop-start";
 import { cleanModelId, validModelId } from "./model-id";
 import type { ModelBinding } from "./model-config";
 import type { PanelPrice } from "./model-panel";
@@ -49,7 +48,7 @@ export interface LauncherModels {
   models: AgentModel[];
   /** Why a pick would not reach the agent (the launcher fixes its own --model); the start sends no model then. */
   locked?: string;
-  /** The node accepts a model when starting the native omp launcher on the queried host (#11964). */
+  /** The node accepts a model when starting the native omp launcher in herdr (#11964). */
   supports_start_model?: boolean;
   /** This Codex launcher accepts an effort on creation for models whose levels it lists. */
   supports_start_effort?: boolean;
@@ -108,8 +107,9 @@ export function defaultLabel(d: LauncherDefault | null | undefined, fallback = "
 // The hub gives a model list 70 s (assistant/models_launchers.go): the node may have to start the CLI to ask its /model.
 const MODELS_HUB_MS = 70_000;
 
-/** The list for `launcher` on `mid` (seconds when the node has to start the CLI); null from an older hub (no picker). */
-export async function launcherModels(mid: string, launcher: string, opts: { refresh?: boolean; purpose?: "assistant"; host?: string; manager?: string; signal?: AbortSignal } = {}): Promise<LauncherModels | null> {
+/** The list for `launcher` on `mid` (seconds when the node has to start the CLI); null from an older hub (no picker).
+ *  `host` "agy": the list of the computer's Antigravity companion, where its sessions run; none: herdr's. */
+export async function launcherModels(mid: string, launcher: string, opts: { refresh?: boolean; purpose?: "assistant"; host?: "agy"; manager?: string; signal?: AbortSignal } = {}): Promise<LauncherModels | null> {
   const query = new URLSearchParams();
   if (opts.refresh) query.set("refresh", "1");
   if (opts.purpose) query.set("purpose", opts.purpose);
@@ -160,16 +160,10 @@ export const takesTypedModel = (agent: string) =>
 export const terminalOmp = (agent: string, launcher?: Pick<Launcher, "source">) =>
   agent === "omp" && (!launcher?.source || launcher.source === "zshrc" || launcher.source === "path" || launcher.source === "builtin");
 
-/** Only the plain omp command on herdr can advertise a typed model for a new terminal session (#11964). */
-export function nativeOmpStart(agent: string, launcher: Pick<Launcher, "name" | "source"> | undefined, host: string | undefined): boolean {
-  return terminalOmp(agent, launcher) && launcher?.name === "omp" && host === "herdr";
+/** Only the plain omp command, which starts in herdr, can advertise a typed model for a new terminal session (#11964). */
+export function nativeOmpStart(agent: string, launcher: Pick<Launcher, "name" | "source"> | undefined): boolean {
+  return terminalOmp(agent, launcher) && launcher?.name === "omp";
 }
-
-/** omp's start capability belongs to the terminal host, including when another launcher's destination is a desktop app. */
-export const startCatalogHost = (launcher: Pick<Launcher, "name" | "source"> | undefined, host: string | undefined, terminalHost: string) => {
-  if (startsInDesktopApp(launcher)) return undefined;
-  return launcher?.name === "omp" && terminalOmp("omp", launcher) ? terminalHost || undefined : host;
-};
 
 /** A fixed launcher keeps its model. Live pickers do not opt into the native omp start capability. */
 export const typedModelOffered = (agent: string, list: LauncherModels | null | undefined, nativeOmp = false) =>
@@ -212,16 +206,15 @@ export function launcherAgent(name: string, launchers: Launcher[], list?: Launch
   return l?.agent_type || l?.agent || "claude";
 }
 
-/** Pin a known terminal TRAE launcher and its host. TRAE needs its first input before the node can bind a chat. */
-export function terminalTraeStart(launcher: Launcher | undefined, host: string) {
+/** Pin a known TRAE launcher started in herdr's terminal. TRAE needs its first input before the node can bind a chat. */
+export function terminalTraeStart(launcher: Launcher | undefined) {
   if (!launcher || (launcher.source && launcher.source !== "zshrc" && launcher.source !== "path" && launcher.source !== "persona")
-    || (launcher.agent_type || launcher.agent) !== "traex"
-    || !["herdr", "herdr-core", "orca", "tern", "rex"].includes(host)) return undefined;
-  return { launcher: launcher.name, host, agentType: "traex", inlinePrompt: true } as const;
+    || (launcher.agent_type || launcher.agent) !== "traex") return undefined;
+  return { launcher: launcher.name, agentType: "traex", inlinePrompt: true } as const;
 }
 
 /** The permission modes a start on `l` takes when they are not Claude Code's (#8261, the node's `permission_modes`): a
- *  runtime's provider of another agent, Paseo's Grok, OpenCode or Codex. Undefined for Claude Code's launchers, which take
+ *  runtime's provider of another agent, OpenCode or Codex. Undefined for Claude Code's launchers, which take
  *  its five, and for every other launcher, which takes none. New Agent offers them as a choice only with two or more:
  *  the launcher's own ("Launcher default", sent as no mode) and Full access. */
 export function listedModes(l: Pick<Launcher, "permission_modes"> | undefined): string[] | undefined {

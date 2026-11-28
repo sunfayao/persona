@@ -1,4 +1,4 @@
-// A child session (a Codex subagent, an Agent a Paseo Agent created) as one card in its parent's chat (#5120, after cindy's
+// A child session (a Codex subagent) as one card in its parent's chat (#5120, after cindy's
 // AgentTaskCard): never a conversation of its own, and no link to one. The same TaskCard as a subagent call's: "Subagent",
 // its title and its status word; then what ran it, the model it runs on with its effort, and how long it took, or
 // "Running for …" each second while it runs. Its parent's transcript names no call for it: everything comes from the

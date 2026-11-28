@@ -3,15 +3,15 @@ import { sessionWorkspace } from "./agent-repos";
 import type { HostWorkspace } from "./workspace-catalog";
 import type { Session } from "./types";
 
-const workspace = (id: string, patch: Partial<HostWorkspace> = {}): HostWorkspace => ({ id: `qualified-${id}`, machine_id: "machine-a", source: "orca", source_id: id, title: id, cwd: `/code/${id}`, project_id: "project-a", project_name: "Project A", ...patch });
-const session = (id: string, workspaceId: string, patch: Partial<Session> = {}): Session => ({ session_id: id, machine_id: "machine-a", title: id, cwd: "/elsewhere", state: "idle", status: "idle", space_kind: "orca", space_id: workspaceId, ...patch });
+const workspace = (id: string, patch: Partial<HostWorkspace> = {}): HostWorkspace => ({ id: `qualified-${id}`, machine_id: "machine-a", source: "herdr", source_id: id, title: id, cwd: `/code/${id}`, project_id: "project-a", project_name: "Project A", ...patch });
+const session = (id: string, workspaceId: string, patch: Partial<Session> = {}): Session => ({ session_id: id, machine_id: "machine-a", title: id, cwd: "/elsewhere", state: "idle", status: "idle", space_kind: "herdr", space_id: workspaceId, ...patch });
 const desktops = [["codex_app", "codex-project:home"], ["claude_desktop", "claude-environment:account"]] as const;
 
 describe("sessionWorkspace against the host catalog", () => {
   it("uses explicit placement ahead of directory inference and refuses a foreign host's binding", () => {
     const catalog = [workspace("a", { cwd: "/code/a" }), workspace("b", { cwd: "/code/b" })];
     expect(sessionWorkspace(session("agent", "b", { cwd: "/code/a", workspace_id: "b" }), catalog)?.source_id).toBe("b");
-    expect(sessionWorkspace(session("foreign", "b", { cwd: "/code/a", space_kind: "herdr", workspace_id: "b" }), catalog)).toBeUndefined();
+    expect(sessionWorkspace(session("foreign", "b", { cwd: "/code/a", space_kind: "tmux", workspace_id: "b" }), catalog)).toBeUndefined();
     expect(sessionWorkspace(session("unknown", "missing", { cwd: "/code/a" }), catalog)).toBeUndefined();
     expect(sessionWorkspace(session("other-manager", "a", { manager: "manager-b" }), catalog, "manager-a")).toBeUndefined();
   });

@@ -134,11 +134,9 @@ describe("where an agent was opened, as a mark at its row's end (#2526)", () => 
     const terminalHtml = render({ pane_id: "w1:p1" });
     expect(mark(terminalHtml)).toBeUndefined();
     expect(link(terminalHtml)).toMatch(/title="整理文档\n终端/);
-    for (const patch of [{ space_kind: "codex_app", source_kind: "codex_history" }, { host: "paseo", source_kind: "runtime", source_instance_id: "paseo" }]) {
-      const desktopHtml = render(patch);
-      expect(mark(desktopHtml)).toBeUndefined();
-      expect(link(desktopHtml)).toMatch(/title="整理文档\n桌面端/);
-    }
+    const desktopHtml = render({ space_kind: "codex_app", source_kind: "codex_history" });
+    expect(mark(desktopHtml)).toBeUndefined();
+    expect(link(desktopHtml)).toMatch(/title="整理文档\n桌面端/);
   });
   it("draws Lark's mark for a Lark group, a link to its topic when it has one", () => {
     expect(mark(render({ pane_id: "botmux:oc_1/t1" }))).toMatch(/^<span data-source="feishu" role="img"[^>]*aria-label="飞书群"/);
@@ -158,10 +156,10 @@ describe("where an agent was opened, as a mark at its row's end (#2526)", () => 
     expect(mark(renderToStaticMarkup(<SessionRow {...rowProps} s={{ ...session, pane_id: "botmux:oc_1/t1" }} active />))).not.toContain("invisible");
   });
   it("keeps desktop and source subtitles in the hover tooltip instead of the visible row", () => {
-    const paseo = { host: "paseo", source_kind: "runtime", source_instance_id: "paseo", agent_label: "Paseo" };
-    const writable = render({ ...paseo, capabilities: { read: true, send: true } });
-    expect(writable).not.toMatch(/>Paseo</);
-    expect(link(writable)).toContain("Paseo"); // still in the row's tooltip
+    const runtime = { source_kind: "runtime", source_instance_id: "dsh", agent_label: "DeepSeek Harness" };
+    const writable = render({ ...runtime, capabilities: { read: true, send: true } });
+    expect(writable).not.toMatch(/>DeepSeek Harness</);
+    expect(link(writable)).toContain("DeepSeek Harness"); // still in the row's tooltip
     const claudeDesktop = render({ source_kind: "claude_desktop", agent_name: "Claude Desktop", capabilities: { read: true, send: true } });
     expect(claudeDesktop).not.toContain("Claude Desktop</span>");
     expect(link(claudeDesktop)).toContain("Claude Desktop"); // still in the row's tooltip

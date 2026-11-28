@@ -72,17 +72,6 @@ function brandedId(id: string): string {
   return Object.hasOwn(MARK_ALIASES, key) ? MARK_ALIASES[key] : id;
 }
 
-/** The id Paseo reports as the agent of each provider the app has no id for (Grok, Kimi, Cursor…: the bridge's
- *  appAgent, integrations/paseo/lib/map.js). It names the engine, never an agent (DESIGN_SYSTEM.md 5.6). */
-const ENGINE_AGENT = "paseo";
-
-/** The agent a row or a launcher runs as the app tells agents apart: its reported `agent`, except the engine's own id
- *  (above), where its provider is the agent (`provider`: the row's launcher, the launcher's name), so each provider has
- *  its own mark, name and filter (#8142). */
-export function providerAgent(agent: string | undefined | null, provider: string | undefined): string {
-  return provider && agent?.trim().toLowerCase() === ENGINE_AGENT ? provider : (agent ?? "");
-}
-
 /** What the agent is called: the product's name for the ones the app knows, else the runtime's own label, else the string as reported. */
 export function agentName(raw: string | undefined | null, label?: string): string {
   if (isTraeCli(raw)) return t("agent-mark.trae_cli");
@@ -91,11 +80,11 @@ export function agentName(raw: string | undefined | null, label?: string): strin
   return label?.trim() || (raw ?? "").trim() || t("agent-mark.unknown");
 }
 
-/** The agent of a session, the same way `agentLabel` (lib/mentions.ts) tells: a Codex thread read off the app-server or history is Codex whatever it reports;
- *  one of Paseo's providers is that provider (providerAgent). */
-export function sessionAgent(s: Pick<Session, "agent" | "agent_label" | "source_kind" | "agent_surface" | "launcher">): { agent: string; label?: string; surface?: AgentSurface } {
+/** The agent of a session, the same way `agentLabel` (lib/mentions.ts) tells: a Codex thread read off the app-server or
+ *  history is Codex whatever it reports. */
+export function sessionAgent(s: Pick<Session, "agent" | "agent_label" | "source_kind" | "agent_surface">): { agent: string; label?: string; surface?: AgentSurface } {
   const codex = s.source_kind === "codex_app_server" || s.source_kind === "codex_history";
-  return { agent: codex ? "codex" : providerAgent(s.agent, s.launcher), label: s.agent_label, surface: agentSurface(s.agent_surface) };
+  return { agent: codex ? "codex" : (s.agent ?? ""), label: s.agent_label, surface: agentSurface(s.agent_surface) };
 }
 
 /** What a session's agent is called (agentName): "Claude Code", "Codex", a provider's label ("Grok"). */

@@ -1187,8 +1187,8 @@ export function saveMutes(mutes: AgentMutes): Promise<void> {
   return save("mutes", "/mutes", mutes, mutesSaves);
 }
 
-/** One machine as the hub answered a change to it (PUT …/engine), over what the list has: the hub's next \`machines\`
- * push says the same, this only does not wait for it (iOS AppModel.applyMachine). */
+/** One machine's new state over what the list has: the hub's next \`machines\` push says the same, this only does not
+ * wait for it (iOS AppModel.applyMachine). */
 export function applyMachine(m: Machine) {
   if (!state.machines.some((x) => x.id === m.id)) return;
   machinesRev++;

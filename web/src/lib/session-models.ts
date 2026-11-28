@@ -9,7 +9,7 @@
 import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { t } from "../i18n";
 import { ApiError, credentialOwner, errorText, onCredentialChange } from "./api";
-import { agentId, isTraeCli, sessionAgent } from "./agent-kind";
+import { agentId, sessionAgent } from "./agent-kind";
 import { modelShort } from "./context-usage";
 import { sessionCan, stateOf } from "./format";
 import { runsAssistant, type AssistantLauncher } from "./assistant-chat";
@@ -71,7 +71,7 @@ export function useModelLists(): number {
   return useSyncExternalStore(subscribe, () => version, () => version);
 }
 
-export const modelList = (mid: string, launcher: string, purpose?: "assistant", host?: string): ModelList =>
+export const modelList = (mid: string, launcher: string, purpose?: "assistant", host?: "agy"): ModelList =>
   lists.get(listKey(mid, launcher, purpose, undefined, host)) ?? {};
 
 /** The launchers of `mid` as last read; undefined before the first answer. */
@@ -220,7 +220,7 @@ function slot(first: boolean): Promise<() => void> {
 }
 
 /** Reads a launcher's list: once (the pill), or `again` behind the one shown (an opening, Retry). */
-export function readModels(mid: string, launcher: string, o: { again?: boolean; first?: boolean; purpose?: "assistant"; host?: string } = {}): Promise<void> {
+export function readModels(mid: string, launcher: string, o: { again?: boolean; first?: boolean; purpose?: "assistant"; host?: "agy" } = {}): Promise<void> {
   const scope = catalogScope(o.purpose);
   const key = listKey(mid, launcher, o.purpose, scope, o.host);
   const reading = reads.get(key);
@@ -282,7 +282,7 @@ export function readAgentLauncherNames(mid: string): Promise<void> {
 }
 
 /** Read the panel's lists again behind the ones shown, starting with the session's own launcher in its catalog host. */
-export function readForPanel(mid: string, own: string, host?: string): void {
+export function readForPanel(mid: string, own: string, host?: "agy"): void {
   void readModels(mid, own, { again: true, first: true, host });
   void readLaunchers(mid).then(() => {
     for (const l of machineLauncherList(mid) ?? []) if (l.name !== own) void readModels(mid, l.name, { again: true });
@@ -290,7 +290,7 @@ export function readForPanel(mid: string, own: string, host?: string): void {
 }
 
 /** Forgets an ID typed before (#1644): off the list at once, back where it was when the hub says no. "": done; else why not. */
-export async function forgetModel(mid: string, launcher: string, id: string, purpose?: "assistant", host?: string): Promise<string> {
+export async function forgetModel(mid: string, launcher: string, id: string, purpose?: "assistant", host?: "agy"): Promise<string> {
   const scope = catalogScope(purpose);
   const sharedKey = JSON.stringify(launcherKeyParts(mid, launcher, scope));
   const pending = forgetting.get(sharedKey) ?? new Map<string, ModelForget>();
@@ -338,14 +338,13 @@ export async function forgetModel(mid: string, launcher: string, id: string, pur
 
 // ── the session's model, from what was read ──────────────────────────────────
 
-/** Match the catalog to the host that runs the session. The AGY companion has no terminal host. */
-export function sessionModelHost(s: Session): "agy" | "herdr" | undefined {
-  if (s.source_kind === "runtime" && s.source_instance_id === "agy") return "agy";
-  if (isTraeCli(s.agent) && s.host === "herdr") return "herdr";
-  return undefined;
+/** Match the catalog to where the session runs: the Antigravity companion's own ("agy", it has no terminal host), else
+ *  herdr's (none). */
+export function sessionModelHost(s: Session): "agy" | undefined {
+  return s.source_kind === "runtime" && s.source_instance_id === "agy" ? "agy" : undefined;
 }
 
-/** The engine a session runs (AgentMark ids: claude, codex, agy…; one of Paseo's providers is that provider, grok…). */
+/** The engine a session runs (AgentMark ids: claude, codex, agy…). */
 export const sessionEngine = (s: Session): string => agentId(sessionAgent(s).agent);
 
 /** The hub moves a running Agent between Claude Code and Codex with the user's next message (#5054,

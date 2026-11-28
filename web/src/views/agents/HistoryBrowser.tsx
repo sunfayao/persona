@@ -26,7 +26,7 @@ const selectClass = "min-h-8 min-w-0 flex-1 rounded-control bg-inset px-2 py-1 t
 function HistoryRow({ session, machines, active, now }: { session: Session; machines: Machine[]; active: boolean; now: number }) {
   const machine = machines.find(m => m.id === session.machine_id);
   const resume = useResume(session.machine_id, session.session_id);
-  const available = terminalResume(session, machine) === "available" && machine?.online;
+  const available = terminalResume(session) === "available" && machine?.online;
   return <div data-history-row={session.session_id}>
     <div className="flex min-w-0 items-center gap-1">
       <div className="min-w-0 flex-1"><WorkSessionRow session={{ ...session, harness_name: sessionAgentName(session) }} name={machineWithHub(session.machine_id, machines)} active={active} now={now} depth={0}

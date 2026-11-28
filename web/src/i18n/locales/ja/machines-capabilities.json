@@ -7,6 +7,8 @@
   "col_runtimes": "Agent ランタイム",
   "col_tools": "ツール",
   "col_reach": "接続方法",
+  "herdr_missing": "herdr がありません",
+  "herdr_missing_hint": "Persona はターミナルの Agent を herdr で動かします。このコンピュータにインストールしてください。",
   "online": "オンライン",
   "offline": "オフライン",
   "pending": "承認待ち",

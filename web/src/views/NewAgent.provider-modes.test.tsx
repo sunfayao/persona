@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// "New agent" for a launcher that lists its own permission modes (#8261, Paseo's Grok, OpenCode, Codex): its own
+// "New agent" for a launcher that lists its own permission modes (#8261, OpenCode, Codex): its own
 // ("Launcher default", sent as no mode) or Full access, picked on the sheet and never remembered, so a mode left from a
 // Claude Code start never reaches it; a provider with its own alone shows no field; Claude Code keeps its five.
 import { act } from "react";
@@ -30,8 +30,8 @@ import { resetModelListsForTests } from "../lib/session-models";
 const both = ["default", "bypassPermissions"];
 const LAUNCHERS: Launcher[] = [
   { name: "claude", agent: "claude" },
-  { name: "grok", agent: "paseo", source: "paseo", display_name: "Grok", permission_modes: both },
-  { name: "kimi", agent: "paseo", source: "paseo", display_name: "Kimi", permission_modes: ["default"] },
+  { name: "grok", agent: "opencode", source: "opencode", display_name: "Grok", permission_modes: both },
+  { name: "kimi", agent: "opencode", source: "opencode", display_name: "Kimi", permission_modes: ["default"] },
 ];
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 let host: HTMLDivElement;
@@ -59,7 +59,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.includes("/model-config/purposes/")) return json({ error: "not found" }, 404);
-    if (url.includes("/launchers/") && url.includes("/models")) return json({ agent: url.includes("/claude/") ? "claude" : "paseo", models: [] });
+    if (url.includes("/launchers/") && url.includes("/models")) return json({ agent: url.includes("/claude/") ? "claude" : "opencode", models: [] });
     if (url.includes("/launchers")) return json({ launchers: LAUNCHERS });
     return json({ path: "/code", entries: [] });
   }));

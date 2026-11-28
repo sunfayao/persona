@@ -51,11 +51,11 @@ describe("header mode", () => {
   });
 });
 
-// A session of an agent that is not Claude Code lists the modes it takes (#8261, Paseo's Grok, OpenCode, Codex): its own
+// A session of an agent that is not Claude Code lists the modes it takes (#8261, OpenCode, Codex): its own
 // approval ("Launcher default": no mode reported is it) and Full access, a switch both ways; only going into Full access asks.
 describe("the modes a session lists", () => {
   const grok = (permission_mode?: string, extra: Partial<Session> = {}): Session => claude(permission_mode, {
-    agent: "paseo", agent_label: "Grok", source_kind: "runtime", capabilities: { read: true, send: true, modes: false, permission_modes: ["default", "bypassPermissions"] }, ...extra });
+    agent: "grok", agent_label: "Grok", source_kind: "runtime", capabilities: { read: true, send: true, modes: false, permission_modes: ["default", "bypassPermissions"] }, ...extra });
 
   it("are offered alone, by these names, the one it runs in checked", () => {
     expect(listedModesOf(grok())).toEqual(["default", "bypassPermissions"]);

@@ -63,8 +63,8 @@ export function sourceSubtitle(s?: Session): string {
     // Claude outside Persona's terminals
     : s.source_kind === "claude_desktop" ? t("lib-format.source_claude_desktop")
     : s.source_kind === "claude_cli" ? t("lib-format.source_claude_terminal")
-    // an agent runtime's session (docs/integrations/runtimes.md): its own name, else its agent's ("Claude Code", a Paseo
-    // provider's), never a raw id (#8142)
+    // an agent runtime's session (docs/integrations/runtimes.md): its own name, else its agent's ("Claude Code"), never
+    // a raw id (#8142)
     : s.source_kind === "runtime" ? normalizeTraeCliName(s.agent_label) || sessionAgentName(s)
     : s.source_kind;
   const detail = s.source_kind !== "identity_conflict" && s.agent_name ? ` · ${normalizeTraeCliName(s.agent_name)}` : "";
@@ -75,8 +75,8 @@ export function sourceSubtitle(s?: Session): string {
 }
 
 /** The command that resumes the session in a terminal; none ("") for a runtime's session, which its runtime keeps: a
- *  Paseo provider such as Grok has no such command, an id of the runtime's making (`paseo-…`) is no Claude session's,
- *  and a Claude Code conversation Paseo runs would get a second writer (#8142). */
+ *  runtime's provider may have no such command, an id of the runtime's making is no Claude session's, and a Claude Code
+ *  conversation a runtime runs would get a second writer (#8142). */
 export function resumeCommand(s: Session): string {
   if (s.source_kind === "runtime") return "";
   const codex = s.agent === "codex" || s.source_kind === "codex_app_server" || s.source_kind === "codex_history";
@@ -217,7 +217,7 @@ type SessionNameFields = Pick<Session, "title" | "cwd" | "assistant" | "slot_nam
 
 export function herdrTabName(s: SessionNameFields): string {
   const kind = s.space_kind || s.host;
-  if (s.assistant || !(s.slot_id || s.tab_id) || (kind && kind !== "herdr" && kind !== "herdr-core")) return "";
+  if (s.assistant || !(s.slot_id || s.tab_id) || (kind && kind !== "herdr")) return "";
   return s.slot_name?.trim() || "";
 }
 

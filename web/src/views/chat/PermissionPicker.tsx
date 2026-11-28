@@ -3,7 +3,7 @@
 // red. Its menu is the header's (`modeMenuItems`: into Full access asks again, leaving it asks where it can't come back,
 // Full access shown disabled with its reason where the agent can't take it) without Plan mode, which is the + panel's
 // check row (`usePlanMode`); each mode's description is its row's tooltip. A Persona conversation keeps all its modes
-// (#2416) in the same words. A session that lists its own modes (#8261, Paseo's Grok, OpenCode, Codex) has those two
+// (#2416) in the same words. A session that lists its own modes (#8261, OpenCode, Codex) has those two
 // rows alone, "Launcher default" and Full access, a switch both ways. Where the mode is known but cannot be switched from
 // here (a Codex App thread, Claude's desktop app, a stopped agent) the same chip stands as a label (`PermissionLabel`).
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";

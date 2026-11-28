@@ -17,8 +17,7 @@ export interface WorktreeStatus {
 }
 
 /** Null when the computer cannot say (an older node, offline): the switch and the cleanup then stay out of the way.
- *  kind: the engine the agent opens in (New Agent) or ran in (closing it: its `host`, which made its worktree; Paseo
- *  makes its own); none, the computer's default. */
+ *  kind: the host the agent ran in (closing it: its `host`); none, the computer's default. */
 export async function worktreeStatus(mid: string, cwd: string, signal?: AbortSignal, kind?: string): Promise<WorktreeStatus | null> {
   try {
     return await api<WorktreeStatus>(`/machines/${enc(mid)}/worktree/status`, { method: "POST", json: { cwd, ...(kind ? { kind } : {}) }, signal });

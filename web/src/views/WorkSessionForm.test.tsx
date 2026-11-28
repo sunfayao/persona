@@ -109,26 +109,6 @@ it("cannot submit offline or before reconnect validation, and does not substitut
   expect(state.launch).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ model: "model-new", text: "draft kept", launcher: "claude-team" }));
 });
 
-it("offers each of Paseo's providers as a harness of its own, by its name, and starts it as what it is (#8142)", async () => {
-  launcher = [
-    { name: "my-claude", agent_type: "claude", source: "paseo" },
-    { name: "grok", agent_type: "paseo", agent: "paseo", source: "paseo" },
-    { name: "cursor", agent_type: "paseo", agent: "paseo", source: "paseo" },
-  ];
-  await choose(0, "a");
-  await choose(1, "/projects/a");
-  const harnesses = [...fields()[2].options].slice(1);
-  expect(harnesses.map((o) => [o.value, o.textContent])).toEqual([["claude", "Claude Code"], ["grok", "grok"], ["cursor", "Cursor"]]);
-  expect(fields()[2].textContent).not.toMatch(/paseo/i);
-  await choose(2, "grok");
-  expect(fields()[3].value).toBe("grok");
-  expect(pending[0].url).toContain("/a/launchers/grok/");
-  await reply(0, { agent_type: "paseo", model_mode: "default", prompt_required: false, inline_prompt: true, attachments: true });
-  await fill("look around");
-  await act(async () => start().click());
-  expect(state.launch).toHaveBeenCalledWith(expect.objectContaining({ launcher: "grok", agentType: "paseo", text: "look around" }));
-});
-
 it("names a provider by its display name and ID, an rc alias by its ID (#5029)", async () => {
   launcher = [{ name: "relay-example-com", display_name: "我的中转 站", agent_type: "claude" }, { name: "cc_glm", agent_type: "claude" }];
   await choose(0, "a");

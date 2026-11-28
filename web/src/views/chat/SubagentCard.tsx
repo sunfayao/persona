@@ -1,6 +1,6 @@
 // A subagent the agent launched, as one card in the chat where it launched it (#5030, after cindy's AgentTaskCard): never a
 // conversation of its own. Two lines: "Subagent", its title and its status word; then what ran it (the chat's agent:
-// Claude Code, Codex, a Paseo provider such as Grok), the model
+// Claude Code, Codex, a runtime's provider such as Grok), the model
 // it actually ran on (the node reads it from the subagent's own transcript; never the one its call asked for), its tokens,
 // its tool calls and how long it took, or "Running for …" each second while it runs. The head opens the card in place,
 // remembered per card: what it was asked, what it reported (a long report folds), its last tool and its output file.

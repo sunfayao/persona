@@ -17,7 +17,7 @@ export function NewWorktreeHost() {
     <Suspense fallback={<Dialog open title={t("worktree.dialog_title")} onClose={close} footer={<Button onClick={close}>{t("common.cancel")}</Button>}>
       <Loading label={t("worktree.reading")} />
     </Dialog>}>
-      <NewWorktree key={JSON.stringify([request.target, request.source, request.parent])} request={request} onClose={close} />
+      <NewWorktree key={JSON.stringify(request.target)} request={request} onClose={close} />
     </Suspense>
   </OverlayBoundary> : null;
 }

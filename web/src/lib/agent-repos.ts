@@ -24,10 +24,10 @@ const pathKey = (value?: string) => {
 const withinPath = (path: string, root: string) => path === root || path.startsWith(root.endsWith("/") ? root : `${root}/`);
 
 /**
- * The repository and working tree a cwd belongs to. The host may name the repository (the session's repo_root, #2840:
- * Paseo keeps its worktrees under its own folder): a cwd inside it is its main checkout, any other is one of its
- * working trees. Otherwise from the path alone: a tree under one of the known layouts belongs to the
- * directory above that marker; any other path is its own repository's main checkout.
+ * The repository and working tree a cwd belongs to. The node may name the repository (the session's repo_root, #1805):
+ * a cwd inside it is its main checkout, any other is one of its working trees. Otherwise from the path alone: a tree
+ * under one of the known layouts belongs to the directory above that marker; any other path is its own repository's
+ * main checkout.
  */
 export function repoOf(cwd: string, repoRoot?: string): Repo {
   if (!cwd) return { repo: "", name: "", worktree: "", main: true };
@@ -92,7 +92,7 @@ export function sessionWorkspace(s: Session, catalog: readonly HostWorkspace[], 
     // Older, directory-derived desktop placement has no saved identity and can still resolve a unique matching project.
     if (!inferredProjectRoot) local = local.filter((w) => w.source === "directory");
   }
-  if (["herdr", "herdr-core", "botmux", "orca", "paseo"].includes(host)) return undefined;
+  if (["herdr", "botmux"].includes(host)) return undefined;
   const depth = gitTreeDepth(s);
   return directoryWorkspace([s.cwd, s.workspace_cwd, inferredProjectRoot], local, false, [depth, depth, depth === undefined ? undefined : 0]);
 }

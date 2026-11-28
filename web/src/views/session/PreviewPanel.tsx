@@ -56,7 +56,7 @@ export function PreviewPanel({ mid, sid, cwd, port, path, onClose }: { mid: stri
   const machine = useStore((s) => s.machines.find((m) => m.id === mid));
   const machineName = machine?.name || mid;
   const ports = session?.ports;
-  // A server runs in a new tab of the session's terminal workspace; a runtime engine's session (Paseo's) names a workspace with none.
+  // A server runs in a new tab of the session's terminal workspace: a session without one has nowhere to start it.
   const startable = Boolean(session?.workspace_id) && sessionCan(session, "terminal");
   const [servers, setServers] = useState<PreviewServers | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });

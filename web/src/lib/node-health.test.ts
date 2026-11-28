@@ -34,7 +34,7 @@ function report(over: Record<string, Partial<DoctorCheck>> = {}): DoctorReport {
   return { ok: !checks.some((c) => c.status === "fail"), checks, fixed: [] };
 }
 
-const state = (r: DoctorReport, id: string, ctx = {}) => deriveFeatures(r, ctx).find((f) => f.id === id)?.state;
+const state = (r: DoctorReport, id: string) => deriveFeatures(r).find((f) => f.id === id)?.state;
 
 describe("deriveFeatures", () => {
   it("is all ready for a healthy node", () => {
@@ -82,14 +82,10 @@ describe("deriveFeatures", () => {
     expect(state(report({ "runtime.sock": { status: "fail", detail: "连不上" } }), "runtimes")).toBe("broken");
   });
 
-  it("needs herdr only when it is the computer's engine", () => {
+  it("needs herdr on every computer: a warning about it is a problem, never 未启用", () => {
     const r = report({ herdr: { status: "warn", detail: "连不上 herdr 的 socket" } });
-    expect(state(r, "terminal", { engine: "herdr" })).toBe("broken");
-    expect(state(r, "terminal", { engine: "herdr-both" })).toBe("broken");
-    expect(state(r, "terminal", {})).toBe("broken"); // never chosen: herdr
-    expect(state(r, "terminal", { engine: "orca" })).toBe("off");
-    expect(state(r, "terminal", { engine: "paseo" })).toBe("off");
-    expect(summarize(deriveFeatures(r, { engine: "orca" })).off).toBe("没有设置：终端与引擎");
+    expect(state(r, "terminal")).toBe("broken");
+    expect(summarize(deriveFeatures(r))).toMatchObject({ attention: 1, off: "" });
   });
 
   it("leaves a feature out when an older node does not report its checks, and shows an unknown bad check", () => {

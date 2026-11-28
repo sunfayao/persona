@@ -5,7 +5,7 @@
 // settings" row on top goes back to the default, and the thinking effort and Claude Code's ultracode switch are in the
 // chosen model's flyout. The panel's data is lib/new-agent-panel.ts.
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { startCatalogHost, type UnavailableLauncher } from "../lib/launcher-models";
+import type { UnavailableLauncher } from "../lib/launcher-models";
 import type { ModelBinding } from "../lib/model-config";
 import type { PanelConfig } from "../lib/model-panel";
 import { formChoice, newAgentPanel, newAgentPill, type ModelChoice } from "../lib/new-agent-panel";
@@ -23,10 +23,10 @@ const NO_LIST: ModelList = {};
 /** One launcher's list as read, drawn again only when that list changes (the pill and the form need one or two lists,
  *  not the panel's every one); "" for either: nothing. Here rather than in lib/session-models.ts, which the first
  *  screen loads: a list's entry is replaced on every change, so it is its own snapshot. */
-export function useModelList(mid: string, launcher: string, host?: string): ModelList {
+export function useModelList(mid: string, launcher: string): ModelList {
   const read = () => {
     if (!mid || !launcher) return NO_LIST;
-    const e = modelList(mid, launcher, undefined, host);
+    const e = modelList(mid, launcher);
     return e.list !== undefined || e.loading || e.error ? e : NO_LIST;
   };
   return useSyncExternalStore(subscribeModelLists, read, () => NO_LIST);
@@ -34,8 +34,6 @@ export function useModelList(mid: string, launcher: string, host?: string): Mode
 
 export interface NewAgentModelProps {
   mid: string;
-  host?: string;
-  startHost: string;
   launchers: Launcher[];
   /** This computer's launchers are read (the panel opens only then). */
   ready: boolean;
@@ -65,7 +63,7 @@ export interface NewAgentModelProps {
 }
 
 export function NewAgentModel(props: NewAgentModelProps) {
-  const { mid, host, startHost, launchers, ready, onRetry, choice, runs, configured, fallback, ultracodeOn } = props;
+  const { mid, launchers, ready, onRetry, choice, runs, configured, fallback, ultracodeOn } = props;
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const close = useCallback(() => setAnchor(null), []);
   // a different computer closes it (its providers are another computer's)
@@ -75,8 +73,7 @@ export function NewAgentModel(props: NewAgentModelProps) {
     opened.current = mid;
   }, [mid]);
   // the pill follows the one list it names; the panel, mounted only while open, follows every launcher's
-  const catalogHost = startCatalogHost(launchers.find((l) => l.name === runs), host, startHost);
-  const pill = newAgentPill({ launchers, runs, list: useModelList(mid, runs, catalogHost), choice, configured, fallback, startHost });
+  const pill = newAgentPill({ launchers, runs, list: useModelList(mid, runs), choice, configured, fallback });
   // no launchers read: no model to name, only that it failed ("Model loading failed" after the warning)
   return (
     <>
@@ -97,18 +94,16 @@ export function NewAgentModel(props: NewAgentModelProps) {
 /** The panel while it is open: the computer's launchers with their lists, read again behind the ones shown once per
  *  opening (the one that runs first; not the ones that can't start here, whose rows are off anyway; at most three at a
  *  time, as each may start its agent's CLI on the computer). */
-function NewAgentPanel({ mid, host, startHost, launchers, choice, runs, configured, unavailable, follow, ultracode, onChoice, onFollow, onHelp, onConfigure, anchor, onClose }: NewAgentModelProps & { anchor: HTMLElement; onClose: () => void }) {
+function NewAgentPanel({ mid, launchers, choice, runs, configured, unavailable, follow, ultracode, onChoice, onFollow, onHelp, onConfigure, anchor, onClose }: NewAgentModelProps & { anchor: HTMLElement; onClose: () => void }) {
   const version = useModelLists();
-  const omp = launchers.find((l) => l.name === "omp");
-  const catalogHost = (name: string) => name === "omp" ? startCatalogHost(omp, host, startHost) : host;
   useEffect(() => {
-    for (const l of launchers) if (l.name === runs || !launcherBlock(l)) void readModels(mid, l.name, { again: true, first: l.name === runs, host: catalogHost(l.name) });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh on opening or when the selected host changes
-  }, [host, startHost]);
+    for (const l of launchers) if (l.name === runs || !launcherBlock(l)) void readModels(mid, l.name, { again: true, first: l.name === runs });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh on opening
+  }, []);
   const { providers, state } = useMemo(
-    () => newAgentPanel({ launchers, listOf: (name) => modelList(mid, name, undefined, catalogHost(name)), choice, configured, runs, unavailable, startHost }),
+    () => newAgentPanel({ launchers, listOf: (name) => modelList(mid, name), choice, configured, runs, unavailable }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `version` stands for what was read
-    [launchers, mid, host, choice.launcher, choice.model, choice.effort, configured, runs, unavailable, version, startHost],
+    [launchers, mid, choice.launcher, choice.model, choice.effort, configured, runs, unavailable, version],
   );
 
   const onPick = async (config: PanelConfig) => {
@@ -121,7 +116,7 @@ function NewAgentPanel({ mid, host, startHost, launchers, choice, runs, configur
   };
   const onForget = (provider: string, model: string) => {
     if (provider === choice.launcher && model === choice.model) onChoice({ ...choice, model: "" });
-    void forgetModel(mid, provider, model, undefined, catalogHost(provider)).then((error) => error && toast(error, "error"));
+    void forgetModel(mid, provider, model).then((error) => error && toast(error, "error"));
   };
 
   return (
@@ -133,7 +128,7 @@ function NewAgentPanel({ mid, host, startHost, launchers, choice, runs, configur
       scope="agent"
       onPick={onPick}
       onApplyCurrent={onApplyCurrent}
-      onReload={(provider) => void readModels(mid, provider, { again: true, first: provider === runs, host: catalogHost(provider) })}
+      onReload={(provider) => void readModels(mid, provider, { again: true, first: provider === runs })}
       onForget={onForget}
       currentExtra={ultracode}
       follow={follow && { ...follow, onFollow: () => (onFollow(), true) }}

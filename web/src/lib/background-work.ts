@@ -21,7 +21,7 @@ export function backgroundWork(session: Session | undefined): BackgroundWork | u
     ?? background.filter((b) => b.kind === "workflow").length;
   const own = summary ? session.running_subagents ?? 0 : session.subagents?.filter((a) => a.running).length
     ?? background.filter((b) => b.kind === "agent").length;
-  // its child sessions at work (#5120) are its subagents too; a Paseo parent may list the same ones as background
+  // its child sessions at work (#5120) are its subagents too; a parent may list the same ones as background
   // agents already, so the larger count stands rather than their sum
   const subagents = Math.max(own, runningChildren(session));
   // Old summaries expose only a raw background count, which may include workflows and agents. It cannot be split

@@ -1,4 +1,4 @@
-// Sessions an Agent started (a Codex subagent, an Agent a Paseo Agent created) folded into the session that started them
+// Sessions an Agent started (a Codex subagent) folded into the session that started them
 // (#5120, after cindy: a child Agent is never a task of its own). The hub's manager says which listed session a child
 // folds under (`folded_under`) and gives that session a rollup of their states (`children`, docs/protocol/protocol.md
 // "Session hierarchy"). The web leaves the children out of every list and count, shows the parent in its folded state,

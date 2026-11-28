@@ -36,12 +36,10 @@ export interface AgentLaunch {
   launcherDefaultEffort?: boolean;
   /** Claude Code's permission mode for this start ("New agent"'s "Permission mode"); none: the launcher's own. */
   permissionMode?: string;
-  /** The exact runtime workspace, scoped to machine and host; absent for an ordinary folder start. */
+  /** The exact herdr workspace; absent for an ordinary folder start. */
   workspaceId?: string;
   /** The exact native desktop project, independent of terminal-host workspaces. */
   desktopProjectId?: string;
-  /** An explicit host stays explicit even when it equals the machine's default; none: follow the default. */
-  host?: string;
   /** Turn ultracode on once Claude is up (#3428); only ever true: off is what a new Claude is (docs/protocol/protocol.md). */
   ultracode?: boolean;
   /** Optional title source when the first message contains private project content. */
@@ -77,7 +75,7 @@ export interface AgentLaunch {
 }
 
 /** `open: false` starts it without opening its conversation (Compare runs starts several and opens their page, #8916). */
-export function launchAgent(input: Pick<AgentLaunch, "machineId" | "cwd" | "workspaceId" | "desktopProjectId" | "launcher" | "agentType" | "displayLauncher" | "displayEngine" | "displayModel" | "workSession" | "inlinePrompt" | "model" | "effort" | "launcherDefaultEffort" | "permissionMode" | "host" | "ultracode" | "text" | "nameHint" | "attachments" | "todoId">, options: { open?: boolean; replace?: boolean } = {}) {
+export function launchAgent(input: Pick<AgentLaunch, "machineId" | "cwd" | "workspaceId" | "desktopProjectId" | "launcher" | "agentType" | "displayLauncher" | "displayEngine" | "displayModel" | "workSession" | "inlinePrompt" | "model" | "effort" | "launcherDefaultEffort" | "permissionMode" | "ultracode" | "text" | "nameHint" | "attachments" | "todoId">, options: { open?: boolean; replace?: boolean } = {}) {
   const launch: AgentLaunch = { ...input, id: `local-${uuid()}`, phase: "creating", uploaded: {}, ...launchOpIds() };
   putLaunch(launch);
   if (options.open !== false) {
@@ -165,8 +163,6 @@ export interface NewAgentPreset {
   desktopProjectId?: string;
   /** Terminal catalog space to resolve for a project heading whose source has yet to be read. */
   spaceId?: string;
-  /** Explicit terminal host when the folder comes from a session or terminal. */
-  host?: string;
   /** Messages forwarded to a new Agent (#3899; several at once, #3838): their card over the first message, which carries
    *  them in front; and the pictures they had, attached. */
   forwards?: ContextRef[];

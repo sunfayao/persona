@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Opening a chat whose first page is refused as not_loaded (#8321): an agent Paseo let go is read only while its chat
+// Opening a chat whose first page is refused as not_loaded (#8321): an agent its runtime let go is read only while its chat
 // is watched (#8132), and this page reads its first page before it subscribes. The subscribe loads the agent and its
 // backlog brings the page a second or three later. Until then the chat shows its usual loading state, never the
 // refusal; the refusal shows only when nothing comes within a read's time. The real store, useTranscript and
@@ -27,9 +27,9 @@ const { resetStalePullsForTests } = await import("./useTranscript");
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const MID = "computer-a";
-const SID = "paseo-agent-1";
+const SID = "runtime-agent-1";
 /** The hub's words for the refusal (rpc-errors.not_loaded). */
-const REFUSAL = "This agent isn’t running in Paseo. Its conversation loads while its chat is open.";
+const REFUSAL = "This agent isn’t running. Its conversation loads while its chat is open.";
 const QUESTION = "Sort the holiday photos by place";
 const ANSWER = "Done: 212 photos in 9 albums, one per town.";
 const history: Item[] = [
@@ -142,7 +142,7 @@ describe("ChatView: a first page refused as not_loaded", () => {
     expect(hub.firstPages).toBe(1);
     expect(hub.subscribes, "the refusal still subscribes: that is what loads the agent").toBe(1);
     expect(loading()).toBe(true);
-    // Paseo takes a while to load the agent: the chat keeps loading all along.
+    // its runtime takes a while to load the agent: the chat keeps loading all along.
     await settle(2_500);
     expect(loading()).toBe(true);
     expect(retry()).toBeUndefined();
@@ -161,7 +161,7 @@ describe("ChatView: a first page refused as not_loaded", () => {
     await open();
     await settle(1_000);
     // the hub's own failure for the session, which this page does not read: the wait runs its course
-    await act(async () => hub.failBacklog("Paseo could not load this agent."));
+    await act(async () => hub.failBacklog("The runtime could not load this agent."));
     await settle(READ_TIMEOUT_MS - 2_000);
     expect(loading()).toBe(true);
     expect(text()).not.toContain(REFUSAL);

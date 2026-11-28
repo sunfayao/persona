@@ -5,7 +5,7 @@ import { credentialOwner, setToken } from "./api";
 import { chooseManager, resetManagerChoice, setRosterDefault } from "./manager-choice";
 
 const scope = { owner: "credential-a", manager: "manager-a" };
-const row = (title = "Main"): HostWorkspace => ({ id: "qualified-id", machine_id: "machine-a", source: "orca", source_id: "project::/code/app", title, cwd: "/code/app", project_name: "App", is_main: true });
+const row = (title = "Main"): HostWorkspace => ({ id: "qualified-id", machine_id: "machine-a", source: "herdr", source_id: "w1", title, cwd: "/code/app", project_name: "App", is_main: true });
 const deferred = <T,>() => { let resolve!: (value: T) => void; const promise = new Promise<T>((done) => { resolve = done; }); return { promise, resolve }; };
 const transport = (read: () => Promise<unknown>) => vi.fn(read) as unknown as <T>(path: string, init?: RequestInit) => Promise<T>;
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
@@ -126,8 +126,8 @@ describe("independent workspace catalog", () => {
   it("keys source-local IDs by credential, manager, machine and source and exports the exact runtime target", () => {
     const w = row();
     const key = workspaceKey(w, scope.owner, scope.manager);
-    for (const candidate of [workspaceKey(w, "other", scope.manager), workspaceKey(w, scope.owner, "other"), workspaceKey({ ...w, machine_id: "other" }, scope.owner, scope.manager), workspaceKey({ ...w, source: "herdr" }, scope.owner, scope.manager)]) expect(candidate).not.toBe(key);
-    expect(workspaceTarget(w, scope.owner, scope.manager)).toEqual({ ...scope, machineId: w.machine_id, host: "orca", workspaceId: w.source_id, cwd: w.cwd, label: "Main" });
+    for (const candidate of [workspaceKey(w, "other", scope.manager), workspaceKey(w, scope.owner, "other"), workspaceKey({ ...w, machine_id: "other" }, scope.owner, scope.manager), workspaceKey({ ...w, source: "codex_app" }, scope.owner, scope.manager)]) expect(candidate).not.toBe(key);
+    expect(workspaceTarget(w, scope.owner, scope.manager)).toEqual({ ...scope, machineId: w.machine_id, host: "herdr", workspaceId: w.source_id, cwd: w.cwd, label: "Main" });
   });
 
   it.each([["codex_app", "codex-project:home"], ["claude_desktop", "claude-environment:account"]])("keys each %s root by its canonical directory while keeping distinct projects separate", (source, prefix) => {

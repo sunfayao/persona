@@ -99,10 +99,9 @@ describe("FilesPanel New and zip (#5828)", () => {
     expect(location.pathname).toContain("pane");
   });
 
-  // A Paseo Agent's workspace has no terminal, but it goes with the folder: the node opens the tab in the terminal
-  // engine's workspace that holds the folder, not in the computer's first one (#8135); a terminal session's as before.
+  // The session's workspace goes with the folder: the node opens the tab in herdr's workspace that holds the folder, not
+  // in the computer's first one (#8135).
   it.each([
-    ["a Paseo Agent's", { workspace_id: "wks_example", host: "paseo", space_kind: "paseo", capabilities: { read: true, send: true } }],
     ["a terminal Agent's", { workspace_id: "w2", host: "herdr", capabilities: { read: true, send: true, terminal: true } }],
   ])("opens a terminal in %s workspace", async (_, row) => {
     Object.assign(getState(), { sessions: { m1: [{ machine_id: "m1", session_id: "s1", cwd: "/home/me/app", status: "idle", ...row }] } });

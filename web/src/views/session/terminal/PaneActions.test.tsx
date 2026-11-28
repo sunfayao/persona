@@ -79,7 +79,7 @@ it("takes N, I and Backspace only while the toolbar menu owns focus", async () =
 });
 it("keeps offline and non-herdr panes read-only", () => {
   fake.online = false; render(); expect(button(t("lib-node-actions.split_right"))).toBeNull();
-  fake.online = true; fake.session!.space_kind = "orca"; render(); expect(button(t("lib-node-actions.split_right"))).toBeNull(); open(); expect(document.body.textContent).not.toContain(t("session-terminalpanel.close_this_pane"));
+  fake.online = true; fake.session!.space_kind = "tmux"; render(); expect(button(t("lib-node-actions.split_right"))).toBeNull(); open(); expect(document.body.textContent).not.toContain(t("session-terminalpanel.close_this_pane"));
 });
 it("hides missing-pane controls and unsupported splits", () => {
   fake.session!.pane_id = undefined; render(); expect(host.childElementCount).toBe(0);

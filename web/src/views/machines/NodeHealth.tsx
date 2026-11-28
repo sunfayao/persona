@@ -13,7 +13,6 @@ import {
   FEATURE_STATE_LABEL,
   fixableChecks,
   fixResult,
-  healthContext,
   infoChecks,
   summarize,
   type DoctorCheck,
@@ -99,7 +98,7 @@ export function NodeHealth({ machine, heading }: { machine: Machine; heading: Re
   };
 
   const report = load.kind === "report" ? load.report : null;
-  const features = report ? deriveFeatures(report, healthContext(machine)) : [];
+  const features = report ? deriveFeatures(report) : [];
   const summary = summarize(features);
   const fixable = report ? fixableChecks(report) : [];
   const info = report ? infoChecks(report) : [];

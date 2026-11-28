@@ -64,7 +64,7 @@ describe("buildMachineTree", () => {
   });
 
   it("keeps two hosts' spaces with the same id apart", () => {
-    const tree = buildMachineTree([mac], [pane({ space: "w1", slot: 1 }), pane({ space: "w1", slot: 1, space_kind: "orca" })]);
+    const tree = buildMachineTree([mac], [pane({ space: "w1", slot: 1 }), pane({ space: "w1", slot: 1, space_kind: "tmux" })]);
     expect(tree[0]!.spaces).toHaveLength(2);
   });
 
@@ -88,15 +88,15 @@ describe("buildMachineTree", () => {
   });
 
   it("nests a child space under its parent and sums the children's states on the parent (#2073)", () => {
-    const orca = (space: string, idx: number, st: AgentState, parent?: string) =>
-      pane({ space, slot: 1, st, space_kind: "orca", space_index: idx, ...(parent ? { parent_space_id: parent } : {}) });
+    const child = (space: string, idx: number, st: AgentState, parent?: string) =>
+      pane({ space, slot: 1, st, space_index: idx, ...(parent ? { parent_space_id: parent } : {}) });
     const list = [
-      orca("main", 1, "idle"),
-      orca("a", 2, "needs_you", "main"),
-      orca("b", 3, "working", "main"),
-      orca("b1", 4, "unread", "b"),
-      orca("c", 5, "idle", "main"),
-      orca("other", 6, "idle"),
+      child("main", 1, "idle"),
+      child("a", 2, "needs_you", "main"),
+      child("b", 3, "working", "main"),
+      child("b1", 4, "unread", "b"),
+      child("c", 5, "idle", "main"),
+      child("other", 6, "idle"),
     ];
     const m = buildMachineTree([mac], list)[0]!;
     expect(m.spaces.map((s) => s.name)).toEqual(["ws-main", "ws-other"]);
@@ -112,12 +112,12 @@ describe("buildMachineTree", () => {
 
   it("keeps a child at the top when its parent has no live agent, is another host's, or the parents loop", () => {
     const list = [
-      pane({ space: "w1", slot: 1, space_kind: "orca", parent_space_id: "gone" }),
-      pane({ space: "w2", slot: 1, space_kind: "orca", parent_space_id: "w3" }),
-      pane({ space: "w3", slot: 1, space_kind: "orca", parent_space_id: "w2" }),
-      pane({ space: "w4", slot: 1, space_kind: "herdr", parent_space_id: "w5" }),
-      pane({ space: "w5", slot: 1, space_kind: "orca" }),
-      pane({ space: "w6", slot: 1, space_kind: "orca", parent_space_id: "w6" }),
+      pane({ space: "w1", slot: 1, parent_space_id: "gone" }),
+      pane({ space: "w2", slot: 1, parent_space_id: "w3" }),
+      pane({ space: "w3", slot: 1, parent_space_id: "w2" }),
+      pane({ space: "w4", slot: 1, space_kind: "tmux", parent_space_id: "w5" }),
+      pane({ space: "w5", slot: 1 }),
+      pane({ space: "w6", slot: 1, parent_space_id: "w6" }),
     ];
     const m = buildMachineTree([mac], list)[0]!;
     expect(m.spaces.map((s) => s.name)).toEqual(["ws-w1", "ws-w2", "ws-w3", "ws-w4", "ws-w5", "ws-w6"]);
@@ -244,10 +244,10 @@ describe("panes of one tab", () => {
     expect(tab.foldKey).toBe("tree:mac/ws-w4R/1");
   });
 
-  it("orders Herdr App terminals by their number when there is no pane_index", () => {
-    const t1 = { ...at("pX", {}), pane_id: "herdr-core:t1", session_id: "z" } as Session;
-    const t2 = { ...at("pY", {}), pane_id: "herdr-core:t2", session_id: "a" } as Session;
-    expect([t2, t1].sort(paneOrder).map((s) => s.pane_id)).toEqual(["herdr-core:t1", "herdr-core:t2"]);
+  it("orders another host's numbered panes by their number when there is no pane_index", () => {
+    const t1 = { ...at("pX", {}), pane_id: "tmux:%1", session_id: "z" } as Session;
+    const t2 = { ...at("pY", {}), pane_id: "tmux:%2", session_id: "a" } as Session;
+    expect([t2, t1].sort(paneOrder).map((s) => s.pane_id)).toEqual(["tmux:%1", "tmux:%2"]);
   });
 
   it("keeps a tab's fold through a rename (the hub names a `#2` after its task)", () => {

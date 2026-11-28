@@ -233,14 +233,14 @@ describe("applyMachine (PUT …/engine answers the machine)", () => {
     reset();
     vi.stubGlobal("localStorage", { getItem: () => "mock-token", setItem: () => {}, removeItem: () => {} });
     const machines = [
-      { id: "a", name: "A", online: true, engine: "herdr", hub_name: "家里" },
+      { id: "a", name: "A", online: true, herdr_version: "0.9.4", hub_name: "家里" },
       { id: "b", name: "B", online: false },
     ];
     vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => Promise.resolve(new Response(JSON.stringify(url.includes("/machines") ? { machines } : {}), { status: 200 }))));
     await refresh();
     const b = getState().machines[1];
-    applyMachine({ id: "a", name: "A", online: true, engine: "herdr-core" });
-    expect(getState().machines[0]).toMatchObject({ engine: "herdr-core", hub_name: "家里" });
+    applyMachine({ id: "a", name: "A", online: true, herdr_version: "0.9.5" });
+    expect(getState().machines[0]).toMatchObject({ herdr_version: "0.9.5", hub_name: "家里" });
     expect(getState().machines[1]).toBe(b);
     applyMachine({ id: "gone", name: "?", online: false });
     expect(getState().machines.map((m) => m.id)).toEqual(["a", "b"]);

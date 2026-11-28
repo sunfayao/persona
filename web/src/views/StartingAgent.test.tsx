@@ -67,7 +67,7 @@ const typeRetry = (input: HTMLInputElement | HTMLTextAreaElement, value: string)
 });
 async function retryFixture(overrides: Partial<AgentLaunch> = {}, lostReply = false) {
   setToken("synthetic-retry-owner");
-  const item = launch({ launcher: "work", text: "Original task", agentType: "traex", inlinePrompt: true, host: "herdr", ...overrides });
+  const item = launch({ launcher: "work", text: "Original task", agentType: "traex", inlinePrompt: true, ...overrides });
   getState().launches[item.id] = item;
   let attempts = 0;
   const fetcher = vi.fn(async (url: string, _init: RequestInit = {}) => {
@@ -97,7 +97,8 @@ it.each(["launcher", "empty text"])("retires captured TRAE CLI startup when edit
   await retry();
   expect(fixture.starts()).toHaveLength(1);
   const body = JSON.parse(fixture.starts()[0][1]!.body as string);
-  expect(body).toMatchObject({ async: true, host: "herdr" });
+  expect(body).toMatchObject({ async: true });
+  expect(body).not.toHaveProperty("host");
   expect(body).not.toHaveProperty("agent_type");
   expect(body).not.toHaveProperty("prompt");
   expect(getState().launches[fixture.item.id].agentType).toBeUndefined();
@@ -108,7 +109,8 @@ it("retries the same valid TRAE CLI snapshot inline without an ordinary first me
   await retry();
   expect(fixture.starts()).toHaveLength(1);
   const body = JSON.parse(fixture.starts()[0][1]!.body as string);
-  expect(body).toMatchObject({ launcher: "work", agent_type: "traex", host: "herdr", prompt: "Original task" });
+  expect(body).toMatchObject({ launcher: "work", agent_type: "traex", prompt: "Original task" });
+  expect(body).not.toHaveProperty("host");
   expect(body).not.toHaveProperty("async");
   expect(fixture.fetcher.mock.calls.filter(([url]) => url.endsWith("/messages"))).toHaveLength(0);
 });

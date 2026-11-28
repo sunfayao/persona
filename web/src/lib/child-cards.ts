@@ -1,4 +1,4 @@
-// A child session (a Codex subagent, an Agent a Paseo Agent created; #5120, after cindy) as a card in its parent's chat:
+// A child session (a Codex subagent; #5120, after cindy) as a card in its parent's chat:
 // never a conversation of its own. Its parent's transcript names no call for it, so the card is built from the child's
 // own row and placed by when the child started: in the exchange that was going on then, after the last step that started
 // before it, inside that exchange's folded work (super rule 2), the way `withNestedSubagents` places a nested subagent.
