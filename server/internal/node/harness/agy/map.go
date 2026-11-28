@@ -32,7 +32,7 @@ func (h *Projection) mapSteps(steps []agyStep, fallback time.Time) {
 	}
 	h.stepHashes = make(map[int][32]byte, len(steps))
 	var turnID string
-	var afterWork bool
+	var afterWork, afterFinish bool // afterFinish: the steps since the last planner step include a successful supervision_finish result
 	var wake []int
 	var calls []*mappedCall
 	var plannerSeq, foreignSlots int
@@ -72,6 +72,10 @@ func (h *Projection) mapSteps(steps []agyStep, fallback time.Time) {
 		}
 		h.stepHashes[step.seq] = mixHash(h.stepHashes[step.seq], step.record)
 		h.usage.observeBytes(step)
+		finished := afterFinish
+		if step.Type != "SYSTEM_MESSAGE" && step.Type != "GENERIC" {
+			afterFinish = false
+		}
 		switch step.Type {
 		case "USER_INPUT":
 			calls, wake = nil, nil
@@ -118,7 +122,7 @@ func (h *Projection) mapSteps(steps []agyStep, fallback time.Time) {
 				it.Model = stepModel
 				it.Facets.Progress = &proto.ProgressFacet{Phase: proto.ProgressPhaseThinking}
 			}
-			if text := strings.TrimSpace(step.Content); text != "" {
+			if text := strings.TrimSpace(step.Content); text != "" && text != silentEndMarker {
 				it := add(proto.KindText, "assistant", proto.KindText, agyAssistantText(text))
 				it.Model = stepModel
 				if len(calls) != 0 {
@@ -190,6 +194,7 @@ func (h *Projection) mapSteps(steps []agyStep, fallback time.Time) {
 			mapResult(step, it)
 			if call != nil {
 				h.mapCallResult(it, call)
+				afterFinish = afterFinish || !it.IsError && strings.HasSuffix(h.items[call.item].ToolName, "supervision_finish")
 				if call.name == "schedule" && it.IsError {
 					use := &h.items[call.item]
 					h.stepHashes[use.Seq] = mixHash(h.stepHashes[use.Seq], step.record)
@@ -246,7 +251,7 @@ func (h *Projection) mapSteps(steps []agyStep, fallback time.Time) {
 			if step.Type == "ERROR_MESSAGE" {
 				calls = nil
 			}
-			if isAgyInterruptedStep(step) {
+			if isAgyInterruptedStep(step) || step.Type == "ERROR_MESSAGE" && finished && emptyOutputError(step) {
 				continue
 			}
 			text := strings.TrimSpace(textfmt.FirstNonEmpty(step.Error, step.Content))
@@ -353,4 +358,14 @@ func AttachedImagePaths(text string) map[string]bool {
 		}
 		text = tail
 	}
+}
+
+// silentEndMarker is what a supervision turn ends with on this runtime, which must say something after a tool
+// result (assistant/supervision_instructions). It is no reply: it is not shown.
+const silentEndMarker = "[silent]"
+
+// emptyOutputError: the runtime's complaint that the model said nothing after a tool result. After a successful
+// supervision_finish that is the intended end of the turn, not an API error.
+func emptyOutputError(step agyStep) bool {
+	return strings.Contains(textfmt.FirstNonEmpty(step.Error, step.Content), "model output must contain either output text or tool calls")
 }

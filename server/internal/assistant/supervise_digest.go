@@ -1290,12 +1290,7 @@ func sortEntries(list []prompts.SuperviseEntry) []prompts.SuperviseEntry {
 // holdPushes: a supervision message went into conversation id: its turn's normal finish is not pushed (the hub and the
 // channels read it off the snapshot, SessionView.Supervising) until the user or anything else speaks there.
 func (s *Service) holdPushes(ctx context.Context, id string) {
-	b := &s.supervise
-	b.mu.Lock()
-	b.init()
-	b.hold[id] = time.Now()
-	delete(b.visible, id)
-	b.mu.Unlock()
+	s.turns.Hold(id)
 	s.publish(ctx)
 }
 
@@ -1303,35 +1298,15 @@ func (s *Service) holdPushes(ctx context.Context, id string) {
 // Any other send releases them (call); scheduled inputs carry their own persisted push mode.
 const holdPushesParam = "hold_pushes"
 
-// releasePushes: someone else speaks in conversation id: its turns are pushed as ever.
+// releasePushes: someone else speaks in conversation id: its turns are pushed as ever. Its open supervision batches
+// stay open: the turn they started may still finish.
 func (s *Service) releasePushes(ctx context.Context, id string) {
-	b := &s.supervise
-	b.mu.Lock()
-	_, held := b.hold[id]
-	delete(b.hold, id)
-	delete(b.visible, id)
-	b.mu.Unlock()
-	if held {
+	if s.turns.Release(id) {
 		s.publish(ctx)
 	}
 }
 
 // supervising: conversation id's current turn was started by a supervision message.
-func (s *Service) supervising(id string) bool {
-	b := &s.supervise
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	_, ok := b.hold[id]
-	return ok
-}
+func (s *Service) supervising(id string) bool { return s.turns.Held(id) }
 
-func (s *Service) heldConversations() []string {
-	b := &s.supervise
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	out := make([]string, 0, len(b.hold))
-	for id := range b.hold {
-		out = append(out, id)
-	}
-	return out
-}
+func (s *Service) heldConversations() []string { return s.turns.HeldIDs() }

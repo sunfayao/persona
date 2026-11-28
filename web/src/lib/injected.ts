@@ -27,7 +27,7 @@ const SUPERVISE_HEAD = /^📋 Supervision: (\d+) of the tasks you handed out nee
 const SUPERVISE_MARKER = "This is a supervision message from Persona";
 const LEGACY_SUPERVISE_HEAD = /^📋 督办：你派出去的任务有 (\d+) 个要你处理$/u; // i18n-ignore: matches the hub's injected text
 const LEGACY_SUPERVISE_MARKER = "这是 Persona 的督办消息"; // i18n-ignore: matches the hub's injected text
-const SUPERVISE_LEVEL = /^\s*<persona-supervision level="(triage|user)"\s*\/>\s*$/m;
+const SUPERVISE_LEVEL = /^\s*<persona-supervision level="(triage|user)"(?: batch="[^"]*")?\s*\/>\s*$/m; // batch: since supervision_finish is per batch
 // The digest a supervisor Agent gets in its own chat about the tasks of its to-do (agents/worker_supervise): the first
 // line says how many need it and that the message is not from the user. Routine triage, as the main chat's digests.
 const AGENT_SUPERVISE_HEAD = /^Persona · supervision: (\d+) /u;

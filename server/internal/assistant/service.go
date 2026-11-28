@@ -18,6 +18,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/assistant/knowledge"
 	"github.com/sunfayao/persona/server/internal/assistant/lifecycle"
 	"github.com/sunfayao/persona/server/internal/assistant/ownerfence"
+	"github.com/sunfayao/persona/server/internal/assistant/quietturn"
 	"github.com/sunfayao/persona/server/internal/assistant/repository"
 	"github.com/sunfayao/persona/server/internal/assistant/saved"
 	"github.com/sunfayao/persona/server/internal/assistant/toolnotes"
@@ -210,6 +211,7 @@ type Service struct {
 	quiet        quietBook         // quiet.go
 	taskFileBook taskFileBook      // task_files.go: the files tasks handed over, by todo id
 	supervise    superviseBook     // supervise_signals.go
+	turns        *quietturn.Book   // supervision batches and push holds (supervise_finish.go)
 	progress     progressBook      // supervise_progress.go
 	preempt      preemptBook       // owner_preempt.go
 	tbriefs      taskBriefBook     // task_brief.go
@@ -360,6 +362,7 @@ func New(o Options) *Service {
 		s.logf = func(string, ...any) {}
 	}
 	s.agents = s.newAgentsDomain()
+	s.turns = s.newQuietTurns()
 	var knowledgeConfig string
 	if o.RepositoryConfig != "" {
 		knowledgeConfig = filepath.Join(filepath.Dir(o.RepositoryConfig), "engineering-knowledge.json")

@@ -270,8 +270,6 @@ type superviseBook struct {
 	// noMainSince is when digests started leaving signals waiting for a main conversation (zero: the last one left none
 	// waiting), noMainLogged when that was last logged (sendDigest).
 	noMainSince, noMainLogged time.Time
-	hold                      map[string]time.Time // conversation → when a supervision message went in: its turn's finish is not pushed
-	visible                   map[string]bool      // an explicit user action makes the current triage turn visible
 	// failSeen: tasks whose failed start a supervision message carried, when, and for which conversation
 	// (start_remedy.go remedyTurnEnded)
 	failSeen map[string]failSeen
@@ -283,8 +281,7 @@ type superviseBook struct {
 
 func (b *superviseBook) init() {
 	if b.pending == nil {
-		b.pending, b.sent, b.asks, b.hold = map[string]superviseSignal{}, map[string]string{}, map[string]string{}, map[string]time.Time{}
-		b.visible = map[string]bool{}
+		b.pending, b.sent, b.asks = map[string]superviseSignal{}, map[string]string{}, map[string]string{}
 		b.legacyBackground = map[string]bool{}
 	}
 	if b.failSeen == nil {
@@ -1280,18 +1277,7 @@ func (s *Service) superviseWatch(ctx context.Context, now time.Time) {
 		s.briefClock(ctx, t, now)   // past its brief's clock with no end (task_brief_scope.go)
 		s.watchTurn(ctx, t, agents) // a turn that ended with no working heard, or was left half handled (task_turns.go)
 	}
-	b := &s.supervise
-	b.mu.Lock()
-	changed := false
-	for id, at := range b.hold {
-		if now.Sub(at) > superviseHoldMax {
-			delete(b.hold, id)
-			delete(b.visible, id)
-			changed = true
-		}
-	}
-	b.mu.Unlock()
-	if changed {
+	if s.turns.Expire(ctx) {
 		s.publish(ctx)
 	}
 }

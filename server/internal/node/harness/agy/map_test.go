@@ -379,3 +379,54 @@ func agyTool(name string, raw json.RawMessage) (string, json.RawMessage) {
 	mapCall(&nativeCall{Name: name, Args: raw}, &it)
 	return it.ToolName, it.ToolInput
 }
+
+func TestAgySilentEndOfSupervisionTurn(t *testing.T) {
+	t.Parallel()
+	const empty = "model output must contain either output text or tool calls"
+	head := `{"step_index":0,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","created_at":"2026-01-01T00:00:00Z","content":"supervise"}
+{"step_index":1,"type":"PLANNER_RESPONSE","source":"MODEL","status":"DONE","created_at":"2026-01-01T00:00:01Z","tool_calls":[{"name":"mcp_persona_supervision_finish","args":{"visibility":"silent","summary":"Nothing to do."}}]}
+{"step_index":2,"type":"GENERIC","status":"DONE","created_at":"2026-01-01T00:00:02Z","content":"{\"visibility\":\"silent\"}"}
+`
+	failedHead := strings.Replace(head, `"status":"DONE","created_at":"2026-01-01T00:00:02Z","content"`, `"status":"INVALID","error":"refused","created_at":"2026-01-01T00:00:02Z","content"`, 1)
+	for _, tc := range []struct {
+		name, fixture string
+		notices       []string
+		turnError     string
+		texts         []string
+	}{
+		{"marker after a silent finish is dropped",
+			head + `{"step_index":3,"type":"PLANNER_RESPONSE","source":"MODEL","status":"DONE","content":" [silent]\n"}` + "\n", nil, "", nil},
+		{"the empty-output error after a successful finish is no API error",
+			head + `{"step_index":3,"type":"ERROR_MESSAGE","source":"SYSTEM","status":"DONE","error":"` + empty + `"}` + "\n", nil, "", nil},
+		{"the empty-output error after a failed finish stays an error",
+			failedHead + `{"step_index":3,"type":"ERROR_MESSAGE","source":"SYSTEM","status":"DONE","error":"` + empty + `"}` + "\n", []string{empty}, empty, nil},
+		{"the empty-output error of another turn stays an error",
+			head + `{"step_index":3,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","content":"again"}` + "\n" +
+				`{"step_index":4,"type":"ERROR_MESSAGE","source":"SYSTEM","status":"DONE","error":"` + empty + `"}` + "\n", []string{empty}, empty, nil},
+		{"any other error after a finish is untouched",
+			head + `{"step_index":3,"type":"ERROR_MESSAGE","source":"SYSTEM","status":"DONE","error":"quota"}` + "\n", []string{"quota"}, "quota", nil},
+		{"the marker among other words is real text",
+			head + `{"step_index":3,"type":"PLANNER_RESPONSE","source":"MODEL","status":"DONE","content":"[silent] done"}` + "\n", nil, "", []string{"[silent] done"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			steps, _ := parseAgySteps([]byte(tc.fixture), agyTestID)
+			history := mapAgySteps(steps, time.Time{}, nil)
+			var notices, texts []string
+			for _, it := range history.items {
+				switch {
+				case it.Kind == "notice":
+					notices = append(notices, it.Text)
+				case it.Kind == "text" && it.Role == "assistant":
+					texts = append(texts, it.Text)
+				}
+			}
+			if !slices.Equal(notices, tc.notices) || !slices.Equal(texts, tc.texts) {
+				t.Fatalf("notices %q, assistant texts %q; want %q, %q", notices, texts, tc.notices, tc.texts)
+			}
+			if history.turnError != tc.turnError {
+				t.Fatalf("turn error %q, want %q", history.turnError, tc.turnError)
+			}
+		})
+	}
+}

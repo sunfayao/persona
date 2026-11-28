@@ -495,8 +495,8 @@ func (s *Service) remedyGoesTo(to string, list []superviseSignal) {
 func (s *Service) remedyTurnEnded(ctx context.Context, id string) {
 	b := &s.supervise
 	b.mu.Lock()
-	held, ok := b.hold[id]
-	told := b.visible[id]
+	held, ok := s.turns.HeldSince(id)
+	told := s.turns.Shown(id)
 	var due []string
 	if ok {
 		for todo, seen := range b.failSeen {

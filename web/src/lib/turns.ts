@@ -836,6 +836,9 @@ function backgroundSource(it: Item): MessageSource | undefined {
   return source;
 }
 
+/** What a supervision turn ends with after its card, push or silent finish (supervision_instructions): never shown. */
+const SILENT_END = "[silent]";
+
 /** `background`: background rounds are separate rounds like supervision ones (a queued real message never joins them). */
 export function buildBlocks(items: Item[], background = false): Block[] {
   const blocks: Block[] = [];
@@ -857,6 +860,7 @@ export function buildBlocks(items: Item[], background = false): Block[] {
 
   for (const [i, it] of items.entries()) {
     if (viewFeedbackOnly(it)) continue;
+    if (supervisionRound && it.role === "assistant" && it.kind === "text" && it.text?.trim() === SILENT_END) continue; // the end marker of a supervision turn is no reply
     if (isUserInput(it)) {
       const entry = it.id.split("#")[0];
       const prev: Item | undefined = cur ? cur.ordered[cur.ordered.length - 1] : undefined;
