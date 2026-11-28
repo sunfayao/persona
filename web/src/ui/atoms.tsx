@@ -284,12 +284,20 @@ export function Kbd({ children }: { children: React.ReactNode }) {
   return <kbd className="inline-flex items-center font-mono text-[10.5px] tracking-[0.02em] text-ink-3/75">{children}</kbd>;
 }
 
+/** How a fold clips while it moves or is closed: tightly, at its box. */
+const COLLAPSE_CLIP = "overflow-hidden [contain:layout_paint]";
+/** Open and still: still clipped (no scroll container, so sticky content needs `unclipped`), but its content's focus rings
+ *  and shadows may reach `--spacing-ring` past the box. */
+const COLLAPSE_CLIP_OPEN = "overflow-clip [overflow-clip-margin:var(--spacing-ring)] [contain:layout_paint]";
+
 // Height-animating disclosure (grid 0fr → 1fr), the expand grammar every Beautiful UI trace uses.
 /** Folds its children up and down: the grid's row runs between 0fr and 1fr in CSS (no heights measured in JS), with
  *  a fade. `lazy`: the children mount when it opens and stay while it closes, so they go down with the height instead of
  *  vanishing, then unmount (a long trace costs nothing while folded). Once closed, the content is inert. A chat list holds
  *  the clicked row still while the height runs (`anchoredScroll`, #1124). `clipClassName` goes on the box that clips the
- *  children: padding there is room for what they draw outside themselves (a ring, a shadow) and stays while closed.
+ *  children: padding there is room for what they draw outside themselves and stays while closed. Once open and still,
+ *  that box lets its content draw focus rings and shadows `--spacing-ring` past it (AGENTS/07 rule 12); while it moves or
+ *  is closed it clips tightly, so a folded row never shows a sliver.
  *  `min-w-0`: the grid's implicit column's `auto` minimum is the item's content-based minimum, so one child that cannot
  *  break (a long URL) would widen the whole grid past its column — the Inbox list then scrolls sideways (#3262).
  *  A sidebar fold is lazy unless it says otherwise: a folded group holds no rows, so the sidebar costs what is open,
@@ -328,10 +336,11 @@ export function Collapse({ open, children, className = "", clipClassName = "", l
     return () => cancelAnimationFrame(f);
   }, [open, laidOut]);
   const shown = open && laidOut;
-  const unclippedNow = unclipped && shown && !moving;
+  const still = shown && !moving;
+  const clip = unclipped && still ? "" : still ? COLLAPSE_CLIP_OPEN : COLLAPSE_CLIP;
   return (
     <div
-      className={`grid ${sidebarFold && !unclippedNow ? "overflow-hidden [contain:layout_paint]" : ""} ${sidebarFold ? "transition-[grid-template-rows]" : "transition-[grid-template-rows,opacity] duration-300"} ${className}`}
+      className={`grid ${sidebarFold ? clip : ""} ${sidebarFold ? "transition-[grid-template-rows]" : "transition-[grid-template-rows,opacity] duration-300"} ${className}`}
       style={{
         gridTemplateRows: shown ? "1fr" : "0fr",
         opacity: sidebarFold || shown ? 1 : 0,
@@ -342,7 +351,7 @@ export function Collapse({ open, children, className = "", clipClassName = "", l
       // inert once closed, not while it closes: switching a long trace inert is a full style pass (34 ms for 650 steps)
       inert={(!open && !moving) || undefined}
     >
-      <div className={`min-h-0 min-w-0 ${!sidebarFold && !unclippedNow ? "overflow-hidden [contain:layout_paint]" : ""} ${clipClassName}`}>{mounted && (missed ? <FoldMissed.Provider value={missed}>{children}</FoldMissed.Provider> : children)}</div>
+      <div className={`min-h-0 min-w-0 ${!sidebarFold ? clip : ""} ${clipClassName}`}>{mounted && (missed ? <FoldMissed.Provider value={missed}>{children}</FoldMissed.Provider> : children)}</div>
     </div>
   );
 }

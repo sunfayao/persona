@@ -60,8 +60,12 @@ wins. The binding rules are in `AGENTS/07-frontend-development.md` (design rules
 | `web/src/ui/select-chevron.test.tsx` | the dropdown arrow's colour equals `--ink-3` |
 | `web/src/ui/quiet-surface-scope.test.ts` | quiet surfaces stay in their scope |
 | `web/src/i18n/catalog.test.ts` | catalog agreement and hard-coded text (`AGENTS/08`) |
+| `web/src/ui/focus-ring.contract.test.ts` | the focus ring's tokens and global rule (2.9), no hand-made rings, room in boxes that clip controls, the chat's end padding and fade (3.1) |
 
-Nothing tests hit-area size or spoken labels; check them by hand.
+Nothing tests hit-area size or spoken labels; check them by hand. Two browser scripts measure what no unit test can:
+`web/e2e/focus-ring-room.mjs` focuses every control of the main views and fails when a ring is clipped or painted over,
+and `web/e2e/chat-end-clearance.mjs` checks that the chat's last line clears the fade with every kind of dock (2.9,
+3.1). Run them when a change touches focus, clipping, the chat's scroller or what sits over the composer.
 
 ## 2. Design tokens
 
@@ -157,6 +161,9 @@ Spacing is Tailwind's 4 px scale (`--spacing`). Values this document names:
 | `--sidebar-indent` 12 px | one level of nesting (`sidebar-indent` utility), applied once per parent boundary |
 | `--panel-gap` 6 px | gutter between the shell's columns from 64 rem |
 | `--chat-scrollbar-fade` 220 ms | the chat scrollbar's thumb |
+| `--spacing-ring` 4 px | room for focus rings in a box that clips (`p-ring`, given back with `-m-ring`; `scroll-p-ring`), 2.9 |
+| `--spacing-fade` 36 px | the fade over a scroller's end (`h-fade`, `ScrollFade`) |
+| `--spacing-fade-end` 44 px | a scroller's end padding: the fade and 8 px (`pb-fade-end`, `scroll-pb-fade-end`) |
 
 Breakpoints: `xs` 340 px (`max-xs:`; the composer's mode chips turn into an icon and a short word), `sm` 640 px
 (phone below it: `PHONE`), 64 rem / 1024 px (the shell's side-by-side columns; `NARROW` below it). Hover-only
@@ -166,7 +173,7 @@ behaviour is also gated on `(hover: none)` and `(pointer: coarse)`.
 
 | Token | px | Use |
 | --- | --- | --- |
-| `rounded-chip` | 6 | chips, badges, focus ring |
+| `rounded-chip` | 6 | chips, badges; the focus ring of a control with no radius of its own (2.9) |
 | `rounded-control` | 8 | buttons, inputs, code blocks, wells |
 | `rounded-card` | 10 | cards, groups |
 | `--radius-nav-preview` | 16 | the navigator's preview |
@@ -214,6 +221,24 @@ root listener is not woken every turn. Scripted scrolling goes through `scrollBe
 ink (`--ink-3`; `--ink` for the open page). Decorative marks are hidden from screen readers when adjacent text names
 them.
 
+### 2.9 Focus rings
+
+One ring marks keyboard focus everywhere: an outline `--focus-ring-width` (2 px) wide, `--focus-ring-offset` (1 px)
+outside the border, in `--focus-ring-color` (the accent unless a surface sets it, as your own bubble sets `--ink`).
+Buttons, links and summaries get it from the unlayered rule in `styles.css`, which no utility can remove; another
+focusable (a field's frame, a row with `tabindex`) takes `focus-ring`. The ring follows the control's own radius: a
+pill stays a pill, and a control without a radius of its own is rounded to 6 px (the base layer).
+
+A ring reaches 3 px past its control, so it is drawn whole only where nothing clips or covers those 3 px:
+
+- A box that clips its content (any `overflow` but visible, `truncate`, `line-clamp`, paint containment) and holds
+  controls that reach its edges keeps `p-ring` (4 px) on those sides and gives it back with `-m-ring`, so nothing
+  moves; a box that scrolls adds `scroll-p-ring`, so a control focused at its edge is scrolled in with its ring.
+  A full-width row flush with a clipping edge rings inward instead (`focus-ring-inset`).
+- Text is cut on the text: `truncate` and `line-clamp` go on the `<span>` inside a control, never on a box around one.
+- Room never crosses into a positioned neighbour (a fade, a sticky heading): that neighbour is painted later, over it.
+- `Collapse` clips tightly while it moves and keeps `--spacing-ring` around its content once open.
+
 ## 3. Components
 
 Use the design-system component, not a lookalike. Features keep a few local pieces of the same family (`Tag`, `Chip`,
@@ -235,6 +260,11 @@ a new screen reuses the one beside it.
 - Run status bar (`RunningStatusBar.tsx`): the active turn's state and elapsed time above the composer, in
   `--status-accent`.
 - A Persona conversation names no tool and no model id in primary text (5.6).
+- The chat's end and its dock: the transcript scrolls in its own box, and the dock (what sits over the composer and
+  the composer) is its flex sibling below it, never an overlay, so a taller dock shrinks the chat instead of covering
+  it. The transcript fades over its last `h-fade`, and its content ends with `pb-fade-end` (the scroller has
+  `scroll-pb-fade-end`): scrolled to the end, the last reply's time and work time rest 8 px above where the fade
+  begins. The dock's room for its rows' rings stays inside the dock (2.9).
 
 ### 3.2 Cards and surfaces
 
@@ -544,6 +574,7 @@ Every component meets these:
 7. Text contrast at least 4.5:1 in light and dark (3:1 for non-text marks); composite cases need a test.
 8. Transient messages are announced; headers carry the heading role; modals trap focus.
 9. Layouts survive 200% zoom and a phone's width without clipping or hover-only controls.
+10. The keyboard focus ring is drawn whole on all four sides: nothing clips or covers it (2.9).
 
 ## UI change self-check
 
@@ -568,6 +599,8 @@ reason, and attach the evidence principle 6 asks for.
 - [ ] Controls are at least 44 × 44 with a spoken label; nothing shows state by colour alone or depends on hover.
 - [ ] Destructive actions confirm if irreversible and offer Undo if reversible (4.3).
 - [ ] Motion respects reduced motion; busy animations carry `busy-motion` (2.7).
+- [ ] Focus rings are drawn whole and a scroller's last line clears its fade (2.9, 3.1; `focus-ring-room.mjs`,
+  `chat-end-clearance.mjs`).
 - [ ] Opening or closing in a chat keeps the tapped row where it was (4.4).
 - [ ] A session that needs the user is visible in every grouping; no raw model ids, session ids or paths on primary
   screens (3.3, 5.6).

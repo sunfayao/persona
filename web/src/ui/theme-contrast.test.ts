@@ -58,7 +58,9 @@ describe("default palette contrast", () => {
         if (token === "user-bubble") expect(contrast(t.ink, bubble)).toBeGreaterThanOrEqual(4.5);
       }
       expect(css).toContain(".dark .bg-user-bubble { --ink-3: var(--ink-2); }");
-      expect(css).toContain(".bg-user-bubble :is(button, a, summary):focus-visible { outline-color: var(--ink); --tw-ring-color: var(--ink); }");
+      // the focus ring in your own bubble is --ink: the colour token the one focus rule reads (styles.css)
+      expect(css).toContain(".bg-user-bubble :is(button, a, summary):focus-visible { --focus-ring-color: var(--ink); --tw-ring-color: var(--ink); }");
+      expect(css).toContain("outline: var(--focus-ring-width) solid var(--focus-ring-color, var(--accent));");
     });
     it(`${scheme}: --danger-wash (red at 12%) keeps --ink readable on the canvas and the tray's surface (words on it are --ink; --red only colours icons)`, () => {
       expect(css).toContain("--danger-wash: color-mix(in srgb, var(--red) 12%, transparent)");

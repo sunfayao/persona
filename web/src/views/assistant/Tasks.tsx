@@ -1218,7 +1218,7 @@ export const AssistantActionBar = memo(function AssistantActionBar({ conversatio
         <section id={trayId} aria-label={labels[tray]} data-expanded={expanded || undefined} className="assistant-action-tray flex min-h-0 flex-col overflow-hidden rounded-card bg-surface shadow-card">
           <div className="flex shrink-0 items-center gap-2 bg-surface px-3 py-2 text-sm"><h2 className="min-w-0 flex-1 truncate font-semibold">{labels[tray]}</h2><Button onClick={() => setBoard(true)}>{t("assistant-tasks.all")}</Button><IconButton icon={expanded ? "collapse" : "expand"} label={t(expanded ? "assistant-tasks.tray_restore" : "assistant-tasks.tray_expand")} onClick={() => setExpanded((v) => !v)} /><IconButton icon="x" label={t("ui-atoms.close")} onClick={() => setTray(null)} /></div>
           <div data-tray-list className="min-h-0 grow overflow-y-auto overscroll-contain">
-          {tray === "running" && <div className="divide-y divide-line">
+          {tray === "running" && <div className="divide-y divide-line focus-ring-inset">
             {entries.running.map((item) => item.kind === "task" ? <ProgressTaskRow key={item.key} card={item.card} conversation={conversation} activity={item.activity} countsOpen={item.countsOpen} /> : <RunningAgentRow key={item.key} session={item.session} activity={item.activity} />)}
             {!entries.running.length && <p className="px-3 py-3 text-sm text-ink-2">{t("assistant-tasks.tray_empty_progress")}</p>}
             {entries.shelved.length > 0 && (
@@ -1231,14 +1231,14 @@ export const AssistantActionBar = memo(function AssistantActionBar({ conversatio
           </div>}
           {/* how a task ended, instead of a card in the chat (#8237): what finished in the last 24 hours, newest first, seen
               or not; one nobody opened yet says Just finished (#10922) */}
-          {tray === "finished" && <div data-tray-finished className="divide-y divide-line">
+          {tray === "finished" && <div data-tray-finished className="divide-y divide-line focus-ring-inset">
             <Suspense fallback={<Loading />}><FinishedTasks items={entries.finished} conversation={conversation} /></Suspense>
           </div>}
-          {tray === "review" && <div className="divide-y divide-line">
+          {tray === "review" && <div className="divide-y divide-line focus-ring-inset">
             {entries.review.map((item) => item.kind === "task" && <ProgressTaskRow key={item.key} card={item.card} conversation={conversation} countsOpen={item.countsOpen} supervisorReview />)}
             {!entries.review.length && <p className="px-3 py-3 text-sm text-ink-2">{t("assistant-tasks.tray_empty_review")}</p>}
           </div>}
-          {tray === "parked" && <div className="divide-y divide-line">
+          {tray === "parked" && <div className="divide-y divide-line focus-ring-inset">
             <Suspense fallback={<Loading />}><ParkedTasks items={entries.parked} /></Suspense>
             {!entries.parked.length && <p className="px-3 py-3 text-sm text-ink-2">{t("assistant-tasks.tray_empty_parked")}</p>}
           </div>}
@@ -1258,9 +1258,9 @@ export const AssistantActionBar = memo(function AssistantActionBar({ conversatio
         </section>
       )}
       {/* The entries are the dock's old "All" / task capsules (DOCK_CAPSULE), content-wide at the leading edge; the
-          open tray is the selected capsule. The scroller pads by the focus ring's width and takes it back, as the
-          dock's did, so a large font scrolls sideways instead of clipping the ring. */}
-      <div className="scrollbar-none -my-1 flex min-w-0 shrink-0 items-center gap-2 overflow-x-auto py-1">
+          open tray is the selected capsule. The scroller keeps room for the focus ring on every side, its scrolling
+          one included, and gives it back (p-ring, -m-ring), so a large font scrolls sideways instead of clipping it. */}
+      <div className="scrollbar-none -m-ring flex min-w-0 shrink-0 items-center gap-2 overflow-x-auto p-ring scroll-p-ring">
         {ownAsks.length > 0 && (
           <button type="button" data-next-own-ask onClick={openNextOwn} className={cx(DOCK_CAPSULE, "gap-2 bg-field font-medium text-ink hover:bg-hover")}>
             <span className="whitespace-nowrap">{t("assistant-tasks.next_unanswered")}</span>
@@ -1318,9 +1318,9 @@ export const TaskDock = memo(function TaskDock({ conversation }: { conversation:
         {t("assistant-tasks.dock_all", { count: mine + agents.length })}
       </button>
       {(going.length > 0 || agents.length > 0) && (
-        // The scroller pads by the focus ring's width and takes it back, so the ring is not clipped and the row
-        // stays a pill high.
-        <div className="scrollbar-none -my-1 flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-1">
+        // The scroller keeps room for the focus ring on every side and gives it back, so the ring is not clipped
+        // and the row stays a pill high.
+        <div className="scrollbar-none -m-ring flex min-w-0 flex-1 items-center gap-2 overflow-x-auto p-ring scroll-p-ring">
           {going.map(({ t: todo, st, ask, limit }) => {
             // a waiting task says what it waits on when hovered or read out (#3463)
             const label = ask ? t("assistant-tasks.dock_task_asks", { title: todo.title, ask }) : limit ? `${todo.title} · ${limit}` : undefined;

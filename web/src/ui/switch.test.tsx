@@ -30,7 +30,10 @@ describe("Switch (#3675)", () => {
     expect(a).toContain(b);
   });
 
-  it("rounds its keyboard focus ring to the pill", () => {
-    expect(css).toMatch(/\.switch:focus-visible\s*{[^}]*border-radius:\s*9999px/);
+  it("rounds its keyboard focus ring to the pill and keeps it clear of the track", () => {
+    // the ring follows the switch's own radius: the focus rule's 6 px is a base-layer default that `rounded-full` beats
+    expect(renderToStaticMarkup(<Switch on label="x" title="x" onChange={() => {}} />)).toMatch(/class="switch [^"]*\brounded-full\b/);
+    expect(css).toMatch(/@layer base \{ :is\(button, a, summary\):focus-visible \{ border-radius: 6px; \} \}/);
+    expect(css).toMatch(/\.switch \{ --focus-ring-offset: 2px; \}/);
   });
 });

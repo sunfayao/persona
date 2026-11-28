@@ -2346,11 +2346,11 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
       )}
       <div className="relative min-h-0 flex-1">
         <NotLivePill open={Boolean(tr.notLive || refreshFailed)} error={refreshFailed} onReload={() => { tr.reload(); onRefresh?.(); }} lower={Boolean(picked && !search.open)} />
-        <div ref={scrollRef} onScroll={onScroll} data-chat-scroll className="relative h-full overflow-y-auto [overflow-anchor:none]">
+        <div ref={scrollRef} onScroll={onScroll} data-chat-scroll className="relative h-full overflow-y-auto scroll-pt-ring scroll-pb-fade-end [overflow-anchor:none]">
           <ChatActionsContext.Provider value={actions}>
           <div
             data-chat-content
-            className="mx-auto flex w-full max-w-[820px] flex-col gap-5 px-5 pt-5 pb-6 sm:px-8 sm:pt-7"
+            className="mx-auto flex w-full max-w-[820px] flex-col gap-5 px-5 pt-5 pb-fade-end sm:px-8 sm:pt-7"
             style={chatEnterStyle}
             onAnimationEnd={mountEnter ? (e) => { if (e.target === e.currentTarget && e.animationName === "view-enter") setMountEnter(false); } : undefined}
           >
@@ -2478,7 +2478,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
           <CommentMarks scroller={scroller} jump={landRow} />
           </ChatActionsContext.Provider>
         </div>
-        <ScrollFade surface="page" height="h-9" />
+        <ScrollFade surface="page" />
         {/* A transient edge overlay; native scrolling and the centered text column keep their existing layout. */}
         {railSource.ticks.length > 0 && (
           <Suspense fallback={null}>
@@ -2501,9 +2501,11 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
         onBlur={onDockBlur}
       >
         {/* everything over the composer: it shrinks and scrolls before the composer does (the composer grew, and its
-            cards, task questions and notes stood taller than the dock, drawn up over the chat or pushing it to nothing);
-            the box clips what is in it, so its children keep a little room for their shadows (p-1; -m-1 gives it back) */}
-        <div ref={dockAbove} data-chat-dock-above data-scroll-box hidden={Boolean(picker)} className="-m-1 flex min-h-0 shrink flex-col gap-2 overflow-y-auto overscroll-contain p-1 empty:hidden">
+            cards, task questions and notes stood taller than the dock, drawn up over the chat or pushing it to nothing).
+            The box clips what is in it, so it keeps room on every side for its rows' focus rings and shadows (p-ring) and
+            gives it back at the sides and below; not above, where it would reach into the chat, whose fade is painted
+            over it (AGENTS/07 rule 13) */}
+        <div ref={dockAbove} data-chat-dock-above data-scroll-box hidden={Boolean(picker)} className="-mx-ring -mb-ring flex min-h-0 shrink flex-col gap-2 overflow-y-auto overscroll-contain p-ring scroll-p-ring empty:hidden">
         {/* a phone on its side: the plan's pill, the run's status and the queue share one line. One wrapper either way
             (no box of its own otherwise), so the pill and a flyout pinned on it stay when the phone turns */}
         {(pills || running || (short && queue)) && (

@@ -243,7 +243,8 @@ export function UsagePopover({
       aria-label={tr("usage.title")}
       data-usage-popover
       className={cx(
-        "absolute bottom-full left-2 right-2 z-20 mb-2 flex max-h-[75dvh] flex-col overflow-hidden rounded-2xl bg-surface shadow-overlay lg:right-auto",
+        // the fade over the list's end is shorter than the chat's: its end padding (pb-fade-end) follows
+        "absolute bottom-full left-2 right-2 z-20 mb-2 flex max-h-[75dvh] flex-col overflow-hidden rounded-2xl bg-surface shadow-overlay [--spacing-fade:calc(var(--spacing)*6)] lg:right-auto",
         selectedCompact ? "lg:w-184" : "lg:w-[26rem]",
       )}
       style={{ animation: "pop-in 180ms var(--ease-out-strong) both" }}
@@ -313,8 +314,8 @@ export function UsagePopover({
         </div>
       )}
 
-      <div className={cx("min-h-0 flex-1 overflow-y-auto overscroll-contain", selectedCompact && "lg:grid lg:grid-cols-2 lg:items-start lg:divide-x lg:divide-line/60")}>
-        <div className="flex min-w-0 flex-col pb-5">
+      <div className={cx("min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-pb-fade-end", selectedCompact && "lg:grid lg:grid-cols-2 lg:items-start lg:divide-x lg:divide-line/60")}>
+        <div className="flex min-w-0 flex-col pb-fade-end">
           {view === "detailed" ? (
             shownDevices.length > 0 && (
               <div className="divide-y divide-line/60">
@@ -379,12 +380,12 @@ export function UsagePopover({
         </div>
 
         {selectedCompact && (
-          <div id={detailsId} className="min-w-0 border-t border-line/60 pt-1 pb-5 lg:border-t-0">
+          <div id={detailsId} className="min-w-0 border-t border-line/60 pt-1 pb-fade-end lg:border-t-0">
             <ProviderSection group={selectedCompact.group} device={selectedCompact.device} now={now} pinned={pinnedSet} tooltip={tooltip} />
           </div>
         )}
       </div>
-      <ScrollFade surface="surface" height="h-6" className="z-10" />
+      <ScrollFade surface="surface" className="z-10" />
       <TooltipRoot controller={tooltip} delay={250}>
         <UiTooltipContent side="top" sideOffset={6}>
           {(state) => (typeof state.payload === "string" ? state.payload : null)}

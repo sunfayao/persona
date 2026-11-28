@@ -252,6 +252,15 @@
 @theme { --breakpoint-xs: 340px; }
 /* The task cards' type scale by role (docs/design/DESIGN_SYSTEM.md §4.1): the card and row title, the meta line, the chip / label, and secondary meta. The sizes the cards already used, now named; iOS Theme.Font bodyStrong / caption / label. */
 @theme { --text-card-title: 14.5px; --text-meta: 13px; --text-label: 12px; --text-submeta: 11.5px; }
+/* Room and clearance as spacing (docs/design/DESIGN_SYSTEM.md 2.9 and 3.1, AGENTS/07 rules 12 and 13). `ring` is the room
+   a box that clips keeps around its controls: a focus ring's reach and a pixel for its anti-aliased edge (`p-ring`, given
+   back with `-m-ring`, and `scroll-p-ring` when it scrolls). `fade` is the fade over a scroller's end (`h-fade`) and
+   `fade-end` that scroller's end padding, the fade and 8 px, so its last line rests above where the fade begins
+   (`pb-fade-end`, `scroll-pb-fade-end`; inline, so a box that sets its own --spacing-fade gets its own end). `ring` is a
+   plain length, --focus-ring-width + --focus-ring-offset + 1px (ui/focus-ring.contract.test.ts keeps them in step):
+   Chrome drops an overflow-clip-margin written with calc(), and Collapse clips with that margin. */
+@theme { --spacing-ring: 4px; --spacing-fade: calc(var(--spacing) * 9); }
+@theme inline { --spacing-fade-end: calc(var(--spacing-fade) + var(--spacing) * 2); }
 @theme inline {
   --color-page: var(--page);
   --color-canvas: var(--canvas);
@@ -506,11 +515,23 @@ body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
 @media (min-width: 640px) {
   [data-chat-scroll] > [data-chat-content] { padding-right: max(calc(var(--spacing) * 8), var(--chat-nav-clearance, 0px)); }
 }
-button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 6px; }
+/* The keyboard focus ring (docs/design/DESIGN_SYSTEM.md 2.9, AGENTS/07 rule 12): one outline for every button, link and
+   summary, from these tokens (--focus-ring-color is set only by a surface that needs another colour: the accent). It
+   reaches width + offset past its control, so a box that clips keeps `p-ring` round its controls, or its flush rows ring
+   inward (`focus-ring-inset`). The outline is unlayered, so no utility drops it; the radius is in the base layer, so a
+   control keeps its own (a pill stays a pill) and only one without a radius of its own is rounded to 6 px. */
+:root { --focus-ring-width: 2px; --focus-ring-offset: 1px; }
+button:focus-visible, a:focus-visible, summary:focus-visible { outline: var(--focus-ring-width) solid var(--focus-ring-color, var(--accent)); outline-offset: var(--focus-ring-offset); }
+@layer base { :is(button, a, summary):focus-visible { border-radius: 6px; } }
+/* Any other focusable (a field's frame, a row with a tabindex): the same ring. */
+@utility focus-ring { &:focus-visible { outline: var(--focus-ring-width) solid var(--focus-ring-color, var(--accent)); outline-offset: var(--focus-ring-offset); } }
+/* A control flush with an edge that clips it or is painted over it (a full-width row in a scroller or in a card that
+   clips, a row under a sticky heading): its ring goes inside its border. */
+@utility focus-ring-inset { --focus-ring-offset: calc(var(--focus-ring-width) * -1); }
 /* Blue bubbles need stronger muted text in dark mode and a readable focus indicator in both schemes.
    Keep this local: page text and extension accent colors are unchanged. */
 .dark .bg-user-bubble { --ink-3: var(--ink-2); }
-.bg-user-bubble :is(button, a, summary):focus-visible { outline-color: var(--ink); --tw-ring-color: var(--ink); }
+.bg-user-bubble :is(button, a, summary):focus-visible { --focus-ring-color: var(--ink); --tw-ring-color: var(--ink); }
 button { cursor: pointer; }
 button:disabled { cursor: default; }
 @media (prefers-reduced-motion: reduce) {
@@ -727,9 +748,10 @@ select:not([multiple], [size], .appearance-none) {
 }
 @theme inline { --color-seg-track: var(--seg-track); }
 @theme inline { --color-switch-on: var(--switch-on); --color-switch-off: var(--switch-off); --shadow-knob: var(--shadow-knob); }
-/* The switch's keyboard focus ring follows its pill (the rule for every button rounds to 6 px) and stands clear of the
-   track; a mouse click shows none (:focus-visible). Forced colors drop the fills, so the track and knob get system colors. */
-.switch:focus-visible { border-radius: 9999px; outline-offset: 2px; }
+/* The switch's keyboard focus ring follows its pill (`rounded-full`; the 6 px of the focus rule is only for a control
+   without a radius) and stands clear of the track; a mouse click shows none (:focus-visible). Forced colors drop the
+   fills, so the track and knob get system colors. */
+.switch { --focus-ring-offset: 2px; }
 @media (forced-colors: active) {
   .switch { border: 1px solid ButtonText; }
   .switch > span { background: ButtonText; }

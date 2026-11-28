@@ -93,6 +93,19 @@ What you must not break:
     primitives (`Switch`, `UnderlineTabs`, `FloatingSegment`, `Disclosure`, `UiPopover`, `UiTooltip`,
     `useAnimatedPresence`, `springCurve`). Consult `web/node_modules/@ui-sdk/react/docs/llms.txt` before creating new
     UI primitives, and keep `@layer ui-sdk;` at the top of `src/styles.css`.
+12. **A focus ring is drawn whole.** Buttons, links and summaries get the one ring of `styles.css`, built from
+    `--focus-ring-width`, `--focus-ring-offset` and `--focus-ring-color`; any other focusable takes `focus-ring`. The
+    ring follows the control's own radius. A box that clips (any `overflow` but visible, `truncate`, `line-clamp`,
+    paint containment) keeps `p-ring` between its edge and the controls that reach it and gives it back with
+    `-m-ring`, plus `scroll-p-ring` when it scrolls. A row flush with such an edge rings inward instead
+    (`focus-ring-inset`). Text is cut on the text: `truncate` goes on the `<span>` inside a control, never on a box
+    around one. `web/e2e/focus-ring-room.mjs` focuses every control of the main views and fails on a cut ring.
+13. **A scroller's last line clears its fade, and the dock never covers the chat.** A fade over a scroller's end is
+    `ScrollFade` (`h-fade`). The content ends with `pb-fade-end` and the scroller has `scroll-pb-fade-end`, so the
+    last line rests above where the fade begins. What sits under a chat (the dock) is the chat's flex sibling, never
+    an overlay on it: the chat shrinks as the dock grows, so no measured dock height is needed. No box of the dock
+    reaches up into the chat's area, where the chat's positioned fade is painted over it.
+    `web/e2e/chat-end-clearance.mjs` measures both.
 
 Use the components of `src/ui/` (`Button`, `IconButton`, `Dialog`, `Menu`, `Switch`, `Segmented`, `StatusMark`,
 `SearchField`, `ErrorNotice`, `Collapse`, `toast`) before you write a new one.
@@ -129,6 +142,12 @@ cd web && PERSONA_HUB_URL=http://127.0.0.1:18760 npx vite --port 5173 --strictPo
 - `eslint-disable react-hooks/...` comments are inert: the rules are not enabled. Do not rely on lint for hooks.
 - An ancestor with `overflow-hidden` becomes the scroll container that `position: sticky` refers to; use
   `overflow-clip`. A collapsed grid row (`0fr`) still holds focusable elements: add `inert`.
+- A positioned box is painted after every in-flow box beside it. Room that a negative margin pushes past a parent's
+  edge into a positioned neighbour (a `relative` wrapper with an `absolute` fade, a sticky heading) is painted over.
+  So the dock's room for its first row's rings stays inside the dock.
+- The focus rule is unlayered: `outline-none` and `focus-visible:outline-*` do nothing to a button or a link, and
+  `ring-*` adds a second ring beside the outline. Change a ring through its variables (`focus-ring-inset` sets
+  `--focus-ring-offset`), not with outline utilities.
 - A focused terminal (xterm) swallows the keys it handles, so a window-level Esc or arrow listener never sees them.
 - Do not put a `confirm()` in front of a step that can be undone, such as replacing a draft: do it and offer Undo
   for everything the step dropped.

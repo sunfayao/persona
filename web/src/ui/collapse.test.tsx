@@ -28,14 +28,21 @@ describe("Collapse", () => {
   it("clips a sidebar fold at its outer grid and other folds at their inner track", () => {
     const boxes = (markup: string) => [...markup.matchAll(/<div class="([^"]*)"/g)].map((match) => match[1]);
     const clip = "overflow-hidden [contain:layout_paint]";
+    // open and still, the clip leaves room for the content's focus rings (AGENTS/07 rule 12)
+    const open = "overflow-clip [overflow-clip-margin:var(--spacing-ring)] [contain:layout_paint]";
 
     const normal = boxes(renderToStaticMarkup(<Collapse open><p>trace</p></Collapse>));
-    expect(normal[0]).not.toContain(clip);
-    expect(normal[1]).toContain(clip);
+    expect(normal[0]).not.toContain("contain:layout_paint");
+    expect(normal[1]).toContain(open);
+    const folded = boxes(renderToStaticMarkup(<Collapse open={false}><p>trace</p></Collapse>));
+    expect(folded[1]).toContain(clip);
 
     const sidebar = boxes(renderToStaticMarkup(<Collapse open={false} sidebarFold><p>trace</p></Collapse>));
     expect(sidebar[0]).toContain(clip);
     expect(sidebar[1]).not.toContain(clip);
+    const sidebarOpen = boxes(renderToStaticMarkup(<Collapse open sidebarFold lazy={false}><p>trace</p></Collapse>));
+    expect(sidebarOpen[0]).toContain(open);
+    expect(sidebarOpen[1]).not.toContain("contain:layout_paint");
 
     const unclipped = boxes(renderToStaticMarkup(<Collapse open unclipped><p>trace</p></Collapse>));
     expect(unclipped[0]).not.toContain(clip);
