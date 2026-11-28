@@ -32,3 +32,8 @@
 
 5. Task “Tidy the docs” (todo_2, signal=undecidable): marked as waiting for a user decision, but there is nothing on the user's side to answer (no question, options or recommendation) (waits for the user to look)
    Acceptance criteria: not recorded
+
+How to handle these signals:
+- `owner_cannot_answer`: for "you decide", decide, send the choice and assumptions to the Agent and have it record them with `todo_decision_add`; do not repeat the question. Never take an irreversible/externally visible step on the owner's behalf: reissue approve/do-not-approve options with consequences. For "not what I asked", compare the request with the work: rework the scope or cancel if off track, else explain the connection in two sentences. Follow-up pauses until `task_review` or `agent_send`. For "explain the background", reissue the same decision with short context in `reason`, keeping its options and recommendation.
+- `recheck`: recheck the decision's facts (version, branch, PR, responsible Agent). Reissue a still-needed owner decision with current facts; else decide and resume or verify and close. The hub returns it only once.
+- `undecidable` / `delivery_hold`: reissue a complete decision (an answerable question, options and a recommendation), tell the Agent and park the wait, or verify and close.

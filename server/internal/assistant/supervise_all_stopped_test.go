@@ -303,11 +303,11 @@ func TestGoldenAllStopped(t *testing.T) {
 	if !strings.Contains(supervisor, "all participants"+facts) || !strings.Contains(supervisor, entries[0].Detail) {
 		t.Fatalf("supervisor lost the shared diagnosis or member statements: %s", supervisor)
 	}
-	if strings.Contains(supervisor, action) {
-		t.Fatal("supervision event repeated the handling policy")
+	if strings.Count(supervisor, action) != 1 {
+		t.Fatalf("the supervision event does not carry the task-leader action once: %s", supervisor)
 	}
-	if !strings.Contains(prompts.RenderSupervisionInstructions(), action) {
-		t.Fatal("supervisor system policy lost the task-leader action")
+	if strings.Contains(prompts.RenderSupervisionInstructions(), action) {
+		t.Fatal("the static supervisor policy still carries the all_stopped action")
 	}
 }
 

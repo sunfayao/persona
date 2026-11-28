@@ -7,3 +7,6 @@
 
 2. Task “Move the reports to the new store” (todo_2, signal=parked_due): parking expired: when you parked it you wrote that it was waiting for “Whether this goes ahead of the billing work” (waiting for the user to set priority), parked until 2026-11-12 Thu 18:00; it has been parked 4 times in a row, with 0 parkings left (the Agent did no work in between, so it can no longer be parked)
    Acceptance criteria: not recorded
+
+How to handle this signal:
+- `parked_due`: check whether the awaited event occurred (`gh`, `agent_read`, or the relevant person). Resume if ready; re-park with a current reason and time if still worth waiting; turn a real owner decision into `needs_user`; otherwise verify and close. At most three consecutive re-parks without an intervening Agent turn; the hub returns the expiry only once.

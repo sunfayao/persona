@@ -21,8 +21,8 @@ import (
 // withheld with a reason, the instructions tell the background supervisor where the withheld ones' work goes, the hub
 // sends that work there, and every tool a round's own message names is one the round lists.
 
-// mainOnlySignals are the signals the instructions' background line leaves to the main conversation; their handling
-// rules name the tools a round withholds (task_start_screen, task_start_keys, task_retry, conversation_send).
+// mainOnlySignals are the signals the hub leaves to the main conversation; their handling rules name the tools a round
+// withholds (task_start_screen, task_start_keys, task_retry, conversation_send).
 var mainOnlySignals = []string{sigFailed, sigStarted, sigEscalated, sigTodoReady}
 
 // backgroundSignals are the signals an existing background conversation can receive for explicitly addressed legacy
@@ -51,22 +51,16 @@ func policyToolNames(policy string) []string {
 	return out
 }
 
-// backgroundLine is the instructions' line for the background supervisor.
-func backgroundLine(policy string) string {
-	for _, line := range strings.Split(policy, "\n") {
-		if strings.HasPrefix(line, "- Background supervises for main") {
-			return line
-		}
-	}
-	return ""
-}
-
 // Every tool the supervision instructions name is in a round's list or withheld with a reason, never both and never
 // neither; nothing is withheld that the instructions do not name or that is no tool; and the instructions' background
 // line says where the withheld tools' work goes: owner decisions through task_review, never ask_user, and the start
 // remedies and a stuck leader to the main conversation.
 func TestRoundToolsAgreeWithSupervisionInstructions(t *testing.T) {
+	// What a supervisor reads: the static instructions and the rule each signal's message brings.
 	policy := prompts.RenderSupervisionInstructions()
+	for _, kind := range append(slices.Clone(backgroundSignals), mainOnlySignals...) {
+		policy += "\n" + prompts.SuperviseRule(kind)
+	}
 	named := policyToolNames(policy)
 	if len(named) < 10 || !slices.Contains(named, "task_review") || !slices.Contains(named, "supervision_finish") {
 		t.Fatalf("the instructions name too few tools, or the reader missed some: %v", named)
@@ -95,19 +89,6 @@ func TestRoundToolsAgreeWithSupervisionInstructions(t *testing.T) {
 	for _, name := range roundToolNames {
 		if !slices.Contains(roundConnectorTools, name) && !slices.Contains(toolNames, name) {
 			t.Errorf("roundToolNames lists %s, which is no assistant tool", name)
-		}
-	}
-
-	line := backgroundLine(policy)
-	if line == "" {
-		t.Fatal(`the supervision instructions have no line for the background supervisor ("- Background supervises for main")`)
-	}
-	if !strings.Contains(line, "never `ask_user`") || !strings.Contains(line, "`task_review`") {
-		t.Errorf("the background line does not send owner decisions through task_review instead of ask_user, which a round withholds:\n%s", line)
-	}
-	for _, kind := range mainOnlySignals {
-		if !strings.Contains(line, "`"+kind+"`") {
-			t.Errorf("the background line does not leave %s to the main conversation, whose handling needs tools a round withholds:\n%s", kind, line)
 		}
 	}
 }

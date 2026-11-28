@@ -48,4 +48,7 @@
    {{$e.RetriesLeft}} retries left.{{end}}{{with $e.Review}}
    Independent review (the reviewer saw only the task requirements and the change, not the Agent's reasoning): {{if eq .State "failed"}}the review did not complete ({{.Error}}){{else if eq .State "clean"}}no blocking issues{{with .Count}}, {{.}} non-blocking findings{{end}}{{else}}the rework rounds are used up, with {{.Blocking}} blocking issues left{{end}}{{with .Findings}}
 {{chomp (indent "   " .)}}{{end}}{{end}}
+{{end}}{{with .Rules}}
+How to handle {{if eq (len .) 1}}this signal{{else}}these signals{{end}}:{{range .}}
+{{.}}{{end}}
 {{end}}
