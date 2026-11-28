@@ -124,7 +124,11 @@ async function run(agent, width, theme, typed = true, corpus = false) {
       const ask = page.locator("[data-tool-use=question] > button").first();
       if (await ask.count()) await ask.click();
       await page.locator("[data-step-detail='ask-user']").getByText("Where should this run?").waitFor({ state: "visible" });
-      await page.getByRole("button", { name: /25%.*75%/ }).first().waitFor({ state: "visible" });
+      // how full the context is: in the session overview, never over the composer (owner, 2026-11-28)
+      assert.equal(await page.locator("[data-chat-dock]").getByRole("button", { name: /25%.*75%/ }).count(), 0);
+      await page.locator("[data-session-overview-trigger]").first().click();
+      await page.locator('[data-session-overview] [role=progressbar][aria-valuenow="25"]').waitFor({ state: "visible" });
+      await page.locator("[data-session-overview-trigger]").first().click();
       await page.locator("[data-loop-mark]").click();
       await page.locator("[data-bg-loop]").getByText("Review the release").waitFor({ state: "visible" });
       await page.getByText("Build the release", { exact: true }).waitFor({ state: "visible" });

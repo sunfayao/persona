@@ -168,7 +168,6 @@ const PlanPill = lazy(() => import("./PlanCard").then((m) => ({ default: m.PlanP
 const LazyWrapUpChips = lazy(() => import("../assistant/HandoffCard").then((m) => ({ default: m.WrapUpChips })));
 // a chat that is nowhere (a stale or mistyped link): rare, so its notice and words are a chunk of their own
 const LazyNotFoundNotice = lazy(() => import("./NotFoundNotice").then((m) => ({ default: m.NotFoundNotice })));
-const ContextMeter = lazyPage(() => import("./ContextMeter").then((m) => m.ContextMeter));
 const ContextRestartNotice = lazyPage(() => import("./ContextRestartNotice").then((m) => m.ContextRestartNotice));
 // a start stopped on its tab's shell question, answered from here (#10365): only then
 const ShellQuestion = lazy(() => import("../ShellQuestionCard"));
@@ -2134,11 +2133,9 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
     return <PermissionLabel session={session} stopped={hasModes(session) || Boolean(listedModesOf(session))} />;
   }, [session, modesOn, listedOn, assistant]);
   const planMode = usePlanMode(modesOn ? session : undefined, assistant);
-  // the model pill: an Agent's (#5032), a Persona conversation's (#5033, its pick kept for the conversation)
-  const trailing = useMemo(() => session ? <>
-    {assistant ? <AssistantModelPill session={session} /> : <AgentModelPill session={session} />}
-    <Suspense fallback={null}><ContextMeter session={session} compact /></Suspense>
-  </> : null, [session, assistant]);
+  // the model pill: an Agent's (#5032), a Persona conversation's (#5033, its pick kept for the conversation). Context use is
+  // shown in the session overview, not in the composer (owner, 2026-11-28).
+  const trailing = useMemo(() => (session ? assistant ? <AssistantModelPill session={session} /> : <AgentModelPill session={session} /> : null), [session, assistant]);
 
   // the header's Team button (#5180): on a lead with workers, at every width (a phone has no other way to the panel); its dot
   // says a worker needs you while the panel is shut
