@@ -46,6 +46,22 @@ func TestTooLongAndFit(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	legacy := strings.Repeat("y", 200) + "…"
+	if err := TooLong("done_when", []string{legacy}); err != nil {
+		t.Fatalf("a stored criterion of the older clipped shape was refused: %v", err)
+	}
+	long := strings.Repeat("字", 230)
+	if err := TooLongNew("done_when", []string{"new", long}, []string{long}); err != nil {
+		t.Fatalf("an item already in the current list, unchanged, was refused: %v", err)
+	}
+	if err := TooLongNew("done_when", []string{long + "!"}, []string{long}); err == nil {
+		t.Fatal("a changed over-long item must be refused")
+	}
+	if err := TooLong("done_when", []string{strings.Repeat("y", 201)}); err == nil {
+		t.Fatal("a new 201-character criterion without the clip mark must be refused")
+	}
+	if err := TooLong("done_when", []string{strings.Repeat("y", 201) + "…"}); err == nil {
+		t.Fatal("202 characters must be refused")
+	}
 	if Fit(legacy) != legacy || len([]rune(Fit(strings.Repeat("y", 300)))) != 201 {
 		t.Fatal("Fit")
 	}

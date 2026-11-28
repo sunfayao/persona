@@ -75,7 +75,7 @@ func (s *Service) todoFactsOf(ctx context.Context, list []listedTodo) []projecti
 	}
 	cards := s.todoRunCards(want)
 	loc := s.location(ctx)
-	facts, closeout := make([]projection.Facts, len(list)), s.closeoutStates(list)
+	facts, closeout := make([]projection.Facts, len(list)), s.closeoutStates(ctx, list)
 	for i := range list {
 		t := &list[i]
 		linked := hasParkInteractionLink(t.Supervision)

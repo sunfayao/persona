@@ -105,3 +105,28 @@ func TestBackgroundObservationOfOlderTaskHasNoTurnAndUnknownCommandNoClass(t *te
 		t.Fatalf("expected a pair, got %d", n)
 	}
 }
+
+func TestBackgroundEndedKeepsUnlistedClosedStatuses(t *testing.T) {
+	t.Parallel()
+	at := time.Date(2026, 11, 28, 0, 0, 0, 0, time.UTC)
+	for status, want := range map[string]string{"cancelled": "cancelled", "canceled": "cancelled", "interrupted": "interrupted",
+		"timed_out": "timed_out", "completed": "completed", "ended": "", "": "", "surprise": ""} {
+		q, err := New(filepath.Join(t.TempDir(), "journal.json"), func() time.Time { return at })
+		if err != nil {
+			t.Fatal(err)
+		}
+		end := at.Add(-time.Minute)
+		task := proto.BackgroundTask{ID: "task-1", Kind: "shell", StartedAt: at.Add(-time.Hour), EndedAt: &end, Status: status}
+		session := proto.Session{SessionID: "agent-1", Launcher: "claude", Status: proto.StatusWorking}
+		session.SetBackgroundEnded([]proto.BackgroundTask{task})
+		if err := q.Inventory([]proto.Session{session}); err != nil {
+			t.Fatal(err)
+		}
+		batch, _ := q.Read(proto.LifecycleBatchRequest{})
+		for _, e := range batch.Events {
+			if e.Kind == proto.LifecycleBackgroundEnded && e.Outcome != want {
+				t.Errorf("status %q: outcome %q, want %q", status, e.Outcome, want)
+			}
+		}
+	}
+}

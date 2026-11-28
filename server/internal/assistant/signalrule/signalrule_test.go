@@ -79,7 +79,8 @@ func TestRepeats(t *testing.T) {
 		text, said string
 		want       bool
 	}{
-		{"All done.\n  PR merged", "All done. PR merged", true}, {"All done. PR merged, thanks", "PR merged", true},
+		{"All done.\n  PR merged", "All done. PR merged", true}, {"All done. PR merged, thanks", "PR merged", false}, {"All done. PR merged, thanks", "All done. PR merged, thank", true},
+		{"The long final message with details of the whole change", "Done.", false}, {"PR merged", "All done. PR merged, thanks", true},
 		{"", "x", false}, {"x", "", false}, {"one thing", "another", false},
 	} {
 		if got := Repeats(tc.text, tc.said); got != tc.want {

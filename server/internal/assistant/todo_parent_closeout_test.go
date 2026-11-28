@@ -455,8 +455,40 @@ func TestCloseoutStatesForTheView(t *testing.T) {
 	for _, td := range s.todosOf(ctx, "*") {
 		list = append(list, listedTodo{Todo: td})
 	}
-	got := s.closeoutStates(list)
+	got := s.closeoutStates(ctx, list)
 	if got[container.ID] != parentcloseout.StateClosing || got[own.ID] != parentcloseout.StateAwaiting || got[open.ID] != "" {
 		t.Fatalf("states %v", got)
+	}
+	// Once the wakes are used up nobody is told again: the parent is unattended, no longer awaiting.
+	*closeoutClock(s) = 10 * time.Minute // the pieces have settled
+	_, ps := s.closeoutPieces(own.ID)
+	key := parentcloseout.Key(ps, time.Time{})
+	s.closeout().Told(ctx, own.ID, key, "conv1")
+	if got := s.closeoutStates(ctx, list); got[own.ID] != parentcloseout.StateAwaiting {
+		t.Fatalf("one wake delivered, more may follow: %v", got)
+	}
+	s.closeout().Told(ctx, own.ID, key+"#2", "conv1")
+	s.closeout().Told(ctx, own.ID, key+"#3", "conv1")
+	if got := s.closeoutStates(ctx, list); got[own.ID] != "" {
+		t.Fatalf("every wake used up, yet still awaiting: %v", got)
+	}
+}
+
+// A piece reopened between the decision to close a container and the close leaves the parent open.
+func TestCloseContainerAbortsWhenAPieceChangedAfterTheDecision(t *testing.T) {
+	s, _ := newTodoReadyService(t, &memStore{})
+	ctx := context.Background()
+	parent := createRequestAndPiece(t, s, "conv1", "Container", "", "", nil)
+	piece := createRequestAndPiece(t, s, "conv1", "Piece", "", parent.ID, nil)
+	if _, err := s.editTodo(ctx, piece.ID, dbTodoDoneEdit(true)); err != nil {
+		t.Fatal(err)
+	}
+	children, pieces := s.closeoutPieces(parent.ID) // the decision is taken on these
+	if _, err := s.editTodo(ctx, piece.ID, dbTodoDoneEdit(false)); err != nil {
+		t.Fatal(err)
+	}
+	s.closeContainer(ctx, todoNow(s, parent.ID), children, pieces)
+	if todoNow(s, parent.ID).DoneAt != nil {
+		t.Fatal("the container was closed with a piece reopened")
 	}
 }

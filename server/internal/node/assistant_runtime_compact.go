@@ -202,13 +202,10 @@ func (n *Node) agyCheckpointed(id string, h *agy.Projection) {
 	if st, ok := n.state.get(id); !ok || st.AgyCheckpoint == seq || !n.runtimeAssistant(id) {
 		return
 	}
-	fresh := false
+	// The reset first, the sequence after: a crash between the two repeats the reset on the next read, never loses it.
+	n.contextCompacted(id)
 	n.state.update(id, func(v *sessionState) bool {
-		fresh = v.AgyCheckpoint != seq
 		v.AgyCheckpoint = seq
-		return fresh
+		return true
 	})
-	if fresh {
-		n.contextCompacted(id)
-	}
 }

@@ -188,6 +188,21 @@ func ValidLifecycleActivity(class string) bool {
 	return class == "" || slices.Contains(LifecycleActivityClasses, class)
 }
 
+// LifecycleBackgroundOutcomes is the closed set of outcomes a background run keeps when it ended.
+var LifecycleBackgroundOutcomes = []string{"completed", "failed", "killed", "stopped", "cancelled", "interrupted", "timed_out"}
+
+// LifecycleBackgroundOutcome is the outcome a background task's final status maps to: "canceled" is "cancelled", a
+// status outside the closed set (or none) is the empty outcome.
+func LifecycleBackgroundOutcome(status string) string {
+	if status == "canceled" {
+		status = "cancelled"
+	}
+	if slices.Contains(LifecycleBackgroundOutcomes, status) {
+		return status
+	}
+	return ""
+}
+
 type LifecycleBatchRequest struct {
 	Stream string `json:"stream,omitempty"`
 	After  int64  `json:"after,omitempty"`

@@ -61,8 +61,16 @@ func Extension(expect, done int, progressed bool) (int, bool) {
 	return expect + max(10, expect/2), true
 }
 
-// Repeats says whether text only says again what said already told: either holds the other, ignoring spacing.
+// Repeats says whether text only says again what said already told: said holds text, or the two are nearly the same
+// length (the shorter at least 80% of the longer) and one holds the other, ignoring spacing. A short told report
+// does not repeat a long text that merely contains it.
 func Repeats(text, said string) bool {
 	a, b := strings.Join(strings.Fields(text), " "), strings.Join(strings.Fields(said), " ")
-	return a != "" && b != "" && (strings.Contains(a, b) || strings.Contains(b, a))
+	if a == "" || b == "" {
+		return false
+	}
+	if strings.Contains(b, a) {
+		return true
+	}
+	return strings.Contains(a, b) && len(b)*5 >= len(a)*4
 }

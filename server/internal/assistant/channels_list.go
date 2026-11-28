@@ -153,39 +153,6 @@ func (s *Service) channelView(ctx context.Context, id string) (channel.View, boo
 	return channel.View{}, false, nil
 }
 
-func (s *Service) channelDetail(ctx context.Context, id string) (channel.Detail, bool, error) {
-	v, ok, err := s.channelView(ctx, id)
-	if err != nil || !ok {
-		return channel.Detail{}, ok, err
-	}
-	d := channel.Detail{View: v}
-	switch id {
-	case channel.Feishu:
-		d.SettingsURL = "settings/connectors/feishu-bot"
-		d.Waiting = s.channelWaiting(id)
-		d.Waiting.Asks = s.feishuCardsWaiting()
-	case channel.App:
-	default:
-		if v.Source == channel.SourcePlugin && v.Plugin != "" {
-			d.SettingsURL = "settings/plugins/" + v.Plugin
-		}
-		d.Waiting = s.channelWaiting(id)
-	}
-	c := &s.chans
-	c.mu.Lock()
-	s.loadChannelsLocked(ctx)
-	if p := c.prefs[id]; p != nil {
-		d.Conversations = slices.Clone(p.Recent)
-	}
-	c.mu.Unlock()
-	for i := range d.Conversations {
-		if t := s.conversationTitle(ctx, d.Conversations[i].MachineID, d.Conversations[i].SessionID); t != "" {
-			d.Conversations[i].Title = t
-		}
-	}
-	return d, true, nil
-}
-
 // isAssistantConversation: session on machine is one of the assistant's conversations, as the hub lists it.
 func (s *Service) isAssistantConversation(ctx context.Context, machine, session string) bool {
 	list, err := s.sessions(ctx, machine)

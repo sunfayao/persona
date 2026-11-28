@@ -787,7 +787,8 @@ func (s *Service) queuedRelays() (map[string][]string, bool) {
 // nativeFollowUp uses the runtime input queue even while another turn is running: a message from another conversation
 // and a supervisor Agent's completion or decision. A routine supervision digest waits in the relay queue.
 func (msg relayMsg) nativeFollowUp() bool {
-	return msg.Tool == "conversation_send" || msg.Tool == superviseTool && msg.SentUp
+	list, _ := decodeDigestSignals(msg.Signals) // a message queued by an older build has no flag: its signals say
+	return msg.Tool == "conversation_send" || msg.Tool == superviseTool && (msg.SentUp || sentUp(list))
 }
 
 func (msg relayMsg) source() *proto.MessageSource {

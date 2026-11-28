@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -198,9 +199,11 @@ func validBatch(b proto.LifecycleBatch) bool {
 			return false
 		}
 		switch e.Outcome {
-		case "", "completed", "failed", "killed", "stopped", "interrupted", "missing_start", "runtime_error", "history_changed":
+		case "", "missing_start", "runtime_error", "history_changed":
 		default:
-			return false
+			if !slices.Contains(proto.LifecycleBackgroundOutcomes, e.Outcome) {
+				return false
+			}
 		}
 	}
 	return true

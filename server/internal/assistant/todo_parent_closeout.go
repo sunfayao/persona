@@ -102,7 +102,7 @@ func (s *Service) closeoutPieces(id string) ([]Todo, []parentcloseout.Piece) {
 
 // closeoutStates is the closeout state (parentcloseout.StateClosing, StateAwaiting) of each open parent in list whose
 // pieces are all finished, for the to-do view.
-func (s *Service) closeoutStates(list []listedTodo) map[string]string {
+func (s *Service) closeoutStates(ctx context.Context, list []listedTodo) map[string]string {
 	pieces := map[string][]parentcloseout.Piece{}
 	for _, t := range list {
 		if t.PartOf != "" && t.PartOf != t.ID && !isAskTodo(t.ID) && !isOutsideDecisionTodo(t.ID) {
@@ -111,7 +111,7 @@ func (s *Service) closeoutStates(list []listedTodo) map[string]string {
 	}
 	out := map[string]string{}
 	for _, t := range list {
-		if v := s.closeout().Evaluate(closeoutParentOf(t.Todo), pieces[t.ID], nil); v.State != "" {
+		if v := s.closeout().Evaluate(closeoutParentOf(t.Todo), pieces[t.ID], s.closeout().Current(ctx, t.ID)); v.State != "" {
 			out[t.ID] = v.State
 		}
 	}
@@ -266,6 +266,7 @@ func (s *Service) closeContainer(ctx context.Context, parent Todo, children []To
 	if s.outsideBackingPending(parent.ID) {
 		return
 	}
+	decided := append([]parentcloseout.Piece(nil), pieces...)
 	var last time.Time
 	for i, c := range children {
 		if pieces[i].Changed.After(last) {
@@ -290,7 +291,8 @@ func (s *Service) closeContainer(ctx context.Context, parent Todo, children []To
 		}
 	}
 	text := parentcloseout.RollUp(s.lang(ctx), pieces)
-	if done, err := s.autoDoneTodo(ctx, parent.ID, text, last); err != nil || !done {
+	same := func() bool { _, now := s.closeoutPieces(parent.ID); return parentcloseout.Unchanged(decided, now) }
+	if done, err := s.autoDoneTodo(ctx, parent.ID, text, last, same); err != nil || !done {
 		if err != nil {
 			s.logf("parent_closeout: close %s: %v", parent.ID, err)
 		}

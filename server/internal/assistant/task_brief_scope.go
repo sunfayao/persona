@@ -126,7 +126,7 @@ func (s *Service) applyScope(ctx context.Context, t Todo, c scopeChange) (TaskBr
 	}
 	scopes := 0
 	for _, e := range brief.Log {
-		if e.Kind == briefEventScope || e.Kind == briefEventEstimate {
+		if e.restartsClock() {
 			scopes++
 		}
 	}
@@ -283,7 +283,8 @@ func (s *Service) scopeTask(ctx context.Context, self string, t Todo, change, wh
 		return "", errors.New("give done_when (the whole list) or add, drop and edit, not both")
 	}
 	if doneWhen != nil {
-		if err := criteria.TooLong("done_when", *doneWhen); err != nil {
+		current, _ := s.briefOfTodo(t.ID)
+		if err := criteria.TooLongNew("done_when", *doneWhen, current.Criteria); err != nil {
 			return "", err
 		}
 		c.DoneWhen = cleanDoneWhen(*doneWhen)
