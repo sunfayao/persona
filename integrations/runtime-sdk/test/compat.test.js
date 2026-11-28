@@ -71,7 +71,7 @@ test('compat websocket selects only a protocol actually offered and still checks
 
 test('compat package names use identical files and hashes and keep exact name verification', () => {
   const root = join(dirname(fileURLToPath(import.meta.url)), '../..')
-  for (const canonical of ['persona-dsh-runtime', 'persona-pi-runtime', 'persona-paseo-runtime']) {
+  for (const canonical of ['persona-dsh-runtime', 'persona-pi-runtime']) {
     const legacy = wirePackageName(canonical)
     assert.equal(legacy, canonical.replace('persona-', 'jarvis-'))
     assert.deepEqual(PACKAGES[legacy], PACKAGES[canonical])

@@ -1,8 +1,8 @@
 # Persona plugin for Claude Code
 
 A Claude Code plugin that lets the owner's own messages from the Persona apps reach a Claude Code session the way
-typed input does, in sessions Persona has no terminal for: Claude's desktop app, a terminal herdr / Orca / Tern do not
-run, a background session. Without it the node can only use Claude Code's peer inbox there, which tells the model the
+typed input does, in sessions Persona has no terminal for: Claude's desktop app, a terminal herdr does not run, a
+background session. Without it the node can only use Claude Code's peer inbox there, which tells the model the
 words come from another session and that they are not the person's approval.
 
 The plugin polls the local Persona node while its session lives: it submits the owner's messages with
