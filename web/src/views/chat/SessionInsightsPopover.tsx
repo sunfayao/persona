@@ -85,7 +85,7 @@ export function StackedBreakdownBar({ breakdown }: { breakdown: SessionContextBr
 
   return (
     <div className="relative h-1.5 w-full" data-insights-stacked-bar>
-      <div className="flex h-full w-full overflow-hidden rounded-full bg-line">
+      <div className="flex h-full w-full overflow-hidden rounded-full bg-line focus-ring-inset">
         {breakdown.segments.map((seg) => {
           if (seg.tokens <= 0 || seg.windowShare <= 0) return null;
           const label = t(BREAKDOWN_LABEL_KEY[seg.key]);
@@ -102,7 +102,7 @@ export function StackedBreakdownBar({ breakdown }: { breakdown: SessionContextBr
                 <div
                   data-breakdown-segment={seg.key}
                   aria-label={tip}
-                  className="h-full shrink-0 first:rounded-l-full last:rounded-r-full motion-safe:transition-[width] motion-safe:duration-300"
+                  className="h-full shrink-0 focus-ring first:rounded-l-full last:rounded-r-full motion-safe:transition-[width] motion-safe:duration-300"
                   style={{ width: `${seg.windowShare}%`, backgroundColor: BREAKDOWN_COLOR[seg.key], transitionTimingFunction: EASE }}
                 />
               }

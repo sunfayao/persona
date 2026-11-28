@@ -412,7 +412,7 @@ export function PRCreateView({ s, pr, onBack, onClose, onDone }: { s: GitStatus;
     const a = await pr.create({ title: title.trim(), body, ...(baseBranch.trim() ? { base: baseBranch.trim() } : {}), draft });
     if (a?.pr) onDone();
   };
-  const field = "block w-full rounded-control bg-field px-3 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:ring-2 focus:ring-accent/40";
+  const field = "block w-full rounded-control bg-field px-3 text-[13px] text-ink placeholder:text-ink-3 focus-ring";
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <BackHeader title={t("session-gitpr.create_title")} subtitle={s.branch} onBack={onBack} onClose={onClose} />

@@ -47,7 +47,7 @@ export function sameMatterCandidates(items: readonly InboxItem[], item: InboxIte
 
 export function SameMatterList({ items, busy, onPick }: { items: readonly InboxItem[]; busy: boolean; onPick: (item: InboxItem) => void }) {
   return (
-    <div className="mt-2 max-h-[320px] divide-y divide-line overflow-y-auto rounded-card bg-surface shadow-card">
+    <div className="mt-2 max-h-[320px] divide-y divide-line overflow-y-auto rounded-card bg-surface shadow-card focus-ring-inset">
       {items.map((candidate) => {
         const meta = rowMeta(candidate);
         return (

@@ -142,7 +142,7 @@ export function CommentCard({ draftKey, quote, n, editing, onRemove }: { draftKe
           type="button"
           onClick={() => goToComment(quote)}
           title={t("chat-comments.jump")}
-          className="flex min-w-0 flex-col gap-0.5 rounded-[6px] text-left transition-colors hover:bg-hover-2 focus-visible:outline-2 focus-visible:outline-accent"
+          className="flex min-w-0 flex-col gap-0.5 rounded-[6px] text-left transition-colors hover:bg-hover-2"
         >
           <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] font-medium whitespace-nowrap text-ink-3">
             <NumberDot n={n} />

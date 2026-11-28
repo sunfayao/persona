@@ -103,7 +103,7 @@ export function ResizeHandle(props: {
       }}
       onPointerDown={start}
       onDoubleClick={onReset}
-      className={cx("absolute inset-y-0 z-10 w-2 cursor-col-resize touch-none", edge === "right" ? "-right-1" : "-left-1", props.className)}
+      className={cx("absolute inset-y-0 z-10 w-2 cursor-col-resize touch-none focus-ring focus-ring-inset", edge === "right" ? "-right-1" : "-left-1", props.className)}
     />
   );
 }

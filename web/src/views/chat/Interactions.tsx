@@ -156,7 +156,7 @@ export function Card({ title, titleContent, kicker, onDismiss, busy, children, f
   };
   const queue = useContext(QueueSlot);
   return (
-    <div {...(cardKeys?.root ?? { tabIndex: -1 })} ref={tapGuard ? mergeRefs(tapGuard.ref, cardKeys?.root?.ref) : cardKeys?.root?.ref} data-pending-card aria-label={title} className="shrink-0 overflow-clip rounded-card bg-surface shadow-card outline-none focus-visible:ring-2 focus-visible:ring-accent" style={{ animation: `fade-up 350ms ${EASE} both` }}>
+    <div {...(cardKeys?.root ?? { tabIndex: -1 })} ref={tapGuard ? mergeRefs(tapGuard.ref, cardKeys?.root?.ref) : cardKeys?.root?.ref} data-pending-card aria-label={title} className="shrink-0 overflow-clip rounded-card bg-surface shadow-card focus-ring" style={{ animation: `fade-up 350ms ${EASE} both` }}>
       <div className="px-3.5 pt-3 pb-2.5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -1370,7 +1370,7 @@ export function AnsweredSummary({ answered }: { answered: Answered[] }) {
         aria-expanded={open}
         aria-controls={listId}
         onClick={toggle}
-        className="flex h-11 w-full items-center gap-2 px-3.5 text-left transition-colors hover:bg-hover"
+        className="flex h-11 w-full items-center gap-2 px-3.5 text-left focus-ring-inset transition-colors hover:bg-hover"
       >
         <Icon name="check" size={12} stroke={3} className="shrink-0 text-green" />
         <span aria-live="polite" className="shrink-0 text-meta font-medium whitespace-nowrap text-ink">{label}</span>
@@ -1455,7 +1455,7 @@ export function InteractionCard({ ix }: { ix: Interaction }) {
  *  until one is answered. Takes only `TurnAsk`s, so no other card can be drawn here. */
 export function TurnCards({ asks }: { asks: readonly TurnAsk[] }) {
   // their own box, which gives up its height first and scrolls (as the stack's does): the capsules under them stay in view
-  return asks.length > 0 && <div data-turn-asks data-scroll-box className="-m-1 flex min-h-0 shrink flex-col gap-2 overflow-y-auto overscroll-contain p-1 empty:hidden">{asks.map((ix) => <InteractionCard key={ix.id} ix={ix} />)}</div>;
+  return asks.length > 0 && <div data-turn-asks data-scroll-box className="-m-ring flex min-h-0 shrink flex-col gap-2 overflow-y-auto overscroll-contain p-ring scroll-p-ring empty:hidden">{asks.map((ix) => <InteractionCard key={ix.id} ix={ix} />)}</div>;
 }
 
 /**
@@ -1541,7 +1541,7 @@ export function PendingCards({ interactions, answered, delegated = [], offerNext
   return (
     <div className="flex min-h-0 shrink flex-col gap-2">
       {/* the box clips what is in it: its children keep a little room for their shadows (p-1; -m-1 gives it back) */}
-      <div data-chat-cards data-scroll-box className={cx("-m-1 flex min-h-0 shrink flex-col overflow-y-auto overscroll-contain p-1", !done.length && !full && "hidden")}>
+      <div data-chat-cards data-scroll-box className={cx("-m-ring flex min-h-0 shrink flex-col overflow-y-auto overscroll-contain p-ring scroll-p-ring", !done.length && !full && "hidden")}>
         {done.length > 0 && <div className="flex flex-col gap-2">{done}</div>}
         {/* unclipped once open (#3112): a clipping fold is the box a card's sticky footer sticks in, so a card taller than
             data-chat-cards (a long command) left its buttons below the fold, out of sight, with no way to bring them up */}

@@ -86,7 +86,7 @@ export default function MessageDraft({ item, tasks }: { item: FeedItem; tasks: D
             onChange={(e) => setText(e.target.value)}
             aria-labelledby={headingId}
             rows={Math.min(6, Math.max(2, draft.split("\n").length))}
-            className="-mx-1.5 resize-none rounded-control bg-transparent px-1.5 text-[14.5px] outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="-mx-1.5 resize-none rounded-control bg-transparent px-1.5 text-[14.5px] focus-ring"
           />
         ) : (
           <div className="whitespace-pre-line text-[14.5px]">{sent ? sent.text : draft}</div>

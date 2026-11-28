@@ -10,7 +10,7 @@ const HiddenAgentSessionsDialog = lazyDialog(() => import("./HiddenAgentSessions
 export function HiddenAgentSessions() {
   const [open, setOpen] = useState(false);
   return <>
-    <Button tone="quiet" onClick={() => setOpen(true)}>{t("hidden-agent-dirs.inspect")}</Button>
+    <Button tone="quiet" className="focus-ring-inset" onClick={() => setOpen(true)}>{t("hidden-agent-dirs.inspect")}</Button>
     <HiddenAgentSessionsDialog open={open} onClose={() => setOpen(false)} />
   </>;
 }

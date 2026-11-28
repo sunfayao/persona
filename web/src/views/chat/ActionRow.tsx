@@ -322,7 +322,7 @@ export const ActionRow = memo(function ActionRow({
         aria-expanded={inPlace ? open : undefined}
         aria-label={label || name}
         title={rowTitle}
-        className={cx(ROW, "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent")}
+        className={cx(ROW, "focus-ring-inset")}
       >
         <span
           role="img"

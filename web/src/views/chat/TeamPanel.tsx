@@ -200,7 +200,7 @@ function SessionStrip({ members: workers, shown, controls, onPick, words, hint, 
           el.scrollLeft += e.deltaY;
           measure();
         }}
-        className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto overscroll-x-contain focus-ring-inset [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {workers.map((w, i) => {
           const on = i === at;

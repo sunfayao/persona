@@ -132,7 +132,7 @@ function Columns({ graph, width, pick, onPick }: { graph: SourcesGraph; width: n
     }
     return out.sort((a, b) => Number(a.lit) - Number(b.lit)); // the lit ones over the rest
   }, [graph, L, path]);
-  const node = "absolute flex items-center gap-2 rounded-[10px] bg-surface text-left shadow-[0_0_0_1px_var(--line-strong)] transition-opacity duration-150 focus-visible:outline-2 focus-visible:outline-accent";
+  const node = "absolute flex items-center gap-2 rounded-[10px] bg-surface text-left shadow-[0_0_0_1px_var(--line-strong)] transition-opacity duration-150";
   const state = (lit: boolean, dup = false) => (path ? (dup ? "shadow-[0_0_0_2px_var(--orange)]" : lit ? "shadow-[0_0_0_2px_var(--accent)]" : "opacity-30") : "");
   const heads = [t("subscriptions.graph_col_extension"), t("subscriptions.graph_col_read"), t("subscriptions.graph_col_source"), t("subscriptions.graph_col_destination")];
   return (
@@ -189,7 +189,7 @@ function Tree({ graph, pick, onPick }: { graph: SourcesGraph; pick: GraphPick; o
   ];
   return (
     <div>
-      <div role="radiogroup" aria-label={t("subscriptions.graph_filter")} className="-mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1">
+      <div role="radiogroup" aria-label={t("subscriptions.graph_filter")} className="-mx-ring -mt-ring mb-3 flex gap-2 overflow-x-auto p-ring scroll-p-ring">
         {chips.map((c) => (
           <button key={c.f} type="button" role="radio" aria-checked={filter === c.f} onClick={() => setFilter(c.f)}
             className={cx("h-8 shrink-0 whitespace-nowrap rounded-full px-3 text-[13px]", filter === c.f ? "bg-ink text-page" : "bg-surface text-ink-2 shadow-[0_0_0_1px_var(--line-strong)]")}>
@@ -218,7 +218,7 @@ function Tree({ graph, pick, onPick }: { graph: SourcesGraph; pick: GraphPick; o
                     <span aria-hidden className="absolute top-[-8px] left-[14px] h-[calc(50%+8px)] w-3 rounded-bl-[8px] border-b-[1.5px] border-l-[1.5px]" style={{ borderColor: lit ? "var(--accent)" : s.reading ? LINK : LINK_IDLE }} />
                     {below.length > 0 && <span aria-hidden className="absolute top-[calc(50%-8px)] bottom-[-8px] left-[14px] border-l-[1.5px]" style={{ borderColor: below.some((b) => b.reading) ? LINK : LINK_IDLE }} />}
                     <button type="button" onClick={() => onPick({ kind: "source", id: s.id })} aria-pressed={lit}
-                      className="flex min-h-11 w-full items-center gap-2 rounded-[8px] py-1.5 pr-1 pl-[34px] text-left hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent">
+                      className="flex min-h-11 w-full items-center gap-2 rounded-[8px] py-1.5 pr-1 pl-[34px] text-left hover:bg-hover">
                       <span className="shrink-0 rounded-full bg-inset px-2 py-0.5 text-[12px] text-ink-2 shadow-[0_0_0_1px_var(--line-strong)]">{r?.direct ? t("subscriptions.graph_direct_short") : r?.title}</span>
                       <span className={cx("min-w-0 truncate text-[14px] font-medium", lit ? "text-accent" : "text-ink")}>{s.name}</span>
                       {s.badge?.text && <Badge badge={s.badge} />}

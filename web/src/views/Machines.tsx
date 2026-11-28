@@ -326,7 +326,7 @@ const MachineCard = memo(function MachineCard({ m, index, metrics: mm, hub, rout
         <span className={cx("flex size-9 shrink-0 items-center justify-center rounded-[9px]", m.online ? "bg-field text-ink-2" : "bg-inset text-ink-3")}>
           <Icon name="machine" size={16} />
         </span>
-        <a href={href(detail)} onClick={(e) => onLinkClick(e, detail)} className="group/title min-w-0 flex-1 rounded-[6px]">
+        <a href={href(detail)} onClick={(e) => onLinkClick(e, detail)} className="group/title min-w-0 flex-1 rounded-[6px] focus-ring-inset">
           <div className="flex items-center gap-2">
             <h2 className="truncate text-[14px] font-semibold text-ink group-hover/title:underline">{m.name}</h2>
             {hub && (

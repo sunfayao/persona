@@ -148,7 +148,7 @@ function ItemDetail({ item, loaded }: { item?: InboxItem; loaded: boolean }) {
               <div className="min-w-0 flex-1">
                 {/* where a narrow page puts the keyboard when the item opens (Inbox.tsx), so its ring shows there. A phone
                     wraps the title in full whatever its source, not cut to a few letters beside Done */}
-                <h2 tabIndex={-1} data-item-title className={cx("flex min-w-0 items-center gap-2 rounded-chip text-[15px] font-semibold text-ink outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent", phone && "flex-wrap gap-y-1")}>
+                <h2 tabIndex={-1} data-item-title className={cx("flex min-w-0 items-center gap-2 rounded-chip text-[15px] font-semibold text-ink focus-ring", phone && "flex-wrap gap-y-1")}>
                   <span className={phone ? "min-w-0 break-words" : "truncate"} title={translated?.subject ? item.title : undefined}>{translated?.subject || item.title}</span>
                   {label && <Tag urgent={labelIsUrgent(item)}>{label}</Tag>}
                 </h2>

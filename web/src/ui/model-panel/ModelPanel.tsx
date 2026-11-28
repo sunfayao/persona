@@ -635,7 +635,7 @@ export function ModelPanel({ anchor, onClose, providers, state, scope, onPick, o
                     data-panel-fold={b.key}
                     disabled={picking}
                     onClick={() => toggleFamily(b.key)}
-                    className="ml-auto flex shrink-0 items-center gap-0.5 rounded-control px-1.5 py-0.5 text-submeta leading-[1.4] whitespace-nowrap text-ink-3 transition-colors duration-150 outline-none enabled:hover:bg-hover-2 enabled:hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed"
+                    className="ml-auto flex shrink-0 items-center gap-0.5 rounded-control px-1.5 py-0.5 text-submeta leading-[1.4] whitespace-nowrap text-ink-3 transition-colors duration-150 enabled:hover:bg-hover-2 enabled:hover:text-ink focus-ring-inset disabled:cursor-not-allowed"
                   >
                     {b.open
                       ? t("ui-modelpanel.hide_older")
@@ -912,8 +912,8 @@ function FollowRow({ follow, frozen, onPick }: { follow: NonNullable<ModelPanelP
           if (!frozen) onPick();
         }}
         className={cx(
-          "group/row relative z-[1] flex w-full items-center gap-2 rounded-control px-3 py-2 text-[14px] leading-[1.43] text-ink outline-none select-none",
-          "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent",
+          "group/row relative z-[1] flex w-full items-center gap-2 rounded-control px-3 py-2 text-[14px] leading-[1.43] text-ink select-none",
+          "focus-ring focus-ring-inset",
           follow.active && "bg-hover-2 data-[glide]:bg-transparent",
           frozen ? "cursor-not-allowed" : "cursor-pointer",
         )}

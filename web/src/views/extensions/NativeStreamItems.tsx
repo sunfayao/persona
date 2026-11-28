@@ -44,7 +44,7 @@ function Picture({ item, media }: { item: ImageComponent; media?: NativeMedia })
   const aspectRatio = item.aspect === "auto" && item.src.width && item.src.height ? `${item.src.width} / ${item.src.height}` : NATIVE.aspect[item.aspect ?? "landscape"];
   const image = !url || failed ? <span role="img" aria-label={item.alt} className="flex h-24 items-center justify-center bg-inset text-ink-3">{item.alt}</span> : <img src={url} alt={item.alt} referrerPolicy="no-referrer" onError={() => setFailed(true)} className={cx("w-full", item.fit === "fit" ? "object-contain" : "object-cover")} style={{ aspectRatio }} />;
   return <figure className="overflow-hidden rounded-card bg-inset">
-    {item.no_zoom ? image : <button type="button" className="block w-full" disabled={!url || failed} onClick={() => setZoom(true)} aria-label={item.alt}>{image}</button>}
+    {item.no_zoom ? image : <button type="button" className="block w-full focus-ring-inset" disabled={!url || failed} onClick={() => setZoom(true)} aria-label={item.alt}>{image}</button>}
     {item.caption !== undefined && <figcaption className="px-3 py-2 text-xs text-ink-3">{item.caption}</figcaption>}
     <Dialog open={zoom} onClose={() => setZoom(false)} title={item.alt}>{image}</Dialog>
   </figure>;

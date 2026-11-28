@@ -184,7 +184,7 @@ export function ProviderImport({ open, onClose, onImported, machine: start, alia
             <div className="overflow-hidden rounded-card bg-surface shadow-btn">
               <button type="button" role="checkbox" aria-checked={hide} onClick={() => setHide((h) => !h)} data-import-hide
                 aria-labelledby={`${hideId}-label`} aria-describedby={`${hideId}-hint`}
-                className="touch-hit flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-hover">
+                className="touch-hit flex w-full items-start gap-3 px-3 py-2.5 text-left focus-ring-inset transition-colors hover:bg-hover">
                 <CheckMark on={hide} className="mt-0.5" />
                 <span className="min-w-0 flex-1">
                   <span id={`${hideId}-label`} className="block text-[13px] font-medium text-ink">{t("settings-providerimport.hide")}</span>

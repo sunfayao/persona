@@ -75,7 +75,7 @@ export function Shell({ hubName, onLogout }: { hubName: string; onLogout: () => 
             </button>
           </div>
         </div>
-        <nav aria-label={t("admin-shell.sections")} className="flex items-center gap-0.5 overflow-x-auto px-2 pb-2">
+        <nav aria-label={t("admin-shell.sections")} className="flex items-center gap-0.5 overflow-x-auto px-2 pb-2 focus-ring-inset">
           {NAV.map((n, i) => [
             n.advanced && !NAV[i - 1]?.advanced && <span key="advanced" aria-hidden className="mx-1 h-4 w-px shrink-0 bg-line-strong" />,
             <a

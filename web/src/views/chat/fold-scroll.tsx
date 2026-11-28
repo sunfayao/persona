@@ -68,7 +68,7 @@ export function ScrollFold({ className, children, ...rest }: { className: string
   const ref = useRef<HTMLDivElement>(null);
   const fold = useFoldScroll(ref, true, [children]);
   return (
-    <div ref={ref} {...rest} {...fold} className={cx("overflow-y-auto", className)}>
+    <div ref={ref} {...rest} {...fold} className={cx("-mx-ring overflow-y-auto px-ring scroll-px-ring", className)}>
       {children}
     </div>
   );

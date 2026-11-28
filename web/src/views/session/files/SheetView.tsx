@@ -56,7 +56,7 @@ export function SheetView({ sheets, note }: { sheets: Sheet[]; note?: string }) 
         </div>
       )}
       {sheets.length > 1 && (
-        <div role="tablist" aria-label={t("session-files-sheetview.sheets")} className="flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-t border-line bg-inset px-2">
+        <div role="tablist" aria-label={t("session-files-sheetview.sheets")} className="flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-t border-line bg-inset px-2 focus-ring-inset">
           {sheets.map((s, i) => (
             <button
               key={i}

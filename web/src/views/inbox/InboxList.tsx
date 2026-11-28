@@ -479,9 +479,10 @@ export function InboxList({ selected, routed, picked = null, onPicked, listBesid
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("inbox-inboxlist.search_placeholder")} aria-label={t("inbox-inboxlist.search_label")} className="min-w-0 flex-1 bg-transparent text-[12.5px] text-ink outline-none placeholder:text-ink-3" />
           {query && <IconButton icon="x" label={t("inbox-inboxlist.clear")} size={20} iconSize={11} onClick={() => setQuery("")} />}
         </label>
-        {/* A phone: the chips in one row that scrolls sideways, Clean up all in the ⋯ menu at its end. */}
+        {/* A phone: the chips scroll sideways, with Clean up all in the ⋯ menu. Snap only to keyboard focus:
+            Chrome can leave a partly visible chip where it is when it focuses it, cutting off the ring. */}
         <div className="mt-2.5 flex items-center gap-1.5">
-        <div ref={filtersBar} className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 max-sm:-my-1 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:py-1 max-sm:scrollbar-none max-sm:[&>*]:shrink-0" role="toolbar" aria-label={t("inbox-inboxlist.filters")}>
+        <div ref={filtersBar} className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 max-sm:-m-ring max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:p-ring max-sm:scroll-p-ring max-sm:scrollbar-none max-sm:has-[:focus-visible]:snap-x max-sm:has-[:focus-visible]:snap-mandatory max-sm:[&>:focus-visible]:snap-end max-sm:[&>*]:shrink-0" role="toolbar" aria-label={t("inbox-inboxlist.filters")}>
           <Chip on={!source && !kind} onClick={() => { setSource(""); setKind(""); }}>{t("inbox-inboxlist.all")}</Chip>
           <Chip on={source === "feishu"} onClick={() => pickSource("feishu")}>{t("inbox-inboxlist.source_lark")}</Chip>
           {chips.map((a) => (

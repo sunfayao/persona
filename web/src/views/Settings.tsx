@@ -201,7 +201,7 @@ export function Settings({ onToggleSidebar }: { onToggleSidebar: () => void }) {
       </header>
       <div className="flex min-h-0 min-w-0 flex-1">
         {!phone && <SettingsNav tab={tab} onPick={pick} contentId={contentId} />}
-        <div ref={scroller} id={contentId} role={listed ? undefined : "region"} aria-label={listed ? undefined : TAB_INFO[tab].label} tabIndex={0} className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent">
+        <div ref={scroller} id={contentId} role={listed ? undefined : "region"} aria-label={listed ? undefined : TAB_INFO[tab].label} tabIndex={0} className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain focus-ring focus-ring-inset">
           {listed ? (
             <div className="px-4 py-5" style={{ animation: `fade-up 320ms ${EASE} both` }}>
               <SettingsList onPick={pick} />

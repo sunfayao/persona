@@ -569,7 +569,7 @@ export function ScreenView({ target }: { target: ScreenTarget }) {
                   aria-label={t("screen-screenview.account")}
                   autoComplete="username"
                   autoCapitalize="none"
-                  className="h-9 rounded-control bg-field px-3 text-[13px] outline-none focus:ring-2 focus:ring-accent/40"
+                  className="h-9 rounded-control bg-field px-3 text-[13px] focus-ring"
                 />
                 <input
                   value={password}
@@ -578,7 +578,7 @@ export function ScreenView({ target }: { target: ScreenTarget }) {
                   aria-label={t("screen-screenview.password")}
                   type="password"
                   autoComplete="current-password"
-                  className="h-9 rounded-control bg-field px-3 text-[13px] outline-none focus:ring-2 focus:ring-accent/40"
+                  className="h-9 rounded-control bg-field px-3 text-[13px] focus-ring"
                 />
                 {canKeep && (
                   <label className="flex items-center gap-2 whitespace-nowrap text-[12.5px] text-ink-2">

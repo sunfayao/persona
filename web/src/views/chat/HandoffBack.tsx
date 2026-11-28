@@ -47,7 +47,7 @@ export function BackStrip({ label, dismissLabel, onBack, onDismiss, inbox = fals
         <button
           type="button"
           onClick={onBack}
-          className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-l-xl px-3 text-left transition-colors hover:text-ink focus-visible:ring-2 focus-visible:ring-ink focus-visible:outline-none"
+          className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-l-xl px-3 text-left transition-colors hover:text-ink"
         >
           <Icon name="cornerUpLeft" size={14} stroke={2} className="shrink-0" />
           <span className="min-w-0 truncate">{label}</span>

@@ -707,7 +707,7 @@ function TaskRow({ i, state, waiting, done, to, title, tags, detail, pill, entry
       href={href(to)}
       onClick={(e) => onLinkClick(e, to, entry)}
       title={[title, ...tags].join(" · ")}
-      className={cx("group flex min-w-0 items-center gap-2.5 rounded-card px-3 py-2 transition-[background-color,transform] duration-150", !below && "bg-surface shadow-card hover:bg-inset active:scale-[0.995]")}
+      className={cx("group flex min-w-0 items-center gap-2.5 rounded-card px-3 py-2 focus-ring-inset transition-[background-color,transform] duration-150", !below && "bg-surface shadow-card hover:bg-inset active:scale-[0.995]")}
       style={below ? undefined : enter}
     >
       {done ? (

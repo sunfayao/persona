@@ -836,7 +836,7 @@ function SearchFilterBar({
 /** A view's tabs (UI version 4): a row of them under the title, the chosen one underlined; scrolls sideways when narrow. */
 function Tabs({ tabs, value, busy, onChoose }: { tabs: UITabs; value: string; busy: string; onChoose: (v: string) => void }) {
   return (
-    <div role="tablist" aria-label={tabs.name} className="-mb-2 flex items-end gap-1 overflow-x-auto border-b border-line px-1">
+    <div role="tablist" aria-label={tabs.name} className="-mb-2 flex items-end gap-1 overflow-x-auto border-b border-line px-1 focus-ring-inset">
       {tabs.items.map((it) => {
         const on = it.value === value;
         return (

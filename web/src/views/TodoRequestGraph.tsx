@@ -289,7 +289,7 @@ function RootCard({ req, at, selected, tips, onOpenTodo, onHot }: { req: GraphRe
   if (req.root) {
     const id = req.root.id;
     return (
-      <button type="button" className={cx(cls, "hover:bg-hover-2 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none")} style={style} data-root={req.key} aria-current={selected || undefined}
+      <button type="button" className={cx(cls, "hover:bg-hover-2")} style={style} data-root={req.key} aria-current={selected || undefined}
         {...th} onFocus={(e) => { th.onFocus(e); onHot(null); }} onClick={() => onOpenTodo(id)}>
         {body}
       </button>
@@ -334,8 +334,8 @@ function NodeCard({ node, req, at, shared, dim, lit, selected, onHot }: {
     onPointerEnter: (e: React.PointerEvent<Element>) => { th.onPointerEnter(e); if (!grown) onHot(node.key); },
     onPointerLeave: (e: React.PointerEvent<Element>) => { th.onPointerLeave(e); if (!grown) onHot(null); },
     className: grown
-      ? cx("relative flex w-full shrink-0 flex-col px-2.5 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset", node.todo && "hover:bg-hover")
-      : cx("absolute flex flex-col overflow-hidden px-2.5 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent", chrome, node.todo && "hover:bg-hover"),
+      ? cx("relative flex w-full shrink-0 flex-col px-2.5 py-2 text-left transition-colors focus-ring-inset", node.todo && "hover:bg-hover")
+      : cx("absolute flex flex-col overflow-hidden px-2.5 py-2 text-left", chrome, node.todo && "hover:bg-hover"),
   };
   const body = (
     <>
@@ -454,7 +454,7 @@ function AgentTree({ node, open, onFold, onOpenAgent }: { node: GraphNode; open:
   return (
     <div className="shrink-0" data-agent-tree={node.key} data-open={open ? "" : undefined}>
       <button type="button" aria-expanded={open} onClick={onFold} style={{ height: TREE_HEAD_H }}
-        className="flex w-full min-w-0 items-center gap-1.5 border-t border-line px-2.5 text-left text-xs leading-4 text-ink-3 transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset">
+        className="flex w-full min-w-0 items-center gap-1.5 border-t border-line px-2.5 text-left text-xs leading-4 text-ink-3 transition-colors hover:bg-hover focus-ring-inset">
         <Icon name="chevronRight" size={12} className={cx("shrink-0 transition-transform", open && "rotate-90")} />
         <span className="min-w-0 flex-1 truncate" data-tree-count={node.agents.length}>
           {[t("request-graph.tree_agents", { count: node.agents.length }), working ? stateCount("working", working) : ""].filter(Boolean).join(" · ")}
@@ -484,7 +484,7 @@ function TreeLine({ agent: a, depth, onOpenAgent }: { agent: NodeAgent; depth: n
   return (
     <li className="relative" style={{ height: TREE_ROW_H }}>
       <button type="button" onClick={() => onOpenAgent(a.open.mid, a.open.sid)} style={{ paddingLeft: indentOf(depth) }}
-        className="flex size-full min-w-0 items-start gap-1.5 pt-px pr-2.5 text-left text-xs leading-4 transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
+        className="flex size-full min-w-0 items-start gap-1.5 pt-px pr-2.5 text-left text-xs leading-4 transition-colors hover:bg-hover focus-ring-inset"
         data-tree-row={a.key} data-tree-role={a.role} data-tree-depth={a.depth} data-ended={a.ended ? "" : undefined}>
         <span className={cx("flex size-4 shrink-0 items-center justify-center rounded-chip bg-surface shadow-hairline", a.ended && "opacity-60")}>
           {a.subagent || a.role === "subagent" ? <Icon name="cornerDownRight" size={10} className="text-ink-3" />
@@ -637,7 +637,7 @@ function QueuedStrip({ rows, selectedId, onHot, onOpenTodo }: { rows: QueueRow[]
           return (
             <li key={row.key} data-queued-row={row.key} data-queued-kind={row.kind}>
               <button type="button" aria-current={id !== undefined && id === selectedId ? true : undefined} disabled={!id}
-                className="flex w-full min-w-0 items-start gap-2 rounded-control px-1.5 py-1.5 text-left transition-colors enabled:hover:bg-hover focus-visible:bg-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+                className="flex w-full min-w-0 items-start gap-2 rounded-control px-1.5 py-1.5 text-left transition-colors enabled:hover:bg-hover focus-visible:bg-hover"
                 onPointerEnter={light} onPointerLeave={() => onHot(null)} onFocus={light} onBlur={() => onHot(null)} onClick={() => id && onOpenTodo(id)}>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs leading-4 font-medium text-ink">{row.title}</span>

@@ -129,7 +129,7 @@ export function CommitBox({ s, writer }: { s: GitStatus; writer: GitWriter }) {
         rows={2}
         placeholder={t("session-gitwrite.message_placeholder")}
         aria-label={t("session-gitwrite.message_label")}
-        className="block w-full resize-y rounded-control bg-field px-3 py-2 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:ring-2 focus:ring-accent/40"
+        className="block w-full resize-y rounded-control bg-field px-3 py-2 text-[13px] text-ink placeholder:text-ink-3 focus-ring"
       />
       <div className="mt-2 flex items-center gap-2">
         <span className="min-w-0 flex-1 truncate text-[12px] text-ink-3">
@@ -246,7 +246,7 @@ export function BranchesView({ base, cwd, s, writer, onBack, onClose }: { base: 
                 type="button"
                 disabled={b.current || writer.busy !== null}
                 onClick={() => pick(b.remote ? b.name.slice(b.name.indexOf("/") + 1) : b.name, false)}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors enabled:hover:bg-hover"
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left focus-ring-inset transition-colors enabled:hover:bg-hover"
               >
                 <Icon name="branch" size={14} className={cx("shrink-0", b.current ? "text-accent" : "text-ink-3")} />
                 <span className="min-w-0 flex-1">
@@ -325,7 +325,7 @@ export function StashesView({ s, writer, onBack, onClose }: { s: GitStatus; writ
             onChange={(e) => setMessage(e.target.value)}
             placeholder={t("session-gitwrite.stash_message")}
             aria-label={t("session-gitwrite.stash_message")}
-            className="block h-9 w-full rounded-control bg-field px-3 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:ring-2 focus:ring-accent/40"
+            className="block h-9 w-full rounded-control bg-field px-3 text-[13px] text-ink placeholder:text-ink-3 focus-ring"
           />
           <div className="mt-2 flex items-center gap-2">
             <label className="flex min-w-0 flex-1 items-center gap-2 text-[12px] text-ink-2">

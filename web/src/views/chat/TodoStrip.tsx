@@ -30,7 +30,7 @@ function LinkedTodoStrip({ link, completed }: { link: { id: string; title: strin
       <div className="mx-auto flex min-h-11 w-full max-w-[820px] items-center gap-2 px-5 sm:px-8">
         <Icon name="todo" size={14} className="shrink-0 text-ink-3" />
         <a href={href(to)} onClick={(e) => onLinkClick(e, to)} title={title}
-          className="flex min-h-11 min-w-0 items-center rounded-control text-meta font-medium text-accent-ink hover:underline focus-visible:outline-2 focus-visible:outline-accent">
+          className="flex min-h-11 min-w-0 items-center rounded-control text-meta font-medium text-accent-ink hover:underline">
           <span className="truncate">{title}</span>
         </a>
         <span data-todo-strip-status className={cx("shrink-0 rounded-chip px-2 py-0.5 text-label font-medium", tone ?? "text-ink-3")}>

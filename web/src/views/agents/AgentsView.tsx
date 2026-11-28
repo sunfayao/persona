@@ -164,7 +164,7 @@ function LegacyAgentList({ onToggleSidebar }: { onToggleSidebar: () => void }) {
           {loaded && !error && !sessions.length && !q && hints.map((h) => <p key={h} className="mb-1 text-[13px] text-ink-3">{h}</p>)}
           {loaded && !error && sessions.length > 0 && <SourceNotice hints={hints} />}
           {groups.map((g, i) => (
-            <section key={g.key} className="mb-4 overflow-hidden rounded-card bg-surface shadow-card" style={{ animation: `fade-up 420ms ${EASE} ${i * 60}ms both` }}>
+            <section key={g.key} className="mb-4 overflow-hidden rounded-card bg-surface shadow-card focus-ring-inset" style={{ animation: `fade-up 420ms ${EASE} ${i * 60}ms both` }}>
               <h2 className="flex items-center gap-2 px-4 pt-3 pb-1 text-[12px] font-medium text-ink-3">
                 <span className="flex-1">{g.label || t("agents-agentsview.group_all")}</span>
                 <span className="tabular-nums">{g.sessions.length}</span>

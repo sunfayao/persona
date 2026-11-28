@@ -343,7 +343,7 @@ export function Segmented<T extends string>({
   className?: string;
 }) {
   return (
-    <SegmentedTrack role="radiogroup" label={label} className={cx("inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-control p-0.5", className)} thumbClassName="rounded-[7px]">
+    <SegmentedTrack role="radiogroup" label={label} className={cx("inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-control p-0.5 focus-ring-inset", className)} thumbClassName="rounded-[7px]">
       {options.map((o) => (
         <button
           key={o.value}

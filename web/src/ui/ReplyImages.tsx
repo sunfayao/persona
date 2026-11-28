@@ -43,7 +43,7 @@ export { rehypeReplyImages } from "./reply-images-plugin";
 export const ReplyPicturesExport = createContext(false);
 
 const RADIUS = 10; // the turn's viewed images' tiles (TurnImages.tsx)
-const tileClass = "group relative shrink-0 overflow-hidden bg-field shadow-hairline outline-none focus-visible:ring-2 focus-visible:ring-accent";
+const tileClass = "group relative shrink-0 overflow-hidden bg-field shadow-hairline";
 
 /** Remembered local-image failures so remounting/scrolling never auto-retries until the user clicks Retry. */
 const localFailureCache = new Map<string, { attempt: number; reason: string }>();
@@ -353,7 +353,7 @@ function Asked({ pictures, height, onAsk }: { pictures: ReplyPicture[]; height: 
       type="button"
       onClick={onAsk}
       data-reply-picture="asked"
-      className="relative block text-left outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      className="relative block text-left"
       style={{ borderRadius: RADIUS, padding: 0, ...(one ? { width: `min(100%, ${box.w}px)`, height: box.h } : squaresStyle(pictures.length)) }}
     >
       {one ? (

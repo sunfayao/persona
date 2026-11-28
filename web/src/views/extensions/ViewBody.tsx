@@ -551,7 +551,7 @@ function Segmented({ item, value, busy, pending, onChoose }: { item: UIItem; val
   const choices = item.choices ?? [];
   return (
     <div className="flex items-center gap-2 px-4 py-2.5">
-      <SegmentedTrack role="radiogroup" label={item.label || item.name || ""} className="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-control p-0.5" thumbClassName="rounded-[7px]">
+      <SegmentedTrack role="radiogroup" label={item.label || item.name || ""} className="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-control p-0.5 focus-ring-inset" thumbClassName="rounded-[7px]">
         {choices.map((c) => {
           const on = c.value === value;
           return (

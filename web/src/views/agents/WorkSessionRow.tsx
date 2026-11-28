@@ -31,7 +31,7 @@ export function WorkSessionRow({ session, name, active, onSelect, now }: {
   const preview = session.activity || session.last_text;
   return <div className={cx("flex min-w-0 items-center rounded-control ps-2 pe-2 hover:bg-hover", active && "bg-accent-tint")}>
     <a href={href(to)} onClick={select} aria-current={active ? "true" : undefined}
-      className="flex min-h-11 min-w-0 flex-1 items-start gap-2 rounded-control py-1.5 focus-visible:outline-accent">
+      className="flex min-h-11 min-w-0 flex-1 items-start gap-2 rounded-control py-1.5">
     <span className="flex shrink-0 items-center gap-1 pt-0.5">
       <StatusMark state={stateOf(session)} size="sm" />
       <SessionMark s={session} decorative size={SESSION_LIST_METRICS.icon} />

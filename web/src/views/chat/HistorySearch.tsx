@@ -80,7 +80,7 @@ export function HistorySearch({ onPick, onClose }: { onPick: (text: string) => v
           className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-3"
         />
       </div>
-      <div id={`${id}-list`} role="listbox" aria-label={t("composer.history_list")} className="max-h-[240px] overflow-y-auto border-t border-line pt-1">
+      <div id={`${id}-list`} role="listbox" aria-label={t("composer.history_list")} className="max-h-[240px] overflow-y-auto border-t border-line pt-1 focus-ring-inset">
         {results.length === 0 ? (
           <div role="status" className="px-2 py-3 text-center text-[12px] text-ink-3">{t("composer.history_empty")}</div>
         ) : (

@@ -106,7 +106,7 @@ export function ContextMeter({ session, compact = false, items, assistant, onCom
         aria-label={tip}
         aria-description={description}
         title={open ? undefined : title}
-        className={cx("touch-hit -mx-1.5 flex shrink-0 items-center gap-1.5 rounded-chip px-1.5 py-0.5 text-submeta whitespace-nowrap text-ink-3 transition-colors hover:bg-hover hover:text-ink-2", open && "bg-hover text-ink-2")}
+        className={cx("touch-hit -mx-1.5 flex shrink-0 items-center gap-1.5 rounded-chip px-1.5 py-0.5 text-submeta whitespace-nowrap text-ink-3 focus-ring-inset transition-colors hover:bg-hover hover:text-ink-2", open && "bg-hover text-ink-2")}
       >
         {usage ? (
           <>

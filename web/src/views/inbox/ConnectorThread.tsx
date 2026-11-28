@@ -424,7 +424,7 @@ function Bubble({ id, m, head, group, lit, onQuote, onReply }: {
               const look = "mb-1 block w-full truncate border-l-2 border-line-strong pl-2 text-left text-[12px] text-ink-3";
               return onQuote ? (
                 <button type="button" onClick={onQuote} title={t("inbox-connectorthread.quote_jump", { text: quote })} aria-label={t("inbox-connectorthread.quote_jump", { text: quote })}
-                  className={cx(look, "rounded-r-[4px] hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent")}>
+                  className={cx(look, "rounded-r-[4px] hover:text-ink")}>
                   {quote}
                 </button>
               ) : <p className={look}>{quote}</p>;
@@ -442,7 +442,7 @@ function Bubble({ id, m, head, group, lit, onQuote, onReply }: {
           {clock(m.at)}
           {m.edited && <span>{t("inbox-connectorthread.edited")}</span>}
           {onReply && (
-            <button type="button" onClick={onReply} className="touch-hit flex items-center gap-0.5 whitespace-nowrap rounded text-ink-3 opacity-0 hover:text-ink focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-accent group-hover/msg:opacity-100 group-focus-within/msg:opacity-100 [@media(hover:none)]:opacity-100">
+            <button type="button" onClick={onReply} className="touch-hit flex items-center gap-0.5 whitespace-nowrap rounded text-ink-3 opacity-0 hover:text-ink focus-visible:opacity-100 group-hover/msg:opacity-100 group-focus-within/msg:opacity-100 [@media(hover:none)]:opacity-100">
               <Icon name="quote" size={10} />
               {t("inbox-connectorthread.reply")}
             </button>
@@ -470,7 +470,7 @@ function Picture({ id, media }: { id: string; media: ThreadMedia }) {
           type="button"
           onClick={() => setViewing(true)}
           aria-label={t("inbox-connectorthread.view_image")}
-          className="relative block overflow-hidden rounded-[14px] outline-none transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.98] motion-reduce:transition-none"
+          className="relative block overflow-hidden rounded-[14px] transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none"
           style={size}
           data-thread-picture
         >

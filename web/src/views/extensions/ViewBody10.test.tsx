@@ -566,12 +566,11 @@ describe("UI 10: the graph canvas", () => {
   it("a focusable node without an action shows the focus ring (a group div, not a button)", async () => {
     await mountView(WORK);
     // `b` has no action: its node is a plain div with tabindex="0" — focusable with Tab, so it needs its own
-    // focus-visible outline (a button's own UA ring does not cover it).
+    // focus-visible outline (the global rule for buttons does not cover it).
     const b = host.querySelector<HTMLElement>('[data-graph-node="b"]')!;
     expect(b.tagName).toBe("DIV");
     expect(b.getAttribute("tabindex")).toBe("0");
-    expect(b.className).toContain("focus-visible:outline-2");
-    expect(b.className).toContain("focus-visible:outline-accent");
+    expect(b.classList.contains("focus-ring")).toBe(true);
   });
 
   it("a compact preview fits the whole layer into the stage, with no 25% floor", async () => {

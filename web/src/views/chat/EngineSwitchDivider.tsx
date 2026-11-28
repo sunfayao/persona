@@ -75,7 +75,7 @@ export function EngineSwitchDivider({ sw, id, item, mid, sid }: { sw: EngineSwit
             aria-expanded={open}
             aria-controls={panel}
             title={t("chat-lines.engine_handoff_view")}
-            className={`${pill} touch-hit cursor-pointer outline-none transition-colors hover:bg-hover hover:text-ink-2 focus-visible:ring-2 focus-visible:ring-accent`}
+            className={`${pill} touch-hit cursor-pointer transition-colors hover:bg-hover hover:text-ink-2`}
           >
             {chip}
           </button>

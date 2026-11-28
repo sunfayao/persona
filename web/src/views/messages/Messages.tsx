@@ -255,7 +255,7 @@ function PinnedShelf({ chats, selected, account }: { chats: LarkConversation[]; 
   return (
     <section aria-label={t("messages-messages.pinned_label")} className="mt-3">
       <p className="px-1 pb-1.5 text-[12px] font-medium text-ink-3">{t("messages-messages.pinned")} <span className="text-[11.5px] tabular-nums">{chats.length}</span></p>
-      <div className="flex gap-1 overflow-x-auto pb-1">
+      <div className="-mx-ring -mt-ring flex gap-1 overflow-x-auto p-ring scroll-p-ring">
         {chats.map((c) => {
           const to = { name: "messages", id: c.id } as const;
           const b = unreadBadge(c);

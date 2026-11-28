@@ -193,7 +193,7 @@ export function SpacePage({ mid, space, onToggleSidebar }: { mid: string; space:
                     // a waiting one's word says what it waits on, attention only on the owner (#11090)
                     const look = x.todo && status ? todoLook(x.todo, status, waitOf(x.todo, status, lookup), status) : undefined;
                     return (
-                      <a key={x.id} href={href(to)} onClick={(e) => onLinkClick(e, to)} className="group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-hover">
+                      <a key={x.id} href={href(to)} onClick={(e) => onLinkClick(e, to)} className="group flex items-center gap-3 px-4 py-2.5 focus-ring-inset transition-colors hover:bg-hover">
                         <Icon name="todo" size={14} className="shrink-0 text-ink-3" />
                         <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">{x.title}</span>
                         <span className="shrink-0 text-[11.5px] whitespace-nowrap text-ink-3">{x.via === "space" ? t("space-page.todo_via_space") : t("space-page.todo_via_agent")}</span>
