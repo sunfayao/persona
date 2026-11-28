@@ -62,6 +62,16 @@ describe("foldActivity", () => {
     expect(group.counts.finished).toBe(0);
   });
 
+  it("shows an ended run with an empty or newer outcome as cancelled, not finished", () => {
+    const found = groups([
+      ...run("s1", "a", at(1), at(2), {}, ""),
+      ...run("s1", "b", at(3), at(4), {}, "timed_out"),
+      ...run("s1", "c", at(5), at(6), {}, "cancelled"),
+      ...run("s1", "d", at(7), at(8), {}, "interrupted"),
+    ]);
+    expect(found[0].counts).toEqual({ finished: 0, failed: 0, cancelled: 4, running: 0 });
+  });
+
   it("does not merge two sessions", () => {
     const found = groups([...run("s1", "a", at(1), at(2)), ...run("s2", "a", at(1), at(2))]);
     expect(found).toHaveLength(2);

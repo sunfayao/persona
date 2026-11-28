@@ -12,7 +12,7 @@ export interface BackgroundRun {
   endedAt?: string;
   durationMs?: number;
   outcome: RunOutcome;
-  /** The node's own word for how it ended ("completed", "failed", "killed", "stopped"); "" while it runs. */
+  /** The node's own word for how it ended ("completed", "failed", "killed", "stopped", "cancelled", "interrupted", "timed_out"); "" while it runs or when it named none. */
   ended: string;
   activity?: string;
 }
@@ -47,7 +47,7 @@ const ms = (iso: string) => Date.parse(iso);
 
 function outcomeOf(ended: string | undefined, hasEnd: boolean): RunOutcome {
   if (!hasEnd) return "running";
-  if (!ended || ended === "completed") return "finished";
+  if (ended === "completed") return "finished";
   return ended === "failed" ? "failed" : "cancelled";
 }
 
