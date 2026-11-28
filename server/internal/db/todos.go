@@ -162,6 +162,8 @@ type TodoAgentRow struct {
 	Source      string     `json:"source"`
 	Via         string     `json:"via"`
 	DismissedAt *time.Time `json:"dismissed_at"`
+	// Assignment is what the Agent answers for when several work on the to-do (JSON the assistant owns); nil: the whole.
+	Assignment json.RawMessage `json:"assignment,omitempty"`
 }
 
 const todoColumns = `id, title, notes, done_at, created_at, updated_at, origin, plan_id, start_error, done_by, done_reason, reopened_at, quiet,
@@ -233,7 +235,7 @@ func (d *DB) ListAllTodoSpaces(ctx context.Context) ([]TodoSpaceRow, error) {
 
 // ListAllTodoAgents returns all agent links.
 func (d *DB) ListAllTodoAgents(ctx context.Context) ([]TodoAgentRow, error) {
-	rows, err := d.pool.Query(ctx, `SELECT todo_id, machine_id, session_id, linked_at, released_at, title, cwd, agent, start_error, source, via, dismissed_at FROM todo_agents`)
+	rows, err := d.pool.Query(ctx, `SELECT todo_id, machine_id, session_id, linked_at, released_at, title, cwd, agent, start_error, source, via, dismissed_at, assignment FROM todo_agents`)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +243,7 @@ func (d *DB) ListAllTodoAgents(ctx context.Context) ([]TodoAgentRow, error) {
 	var out []TodoAgentRow
 	for rows.Next() {
 		var r TodoAgentRow
-		if err := rows.Scan(&r.TodoID, &r.MachineID, &r.SessionID, &r.LinkedAt, &r.ReleasedAt, &r.Title, &r.Cwd, &r.Agent, &r.StartError, &r.Source, &r.Via, &r.DismissedAt); err != nil {
+		if err := rows.Scan(&r.TodoID, &r.MachineID, &r.SessionID, &r.LinkedAt, &r.ReleasedAt, &r.Title, &r.Cwd, &r.Agent, &r.StartError, &r.Source, &r.Via, &r.DismissedAt, &r.Assignment); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -1113,6 +1115,31 @@ func (d *DB) ReleaseTodoAgent(ctx context.Context, todoID, machineID, sessionID 
 		tag, err := tx.Exec(ctx, `UPDATE todo_agents SET released_at = $4
 			WHERE todo_id = $1 AND machine_id = $2 AND session_id = $3 AND released_at IS NULL`,
 			todoID, machineID, sessionID, at.UTC())
+		if err != nil || tag.RowsAffected() == 0 {
+			return err
+		}
+		_, err = tx.Exec(ctx, `UPDATE todos SET updated_at = $2 WHERE id = $1`, todoID, at.UTC())
+		return err
+	})
+}
+
+// SetTodoAgentAssignment writes what the agent still linked to a todo answers for (nil: the whole to-do).
+func (d *DB) SetTodoAgentAssignment(ctx context.Context, todoID, machineID, sessionID string, assignment json.RawMessage, at time.Time) error {
+	conn, err := d.pool.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+	return pgx.BeginFunc(ctx, conn, func(tx pgx.Tx) error {
+		if _, err := lockTodoAgentMembership(ctx, tx, todoID, machineID, sessionID); err != nil {
+			return err
+		}
+		var value any
+		if len(assignment) > 0 {
+			value = []byte(assignment)
+		}
+		tag, err := tx.Exec(ctx, `UPDATE todo_agents SET assignment = $4::jsonb
+			WHERE todo_id = $1 AND machine_id = $2 AND session_id = $3 AND released_at IS NULL`, todoID, machineID, sessionID, value)
 		if err != nil || tag.RowsAffected() == 0 {
 			return err
 		}

@@ -13,6 +13,10 @@ Review a direct worker of your to-do. accepted (outcome done) closes verified wo
       "type": "string",
       "description": "the worker's task id"
     },
+    "session_id": {
+      "type": "string",
+      "description": "rework: one of several members"
+    },
     "verdict": {
       "type": "string",
       "enum": ["accepted", "rework", "needs_user", "cancelled"]
@@ -22,7 +26,7 @@ Review a direct worker of your to-do. accepted (outcome done) closes verified wo
     "rework_kind": {
       "type": "string",
       "enum": ["external_input", "substantive_new", "repeated_error", "low_roi_edge"],
-      "description": "rework, optional: external_input (outside input; skips the stalled cap), substantive_new (new defect after the gap was fixed; resets it), repeated_error/low_roi_edge (default)"
+      "description": "rework: external_input (external review/conflict/owner input; skips the 2-round stalled cap), substantive_new (prior gap fixed, new defect; resets it), repeated_error/low_roi_edge (default; cap 2 stalled, 10 total)"
     },
     "note": {
       "type": "string",

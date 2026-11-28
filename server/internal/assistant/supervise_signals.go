@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistant/autosupervise"
+	"github.com/sunfayao/persona/server/internal/assistant/membership"
 	"github.com/sunfayao/persona/server/internal/prompts"
 	"github.com/sunfayao/persona/server/internal/proto"
 )
@@ -85,6 +86,10 @@ var (
 type superviseSignal struct {
 	WorkerSet       string `json:"worker_set,omitempty"` // accepted child generation of an orphaned leader
 	Todo, Kind, Key string
+	// Members: the to-do had several working members when this was raised, so a kind that is about one Agent's session
+	// (membership.SessionBound) carries that session in its id. A to-do with one member keeps the ids it always had,
+	// and a signal queued by an older build has no such mark.
+	Members bool `json:"members,omitempty"`
 	// Handoff is an idle-shaped report that an owner's decision or review rework did not reach the agent.
 	// It is not a turn-end stop, so a native wakeup must not defer it.
 	Handoff bool
@@ -183,8 +188,12 @@ func (g superviseSignal) level() string {
 }
 
 // id names what a newer signal replaces while it waits: the task's signal of that kind (a report: of that kind of
-// report, so a progress report does not push out a question).
+// report, so a progress report does not push out a question), and with several members that of one Agent's session.
 func (g superviseSignal) id() string {
+	return membership.SignalID(g.taskID(), g.Kind, g.Session, g.Members)
+}
+
+func (g superviseSignal) taskID() string {
 	if g.Kind == sigDraftPR {
 		return g.Todo + "|" + g.Kind + "@" + g.PRURL
 	}
@@ -213,6 +222,20 @@ func (g superviseSignal) id() string {
 		return g.Todo + "|" + g.Kind + "@" + g.Key
 	}
 	return g.Todo + "|" + g.Kind
+}
+
+// kindKeys are the ids of todo's signals of kinds, each kind's own and those a member's session adds to it (b.mu held).
+func (b *superviseBook) kindKeys(todo string, kinds ...string) []string {
+	keys := make([]string, 0, len(kinds))
+	for _, k := range kinds {
+		keys = append(keys, todo+"|"+k)
+	}
+	for id := range b.pending {
+		if slices.ContainsFunc(kinds, func(k string) bool { return membership.OfKind(id, todo, k) }) && !slices.Contains(keys, id) {
+			keys = append(keys, id)
+		}
+	}
+	return keys
 }
 
 // urgent: a signal that waits on a decision goes out sooner than the rest.
@@ -927,6 +950,9 @@ func (s *Service) signalReplacing(old *superviseSignal, g superviseSignal) {
 	if g.At.IsZero() {
 		g.At = time.Now()
 	}
+	if t, ok := s.todoNow(g.Todo); ok && g.Session != "" && membership.SessionBound(g.Kind) {
+		g.Members = len(t.workingMembers()) > 1 // two members' signals of a kind live side by side
+	}
 	s.restoreSupervisePending(context.Background())
 	b := &s.supervise
 	if turnSignalKind(g) && s.turnSignalled(g) {
@@ -1297,6 +1323,7 @@ func (s *Service) superviseWatch(ctx context.Context, now time.Time) {
 			s.signal(g)
 		}
 		s.briefClock(ctx, t, now)   // past its brief's clock with no end (task_brief_scope.go)
+		s.memberClocks(ctx, t, now) // a member's own estimate (supervise_leader.go)
 		s.watchTurn(ctx, t, agents) // a turn that ended with no working heard, or was left half handled (task_turns.go)
 	}
 	if s.turns.Expire(ctx) {

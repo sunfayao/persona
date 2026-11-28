@@ -24,6 +24,7 @@ import (
 func (s *Service) toolTaskReview(ctx context.Context, self string, args json.RawMessage) (string, error) {
 	var a struct {
 		TodoID     string        `json:"todo_id"`
+		SessionID  string        `json:"session_id"` // rework: the member of a to-do with several
 		Verdict    string        `json:"verdict"`
 		ReworkKind string        `json:"rework_kind"`
 		Verify     bool          `json:"verify"` // the hub runs the declared checks again; no verdict is written
@@ -163,6 +164,12 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 	}
 	if t.DoneAt != nil && (a.Verdict == reviewRework || a.Verdict == reviewNeedsUser || a.Verdict == reviewParked) {
 		return "", fmt.Errorf("task %s is done already (%s): hand out a new task for what is left", t.ID, cmp.Or(t.DoneReason, "closed"))
+	}
+	member := ""
+	if a.Verdict == reviewRework {
+		if member, err = s.memberFor(t, a.SessionID); err != nil {
+			return "", err
+		}
 	}
 	if t.DoneAt != nil && t.DoneBy == db.DoneByReview && a.Verdict == reviewAccepted {
 		plan, _, _ := s.taskTerminalPlan(ctx, t)
@@ -383,11 +390,9 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 	b := &s.supervise
 	b.mu.Lock()
 	b.init()
-	var keys []string
-	for _, k := range []string{sigReview, sigIdle, sigUnjudged, sigNeedsYou, sigStalled, sigNoProgress, sigAllStopped, sigTimedOut, sigOrphaned, sigOverdue, sigEstimateDue, sigRecheck, sigUndecidable, sigDeliveryHold, sigOwnerCannot, sigParkedDue, sigCardlessWait} {
-		key := t.ID + "|" + k
+	keys := b.kindKeys(t.ID, sigReview, sigIdle, sigUnjudged, sigNeedsYou, sigStalled, sigNoProgress, sigAllStopped, sigTimedOut, sigOrphaned, sigOverdue, sigEstimateDue, sigRecheck, sigUndecidable, sigDeliveryHold, sigOwnerCannot, sigParkedDue, sigCardlessWait)
+	for _, key := range keys {
 		delete(b.pending, key) // reviewed: what waited is answered
-		keys = append(keys, key)
 	}
 	if verdict == reviewAccepted || verdict == reviewCancelled {
 		// Closed: a decision that ended a parking has nothing left to move. A review that leaves the task open, parking
@@ -624,10 +629,11 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 		displayMax = maxReworkRounds
 	}
 	text := prompts.RenderSuperviseRework(prompts.SuperviseRework{Round: v.Round, Max: displayMax, Checks: reworkChecks(checks), Note: note})
-	sent, err := s.sendToTask(ctx, t, text)
+	sent, err := s.sendToMember(ctx, t, member, text)
 	if err != nil {
 		return "", fmt.Errorf("recorded rework round %d, but sending it to the agent failed: %v (send it with agent_send)", v.Round, err)
 	}
+	s.reworkMember(ctx, t, member)
 	stalled := v.stalledReworkRounds()
 	if isStalledReworkKind(a.ReworkKind) && v.Round == stalled {
 		return fmt.Sprintf("Rework round %d of %d is %s. ", v.Round, maxReworkRounds, sent) + reviewAgainNote, nil

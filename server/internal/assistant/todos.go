@@ -15,6 +15,7 @@ import (
 	"github.com/sunfayao/persona/server/internal/compat"
 
 	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistant/membership"
 	"github.com/sunfayao/persona/server/internal/assistant/parentcloseout"
 	"github.com/sunfayao/persona/server/internal/assistant/repository"
 	"github.com/sunfayao/persona/server/internal/db"
@@ -49,6 +50,8 @@ type TodoAgent struct {
 	Source      string     `json:"source"`
 	Via         string     `json:"via,omitempty"`
 	DismissedAt *time.Time `json:"dismissed_at,omitempty"`
+	// Assignment: what this Agent answers for when several work on the to-do; nil: the whole (membership).
+	Assignment *membership.Assignment `json:"assignment,omitempty"`
 }
 
 type Todo struct {
@@ -402,6 +405,7 @@ func (s *Service) loadTodosLocked(ctx context.Context) error {
 			Source:      ar.Source,
 			Via:         ar.Via,
 			DismissedAt: ar.DismissedAt,
+			Assignment:  membership.Decode(ar.Assignment),
 		})
 		if ar.ReleasedAt == nil && ar.DismissedAt == nil && t.DoneAt == nil {
 			active[[2]string{ar.MachineID, ar.SessionID}] = t.ID
@@ -712,6 +716,7 @@ func copyTodoLocked(t *Todo) Todo {
 			da := *a.DismissedAt
 			out.Agents[i].DismissedAt = &da
 		}
+		out.Agents[i].Assignment = a.Assignment.Clone()
 	}
 	out.Supervision = t.Supervision.clone()
 	if t.Thread != nil {

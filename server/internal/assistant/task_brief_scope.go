@@ -438,7 +438,7 @@ func (s *Service) estimateDueSignal(ctx context.Context, t Todo, now time.Time) 
 func (s *Service) extendEstimate(ctx context.Context, t Todo, brief TaskBrief, now time.Time) bool {
 	since, progressed := now.Add(-signalrule.ProgressWindow(brief.ExpectNow)), false
 	for _, a := range t.Agents {
-		progressed = progressed || a.ReleasedAt == nil && a.DismissedAt == nil && s.progressAfter(a.MachineID, a.SessionID, since)
+		progressed = progressed || a.active() && !t.supervisorRow(a) && s.progressAfter(a.MachineID, a.SessionID, since)
 	}
 	next, ok := signalrule.Extension(brief.ExpectNow, brief.EstimateAutoExtended, progressed)
 	if !ok {
@@ -505,8 +505,12 @@ func (s *Service) clearEstimateDue(todoID string) {
 	b := &s.supervise
 	b.mu.Lock()
 	b.init()
-	delete(b.pending, todoID+"|"+sigEstimateDue)
+	keys := b.kindKeys(todoID, sigEstimateDue)
+	for _, key := range keys {
+		delete(b.pending, key)
+	}
 	b.mu.Unlock()
+	s.forgetSupervisePending(keys...)
 }
 
 // clearOverdue forgets waiting overdue and estimate_due signals after re-scope or closure.

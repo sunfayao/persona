@@ -18,6 +18,16 @@ import { usageLimitAgent } from "./usage-limit";
  *  (lib/todo-supervisor.ts): its supervisor, a worker on the worker's own to-do, an independent reviewer. */
 type TodoAgentSource = "manual" | "space" | "spawned" | "chat" | "leader" | "worker" | "review";
 
+/** What one Agent answers for when several work on a to-do; absent for an Agent on the whole to-do. */
+export interface TodoAgentAssignment {
+  title: string;
+  /** Texts of the to-do's criteria this Agent answers for. */
+  criteria?: string[];
+  expect_minutes?: number;
+  state?: "working" | "done";
+  round?: number;
+}
+
 export interface TodoAgent {
   machine_id: string;
   session_id: string;
@@ -30,6 +40,7 @@ export interface TodoAgent {
   start_error?: string;
   source?: TodoAgentSource;
   via?: string;
+  assignment?: TodoAgentAssignment;
 }
 
 export interface TodoSpace {

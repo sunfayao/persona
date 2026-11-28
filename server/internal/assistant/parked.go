@@ -347,10 +347,11 @@ func (s *Service) endParkOnDecision(ctx context.Context, row db.TodoDecisionRow)
 	}
 	b := &s.supervise
 	b.mu.Lock()
-	delete(b.pending, t.ID+"|"+sigParkedDue)
-	delete(b.pending, t.ID+"|"+sigUndecidable)
-	delete(b.pending, t.ID+"|"+sigEstimateDue)
-	s.forgetSupervisePending(t.ID+"|"+sigParkedDue, t.ID+"|"+sigUndecidable, t.ID+"|"+sigEstimateDue)
+	keys := b.kindKeys(t.ID, sigParkedDue, sigUndecidable, sigEstimateDue)
+	for _, key := range keys {
+		delete(b.pending, key)
+	}
+	s.forgetSupervisePending(keys...)
 	b.mu.Unlock()
 	s.logf("task %s: decision %s was recorded while it was parked: the parking ends, its supervisor is told", t.ID, row.ID)
 	t.Supervision = &v

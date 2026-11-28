@@ -1,4 +1,4 @@
-Hand a part of your to-do to a worker: each task starts a new coding Agent at once, beneath your to-do, with no card for the owner. Workers belong to your to-do only: role=worker on every task, todo_id only for a piece of your to-do (part_of it) with no Agent yet, no handing work on, at most 8 of your workers open at a time. Give each worker machine and cwd (computer and project directory): you run in a home directory, and a worker without them starts there. Give it done_when (results you can check); a task that only reads sets readonly true, gets the read-only constraint in its first message and is an independent check of another worker's result. Claude-family launchers always start in bypassPermissions; Codex read-only tasks keep the plan-mode sandbox. What a worker reports, and when it stops, stalls, runs past its estimate or waits for review, reaches you in a message starting "Persona · supervision". Returns at once with each worker's to-do; it does not confirm the Agent started.
+Hand a part of your to-do to a worker: each task starts a new coding Agent at once, beneath your to-do, with no card for the owner. Workers belong to your to-do only: role=worker on every task, todo_id only for a piece of your to-do (part_of it) with no Agent yet, no handing work on, at most 8 of your workers open at a time. Give each worker machine and cwd (computer and project directory): you run in a home directory, and a worker without them starts there. Give it done_when (results you can check); a task that only reads sets readonly true, gets the read-only constraint in its first message and is an independent check of another worker's result. Claude-family launchers always start in bypassPermissions; Codex read-only tasks keep the plan-mode sandbox. What a worker reports, and when it stops, stalls, runs past its estimate or waits for review, reaches you in a message starting "Persona · supervision". With join true, todo_id is a to-do you supervise and the task starts one more member beside those working, whose part is its title, done_when (criteria, by number or text) and expect_minutes. Returns at once with each worker's to-do; it does not confirm the Agent started.
 
 ```json
 {
@@ -25,6 +25,10 @@ Hand a part of your to-do to a worker: each task starts a new coding Agent at on
           "todo_id": {
             "type": "string",
             "description": "a piece of your to-do with no Agent yet; omitted: a new worker to-do"
+          },
+          "join": {
+            "type": "boolean",
+            "description": "another Agent on your to-do (todo_id); done_when: its criteria"
           },
           "title": {
             "type": "string",

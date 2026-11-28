@@ -3,6 +3,7 @@ package assistant
 import (
 	"cmp"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -10,6 +11,8 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistant/autosupervise"
+	"github.com/sunfayao/persona/server/internal/assistant/membership"
+	"github.com/sunfayao/persona/server/internal/assistant/signalrule"
 	"github.com/sunfayao/persona/server/internal/assistant/taskleader"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/prompts"
@@ -728,4 +731,363 @@ func (s *Service) startSupervisorAgent(ctx context.Context, root Todo, above str
 		return TodoAgent{}, errors.New("its supervisor Agent was not linked")
 	}
 	return lead, nil
+}
+
+// ---- several Agents on one to-do (membership) ----
+
+// memberView is open to-do id as attach, detach and move see it for caller (a conversation or a supervisor Agent's ref).
+// A to-do run by a supervisor Agent for its own pieces (a leader's own to-do) takes no members.
+func (s *Service) memberView(caller, id string) (Todo, membership.View, error) {
+	t, ok := s.todoNow(strings.TrimSpace(id))
+	if !ok {
+		return Todo{}, membership.View{}, fmt.Errorf("no to-do %q; nothing was changed", id)
+	}
+	if _, has := t.supervisorAgent(); has && !t.memberSupervised() {
+		return t, membership.View{}, fmt.Errorf("to-do %s is run by its supervisor Agent, which hands out its pieces: nothing was changed", t.ID)
+	}
+	state := t.Supervision.state(t)
+	return t, membership.View{ID: t.ID, Open: t.DoneAt == nil && !t.Cancelled(), Supervised: t.Supervision != nil && t.Supervision.Supervisor == caller,
+		InProgress: t.DoneAt == nil && (state == "" || state == reviewRework), Members: t.members()}, nil
+}
+
+// setAssignment writes what the Agent machine/session of to-do id answers for (nil: the whole to-do).
+func (s *Service) setAssignment(ctx context.Context, id, machine, session string, a *membership.Assignment) error {
+	now := time.Now().UTC()
+	s.todos.writing.Lock()
+	if st, ok := s.todoDB().(interface {
+		SetTodoAgentAssignment(ctx context.Context, todoID, machineID, sessionID string, assignment json.RawMessage, at time.Time) error
+	}); ok {
+		if err := st.SetTodoAgentAssignment(ctx, id, machine, session, a.Encode(), now); err != nil {
+			s.todos.writing.Unlock()
+			return err
+		}
+	}
+	s.todos.mu.Lock()
+	if t := s.todos.todos[id]; t != nil {
+		for i := range t.Agents {
+			if x := &t.Agents[i]; x.MachineID == machine && x.SessionID == session && x.ReleasedAt == nil {
+				x.Assignment, t.UpdatedAt = a.Clone(), now
+			}
+		}
+	}
+	s.todos.mu.Unlock()
+	s.todos.writing.Unlock()
+	s.todosChanged(ctx)
+	return nil
+}
+
+// memberBrief is what a member is told first: the to-do's goal, its part and the criteria it answers for by number.
+func (s *Service) memberBrief(t Todo, a membership.Assignment) string {
+	m := prompts.TaskMember{ID: t.ID, Title: t.Title, Goal: t.Title, Part: a.Title, Expect: a.ExpectMinutes}
+	if b, ok := s.briefOfTodo(t.ID); ok && b.Goal != "" {
+		m.Goal = b.Goal
+	}
+	var all []string
+	if t.Supervision != nil {
+		all = t.Supervision.DoneWhen
+	}
+	for _, n := range a.Numbers(all) {
+		m.Criteria = append(m.Criteria, prompts.MemberCriterion{Number: n, Text: all[n-1]})
+	}
+	return prompts.RenderTaskMember(m)
+}
+
+// onlyMember is t with the Agent session alone among its Agents ("": t as it is).
+func onlyMember(t Todo, session string) Todo {
+	if session != "" {
+		t.Agents = slices.DeleteFunc(slices.Clone(t.Agents), func(a TodoAgent) bool { return a.SessionID != session })
+	}
+	return t
+}
+
+// memberFor is the session a message about t is for: the one named (session_id), else its only working member, "" for a
+// to-do with none (its one Agent is then as before). Several and none named: a refusal that lists them, and nothing is done.
+func (s *Service) memberFor(t Todo, named string) (string, error) {
+	title := func(m membership.Member) string {
+		if i := slices.IndexFunc(t.Agents, func(a TodoAgent) bool { return a.SessionID == m.Session }); i >= 0 {
+			return t.Agents[i].Title
+		}
+		return ""
+	}
+	m, found, refusal := membership.Pick(t.members(), named, title)
+	if refusal != "" {
+		return "", fmt.Errorf("to-do %s: %s", t.ID, refusal)
+	}
+	if !found {
+		return "", nil
+	}
+	return m.Session, nil
+}
+
+// sendToMember is sendToTask to one member of t.
+func (s *Service) sendToMember(ctx context.Context, t Todo, session, text string) (string, error) {
+	return s.sendToTask(ctx, onlyMember(t, session), text)
+}
+
+// reworkMember puts the member's part back to work after a rework sent to it: a round more.
+func (s *Service) reworkMember(ctx context.Context, t Todo, session string) {
+	for _, a := range t.Agents {
+		if a.SessionID == session && a.active() && a.Assignment != nil {
+			next := a.Assignment.Clone()
+			next.State, next.Round = membership.StateWorking, next.Round+1
+			if err := s.setAssignment(ctx, t.ID, a.MachineID, a.SessionID, next); err != nil {
+				s.logf("task %s: member %s: %v", t.ID, short(session), err)
+			}
+		}
+	}
+}
+
+// memberJoin links agent c of machine am to the to-do id that caller supervises as a member answering for part (action
+// attach), or moves it there from the to-do it is on (move). The Agents already there are left as they are. It returns the
+// to-do and what the member is told first.
+func (s *Service) memberJoin(ctx context.Context, caller string, action membership.Action, id string, am Device, c proto.Session, title string, doneWhen []string, expect int) (Todo, string, error) {
+	t, view, err := s.memberView(caller, id)
+	if err != nil {
+		return Todo{}, "", err
+	}
+	var from *membership.View
+	if cur, on := s.openTodoOfAgent(am.ID, c.SessionID); on && cur.ID != t.ID {
+		if action != membership.Move {
+			return Todo{}, "", fmt.Errorf("%s works for to-do %s (%q) already: move takes it from there; nothing was changed", agentLabel(c), cur.ID, cur.Title)
+		}
+		if _, v, err := s.memberView(caller, cur.ID); err != nil {
+			return Todo{}, "", err
+		} else {
+			from = &v
+		}
+	}
+	if err := membership.Check(action, am.ID, c.SessionID, view, from); err != nil {
+		return Todo{}, "", err
+	}
+	var criteria []string
+	if t.Supervision != nil {
+		criteria = t.Supervision.DoneWhen
+	}
+	part := cutRunes(oneLine(cmp.Or(strings.TrimSpace(title), strings.TrimSpace(c.Title), agentLabel(c))), 60)
+	a, err := membership.NewAssignment(part, doneWhen, expect, criteria)
+	if err != nil {
+		return Todo{}, "", fmt.Errorf("%w; nothing was changed", err)
+	}
+	if err := s.linkTodoAgentWithSource(ctx, t.ID, am.ID, c.SessionID, a.Title, c.Cwd, c.Agent, "", "manual", ""); err != nil {
+		return Todo{}, "", fmt.Errorf("link the agent: %w", err)
+	}
+	if err := s.setAssignment(ctx, t.ID, am.ID, c.SessionID, &a); err != nil {
+		return Todo{}, "", fmt.Errorf("record its part: %w (it is linked to the to-do as a whole)", err)
+	}
+	cur, _ := s.todoNow(t.ID)
+	return cur, s.memberBrief(cur, a), nil
+}
+
+// memberAction is agent_supervise with a todo_id: attach links the Agent as a member, detach lets it go (it keeps
+// running and is no longer the to-do's), move does both between two to-dos the caller supervises.
+func (s *Service) memberAction(ctx context.Context, self string, action membership.Action, id string, am Device, c proto.Session, title string, doneWhen []string, expect int) (string, error) {
+	if action == membership.Detach {
+		t, view, err := s.memberView(self, id)
+		if err == nil {
+			err = membership.Check(action, am.ID, c.SessionID, view, nil)
+		}
+		if err != nil {
+			return "", err
+		}
+		i := slices.IndexFunc(t.Agents, func(a TodoAgent) bool { return a.MachineID == am.ID && a.SessionID == c.SessionID && a.active() })
+		if err := s.releaseStoppedAgents(ctx, t.ID, []TodoAgent{t.Agents[i]}); err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("%s is no member of to-do %s any more: it keeps running, and its work is no longer the to-do's.", agentLabel(c), t.ID), nil
+	}
+	t, brief, err := s.memberJoin(ctx, self, action, id, am, c, title, doneWhen, expect)
+	if err != nil {
+		return "", err
+	}
+	params := map[string]any{"session_id": c.SessionID, "text": brief, "client_msg_id": "member:" + t.ID + ":" + c.SessionID}
+	if err := s.call(ctx, am.ID, DeviceSessionSendOnce, params, nil); err != nil {
+		return "", fmt.Errorf("%s is a member of to-do %s, but its brief was not delivered: %w. Tell it with agent_send", agentLabel(c), t.ID, err)
+	}
+	return fmt.Sprintf("%s (%s) is now a member of to-do %s (%q) and was told its part; %d work on it.", agentLabel(c), am.Name, t.ID, t.Title, len(t.workingMembers())), nil
+}
+
+// attachMember is agent_send's task.todo_id on a to-do with no supervisor Agent that self supervises: the Agent, which works
+// on no open task, joins it as a member whose part is task's; the brief goes with the text.
+func (s *Service) attachMember(ctx context.Context, self string, am Device, c proto.Session, task sendTask) (*handedTask, error) {
+	if t, busy := s.openTodoOfAgent(am.ID, c.SessionID); busy {
+		return nil, fmt.Errorf("%s works for task %s (%q) already: only an Agent on no open task joins a to-do; nothing was sent", agentLabel(c), t.ID, t.Title)
+	}
+	t, brief, err := s.memberJoin(ctx, self, membership.Attach, task.TodoID, am, c, task.Title, task.DoneWhen, task.ExpectMinutes)
+	if err != nil {
+		return nil, fmt.Errorf("%w; nothing was sent", err)
+	}
+	return &handedTask{todo: t, self: self, supervisor: self, brief: brief, member: true, run: SessionRef{MachineID: am.ID, SessionID: c.SessionID}}, nil
+}
+
+// joinTasks is task_plan with join: each task starts one more Agent on the open to-do its todo_id names, which caller (a
+// conversation, or a supervisor Agent's ref) supervises. The Agents there are not stopped, released or briefed again; the
+// to-do keeps its ledger and its one acceptance, and the new member's part is the task's title, done_when (criteria of
+// the to-do, by number or text) and expect_minutes. It starts at once with no card, so the main conversation's join
+// needs what lets any plan start at once. Refusals come now; a start that fails is told as a failed start.
+func (s *Service) joinTasks(ctx context.Context, caller string, tasks []PlanTask, scope *leaderScope) (string, error) {
+	type join struct {
+		t    PlanTask
+		todo Todo
+		a    membership.Assignment
+	}
+	var joins []join
+	adding := map[string]int{}
+	for i, t := range tasks {
+		id := t.ReuseTodo
+		if !t.join || id == "" {
+			return "", fmt.Errorf("task %d: join adds an Agent to the open to-do todo_id names, and every task of the call joins", i+1)
+		}
+		todo, view, err := s.memberView(caller, id)
+		if err == nil {
+			for range adding[id] { // the members this call adds count toward the most
+				view.Members = append(view.Members, membership.Member{Session: "new", Active: true})
+			}
+			err = membership.Check(membership.Attach, "", "", view, nil)
+		}
+		if err == nil && len(todo.workingMembers()) == 0 {
+			err = fmt.Errorf("to-do %s has no Agent working yet: plan it with todo_id alone", todo.ID)
+		}
+		if err != nil {
+			return "", fmt.Errorf("task %d: %w", i+1, err)
+		}
+		adding[id]++
+		if t.Role == roleLeader {
+			return "", fmt.Errorf("task %d: a member is a worker: role must be \"worker\"", i+1)
+		}
+		var all []string
+		if todo.Supervision != nil {
+			all = todo.Supervision.DoneWhen
+		}
+		a, err := membership.NewAssignment(t.Title, t.DoneWhen, t.ExpectMinutes, all)
+		if err != nil {
+			return "", fmt.Errorf("task %d: %w", i+1, err)
+		}
+		joins = append(joins, join{t, todo, a})
+	}
+	if scope == nil && !s.planStartsAtOnce(ctx, tasks) { // under a supervisor Agent, taskPlanFrom checked its room already
+
+		return "", errors.New("a join starts at once and has no card for the owner: set readonly, or user_requested when the owner asked for it; nothing was started")
+	}
+	s.taskStarting.Add(1)
+	go func() {
+		defer s.taskStarting.Add(-1)
+		for _, j := range joins {
+			if err := s.startMember(ctx, j.t, j.todo, j.a); err != nil {
+				s.logf("task %s: member %q did not start: %v", j.todo.ID, j.a.Title, err)
+				now := time.Now().UTC()
+				s.signal(superviseSignal{Todo: j.todo.ID, Kind: sigFailed, Machine: j.t.Machine, Key: "member@" + now.Format(time.RFC3339Nano), At: now,
+					Generation: now, Detail: fmt.Sprintf("its new member %q did not start on %s: %v", j.a.Title, j.t.Machine, err)})
+			}
+		}
+	}()
+	var b strings.Builder
+	for _, j := range joins {
+		fmt.Fprintf(&b, "- %s joins to-do %s on %s (dispatching)\n", j.a.Title, j.todo.ID, j.t.Machine)
+	}
+	return b.String() + "This is not confirmation that any Agent started: you are told when one fails to. The Agents already on the to-do were not touched.", nil
+}
+
+// startMember starts the Agent of one join task and links it to its to-do with its assignment, as startSupervisorAgent
+// does for a supervisor: around takeTodoForTask, so no Agent there is stopped, released or briefed again and no card is made.
+func (s *Service) startMember(ctx context.Context, t PlanTask, todo Todo, a membership.Assignment) error {
+	ctx = context.WithoutCancel(ctx)
+	st, claimed := s.claimTaskStart(todo.ID)
+	if !claimed {
+		return errors.New(errStartingAgain)
+	}
+	defer s.endTaskStart(todo.ID, st, proto.Session{})
+	t.TodoID, t.Parent, t.DoneWhen, t.Prompt = todo.ID, "", nil, s.memberBrief(todo, a)+"\n\n"+t.Prompt
+	sctx, cancel := context.WithTimeout(ctx, taskStartTimeout)
+	defer cancel()
+	mid, sid, err := s.startTaskAgent(sctx, &t, false)
+	if t.admissionRelease != nil {
+		defer func() { t.admissionRelease() }()
+	}
+	if err != nil {
+		return err
+	}
+	lctx, lcancel := context.WithTimeout(ctx, taskFailTimeout)
+	defer lcancel()
+	if err := s.linkPlanAgent(lctx, t, mid, sid, false); err != nil {
+		go s.stopCancelledAgent(ctx, todo.ID, mid, sid) // started, but the to-do closed meanwhile
+		return fmt.Errorf("link it: %w", err)
+	}
+	return s.setAssignment(lctx, todo.ID, mid, sid, &a)
+}
+
+// memberDone is a done report from the Agent machine/session of t: when it is a member with a part, the part is marked
+// done. It says whether other members still work: then the report is that member's alone, and the to-do's completion waits
+// for the last of them (its review is raised when every working member has finished or stopped).
+func (s *Service) memberDone(ctx context.Context, t Todo, machine, session string) (othersWork bool) {
+	machine = s.canonical(machine)
+	i := slices.IndexFunc(t.Agents, func(a TodoAgent) bool { return a.MachineID == machine && a.SessionID == session && a.active() })
+	if i < 0 || t.Agents[i].Assignment == nil && len(t.workingMembers()) < 2 {
+		return false // one Agent on the whole to-do: its done report completes it, as ever
+	}
+	next := t.Agents[i].Assignment.Clone()
+	if next == nil { // a member from before the others joined answers for what the others do not
+		next = &membership.Assignment{Title: t.Agents[i].Title}
+	}
+	if next.State != membership.StateDone {
+		next.State = membership.StateDone
+		if err := s.setAssignment(ctx, t.ID, machine, session, next); err != nil {
+			s.logf("task %s: member %s: %v", t.ID, short(session), err)
+		}
+	}
+	live := map[string]bool{}
+	for _, c := range s.taskAgents(ctx, t) {
+		live[c.SessionID] = c.State == proto.StateWorking || c.State == proto.StateNeedsYou || c.PendingInteractions > 0 || c.Starting
+	}
+	return membership.Others(t.members(), machine, session, func(m membership.Member) bool { return live[m.Session] }) > 0
+}
+
+// memberDueKey names the estimate of member m that is due: its session and the moment it fell due.
+func memberDueKey(m membership.Member) string {
+	return "member@" + m.Session + "@" + m.DueAt().UTC().Format(time.RFC3339)
+}
+
+// memberClocks runs the estimate clock of each working member that has an estimate of its own (the others keep the
+// to-do's, briefClock): a member that made progress lately gets its estimate moved later on its own, as a to-do's is
+// (extendEstimate); else its supervisor hears that it is due, an estimate_due signal that names the member's session.
+func (s *Service) memberClocks(ctx context.Context, t Todo, now time.Time) {
+	if t.Supervision == nil || t.DoneAt != nil || !s.memberRunning(t) {
+		return
+	}
+	for _, m := range t.workingMembers() {
+		if due := m.DueAt(); due.IsZero() || now.Before(due) {
+			continue
+		}
+		expect := m.Assignment.ExpectMinutes
+		since := now.Add(-signalrule.ProgressWindow(expect))
+		if next, ok := signalrule.Extension(expect, m.Assignment.Extended, s.progressAfter(m.Machine, m.Session, since)); ok {
+			a := m.Assignment.Clone()
+			a.ExpectMinutes, a.Extended = next, a.Extended+1
+			if err := s.setAssignment(ctx, t.ID, m.Machine, m.Session, a); err != nil {
+				s.logf("task %s: member %s: extended estimate: %v", t.ID, short(m.Session), err)
+			}
+			continue
+		}
+		s.signal(superviseSignal{Todo: t.ID, Kind: sigEstimateDue, Machine: m.Machine, Session: m.Session, Key: memberDueKey(m), At: now,
+			Minutes: int(now.Sub(m.LinkedAt).Minutes())})
+	}
+}
+
+// memberRunning: t goes on (neither waiting for review nor with the owner nor parked): its members' clocks run.
+func (s *Service) memberRunning(t Todo) bool {
+	switch t.Supervision.state(t) {
+	case reviewPending, reviewNeedsUser, reviewParked, reviewTimedOut, reviewClosing:
+		return false
+	}
+	return true
+}
+
+// memberDue is the minutes expected of the member signal g (an estimate_due naming a session) is about, while its
+// estimate is still the one that fell due and t goes on.
+func (s *Service) memberDue(t Todo, g superviseSignal) (int, bool) {
+	for _, m := range t.workingMembers() {
+		if m.Session == g.Session && !m.DueAt().IsZero() {
+			return m.Assignment.ExpectMinutes, g.Key == memberDueKey(m) && s.memberRunning(t)
+		}
+	}
+	return 0, false
 }

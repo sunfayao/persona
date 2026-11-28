@@ -529,7 +529,7 @@
   },
   {
     "name": "agent_send",
-    "description": "Send what the user asked for to a coding Agent. Follow-up on an Agent's own work goes to it as agents_list's reuse= says; unrelated work: agent_start; unsure: ask_user. Give task for new work, so you supervise it, and say its done_when in text too; omit task for a reply, nudge or decision.\n\n`wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, with known input/session ids. Observation never answers questions, accepts tasks, resends or cancels work; normal supervision/`task_review` applies. Older nodes may time out instead of an unrelated reply.\n\nDetails: .claude/skills/persona-work/references/agent-send.md in the working dir.",
+    "description": "Send the user's request to a coding Agent. Follow-up on an Agent's own work goes to it as agents_list's reuse= says; unrelated work: agent_start; unsure: ask_user. Give task for new work, so you supervise it, and repeat its done_when in text; omit task for a reply, nudge or decision.\n\n`wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, with known input/session ids. Observation never answers questions, accepts tasks, resends or cancels work; normal supervision/`task_review` applies. Older nodes may time out instead of an unrelated reply.\n\nDetails: .claude/skills/persona-work/references/agent-send.md in the working dir.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -615,13 +615,14 @@
               "items": {
                 "type": "string"
               },
-              "description": "results you can check"
+              "description": "checkable results"
             },
             "expect_minutes": {
               "type": "integer"
             },
             "todo_id": {
-              "type": "string"
+              "type": "string",
+              "description": "your open to-do to join as a member"
             },
             "part_of": {
               "type": "string"
@@ -813,7 +814,7 @@
   },
   {
     "name": "agent_supervise",
-    "description": "Main can adopt an Agent on no open task for supervision and task_review. Omit role for a worker. A leader needs done_when and a non-work-trust computer. It gets instructions to plan and review direct workers, who cannot delegate. On your open task, use task_scope for done_when/expect_minutes.",
+    "description": "Main can adopt an Agent on no open task for supervision and task_review. Omit role for a worker. A leader needs done_when and a non-work-trust computer. It gets instructions to plan and review direct workers, who cannot delegate. On your open task, use task_scope for done_when/expect_minutes. With todo_id and action, an Agent becomes a member of an open to-do you supervise (attach; done_when, by number or text, are the criteria it answers for), leaves it and keeps running (detach), or moves from its to-do to todo_id (move); several members work on one to-do, each on its own part. The last Agent working on a to-do in progress cannot leave it.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -838,6 +839,19 @@
           "enum": [
             "leader"
           ]
+        },
+        "todo_id": {
+          "type": "string",
+          "description": "an open to-do you supervise"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "attach",
+            "detach",
+            "move"
+          ],
+          "description": "of the Agent on todo_id; default attach"
         },
         "done_when": {
           "type": "array",
@@ -1545,7 +1559,7 @@
               },
               "user_requested": {
                 "type": "boolean",
-                "description": "true only if the owner's latest message asked for it"
+                "description": "true only if the owner's last message asked for it"
               },
               "why": {
                 "type": "string",
@@ -1586,7 +1600,7 @@
               },
               "started_why": {
                 "type": "string",
-                "description": "why you start it unasked"
+                "description": "why started unasked"
               },
               "attachments": {
                 "type": "array",
@@ -1615,6 +1629,10 @@
               "todo_id": {
                 "type": "string",
                 "description": "this chat's open or failed-start to-do with no live Agent"
+              },
+              "join": {
+                "type": "boolean",
+                "description": "another Agent on your open to-do (todo_id); done_when: its criteria"
               },
               "inbox_item": {
                 "type": "string"
@@ -1666,7 +1684,7 @@
   },
   {
     "name": "task_review",
-    "description": "Record a verdict on a supervised task, judged on its brief and criteria, not on claims.\n- accepted: outcome=done closes verified work: one met check with evidence per done_when criterion, by number or text.\n- rework: a concrete next step in note; do not bounce nitpicks.\n- parked: an outside wait, with reason, waiting_on and evidence.\n- needs_user: only what the owner alone can decide, with why_owner, reason, options, recommend and cost_of_waiting.\n- cancelled: duplicate or unwanted tasks only.\nverify=true reruns the hub's checks; no verdict. On another supervisor's task only accept or cancel; send gaps with agent_send.\n\nDetails: .claude/skills/persona-work/references/task-review.md in the working dir.",
+    "description": "Record a verdict on a supervised task, judged on its brief and criteria, not on claims.\n- accepted: outcome=done closes verified work: one met check with evidence per criterion, by number or text.\n- rework: a concrete next step in note; no nitpicks.\n- parked: an outside wait, with reason, waiting_on and evidence.\n- needs_user: only what the owner alone can decide, with why_owner, reason, options, recommend, cost_of_waiting.\n- cancelled: duplicate or unwanted tasks only.\nverify=true reruns the hub's checks; no verdict. On another supervisor's task only accept or cancel; send gaps with agent_send.\n\nDetails: .claude/skills/persona-work/references/task-review.md in the working dir.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -1676,6 +1694,10 @@
       "properties": {
         "todo_id": {
           "type": "string"
+        },
+        "session_id": {
+          "type": "string",
+          "description": "rework: a member of several"
         },
         "verdict": {
           "type": "string",
@@ -1725,7 +1747,7 @@
         },
         "note": {
           "type": "string",
-          "description": "in Japanese: the next step, the decision or the result"
+          "description": "in Japanese: next step, decision or result"
         },
         "outcome": {
           "type": "string",
@@ -1736,7 +1758,7 @@
         },
         "reason": {
           "type": "string",
-          "description": "one sentence in the owner's language"
+          "description": "one sentence, owner's language"
         },
         "waiting_on": {
           "type": "string",

@@ -102,7 +102,7 @@ Details: .claude/skills/persona-work/references/task-plan.md in the working dir.
           },
           "user_requested": {
             "type": "boolean",
-            "description": "true only if the owner's latest message asked for it"
+            "description": "true only if the owner's last message asked for it"
           },
           "why": {
             "type": "string",
@@ -141,7 +141,7 @@ Details: .claude/skills/persona-work/references/task-plan.md in the working dir.
           },
           "started_why": {
             "type": "string",
-            "description": "why you start it unasked"
+            "description": "why started unasked"
           },
           "attachments": {
             "type": "array",
@@ -170,6 +170,10 @@ Details: .claude/skills/persona-work/references/task-plan.md in the working dir.
           "todo_id": {
             "type": "string",
             "description": "this chat's open or failed-start to-do with no live Agent"
+          },
+          "join": {
+            "type": "boolean",
+            "description": "another Agent on your open to-do (todo_id); done_when: its criteria"
           },
           "inbox_item": {
             "type": "string"

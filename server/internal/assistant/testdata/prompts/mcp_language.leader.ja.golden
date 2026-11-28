@@ -1,7 +1,7 @@
 [
   {
     "name": "task_plan",
-    "description": "Hand a part of your to-do to a worker: each task starts a new coding Agent at once, beneath your to-do, with no card for the owner. Workers belong to your to-do only: role=worker on every task, todo_id only for a piece of your to-do (part_of it) with no Agent yet, no handing work on, at most 8 of your workers open at a time. Give each worker machine and cwd (computer and project directory): you run in a home directory, and a worker without them starts there. Give it done_when (results you can check); a task that only reads sets readonly true, gets the read-only constraint in its first message and is an independent check of another worker's result. Claude-family launchers always start in bypassPermissions; Codex read-only tasks keep the plan-mode sandbox. What a worker reports, and when it stops, stalls, runs past its estimate or waits for review, reaches you in a message starting \"Persona · supervision\". Returns at once with each worker's to-do; it does not confirm the Agent started.",
+    "description": "Hand a part of your to-do to a worker: each task starts a new coding Agent at once, beneath your to-do, with no card for the owner. Workers belong to your to-do only: role=worker on every task, todo_id only for a piece of your to-do (part_of it) with no Agent yet, no handing work on, at most 8 of your workers open at a time. Give each worker machine and cwd (computer and project directory): you run in a home directory, and a worker without them starts there. Give it done_when (results you can check); a task that only reads sets readonly true, gets the read-only constraint in its first message and is an independent check of another worker's result. Claude-family launchers always start in bypassPermissions; Codex read-only tasks keep the plan-mode sandbox. What a worker reports, and when it stops, stalls, runs past its estimate or waits for review, reaches you in a message starting \"Persona · supervision\". With join true, todo_id is a to-do you supervise and the task starts one more member beside those working, whose part is its title, done_when (criteria, by number or text) and expect_minutes. Returns at once with each worker's to-do; it does not confirm the Agent started.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -26,6 +26,10 @@
               "todo_id": {
                 "type": "string",
                 "description": "a piece of your to-do with no Agent yet; omitted: a new worker to-do"
+              },
+              "join": {
+                "type": "boolean",
+                "description": "another Agent on your to-do (todo_id); done_when: its criteria"
               },
               "title": {
                 "type": "string",
@@ -155,6 +159,10 @@
           "type": "string",
           "description": "the worker's task id"
         },
+        "session_id": {
+          "type": "string",
+          "description": "rework: one of several members"
+        },
         "verdict": {
           "type": "string",
           "enum": [
@@ -182,7 +190,7 @@
             "repeated_error",
             "low_roi_edge"
           ],
-          "description": "rework, optional: external_input (outside input; skips the stalled cap), substantive_new (new defect after the gap was fixed; resets it), repeated_error/low_roi_edge (default)"
+          "description": "rework: external_input (external review/conflict/owner input; skips the 2-round stalled cap), substantive_new (prior gap fixed, new defect; resets it), repeated_error/low_roi_edge (default; cap 2 stalled, 10 total)"
         },
         "note": {
           "type": "string",
@@ -229,7 +237,7 @@
   },
   {
     "name": "agent_read",
-    "description": "Read the recent exchanges of one of your workers' Agent: what it was told, what it said, and its tool calls in short form. Use it before you review a worker (check its evidence yourself), to see why it stopped or what it waits for, and before you message it. todo_id is the worker's to-do, as its supervision message and task_plan's answer name it; turns is how many recent exchanges (default 2, at most 10). It reaches your own workers only.",
+    "description": "Read the recent exchanges of one of your workers' Agent: what it was told, what it said, and its tool calls in short form. Use it before you review a worker (check its evidence yourself), to see why it stopped or what it waits for, and before you message it. todo_id is the worker's to-do, as its supervision message names it; turns: recent exchanges (default 2, at most 10). Your own workers only.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -241,18 +249,22 @@
           "type": "string",
           "description": "the worker's to-do id"
         },
+        "session_id": {
+          "type": "string",
+          "description": "one of several members"
+        },
         "turns": {
           "type": "integer",
           "minimum": 1,
           "maximum": 10,
-          "description": "how many recent exchanges; omitted: 2"
+          "description": "recent exchanges; default 2"
         }
       }
     }
   },
   {
     "name": "agent_send",
-    "description": "Send a message to one of your open workers' Agent: the answer to its question, a nudge to finish or to report, what is still missing, \"continue\" with what was left after its turn was cut off or its computer restarted, or when to rebase and merge so the workers' changes go in one after another. A closed Agent is resumed by the message. It carries no new work: a new part of your to-do is a new worker (task_plan). It reaches your own workers only.",
+    "description": "Send a message to one of your open workers' Agent: the answer to its question, a nudge to finish or to report, what is still missing, \"continue\" with what was left after its turn was cut off or its computer restarted, or when to rebase and merge so the workers' changes go in one after another. A closed Agent is resumed by the message. No new work: a new part is a new worker (task_plan). Your own workers only.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -265,9 +277,13 @@
           "type": "string",
           "description": "the worker's to-do id"
         },
+        "session_id": {
+          "type": "string",
+          "description": "one of several members"
+        },
         "text": {
           "type": "string",
-          "description": "the message, for the worker to act on"
+          "description": "the message"
         }
       }
     }

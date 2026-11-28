@@ -24,6 +24,7 @@ import (
 type planTaskIn struct {
 	PlanTask
 	TodoID string `json:"todo_id"`
+	Join   bool   `json:"join"`
 }
 
 // toolTaskPlanFrom is task_plan from the conversation sessionID running on machine (where its attachments are).
@@ -53,7 +54,7 @@ func (s *Service) taskPlanFrom(ctx context.Context, machine, sessionID string, a
 			return "", fmt.Errorf("tasks: %v", err)
 		}
 		for _, t := range in.Tasks {
-			t.PlanTask.ReuseTodo = strings.TrimSpace(t.TodoID)
+			t.PlanTask.ReuseTodo, t.PlanTask.join = strings.TrimSpace(t.TodoID), t.Join
 			t.PlanTask.Parent = "" // the hub's, set only for a task leader's workers
 			a.Tasks = append(a.Tasks, t.PlanTask)
 		}
@@ -228,6 +229,9 @@ func (s *Service) taskPlanFrom(ctx context.Context, machine, sessionID string, a
 			return "", fmt.Errorf("task %d: %w", i+1, err)
 		}
 		s.resolveTaskRepo(ctx, t) // the kind planStartsAtOnce looks up
+	}
+	if slices.ContainsFunc(a.Tasks, func(t PlanTask) bool { return t.join }) {
+		return s.joinTasks(ctx, sessionID, a.Tasks, scope)
 	}
 	for i, t := range a.Tasks {
 		if t.ReuseTodo == "" {

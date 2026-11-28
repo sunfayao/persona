@@ -1,8 +1,8 @@
 Record a verdict on a supervised task, judged on its brief and criteria, not on claims.
-- accepted: outcome=done closes verified work: one met check with evidence per done_when criterion, by number or text.
-- rework: a concrete next step in note; do not bounce nitpicks.
+- accepted: outcome=done closes verified work: one met check with evidence per criterion, by number or text.
+- rework: a concrete next step in note; no nitpicks.
 - parked: an outside wait, with reason, waiting_on and evidence.
-- needs_user: only what the owner alone can decide, with why_owner, reason, options, recommend and cost_of_waiting.
+- needs_user: only what the owner alone can decide, with why_owner, reason, options, recommend, cost_of_waiting.
 - cancelled: duplicate or unwanted tasks only.
 verify=true reruns the hub's checks; no verdict. On another supervisor's task only accept or cancel; send gaps with agent_send.
 
@@ -15,6 +15,10 @@ Details: .claude/skills/persona-work/references/task-review.md in the working di
   "properties": {
     "todo_id": {
       "type": "string"
+    },
+    "session_id": {
+      "type": "string",
+      "description": "rework: a member of several"
     },
     "verdict": {
       "type": "string",
@@ -41,7 +45,7 @@ Details: .claude/skills/persona-work/references/task-review.md in the working di
     },
     "note": {
       "type": "string",
-      "description": "in {{lang .Lang}}: the next step, the decision or the result"
+      "description": "in {{lang .Lang}}: next step, decision or result"
     },
     "outcome": {
       "type": "string",
@@ -49,7 +53,7 @@ Details: .claude/skills/persona-work/references/task-review.md in the working di
     },
     "reason": {
       "type": "string",
-      "description": "one sentence in the owner's language"
+      "description": "one sentence, owner's language"
     },
     "waiting_on": {
       "type": "string",

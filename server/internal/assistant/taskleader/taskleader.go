@@ -234,14 +234,16 @@ func CompletionRefusal(criteria []Criterion, workers []WorkerState) string {
 
 // ReadArgs is the supervisor's agent_read: one of its workers and how many recent exchanges.
 type ReadArgs struct {
-	TodoID string `json:"todo_id"`
-	Turns  int    `json:"turns"`
+	TodoID    string `json:"todo_id"`
+	SessionID string `json:"session_id"` // the member of a to-do with several
+	Turns     int    `json:"turns"`
 }
 
 // SendArgs is the supervisor's agent_send: one of its workers and the message.
 type SendArgs struct {
-	TodoID string `json:"todo_id"`
-	Text   string `json:"text"`
+	TodoID    string `json:"todo_id"`
+	SessionID string `json:"session_id"` // the member of a to-do with several
+	Text      string `json:"text"`
 }
 
 // ScopeArgs is the supervisor's task_scope: a worker's done_when or expect_minutes, or its own to-do's
@@ -291,7 +293,7 @@ func DecodeSend(raw json.RawMessage) (SendArgs, error) {
 		return a, fmt.Errorf("agent_send takes todo_id and text only: a message to a worker of yours; new work is a "+
 			"new worker (task_plan) (%v)", err)
 	}
-	a.TodoID, a.Text = strings.TrimSpace(a.TodoID), strings.TrimSpace(a.Text)
+	a.TodoID, a.SessionID, a.Text = strings.TrimSpace(a.TodoID), strings.TrimSpace(a.SessionID), strings.TrimSpace(a.Text)
 	switch {
 	case a.TodoID == "":
 		return a, errors.New("todo_id is required: the worker's to-do, as its supervision message names it")

@@ -607,7 +607,7 @@ func (s *Service) settleTurnReporting(ctx context.Context, machine, sid, unheard
 		if read && silentTurn(items) && s.taskInboxTurnEnded(cctx, t, last, items, true) {
 			return settleTaken
 		}
-		s.taskNotice(cctx, t, name, "interrupted", "", body.Error)
+		s.taskNotice(cctx, t, name, where[1], "interrupted", "", body.Error)
 		s.taskReport(t, reportInterrupted, name, where, body.Error, nil)
 		return settleTaken
 	}
@@ -683,7 +683,7 @@ func (s *Service) settleTurnReporting(ctx context.Context, machine, sid, unheard
 		if s.taskInboxTurnEnded(cctx, t, last, items, true) {
 			return settleTaken
 		}
-		s.taskNotice(cctx, t, name, "interrupted", "", body.Error)
+		s.taskNotice(cctx, t, name, where[1], "interrupted", "", body.Error)
 		s.taskReport(t, reportInterrupted, name, where, body.Error, nil)
 		return settleTaken
 	}

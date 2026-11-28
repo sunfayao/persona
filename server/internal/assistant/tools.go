@@ -635,6 +635,9 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 			if err != nil {
 				return "", task.sendFailed(ctx, s, rpc.NotSent(err))
 			}
+			if task.brief != "" { // a member is told its part first
+				text = task.brief + "\n\n" + text
+			}
 		}
 		if handoff != nil {
 			wire, _ := json.Marshal(taskHandoffReceipt{TodoID: handoff.origin, ID: handoff.ID, Head: handoff.Head, Check: handoff.Target.Check})

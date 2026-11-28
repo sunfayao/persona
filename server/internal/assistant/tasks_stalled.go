@@ -108,7 +108,7 @@ func (s *Service) closeStalledTask(ctx context.Context, task Todo, agents []prot
 	currentAgents := currentTaskAgents(agents, superseded)
 	expected := 0
 	for _, a := range task.Agents {
-		if a.active() && !superseded[[2]string{a.MachineID, a.SessionID}] {
+		if a.active() && !task.supervisorRow(a) && !superseded[[2]string{a.MachineID, a.SessionID}] {
 			expected++
 		}
 	}

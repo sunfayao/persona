@@ -1,6 +1,6 @@
 {
   "name": "task_review",
-  "description": "Record a verdict on a supervised task, judged on its brief and criteria, not on claims.\n- accepted: outcome=done closes verified work: one met check with evidence per done_when criterion, by number or text.\n- rework: a concrete next step in note; do not bounce nitpicks.\n- parked: an outside wait, with reason, waiting_on and evidence.\n- needs_user: only what the owner alone can decide, with why_owner, reason, options, recommend and cost_of_waiting.\n- cancelled: duplicate or unwanted tasks only.\nverify=true reruns the hub's checks; no verdict. On another supervisor's task only accept or cancel; send gaps with agent_send.\n\nDetails: .claude/skills/persona-work/references/task-review.md in the working dir.",
+  "description": "Record a verdict on a supervised task, judged on its brief and criteria, not on claims.\n- accepted: outcome=done closes verified work: one met check with evidence per criterion, by number or text.\n- rework: a concrete next step in note; no nitpicks.\n- parked: an outside wait, with reason, waiting_on and evidence.\n- needs_user: only what the owner alone can decide, with why_owner, reason, options, recommend, cost_of_waiting.\n- cancelled: duplicate or unwanted tasks only.\nverify=true reruns the hub's checks; no verdict. On another supervisor's task only accept or cancel; send gaps with agent_send.\n\nDetails: .claude/skills/persona-work/references/task-review.md in the working dir.",
   "input_schema": {
     "type": "object",
     "required": [
@@ -10,6 +10,10 @@
     "properties": {
       "todo_id": {
         "type": "string"
+      },
+      "session_id": {
+        "type": "string",
+        "description": "rework: a member of several"
       },
       "verdict": {
         "type": "string",
@@ -59,7 +63,7 @@
       },
       "note": {
         "type": "string",
-        "description": "in Simplified Chinese: the next step, the decision or the result"
+        "description": "in Simplified Chinese: next step, decision or result"
       },
       "outcome": {
         "type": "string",
@@ -70,7 +74,7 @@
       },
       "reason": {
         "type": "string",
-        "description": "one sentence in the owner's language"
+        "description": "one sentence, owner's language"
       },
       "waiting_on": {
         "type": "string",
