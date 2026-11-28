@@ -87,9 +87,7 @@ var roundToolNames = []string{"notify_user", "supervision_finish", "schedule_fol
 // background line), so the supervision instructions never send a round to a tool it lacks.
 var roundToolsWithheld = map[string]string{
 	"ask_user":          "an owner decision from the background supervisor is a task_review needs_user conclusion card, never ask_user (the instructions' background line)",
-	"task_start_screen": "failed and started go to the main conversation, and only it remedies a start (remedyTool)",
-	"task_start_keys":   "failed and started go to the main conversation, and only it remedies a start (remedyTool)",
-	"task_retry":        "failed and started go to the main conversation, and only it retries a start (toolTaskRetry)",
+	"task_start_repair": "failed and started go to the main conversation, and only it remedies or retries a start (remedyTool, toolTaskRetry)",
 	"agent_supervise":   "only the main conversation and a direction's lead adopt an agent opened outside supervision (toolAgentSupervise)",
 }
 

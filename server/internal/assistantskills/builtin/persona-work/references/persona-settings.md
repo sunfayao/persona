@@ -15,7 +15,7 @@ The tool's description holds what every call needs. This page holds the rest: wh
 - The Inbox's sorting rules and task links (`inbox.rules`, `inbox.agent_rules`), mail accounts (`mail.accounts`).
 - Extensions (`extension.<id>`, channels and connectors included) and their download mirrors.
 - The hub's update channel and auto-update (`hub.*`), device notifications (`notifications.devices`), each agent CLI's own settings per computer (`agent_settings.<cli>`), and muted Claude config directories.
-- Model profiles are not here: use `model_profiles_list`, `model_profile_get`, `model_profile_switch` and `model_profile_rollback`. Routines and follow-ups have their own tools.
+- Model profiles are not here: use `model_profiles` (list, get, switch, rollback). Routines and follow-ups have their own tools.
 
 ## Extensions
 

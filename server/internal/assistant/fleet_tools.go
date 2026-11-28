@@ -246,6 +246,14 @@ func (s *Service) mcpCallRun(ctx context.Context, machine, session, name string,
 		noteCallCode(ctx, "assistant_denied")
 		return proto.TextResult(i18n.T(s.lang(ctx), "assistant-privacy.assistant_denied"), true)
 	}
+	if assistant { // a merged tool's call is the older tool's from here on, for every check by name (unmergeTool)
+		unmerged, unmergedArgs, err := unmergeTool(compat.Tool(name), args)
+		if err != nil {
+			noteCallError(ctx, err)
+			return proto.TextResult(err.Error(), true)
+		}
+		name, args = unmerged, unmergedArgs
+	}
 	if res, refused := s.inboxModelRefusal(ctx, machine, session, origin, name); refused {
 		return res
 	}

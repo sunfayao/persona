@@ -40,22 +40,20 @@ var coreTools = []string{
 	// Alphabetical: the ones an earlier count kept that eight days of this install still called (2026-11-20 to 11-28),
 	// ask_user for the decisions it carries, and the browser's two, which do computer_*'s work in a browser. Left out
 	// for use too rare to declare in every request: agent_interrupt, agent_start, agent_supervise, cancel_followup,
-	// interaction_answer and schedule_routine (none or one call); they load on demand like any other.
+	// interaction_answer and schedule_routine (none or one call), list_followups (three) and model_profiles
+	// (model_profiles_list's six): under the five a week a declared tool needs, they load on demand like any other.
 	"ask_user", "browser_look", "browser_run", "conversation_read", "conversation_send", "conversations_list",
-	"lark_chats", "lark_messages", "lark_search", "larkcli_chats", "larkcli_messages", "larkcli_search", "list_followups",
-	"model_profiles_list", "notify_user", "schedule_followup",
+	"lark_chats", "lark_messages", "lark_search", "larkcli_chats", "larkcli_messages", "larkcli_search", "notify_user",
+	"schedule_followup",
 }
 
 // The operations taught by persona-work. Match built-in names exactly: an
 // extension sharing a prefix must keep its own loading policy.
 var workGuideTools = []string{
 	"machines_list", "agents_list", "agent_read", "agent_send", "agent_start", "agent_interrupt",
-	"agent_switch", "agents_switch", "agent_archive", "agent_unarchive",
-	"agent_supervise", "task_plan", "task_plan_withdraw", "task_scope", "task_retry",
-	"task_start_screen", "task_start_keys", "task_review", "task_decided",
-	"todo_list", "todo_get", "todo_create", "todo_update", "todo_complete", "todo_reopen", "todo_delete", "concern_report",
-	"conversations_list", "conversation_read", "conversation_send", "repositories_list", "repository_get",
-	"repository_add", "todo_repositories_get", "todo_repositories_set", "todo_repository_links_add", "todo_repository_links_set",
+	"agent_switch", "agent_archive", "agent_supervise", "task_plan", "task_plan_withdraw", "task_scope",
+	"task_start_repair", "task_review", "task_decided", "todo_list", "todo_get", "todo_create", "todo_update",
+	"conversations_list", "conversation_read", "conversation_send", "repositories", "todo_links",
 }
 
 // withToolLoading is a conversation's tools with DeferLoading, CoreRank and Fill set by the manager alone, whatever the
@@ -79,7 +77,7 @@ func (s *Service) withToolLoading(ctx context.Context, self string, tools []prot
 		// Keep planning and its allowed preflight reads directly available in a granted round.
 		// Discovery would add a separate tool call to the grant's transcript check.
 		out[i].WorkGuideTool = guide && slices.Contains(workGuideTools, out[i].Name) &&
-			!(cleanRound && (out[i].Name == "task_plan" || grantSafeTools[out[i].Name]))
+			!(cleanRound && (out[i].Name == "task_plan" || grantSafeListed(out[i].Name)))
 		rank := ranks[out[i].Name]
 		out[i].DeferLoading = deferring && rank == 0
 		out[i].CoreRank, out[i].Fill = 0, false

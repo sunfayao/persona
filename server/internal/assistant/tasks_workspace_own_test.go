@@ -141,7 +141,7 @@ func TestTaskWorkspaceOwnBranchRefusals(t *testing.T) {
 		{name: "outside the checkouts folder", existing: map[string]any{"path": "/code/app", "in_checkouts": false},
 			want: []string{"/code/app", `{"existing": "/code/app"}`, "outside the folder"}},
 		{name: "dirty", err: coded(proto.CodeCheckoutDirty, map[string]string{"path": "/wt/app/left", "branch": "b", "files": `"app.txt"`}),
-			want: []string{"/wt/app/left", "app.txt", "Commit or stash", "task_retry", "different branch"}},
+			want: []string{"/wt/app/left", "app.txt", "Commit or stash", "task_start_repair retry", "different branch"}},
 		{name: "in use", err: coded(proto.CodeCheckoutInUse, map[string]string{"path": "/wt/app/left", "branch": "b", "owner": "writer"}),
 			want: []string{"/wt/app/left", "writer"}},
 		{name: "unverified", err: coded(proto.CodeCheckoutUnverified, map[string]string{"path": "/wt/app/left", "branch": "b"}),
@@ -195,7 +195,7 @@ func TestTaskWorkspaceOwnBranchRefusals(t *testing.T) {
 				if tc.name == "dirty" {
 					todo := onlyTodo(s)
 					if saved.Tasks[0].ErrorCode != proto.CodeCheckoutDirty || !strings.Contains(todo.StartError, "app.txt") ||
-						!strings.Contains(todo.StartError, "task_retry") || !strings.Contains(todo.StartError, "另选分支") {
+						!strings.Contains(todo.StartError, "task_start_repair retry") || !strings.Contains(todo.StartError, "另选分支") {
 						t.Fatalf("failed card lost its localized recovery info: %q (code %q)", todo.StartError, saved.Tasks[0].ErrorCode)
 					}
 				}

@@ -628,7 +628,7 @@ func TestAgentAutonameReceiptLedgerReadFailureAndCorruption(t *testing.T) {
 }
 
 func TestAgentAutonameReceiptCatalogHasOnlyNarrowReadArguments(t *testing.T) {
-	for _, tool := range toolsNamed(retiredToolNames) {
+	for _, tool := range toolsNamed([]string{"agent_autoname_receipt"}) {
 		if tool.Name != "agent_autoname_receipt" {
 			continue
 		}

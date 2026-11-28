@@ -30,7 +30,7 @@ func TestAgentAutonameToolCatalog(t *testing.T) {
 		t.Fatal("a retired agent_autoname call no longer routes")
 	}
 	found := false
-	for _, tool := range toolsNamed(retiredToolNames) {
+	for _, tool := range toolsNamed([]string{"agent_autoname"}) {
 		if tool.Name != "agent_autoname" {
 			continue
 		}

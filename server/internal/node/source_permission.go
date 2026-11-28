@@ -28,7 +28,7 @@ func (n *Node) sourcePermission(c net.Conn, session, name string, args json.RawM
 
 func (n *Node) sourcePermissionIn(pids []int, session, name string, args json.RawMessage) proto.SourcePermission {
 	switch name {
-	case "agent_send", "report_to_supervisor", "task_review", "task_plan", "task_retry", "conversation_send":
+	case "agent_send", "report_to_supervisor", "task_review", "task_plan", "task_retry", "task_start_repair", "conversation_send":
 	default:
 		return proto.SourcePermission{}
 	}

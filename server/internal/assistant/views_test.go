@@ -159,14 +159,14 @@ func TestViewToolsRejectInvalidAndNonAssistant(t *testing.T) {
 	}
 	n := 0
 	for _, tool := range s.Tools(ctx) {
-		if strings.HasPrefix(tool.Name, "view_") {
+		if tool.Name == "view" || strings.HasPrefix(tool.Name, "view_") {
 			n++
 			if len(tool.InputSchema) == 0 {
 				t.Fatal("no tool schema")
 			}
 		}
 	}
-	if n != 3 {
+	if n != 1 { // view; view_show, view_update and view_get answer unlisted
 		t.Fatalf("view tools %d", n)
 	}
 	storeless := newStorelessService(t, f)

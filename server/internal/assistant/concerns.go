@@ -124,7 +124,7 @@ func (s *Service) toolConcernReport(ctx context.Context, machine, self string, a
 		return "", fmt.Errorf("no to-do %q: todo_list kind concern has the open concerns", a.ID)
 	}
 	if !t.isConcern() {
-		return "", fmt.Errorf("%s is not a concern: complete a to-do with todo_complete", t.ID)
+		return "", fmt.Errorf("%s is not a concern: complete a to-do with todo_update state done", t.ID)
 	}
 	out, closed, err := s.reportConcern(ctx, t.ID, a.Report, machine, self)
 	if err != nil {

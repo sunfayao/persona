@@ -1,4 +1,4 @@
-Record what the user asks to remember, track or be reminded of (`remind`), and agreed work, immediately and without confirmation; carry the work out via task_plan, linking its task to this to-do (`todo_id` or `part_of`). Open title duplicates return existing to-dos but refuse bindings: use todo_repositories_get/set. Short title in the user's language; details in notes. Bindings save atomically; IDs/catalog_revision from repositories_list. No files or task progress changes.
+Record what the user asks to remember, track or be reminded of (`remind`), and agreed work, immediately and without confirmation; carry the work out via task_plan, linking its task to this to-do (`todo_id` or `part_of`). Open title duplicates return existing to-dos but refuse bindings: use todo_links get and set. Short title in the user's language; details in notes. Bindings save atomically; IDs/catalog_revision from repositories list. No files or task progress changes.
 
 ```json
 {
@@ -25,7 +25,7 @@ Record what the user asks to remember, track or be reminded of (`remind`), and a
         "todo",
         "concern"
       ],
-      "description": "todo (default); concern (main chat only) tracks a user-raised matter until concern_report reports its outcome; other completion tools cannot close it."
+      "description": "todo (default); concern (main chat only) tracks a user-raised matter until its outcome is reported (todo_update); other completion tools cannot close it."
     },
     "project": {
       "type": "string",

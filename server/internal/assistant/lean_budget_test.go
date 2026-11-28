@@ -18,7 +18,7 @@ const (
 	supervisionInstructionsBudget = 6_650
 	// assistantToolsBudget: the tools an assistant conversation's own list can hold (toolNames), before the gates
 	// leave out those of features that are off.
-	assistantToolsBudget = 69
+	assistantToolsBudget = 50
 	// agentToolsBudget: the Agents' own tools an Agent always lists (listedAgentTools).
 	agentToolsBudget = 4
 	// coreToolBytesBudget: the static core tools declared up front, in wire bytes ({name, description, input_schema}

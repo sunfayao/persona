@@ -72,7 +72,7 @@ func TestRepositoryToolsSearchPaginationAndIsolation(t *testing.T) {
 func TestRepositoryRetrievalGuidanceContract(t *testing.T) {
 	// These scenarios pin available guidance and tool behavior, NOT model choice.
 	// No live model, launcher, private service or mandatory lookup preflight runs.
-	list, get, plan := prompts.Tool("repositories_list"), prompts.Tool("repository_get"), prompts.Tool("task_plan")
+	repos, plan := prompts.Tool("repositories"), prompts.Tool("task_plan")
 	// task_plan's repository guidance is in the reference its description points every conversation at.
 	const planRef = "persona-work/references/task-plan.md"
 	if !strings.Contains(plan.Description, planRef) {
@@ -86,10 +86,10 @@ func TestRepositoryRetrievalGuidanceContract(t *testing.T) {
 		name, text string
 		phrases    []string
 	}{
-		{"ambiguous repository", list.Description, []string{"resolve repository identity", "repository_get"}},
+		{"ambiguous repository", repos.Description, []string{"resolve repository identity", "`get`"}},
 		{"explicit URL or path", string(ref), []string{"explicit repository URL or path", "takes precedence"}},
 		{"non-repository task", string(ref), []string{"Non-repository tasks need no lookup", "not a mandatory dispatch preflight"}},
-		{"reference not permission", get.Description, []string{"not authorization", "never infer", "machine", "checkout"}},
+		{"reference not permission", repos.Description, []string{"not authorization", "never infer", "machine", "checkout"}},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			for _, phrase := range scenario.phrases {
@@ -99,7 +99,7 @@ func TestRepositoryRetrievalGuidanceContract(t *testing.T) {
 			}
 		})
 	}
-	for _, tool := range []string{"repositories_list", "repository_get"} {
+	for _, tool := range []string{"repositories"} {
 		var schema map[string]any
 		_ = json.Unmarshal(prompts.Tool(tool).InputSchema, &schema)
 		properties := schema["properties"].(map[string]any)

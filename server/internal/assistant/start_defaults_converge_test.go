@@ -219,12 +219,12 @@ func TestTierModelResolutionErrorsLocalized(t *testing.T) {
 		args                    i18n.Args
 		setup                   func(*testing.T, *Service)
 	}{
-		{name: "no active profile", tier: "quick", key: "assistant-model_profiles.err_no_active_profile", wantEN: "no model profile is in use: switch to one with model_profile_switch, or leave tier out", setup: func(t *testing.T, s *Service) {
+		{name: "no active profile", tier: "quick", key: "assistant-model_profiles.err_no_active_profile", wantEN: "no model profile is in use: switch to one with model_profiles (switch), or leave tier out", setup: func(t *testing.T, s *Service) {
 			if err := s.putSetting(context.Background(), modelProfileStateKey, modelProfileState{}); err != nil {
 				t.Fatal(err)
 			}
 		}},
-		{name: "deleted active profile", tier: "quick", key: "assistant-model_profiles.err_active_profile_missing", wantEN: "the model profile in use (gone) no longer exists: switch to another with model_profile_switch, or leave tier out", args: i18n.Args{"profile": i18n.Verbatim("gone")}, setup: func(t *testing.T, s *Service) {
+		{name: "deleted active profile", tier: "quick", key: "assistant-model_profiles.err_active_profile_missing", wantEN: "the model profile in use (gone) no longer exists: switch to another with model_profiles (switch), or leave tier out", args: i18n.Args{"profile": i18n.Verbatim("gone")}, setup: func(t *testing.T, s *Service) {
 			putTierProfiles(t, s, "gone", map[string]ModelTier{"quick": {Launcher: "claude"}}, nil)
 		}},
 		{name: "unknown tier", tier: "typo", key: "assistant-model_profiles.err_tier_not_found", wantEN: "the model profile in use (P) has no tier typo; its tiers: deep, plain, quick", args: i18n.Args{"profile": i18n.Verbatim("P"), "tier": i18n.Verbatim("typo"), "tiers": i18n.Verbatim("deep, plain, quick")}},

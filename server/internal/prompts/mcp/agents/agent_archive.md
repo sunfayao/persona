@@ -1,9 +1,12 @@
-Archive a coding agent's session (from agents_list) when the user asks to archive or tidy up agents: it leaves the Agents list for Archived in Persona, nothing is deleted, and agent_unarchive brings it back (never remove a session any other way). Persona also asks the agent's own tool to archive it where that tool has an archive (Codex); the result says whether it did (native: done / pending / unsupported). Without close the agent itself is not closed: one open on its computer stays open. With close, its agent and its terminal tab are also closed on its computer (its transcript stays; then it is stopped until resumed): only when the user asks to close it too, and the user confirms in Persona first (declined: nothing changes). A busy agent is refused and nothing changes: working, waiting for an answer or background work, and for close also a /loop, queued messages or a server it runs. When the close does not happen the session stays archived and still open on the computer, and the result says why: tell the user exactly that, not that it was closed. With `force: true`, explicitly cancel and close an Agent stuck waiting for a terminal confirmation, then archive it, as `paseo archive --force` does. Use force only when the user asks to stop or archive that blocked Agent. Pending permissions and plans are rejected or cancelled, never allowed. Working Agents, background work, running subagents/workflows, queued messages, loops and serving ports are still refused. A failed close leaves it visible. Force implies close and does not ask for a second permission card. Not for Persona conversations, which no tool archives.
+Archive a coding agent's session (from agents_list) when the user asks to archive or tidy up agents: it leaves the Agents list for Archived in Persona, nothing is deleted, and `restore: true` brings it back, reopening nothing on the computer (never remove a session any other way). Persona also asks the agent's own tool to archive it where that tool has an archive (Codex); the result says whether it did (native: done / pending / unsupported). Without close the agent itself is not closed: one open on its computer stays open. With close, its agent and its terminal tab are also closed on its computer (its transcript stays; then it is stopped until resumed): only when the user asks to close it too, and the user confirms in Persona first (declined: nothing changes). A busy agent is refused and nothing changes: working, waiting for an answer or background work, and for close also a /loop, queued messages or a server it runs. When the close does not happen the session stays archived and still open on the computer, and the result says why: tell the user exactly that, not that it was closed. With `force: true`, explicitly cancel and close an Agent stuck waiting for a terminal confirmation, then archive it, as `paseo archive --force` does. Use force only when the user asks to stop or archive that blocked Agent. Pending permissions and plans are rejected or cancelled, never allowed. Working Agents, background work, running subagents/workflows, queued messages, loops and serving ports are still refused. A failed close leaves it visible. Force implies close and does not ask for a second permission card. Not for Persona conversations, which no tool archives.
 
 ```json
 {
   "type": "object",
-  "required": ["machine", "session_id"],
+  "required": [
+    "machine",
+    "session_id"
+  ],
   "properties": {
     "machine": {
       "type": "string",
@@ -20,6 +23,10 @@ Archive a coding agent's session (from agents_list) when the user asks to archiv
     "close": {
       "type": "boolean",
       "description": "also close its agent on the computer (asks the user in Persona first); default false: archive only"
+    },
+    "restore": {
+      "type": "boolean",
+      "description": "true: bring an archived one (agents_list state archived) back"
     }
   }
 }

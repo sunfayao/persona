@@ -52,4 +52,4 @@ Ask the owner only what they alone can decide, and decide anything else yourself
 
 ## cancelled
 
-Only for duplicate or unwanted tasks. The task closes, its pending decision ends, and its Agents are stopped and archived (`agent_unarchive` brings one back), and their waiting cards end.
+Only for duplicate or unwanted tasks. The task closes, its pending decision ends, and its Agents are stopped and archived (`agent_archive` with `restore` brings one back), and their waiting cards end.

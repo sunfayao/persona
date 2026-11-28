@@ -160,9 +160,14 @@ func roundMessage(lang string) string {
 var roundScanTools = append(slices.Clone(toolNames), "lark_search", "larkcli_search", "lark_chats", "lark_messages")
 
 // namedTools are the tools of roundScanTools text names, quoted or bare, each once in the order it first names them.
+// A name without an underscore is an English word too (view, skill, repositories): it counts only quoted (`view`).
 func namedTools(text string) []string {
 	var named []string
-	for _, w := range regexp.MustCompile(`[a-z][a-z0-9_]*`).FindAllString(text, -1) {
+	for _, m := range regexp.MustCompile("`?[a-z][a-z0-9_]*`?").FindAllString(text, -1) {
+		w := strings.Trim(m, "`")
+		if !strings.Contains(w, "_") && !(len(m) == len(w)+2) {
+			continue
+		}
 		if slices.Contains(roundScanTools, w) && !slices.Contains(named, w) {
 			named = append(named, w)
 		}
@@ -174,21 +179,18 @@ func namedTools(text string) []string {
 // where: the description (and schema) of a tool it lists, or "context", the background supervisor's <persona-context>.
 // Each names one in passing (where an id comes from, what undoes or replaces a call, a step a round never takes: the
 // Agent presets agent_start takes beside task_plan, the questions ask_user turned into to-dos that are not to be asked
-// again, the main conversation's model profile, task_retry for a start that did not come up, which only the main
+// again, the main conversation's model profile, task_start_repair for a start that did not come up, which only the main
 // conversation's failed signal leads to) or beside the round's own way (task_plan with continues for a
 // replacement, task_review needs_user for the owner), so none sends a round to a tool it lacks. A new mention is worded
 // for the round's tools, or listed here when it is one of these.
 var roundPassingMentions = map[string][]string{
-	"agent_archive":      {"agent_unarchive"},
 	"agent_send":         {"agent_start", "ask_user"},
-	"agents_list":        {"agent_unarchive"},
 	"conversation_read":  {"conversations_list"},
 	"supervision_finish": {"ask_user"},
-	"task_plan":          {"task_retry"},
+	"task_plan":          {"task_start_repair"},
 	"task_scope":         {"agent_supervise", "ask_user"},
-	"todo_get":           {"todo_repository_links_add"},
-	"todo_list":          {"concern_report"},
-	"context":            {"agent_start", "ask_user", "model_profile_switch", "model_profiles_list"},
+	"todo_get":           {"todo_links"},
+	"context":            {"agent_start", "ask_user", "model_profiles"},
 }
 
 // backgroundContexts are the background supervisor's <persona-context> as Context renders it (contextSnapshot) for

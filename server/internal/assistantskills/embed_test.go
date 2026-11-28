@@ -364,7 +364,7 @@ func TestWorkGuideRoutesToNativeReferences(t *testing.T) {
 		{"Agent", "agents-and-machines", "agents_list"},
 		{"machine", "agents-and-machines", "machines_list"},
 		{"conversation", "conversations", "conversations_list"},
-		{"repository", "repositories", "todo_repositories_set"},
+		{"repository", "repositories", "todo_links"},
 	} {
 		ref := "references/" + area.reference + ".md"
 		if !strings.Contains(catalog, area.cue) || !strings.Contains(entry, "]("+ref+")") || !strings.Contains(read(ref), area.operation) {

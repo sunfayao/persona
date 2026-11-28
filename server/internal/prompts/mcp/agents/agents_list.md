@@ -9,7 +9,7 @@ Details: read .claude/skills/persona-work/references/agents-and-machines.md in y
     "state": {
       "type": "string",
       "enum": ["active", "needs_you", "working", "unread", "idle", "ended", "done", "muted", "archived", "all"],
-      "description": "default active (then idle and those that ended in the last 24 hours); ended = every stopped Agent; done = work finished in the last 24 hours; muted = the muted ones; archived = only archived sessions (agent_unarchive restores them), which the others leave out; all = everything, archived ones marked"
+      "description": "default active (then idle and those that ended in the last 24 hours); ended = every stopped Agent; done = work finished in the last 24 hours; muted = the muted ones; archived = only archived sessions (agent_archive with restore brings one back), which the others leave out; all = everything, archived ones marked"
     },
     "machine": {
       "type": "string"

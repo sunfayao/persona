@@ -19,7 +19,7 @@
 {{- else if eq .Kind "interrupted"}}
 - `interrupted`: continue or retry when useful; cancel duplicate tasks, not the surviving assignment.
 {{- else if eq .Kind "failed"}}
-- `failed`: inspect the cause. A kept start tab: read it (`task_start_screen`), unblock its shell or Agent UI (`task_start_keys`, with `reason`), then `task_retry` there; else retry in a new tab if worthwhile. A listed launcher means its own cannot start there: `task_retry` with one as `launcher`, never a new plan. At most three retries; the hub never retries. `notify_user` the retry outcome or failure/next action. Never end silently; cancel only if unwanted.
+- `failed`: inspect the cause. A kept start tab: read it (`task_start_repair` screen), unblock its shell or Agent UI (`task_start_repair` keys, with `reason`), then `task_start_repair` retry there; else retry in a new tab if worthwhile. A listed launcher means its own cannot start there: retry with one as `launcher`, never a new plan. At most three retries; the hub never retries. `notify_user` the retry outcome or failure/next action. Never end silently; cancel only if unwanted.
 {{- else if eq .Kind "started"}}
 - `started`: notify the owner that the retry started and why it failed earlier.
 {{- else if eq .Kind "overdue"}}

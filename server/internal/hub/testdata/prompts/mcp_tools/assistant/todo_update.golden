@@ -1,6 +1,6 @@
 {
   "name": "todo_update",
-  "description": "Update supplied title, notes, reminder, project, part_of or after immediately, including task to-dos; no confirmation. Omitted fields stay; \"\" clears notes/remind/project/part_of, [] clears after. New reminder times notify again. Completion/reopening uses todo_complete/todo_reopen.",
+  "description": "Update supplied title, notes, reminder, project, part_of or after immediately, including task to-dos; no confirmation. Omitted fields stay; \"\" clears notes/remind/project/part_of, [] clears after. New reminder times notify again. `state`, alone: `done` once the user says so (confirmed in Persona first for a task's or one with agents, as it closes their idle agents; a concern needs `report`, the outcome you told the user), `open` if not done after all, `deleted` only when asked (confirmed; a finished one is done instead).",
   "input_schema": {
     "type": "object",
     "required": [
@@ -37,6 +37,19 @@
           "type": "string"
         },
         "description": "Sibling piece ids it waits for; replaces old."
+      },
+      "state": {
+        "type": "string",
+        "enum": [
+          "done",
+          "open",
+          "deleted"
+        ],
+        "description": "with id only"
+      },
+      "report": {
+        "type": "string",
+        "description": "a concern's outcome as you told the user (state done)"
       }
     }
   }
