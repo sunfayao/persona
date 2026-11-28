@@ -34,7 +34,8 @@ func (f *fakeDevices) CallNode(_ context.Context, id, method string, _ json.RawM
 }
 
 // The assistant's calls to a node go straight to its own device layer; what the hub answers (its lists, following a
-// conversation, a send under the apps' once-only guard) and machines it does not have still go to the hub.
+// conversation, a send under the apps' once-only guard), machine.exec (the hub audits it) and machines it does not
+// have still go to the hub.
 func TestDeviceCallsGoToTheDevicesFirst(t *testing.T) {
 	d := &fakeDevices{}
 	b := NewBusHub(BusOptions{Hub: "http://127.0.0.1:1", Token: "jb_x", Devices: d})
@@ -46,7 +47,7 @@ func TestDeviceCallsGoToTheDevicesFirst(t *testing.T) {
 	}
 	for _, c := range []DeviceCall{{Device: "box", Method: DeviceSessionsList}, {Device: "box", Method: assistantwire.DeviceSessionFollow},
 		{Device: "box", Method: assistantwire.DeviceSessionSendOnce}, {Device: DeviceAll, Method: DeviceDevicesList},
-		{Device: "elsewhere", Method: DeviceSessionSend}} {
+		{Device: "elsewhere", Method: DeviceSessionSend}, {Device: "box", Method: proto.MethodMachineExec}} {
 		if _, err := b.DeviceCall(ctx, c); !errors.Is(err, bus.ErrOffline) { // to the hub, which is not there
 			t.Fatalf("%s %s went to %v", c.Device, c.Method, err)
 		}
