@@ -1,6 +1,6 @@
-Send what the user asked for to a coding Agent. Follow-up on an Agent's own work goes to it as agents_list's reuse= says; unrelated work: agent_start; unsure: ask_user. Give task for new work, so you supervise it, and say its done_when in text too; omit task for a reply, nudge or decision.
+Send the user's request to a coding Agent. Follow-up on an Agent's own work goes to it as agents_list's reuse= says; unrelated work: agent_start; unsure: ask_user. Give task for new work, so you supervise it, and repeat its done_when in text; omit task for a reply, nudge or decision.
 
-`wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, with known input/session ids. Observation never answers questions, accepts tasks, resends or cancels work; normal supervision/`task_review` applies. Older nodes may time out instead of an unrelated reply.
+`wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, plus known ids. Observation never answers, accepts, resends or cancels; normal supervision/`task_review` applies. Older nodes may time out instead of an unrelated reply.
 
 Details: .claude/skills/persona-work/references/agent-send.md in the working dir.
 
@@ -12,7 +12,7 @@ Details: .claude/skills/persona-work/references/agent-send.md in the working dir
     "wait_seconds": {
       "type": "integer",
       "minimum": 0,
-      "description": "0/omitted: normal receipt"
+      "description": "0: normal receipt"
     },
     "machine": {
       "type": "string"
@@ -63,13 +63,14 @@ Details: .claude/skills/persona-work/references/agent-send.md in the working dir
           "type": "array",
           "maxItems": 6,
           "items": { "type": "string" },
-          "description": "results you can check"
+          "description": "checkable results"
         },
         "expect_minutes": {
           "type": "integer"
         },
         "todo_id": {
-          "type": "string"
+          "type": "string",
+          "description": "your open to-do to join as a member"
         },
         "part_of": {
           "type": "string"

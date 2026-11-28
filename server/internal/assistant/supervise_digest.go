@@ -969,6 +969,13 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 			return prompts.SuperviseEntry{}, false // re-scoped, with the owner, or parked meanwhile
 		}
 	case sigEstimateDue:
+		if expected, ok := s.memberDue(t, g); g.Session != "" { // a member's own estimate
+			if !ok {
+				return prompts.SuperviseEntry{}, false // it reported done, was let go or went on past it, or the to-do waits
+			}
+			g.Detail = prompts.RenderEstimateDue(prompts.EstimateDue{Language: s.replyLang(ctx, string(s.botLang(ctx))), Expected: expected, Elapsed: g.Minutes})
+			break
+		}
 		b, ok := s.briefOfTodo(t.ID)
 		if !ok || !s.estimateDueCurrent(t, b, g.Key) {
 			return prompts.SuperviseEntry{}, false // completed, reviewed, re-scoped or already told meanwhile

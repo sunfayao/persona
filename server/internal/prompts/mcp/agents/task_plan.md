@@ -2,9 +2,9 @@ Plan code, repository research and other multi-step work for coding Agents, one 
 
 Write title (under 20 characters), why, goal, done_when and out_of_bounds in {{lang .Lang}}. A writable task needs checkable done_when, a read-only one goal. Continue a task with continues (scope_revision after task_scope); retry a failed start with task_start_repair retry. readonly=true: Claude-family launchers run with bypassPermissions; Codex and agy (Antigravity companion) in plan mode, or with assistant.readonly_mode=prompt by instruction only, not a security boundary; pi and cursor refuse it.
 
-`wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, with known input/session ids. Observation never answers questions, accepts tasks, resends or cancels work; normal supervision/`task_review` applies. Older nodes may time out instead of an unrelated reply. Only an immediately dispatchable single-task plan waits.
+`wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, plus known ids. Observation never answers, accepts, resends or cancels; normal supervision/`task_review` applies. Older nodes may time out instead of an unrelated reply. Only an immediately dispatchable single-task plan waits.
 
-Details: read .claude/skills/persona-work/references/task-plan.md in your working directory.
+Details: .claude/skills/persona-work/references/task-plan.md in the working dir.
 
 ```json
 {
@@ -16,7 +16,7 @@ Details: read .claude/skills/persona-work/references/task-plan.md in your workin
     "wait_seconds": {
       "type": "integer",
       "minimum": 0,
-      "description": "0/omitted: normal receipt"
+      "description": "0: normal receipt"
     },
     "tasks": {
       "type": "array",
@@ -72,7 +72,7 @@ Details: read .claude/skills/persona-work/references/task-plan.md in your workin
           },
           "host": {
             "type": "string",
-            "description": "agy (Antigravity companion) or herdr (terminal); omit to let Persona choose"
+            "description": "agy (Antigravity companion) or herdr (terminal); omit: Persona chooses"
           },
           "model": {
             "type": "string"
@@ -94,7 +94,7 @@ Details: read .claude/skills/persona-work/references/task-plan.md in your workin
           },
           "ultracode": {
             "type": "boolean",
-            "description": "Claude Code multi-agent workflow for large tasks; slower, costlier"
+            "description": "Claude Code multi-agent workflow; slower, costlier"
           },
           "readonly": {
             "type": "boolean",
@@ -102,7 +102,7 @@ Details: read .claude/skills/persona-work/references/task-plan.md in your workin
           },
           "user_requested": {
             "type": "boolean",
-            "description": "true only if the owner's latest message asked for it"
+            "description": "true only if the owner's last message asked for it"
           },
           "why": {
             "type": "string",
@@ -136,7 +136,7 @@ Details: read .claude/skills/persona-work/references/task-plan.md in your workin
           },
           "started_why": {
             "type": "string",
-            "description": "why you start it unasked"
+            "description": "why started unasked"
           },
           "attachments": {
             "type": "array",
@@ -144,7 +144,7 @@ Details: read .claude/skills/persona-work/references/task-plan.md in your workin
             "items": {
               "type": "string"
             },
-            "description": "absolute paths of files the owner gave here"
+            "description": "absolute paths of the owner's files"
           },
           "expect_minutes": {
             "type": "integer",
@@ -166,12 +166,16 @@ Details: read .claude/skills/persona-work/references/task-plan.md in your workin
             "type": "string",
             "description": "this chat's open or failed-start to-do with no live Agent"
           },
+          "join": {
+            "type": "boolean",
+            "description": "another Agent on your open to-do (todo_id); done_when: its criteria"
+          },
           "inbox_item": {
             "type": "string"
           },
           "tier": {
             "type": "string",
-            "description": "preset from the snapshot's Model profile line; explicit launcher, model, effort or speed override it"
+            "description": "snapshot Model profile preset; explicit launcher, model, effort or speed override it"
           },
           "speed": {
             "type": "string",

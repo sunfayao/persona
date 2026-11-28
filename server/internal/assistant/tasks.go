@@ -223,6 +223,8 @@ type PlanTask struct {
 	// across the whole start (not the session.start RPC alone) and run when the agent is linked or the start failed for
 	// good, so the slot stays counted through the metrics/ledger gap. Never serialized (admission.go).
 	admissionRelease func()
+	// join: task_plan's join, one more Agent on the open to-do todo_id names (joinTasks); never stored in a plan.
+	join bool
 }
 
 // Keep the default protection unless the owner opted into instructions only. Spawned helpers keep their caller's mode.

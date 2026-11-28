@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/assistant/criteria"
+	"github.com/sunfayao/persona/server/internal/assistant/membership"
 	"github.com/sunfayao/persona/server/internal/assistantwire"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/devicewire"
@@ -217,9 +218,15 @@ func (s *Service) toolAgentSupervise(ctx context.Context, self string, args json
 		Role          string   `json:"role"`
 		DoneWhen      []string `json:"done_when"`
 		ExpectMinutes int      `json:"expect_minutes"`
+		TodoID        string   `json:"todo_id"`
+		Action        string   `json:"action"`
 	}
 	if err := json.Unmarshal(args, &a); err != nil {
 		return "", fmt.Errorf("arguments: %v", err)
+	}
+	action, err := membership.ParseAction(a.Action)
+	if err != nil {
+		return "", err
 	}
 	if !s.isMain(ctx, self) {
 		return "", fmt.Errorf("only the main conversation supervises agents: from here, send it without a task")
@@ -233,6 +240,12 @@ func (s *Service) toolAgentSupervise(ctx context.Context, self string, args json
 	}
 	if c.Assistant {
 		return "", fmt.Errorf("that is an assistant conversation, not a coding agent")
+	}
+	if a.TodoID = strings.TrimSpace(a.TodoID); a.TodoID != "" || action != "" {
+		if a.TodoID == "" || a.Role != "" {
+			return "", errors.New("attach, detach and move take todo_id (the to-do) and no role")
+		}
+		return s.memberAction(ctx, self, cmp.Or(action, membership.Attach), a.TodoID, am, c, a.Title, a.DoneWhen, a.ExpectMinutes)
 	}
 	if err := s.leaderOnWorkMachine(&PlanTask{Role: a.Role}, am); err != nil {
 		return "", err
@@ -459,6 +472,9 @@ type handedTask struct {
 	// attached: the to-do its supervisor Agent runs that the agent joined as a worker (attachWorker): no card goes to
 	// the caller's conversation, and what it was told is kept on the worker's page.
 	attached Todo
+	// member: the agent joined the to-do as a member (attachMember); brief is what it is told before the text.
+	member bool
+	brief  string
 }
 
 // sendTaskAllowed refuses agent_send's task before anything is sent: an agent working for the user's own todo or
@@ -475,7 +491,7 @@ func (s *Service) sendTaskAllowed(ctx context.Context, self string, am Device, c
 		return err
 	}
 	if task.PartOf = strings.TrimSpace(task.PartOf); task.PartOf != "" && task.TodoID != "" {
-		return errors.New("part_of places a new to-do; todo_id joins an Agent to a to-do its supervisor runs: not both. Nothing was sent")
+		return errors.New("part_of places a new to-do; todo_id joins an Agent to an open to-do: not both. Nothing was sent")
 	}
 	if err := s.requestOfPiece(ctx, self, task.PartOf); err != nil {
 		return fmt.Errorf("%w; nothing was sent", err)
@@ -617,10 +633,13 @@ func (h *handedTask) sent(ctx context.Context, s *Service, text string) string {
 	if h == nil {
 		return ""
 	}
-	if h.attached.ID != "" {
+	if h.attached.ID != "" || h.member {
 		if _, err := s.appendFeed(ctx, h.supervisor, feedRouted, h.todo.ID, map[string]string{"text": text, "from": routedFromAssistant,
 			"machine_id": h.run.MachineID, "session_id": h.run.SessionID}); err != nil {
 			s.logf("task %s: routed feed: %v", h.todo.ID, err)
+		}
+		if h.member {
+			return fmt.Sprintf(" It is now a member of to-do %s (%q), with %d working on it; the Agents there were not touched.", h.todo.ID, h.todo.Title, len(h.todo.workingMembers()))
 		}
 		return fmt.Sprintf(" It is now worker %s (%q) of to-do %s, supervised by its supervisor Agent, with done_when:%s "+
 			"Tell the supervisor with agent_send (no task) that it has a new worker and why.", h.todo.ID, h.todo.Title, h.attached.ID,
@@ -665,6 +684,16 @@ func (h *handedTask) sendFailed(ctx context.Context, s *Service, err error) erro
 			return fmt.Errorf("%w (task %s stays: the message may have arrived or may still arrive; check with agent_read before sending again)", err, h.todo.ID)
 		}
 		return fmt.Errorf("%w (the message may have arrived or may still arrive; check with agent_read before sending again)", err)
+	}
+	if h != nil && h.member { // a member whose first message did not go leaves the to-do again
+		if t, ok := s.todoNow(h.todo.ID); ok {
+			if i := slices.IndexFunc(t.Agents, func(a TodoAgent) bool {
+				return a.MachineID == h.run.MachineID && a.SessionID == h.run.SessionID && a.active()
+			}); i >= 0 {
+				_ = s.releaseStoppedAgents(ctx, t.ID, []TodoAgent{t.Agents[i]})
+			}
+		}
+		return fmt.Errorf("%w (it did not join the to-do)", err)
 	}
 	if h == nil || !h.made {
 		return err
@@ -1073,7 +1102,7 @@ func (s *Service) reportLater(ctx context.Context, t Todo, machine, session, tex
 
 // reportNow sends a report to the supervisor of task t as a signal, and shows it in its conversation.
 func (s *Service) reportNow(ctx context.Context, t Todo, machine, session, kind, text string, evidence []string, step, steps int, now time.Time) (string, error) {
-	if kind == upReportDone {
+	if kind == upReportDone && !s.memberDone(ctx, t, machine, session) { // a member's done, while others work, completes only its part
 		s.recordBriefCompletion(ctx, t, briefCompletionReport, now)
 	}
 	s.progressReported(machine, session, len(evidence), step, now) // evidence or a later step is progress (supervise_progress.go)

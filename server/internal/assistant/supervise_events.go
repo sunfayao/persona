@@ -15,10 +15,10 @@ import (
 
 // ---- what the task's events say ----
 
-// taskNotice is what happened to task t (state: done, needs, interrupted): a supervised task's supervisor gets a
-// signal, any other quiet task's conversation its notice.
-func (s *Service) taskNotice(ctx context.Context, t Todo, machine, state, ask, text string) {
-	s.taskNoticeOf(ctx, t, machine, state, ask, text, 0, nil)
+// taskNotice is what happened to task t's Agent session (state: done, needs, interrupted): a supervised task's
+// supervisor gets a signal, any other quiet task's conversation its notice.
+func (s *Service) taskNotice(ctx context.Context, t Todo, machine, session, state, ask, text string) {
+	s.taskNoticeOfStart(ctx, t, machine, session, state, ask, text, 0, nil, nil)
 }
 
 // taskStartFailed is taskNotice for task t's start that failed (reason) after start's retries (nil: none). Each
@@ -29,7 +29,7 @@ func (s *Service) taskStartFailed(ctx context.Context, t Todo, machine string, s
 	if start != nil {
 		attempt = start.Attempt
 	}
-	s.taskNoticeOfStart(ctx, t, machine, "failed", "", reason, attempt, nil, start)
+	s.taskNoticeOfStart(ctx, t, machine, "", "failed", "", reason, attempt, nil, start)
 }
 
 // failedStartLauncher snapshots what actually failed, including a launcher selected by a tier or policy and recorded
@@ -51,11 +51,11 @@ func (s *Service) failedStartLauncher(ctx context.Context, t Todo) string {
 // taskNoticeOf is taskNotice; attempt is a failed start's retries so far, and files what a done turn handed over to
 // its conversation's computer (task_files.go, #10511), which a notice lists outside its text's clip.
 func (s *Service) taskNoticeOf(ctx context.Context, t Todo, machine, state, ask, text string, attempt int, files []taskFile) {
-	s.taskNoticeOfStart(ctx, t, machine, state, ask, text, attempt, files, nil)
+	s.taskNoticeOfStart(ctx, t, machine, "", state, ask, text, attempt, files, nil)
 }
 
 // taskNoticeOfStart also carries the failed start's remedy state; every other task notice passes nil.
-func (s *Service) taskNoticeOfStart(ctx context.Context, t Todo, machine, state, ask, text string, attempt int, files []taskFile, start *StartRemedy) {
+func (s *Service) taskNoticeOfStart(ctx context.Context, t Todo, machine, session, state, ask, text string, attempt int, files []taskFile, start *StartRemedy) {
 	// A reporting conversation keeps its own quiet notice even though main now supervises the task (#5732). Main's own
 	// quiet tasks use only the supervision digest, so they are not told twice.
 	if t.Quiet && t.Origin != "" {
@@ -92,7 +92,7 @@ func (s *Service) taskNoticeOfStart(ctx context.Context, t Todo, machine, state,
 		// worker's stays their supervisor's business.
 		s.notifyTaskFailed(ctx, t, machine, text)
 	}
-	g := superviseSignal{Todo: t.ID, Machine: machine, Detail: text, At: time.Now()}
+	g := superviseSignal{Todo: t.ID, Machine: machine, Session: session, Detail: text, At: time.Now()}
 	switch state {
 	case "failed":
 		g.Kind, g.Key = sigFailed, text
@@ -397,7 +397,7 @@ func (s *Service) supervisedWorking(ctx context.Context, t Todo) {
 	}
 	b := &s.supervise
 	b.mu.Lock()
-	keys := []string{t.ID + "|" + sigReview, t.ID + "|" + sigTimedOut, t.ID + "|" + sigParkedDue, t.ID + "|" + sigEstimateDue}
+	keys := b.kindKeys(t.ID, sigReview, sigTimedOut, sigParkedDue, sigEstimateDue)
 	for _, key := range keys {
 		delete(b.pending, key)
 	}

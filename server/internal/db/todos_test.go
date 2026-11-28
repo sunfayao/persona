@@ -2,8 +2,10 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -561,5 +563,50 @@ func TestReleaseTodoAgentKeepsTheLink(t *testing.T) {
 	}
 	if len(agents) != 1 || agents[0].ReleasedAt == nil || !agents[0].ReleasedAt.Equal(at) || agents[0].DismissedAt != nil {
 		t.Fatalf("the released link: %+v", agents)
+	}
+}
+
+// Several Agents work on one to-do, each with its own assignment: a row with none reads back as before, and
+// the assignment of an Agent let go is not written.
+func TestSeveralAgentsHoldTheirOwnAssignments(t *testing.T) {
+	d, ctx := open(t), context.Background()
+	now := time.Now().Truncate(time.Millisecond)
+	if err := d.CreateTodo(ctx, TodoRow{ID: "ta1", Title: "Todo", CreatedAt: now, UpdatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range [][2]string{{"macbook", "s1"}, {"server", "s2"}} {
+		if _, err := d.LinkTodoAgent(ctx, "ta1", c[0], c[1], "Agent", "/cwd", "claude", "", now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := d.SetTodoAgentAssignment(ctx, "ta1", "server", "s2", json.RawMessage(`{"title":"web","criteria":["a"]}`), now); err != nil {
+		t.Fatal(err)
+	}
+	agents, err := d.ListAllTodoAgents(ctx)
+	if err != nil || len(agents) != 2 {
+		t.Fatalf("%+v %v", agents, err)
+	}
+	for _, a := range agents {
+		switch {
+		case a.SessionID == "s1" && a.Assignment != nil:
+			t.Errorf("s1 has an assignment: %s", a.Assignment)
+		case a.SessionID == "s2" && !strings.Contains(string(a.Assignment), `"web"`):
+			t.Errorf("s2's assignment: %s", a.Assignment)
+		}
+	}
+	if err := d.SetTodoAgentAssignment(ctx, "ta1", "server", "s2", nil, now); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.ReleaseTodoAgent(ctx, "ta1", "macbook", "s1", now); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.SetTodoAgentAssignment(ctx, "ta1", "macbook", "s1", json.RawMessage(`{"title":"late"}`), now); err != nil {
+		t.Fatal(err)
+	}
+	agents, _ = d.ListAllTodoAgents(ctx)
+	for _, a := range agents {
+		if a.Assignment != nil {
+			t.Errorf("%s keeps an assignment: %s", a.SessionID, a.Assignment)
+		}
 	}
 }

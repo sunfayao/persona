@@ -125,7 +125,7 @@ func allStoppedSignal(t Todo, tasks []Todo, sessions []proto.Session, now time.T
 		n := 0
 		for _, a := range task.Agents {
 			key := [2]string{a.MachineID, a.SessionID}
-			if !a.active() || gone[key] {
+			if !a.active() || gone[key] || task.supervisorRow(a) { // the supervisor Agent is no member
 				continue
 			}
 			c, ok := listed[key]
@@ -306,7 +306,7 @@ func (s *Service) allStoppedGroup(ctx context.Context, t Todo, tasks []Todo, lis
 			return group // a current, answerable task-decision card still waits for the owner
 		}
 		for _, a := range task.Agents {
-			if a.active() {
+			if a.active() && !task.supervisorRow(a) {
 				machines[a.MachineID] = true
 				members[[2]string{a.MachineID, a.SessionID}] = true
 				if _, seen := lists[a.MachineID]; !seen {

@@ -1,4 +1,4 @@
-Hand a part of your to-do to a worker: each task starts a new coding Agent at once, beneath your to-do, with no card for the owner. Workers belong to your to-do only: every task sets role=worker, todo_id names only a piece of your to-do (part_of it) that has no Agent yet, a worker cannot hand work on, and at most 8 of your workers are open at a time. Give each worker machine and cwd, the computer and the project directory it works in: you run in a home directory, and a worker left without them starts there. Give it done_when (results you can check); a task that only reads sets readonly true and gets the read-only constraint in its first message, which makes it an independent check of another worker's result. Claude-family launchers always start in bypassPermissions mode; Codex read-only tasks keep the plan-mode sandbox. What a worker reports, and when it stops, stalls, runs past its estimate or waits for review, reaches you in a message that starts with "Persona · supervision". Returns at once, with each worker's to-do; it does not confirm the Agent started.
+Hand a part of your to-do to a worker: each task starts a new coding Agent at once, beneath your to-do, with no card for the owner. Workers belong to your to-do only: every task sets role=worker, todo_id names only a piece of your to-do (part_of it) that has no Agent yet, a worker cannot hand work on, and at most 8 of your workers are open at a time. Give each worker machine and cwd, the computer and the project directory it works in: you run in a home directory, and a worker left without them starts there. Give it done_when (results you can check); a task that only reads sets readonly true and gets the read-only constraint in its first message, which makes it an independent check of another worker's result. Claude-family launchers always start in bypassPermissions mode; Codex read-only tasks keep the plan-mode sandbox. What a worker reports, and when it stops, stalls, runs past its estimate or waits for review, reaches you in a message that starts with "Persona · supervision". With join true, todo_id is a to-do you supervise and the task starts one more member beside those working, whose part is its title, done_when (criteria, by number or text) and expect_minutes. Returns at once, with each worker's to-do; it does not confirm the Agent started.
 
 ```json
 {
@@ -26,13 +26,17 @@ Hand a part of your to-do to a worker: each task starts a new coding Agent at on
             "type": "string",
             "description": "a piece of your to-do with no Agent yet, to run this worker on; omitted: a new worker to-do"
           },
+          "join": {
+            "type": "boolean",
+            "description": "another Agent on your to-do (todo_id); done_when: its criteria"
+          },
           "title": {
             "type": "string",
             "description": "the worker's task in a short line"
           },
           "prompt": {
             "type": "string",
-            "description": "the worker's first message: everything it needs to do the work without asking you"
+            "description": "the worker's first message: all it needs to work without asking you"
           },
           "role": {
             "type": "string",
@@ -46,11 +50,11 @@ Hand a part of your to-do to a worker: each task starts a new coding Agent at on
           "machine_policy": {
             "type": "string",
             "enum": ["fixed", "flexible"],
-            "description": "fixed (default): keep this machine; flexible: a failed launcher health check may move it to another computer"
+            "description": "fixed (default): keep this machine; flexible: a failed launcher health check may move it"
           },
           "cwd": {
             "type": "string",
-            "description": "the project directory: absolute path or ~/…; empty: your own directory, which is no project"
+            "description": "the project directory, absolute or ~/…; empty: your own, which is no project"
           },
           "launcher": {
             "type": "string",
@@ -62,12 +66,12 @@ Hand a part of your to-do to a worker: each task starts a new coding Agent at on
           },
           "tier": {
             "type": "string",
-            "description": "an Agent preset (a tier of the model profile in use); explicit launcher, model, effort and speed override it"
+            "description": "a tier of the model profile in use; explicit launcher, model, effort and speed override it"
           },
           "speed": {
             "type": "string",
             "enum": ["standard", "fast", "ultrafast"],
-            "description": "new-start speed; explicit choice overrides the tier. standard/omitted: launcher default. Codex: fast, ultrafast; Claude Code: fast only"
+            "description": "standard, fast or ultrafast speed; Claude Code: fast only"
           },
           "effort": {
             "type": "string",
@@ -83,7 +87,7 @@ Hand a part of your to-do to a worker: each task starts a new coding Agent at on
           },
           "readonly": {
             "type": "boolean",
-            "description": "true when the worker only reads (looks things up, reads code, changes no project files); false when it changes files. The first message automatically adds the read-only constraint. Claude-family launchers use bypassPermissions; Codex keeps its plan sandbox"
+            "description": "true when the worker only reads (changes no project files); its first message then carries the read-only constraint"
           },
           "done_when": {
             "type": "array",
@@ -95,7 +99,7 @@ Hand a part of your to-do to a worker: each task starts a new coding Agent at on
           },
           "goal": {
             "type": "string",
-            "description": "a read-only worker's goal: what you get from it, in one sentence (a writable worker needs done_when instead); estimates are automatic for both"
+            "description": "a read-only worker's goal, one sentence (a writable one needs done_when)"
           },
           "expect_minutes": {
             "type": "integer",

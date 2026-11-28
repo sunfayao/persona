@@ -299,6 +299,22 @@ type SupervisedTodo struct {
 	Criteria           []string
 }
 
+// TaskMember is the brief of an Agent that joins a to-do others work on: the to-do's goal and the member's own part.
+type TaskMember struct {
+	ID, Title, Goal, Part string
+	Expect                int // minutes; 0: the to-do's
+	Criteria              []MemberCriterion
+}
+
+// MemberCriterion is one criterion of the to-do a member answers for, with its number among the to-do's.
+type MemberCriterion struct {
+	Number int
+	Text   string
+}
+
+// RenderTaskMember is what a joining member is told first, before its prompt (agents/task_member).
+func RenderTaskMember(m TaskMember) string { return render("agents/task_member", m) }
+
 // RenderTaskSupervisorAttached is the first message of a supervisor Agent the hub attached (agents/task_supervisor_attached).
 func RenderTaskSupervisorAttached(d TaskSupervisorAttached) string {
 	return render("agents/task_supervisor_attached", d)

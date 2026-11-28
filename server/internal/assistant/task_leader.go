@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/assistant/membership"
 	"github.com/sunfayao/persona/server/internal/assistant/taskleader"
 	"github.com/sunfayao/persona/server/internal/db"
 	"github.com/sunfayao/persona/server/internal/prompts"
@@ -69,15 +70,33 @@ func (t Todo) memberSupervised() bool {
 	return ok && t.Supervision != nil && t.Supervision.Supervisor == leaderRef(lead.MachineID, lead.SessionID)
 }
 
-// supervisorRow: a is the supervisor Agent of member-supervised t, not an Agent that works on it.
-func (t Todo) supervisorRow(a TodoAgent) bool {
-	return a.Source == sourceLeader && t.memberSupervised()
+// members are t's Agent rows as the rules of membership read them; workingMembers those that work on t.
+func (t Todo) members() []membership.Member {
+	out := make([]membership.Member, len(t.Agents))
+	for i, a := range t.Agents {
+		out[i] = membership.Member{Machine: a.MachineID, Session: a.SessionID, Source: a.Source, LinkedAt: a.LinkedAt, Active: a.active(), Assignment: a.Assignment}
+	}
+	return out
 }
 
-// supervisorTurn: machine/sid is the supervisor Agent of member-supervised t: its turns are not the work of t.
+func (t Todo) workingMembers() []membership.Member { return membership.Working(t.members()) }
+
+// overMembers: t has a supervisor Agent and Agents of its own that do its work, whether or not its ledger was moved to the
+// supervisor yet (the Agent is linked a moment before). Its turns are then not the work of t, from its first one.
+func (t Todo) overMembers() bool {
+	_, ok := t.supervisorAgent()
+	return ok && (t.memberSupervised() || len(t.workingMembers()) > 0)
+}
+
+// supervisorRow: a is the supervisor Agent of t, whose own Agents work on it, not an Agent that works on it.
+func (t Todo) supervisorRow(a TodoAgent) bool {
+	return a.Source == sourceLeader && t.overMembers()
+}
+
+// supervisorTurn: machine/sid is the supervisor Agent of such a t: its turns are not the work of t.
 func (t Todo) supervisorTurn(machine, sid string) bool {
 	lead, ok := t.supervisorAgent()
-	return ok && lead.MachineID == machine && lead.SessionID == sid && t.memberSupervised()
+	return ok && lead.MachineID == machine && lead.SessionID == sid && t.overMembers()
 }
 
 // conversationAbove is the conversation a decision of supervisor Agent's to-do t goes to: the one that supervised t
@@ -193,8 +212,8 @@ func (s *Service) attachWorker(ctx context.Context, self string, am Device, c pr
 		return nil, fmt.Errorf("no open to-do %q; nothing was sent", task.TodoID)
 	}
 	lead, has := root.supervisorAgent()
-	if !has {
-		return nil, fmt.Errorf("to-do %s has no supervisor Agent: hand it this work with task_plan, or send without todo_id; nothing was sent", root.ID)
+	if !has { // the to-do's Agents work on it themselves: this one joins them as a member (membership)
+		return s.attachMember(ctx, self, am, c, task)
 	}
 	if root.Supervision == nil || root.Supervision.Supervisor != self && !s.isMain(ctx, self) {
 		return nil, fmt.Errorf("to-do %s is not supervised from this conversation; nothing was sent", root.ID)
@@ -454,6 +473,7 @@ type leaderScope struct {
 // to-do (part_of it) that nobody supervises yet, to run on that piece's to-do (leadersPiece); any other is refused.
 type leaderTaskIn struct {
 	TodoID        string   `json:"todo_id"`
+	Join          bool     `json:"join"`
 	Title         string   `json:"title"`
 	Prompt        string   `json:"prompt"`
 	Role          string   `json:"role"`
@@ -489,7 +509,7 @@ func (l *leaderScope) workerTasks(args json.RawMessage) ([]PlanTask, error) {
 		pt := PlanTask{Title: t.Title, Prompt: t.Prompt, Role: t.Role, Machine: t.Machine, MachinePolicy: t.MachinePolicy, Cwd: t.Cwd,
 			Launcher: t.Launcher, Model: t.Model, Tier: t.Tier, Effort: t.Effort, Speed: t.Speed, Permission: t.Permission, Readonly: t.Readonly,
 			DoneWhen: t.DoneWhen, Goal: t.Goal, ExpectMinutes: t.ExpectMinutes, Why: t.Why, Parent: l.task.ID, Project: l.task.Project,
-			ReuseTodo: strings.TrimSpace(t.TodoID)}
+			ReuseTodo: strings.TrimSpace(t.TodoID), join: t.Join}
 		if strings.TrimSpace(pt.Machine) == "" {
 			pt.Machine = l.agent.MachineID
 			if strings.TrimSpace(pt.Cwd) == "" {
@@ -507,7 +527,7 @@ func (l *leaderScope) workerTasks(args json.RawMessage) ([]PlanTask, error) {
 func (s *Service) checkLeaderRoom(ctx context.Context, scope *leaderScope, adding int) error {
 	ref := leaderRef(scope.agent.MachineID, scope.agent.SessionID)
 	_ = s.ensureTodosLoaded(ctx)
-	open := 0
+	var pieces []int // the working members of each open worker's to-do
 	s.todos.mu.RLock()
 	for _, t := range s.todos.todos {
 		if t.DoneAt != nil || t.ID == scope.task.ID || t.Supervision == nil && !slices.ContainsFunc(t.Agents, func(a TodoAgent) bool { return a.Source == sourceWorker }) {
@@ -518,10 +538,15 @@ func (s *Service) checkLeaderRoom(ctx context.Context, scope *leaderScope, addin
 			belongs = belongs || a.Source == sourceWorker && a.Via == scope.task.ID && a.active()
 		}
 		if belongs {
-			open++
+			pieces = append(pieces, len(t.workingMembers()))
 		}
 	}
 	s.todos.mu.RUnlock()
+	own := 0
+	if scope.task.memberSupervised() { // its own Agents are members the supervisor supervises too
+		own = len(scope.task.workingMembers())
+	}
+	open := membership.Load(pieces, own) // a member counts as a worker did: at most leaderWorkersMost at a time
 	if open+adding > leaderWorkersMost {
 		return fmt.Errorf("at most %d workers of your task are open at a time (%d now): wait for some to finish; nothing was planned",
 			leaderWorkersMost, open)
@@ -964,7 +989,11 @@ func (s *Service) leaderAgentRead(ctx context.Context, lead TodoAgent, args json
 	if err != nil {
 		return "", err
 	}
-	agent, ok := workerAgent(w)
+	member, err := s.memberFor(w, a.SessionID)
+	if err != nil {
+		return "", err
+	}
+	agent, ok := workerAgent(onlyMember(w, member))
 	if !ok {
 		return "", fmt.Errorf("worker %s has no Agent yet: its start is told to you when it fails", w.ID)
 	}
@@ -994,10 +1023,14 @@ func (s *Service) leaderAgentSend(ctx context.Context, lead TodoAgent, args json
 	if w.DoneAt != nil {
 		return "", fmt.Errorf("task %s is closed (%s): plan a new worker for what is left", w.ID, cmp.Or(w.DoneReason, "done"))
 	}
+	member, err := s.memberFor(w, a.SessionID)
+	if err != nil {
+		return "", err
+	}
 	if res, handled, err := s.leaderAnswerWorkerQuestion(ctx, lead, w, a.Text); handled {
 		return res, err
 	}
-	sent, err := s.sendToTask(ownerfence.WithObserver(ctx, s.ownerInputRef(lead.MachineID, lead.SessionID)), w, a.Text)
+	sent, err := s.sendToMember(ownerfence.WithObserver(ctx, s.ownerInputRef(lead.MachineID, lead.SessionID)), w, member, a.Text)
 	if errors.Is(err, errTaskAgentsStopped) {
 		return "", fmt.Errorf("worker %s's Agent was stopped by the owner and takes no message: plan a new worker with task_plan "+
 			"(put what it needs in the prompt) and cancel this one with task_review", w.ID)
@@ -1144,6 +1177,7 @@ func (s *Service) completionWorkers(ctx context.Context, root Todo) []prompts.Su
 func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.RawMessage) (string, error) {
 	var a struct {
 		TodoID     string        `json:"todo_id"`
+		SessionID  string        `json:"session_id"` // rework: the member of a to-do with several
 		Verdict    string        `json:"verdict"`
 		Outcome    string        `json:"outcome"`
 		ReworkKind string        `json:"rework_kind"`
@@ -1188,6 +1222,13 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 	}
 	if t.DoneAt != nil && (a.Verdict == reviewRework || a.Verdict == reviewNeedsUser) {
 		return "", fmt.Errorf("task %s is done already (%s): hand out a new worker for what is left", t.ID, cmp.Or(t.DoneReason, "closed"))
+	}
+	member := ""
+	if a.Verdict == reviewRework {
+		var err error
+		if member, err = s.memberFor(t, a.SessionID); err != nil {
+			return "", err
+		}
 	}
 	var up string // the conversation a needs_user goes to: whoever handed the leader its task
 	if lt, ok := s.leaderTaskOf(ctx, lead); ok {
@@ -1263,11 +1304,9 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 	b := &s.supervise
 	b.mu.Lock()
 	b.init()
-	var keys []string
-	for _, k := range []string{sigReview, sigIdle, sigUnjudged, sigNeedsYou, sigStalled, sigNoProgress, sigTimedOut, sigOrphaned, sigEstimateDue} {
-		key := t.ID + "|" + k
+	keys := b.kindKeys(t.ID, sigReview, sigIdle, sigUnjudged, sigNeedsYou, sigStalled, sigNoProgress, sigTimedOut, sigOrphaned, sigEstimateDue)
+	for _, key := range keys {
 		delete(b.pending, key) // reviewed: what waited is answered
-		keys = append(keys, key)
 	}
 	s.forgetSupervisePending(keys...)
 	b.mu.Unlock()
@@ -1327,7 +1366,10 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 		displayMax = maxReworkRounds
 	}
 	text := prompts.RenderSuperviseRework(prompts.SuperviseRework{Round: v.Round, Max: displayMax, Checks: reworkChecks(checks), Note: note})
-	sent, err := s.sendToTask(ownerfence.WithObserver(ctx, s.ownerInputRef(lead.MachineID, lead.SessionID)), t, text)
+	sent, err := s.sendToMember(ownerfence.WithObserver(ctx, s.ownerInputRef(lead.MachineID, lead.SessionID)), t, member, text)
+	if err == nil {
+		s.reworkMember(ctx, t, member)
+	}
 	if err != nil {
 		return "", fmt.Errorf("recorded rework round %d, but sending it to the worker failed: %v", v.Round, err)
 	}

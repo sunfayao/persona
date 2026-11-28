@@ -11,7 +11,11 @@ Review a direct worker of your to-do. accepted (outcome done) closes verified wo
   "properties": {
     "todo_id": {
       "type": "string",
-      "description": "the worker's task id, as the supervision message and task_plan's answer give it"
+      "description": "the worker's task id, as its supervision message gives it"
+    },
+    "session_id": {
+      "type": "string",
+      "description": "rework: one of several members"
     },
     "verdict": {
       "type": "string",
@@ -21,7 +25,7 @@ Review a direct worker of your to-do. accepted (outcome done) closes verified wo
     "rework_kind": {
       "type": "string",
       "enum": ["external_input", "substantive_new", "repeated_error", "low_roi_edge"],
-      "description": "rework, optional: external_input (external review/conflict/owner input; skips 2-round stalled cap), substantive_new (prior gap fixed, new defect found; resets stalled cap), repeated_error/low_roi_edge (default when omitted; cap 2 stalled, 10 total)"
+      "description": "rework: external_input (external review/conflict/owner input; skips the 2-round stalled cap), substantive_new (prior gap fixed, new defect; resets it), repeated_error/low_roi_edge (default; cap 2 stalled, 10 total)"
     },
     "note": {
       "type": "string",

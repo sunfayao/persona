@@ -91,7 +91,7 @@ func cardlessWorkersStopped(agents []proto.Session) bool {
 // hand-back (and its CardlessToldAt stamp) on an unknown state. A failed pass simply retries on a later watch tick.
 func cardlessAgentsReachable(t Todo, lists machineSessions) bool {
 	for _, a := range t.Agents {
-		if a.ReleasedAt != nil || a.DismissedAt != nil {
+		if a.ReleasedAt != nil || a.DismissedAt != nil || t.supervisorRow(a) {
 			continue
 		}
 		if l, ok := lists[a.MachineID]; ok && l.err != nil {
