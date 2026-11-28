@@ -1,0 +1,5 @@
+Run one quick non-interactive shell command on an online computer through its Persona node; returns exit_code, stdout, stderr, timed_out and duration_ms. Multi-step or code work goes to task_plan or agent_send, and commands needing a password (sudo) to secret_run.
+
+```json
+{"type":"object","required":["machine","command"],"properties":{"machine":{"type":"string","description":"id or name"},"command":{"type":"string"},"cwd":{"type":"string","description":"default ~"},"timeout_seconds":{"type":"integer","minimum":1,"maximum":120,"description":"default 20"}}}
+```

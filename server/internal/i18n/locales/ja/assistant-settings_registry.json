@@ -14,6 +14,7 @@
   "title_assistant_persistent_owner_action_cards": "準備済みの操作カードを保留し続ける",
   "title_assistant_owner_reply_approval_phrases": "承認に使う返信の言葉",
   "title_assistant_machine": "アシスタントを実行するコンピュータ",
+  "title_assistant_machine_exec": "コンピュータでのシェルコマンド",
   "title_agents_triage_enabled": "停止したエージェントのターンを仕分け",
   "title_agents_triage_auto_continue": "利用制限のリセット後に自動で続行",
   "title_agents_triage_wake": "待機が終わったエージェントを起こす",

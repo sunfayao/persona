@@ -21,7 +21,7 @@ func TestCoreToolsPinned(t *testing.T) {
 	want := []string{
 		"agent_read", "agents_list", "todo_get", "persona_settings", "task_review", "supervision_finish", "task_plan",
 		"agent_send", "machines_list", "schedule_state_set", "agent_archive", "task_scope", "todo_list", "todo_update",
-		"todo_create", "computer_run", "computer_state",
+		"todo_create", "computer_run", "computer_state", "machine_exec",
 		"agent_interrupt", "agent_start", "agent_supervise", "ask_user", "browser_look", "browser_run", "cancel_followup",
 		"conversation_read", "conversation_send", "conversations_list", "interaction_answer", "lark_chats", "lark_messages",
 		"lark_search", "larkcli_chats", "larkcli_messages", "larkcli_search", "list_followups", "model_profiles_list",

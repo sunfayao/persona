@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/errreport"
 	"github.com/sunfayao/persona/server/internal/i18n"
 	"github.com/sunfayao/persona/server/internal/link"
 	"github.com/sunfayao/persona/server/internal/proto"
@@ -302,6 +303,38 @@ func (h *Hub) machineAudit(ctx context.Context, id, action, actor string, detail
 	if err := ts.AddMachineAudit(context.WithoutCancel(ctx), id, action, actor, detail); err != nil {
 		h.logf("[%s] audit %s: %v", id, action, err)
 	}
+}
+
+// machineExecAudited relays a manager's machine.exec to m's node with the audit of it: an "exec" row before the node is
+// asked, so a command that ends the hub itself is on record too, then an "exec_result" row with how it ended. They hold
+// who asked (the manager, and the conversation it names), the command and its directory scrubbed and clipped, the
+// timeout, then the exit code and duration or the error; never the output. A command the audit cannot record is not
+// relayed.
+func (h *Hub) machineExecAudited(ctx context.Context, from string, m *Machine, params json.RawMessage) (json.RawMessage, error) {
+	var in proto.MachineExecParams
+	_ = json.Unmarshal(params, &in) // the node checks them; the audit keeps what it can read
+	scrub := errreport.NewScrubber(m.name(), m.cfg.ID, m.cfg.SSHHost)
+	actor, ref := "manager:"+from, randomHex(4)
+	detail, _ := json.Marshal(map[string]any{"ref": ref, "caller": clip(in.Caller, 200),
+		"command": clip(scrub.Text(in.Command), 1000), "cwd": clip(scrub.Text(in.Cwd), 300), "timeout_ms": in.TimeoutMS})
+	if ts := h.trustStore(); ts != nil {
+		if err := ts.AddMachineAudit(context.WithoutCancel(ctx), m.cfg.ID, "exec", actor, detail); err != nil {
+			h.logf("[%s] audit exec: %v", m.cfg.ID, err)
+			return nil, errors.New("the hub could not record the command in its audit; nothing ran")
+		}
+	}
+	var out json.RawMessage
+	err := m.call(ctx, proto.MethodMachineExec, params, &out)
+	result := map[string]any{"ref": ref}
+	var res proto.MachineExecResult
+	if err != nil {
+		result["error"] = clip(scrub.Text(err.Error()), 300)
+	} else if json.Unmarshal(out, &res) == nil {
+		result["exit_code"], result["timed_out"], result["duration_ms"] = res.ExitCode, res.TimedOut, res.DurationMS
+	}
+	detail, _ = json.Marshal(result)
+	h.machineAudit(ctx, m.cfg.ID, "exec_result", actor, detail)
+	return out, err
 }
 
 // expirePending removes the computers that waited longer than pendingFor.

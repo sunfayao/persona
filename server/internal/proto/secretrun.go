@@ -30,6 +30,41 @@ const (
 // what runs; other tools need their absolute paths.
 const SecretRunPath = "/usr/bin:/bin:/usr/sbin:/sbin"
 
+// machine.exec: one non-interactive command the main conversation's machine_exec tool runs on a computer, in the login
+// shell of the user its node runs as (internal/node/shellexec). The node checks the params again.
+
+// MethodMachineExec is the node method.
+const MethodMachineExec = "machine.exec"
+
+// Limits of one machine.exec, the same for the tool that asks it and the node that runs it.
+const (
+	MachineExecMaxCommand = 8 << 10 // bytes
+	MachineExecMaxCwd     = 4 << 10 // bytes
+	MachineExecMaxTimeout = 120 * time.Second
+)
+
+// MachineExecParams are machine.exec's params. Cwd "" is the home directory, ~ and ~/… are under it. Caller names who
+// asked, for the hub's audit; the node does not read it.
+type MachineExecParams struct {
+	Command   string `json:"command"`
+	Cwd       string `json:"cwd,omitempty"`
+	TimeoutMS int64  `json:"timeout_ms"`
+	Caller    string `json:"caller,omitempty"`
+}
+
+// MachineExecResult is machine.exec's answer. ExitCode is -1 when a signal ended the shell, and always when TimedOut
+// (the node stopped its process group at the timeout). A stream too long keeps its head and its end around a marker;
+// its *Omitted count says how many bytes in between were left out.
+type MachineExecResult struct {
+	ExitCode      int    `json:"exit_code"`
+	TimedOut      bool   `json:"timed_out"`
+	DurationMS    int64  `json:"duration_ms"`
+	Stdout        string `json:"stdout"`
+	Stderr        string `json:"stderr"`
+	StdoutOmitted int64  `json:"stdout_omitted_bytes"`
+	StderrOmitted int64  `json:"stderr_omitted_bytes"`
+}
+
 // SecretRunParams are secret.run's params. Check alone asks whether the node can run one at all (nothing runs).
 type SecretRunParams struct {
 	Check    bool     `json:"check,omitempty"`

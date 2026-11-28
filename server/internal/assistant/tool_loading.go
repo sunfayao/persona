@@ -35,6 +35,8 @@ var coreTools = []string{
 	"agent_read", "agents_list", "todo_get", "persona_settings", "task_review", "supervision_finish", "task_plan",
 	"agent_send", "machines_list", "schedule_state_set", "agent_archive", "task_scope", "todo_list", "todo_update",
 	"todo_create", "computer_run", "computer_state",
+	// New and small, ranked so Antigravity declares it rather than leaving it to persona_call.
+	"machine_exec",
 	// Alphabetical: the ones an earlier count kept (called at least 5 times in 30 days, less mail_accounts and
 	// ask_escalate, whose every call failed for want of setup), and the browser's two, which do computer_*'s work in a
 	// browser.

@@ -87,10 +87,12 @@ type Devices interface {
 
 // localDeviceCall is a device.call the manager answers itself: a node's method on a machine it has. The hub still
 // answers what it holds (assistantwire.HubDeviceMethods: devices.list with the phone, the interactions, the sessions
-// as the apps get them, following a conversation for a channel, a send under the apps' once-only guard).
+// as the apps get them, following a conversation for a channel, a send under the apps' once-only guard), and relays
+// machine.exec, which it writes into the computer's audit (hub/machine_trust.go).
 func (b *BusHub) localDeviceCall(ctx context.Context, p DeviceCall) (json.RawMessage, bool, error) {
 	d := b.opts.Devices
-	if d == nil || p.Device == assistantwire.DeviceAll || assistantwire.HubDeviceMethods[p.Method] || !d.Has(p.Device) {
+	if d == nil || p.Device == assistantwire.DeviceAll || assistantwire.HubDeviceMethods[p.Method] || !d.Has(p.Device) ||
+		p.Method == proto.MethodMachineExec {
 		return nil, false, nil
 	}
 	if p.Method == DeviceSessionModes && devicewire.ModeActorOf(ctx) == nil {
