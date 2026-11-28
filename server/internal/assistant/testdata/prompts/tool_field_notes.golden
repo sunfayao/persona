@@ -1,0 +1,3 @@
+Field notes:
+- Open apps with a script that calls await cua.launch, never with a launch_app step.
+- On box-1: Its screen is small: read the window before clicking.

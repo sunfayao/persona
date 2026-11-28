@@ -15,7 +15,7 @@
   },
   {
     "name": "ask_user",
-    "description": "Ask the user one or more multiple-choice questions in Persona (a card in this conversation plus a notification) and wait for the answers. Use it to confirm anything risky (sending messages / email for them, deleting, changing live systems) or to let them pick between options. Your runtime's own question tool does not reach the user; use this one. They can also type a free-form answer. Waits up to 2 hours; if the user writes in this conversation instead of picking an option, the question is withdrawn and the tool returns at once, with their message following. If nobody answers in time, the question becomes a to-do that waits for the user's call (in their to-do list and the next briefing), and their answer comes to this conversation later as a new message. With a deadline (each question then recommends one of its options): if nobody answers by it and you marked it reversible, the recommended options are taken by default and recorded on the question's to-do; one that cannot be undone is only reminded again and keeps waiting. With wait false the card goes up the same way but the call returns at once: end the turn without guessing the answer; it comes later as a new message quoting the question and the answer (or saying the card was closed unanswered, or expired and became a to-do). Use wait false only where your instructions say to; a confirmation this same turn needs (approving a message before it is sent) keeps the default. A waiting call holds this turn, so anything else sent to this conversation waits behind it: once such a message waits and the question has been up for a couple of minutes, the call returns without the answer and the card stays up as with wait false; end the turn then.",
+    "description": "Ask the user multiple-choice questions on a card in Persona and wait for the answers. Use it to confirm anything risky (sending messages or email for them, deleting, changing live systems) or to let them choose. Your runtime's own question tool does not reach the user. Use wait false only where your instructions say to; a confirmation this turn needs (approving a message before it is sent) keeps the default.\n\nDetails: read .claude/skills/persona-work/references/ask-user.md in your working directory.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -24,15 +24,15 @@
       "properties": {
         "wait": {
           "type": "boolean",
-          "description": "default true: hold this turn until the user answers. false: put the card up and return at once; the answer arrives later as a new message in this conversation"
+          "description": "false: put the card up and return at once; the answer comes later as a new message"
         },
         "deadline": {
           "type": "string",
-          "description": "optional: until when the questions wait, a duration (\"30m\", \"4h\") or an RFC 3339 time, 1 minute to 30 days ahead; needs reversible and a recommend on every question"
+          "description": "until when they wait: \"4h\" or an RFC 3339 time; needs reversible and a recommend on every question"
         },
         "reversible": {
           "type": "boolean",
-          "description": "with deadline: whether going ahead with the recommended options can be undone later. false for deleting, sending anything to other people, spending money or changing production: those are never taken by default"
+          "description": "with deadline: whether taking the recommended options can be undone; false for deleting, sending to others, spending money or changing production"
         },
         "questions": {
           "type": "array",
@@ -57,7 +57,7 @@
               },
               "recommend": {
                 "type": "string",
-                "description": "the label of the option you recommend; required with deadline"
+                "description": "the label of the option you recommend"
               },
               "options": {
                 "type": "array",
@@ -83,7 +83,7 @@
         }
       }
     },
-    "core_rank": 21
+    "core_rank": 22
   },
   {
     "name": "notify_user",
@@ -115,7 +115,7 @@
         }
       }
     },
-    "core_rank": 37
+    "core_rank": 38
   },
   {
     "name": "supervision_finish",
@@ -224,7 +224,7 @@
         }
       }
     },
-    "core_rank": 38
+    "core_rank": 39
   },
   {
     "name": "schedule_routine",
@@ -346,7 +346,7 @@
         }
       }
     },
-    "core_rank": 39
+    "core_rank": 40
   },
   {
     "name": "schedule_state_set",
@@ -391,7 +391,7 @@
       "type": "object",
       "properties": {}
     },
-    "core_rank": 35
+    "core_rank": 36
   },
   {
     "name": "cancel_followup",
@@ -407,7 +407,7 @@
         }
       }
     },
-    "core_rank": 24
+    "core_rank": 25
   },
   {
     "name": "machines_list",
@@ -435,8 +435,39 @@
     "defer_loading": true
   },
   {
+    "name": "machine_exec",
+    "description": "Run one quick non-interactive shell command on an online computer through its Persona node; returns exit_code, stdout, stderr, timed_out and duration_ms. Multi-step or code work goes to task_plan or agent_send, and commands needing a password (sudo) to secret_run.",
+    "input_schema": {
+      "type": "object",
+      "required": [
+        "machine",
+        "command"
+      ],
+      "properties": {
+        "machine": {
+          "type": "string",
+          "description": "id or name"
+        },
+        "command": {
+          "type": "string"
+        },
+        "cwd": {
+          "type": "string",
+          "description": "default ~"
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120,
+          "description": "default 20"
+        }
+      }
+    },
+    "core_rank": 18
+  },
+  {
     "name": "agents_list",
-    "description": "The coding Agents on the user's computers (Claude Code, Codex, Antigravity, TRAE and runtime Agents), with their state: needs_you (waiting for an answer / approval), working, unread (finished, result not looked at), idle, offline (stopped). The default view lists three groups: Active (needs you, working, finished unread); Idle (live and at rest, newest first); Ended in the last 24 hours (stopped, newest first). Look at the last two before handing out follow-up work: an Agent that already did the related work on that computer and directory goes on in its own context. done lists work finished in the last 24 hours, ended every stopped Agent newest first, all everything with what goes on first and then the latest, and muted the muted agents that would otherwise appear in the live snapshot. Each line has machine, session id, project, title and last update, and below it the conclusion or the last thing the agent said. launcher= and model= say what it runs on (with effort= when known; do not reuse an Agent on a model the user retired), context= how full its context is, todo= the to-do it works for, or its last one (closed), and reuse= how follow-up work goes on with it: agent_send (live), agent_send resume=true (stopped; stop= says why), or the owner's Resume only (the owner stopped it). usage_limit (with resets_at when the reset is known) marks one its subscription's usage limit stopped (agent_switch moves such an agent to another launcher when the user asks). Known Claude Code switch states appear as ultracode=on/off; an omitted state is unknown. ultracode=on means every substantive task runs a multi-agent dynamic workflow, independently of thinking effort. Let it finish and wait for workflow results without nudging it. Much faster and more accurate than ssh + herdr. At the end: the launchers that failed their last health check, by machine (agent_start and task_plan move off them).\n\nA line under an agent is something waiting for the user: a question lists its options and the interaction id to answer it with (interaction_answer), an approval is the user's to give in the app.",
+    "description": "The coding Agents on the user's computers (Claude Code, Codex, Antigravity, TRAE and runtime Agents) and their state: needs_you (waiting for an answer or approval), working, unread (finished, result not looked at), idle, offline (stopped). Much faster and more accurate than ssh + herdr. The default lists Active (needs you, working, finished unread), then Idle and Ended in the last 24 hours, newest first: look at those two before handing out follow-up work, since an Agent that did the related work on that computer and directory goes on in its own context (reuse= says how). Each line has machine, session id, project, title and last update, then its conclusion or last words. Do not reuse an Agent on a model the user retired (model=). Let one with ultracode=on finish its multi-agent workflow without nudging it. A line under an Agent waits for the user: answer a question with interaction_answer and its interaction id; an approval is the user's to give in the app.\n\nDetails: read .claude/skills/persona-work/references/agents-and-machines.md in your working directory.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -454,7 +485,7 @@
             "archived",
             "all"
           ],
-          "description": "default active = needs_you + working + unread, then idle and the ones that ended in the last 24 hours; ended = every stopped Agent, newest first; done = finished work in the last 24 hours; muted = muted agents in the live snapshot categories; archived: only the archived sessions (agent_unarchive restores them); the others leave archived ones out, all lists them marked archived"
+          "description": "default active (then idle and those that ended in the last 24 hours); ended = every stopped Agent; done = work finished in the last 24 hours; muted = the muted ones; archived = only archived sessions (agent_unarchive restores them), which the others leave out; all = everything, archived ones marked"
         },
         "machine": {
           "type": "string"
@@ -493,7 +524,7 @@
   },
   {
     "name": "agent_send",
-    "description": "Send what the user asked for to an Agent. A busy Agent may queue it. Follow-up work on what an Agent already did (same computer and directory: agents_list shows its reuse=) goes to that Agent in its own context instead of a new one. A stopped Agent needs resume and resume_why. Recorded non-user stops (including quota/capacity errors) allow resume; the main conversation, acting for the owner, also resumes an Agent that ended without the owner's Stop (exit, or unknown: it ended on its own). An owner's Stop (user) needs the owner's Resume. It must be supervised (give task with the follow-up's title and done_when unless on an open task of yours). A nearly full Agent is compacted first. For unrelated work use agent_start. Unsure: ask_user. An unstarted branch starts on its first message. Only /exit or /quit stops a running Agent and keeps the tab. The owner's controls close another conversation's Agent.\n\nFor dialog_open, retry with dismiss_notice only when Enter alone closes the notice. For permissions and pickers, tell the user or use interaction_answer.\n\nGive task to supervise new work, including done_when in text. More on your existing task keeps its title and updates its criteria. A different title, the user's own to-do or another conversation's task is refused. A failed send creates no task. Omit task for a reply, nudge or decision.\n\nUse `handoff` for an already-stopped to-do you supervise. A node acknowledgement starts its wait for the receiving Agent's result.\n\n`wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, with known input/session ids. Observation never answers questions, accepts tasks, resends or cancels work; normal supervision/`task_review` applies. Older nodes may time out rather than return an unrelated reply.",
+    "description": "Send what the user asked for to a coding Agent. Follow-up on an Agent's own work (same computer and directory) goes to it as agents_list's reuse= says; unrelated work: agent_start; unsure: ask_user. Give task for new work, so you supervise it, and say its done_when in text too; omit task for a reply, nudge or decision.\n\n`wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, with known input/session ids. Observation never answers questions, accepts tasks, resends or cancels work; normal supervision/`task_review` applies. Older nodes may time out rather than return an unrelated reply.\n\nDetails: read .claude/skills/persona-work/references/agent-send.md in your working directory.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -517,16 +548,14 @@
           "type": "string"
         },
         "resume": {
-          "type": "boolean",
-          "description": "resume this stopped agent with its context on its own launcher, text as its first message"
+          "type": "boolean"
         },
         "resume_why": {
           "type": "string",
           "description": "shown to the user"
         },
         "dismiss_notice": {
-          "type": "boolean",
-          "description": "Press Enter first to close a notice that only says \"Enter to continue\" (no options). Any other dialog still refuses the send."
+          "type": "boolean"
         },
         "attachments": {
           "type": "array",
@@ -534,7 +563,7 @@
           "items": {
             "type": "string"
           },
-          "description": "absolute paths of pictures/files the user gave in this conversation (Claude Code path or app attachment); copied to the agent, appended to its message with mentions updated; others refused"
+          "description": "files the owner gave in this chat, by absolute path"
         },
         "handoff": {
           "type": "object",
@@ -554,15 +583,13 @@
               "type": "string"
             },
             "head": {
-              "type": "string",
-              "description": "Full candidate commit ID"
+              "type": "string"
             },
             "check": {
               "type": "string"
             },
             "until": {
-              "type": "string",
-              "description": "Duration or RFC 3339 deadline"
+              "type": "string"
             }
           }
         },
@@ -571,12 +598,11 @@
             "object",
             "null"
           ],
-          "description": "new work: make it your supervised task first (main or a lead); null for a reply",
           "additionalProperties": false,
           "properties": {
             "title": {
               "type": "string",
-              "description": "the task in a short line (Simplified Chinese, under 20 characters)"
+              "description": "a short line (Simplified Chinese, under 20 characters)"
             },
             "done_when": {
               "type": "array",
@@ -584,11 +610,10 @@
               "items": {
                 "type": "string"
               },
-              "description": "results you can check when it says it is done (a PR merged, a sheet's link, what the live system answers)"
+              "description": "results you can check"
             },
             "expect_minutes": {
-              "type": "integer",
-              "description": "how long it should take from now; longer without progress counts as stuck"
+              "type": "integer"
             }
           }
         }
@@ -716,7 +741,7 @@
         }
       }
     },
-    "core_rank": 18
+    "core_rank": 19
   },
   {
     "name": "agent_start",
@@ -804,7 +829,7 @@
         }
       }
     },
-    "core_rank": 19
+    "core_rank": 20
   },
   {
     "name": "agent_supervise",
@@ -848,7 +873,7 @@
         }
       }
     },
-    "core_rank": 20
+    "core_rank": 21
   },
   {
     "name": "agent_archive",
@@ -1005,7 +1030,7 @@
         }
       }
     },
-    "core_rank": 28
+    "core_rank": 29
   },
   {
     "name": "ask_escalate",
@@ -1245,7 +1270,7 @@
   },
   {
     "name": "persona_settings",
-    "description": "This is how the user changes Persona's settings: ask them in conversation, there is no settings page for these. `list` (the default) shows every key with a one-line description, how to set it and its current value (secrets only as set or unset); `get` reads one. `set`, `add` and `remove` show before → after as a confirmation card in Persona and change nothing until they approve; secrets are entered there, never in chat. Change only what was asked. Areas: assistant behavior (tasks, supervision and close-out, idle compaction and release, auto-naming, cache keep-alive, suggestions, folds, the computer and launcher the main chat runs on), session triage (`agents.triage.*`), About Me, saved prompts, start page and sidebar, inbox sorting and task links, mail accounts, extensions (`extension.\u003cid\u003e`, which include channels and connectors) and their download mirrors, hub update channel and auto-update, device notifications, each agent CLI's own settings per computer (`agent_settings.\u003ccli\u003e`) and muted Claude config directories. Model profiles are not here: use `model_profiles_list`, `model_profile_get`, `model_profile_switch` and `model_profile_rollback`.\n\nModel groups `model_config.kb`, `model_config.inbox.triage`, `model_config.agent.delegate` and `model_config.translate`: `get` returns their effective binding, revision and compatible `purpose.provider_ids`. `set` and `test` take one listed provider ID as value. A changed provider clears the old model, effort and permission mode. `test` only checks the connection, without approval or saving; an unverified or offline provider may still be saved.\n\n`assistant.standing_authorizations`: only the main conversation may replace the list at its current revision with the user’s approval in Persona. Each grant names `machine_id`, absolute `directory`, `actions` (merge, push, deploy-test, deploy-production, send, delete, spend), `conditions`, exact user `quote`, `source` and `reversible`. Keep unchanged grants by ID; replace one by removing it and adding it without an ID. To revoke a grant, replace the list without that grant. Never invent a quote or expand scope. Only independently verifiable conditions may permit automatic answers. Tool permissions are never automatically approved.",
+    "description": "This is how the user changes Persona's settings: ask them in conversation, there is no settings page for these. `list` (the default) shows every key with a one-line description, how to set it and its current value (secrets only as set or unset); `get` reads one. `set`, `add` and `remove` show before → after as a confirmation card in Persona and change nothing until they approve; secrets are entered there, never in chat. Change only what was asked. Areas: assistant behavior, session triage, About Me, saved prompts, start page and sidebar, inbox sorting and task links, mail accounts, extensions (`extension.\u003cid\u003e`, channels and connectors too: its own switch, `enabled`, and its settings) and their download mirrors, hub updates, device notifications, each agent CLI's settings per computer and muted Claude config directories. Model profiles are not here: use `model_profiles_list`.\n\n`test` checks a provider ID for a `model_config.*` group, without approval or saving. `assistant.standing_authorizations`: never invent a quote or widen a grant's scope, and give only conditions that can be checked independently.\n\nDetails: read .claude/skills/persona-work/references/persona-settings.md in your working directory.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -1263,7 +1288,7 @@
         },
         "key": {
           "type": "string",
-          "description": "the setting, from list (assistant.*, agents.triage.*, navigation.*, hub.*, inbox.rules, mail.accounts, extension.\u003cid\u003e…)"
+          "description": "the setting, from list"
         },
         "value": {
           "type": [
@@ -1372,6 +1397,31 @@
     "defer_loading": true
   },
   {
+    "name": "skill_save",
+    "description": "Keep a short procedure from this conversation as a skill on the main conversation's computer, once the user approves. Facts and preferences go to memory; skills with files, to skill_import. body: Markdown, no front matter.",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "description",
+        "body"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        }
+      }
+    },
+    "defer_loading": true
+  },
+  {
     "name": "model_profiles_list",
     "description": "List editable model profiles, current profile, changed fields, rollback and recent audit events. Profiles contain model settings only, never credentials.",
     "input_schema": {
@@ -1379,7 +1429,7 @@
       "properties": {},
       "additionalProperties": false
     },
-    "core_rank": 36
+    "core_rank": 37
   },
   {
     "name": "model_profile_get",
@@ -1601,7 +1651,7 @@
         }
       }
     },
-    "core_rank": 27
+    "core_rank": 28
   },
   {
     "name": "conversation_read",
@@ -1621,7 +1671,7 @@
         }
       }
     },
-    "core_rank": 25
+    "core_rank": 26
   },
   {
     "name": "conversation_send",
@@ -1650,7 +1700,7 @@
         }
       }
     },
-    "core_rank": 26
+    "core_rank": 27
   },
   {
     "name": "task_plan",
@@ -3218,6 +3268,46 @@
         }
       },
       "additionalProperties": false
+    },
+    "defer_loading": true
+  },
+  {
+    "name": "tool_note",
+    "description": "Field notes: one-line tips the user approved, ending a tool's description. When a tool kept failing one way and other arguments worked, propose what worked (tool, text); draft_id proposes a friction draft. list shows notes and drafts; retire takes id or draft_id; file_fix files a fix draft as a to-do.",
+    "input_schema": {
+      "type": "object",
+      "required": [
+        "action"
+      ],
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "propose",
+            "list",
+            "retire",
+            "file_fix"
+          ]
+        },
+        "tool": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "machine": {
+          "type": "string"
+        },
+        "runtime": {
+          "type": "string"
+        },
+        "draft_id": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        }
+      }
     },
     "defer_loading": true
   }

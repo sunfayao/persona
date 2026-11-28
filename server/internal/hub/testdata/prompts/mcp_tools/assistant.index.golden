@@ -15,6 +15,7 @@ list_followups
 cancel_followup
 machines_list
 machine_redeploy
+machine_exec
 agents_list
 agent_read
 agent_send
@@ -36,6 +37,7 @@ inbox_post
 persona_settings
 secret_run
 skill_import
+skill_save
 model_profiles_list
 model_profile_get
 model_profile_switch
@@ -72,6 +74,7 @@ todo_delete
 concern_report
 decision_record
 decisions_query
+tool_note
 subscription_list
 subscription_get
 subscription_sources
