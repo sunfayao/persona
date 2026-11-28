@@ -204,7 +204,7 @@ for (const failPreparation of [false, true]) {
     if (failPreparation) {
       await until('successor preparation error published', () => row()?.turn_error === 'Queued turn could not load its session', SLOW)
     } else {
-      await until('queued prompt completes', () => row()?.last_text === 'Finished.', SLOW)
+      await until('queued prompt completes', () => row()?.status === 'done', SLOW)
     }
     assert.equal(loads, 2)
     const prompts = received(record).filter((call) => call.method === 'session/prompt')
@@ -228,7 +228,7 @@ test('a wedged prompt surfaces an error and the next send can recycle ACP', asyn
   assert.notEqual(row().status, 'working')
   assert.equal(idle(), true)
   await n.peer.call('session.send', { session_id: pid, text: 'reply' })
-  await until('next prompt completes', () => row()?.last_text === 'Finished.', SLOW)
+  await until('next prompt completes', () => row()?.status === 'done', SLOW)
   assert.equal(row().turn_error, undefined)
   assert.equal(received(record).filter((m) => m.started).length, 2)
 })
@@ -389,7 +389,6 @@ test('permission cards use the runtime, session, kind and tool call key', async 
   const { interactionId } = await import('../../runtime-sdk/index.js')
   assert.equal(n.asked[0].id, interactionId('agy', pid, 'permission', 'call-1'))
 })
-
 
 test('cancelling before a prompt starts does not poison the next permission request', async (t) => {
   const { n, record, start } = await agyRuntime(t)

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { startFakeNode } from '../../runtime-sdk/testing/fake-node.js'
+import { startFakeNode, until } from '../../runtime-sdk/testing/fake-node.js'
 import { createAgyRuntime } from '../lib/runtime.js'
 
 const FAKE = fileURLToPath(new URL('./fake-acp-stream.mjs', import.meta.url))
@@ -35,7 +35,6 @@ test('AGY refuses a session id it did not hand out and still answers for its own
 
   for (const [method, params] of [
     ['session.items', { session_id: CLAUDE, limit: 1 }],
-    ['session.item', { session_id: CLAUDE, item_id: '1#0' }],
     ['session.send', { session_id: CLAUDE, text: 'hi', client_msg_id: 'claude-first' }],
     ['session.interrupt', { session_id: CLAUDE }],
   ]) {
@@ -44,9 +43,12 @@ test('AGY refuses a session id it did not hand out and still answers for its own
   const calls = readFileSync(join(directory, 'calls.jsonl'), 'utf8')
   assert.ok(!calls.includes(CLAUDE), 'agy never hears of the Claude session')
 
+  const row = await until('the agy conversation is listed', () => node.last('runtime.sessions')?.sessions.find((s) => s.session_id === SESSION))
+  assert.equal(row.agy_conversation, RAW)
+  assert.equal(row.agy_root, undefined)
+  assert.equal(node.hello.caps.item, undefined)
+  assert.equal(node.hello.caps.image, undefined)
   const page = await node.peer.call('session.items', { session_id: SESSION, limit: 1 })
-  assert.equal(page.items.length, 1)
-  assert.equal(page.to_seq, 2)
-  const full = await node.peer.call('session.items', { session_id: SESSION })
-  assert.deepEqual(full.items.map((item) => item.text), ['Read the report.', 'Done.'])
+  assert.deepEqual(page, { items: [], history: 'agy-node', to_seq: 0 })
+  assert.deepEqual(await node.peer.call('session.items', { session_id: 'agy-aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee' }), page)
 })

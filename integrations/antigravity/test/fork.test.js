@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -8,12 +9,14 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { startFakeNode, until } from '../../runtime-sdk/testing/fake-node.js'
 import { createAgyRuntime } from '../lib/runtime.js'
+import { readOverlay } from '../lib/overlay.js'
 
 const source = '11111111-2222-4333-8444-555555555555'
 const branch = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
 const sessionId = `agy-${source}`
 const branched = `agy-${branch}`
 const fake = fileURLToPath(new URL('./fake-acp-rewind.mjs', import.meta.url))
+const replyID = (step, raw = source) => `${step.step_index + 1}@${createHash('sha256').update(`${raw}\n${step.created_at}\n`).digest('hex').slice(0, 20)}#text`
 const records = [
   { type: 'USER_INPUT', content: 'First question' },
   { type: 'PLANNER_RESPONSE', thinking: 'Reasoning', content: 'First draft', tool_calls: [{ name: 'view_file' }] },
@@ -56,18 +59,23 @@ async function fixture(t, { assistant = false, status = 'IDLE', pending = false,
   await node.ready
   await until('source listed', () => node.last('runtime.sessions')?.sessions.some((row) => row.session_id === sessionId))
   const fork = (at_item_id, session_id = sessionId) => node.peer.call('session.fork', { session_id, at_item_id, assistant })
-  const items = async (id = sessionId) => (await node.peer.call('session.items', { session_id: id })).items
+  const overlay = () => readOverlay(join(config, 'brain', branch))
+  const exportBranch = () => {
+    const folder = join(config, 'brain', branch, '.system_generated', 'logs')
+    mkdirSync(folder, { recursive: true })
+    writeFileSync(join(folder, 'transcript_full.jsonl'), jsonl(records.slice(0, 4)))
+  }
   const calls = () => readFileSync(join(home, 'calls.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse)
   const latest = [...records,
     { type: 'USER_INPUT', content: 'Latest question' }, { type: 'PLANNER_RESPONSE', thinking: 'Native reasoning' },
     { type: 'PLANNER_RESPONSE', content: 'Latest answer' },
   ].map((step, step_index) => ({ status: 'DONE', created_at: '2026-01-01T00:00:00Z', ...step, step_index }))
-  return { node, cwd, fork, items, calls, checkSource: () => assert.equal(readFileSync(transcriptPath, 'utf8'), transcript),
+  return { node, cwd, fork, overlay, exportBranch, calls, checkSource: () => assert.equal(readFileSync(transcriptPath, 'utf8'), transcript),
     finishTurn: async () => {
       await node.peer.call('session.send', { session_id: sessionId, text: 'Latest question' })
       await until('prompt finished', () => runtime.idle())
       snapshot(latest)
-      return (await items()).find((item) => item.text === 'Latest answer')
+      return replyID(latest.at(-1))
     },
     exportLatest: () => writeFileSync(transcriptPath, jsonl(latest)),
     releaseFork: () => writeFileSync(join(home, 'release-fork'), ''),
@@ -75,38 +83,39 @@ async function fixture(t, { assistant = false, status = 'IDLE', pending = false,
 }
 
 test('native fork keeps the entire conversation in the same workspace', async (t) => {
-  const { node, cwd, fork, items, calls, checkSource } = await fixture(t, { requireLoad: true })
+  const { node, cwd, fork, overlay, calls, checkSource } = await fixture(t, { requireLoad: true })
   assert.equal(node.hello.caps.fork, true)
   assert.equal((await fork()).session_id, branched)
   assert.deepEqual(calls().find((call) => call.method === 'ForkConversation')?.params, {
     sourceCascadeId: source, forkAtStepIndex: -1,
     targetForkWorkspace: 'FORK_TARGET_CURRENT_WORKSPACE', sourceWorkspaceUris: [pathToFileURL(cwd).href],
   })
-  assert.deepEqual(await items(branched), await items())
+  assert.deepEqual(overlay(), {}, 'a branch with its own export needs no seed')
   checkSource()
 })
 
 test('forking at a reply keeps its tool results and stops before the next user message', async (t) => {
-  const { fork, items, calls, checkSource } = await fixture(t)
-  const reply = (await items()).find((item) => item.text === 'First draft')
-  assert.match(reply.id, /^2@[\da-f]+#1$/)
-  assert.equal((await fork(reply.id)).session_id, branched)
+  const { fork, calls, checkSource } = await fixture(t)
+  assert.equal((await fork(replyID(records[1]))).session_id, branched)
   assert.equal(calls().find((call) => call.method === 'ForkConversation')?.params.forkAtStepIndex, 3)
-  assert.deepEqual((await items(branched)).filter((item) => item.kind === 'text').map((item) => item.text),
-    ['First question', 'First draft', 'First answer'])
   checkSource()
 })
 
 test('an assistant fork can be opened and continued before the native export arrives', async (t) => {
-  const { node, cwd, fork, items, calls } = await fixture(t, { assistant: true, requireLoad: true })
-  const result = await fork('4#0')
+  const { node, cwd, fork, overlay, exportBranch, calls } = await fixture(t, { assistant: true, requireLoad: true })
+  const result = await fork(replyID(records[3]))
   assert.equal(result.session_id, branched)
   assert.equal(result.session.cwd, cwd)
   assert.equal(calls().find((call) => call.method === 'ForkConversation')?.params.forkAtStepIndex, 3)
   const listed = await until('assistant fork listed', () => node.last('runtime.sessions')?.sessions.find((row) => row.session_id === branched))
   assert.equal(listed.cwd, cwd)
   assert.equal(listed.status, 'idle')
-  assert.equal((await items(branched)).at(-1).text, 'First answer')
+  assert.equal(result.session.agy_conversation, branch)
+  assert.equal(listed.agy_conversation, branch)
+  assert.deepEqual(overlay(), { fork: { source, through: 3 } })
+  exportBranch()
+  await node.peer.call('session.rename', { session_id: branched, title: 'Exported branch' })
+  await until('the native export removes the seed', () => !overlay().fork)
   await node.peer.call('session.send', { session_id: branched, text: 'Continue the branch' })
   const sent = await until('branch continued', () => calls().find((call) => call.method === 'session/prompt'))
   assert.equal(sent.params.sessionId, branch)
@@ -125,18 +134,15 @@ test('an assistant fork can be opened and continued before the native export arr
 
 for (const whole of [false, true]) {
   test(`fork ${whole ? 'at the end' : 'at the latest reply'} waits for the completed turn export`, async (t) => {
-    const { fork, items, calls, checkSource, finishTurn, exportLatest } = await fixture(t, { pending: true })
+    const { fork, overlay, calls, checkSource, finishTurn, exportLatest } = await fixture(t, { pending: true })
     const reply = await finishTurn()
-    assert.equal(reply.seq, 8)
     checkSource()
-    const result = fork(whole ? '' : reply.id)
+    const result = fork(whole ? '' : reply)
     const exported = delay(80).then(() => exportLatest())
     const [forked] = await Promise.all([result, exported])
     assert.equal(forked.session_id, branched)
     assert.equal(calls().find((call) => call.method === 'ForkConversation')?.params.forkAtStepIndex, whole ? -1 : 8)
-    assert.notEqual((await items()).at(-1).id, reply.id)
-    assert.deepEqual((await items(branched)).slice(-3).map((item) => item.text),
-      ['Latest question', 'Native reasoning', 'Latest answer'])
+    assert.deepEqual(overlay(), { fork: { source, through: 8 } })
   })
 }
 
@@ -168,7 +174,7 @@ test('a native running turn refuses to fork', async (t) => {
 test('unknown, archived and stale targets do not fork', async (t) => {
   const { node, fork, calls } = await fixture(t)
   await assert.rejects(fork('', 'agy-11111111-eeee-4333-8444-555555555555'), (error) => error.code === 'not_found')
-  await assert.rejects(fork('4@old#0'), (error) => error.code === 'fork_mismatch')
+  await assert.rejects(fork('4@' + '0'.repeat(20) + '#text'), (error) => error.code === 'fork_mismatch')
   await assert.rejects(fork('4#9'), (error) => error.code === 'fork_mismatch')
   await node.peer.call('session.close', { session_id: sessionId })
   await assert.rejects(fork(), (error) => error.code === 'not_found')

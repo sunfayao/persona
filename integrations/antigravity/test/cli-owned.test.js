@@ -103,9 +103,7 @@ async function fixture(t, { steps = finished, stepCount = 2, lock = 'held', mtim
 
 test('summary lag on a conversation open in the CLI is no rewind: no resume, no cut, status working', async (t) => {
   const { node, methods, status } = await fixture(t)
-  const page = await node.peer.call('session.items', { session_id: SESSION })
-  assert.deepEqual(page.items.map((i) => i.text).filter(Boolean).at(-1), 'The build passes.')
-  assert.ok(!page.history.includes(':cut:'), page.history)
+  await node.peer.call('session.watch', { session_id: SESSION, transcript: true })
   assert.equal(await status(), 'working')
   const native = methods()
   assert.ok(!native.includes('session/resume') && !native.includes('session/load'), native.join(' '))
@@ -150,8 +148,7 @@ test('rewind, fork and a model change to a conversation running in the CLI are r
 test('after the CLI closes it, a finished reply reads done and a check resumes it only for the check', async (t) => {
   const { node, status, methods } = await fixture(t, { lock: 'free', mtime: minutesAgo(5) })
   assert.equal(await status(), 'done')
-  const page = await node.peer.call('session.items', { session_id: SESSION })
-  assert.ok(!page.history.includes(':cut:'), page.history)
+  await node.peer.call('session.watch', { session_id: SESSION, transcript: true })
   await until('the check closes what it resumed', () => methods().includes('session/close'))
   const native = methods()
   assert.ok(native.indexOf('session/resume') < native.indexOf('GetCascadeTrajectory'), native.join(' '))
@@ -161,7 +158,7 @@ test('after the CLI closes it, a finished reply reads done and a check resumes i
 test('a CLI that closed the conversation moments ago still reads as its writer, but sends go through', async (t) => {
   const { node, status, methods, setLock } = await fixture(t, { lock: 'free', steps: running, stepCount: 1 })
   assert.equal(await status(), 'working')
-  await node.peer.call('session.items', { session_id: SESSION })
+  await node.peer.call('session.watch', { session_id: SESSION, transcript: true })
   assert.ok(!methods().includes('session/resume'))
   setLock(false)
   await node.peer.call('session.send', { session_id: SESSION, text: 'Go on', client_msg_id: 'm1' })
@@ -183,7 +180,7 @@ test('where the lock cannot be read, a presence conversation is never checked, a
   await refused('session.send', { text: 'Now', client_msg_id: 'm1' })
   write(finished, minutesAgo(5))
   assert.equal(await status(), 'done')
-  await node.peer.call('session.items', { session_id: SESSION })
+  await node.peer.call('session.watch', { session_id: SESSION, transcript: true })
   assert.ok(!methods().includes('GetCascadeTrajectory'))
   await node.peer.call('session.send', { session_id: SESSION, text: 'Later', client_msg_id: 'm2' })
   await until('the send reached agy', () => methods().includes('session/prompt'))
@@ -206,7 +203,7 @@ test("the companion's own turn and its export do not make the conversation look 
 test('a conversation never opened in the CLI keeps the summary rules', async (t) => {
   const { node, status, methods } = await fixture(t, { lock: 'none' })
   assert.equal(await status(), 'unknown')
-  await node.peer.call('session.items', { session_id: SESSION })
+  await node.peer.call('session.watch', { session_id: SESSION, transcript: true })
   await until('the cut check ran', () => methods().includes('GetCascadeTrajectory'))
 })
 

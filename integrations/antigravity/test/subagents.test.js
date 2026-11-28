@@ -78,6 +78,10 @@ createInterface({ input: process.stdin }).on('line', (line) => {
   await node.ready
   await until('parent and all three subagents listed', () => node.last('runtime.sessions')?.sessions.length === 4)
   const rows = Object.fromEntries(node.last('runtime.sessions').sessions.map((row) => [row.session_id, row]))
+  for (const row of Object.values(rows)) {
+    assert.equal(row.agy_conversation, row.session_id.slice(4))
+    assert.equal(row.agy_root, undefined)
+  }
   assert.equal(rows[`agy-${INTERNAL_HELPER}`], undefined, 'idle non-subagent internal conversation stays hidden')
   const view = (id) => {
     const { title, is_subagent, parent_session_id, root_session_id } = rows[`agy-${id}`]

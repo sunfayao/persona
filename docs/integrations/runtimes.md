@@ -270,6 +270,18 @@ Codex home its rollout is. A daemon can't do this: its threads are on another co
 While the runtime's session is `offline`, another program may take the thread up (the Codex App runs it, a shared app-server has it loaded). That program's row is then listed
 as well, with the thread's sub-Agents under it, so a message from the phone goes where the thread is open. Once the runtime's session runs again, the chat is that session alone.
 
+## Runtimes that run Antigravity (optional)
+
+A local Antigravity row names its native brain directory with `agy_conversation` (the lowercase conversation UUID).
+The desktop companion also sets `agy_root: "desktop"`; without it the node uses the CLI data directory. These fields
+stay between the runtime and the node. Once the node can open the brain directory, it reads and watches the same
+transcript it would read for a herdr pane. The CLI companion keeps the controls and streams reply text until it sees the
+exported reply or reaches its settle timeout. It does not publish items.
+
+The CLI companion writes a private `.persona-overlay.json` alongside the native export for facts that are not yet
+exported (such as a verified rewind or a branch whose export has not arrived). The node applies the overlay in both
+modes. Neither mode relies on runtime-only wake markers or history epochs.
+
 ## Sub-Agents and background tasks (optional)
 
 When an Agent hands work off and ends the turn (background sub-Agents, workflows, commands running in the background), the session is "done" after the turn while the work isn't. The runtime reports them on the session row,
@@ -402,7 +414,8 @@ Model and reasoning effort are up to the runtime (DSH picks them in its Web GUI)
 | pi (`pi-<pid>`, `pi-web`, `pi-files`) | `integrations/pi`: pi extension (one connection per pi process) + pi-web companion process |
 | omp (`omp-<pid>`) | `integrations/omp`: the pi host under omp's identity (agent and name `omp`); no companion and no auto-update |
 | opencode (`opencode` / `opencode-<pid>`) | `integrations/opencode`: embedded `persona-opencode-runtime` ACP companion (`companion.mjs`, auto-supervised by `personad` via `server/internal/node/opencodebridge.go` when `opencode` is installed and no external companion or `opencode serve` plugin is connected; `start`, `models`, `modes`, `assistant: true` with loopback HTTP MCP proxy, lazy/idle ACP cleanup, reads 1.x & 2.x `opencode.db`) and opencode server plugin (`index.js`, one connection per `opencode serve` process, merges with herdr TUI panes) |
-| Antigravity CLI (`antigravity`) | `integrations/antigravity/companion.mjs`: companion process; reads CLI transcripts and runs terminal-less Agent and assistant sessions through `agy acp`; the embedded package is supervised by `server/internal/node/agybridge.go` |
+| Antigravity CLI (`antigravity`) | `integrations/antigravity/companion.mjs`: runs terminal-less Agent and assistant sessions through `agy acp` and names their transcripts for the node; the embedded package is supervised by `server/internal/node/agybridge.go` |
+| Antigravity Desktop (`antigravity-desktop`) | `integrations/antigravity/desktop.mjs`: names desktop transcripts for the node and sends controls to the local desktop app |
 | echo (example) | `integrations/runtime-sdk/examples/echo-runtime.mjs` (with `--listen <port>` it's a daemon) |
 
 ### Runtime token usage

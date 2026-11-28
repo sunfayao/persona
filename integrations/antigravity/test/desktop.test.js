@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -7,15 +7,11 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { startFakeNode } from '../../runtime-sdk/testing/fake-node.js'
 import { createDesktopRuntime } from '../lib/desktop.js'
 
-test('desktop attaches to existing sessions, follows transcripts, and routes only their controls', async t => {
+test('desktop names its own transcript root and routes only its controls', async t => {
   const dir = mkdtempSync(join(tmpdir(), 'desktop-agy-'))
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const key = '11111111-2222-4333-8444-555555555555'
   const session_id = 'desktop-agy-' + key
-  const folder = join(dir, 'brain', key, '.system_generated', 'logs')
-  mkdirSync(folder, { recursive: true })
-  const file = join(folder, 'transcript.jsonl')
-  writeFileSync(file, JSON.stringify({ step_index: 0, type: 'USER_INPUT', content: 'hi' }) + '\n')
   const node = await startFakeNode(t)
   const calls = []
   const cascadeConfig = { plannerConfig: { planModel: "test-model" } }
@@ -36,17 +32,15 @@ test('desktop attaches to existing sessions, follows transcripts, and routes onl
     assert.ok(fn())
   }
   await until(() => node.last('runtime.sessions'))
-  assert.equal(node.last('runtime.sessions').sessions[0].session_id, session_id)
-  const read = await node.peer.call('session.items', { session_id })
-  assert.equal(read.items[0].text, 'hi')
-  await node.peer.call('session.watch', { session_id })
-  appendFileSync(file, [
-    { step_index: 1, type: 'PLANNER_RESPONSE', content: 'hello' },
-    { step_index: 2, type: 'GENERIC', content: 'captured', media: [{ mime_type: 'image/png', uri: 'capture.png' }] },
-  ].map((step) => JSON.stringify(step)).join('\n') + '\n')
-  await until(() => node.last('session.items'))
-  assert.deepEqual(node.last('session.items').items.map((item) => item.kind), ['text', 'tool_result'])
-  assert.deepEqual((await node.peer.call('session.items', { session_id })).items.map((item) => item.kind), ['text', 'text', 'tool_result'])
+  const row = node.last('runtime.sessions').sessions[0]
+  assert.equal(row.session_id, session_id)
+  assert.equal(row.agy_conversation, key)
+  assert.equal(row.agy_root, 'desktop')
+  assert.deepEqual(await node.peer.call('session.items', { session_id }), { items: [], history: 'agy-node', to_seq: 0 })
+  await node.peer.call('session.watch', { session_id, transcript: true })
+  assert.equal(node.hello.caps.item, undefined)
+  assert.equal(node.hello.caps.image, undefined)
+  assert.deepEqual(node.all('session.items'), [])
   await node.peer.call('session.send', { session_id, text: 'next', client_msg_id: 'one' })
   await node.peer.call('session.send', { session_id, text: 'next', client_msg_id: 'one' })
   await node.peer.call('session.interrupt', { session_id })

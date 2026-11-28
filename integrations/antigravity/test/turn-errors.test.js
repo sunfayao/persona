@@ -6,9 +6,10 @@ import { DatabaseSync } from 'node:sqlite'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { startFakeNode, until } from '../../runtime-sdk/testing/fake-node.js'
-import { nativeErrorStep } from '../lib/errors.js'
-import { stepsToItems, transcriptState } from '../lib/map.js'
+import { exportedTurnError, nativeErrorStep } from '../lib/errors.js'
+import { transcriptState } from '../lib/map.js'
 import { createAgyRuntime } from '../lib/runtime.js'
+import { readOverlay } from '../lib/overlay.js'
 
 const RAW = '11111111-2222-4333-8444-555555555555'
 const SESSION = `agy-${RAW}`
@@ -28,20 +29,12 @@ const error = {
 
 test('native errors preserve structured subscription limits and their actual timestamp', () => {
   const step = nativeErrorStep(error, 1)
-  const parsed = stepsToItems([input, step])
-  assert.equal(parsed.lastText, '')
-  assert.deepEqual(parsed.turnError, {
+  assert.deepEqual(exportedTurnError([input], step), {
     turn_error: MESSAGE, turn_error_kind: 'usage_limit', turn_error_resets_at: '2026-01-03T18:00:00.000Z',
     turn_error_code: 'rate_limited', turn_error_after_work: false,
   })
-  assert.equal(parsed.items.at(-1).role, 'assistant')
-  assert.equal(parsed.items.at(-1).kind, 'text')
-  assert.equal(parsed.items.at(-1).text, `API Error: ${MESSAGE}`)
-  const existing = stepsToItems([{ ...step, content: 'API Error: 503 unavailable' }])
-  assert.equal(existing.items[0].text, 'API Error: 503 unavailable')
   const work = { step_index: 1, type: 'PLANNER_RESPONSE', tool_calls: [{ name: 'run_command' }] }
-  assert.equal(stepsToItems([input, work, { ...step, step_index: 2 }]).turnError.turn_error_after_work, true)
-  assert.equal(stepsToItems([input, step, { ...input, step_index: 2 }]).turnError, undefined)
+  assert.equal(exportedTurnError([input, work], step).turn_error_after_work, true)
 })
 
 test('ordinary rate limits and malformed metadata keep their native error without inventing a reset', () => {
@@ -71,7 +64,6 @@ const invalidMedia = {
 test('a request the service refuses as it is names its cause and is the user\'s to fix', () => {
   const step = nativeErrorStep(invalidMedia, 3)
   assert.deepEqual(step.turn_error, { turn_error: `${INVALID_MEDIA_TEXT} (INVALID_MEDIA)`, turn_error_kind: 'user' })
-  assert.equal(stepsToItems([input, step]).items.at(-1).text, `API Error: ${INVALID_MEDIA_TEXT} (INVALID_MEDIA)`)
   const generic = (errorCode, shortError) => nativeErrorStep({ ...invalidMedia, errorMessage: { error: {
     userErrorMessage: 'Agent execution terminated due to error.', shortError, errorCode } } }, 0).turn_error
   // Only the wording changes for failures worth a Continue, or the transient 401 the runtime retries.
@@ -113,51 +105,14 @@ test('stopping a turn drops agy\'s stream-interrupted note in both export and na
 
   const interrupted = { step_index: 2, type: 'ERROR_MESSAGE', source: 'SYSTEM', status: 'DONE', created_at: AT, error: INTERRUPTED_NOTE }
   const reply = { step_index: 1, type: 'PLANNER_RESPONSE', source: 'MODEL', status: 'DONE', created_at: AT, content: 'Partial reply.' }
-  const stopped = stepsToItems([input, reply, interrupted])
-  assert.equal(stopped.toSeq, 3)
-  assert.equal(stopped.turnError, undefined)
-  assert.equal(stopped.lastText, 'Partial reply.')
-  assert.deepEqual(stopped.items.map((item) => [item.role, item.kind, item.text]), [
-    ['user', 'text', input.content],
-    ['assistant', 'text', 'Partial reply.'],
-  ])
+  assert.equal(exportedTurnError([input, reply, interrupted]), undefined)
   assert.deepEqual(transcriptState([input, reply, interrupted]), { status: 'idle' })
-
-  // An interrupted note still resets pending tool calls and does not trigger a stray wake notice.
-  const afterWake = stepsToItems([
-    input,
-    reply,
-    { step_index: 2, type: 'SYSTEM_MESSAGE', created_at: AT, content: 'background update' },
-    { ...interrupted, step_index: 3 },
-  ])
-  assert.equal(afterWake.items.some((item) => item.wake), false)
-  assert.equal(afterWake.turnError, undefined)
-
-  const interruptedTool = stepsToItems([
-    input,
-    { step_index: 1, type: 'PLANNER_RESPONSE', created_at: AT, tool_calls: [{ name: 'run_command', args: {} }] },
-    interrupted,
-    { step_index: 3, type: 'USER_INPUT', source: 'USER_EXPLICIT', status: 'DONE', created_at: AT, content: 'Continue' },
-    { step_index: 4, type: 'PLANNER_RESPONSE', created_at: AT, tool_calls: [{ name: 'view_file', args: {} }] },
-    { step_index: 5, type: 'GENERIC', status: 'DONE', created_at: AT, content: 'file body' },
-  ])
-  const uses = interruptedTool.items.filter((item) => item.kind === 'tool_use')
-  const result = interruptedTool.items.find((item) => item.kind === 'tool_result')
-  assert.equal(result.tool_use_id, uses[1].tool_use_id)
-  assert.equal(interruptedTool.items.some((item) => item.text?.startsWith('API Error:')), false)
-  assert.equal(interruptedTool.turnError, undefined)
-
-  // Real exported errors stay visible.
-  const realExported = stepsToItems([
-    input,
-    { step_index: 1, type: 'ERROR_MESSAGE', source: 'SYSTEM', status: 'DONE', created_at: AT, error: 'The stream was interrupted: 503 unavailable' },
-  ])
-  assert.equal(realExported.turnError?.turn_error, 'The stream was interrupted: 503 unavailable')
-  assert.equal(realExported.items.at(-1).text, 'API Error: The stream was interrupted: 503 unavailable')
+  assert.equal(exportedTurnError([input, { ...interrupted, error: 'The stream was interrupted: 503 unavailable' }]).turn_error,
+    'The stream was interrupted: 503 unavailable')
 })
 
 test('runtime ignores an omitted native stream-interrupted note without emitting turn_error', async (t) => {
-  const { row, items } = await fixture(t, {
+  const { row, watch, overlay, calls, refresh } = await fixture(t, {
     nativeError: {
       type: 'CORTEX_STEP_TYPE_ERROR_MESSAGE',
       status: 'CORTEX_STEP_STATUS_DONE',
@@ -165,8 +120,10 @@ test('runtime ignores an omitted native stream-interrupted note without emitting
       errorMessage: { error: { userErrorMessage: INTERRUPTED_NOTE } },
     },
   })
-  const page = await items()
-  assert.equal(page.items.some((item) => item.text?.startsWith('API Error:')), false)
+  await watch()
+  await until('the native tail was probed', () => calls().some((call) => call.method === 'GetCascadeTrajectorySteps'))
+  await refresh()
+  assert.deepEqual(overlay(), {})
   assert.equal(row().turn_error, undefined)
 })
 
@@ -211,7 +168,8 @@ async function fixture(t, options = {}) {
   const row = () => node.last('runtime.sessions')?.sessions.find((entry) => entry.session_id === SESSION)
   await until('session listed', row)
   const calls = () => readFileSync(join(home, 'calls.jsonl'), 'utf8').split('\n').filter(Boolean).map(JSON.parse)
-  const items = () => node.peer.call('session.items', { session_id: SESSION })
+  const watch = () => node.peer.call('session.watch', { session_id: SESSION, transcript: true })
+  const overlay = () => readOverlay(join(config, 'brain', RAW))
   const refresh = async () => {
     const before = node.all('runtime.sessions').length
     await node.peer.call('session.rename', { session_id: SESSION, title: 'Refreshed' })
@@ -224,47 +182,50 @@ async function fixture(t, options = {}) {
     runtime.start()
     await until('restarted inventory', () => node.all('runtime.sessions').length > before)
   }
-  return { node, row, calls, items, write, state, refresh, restart, transcript, nativeFile, idle: () => runtime.idle() }
+  return { node, row, calls, watch, overlay, write, state, refresh, restart, transcript, nativeFile, idle: () => runtime.idle() }
 }
 
 for (const exported of [false, true]) {
   test(`retries one transient 401 ${exported ? 'recorded in the transcript' : 'returned by ACP'} without duplicating the user message`, async (t) => {
-    const { node, row, calls, items, idle } = await fixture(t, { initialCount: 1, promptPlan: [
+    const { node, row, calls, overlay, transcript, idle, write, refresh } = await fixture(t, { initialCount: 1, promptPlan: [
       { error: TRANSIENT_401, export: exported, undatedStep: exported }, { reply: 'Finished.', export: exported },
     ] })
     const send = (text, client_msg_id) => node.peer.call('session.send', { session_id: SESSION, text, client_msg_id })
     await send('Continue.', 'request-1')
-    await until('retry succeeds', () => row()?.last_text === 'Finished.' && idle())
+    await until('retry succeeds', () => idle() && row()?.status !== 'working' && (!exported || row()?.last_text === 'Finished.'))
     assert.equal(calls().filter((call) => call.method === 'session/prompt').length, 2)
     assert.equal(row().turn_error, undefined)
-    const page = await items()
-    const users = page.items.filter((item) => item.role === 'user')
-    assert.deepEqual(users.map((item) => item.text), [input.content, 'Continue.'])
-    assert.equal(users.at(-1).client_msg_id, 'request-1')
-    assert.equal(page.items.some((item) => item.text?.includes('UNAUTHENTICATED')), false)
     if (exported) {
+      const steps = readFileSync(transcript, 'utf8').trim().split('\n').map(JSON.parse)
+      const inputs = steps.filter((step) => step.type === 'USER_INPUT' && step.content === 'Continue.')
+      assert.equal(inputs.length, 2)
+      const { step_index, created_at } = inputs[1]
+      assert.deepEqual(overlay().hidden, [{ step_index, created_at }])
       await send('Continue.', 'request-2')
       await until('next send settles', idle)
-      assert.equal((await items()).items.filter((item) => item.text === 'Continue.').length, 2)
+      assert.deepEqual(overlay().hidden, [{ step_index, created_at }])
+      write([input, { ...input, step_index, content: 'New branch.', created_at: '2026-01-02T12:01:00Z' }])
+      await refresh()
+      assert.deepEqual(overlay(), {})
+    } else {
+      assert.deepEqual(overlay(), {})
     }
   })
 }
 
 test('a plan-mode 401 retries despite a previous reply flushing and whole-second export timestamps', async (t) => {
   const prior = { prompt: 'Earlier request.', reply: 'Earlier reply.' }
-  const { node, calls, items, row, idle } = await fixture(t, { initialCount: 1, promptPlan: [
+  const { node, calls, overlay, row, idle } = await fixture(t, { initialCount: 1, promptPlan: [
     { reply: prior.reply },
     { error: TRANSIENT_401, export: true, planMode: true, wholeSeconds: true, flushReply: prior },
     { reply: 'Finished.', export: true, planMode: true, wholeSeconds: true },
   ] })
   await node.peer.call('session.send', { session_id: SESSION, text: prior.prompt })
-  await until('previous turn settles without native export', () => row()?.last_text === prior.reply && idle())
+  await until('previous turn settles without native export', () => row()?.status !== 'working' && idle())
   await node.peer.call('session.send', { session_id: SESSION, text: 'Continue.', client_msg_id: 'plan-retry' })
   await until('plan retry settles', () => row()?.last_text === 'Finished.' && idle())
   assert.equal(calls().filter((call) => call.method === 'session/prompt').length, 3)
-  const page = await items()
-  assert.deepEqual(page.items.map((item) => item.text), [input.content, prior.prompt, prior.reply, '/plan Continue.', 'Finished.'])
-  assert.equal(page.items[3].client_msg_id, 'plan-retry')
+  assert.ok(overlay().hidden.some(({ step_index }) => step_index > 2))
 })
 
 for (const [reason, plan, attempts, retryDelay] of [
@@ -294,7 +255,7 @@ test('interrupt aborts the transient 401 delay and settles the turn', async (t) 
   assert.equal(idle(), true)
   assert.equal(calls().filter((call) => call.method === 'session/prompt').length, 1)
   await node.peer.call('session.send', { session_id: SESSION, text: 'Try again.' })
-  await until('next send completes', () => row()?.last_text === 'Next.')
+  await until('next send completes', () => idle() && row()?.status !== 'working')
 })
 
 for (const assistant of [false, true]) {
@@ -320,15 +281,13 @@ for (const assistant of [false, true]) {
 }
 
 test('runtime recovers an omitted native error through a cached bounded tail without resuming the session', async (t) => {
-  const { row, calls, items, refresh, restart, transcript } = await fixture(t)
+  const { row, calls, watch, overlay, refresh, restart, transcript } = await fixture(t)
   const original = readFileSync(transcript)
-  const page = await items()
-  assert.match(page.history, /:full:api-errors(?:$|:)/)
-  assert.equal(page.to_seq, 2)
-  assert.equal(page.items.at(-1).text, `API Error: ${MESSAGE}`)
+  await watch()
   await until('quota fields published', () => row()?.turn_error_kind === 'usage_limit')
   assert.equal(row().turn_error_resets_at, '2026-01-03T18:00:00.000Z')
-  await Promise.all([items(), items(), items()])
+  assert.deepEqual(overlay(), { errors: [{ after: 0, created_at: AT, text: MESSAGE }] })
+  await Promise.all([watch(), watch(), watch()])
   await refresh()
   assert.equal(calls().filter((call) => call.method === 'GetCascadeTrajectorySteps').length, 1)
   assert.deepEqual(calls().find((call) => call.method === 'GetCascadeTrajectorySteps').params, { cascadeId: RAW, stepOffset: 1, disableRehydration: true })
@@ -336,22 +295,24 @@ test('runtime recovers an omitted native error through a cached bounded tail wit
   assert.equal(calls().some((call) => ['session/resume', 'session/prompt'].includes(call.method)), false)
   assert.deepEqual(readFileSync(transcript), original)
   await restart()
-  assert.equal((await items()).items.at(-1).text, `API Error: ${MESSAGE}`)
+  assert.deepEqual(overlay(), { errors: [{ after: 0, created_at: AT, text: MESSAGE }] })
+  await watch()
   await until('quota recovered after restart', () => row()?.turn_error === MESSAGE)
 })
 
 test('an omitted invalid-media failure reaches the session row as the user\'s to fix, not a Continue', async (t) => {
-  const { row, items, calls } = await fixture(t, { nativeError: invalidMedia })
-  assert.equal((await items()).items.at(-1).text, `API Error: ${INVALID_MEDIA_TEXT} (INVALID_MEDIA)`)
+  const { row, watch, overlay, calls } = await fixture(t, { nativeError: invalidMedia })
+  await watch()
   await until('invalid media published', () => row()?.turn_error_kind === 'user')
   assert.equal(row().turn_error, `${INVALID_MEDIA_TEXT} (INVALID_MEDIA)`)
   assert.equal(row().turn_error_code, undefined)
+  assert.equal(overlay().errors[0].text, `${INVALID_MEDIA_TEXT} (INVALID_MEDIA)`)
   assert.equal(calls().some((call) => ['session/resume', 'session/prompt'].includes(call.method)), false)
 })
 
 test('new user input and successful response clear the old native failure', async (t) => {
-  const { row, items, write, state, refresh } = await fixture(t)
-  await items()
+  const { row, watch, overlay, write, state, refresh } = await fixture(t)
+  await watch()
   await until('initial error', () => row()?.turn_error === MESSAGE)
   write([input, { ...input, step_index: 2, created_at: '2026-01-02T12:01:00Z', content: 'Continue.' },
     { step_index: 3, type: 'PLANNER_RESPONSE', status: 'DONE', created_at: '2026-01-02T12:01:01Z', content: 'Finished.' }])
@@ -359,23 +320,22 @@ test('new user input and successful response clear the old native failure', asyn
   await refresh()
   assert.equal(row().turn_error, undefined)
   assert.equal(row().last_text, 'Finished.')
-  assert.equal((await items()).items.some((item) => item.kind === 'notice'), false)
+  assert.deepEqual(overlay(), {})
 })
 
 test('native recovery reads only the final eight steps of a large export gap', async (t) => {
-  const { calls, items } = await fixture(t, { padding: 20 })
-  const page = await items()
-  assert.equal(page.to_seq, 22)
-  assert.equal(page.items.at(-1).text, `API Error: ${MESSAGE}`)
+  const { calls, watch, row } = await fixture(t, { padding: 20 })
+  await watch()
+  await until('bounded error is published', () => row()?.turn_error === MESSAGE)
   assert.equal(calls().find((call) => call.method === 'GetCascadeTrajectorySteps').params.stepOffset, 14)
 })
 
 test('rewinding a failed turn removes its recovered error', async (t) => {
-  const { node, row, items } = await fixture(t)
-  await items()
+  const { node, row, watch, overlay } = await fixture(t)
+  await watch()
   await until('initial error', () => row()?.turn_error === MESSAGE)
   await node.peer.call('session.rewind', { session_id: SESSION, prompt: input.content, occurrence: 1, prompts_after: 0, restore: 'conversation' })
-  assert.deepEqual((await items()).items, [])
+  assert.equal(overlay().errors, undefined)
   await until('rewound inventory', () => row()?.turn_error === undefined)
 })
 
@@ -389,7 +349,6 @@ test('a rejected ACP prompt publishes its failure through the normal session row
   await refresh()
   assert.equal(row().turn_error, undefined)
 })
-
 
 test('an attached picture that is cut short is not sent; the words and complete pictures are', async (t) => {
   const { node, calls } = await fixture(t)
@@ -414,7 +373,7 @@ test('listing idle sessions does not start native error probes', async (t) => {
 })
 
 test('a pending native error probe does not hold a completed prompt active', async (t) => {
-  const { node, row, calls, items, state, refresh, nativeFile } = await fixture(t, { holdErrors: true, initialCount: 1 })
+  const { node, row, calls, watch, state, refresh, nativeFile } = await fixture(t, { holdErrors: true, initialCount: 1 })
   const release = () => {
     const snapshot = JSON.parse(readFileSync(nativeFile, 'utf8'))
     snapshot.holdErrors = false
@@ -429,5 +388,5 @@ test('a pending native error probe does not hold a completed prompt active', asy
   } finally {
     release()
   }
-  await items()
+  await watch()
 })

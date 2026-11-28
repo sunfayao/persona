@@ -206,13 +206,13 @@ test('a call between two agy acp requests keeps its process when an overlapping 
   db.prepare('INSERT INTO conversation_summaries VALUES (?, ?, 0, 0, 2, ?, ?, ?)')
     .run(raw, 'CASCADE_RUN_STATUS_IDLE', 'Native read', JSON.stringify([`file://${f.home}`]), new Date().toISOString())
   db.close()
-  const page = f.n.peer.call('session.items', { session_id: `agy-${raw}` })
+  await f.n.peer.call('session.watch', { session_id: `agy-${raw}`, transcript: true })
   await until('the native read', () => existsSync(join(f.home, 'native.jsonl')))
 
   await assert.rejects(f.n.peer.call('session.start', { cwd: f.home }), /Unknown model ID/)
   assert.equal(f.processes().length, 1)
   rmSync(join(f.home, 'native-hold'))
-  assert.equal((await page).items.at(-1).text, 'API Error: Provider unavailable')
+  await until('native error published', () => f.n.last('runtime.sessions')?.sessions.find((row) => row.agy_conversation === raw)?.turn_error === 'Provider unavailable')
   assert.deepEqual(f.logs.filter((line) => /native turn error|replacing/.test(line)), [])
 
   const { session } = await f.n.peer.call('session.start', { cwd: f.home })

@@ -7,6 +7,7 @@ import { test } from 'node:test'
 import { startFakeNode, until } from '../../runtime-sdk/testing/fake-node.js'
 import { createAgyRuntime } from '../lib/runtime.js'
 import { mapModels } from '../lib/models.js'
+import { readOverlay } from '../lib/overlay.js'
 
 const entries = ['medium', 'high', 'low'].map((level) => ({ modelId: `gemini-future-${level}`, name: `Gemini Future (${level})` }))
 const AUTO_REFUSAL_NOTICE = 'agy 拒绝了 Auto 模式，已改由 Persona 自动批准权限请求'
@@ -56,11 +57,11 @@ async function fixture(t, options = {}) {
       return []
     }
   }
-  if (options.noStart) return { n, home, catalog, calls, spawns, settings, modelsCalls }
+  if (options.noStart) return { n, home, agyDir, catalog, calls, spawns, settings, modelsCalls }
   const { session } = await n.peer.call('session.start', { cwd: home })
   const sessionId = session.session_id
   const row = () => n.last('runtime.sessions')?.sessions.find((entry) => entry.session_id === sessionId)
-  return { n, home, catalog, settings, sessionId, row, session, calls, spawns }
+  return { n, home, agyDir, catalog, settings, sessionId, row, session, calls, spawns }
 }
 
 async function modePermissionFixture(t, controls = {}, startParams = {}) {
@@ -71,8 +72,8 @@ async function modePermissionFixture(t, controls = {}, startParams = {}) {
   const sessionId = session.session_id
   const row = () => f.n.last('runtime.sessions')?.sessions.find((entry) => entry.session_id === sessionId)
   const answers = () => f.calls().filter((call) => typeof call.id === 'string' && call.id.startsWith('read-permission-') && call.result)
-  const items = () => f.n.peer.call('session.items', { session_id: sessionId })
-  return { ...f, session, sessionId, row, answers, items }
+  const overlay = () => readOverlay(join(f.agyDir, 'brain', session.agy_conversation))
+  return { ...f, session, sessionId, row, answers, overlay }
 }
 
 const selected = (optionId) => ({ outcome: { outcome: 'selected', optionId } })
@@ -136,7 +137,6 @@ test('a rejected startup configuration closes the newly created native session',
   assert.equal(calls().filter((call) => call.method === 'session/close').length, 1)
 })
 
-
 test('availability checks use native ACP and deny tools without phone cards', async (t) => {
   const { n, home, catalog, calls } = await fixture(t, { noStart: true })
   catalog({ models: entries, askPermission: true })
@@ -167,7 +167,6 @@ test('an availability timeout cancels its prompt and closes the session', async 
   assert.equal(calls().filter((call) => call.method === 'session/cancel').length, 1)
   assert.equal(calls().filter((call) => call.method === 'session/close').length, 1)
 })
-
 
 for (const model of [entries[1].name, entries[1].modelId]) {
   test(`new sessions apply the configured default ${model}`, async (t) => {
@@ -215,13 +214,26 @@ test('refused auto publishes the applied Persona mode and exactly one fallback n
   const f = await modePermissionFixture(t, { refuseAuto: true }, { assistant: true, permission_mode: 'auto' })
   // Starting a task can apply its requested mode again; the session still gets only one notice.
   await f.n.peer.call('session.modes', { session_id: f.sessionId, permission_mode: 'auto' })
-  const page = await f.items()
-  const notices = page.items.filter((item) => item.kind === 'notice')
-  assert.deepEqual({ mode: f.session.permission_mode, notices: notices.map((item) => item.text) }, {
-    mode: 'bypassPermissions',
-    notices: [AUTO_REFUSAL_NOTICE],
-  })
-  assert.equal(notices[0]?.role, 'system')
+  assert.equal(f.session.permission_mode, 'bypassPermissions')
+  assert.match(f.session.agy_conversation, /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/)
+  assert.equal(f.session.agy_root, undefined)
+  await until('assistant row names the same conversation', () => f.row()?.agy_conversation === f.session.agy_conversation)
+  const notices = f.overlay().notices
+  assert.equal(notices.length, 1)
+  assert.ok(Number.isFinite(Date.parse(notices[0].created_at)))
+  assert.deepEqual(notices, [{ at: 0, created_at: notices[0].created_at, code: 'mode_switched', text: AUTO_REFUSAL_NOTICE }])
+})
+
+test('a mode fallback notice is anchored after the native steps already exported', async (t) => {
+  const f = await modePermissionFixture(t, { refuseAuto: true }, { permission_mode: 'default' })
+  const logs = join(f.agyDir, 'brain', f.session.agy_conversation, '.system_generated', 'logs')
+  mkdirSync(logs, { recursive: true })
+  writeFileSync(join(logs, 'transcript_full.jsonl'), [
+    { step_index: 0, type: 'USER_INPUT', content: 'Check this.' },
+    { step_index: 1, type: 'PLANNER_RESPONSE', status: 'DONE', content: 'Checked.' },
+  ].map(JSON.stringify).join('\n') + '\n')
+  await f.n.peer.call('session.modes', { session_id: f.sessionId, permission_mode: 'auto' })
+  assert.equal(f.overlay().notices[0].at, 2)
 })
 
 test('a settings-derived session follows agentMode changes without a companion restart', async (t) => {
@@ -276,7 +288,7 @@ test('accepted native auto remains auto and is not broadened to bypass', async (
   assert.equal(f.n.asked.length, 1)
   assert.deepEqual(f.answers()[0].result, selected('allow'))
   assert.deepEqual(f.calls().filter((call) => call.method === 'session/set_mode').map((call) => call.params.modeId), ['auto'])
-  assert.equal((await f.items()).items.some((item) => item.kind === 'notice' && item.text === AUTO_REFUSAL_NOTICE), false)
+  assert.deepEqual(f.overlay(), {})
 })
 
 test('a newer explicit asking mode wins over an in-flight auto fallback', async (t) => {
@@ -334,61 +346,8 @@ test('a delayed default after auto acknowledgement still uses the fallback', asy
   await until('the delayed-fallback permission is answered', () => f.answers().length === 1)
   assert.equal(f.n.asked.length, 0)
   assert.deepEqual(f.answers()[0].result, selected('always'))
-  const notices = (await f.items()).items.filter((item) => item.kind === 'notice' && item.text === AUTO_REFUSAL_NOTICE)
+  const notices = f.overlay().notices
   assert.equal(notices.length, 1)
-})
-
-test('auto-mode refusal notice shifts projected seq without misaligning item usage or model', async (t) => {
-  const f = await modePermissionFixture(t, { refuseAuto: true }, { assistant: true, permission_mode: 'auto' })
-  const rawId = f.sessionId.replace(/^agy-/, '')
-  const logs = join(f.home, 'settings', 'brain', rawId, '.system_generated', 'logs')
-  mkdirSync(logs, { recursive: true })
-  const at = '2026-11-21T10:00:00Z'
-  const rawSteps = [
-    { step_index: 0, source: 'USER_EXPLICIT', type: 'USER_INPUT', status: 'DONE', created_at: at, content: 'Run check' },
-    {
-      step_index: 1, source: 'MODEL', type: 'PLANNER_RESPONSE', status: 'DONE', created_at: at,
-      model: 'claude-opus-5-5-high', thinking: 'Checking', content: 'Running tool',
-      input_tokens: 1200, cache_read_tokens: 48800, cache_write_tokens: 300, output_tokens: 180,
-      tool_calls: [{ name: 'run_command', args: { CommandLine: 'echo ok' } }],
-    },
-    { step_index: 2, source: 'MODEL', type: 'GENERIC', status: 'DONE', created_at: at, content: 'ok' },
-    {
-      step_index: 3, source: 'MODEL', type: 'PLANNER_RESPONSE', status: 'DONE', created_at: at,
-      model: 'claude-opus-5-5-high', content: 'Done.',
-      input_tokens: 500, cache_read_tokens: 51000, output_tokens: 70,
-    },
-  ]
-  writeFileSync(join(logs, 'transcript_full.jsonl'), rawSteps.map((s) => JSON.stringify(s)).join('\n') + '\n')
-
-  const page = await f.items()
-  assert.equal(page.items[0].kind, 'notice')
-  assert.equal(page.items[0].text, AUTO_REFUSAL_NOTICE)
-  assert.equal(page.items[0].seq, 1)
-  assert.equal(page.items[0].usage, undefined)
-  assert.equal(page.items[0].model, undefined)
-
-  // Raw step 1 shifted to projected seq 3; raw step 3 shifted to projected seq 5.
-  const step1Items = page.items.filter((item) => item.seq === 3)
-  assert.equal(step1Items.length, 3)
-  const wantStep1Usage = [{ model: 'claude-opus-5-5-high', in: 1200, out: 180, cache_read: 48800, cache_write: 300 }]
-  assert.deepEqual(step1Items[0].usage, wantStep1Usage)
-  assert.equal(step1Items[1].usage, undefined)
-  assert.equal(step1Items[2].usage, undefined)
-  assert.deepEqual(step1Items.map((item) => item.model), ['claude-opus-5-5-high', 'claude-opus-5-5-high', 'claude-opus-5-5-high'])
-
-  const step3Item = page.items.find((item) => item.seq === 5)
-  assert.equal(step3Item.text, 'Done.')
-  assert.equal(step3Item.model, 'claude-opus-5-5-high')
-  assert.deepEqual(step3Item.usage, [{ model: 'claude-opus-5-5-high', in: 500, out: 70, cache_read: 51000 }])
-
-  // session.item returns exact projected usage on #0 and omits it on secondary #1.
-  const primary = await f.n.peer.call('session.item', { session_id: f.sessionId, item_id: step1Items[0].id })
-  assert.deepEqual(primary.usage, wantStep1Usage)
-  assert.equal(primary.model, 'claude-opus-5-5-high')
-  const secondary = await f.n.peer.call('session.item', { session_id: f.sessionId, item_id: step1Items[1].id })
-  assert.equal(secondary.usage, undefined)
-  assert.equal(secondary.model, 'claude-opus-5-5-high')
 })
 
 // #11106: an expired sign-in makes agy models hang rather than fail. The timeout says what to do about it.
