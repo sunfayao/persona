@@ -361,6 +361,9 @@ type Snapshot struct {
 	Scoped bool
 	// Omit: the sections left out to keep the block within its budget (assistant/context.go fitSnapshot).
 	Omit SnapshotOmit
+	// ToolReview: friction drafts or field notes due wait for review (assistant/toolnotes); nil when nothing does,
+	// and outside the main conversation's snapshot.
+	ToolReview *SnapshotToolReview
 }
 
 // SnapshotOmit marks the sections a snapshot leaves out for size (#3203). An omitted section still renders its heading
