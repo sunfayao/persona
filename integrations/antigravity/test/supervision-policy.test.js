@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { startFakeNode, until } from '../../runtime-sdk/testing/fake-node.js'
 import { toAgyId, workspacePathOf } from '../lib/map.js'
-import { AGY_RULE_MAX_BYTES, isPolicyDir, POLICY_DIR_NAME, policyDirOf, readPolicy, SUPERVISION_ERROR_CODE, syncPolicy } from '../lib/policy.js'
+import { AGY_RULE_MAX_BYTES, isPolicyDir, POLICY_DIR_NAME, policyDirOf, prunePolicies, readPolicy, SUPERVISION_ERROR_CODE, syncPolicy } from '../lib/policy.js'
 import { createAgyRuntime } from '../lib/runtime.js'
 import { AgyAcpClient } from '../lib/acp.js'
 
@@ -402,4 +402,27 @@ test('rejected supervision preparation preserves an idle session without publish
   assert.equal(row.status, 'idle')
   assert.equal(row.turn_error, undefined)
   assert.equal(n.all('session.items').slice(batches).flatMap((batch) => batch.items).some((item) => item.text === 'Not accepted.'), false)
+})
+
+test('a policy left by a conversation that ended elsewhere is pruned once untouched for a week; a synced one stays fresh', () => {
+  const root = mkdtempSync(join(tmpdir(), 'agy-policy-prune-'))
+  try {
+    const week = 7 * 24 * 3600 * 1000
+    const now = Date.now()
+    syncPolicy(root, 'stale-session', 'Old supervision rules.')
+    syncPolicy(root, 'live-session', 'Current supervision rules.')
+    const old = new Date(now - week - 60_000)
+    for (const id of ['stale-session', 'live-session']) {
+      utimesSync(join(policyDirOf(root, id), 'AGENTS.md'), old, old)
+      utimesSync(policyDirOf(root, id), old, old)
+    }
+    // Every send carries the manager's policy: syncing an unchanged one marks the directory as still in use.
+    syncPolicy(root, 'live-session', 'Current supervision rules.')
+    prunePolicies(root, week, now)
+    assert.equal(existsSync(policyDirOf(root, 'stale-session')), false)
+    assert.equal(readPolicy(root, 'live-session'), 'Current supervision rules.')
+    prunePolicies(join(root, 'missing'), week, now) // no root yet: nothing to do, no throw
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
 })
