@@ -221,13 +221,19 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 	files["connection"][2].Derived = false
 	files["connection"][2].FromTest = "SyncEventTests.decodesRevs"
 
-	add("todos", "todo_agent_lifecycle", "Agent activity uses a string revision cursor and carries a coverage gap without a business outcome.", "todo_lifecycle",
+	add("todos", "todo_agent_lifecycle", "Agent activity uses a string revision cursor, carries a coverage gap without a business outcome, and a background run names its turn and activity class.", "todo_lifecycle",
 		httpJSON(proto.LifecyclePage{Events: []proto.LifecycleEvent{{
 			Revision: 42, Machine: "example-host", Todo: "example-todo", Received: now, Confidence: "observed",
 			LifecycleObservation: proto.LifecycleObservation{Kind: proto.LifecycleGap, At: now,
 				Source: "coverage", Ref: proto.LifecycleRef("example-stream"), Outcome: "queue_overflow"},
-		}}, Next: 42}),
-		map[string]any{"/events/0/revision": "42", "/events/0/kind": "coverage.gap", "/next": "42"},
+		}, {
+			Revision: 41, Machine: "example-host", Todo: "example-todo", Received: now, Confidence: "observed",
+			LifecycleObservation: proto.LifecycleObservation{Session: "example-session", Kind: proto.LifecycleBackgroundEnded, At: now,
+				Source: "inventory", Ref: proto.LifecycleRef("example-task"), Turn: proto.LifecycleRef("example-turn"),
+				Outcome: "failed", Activity: "test"},
+		}}, Next: 41}),
+		map[string]any{"/events/0/revision": "42", "/events/0/kind": "coverage.gap", "/events/1/turn_id": proto.LifecycleRef("example-turn"),
+			"/events/1/activity": "test", "/next": "41"},
 		"server/internal/proto/work.go: LifecyclePage", "server/internal/assistant/lifecycle/routes.go: Domain.serve")
 
 	firstPane := 0

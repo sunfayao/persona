@@ -174,3 +174,24 @@ func TestSubagentActivityVerbsHaveKeys(t *testing.T) {
 		}
 	}
 }
+
+func TestCommandClassNamesOnlyBoundedClasses(t *testing.T) {
+	for _, r := range commandRules {
+		key, _ := ActivityKey(r.says)
+		if class := strings.TrimPrefix(key, "act_"); !proto.ValidLifecycleActivity(class) || class == "" {
+			t.Errorf("rule %q yields class %q outside proto.LifecycleActivityClasses", r.says, class)
+		}
+	}
+	for _, c := range []struct{ cmd, desc, want string }{
+		{"go test ./...", "", "test"},
+		{"npm run build", "", "build"},
+		{"git fetch origin", "", "sync"},
+		{"./run-example.sh", "Run vitest suite", "test"},
+		{"./run-example.sh", "", ""},
+		{"", "", ""},
+	} {
+		if got := CommandClass(c.cmd, c.desc); got != c.want {
+			t.Errorf("CommandClass(%q, %q) = %q, want %q", c.cmd, c.desc, got, c.want)
+		}
+	}
+}

@@ -2645,6 +2645,12 @@ Use `?before=<next>` for earlier revisions or `?after=<revision>` to resume in a
 strings and a cursor is exclusive. Events carry the occurrence and receipt times, source and evidence level.
 A `coverage.gap` records incomplete observation. A runtime turn ending does not confirm that its to-do is complete.
 Events are retained for 30 days. The service stores runtime boundaries, opaque references and bounded classifications.
+A `background.started` or `background.ended` event may carry `turn_id`, the turn that started the task, and `activity`, a
+bounded class of its work (`ci`, `pr_create`, `pr_merge`, `release`, `deploy`, `test`, `lint`, `build`, `install`, `push`,
+`commit`, `sync`, `diff`, `simulator`, `waiting`, `search_code`, `read_files`). Both are optional: a node derives the class
+from the task's command and description and sends only the class name, never the text; the manager drops a class it does
+not know. Both events of one task share `ref`. Clients pair them by `ref` and group runs by `turn_id` when present, and
+by the turn windows of the same session otherwise.
 Nodes that omit the capability continue to serve inventory and Manager-owned interaction records.
 
 #### Sessions by to-do (`sessions_todo`)

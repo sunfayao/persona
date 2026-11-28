@@ -138,8 +138,8 @@ func lifecycleCursor(ctx context.Context, q interface {
 }
 
 const lifecycleInsert = `INSERT INTO agent_lifecycle_events
- (machine_id, session_id, incarnation, kind, occurred_at, source, source_ref, turn_id, outcome, duration_ms, confidence, space_ref, todo_id)
- VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
+ (machine_id, session_id, incarnation, kind, occurred_at, source, source_ref, turn_id, outcome, duration_ms, confidence, space_ref, activity, todo_id)
+ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,nullif($13,''),
    coalesce((SELECT todo_id FROM todo_agents WHERE machine_id = $1 AND session_id = $2
      AND linked_at <= $5 AND (released_at IS NULL OR released_at > $5)
      AND (dismissed_at IS NULL OR dismissed_at > $5)
@@ -158,7 +158,7 @@ func insertLifecycle(ctx context.Context, tx pgx.Tx, machine string, events []pr
 		if e.Source == "inventory" || e.Source == "coverage" {
 			confidence = "observed"
 		}
-		b.Queue(lifecycleInsert, machine, e.Session, e.Incarnation, e.Kind, e.At, e.Source, e.Ref, e.Turn, e.Outcome, e.DurationMS, confidence, e.SpaceRef)
+		b.Queue(lifecycleInsert, machine, e.Session, e.Incarnation, e.Kind, e.At, e.Source, e.Ref, e.Turn, e.Outcome, e.DurationMS, confidence, e.SpaceRef, e.Activity)
 	}
 	return tx.SendBatch(ctx, b).Close()
 }
@@ -244,7 +244,7 @@ func (d *DB) LifecyclePage(ctx context.Context, machine, session, todo string, c
 		args = append([]any{machine, cursor, since, limit + 1}, session)
 	}
 	rows, err := d.pool.Query(ctx, `SELECT e.revision, e.machine_id, e.session_id, e.incarnation, e.kind,
-	    e.occurred_at, e.received_at, e.source, e.source_ref, e.turn_id, e.outcome, e.duration_ms, e.confidence, e.space_ref, e.todo_id
+	    e.occurred_at, e.received_at, e.source, e.source_ref, e.turn_id, e.outcome, e.duration_ms, e.confidence, e.space_ref, coalesce(e.activity, ''), e.todo_id
 	  FROM agent_lifecycle_events e WHERE e.occurred_at >= $3 AND `+where+order+" LIMIT $4", args...)
 	if err != nil {
 		return proto.LifecyclePage{}, err
@@ -254,7 +254,7 @@ func (d *DB) LifecyclePage(ctx context.Context, machine, session, todo string, c
 	for rows.Next() {
 		var e proto.LifecycleEvent
 		if err := rows.Scan(&e.Revision, &e.Machine, &e.Session, &e.Incarnation, &e.Kind, &e.At, &e.Received,
-			&e.Source, &e.Ref, &e.Turn, &e.Outcome, &e.DurationMS, &e.Confidence, &e.SpaceRef, &e.Todo); err != nil {
+			&e.Source, &e.Ref, &e.Turn, &e.Outcome, &e.DurationMS, &e.Confidence, &e.SpaceRef, &e.Activity, &e.Todo); err != nil {
 			return proto.LifecyclePage{}, err
 		}
 		if len(p.Events) == limit {

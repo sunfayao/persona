@@ -1,5 +1,7 @@
 import { decisionSourceLabel } from "../lib/todo-decision-label";
 import type { AgentLifecyclePage } from "../lib/types";
+import { foldActivity } from "../lib/todo-activity";
+import { ActivityGroupRow } from "./TodoActivityGroup";
 import { TodoRepositoryBindings } from "../ui/TaskRepositoryBindingsEditor";
 import { hasRequestPieces } from "../lib/request-pieces";
 import { defaultManager, MANAGER_HEADER } from "../lib/manager-choice";
@@ -2219,8 +2221,6 @@ function lifecycleLabel(kind: string): string {
     case "child.linked": return t("todos.lifecycle_child_linked");
     case "wait.opened": return t("todos.lifecycle_wait_opened");
     case "wait.resolved": return t("todos.lifecycle_wait_resolved");
-    case "background.started": return t("todos.lifecycle_background_started");
-    case "background.ended": return t("todos.lifecycle_background_ended");
     case "coverage.gap": return t("todos.lifecycle_gap");
     default: return t("todos.lifecycle_activity");
   }
@@ -2233,6 +2233,7 @@ function AgentLifecycleTimeline({ todo, lookup }: { todo: Todo; lookup: SessionL
   const [missing, setMissing] = useState(false);
   const [pending, setPending] = useState(false);
   const [request, setRequest] = useState<{ before?: string }>({});
+  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
   useEffect(() => {
     if (!supported) return;
     const controller = new AbortController();
@@ -2250,14 +2251,24 @@ function AgentLifecycleTimeline({ todo, lookup }: { todo: Todo; lookup: SessionL
     return () => controller.abort();
   }, [supported, todo.id, todo.manager, request]);
   if (!supported || missing) return null;
-  const events = pages.flatMap((p) => p.events).sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at));
+  const items = foldActivity(pages.flatMap((p) => p.events));
   const next = pages.at(-1)?.next;
+  const actorOf = (machine: string, session: string) => lookup(machine, session)?.title ||
+    todo.agents?.find((agent) => agent.machine_id === machine && agent.session_id === session)?.title;
+  const toggle = (key: string) => setOpened((old) => {
+    const copy = new Set(old);
+    if (!copy.delete(key)) copy.add(key);
+    return copy;
+  });
   return (
     <DetailSection title={t("todos.lifecycle_title")} testId="todo-section-lifecycle">
       <ol className="flex flex-col gap-2">
-        {events.map((e) => {
-          const actor = lookup(e.machine_id, e.session_id)?.title ||
-            todo.agents?.find((agent) => agent.machine_id === e.machine_id && agent.session_id === e.session_id)?.title;
+        {items.map((item) => {
+          if (item.kind === "group") {
+            return <ActivityGroupRow key={item.key} group={item} actor={actorOf(item.machine_id, item.session_id)} open={opened.has(item.key)} onToggle={() => toggle(item.key)} />;
+          }
+          const e = item.event;
+          const actor = actorOf(e.machine_id, e.session_id);
           return (
           <li key={e.revision} className="flex flex-wrap items-baseline gap-x-2 text-label text-ink-2">
             <span>{lifecycleLabel(e.kind)}</span>
@@ -2274,7 +2285,7 @@ function AgentLifecycleTimeline({ todo, lookup }: { todo: Todo; lookup: SessionL
       {!pending && failure && (
         <Button tone="quiet" onClick={() => setRequest({ ...request })}>{t("todos.lifecycle_retry")}</Button>
       )}
-      {!pending && !failure && events.length === 0 && <SectionEmpty>{t("todos.lifecycle_empty")}</SectionEmpty>}
+      {!pending && !failure && items.length === 0 && <SectionEmpty>{t("todos.lifecycle_empty")}</SectionEmpty>}
       {!pending && !failure && next && (
         <Button tone="quiet" onClick={() => setRequest({ before: next })}>{t("todos.lifecycle_more")}</Button>
       )}
