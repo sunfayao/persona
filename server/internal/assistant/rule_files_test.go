@@ -122,24 +122,58 @@ func TestAboutMeChangeSparesTheLiveConversationsRuleFiles(t *testing.T) {
 	}
 }
 
-func TestAboutMeChangeReachesAConversationStartedAfterItAtOnce(t *testing.T) {
+// A conversation that starts while the main one lives (a scheduled run, a prewarm, a launcher switch) joins the hold: the
+// four texts stay as they are and it is told by the block, once.
+func TestConversationStartedUnderALiveOneJoinsTheHold(t *testing.T) {
+	ctx := context.Background()
+	s, f := ruleService(t, &memStore{})
+	s.refreshInstructions(ctx)
+	first := ruleTexts(t, s, f)
+	ruleMessage(s, "")
+	ruleNotes(t, s, "I work on the mobile app.")
+	if _, err := s.prepare(ctx, "server"); err != nil { // the scheduled run's start
+		t.Fatal(err)
+	}
+	if got := ruleTexts(t, s, f); got != first {
+		t.Fatalf("a start under a live conversation rewrote the files:\n%q", got)
+	}
+	s.devs.(ruleDevs).setSessions("server", []proto.Session{{SessionID: ruleMain, Assistant: true}, {SessionID: "run-0000-0000", Assistant: true}})
+	run := func() ContextResult {
+		return s.Context(ctx, ContextParams{SessionID: "run-0000-0000", MachineID: "server"})
+	}
+	out := run()
+	if !strings.Contains(out.RuleNotice, "I work on the mobile app.") {
+		t.Fatalf("the run is told: %q", out.RuleNotice)
+	}
+	s.Context(ctx, ContextParams{SessionID: "run-0000-0000", MachineID: "server", Ack: out.Receipts})
+	if again := run(); again.RuleNotice != "" {
+		t.Fatalf("told twice: %s", again.RuleNotice)
+	}
+	// The main conversation is compacted while the run lives: nothing yet. Once the run is gone, the files follow.
+	ruleMessage(s, "recovery-1")
+	s.refreshInstructions(ctx)
+	if got := ruleTexts(t, s, f); got != first {
+		t.Fatalf("the run still holds the files:\n%q", got)
+	}
+	s.devs.(ruleDevs).setSessions("server", []proto.Session{{SessionID: ruleMain, Assistant: true}}) // the run ended
+	s.refreshInstructions(ctx)
+	if got := ruleTexts(t, s, f); got == first || !strings.Contains(got[0], "I work on the mobile app.") {
+		t.Fatalf("after the run ended the compacted main conversation's files catch up:\n%q", got)
+	}
+}
+
+func TestStartWithNoLiveConversationGetsTheNewFilesAtOnce(t *testing.T) {
 	ctx := context.Background()
 	s, f := ruleService(t, &memStore{})
 	s.refreshInstructions(ctx)
 	ruleMessage(s, "")
 	ruleNotes(t, s, "I work on the mobile app.")
-	s.refreshInstructions(ctx)
-	if got := ruleTexts(t, s, f); !strings.Contains(got[0], "I work on the backend.") {
-		t.Fatalf("held: %q", got)
-	}
+	s.devs.(ruleDevs).setSessions("server", nil) // the main conversation ended
 	if _, err := s.prepare(ctx, "server"); err != nil {
 		t.Fatal(err)
 	}
 	if got := ruleTexts(t, s, f); !strings.Contains(got[0], "I work on the mobile app.") || !strings.Contains(got[2], "I work on the mobile app.") {
 		t.Fatalf("a conversation that starts gets the new files at once:\n%q", got)
-	}
-	if out := ruleMessage(s, ""); out.RuleNotice != "" {
-		t.Fatalf("its files are current: %s", out.RuleNotice)
 	}
 }
 

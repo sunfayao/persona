@@ -166,14 +166,68 @@ func TestCompactionAndStartCatchTheFilesUp(t *testing.T) {
 	if got := write(b, later); got != after {
 		t.Fatalf("held again: %+v", got)
 	}
-	// A conversation that starts takes the settings at once.
-	b.ReleaseIf(ctx, machine, dir, false)
-	if got := write(b, later); got != after {
-		t.Fatalf("a refresh is not a start: %+v", got)
+}
+
+func TestAnotherConversationJoinsTheHoldInsteadOfEndingIt(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	gone := &ended{}
+	b := newBook(&memStore{}, gone)
+	write(b, before)
+	b.Notice(ctx, machine, dir, "main", before, false)
+	if got := write(b, after); got != before {
+		t.Fatalf("held: %+v", got)
 	}
-	b.ReleaseIf(ctx, machine, dir, true)
-	if got := write(b, later); got != later {
-		t.Fatalf("a start writes the new files: %+v", got)
+	// A scheduled run starts: it is written for like a refresh, gets the held files, and is owed the block once.
+	if got := write(b, after); got != before {
+		t.Fatalf("a start under a live conversation must not rewrite: %+v", got)
+	}
+	text, receipt, owed := b.Notice(ctx, machine, dir, "run", after, false)
+	if !owed || !strings.Contains(text, "mobile app") {
+		t.Fatalf("the run is owed the block: %v", owed)
+	}
+	b.Delivered(ctx, machine, "run", []assistantwire.ViewErrorReceipt{receipt})
+	if _, _, owed := b.Notice(ctx, machine, dir, "run", after, false); owed {
+		t.Fatal("once")
+	}
+	// The main conversation is compacted while the run lives: the run still holds the old files.
+	b.Notice(ctx, machine, dir, "main", after, true)
+	if got := write(b, after); got != before {
+		t.Fatalf("the run still holds the old files: %+v", got)
+	}
+	// The run ends: everything left was compacted, so the files take the settings.
+	gone.end("run")
+	if got := write(b, after); got != after {
+		t.Fatalf("all compacted or ended: %+v", got)
+	}
+}
+
+func TestCompactionWithTheOtherAlreadyEndedRewrites(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	gone := &ended{}
+	b := newBook(&memStore{}, gone)
+	write(b, before)
+	b.Notice(ctx, machine, dir, "main", before, false)
+	b.Notice(ctx, machine, dir, "run", before, false)
+	gone.end("run")
+	write(b, after) // prunes the run
+	b.Notice(ctx, machine, dir, "main", after, true)
+	if got := write(b, after); got != after {
+		t.Fatalf("%+v", got)
+	}
+}
+
+func TestStartWithNoLiveConversationWritesTheNewFilesAtOnce(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	gone := &ended{}
+	b := newBook(&memStore{}, gone)
+	write(b, before)
+	b.Notice(ctx, machine, dir, "main", before, false)
+	gone.end("main")
+	if got := write(b, after); got != after {
+		t.Fatalf("%+v", got)
 	}
 }
 

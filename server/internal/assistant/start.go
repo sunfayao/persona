@@ -148,7 +148,6 @@ func (s *Service) prepareSpaceIf(ctx context.Context, machine, space string, onl
 	if s.isWorkMachine(machine) {
 		return "", false, errWorkAssistant
 	}
-	s.ruleFiles.ReleaseIf(ctx, machine, dir, !onlyChanged) // a conversation starts: its files take the settings as they are now
 	if tmpl == trackTemplateSpace && !s.trackSpaceNode(machine) {
 		// An older node would write the instructions without the track's SPACE.md and folders.
 		return "", false, i18n.Err("assistant-spaces.node_no_track_spaces", i18n.Args{"machine": s.machineName(machine)})

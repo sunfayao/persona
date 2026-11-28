@@ -5,7 +5,8 @@
 // conversation makes the next request read the whole conversation again without the prompt cache (and restarts Claude
 // Code). So while a conversation of a directory lives, the files keep saying what that conversation loaded; a change
 // reaches it once, as a one-off context block on its next message (Notice), and the files catch up when the
-// conversation is compacted (Notice) or another one starts (ReleaseIf).
+// conversations of the directory have all been compacted or ended (Notice, Render), or none is left. A conversation
+// that starts while another lives gets the files as they are and joins the hold.
 package rulefiles
 
 import (
@@ -62,9 +63,15 @@ type Dependencies struct {
 type entry struct {
 	// Kept is what the directory's files say; nil until known, and after Release (the next write takes the settings).
 	Kept *Values `json:"kept,omitempty"`
-	// Sessions are the live conversations that loaded the files, each with what it was last told about a change (nil:
-	// nothing, it holds what Kept says).
-	Sessions map[string]*Values `json:"sessions,omitempty"`
+	// Sessions are the live conversations that loaded the files, each with what it was last told about a change (Told nil:
+	// nothing, it holds what Kept says) and whether it was compacted since the files were written.
+	Sessions map[string]*member `json:"sessions,omitempty"`
+}
+
+// member is one live conversation of a directory.
+type member struct {
+	Told      *Values `json:"told,omitempty"`
+	Compacted bool    `json:"compacted,omitempty"`
 }
 
 // Book is the bookkeeping of every prepared directory, keyed by machine and directory.
@@ -159,6 +166,9 @@ func (b *Book) Render(ctx context.Context, machine, dir string, current Values) 
 			delete(e.Sessions, id)
 		}
 		if len(gone) > 0 {
+			if e.allCompacted() {
+				b.release(ctx, e) // the last conversation that held the old files has ended
+			}
 			b.save(ctx)
 		}
 		if len(e.Sessions) > 0 && e.Kept != nil {
@@ -182,37 +192,30 @@ func (b *Book) Wrote(ctx context.Context, machine, dir string) {
 	}
 }
 
-// ReleaseIf ends the hold on dir when release is true: another conversation starts there, so the next write takes the
-// settings as they are, and no conversation is owed a block about what its files said before.
-func (b *Book) ReleaseIf(ctx context.Context, machine, dir string, release bool) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.load(ctx)
-	if release {
-		b.release(ctx, b.dirs[dirKey(machine, dir)])
-	}
-}
-
-// release is ReleaseIf's work on e, which may be nil; b.mu is held.
-func (b *Book) release(ctx context.Context, e *entry) {
-	if e == nil {
-		return
-	}
-	changed := e.Kept != nil
-	e.Kept = nil
-	for id, told := range e.Sessions {
-		if told != nil {
-			e.Sessions[id], changed = nil, true
+// allCompacted: the directory has live conversations and every one was compacted since its files were written, so
+// none still holds them.
+func (e *entry) allCompacted() bool {
+	for _, m := range e.Sessions {
+		if !m.Compacted {
+			return false
 		}
 	}
-	if changed {
-		b.save(ctx)
+	return len(e.Sessions) > 0
+}
+
+// release ends the hold on e: the next write takes the settings as they are, and no conversation is owed a block about
+// what its files said before; b.mu is held.
+func (b *Book) release(ctx context.Context, e *entry) {
+	e.Kept = nil
+	for _, m := range e.Sessions {
+		*m = member{}
 	}
+	b.save(ctx)
 }
 
 // Notice is the one-off block conversation session of dir owes for current, when its files say something else (what
 // they said when it loaded them, or what a block told it before), with the receipt the node returns once it is
-// delivered; with compacted the hold on the directory ends too (ReleaseIf). It also notes the conversation as one
+// delivered; with compacted the conversation counts as caught up, and the hold on the directory ends once all are. It also notes the conversation as one
 // that holds the files.
 func (b *Book) Notice(ctx context.Context, machine, dir, session string, current Values, compacted bool) (string, assistantwire.ViewErrorReceipt, bool) {
 	b.mu.Lock()
@@ -223,20 +226,25 @@ func (b *Book) Notice(ctx context.Context, machine, dir, session string, current
 	if e.Kept == nil {
 		e.Kept, dirty = &current, true
 	}
-	told, known := e.Sessions[session]
+	m, known := e.Sessions[session]
 	if !known {
 		if e.Sessions == nil {
-			e.Sessions = map[string]*Values{}
+			e.Sessions = map[string]*member{}
 		}
-		e.Sessions[session], dirty = nil, true
+		m, dirty = &member{}, true
+		e.Sessions[session] = m
+	}
+	if compacted && !m.Compacted {
+		m.Compacted, dirty = true, true
 	}
 	if dirty {
 		b.save(ctx)
 	}
+	told := m.Told
 	if told == nil {
 		told = e.Kept
 	}
-	if compacted { // the conversation's own summary has the files' text again from now on: they take the settings
+	if compacted && e.allCompacted() { // each conversation's summary reads the files again: they take the settings
 		defer b.release(ctx, e)
 	}
 	if *told == current {
@@ -262,7 +270,7 @@ func (b *Book) Delivered(ctx context.Context, machine, session string, acks []as
 		if v, ok := b.offered[dirKey(machine, session)]; ok && v.digest() == r.Digest {
 			for _, e := range b.dirs {
 				if _, held := e.Sessions[session]; held {
-					e.Sessions[session] = &v
+					e.Sessions[session].Told = &v
 				}
 			}
 			b.save(ctx)
