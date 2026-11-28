@@ -1590,6 +1590,7 @@ func (s *Service) Run(ctx context.Context) {
 	go s.remindLoop(ctx)                   // the todos' reminders (todo_plan.go)
 	go s.channelLoop(ctx)                  // the channels' runs that lost their watcher (channels.go)
 	go s.memoryDreamLoop(ctx)              // consolidating assistant memory, off by default
+	go s.toolUseLoop(ctx)                  // storing the tool calls' usage and friction (tool_use.go)
 	go s.memoryMergeLoop(ctx)              // telling the user what the node merged into the one memory (memory_merge.go)
 	go s.viewActionLoop(ctx)               // durable card reply outbox
 	go s.acceptLoop(ctx)                   // "Please verify" cards that did not go out, and reminders each morning (acceptance.go)
