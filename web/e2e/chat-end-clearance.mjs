@@ -7,6 +7,8 @@
 //   - scrolled to the end, the chat's last box ends, and the last reply's "worked for" line's glyphs end, at least
 //     8 px above where the fade begins;
 //   - the dock starts where the chat's box ends: nothing of it reaches up into the chat, where the fade is drawn;
+//   - on a desktop, a reply in the middle of the chat keeps its time (shown with the pointer) inside what its exchange
+//     paints and above the next exchange;
 //   - the goal bar (clicked, its dialog closed with Esc, as the owner does) and every task capsule (focused from the
 //     keyboard) show their focus ring on all four sides.
 //
@@ -146,6 +148,30 @@ try {
         console.log(`PASS ${where} ${dock}: last line ${(end.fade.top - (end.glyphs ?? end.last).bottom).toFixed(1)} px above the fade`);
       }
       await page.locator("main textarea[data-composer-input]").first().fill("");
+      if (!phone) {
+        // a reply in the middle of the chat: its bar (shown by the pointer) stays inside what its exchange may paint
+        // (an off-screen exchange clips its paint, `.seg-cv`) and above the next exchange
+        const middle = page.locator("main section[data-segment] [data-words]").nth(2);
+        await middle.scrollIntoViewIfNeeded();
+        await middle.hover();
+        await page.locator("main section[data-segment]").nth(2).locator("[data-reply-bar] time").first().waitFor({ state: "visible", timeout: 5000 });
+        const mid = await page.evaluate(() => {
+          const sections = document.querySelectorAll("main section[data-segment]");
+          const section = sections[2];
+          const time = section.querySelector("[data-reply-bar] time");
+          const range = document.createRange();
+          range.selectNodeContents(time);
+          const g = range.getBoundingClientRect(), box = section.getBoundingClientRect();
+          const clip = parseFloat(getComputedStyle(section).overflowClipMargin) || 0;
+          // the next exchange (each sits in a wrapper of its own, so not the next sibling)
+          const next = sections[3].getBoundingClientRect();
+          return { glyphBottom: g.bottom, paintBottom: box.bottom + clip, nextTop: next.top };
+        });
+        assert.ok(mid.glyphBottom <= mid.paintBottom, `${where}: a middle reply's time is inside what its exchange paints (${JSON.stringify(mid)})`);
+        assert.ok(mid.glyphBottom <= mid.nextTop, `${where}: a middle reply's time ends above the next exchange (${JSON.stringify(mid)})`);
+        console.log(`PASS ${where} middle reply: time ${(mid.nextTop - mid.glyphBottom).toFixed(1)} px above the next exchange`);
+        await page.mouse.move(0, 0);
+      }
       if (chat.goal) {
         const goal = page.locator("main [data-goal-bar]").first();
         await goal.click();

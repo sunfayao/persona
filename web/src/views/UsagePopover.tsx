@@ -237,13 +237,13 @@ export function UsagePopover({
       : [];
 
   return (
+    // the fade over the list's end is shorter than the chat's (--spacing-fade): its end padding (pb-fade-end) follows
     <div
       id={id}
       role="dialog"
       aria-label={tr("usage.title")}
       data-usage-popover
       className={cx(
-        // the fade over the list's end is shorter than the chat's: its end padding (pb-fade-end) follows
         "absolute bottom-full left-2 right-2 z-20 mb-2 flex max-h-[75dvh] flex-col overflow-hidden rounded-2xl bg-surface shadow-overlay [--spacing-fade:calc(var(--spacing)*6)] lg:right-auto",
         selectedCompact ? "lg:w-184" : "lg:w-[26rem]",
       )}
