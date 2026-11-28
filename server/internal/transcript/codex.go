@@ -18,7 +18,7 @@ import (
 // Codex rollouts (~/.codex/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl) are a different JSONL: every line is
 // {timestamp, type, payload}. The conversation lives in event_msg/item_completed (UserMessage, AgentMessage,
 // Reasoning, CommandExecution, FileChange, McpToolCall, ImageView, Extension, SubAgentActivity, CollabAgentToolCall,
-// ContextCompaction); response_item lines repeat the same content in the model's wire format and are skipped. They map
+// ContextCompaction); traex response_item calls add the tool name and input missing from its display records. They map
 // onto the same items as Claude's transcript, with Claude's tool names (Bash, Edit, Read, mcp__server__tool) so the
 // apps render them alike.
 
@@ -100,6 +100,7 @@ type codexItem struct {
 	SummaryText []string `json:"summary_text"`
 	// CommandExecution
 	Command          []string `json:"command"`
+	Source           string   `json:"source"`
 	Status           string   `json:"status"`
 	AggregatedOutput string   `json:"aggregated_output"`
 	Stdout           string   `json:"stdout"`
@@ -262,6 +263,9 @@ func parseCodexLine(seq int, line []byte, meta *Meta) []proto.Item {
 	if json.Unmarshal(line, &l) != nil {
 		return nil
 	}
+	if l.Type == "response_item" {
+		return parseTraexResponse(seq, l, meta)
+	}
 	if l.Type == "history_mutation" {
 		var h historyMutation
 		if json.Unmarshal(l.Payload, &h) != nil {
@@ -345,6 +349,7 @@ func parseCodexLine(seq int, line []byte, meta *Meta) []proto.Item {
 		meta.turnWorked, meta.turnErrorCounted = false, false
 		meta.turnParts = nil
 		meta.codexSeen = nil // an item repeats only within its turn: a long rollout keeps no ids of the turns before
+		meta.traexCalls = nil
 		return nil
 	case "task_complete":
 		meta.endTurn(seq, l.Timestamp)
@@ -714,7 +719,13 @@ func codexCommandLines(seq int, ts time.Time, it *codexItem, meta *Meta) []proto
 		}
 		return proto.Item{ID: fmt.Sprintf("%s#%d", id, idx), Seq: seq, TS: ts, Role: role, Kind: kind}
 	}
-	input, _ := json.Marshal(map[string]string{"command": shellCommand(it.Command)})
+	name := "Bash"
+	var input json.RawMessage
+	if call, ok := meta.traexCalls[it.ID]; it.Source == "agent" && ok {
+		name, input = call.Name, call.Input
+	} else {
+		input, _ = json.Marshal(map[string]string{"command": shellCommand(it.Command)})
+	}
 	if it.Status == "backgrounded" {
 		if it.ID != "" {
 			// A genuinely pending command suppresses its repeated background record, even after task_started (the
@@ -724,9 +735,9 @@ func codexCommandLines(seq int, ts time.Time, it *codexItem, meta *Meta) []proto
 			}
 			meta.codexPendingAdd(it.ID)
 		}
-		meta.observeToolContext("Bash", input, "")
+		meta.observeToolContext(name, input, "")
 		use := mk(0, it.ID, "assistant", proto.KindToolUse)
-		use.ToolUseID, use.ToolName, use.ToolInput = it.ID, "Bash", clipJSON(input)
+		use.ToolUseID, use.ToolName, use.ToolInput = it.ID, name, clipJSON(input)
 		return []proto.Item{use}
 	}
 	out := it.AggregatedOutput
@@ -752,7 +763,7 @@ func codexCommandLines(seq int, ts time.Time, it *codexItem, meta *Meta) []proto
 		}
 		meta.codexSeenAdd(it.ID)
 	}
-	items := codexTool(meta, mk, it.ID, "Bash", input, out, failed)
+	items := codexTool(meta, mk, it.ID, name, input, out, failed)
 	o := items[1].Outcome
 	o.Status, o.ExitCode, o.DurationMS = codexStatus(it.Status, failed), it.ExitCode, it.Duration.ms
 	return items

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sunfayao/persona/server/internal/filemeta"
+	"github.com/sunfayao/persona/server/internal/node/harness/traex"
 	"github.com/sunfayao/persona/server/internal/nodeclient"
 	"github.com/sunfayao/persona/server/internal/proto"
 	"github.com/sunfayao/persona/server/internal/rpc"
@@ -381,7 +382,7 @@ func (n *Node) transcriptFile(id string) (*transcript.File, error) {
 		if p == "" {
 			return nil, noTranscript{id}
 		}
-		f = transcript.NewFile(p)
+		f = transcript.NewFileWithRolloutTools(p, traex.RolloutTools{})
 	}
 	n.mu.Lock()
 	if existing := n.files[id]; existing != nil {

@@ -131,8 +131,8 @@ func TestPlanFromTaskTools(t *testing.T) {
 	}
 }
 
-// A subagent's plan (sidechain lines in the parent's transcript) and a Codex rollout are not the agent's plan.
-func TestPlanIgnoresSidechainAndCodex(t *testing.T) {
+// A subagent's plan on sidechain lines does not change its parent's plan.
+func TestPlanIgnoresSidechain(t *testing.T) {
 	var m Meta
 	line := `{"type":"assistant","isSidechain":true,"uuid":"s1","timestamp":"2026-11-06T08:00:00Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_s","name":"TodoWrite","input":` + todos(todo("Sub step", "in_progress", "Subbing")) + `}]}}`
 	res := `{"type":"user","isSidechain":true,"uuid":"s2","timestamp":"2026-11-06T08:00:01Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_s","content":"ok"}]}}`
@@ -140,13 +140,6 @@ func TestPlanIgnoresSidechainAndCodex(t *testing.T) {
 	ParseLine(2, []byte(res), &m)
 	if m.Plan != nil {
 		t.Fatalf("sidechain plan: %+v", m.Plan)
-	}
-
-	c := Meta{Codex: true}
-	c.trackPlan(proto.Item{Kind: proto.KindToolUse, ToolUseID: "x", ToolName: "TodoWrite", ToolInput: []byte(todos(todo("a", "pending", "")))})
-	c.trackPlan(proto.Item{Kind: proto.KindToolResult, ToolUseID: "x", Text: "ok"})
-	if c.Plan != nil {
-		t.Fatalf("codex plan: %+v", c.Plan)
 	}
 }
 

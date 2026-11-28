@@ -19,12 +19,13 @@ import (
 type File struct {
 	Path string
 
-	mu      sync.Mutex
-	offset  int64
-	lines   int
-	partial []byte
-	items   []proto.Item
-	meta    Meta
+	rolloutTools RolloutToolDecoder
+	mu           sync.Mutex
+	offset       int64
+	lines        int
+	partial      []byte
+	items        []proto.Item
+	meta         Meta
 	// History identity (Span.History): the file's inode, a hash of its first line, and how many times it was found
 	// rewritten while this process read it.
 	ino       uint64
@@ -59,6 +60,16 @@ type Span struct {
 }
 
 func NewFile(path string) *File { return &File{Path: path} }
+
+// NewFileWithRolloutTools adds optional native function metadata to file and window reads.
+func NewFileWithRolloutTools(path string, tools RolloutToolDecoder) *File {
+	return &File{Path: path, rolloutTools: tools}
+}
+
+func (f *File) parseLine(seq int, line []byte, meta *Meta) []proto.Item {
+	meta.RolloutTools = f.rolloutTools
+	return ParseLine(seq, line, meta)
+}
 
 // Where is the path the file is read from now.
 func (f *File) Where() string {
@@ -245,7 +256,7 @@ func (f *File) refresh(strict bool) ([]proto.Item, Span, error) {
 		if len(bytes.TrimSpace(line)) == 0 {
 			continue
 		}
-		items := ParseLine(f.lines, line, &f.meta)
+		items := f.parseLine(f.lines, line, &f.meta)
 		if f.tree == nil {
 			f.tree = &branchTree{}
 		}
@@ -444,7 +455,7 @@ func (f *File) reparse(seq int, ref lineRef, scratch *Meta) (map[string]proto.It
 		return nil, err
 	}
 	out := map[string]proto.Item{}
-	for _, it := range ParseLine(seq, line, scratch) {
+	for _, it := range f.parseLine(seq, line, scratch) {
 		out[it.ID] = it
 	}
 	return out, nil

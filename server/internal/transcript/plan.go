@@ -1,6 +1,7 @@
 package transcript
 
 import (
+	"bytes"
 	"slices"
 	"strings"
 	"time"
@@ -16,10 +17,16 @@ import (
 // planTools are the tools whose results change the plan.
 var planTools = map[string]bool{"TodoWrite": true, "TaskCreate": true, "TaskUpdate": true, "TaskList": true}
 
-// PlanMarkers are the bytes a line calling a plan tool contains, for readers that skip the other lines. A call's
-// result line does not name its tool: such readers also take the lines holding Meta.PlanPending's ids.
+// PlanMarkers let selective readers find calls. Results hold their call ID instead of a tool name.
 var PlanMarkers = [][]byte{[]byte(`"name":"TodoWrite"`), []byte(`"name":"TaskCreate"`), []byte(`"name":"TaskUpdate"`),
 	[]byte(`"name":"TaskList"`)}
+
+// PlanRolloutRecord identifies the native records that delimit and complete traex plan calls.
+func (m *Meta) PlanRolloutRecord(line []byte) bool {
+	return len(m.traexCalls) > 0 &&
+		(bytes.Contains(line, []byte(`"type":"task_started"`)) || bytes.Contains(line, []byte(`"source":"agent"`)) ||
+			bytes.Contains(line, []byte(`"type":"function_call_output"`)))
+}
 
 // planCurrentLen (runes): the step in progress is one line on a task card and in the snapshot.
 const planCurrentLen = 120
@@ -31,7 +38,7 @@ type planItem struct {
 
 // trackPlan follows one parsed item: a plan tool's call waits for its result, which applies it.
 func (m *Meta) trackPlan(it proto.Item) {
-	if m.Codex || it.ToolUseID == "" {
+	if it.ToolUseID == "" {
 		return
 	}
 	switch {

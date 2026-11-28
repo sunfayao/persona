@@ -15,18 +15,23 @@ import (
 // CodexCounts are a token_count's usage as Codex writes it. Its input includes what was read from and written to the
 // cache (Codex takes both out for its own count of fresh input); its output includes the reasoning.
 type CodexCounts struct {
-	Input      int64 `json:"input_tokens"`
-	Cached     int64 `json:"cached_input_tokens"`
-	CacheWrite int64 `json:"cache_write_input_tokens"`
-	Output     int64 `json:"output_tokens"`
-	Reasoning  int64 `json:"reasoning_output_tokens"`
-	Total      int64 `json:"total_tokens"`
+	Input         int64 `json:"input_tokens"`
+	Cached        int64 `json:"cached_input_tokens"`
+	CacheWrite    int64 `json:"cache_write_input_tokens"`
+	CacheCreation int64 `json:"cache_creation_input_tokens"` // traex's spelling
+	Output        int64 `json:"output_tokens"`
+	Reasoning     int64 `json:"reasoning_output_tokens"`
+	Total         int64 `json:"total_tokens"`
 }
 
 // Tokens are the counts in the four kinds: input without the cached and cache-written parts, cached input as cache
 // reads, cache writes, output (reasoning included).
 func (c CodexCounts) Tokens() Tokens {
-	return Tokens{Input: max(c.Input-c.Cached-c.CacheWrite, 0), CacheRead: max(c.Cached, 0), CacheWrite: max(c.CacheWrite, 0),
+	cacheWrite := max(c.CacheWrite, 0)
+	if cacheWrite == 0 {
+		cacheWrite = max(c.CacheCreation, 0)
+	}
+	return Tokens{Input: max(c.Input-c.Cached-cacheWrite, 0), CacheRead: max(c.Cached, 0), CacheWrite: cacheWrite,
 		Output: max(c.Output, 0), Reasoning: max(c.Reasoning, 0)}
 }
 

@@ -98,6 +98,7 @@ func (n *Node) traexSessions(seen map[string]bool) []proto.Session {
 			}
 		}
 		if hasMeta {
+			s.Plan = m.plan
 			if s.Effort == "" && m.effort != "" {
 				s.Effort = m.effort
 			}

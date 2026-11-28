@@ -262,9 +262,12 @@ type Meta struct {
 	codexLimitFull time.Time
 	// codexSeen: newer rollouts record an item both as event_msg/item_completed and in history_mutation, within
 	// one turn: the ids of the turn under way (task_started drops them, as a window starting there has none).
-	codexSeen   map[string]bool
-	codexTurnID string
-	codexUserID string
+	codexSeen map[string]bool
+	// RolloutTools is supplied by the node when the source has additional metadata in function responses.
+	RolloutTools RolloutToolDecoder
+	traexCalls   map[string]RolloutToolCall
+	codexTurnID  string
+	codexUserID  string
 	// codexPending: the ids of backgrounded commands whose terminal record has not been read. A command can finish in
 	// a later turn, so task_started does not clear it; the id leaves when its completed/failed record is read.
 	// codexPendingIDs keeps them oldest first and codexPendingKept (codex.go) bounds them.

@@ -81,6 +81,8 @@ func TestCodexParser(t *testing.T) {
 		{codexLine("event_msg", `{"type":"token_count","info":null}`), false, "", Tokens{}},
 		{tokenCount(1000, 800, 500, 200, 100, 60), true, "gpt-6-codex", Tokens{Input: 100, CacheRead: 500, CacheWrite: 200, Output: 100, Reasoning: 60}},
 		{tokenCount(1100, 50, 80, 0, 50, 0), true, "gpt-6-codex", Tokens{CacheRead: 80, Output: 50}}, // more cached than input: none fresh
+		{codexLine("event_msg", `{"type":"token_count","info":{"total_token_usage":{"total_tokens":1200},"last_token_usage":{"input_tokens":70,"cached_input_tokens":30,"cache_creation_input_tokens":20,"output_tokens":10}}}`),
+			true, "gpt-6-codex", Tokens{Input: 20, CacheRead: 30, CacheWrite: 20, Output: 10}},
 		{codexLine("event_msg", `{"type":"agent_message","message":"token_count"}`), false, "", Tokens{}},
 	} {
 		r, ok := p.Line([]byte(c.line))

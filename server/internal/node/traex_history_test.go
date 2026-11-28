@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -14,6 +15,30 @@ import (
 	"github.com/sunfayao/persona/server/internal/sessionhistory"
 	"github.com/sunfayao/persona/server/internal/transcript"
 )
+
+func TestTraexRolloutPlanSurvivesSelectiveScan(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "rollout.jsonl")
+	const rollout = `{"timestamp":"2026-01-01T00:00:00Z","type":"event_msg","payload":{"type":"task_started","turn_id":"turn-1"}}
+{"timestamp":"2026-01-01T00:00:01Z","type":"response_item","payload":{"type":"function_call","call_id":"create-1","name":"TaskCreate","arguments":"{\"subject\":\"Read the export\"}"}}
+{"timestamp":"2026-01-01T00:00:02Z","type":"response_item","payload":{"type":"function_call_output","call_id":"create-1","output":"Task 1 created (status: pending)."}}
+{"timestamp":"2026-01-01T00:00:03Z","type":"response_item","payload":{"type":"function_call","call_id":"update-1","name":"TaskUpdate","arguments":"{\"taskId\":\"1\",\"status\":\"completed\"}"}}
+{"timestamp":"2026-01-01T00:00:04Z","type":"response_item","payload":{"type":"function_call_output","call_id":"update-1","output":"Task 1 updated (status: completed)."}}
+`
+	if err := os.WriteFile(path, []byte(rollout), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	var offset int64
+	var meta transcript.Meta
+	scanBackground(f, &offset, &meta, int64(len(rollout)))
+	if meta.Plan == nil || meta.Plan.Done != 1 || meta.Plan.Total != 1 {
+		t.Fatalf("plan after selective scan = %+v", meta.Plan)
+	}
+}
 
 func TestTraexOfflineTiedRowsKeepIDOrder(t *testing.T) {
 	n := remoteTestNode(t)

@@ -537,7 +537,7 @@ func (f *File) parseLines(data []byte, pos int64, n int, meta *Meta, tree *branc
 		line, at := data[:i], pos
 		data, pos = data[i+1:], pos+int64(i)+1
 		if len(bytes.TrimSpace(line)) > 0 {
-			items := ParseLine(n, line, meta)
+			items := f.parseLine(n, line, meta)
 			if trackLine(tree, meta, items, kept, sent) { // on a branch that was gone back over (branch.go)
 				n++
 				continue
@@ -786,7 +786,7 @@ func (f *File) fullMeta() Meta {
 		return m
 	}
 	end, lines, gen, path := f.offset-int64(len(f.partial)), f.lines, f.gen, f.Path
-	m := Meta{Sidechain: f.meta.Sidechain}
+	m := Meta{Sidechain: f.meta.Sidechain, RolloutTools: f.rolloutTools}
 	f.mu.Unlock()
 	if parseRange(path, 0, end, 1, &m) != nil {
 		f.mu.Lock()
