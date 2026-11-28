@@ -140,12 +140,12 @@ type block struct {
 
 // Meta is session-level information collected while parsing.
 type Meta struct {
+	turnReducer        *turnmodel.Reducer
 	facetAgent         string
 	facetNative        string
 	facetTurn          string
 	facetTools         map[string]proto.ToolFacet
 	facetArtifacts     map[string]*proto.ArtifactFacet
-	facetPlanSeq       uint64
 	redactedThinkingMS int64
 	shareProjection    bool // sanitize the complete bounded publication source before display clipping
 	ClaudeReader       ClaudeLineReader
@@ -552,6 +552,22 @@ func ParseLine(seq int, line []byte, meta *Meta) []proto.Item {
 	return finishParsedItems(items, line, meta)
 }
 
+// TrackTurnState enables the shared reducer for readers that retain metadata and discard the items.
+func (m *Meta) TrackTurnState() {
+	if m.turnReducer == nil {
+		m.turnReducer = turnmodel.NewReducer()
+	}
+	m.facetAgent = "auto"
+}
+
+// TurnState returns the typed state seen by a metadata reader.
+func (m *Meta) TurnState() turnmodel.Snapshot {
+	if m.turnReducer == nil {
+		return turnmodel.Snapshot{}
+	}
+	return m.turnReducer.Snapshot()
+}
+
 func finishParsedItems(items []proto.Item, line []byte, meta *Meta) []proto.Item {
 	if len(items) > 0 && items[0].Role == "user" && items[0].Kind == proto.KindText {
 		meta.Turns++
@@ -574,10 +590,12 @@ func finishParsedItems(items []proto.Item, line []byte, meta *Meta) []proto.Item
 			meta.observeActivity(*it)
 		}
 		meta.trackActivity(*it)
-		planSeq := meta.facetPlanSeq
-		meta.trackPlan(*it)
+		plan := meta.trackPlan(*it)
 		if meta.facetAgent != "" {
-			meta.projectItemFacets(it, meta.facetPlanSeq != planSeq)
+			meta.projectItemFacets(it, plan)
+			if meta.turnReducer != nil {
+				meta.turnReducer.Observe(*it)
+			}
 		}
 		if it.Wake || it.Role == "user" && !it.Queued && (it.Kind == proto.KindText || it.Kind == proto.KindImage) {
 			// A new turn's words start afresh (TurnAnswer): a photo with no caption and a command that runs the model

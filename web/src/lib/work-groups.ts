@@ -6,8 +6,7 @@
 import { t } from "../i18n";
 import { isChildSessionStep } from "./child-cards";
 import { wakeSummary } from "./tasks";
-import { toolLabel, type Step } from "./turns";
-import type { Item } from "./types";
+import { stepPosition, toolLabel, type Step } from "./turns";
 import { itemFacets } from "./turn-upcast";
 
 export type ToolStep = Extract<Step, { kind: "tool" }>;
@@ -53,18 +52,13 @@ const isCompactStep = (s: Step) => s.kind === "notice" && Boolean(s.item.compact
 /** A Codex visualize fragment is response content, like the words: it stands in the open where it was written. */
 const isVisualizationStep = (s: Step) => s.kind === "visualization";
 
-/** The item a step stands for (a tool: its call). */
-function stepItem(s: Step): Item {
-  return s.kind === "tool" ? s.use : s.item;
-}
-
 export const tsMs = (ts?: string): number | null => {
   const t = Date.parse(ts ?? "");
   return Number.isFinite(t) ? t : null;
 };
 
 function stepStart(s: Step): number | null {
-  return tsMs(stepItem(s).ts);
+  return tsMs(stepPosition(s).ts);
 }
 
 /** When a step was over: a tool at its result, folded work at its last step. */
@@ -93,7 +87,7 @@ const anchorStep = (run: Step[]) => run.find((s) => s.kind !== "text" && !isChil
 /** A stretch's key: its anchor's seq and block (a fold's is the seq of the first step it stands for, block 0). */
 function anchorKey(run: Step[]): string {
   const first = anchorStep(run);
-  const it = stepItem(first);
+  const it = stepPosition(first);
   return `${it.seq}.${first.kind === "fold" ? 0 : (it.id.split("#")[1] ?? 0)}`;
 }
 
@@ -103,7 +97,7 @@ function createGroup(run: Step[]): WorkGroupNode {
   return {
     kind: "group",
     id: `work-${anchorKey(run)}`,
-    seq: stepItem(first).seq,
+    seq: stepPosition(first).seq,
     children: run.map((step) => ({ kind: "step", step })),
     live: false,
     ...(start !== null ? { startedAt: start } : {}),

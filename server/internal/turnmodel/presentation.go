@@ -70,15 +70,24 @@ func (s *Snapshot) observePresentation(item proto.Item, agents, artifacts map[st
 	}
 }
 
+// ApplyPlan writes the current checklist from a selective transcript scan.
+func (s Snapshot) ApplyPlan(row *proto.Session) {
+	if s.PlanEntries == nil {
+		return
+	}
+	if row.Facets == nil {
+		row.Facets = &proto.SessionFacets{}
+	}
+	row.Plan = s.Plan
+	row.Facets.Plan = &proto.SessionPlan{Entries: s.PlanEntries[:min(len(s.PlanEntries), 50)], At: s.Plan.At}
+}
+
 // Apply writes the available transcript facets and the corresponding legacy session fields.
 func (s Snapshot) Apply(row *proto.Session) {
-	if s.PlanEntries != nil || s.timersSeen || len(s.Artifacts) != 0 || s.Progress != nil || s.Turn != nil {
+	s.ApplyPlan(row)
+	if s.timersSeen || len(s.Artifacts) != 0 || s.Progress != nil || s.Turn != nil {
 		if row.Facets == nil {
 			row.Facets = &proto.SessionFacets{}
-		}
-		if s.PlanEntries != nil {
-			row.Plan = s.Plan
-			row.Facets.Plan = &proto.SessionPlan{Entries: s.PlanEntries[:min(len(s.PlanEntries), 50)], At: s.Plan.At}
 		}
 		if s.timersSeen {
 			row.Loop = s.Loop

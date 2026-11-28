@@ -3,7 +3,7 @@
 
 import { formatDate, t } from "../i18n";
 import type { BackgroundTask, Item, LoopInfo, Subagent, TaskNote } from "./types";
-import type { Step } from "./turns";
+import { stepPosition, type Step } from "./turns";
 import type { AgentStatus } from "./work-groups";
 import { launchedTaskID } from "./task-association";
 export { attachedAgentNotices } from "./task-association";
@@ -399,7 +399,7 @@ export function withNestedSubagents(steps: Step[], all: Subagent[]): Step[] {
       let i = from + 1;
       while (i < out.length && (Date.parse(stepTs(out[i]) ?? "") || Infinity) <= at) i++;
       const before = out[i - 1];
-      const seq = before.kind === "tool" ? before.use.seq : before.item.seq;
+      const { seq } = stepPosition(before);
       const use: Item = { id: `${NESTED}${a.id}`, seq, ts: a.started_at, role: "assistant", kind: "tool_use", tool_name: "Agent", tool_use_id: subagentCall(a), tool_input: { description: a.description ?? "" } };
       out.splice(i, 0, { kind: "tool", id: use.id, use, images: [] });
     }
@@ -414,7 +414,7 @@ export function nestingKey(all: Subagent[]): string {
   return all.map((a) => [a.id, a.parent_id, a.tool_use_id, a.started_at, a.description].join("\u0000")).join("\u0001");
 }
 
-const stepTs = (s: Step) => (s.kind === "tool" ? s.use.ts : s.item.ts);
+const stepTs = (s: Step) => stepPosition(s).ts;
 /** The key a subagent card's open / closed state is kept under: by its call, so a link to the subagent can open it. */
 export const subagentCardKey = (scope: string, call: string) => `${scope}task:${call}`;
 

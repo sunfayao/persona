@@ -6,10 +6,8 @@ import (
 	"strings"
 
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
-
-// subagentTools are the calls that launch a subagent (Claude Code's Task, renamed Agent).
-var subagentTools = map[string]bool{"Task": true, "Agent": true}
 
 // A run of work shorter than this (and lighter than foldMinBytes) stays on the page: opening it would cost a round
 // trip for a few hundred bytes.
@@ -35,7 +33,11 @@ func FoldWork(items []proto.Item) []proto.Item {
 		switch it.Kind {
 		case proto.KindToolUse:
 			taskUses[it.ToolUseID] = *it
-			if subagentTools[it.ToolName] {
+			agent := it.ToolName == "Agent" || it.ToolName == "Task"
+			if it.Facets != nil {
+				agent = it.Facets.Subagent != nil || turnmodel.ToolKind(*it) == proto.ToolKindAgent
+			}
+			if agent {
 				agents[it.ToolUseID] = true
 			}
 		case proto.KindToolResult:
@@ -53,7 +55,7 @@ func FoldWork(items []proto.Item) []proto.Item {
 			result, hasResult := results[it.ToolUseID]
 			// Keep the silent receipt and its call so even a partial history replay can respect the disposition.
 			return it.ToolUseID != "" && hasUse && hasResult && !agents[it.ToolUseID] &&
-				!silentSupervisionFinish(use.ToolName, *result)
+				!(result.Facets != nil && result.Facets.Artifact != nil) && !silentSupervisionFinish(use.ToolName, *result)
 		}
 		return false
 	}

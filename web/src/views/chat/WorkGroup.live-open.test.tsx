@@ -192,7 +192,7 @@ describe.each(["assistant", "agents"] as const)("%s folded history", (style) => 
     const text = words(3, "Latest text.");
     const first = tool(1) as Extract<Step, { kind: "tool" }>;
     const expanded = { ...first, id: "t1#1", use: { ...first.use, id: "t1#1" } };
-    const sourceSegment = (steps: Step[]) => segments(steps.flatMap((s) => s.kind === "tool" ? [s.use, ...(s.result ? [s.result] : [])] : [s.item]))[0];
+    const sourceSegment = (steps: Step[]) => segments(steps.flatMap((s) => s.kind === "tool" ? [s.use, ...(s.result ? [s.result] : [])] : s.kind === "child_session" ? [] : [s.item]))[0];
     const before = sourceSegment([folded, text]);
     const after = sourceSegment([expanded, text]);
     expect(before.id).not.toBe(after.id);

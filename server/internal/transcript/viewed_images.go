@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/turnmodel"
 )
 
 // pictureExts are the files whose Read is the agent looking at a picture (what the phone's file thumbnails draw).
@@ -66,8 +67,11 @@ func viewedFrom(use proto.Item) proto.FoldImage {
 		base, mcp = base[i+2:], true
 	}
 	switch {
-	case base == "Read" && !mcp:
+	case turnmodel.ToolKind(use) == proto.ToolKindRead && !mcp:
 		im.Source, im.Path = "read", in.FilePath
+		if use.Facets != nil && use.Facets.Tool != nil && len(use.Facets.Tool.Locations) != 0 {
+			im.Path = use.Facets.Tool.Locations[0].Path
+		}
 	case mcp && strings.HasPrefix(base, "computer_"):
 		im.Source, im.Machine = "screenshot", in.Machine
 	case mcp && strings.HasPrefix(base, "browser_"):

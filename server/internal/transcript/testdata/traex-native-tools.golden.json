@@ -302,7 +302,7 @@
           "status": "completed"
         },
         "plan": {
-          "mode": "replace",
+          "mode": "merge",
           "entries": [
             {
               "id": "task:1",
@@ -438,13 +438,8 @@
           "status": "completed"
         },
         "plan": {
-          "mode": "replace",
+          "mode": "merge",
           "entries": [
-            {
-              "id": "task:1",
-              "title": "",
-              "status": "completed"
-            },
             {
               "id": "task:4",
               "title": "庚癸乙辛戊甲己甲乙甲戊庚戊",

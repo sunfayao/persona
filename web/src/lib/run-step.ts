@@ -3,7 +3,7 @@
 // ("Thinking...", "Bash running...", "Spawning agent..."); Persona works it out from the newest steps it has.
 import { canonicalTool } from "./compatibility";
 import { subagentFor } from "./tasks";
-import type { ChatLine, Segment, Step } from "./turns";
+import { stepPosition, type ChatLine, type Segment } from "./turns";
 import type { AgentState, Item, Session, Subagent } from "./types";
 
 export interface RunStep {
@@ -19,9 +19,7 @@ export interface RunStep {
 const SUBAGENT_TOOLS = new Set(["Agent", "Task"]);
 
 /** Item order as the transcript has it (lib/turns.ts blockOrder): its line, then its block in the line. */
-const after = (a: Item, b: Item) => a.seq !== b.seq ? a.seq > b.seq : Number(a.id.split("#")[1] ?? 0) > Number(b.id.split("#")[1] ?? 0);
-
-const stepItem = (s: Step): Item => (s.kind === "tool" ? s.use : s.item);
+const after = (a: Pick<Item, "seq" | "id">, b: Pick<Item, "seq" | "id">) => a.seq !== b.seq ? a.seq > b.seq : Number(a.id.split("#")[1] ?? 0) > Number(b.id.split("#")[1] ?? 0);
 
 /**
  * The live exchange's step. Among the calls after its newest words or thought, the newest still running: one without a
@@ -43,7 +41,7 @@ export function runStep(seg: Segment | undefined, streaming: boolean, subagents?
     return { kind: "tool", tool: name, ...(SUBAGENT_TOOLS.has(name) && !(agent && (agent.steps || agent.last_tool || agent.last_text)) ? { spawning: true } : {}) };
   }
   const last = steps.at(-1);
-  if (answer && (!last || after(answer, stepItem(last)))) return { kind: "text" };
+  if (answer && (!last || after(answer, stepPosition(last)))) return { kind: "text" };
   if (!last) return { kind: "start" };
   return { kind: last.kind === "thinking" ? "thinking" : "after" };
 }

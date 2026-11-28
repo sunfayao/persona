@@ -18,12 +18,19 @@ import type { Injected, Item, MessageSource, TokenUsage } from "./types";
 
 export type Step =
   | { kind: "tool"; id: string; use: Item; result?: Item; images: Item[] }
+  | { kind: "child_session"; id: string; sid: string; seq: number; ts?: string }
   | { kind: "thinking"; id: string; item: Item }
   | { kind: "text"; id: string; item: Item }
   | { kind: "notice"; id: string; item: Item }
   | { kind: "image"; id: string; item: Item }
   | { kind: "visualization"; id: string; item: Item }
   | { kind: "fold"; id: string; item: Item };
+
+/** Positions transcript steps and session cards on the same timeline. */
+export function stepPosition(step: Step): Pick<Item, "id" | "seq" | "ts"> {
+  if (step.kind === "child_session") return step;
+  return step.kind === "tool" ? step.use : step.item;
+}
 
 export interface UserMessage {
   id: string;
@@ -428,7 +435,7 @@ export function freshWords(have: Item[], pushed: Item[]): string[] {
 export function exchangeSteps(s: Segment): Step[] {
   if (!s.answer) return s.steps;
   const a = s.answer;
-  const at = s.steps.findIndex((st) => blockOrder(st.kind === "tool" ? st.use : st.item, a) > 0);
+  const at = s.steps.findIndex((st) => blockOrder(stepPosition(st), a) > 0);
   const step: Step = { kind: "text", id: a.id, item: a };
   return at < 0 ? [...s.steps, step] : [...s.steps.slice(0, at), step, ...s.steps.slice(at)];
 }
@@ -437,7 +444,7 @@ export function exchangeSteps(s: Segment): Step[] {
 export function segmentIdentity(s: Segment): string {
   if (s.user) return s.id;
   const first = s.steps[0];
-  let seq = first ? (first.kind === "tool" ? first.use.seq : first.item.seq) : undefined;
+  let seq = first ? (stepPosition(first).seq) : undefined;
   if (s.answer && (seq === undefined || s.answer.seq < seq)) seq = s.answer.seq;
   return seq !== undefined && Number.isFinite(seq) ? `exchange-${seq}` : s.id;
 }
@@ -1054,7 +1061,7 @@ function lineUsage(lines: ChatLine[], items: Item[]) {
     segs.forEach((s, k) => {
       for (const i of s.user?.rawInput ?? []) own(i.id, k);
       for (const st of s.steps) {
-        own(st.kind === "tool" ? st.use.id : st.item.id, k);
+        own(stepPosition(st).id, k);
         if (st.kind === "tool") {
           own(`call:${st.use.tool_use_id}`, k);
           own(st.result?.id, k);

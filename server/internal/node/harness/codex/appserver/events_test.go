@@ -1,6 +1,7 @@
 package appserver
 
 import (
+	"encoding/json"
 	"reflect"
 	"slices"
 	"testing"
@@ -25,27 +26,58 @@ func TestDecodeEventKeepsDirectAndWrappedThreadItems(t *testing.T) {
 
 func TestThreadItemProjectionAgreesAcrossHistorySources(t *testing.T) {
 	t.Parallel()
-	const atMS = 1767225600000
-	const v2 = `{"type":"commandExecution","id":"call-1","command":"make check","status":"completed","aggregatedOutput":"ok","exitCode":0,"durationMs":125,"completedAtMs":1767225600000}`
-	ev, ok := DecodeEvent("item/completed", []byte(`{"threadId":"thread-1","turnId":"turn-1","item":`+v2+`}`))
-	if !ok {
-		t.Fatal("app-server item did not decode")
+	when := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	thread := []struct {
+		name, app, rollout string
+	}{
+		{"prompt", `{"type":"userMessage","id":"user-1","content":[{"type":"text","text":"Check the release"}]}`,
+			`{"type":"UserMessage","id":"user-1","content":[{"type":"text","text":"Check the release"}]}`},
+		{"plan", `{"type":"plan","id":"plan-1","text":"Verify the build"}`,
+			`{"type":"Plan","id":"plan-1","text":"Verify the build"}`},
+		{"reasoning", `{"type":"reasoning","id":"thought-1","summary":["Check both sources"]}`,
+			`{"type":"Reasoning","id":"thought-1","summary_text":["Check both sources"]}`},
+		{"command", `{"type":"commandExecution","id":"call-1","command":"make check","status":"completed","aggregatedOutput":"ok","exitCode":0,"durationMs":125}`,
+			`{"type":"CommandExecution","id":"call-1","command":["make check"],"status":"completed","aggregated_output":"ok","exit_code":0,"duration":{"secs":0,"nanos":125000000}}`},
+		{"edit", `{"type":"fileChange","id":"edit-1","status":"completed","changes":[{"path":"example.txt","kind":{"type":"update"},"diff":"@@ -1 +1 @@\n-before\n+after"}]}`,
+			`{"type":"FileChange","id":"edit-1","status":"completed","changes":{"example.txt":{"type":"update","unified_diff":"@@ -1 +1 @@\n-before\n+after"}}}`},
+		{"subagent", `{"type":"subAgentActivity","id":"child-1","kind":"started","agentThreadId":"child-thread","agentPath":"/review"}`,
+			`{"type":"SubAgentActivity","id":"child-1","kind":"started","agent_thread_id":"child-thread","agent_path":"/review"}`},
+		{"terminal", `{"type":"terminalInteraction","id":"input-1","processId":"process-1","command":"\n"}`,
+			`{"type":"TerminalInteraction","id":"input-1","process_id":"process-1","command":"\n"}`},
+		{"reply", `{"type":"agentMessage","id":"reply-1","text":"The build passed.","phase":"final_answer"}`,
+			`{"type":"AgentMessage","id":"reply-1","content":[{"type":"text","text":"The build passed."}],"phase":"final_answer"}`},
 	}
-	at := time.UnixMilli(atMS).UTC()
-	indexed, ok := codex.ThreadItemRecord(at, "turn-1", "commandExecution", []byte(v2))
-	if !ok {
-		t.Fatal("SQLite item did not decode")
-	}
-	const rollout = `{"timestamp":"2026-01-01T00:00:00Z","type":"event_msg","payload":{"type":"item_completed","turn_id":"turn-1","item":{"type":"CommandExecution","id":"call-1","command":["make check"],"status":"completed","aggregated_output":"ok","exit_code":0,"duration":{"secs":0,"nanos":125000000}}}}`
-	want := transcript.ParseLine(2, []byte(rollout), &transcript.Meta{})
-	if len(want) != 2 {
-		t.Fatalf("rollout items = %+v", want)
-	}
-	if got := transcript.ProjectCodexRecord(2, indexed, &transcript.Meta{}); !reflect.DeepEqual(got, want) {
-		t.Fatalf("indexed items = %+v, want %+v", got, want)
-	}
-	if got := ev.CompletedItems(2, time.Time{}); !reflect.DeepEqual(got, want) {
-		t.Fatalf("app-server items = %+v, want %+v", got, want)
+	rolloutMeta, indexedMeta := &transcript.Meta{}, &transcript.Meta{}
+	for i, tc := range thread {
+		at := when.Add(time.Duration(i) * time.Second)
+		seq := i + 2
+		raw, err := json.Marshal(map[string]any{
+			"timestamp": at, "type": "event_msg", "payload": map[string]any{
+				"type": "item_completed", "turn_id": "turn-1", "item": json.RawMessage(tc.rollout),
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := transcript.ParseLine(seq, raw, rolloutMeta)
+		if len(want) == 0 {
+			t.Errorf("%s: rollout item was lost", tc.name)
+			continue
+		}
+		indexed, ok := codex.ThreadItemRecord(at, "turn-1", "", []byte(tc.app))
+		if !ok {
+			t.Fatalf("%s: SQLite item did not decode", tc.name)
+		}
+		ev, ok := DecodeEvent("item/completed", []byte(`{"threadId":"thread-1","turnId":"turn-1","item":`+tc.app+`}`))
+		if !ok {
+			t.Fatalf("%s: app-server item did not decode", tc.name)
+		}
+		if got := transcript.ProjectCodexRecord(seq, indexed, indexedMeta); !reflect.DeepEqual(got, want) {
+			t.Errorf("%s: indexed items = %+v, want %+v", tc.name, got, want)
+		}
+		if got := ev.CompletedItems(seq, at); !reflect.DeepEqual(got, want) {
+			t.Errorf("%s: app-server items = %+v, want %+v", tc.name, got, want)
+		}
 	}
 }
 

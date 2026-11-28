@@ -424,7 +424,7 @@ export function closeoutCommandEvidence(verified: string, segment: Segment | und
   if (segment.folds.length) return claims.map((claim) => ({ claim, state: "unavailable" }));
   const steps = exchangeSteps(segment);
   const calls = steps.flatMap((step) => step.kind === "tool" && describeTool(step.use.tool_name ?? "").isCommand && commandText(step.use.tool_input) ? [{ use: step.use, result: step.result, command: commandText(step.use.tool_input), segments: commandSegments(commandText(step.use.tool_input)) }] : []);
-  const items = steps.flatMap((step) => step.kind === "tool" ? [step.use, ...(step.result ? [step.result] : [])] : [step.item]);
+  const items = steps.flatMap((step) => step.kind === "tool" ? [step.use, ...(step.result ? [step.result] : [])] : step.kind === "child_session" ? [] : [step.item]);
   const tasks = buildTaskIndex(items);
   return claims.map((claim) => {
     const wanted = commandSegments(claim);

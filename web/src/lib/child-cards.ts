@@ -3,8 +3,8 @@
 // own row and placed by when the child started: in the exchange that was going on then, after the last step that started
 // before it, inside that exchange's folded work (super rule 2), the way `withNestedSubagents` places a nested subagent.
 // What a card says is views/chat/ChildSessionCard.tsx's (loaded with the card); this is what the chat needs to place it.
-import type { ChatLine, Step } from "./turns";
-import type { Item, Session } from "./types";
+import { stepPosition, type ChatLine, type Step } from "./turns";
+import type { Session } from "./types";
 
 /** The id a child session's card stands under among an exchange's steps, and the call it is known by (`data-tool-use`,
  *  the chat's jump to it). */
@@ -17,10 +17,10 @@ export interface ChildPlace {
 }
 
 /** A child session's card among the steps (`withChildSessions`). */
-export const isChildSessionStep = (s: Step): boolean => s.kind === "tool" && s.use.id.startsWith(CHILD);
+export const isChildSessionStep = (s: Step): boolean => s.kind === "child_session";
 
 /** The session a child card stands for. */
-export const childSessionOf = (s: Step & { kind: "tool" }): string => s.use.id.slice(CHILD.length);
+export const childSessionOf = (s: Extract<Step, { kind: "child_session" }>): string => s.sid;
 
 /** The call a child's card is known by: what a link to the child brings into view. */
 export const childCall = (sid: string): string => `${CHILD}${sid}`;
@@ -99,9 +99,6 @@ export function placeChildren(exchanges: readonly ExchangeStart[], children: rea
   return out;
 }
 
-const stepTs = (s: Step) => (s.kind === "tool" ? s.use.ts : s.item.ts);
-const stepSeq = (s: Step) => (s.kind === "tool" ? s.use.seq : s.item.seq);
-
 /** An exchange's steps with a card for each child placed in it: after the last step that started before the child (the
  *  exchange's start when none did), in the order the children started. A card takes the time of the step it follows (the
  *  next one's at the start): it moves no clock of the exchange's work, and a child that started long after the
@@ -113,13 +110,13 @@ export function withChildSessions(steps: Step[], places: readonly ChildPlace[] |
     const at = ms(c.at) ?? Infinity;
     let i = 0;
     for (let j = 0; j < out.length; j++) {
-      const t = ms(stepTs(out[j]));
+      const t = ms(stepPosition(out[j]).ts);
       if (t !== undefined && t <= at) i = j + 1;
     }
     const near = out[i - 1] ?? out[i];
     const id = childCall(c.sid);
-    const use: Item = { id, seq: near ? stepSeq(near) : 0, ts: near ? stepTs(near) : c.at || undefined, role: "assistant", kind: "tool_use", tool_name: "Agent", tool_use_id: id, tool_input: {} };
-    out.splice(i, 0, { kind: "tool", id, use, images: [] });
+    const position = near ? stepPosition(near) : undefined;
+    out.splice(i, 0, { kind: "child_session", id, sid: c.sid, seq: position?.seq ?? 0, ts: position?.ts ?? (c.at || undefined) });
   }
   return out;
 }

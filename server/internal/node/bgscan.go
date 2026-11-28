@@ -169,6 +169,7 @@ var bgReaders = sync.Pool{New: func() any { return bufio.NewReaderSize(nil, 256<
 // transcript once held all of it in memory). A last line not complete yet is read next time.
 func scanBackground(f *os.File, off *int64, m *transcript.Meta, size int64) {
 	reader, tools := m.ClaudeReader, m.RolloutTools
+	m.TrackTurnState()
 	m.ClaudeReader, m.RolloutTools = claude.Reader{}, traex.RolloutTools{}
 	defer func() { m.ClaudeReader, m.RolloutTools = reader, tools }()
 	r := bgReaders.Get().(*bufio.Reader)

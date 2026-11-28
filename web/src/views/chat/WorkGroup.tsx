@@ -2,7 +2,6 @@
 // steps on one rail (#2602). The tail stretch of a live exchange is the exchange's one live indicator: spinner,
 // "Working…" and the clock of the current run of work.
 import { lazy, memo, Suspense, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { childSessionOf, isChildSessionStep } from "../../lib/child-cards";
 import { useSessionLive } from "../../lib/live";
 import { useStore } from "../../lib/store";
 import type { Item } from "../../lib/types";
@@ -258,10 +257,11 @@ function WorkNodes({ nodes, p, live, limit }: { nodes: WorkNode[]; p: WorkProps;
  *  streams (SegmentView memoizes steps and p on the segment), so a delta skips every step of the turn. */
 export const StepView = memo(function StepView({ step, p, live }: { step: Step; p: WorkProps; live?: boolean }) {
   switch (step.kind) {
+    case "child_session":
+      return <Suspense fallback={null}><ChildSessionCard mid={p.mid} sid={step.sid} scope={p.scope} /></Suspense>;
     case "tool":
       if (p.trace) return <ActionRow step={step} running={live && !step.result} mid={p.mid} sid={p.sid} trace />;
       if (step.result?.facets?.artifact) return <ArtifactSummary item={step.result} />;
-      if (isChildSessionStep(step)) return <Suspense fallback={null}><ChildSessionCard mid={p.mid} sid={childSessionOf(step)} scope={p.scope} /></Suspense>;
       if (isAgentStep(step)) return <Suspense fallback={null}><SubagentCard step={step} status={p.agentStatus(step)} mid={p.mid} sid={p.sid} scope={p.scope} /></Suspense>;
       if (isPlanStep(step)) return <Suspense fallback={null}><PlanCard id={step.id} todos={planTodos(step)} live={live} /></Suspense>;
       if (workflowCard(step, p)) return <WorkflowCallCard step={step} mid={p.mid} sid={p.sid} scope={p.scope} />;

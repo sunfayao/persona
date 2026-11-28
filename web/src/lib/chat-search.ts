@@ -24,7 +24,7 @@ export interface ChatSearchResults {
 
 /** The items a step draws (a tool call: its call, result and pictures). */
 function stepItemIds(step: Step): string[] {
-  return step.kind === "tool" ? [step.use.id, ...(step.result ? [step.result.id] : []), ...step.images.map((i) => i.id)] : [step.item.id];
+  return step.kind === "tool" ? [step.use.id, ...(step.result ? [step.result.id] : []), ...step.images.map((i) => i.id)] : [step.id];
 }
 
 /** The items under work nodes, nested groups included. */

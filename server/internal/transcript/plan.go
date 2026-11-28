@@ -37,9 +37,9 @@ type planItem struct {
 }
 
 // trackPlan follows one parsed item: a plan tool's call waits for its result, which applies it.
-func (m *Meta) trackPlan(it proto.Item) {
+func (m *Meta) trackPlan(it proto.Item) *proto.PlanFacet {
 	if it.ToolUseID == "" {
-		return
+		return nil
 	}
 	switch {
 	case it.Kind == proto.KindToolUse && planTools[it.ToolName]:
@@ -54,7 +54,7 @@ func (m *Meta) trackPlan(it proto.Item) {
 	case it.Kind == proto.KindToolResult:
 		use, ok := m.planUses[it.ToolUseID]
 		if !ok {
-			return
+			return nil
 		}
 		delete(m.planUses, it.ToolUseID)
 		m.pendingIDs()
@@ -63,7 +63,7 @@ func (m *Meta) trackPlan(it proto.Item) {
 			at = use.TS
 		}
 		if text := strings.TrimSpace(it.Text); use.ToolName == "TaskUpdate" && strings.HasPrefix(text, "Task #") && strings.HasSuffix(text, " not found") {
-			return // Claude Code answers an unknown id with text, not an error: nothing changed
+			return nil // Claude Code answers an unknown id with text, not an error: nothing changed
 		}
 		var activeForm string
 		if use.ToolName == "TaskCreate" || use.ToolName == "TaskUpdate" {
@@ -71,12 +71,42 @@ func (m *Meta) trackPlan(it proto.Item) {
 				activeForm = *s
 			}
 		}
+		var facet *proto.PlanFacet
 		for _, snap := range foldTaskSnapshots([]proto.Item{it}, map[string]proto.Item{it.ToolUseID: use}) {
 			m.applyPlan(snap, activeForm)
-			m.facetPlanSeq++
+			if m.facetAgent != "" {
+				facet = m.planFacet(snap)
+			}
 		}
 		m.countPlan(at)
+		return facet
 	}
+	return nil
+}
+
+func (m *Meta) planFacet(change proto.FoldTaskSnapshot) *proto.PlanFacet {
+	mode := proto.TurnPlanModeMerge
+	entries := make([]proto.PlanEntry, 0, len(m.planItems))
+	if change.Replace != "" {
+		mode = proto.TurnPlanModeReplace
+		for _, p := range m.planItems {
+			entries = append(entries, p.entry())
+		}
+	} else {
+		for _, update := range change.Entries {
+			index := slices.IndexFunc(m.planItems, func(p planItem) bool { return p.id == update.ID })
+			if index >= 0 {
+				entries = append(entries, m.planItems[index].entry())
+			} else if update.Status != nil && *update.Status == "deleted" {
+				entries = append(entries, proto.PlanEntry{ID: update.ID, Status: proto.PlanEntryStatusCancelled})
+			}
+		}
+	}
+	return &proto.PlanFacet{Mode: mode, Entries: entries}
+}
+
+func (p planItem) entry() proto.PlanEntry {
+	return proto.PlanEntry{ID: p.id, Title: p.subject, ActiveForm: p.activeForm, Status: p.status}
 }
 
 // PlanPending is the ids of plan tool calls still waiting for their result (nil when none is), for readers that skip

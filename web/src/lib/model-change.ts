@@ -68,7 +68,9 @@ export function replyModel(seg: Segment): string | undefined {
     if (it?.role === "assistant" && it.model && (!latest || later(it, latest))) latest = it;
   };
   see(seg.answer);
-  for (const st of seg.steps) see(st.kind === "tool" ? st.use : st.item);
+  for (const st of seg.steps) {
+    if (st.kind !== "child_session") see(st.kind === "tool" ? st.use : st.item);
+  }
   return latest?.model;
 }
 

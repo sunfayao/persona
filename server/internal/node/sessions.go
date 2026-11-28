@@ -490,9 +490,17 @@ func (n *Node) applyTurnSnapshots(rows []proto.Session) {
 		row := &rows[i]
 		n.mu.Lock()
 		source := n.files[row.SessionID]
+		scan := n.bgScans[n.paths[row.SessionID]]
 		n.mu.Unlock()
 		if source != nil {
 			source.TurnSnapshot().Apply(row)
+		} else if scan != nil {
+			scan.mu.Lock()
+			if !scan.pending && scan.off == row.Rev {
+				// The selective reader sees all plan mutations as well as the file-backed preview.
+				scan.meta.TurnState().ApplyPlan(row)
+			}
+			scan.mu.Unlock()
 		}
 		turnmodel.ApplyContext(row)
 	}

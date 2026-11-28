@@ -36,63 +36,99 @@ type timerTask struct {
 	task  proto.TaskFacet
 }
 
-// Reduce projects facets from items in stream order; legacy fields and unrecognized modes, kinds and statuses do
-// not change the snapshot. It uses only item timestamps and leaves the input unchanged.
-func Reduce(items []proto.Item) Snapshot {
-	var out Snapshot
-	var planAt time.Time
-	background := make(map[string]backgroundTask)
-	timers := make(map[string]timerTask)
-	fired := make(map[string]int)
-	subagents := make(map[string]int)
-	artifacts := make(map[string]int)
-	for i, item := range items {
-		if item.Facets == nil {
-			continue
-		}
-		out.observePresentation(item, subagents, artifacts)
-		if plan := item.Facets.Plan; plan != nil {
-			switch plan.Mode {
-			case proto.TurnPlanModeReplace:
-				out.PlanEntries = append(out.PlanEntries[:0], plan.Entries...)
-				if out.PlanEntries == nil {
-					out.PlanEntries = []proto.PlanEntry{}
-				}
-				planAt = item.TS
-			case proto.TurnPlanModeMerge:
-				out.PlanEntries = mergePlan(out.PlanEntries, plan.Entries)
-				planAt = item.TS
-			}
-		}
-		if notice := item.Facets.Notice; notice != nil && notice.Code == proto.NoticeCodeServerRestart {
-			out.timersSeen = true
-			clear(timers)
-			clear(fired)
-			for _, running := range slices.SortedFunc(maps.Values(background), func(a, b backgroundTask) int { return cmp.Compare(a.order, b.order) }) {
-				task := proto.TaskFacet{ID: running.task.ID, Kind: running.task.Kind, Status: proto.TaskStatusCancelled}
-				out.BackgroundEnded = updateBackground(background, out.BackgroundEnded, i, item.TS, task)
-			}
-		}
+// Reducer accumulates typed state in transcript order.
+type Reducer struct {
+	state      Snapshot
+	order      int
+	planAt     time.Time
+	background map[string]backgroundTask
+	timers     map[string]timerTask
+	fired      map[string]int
+	subagents  map[string]int
+	artifacts  map[string]int
+}
 
-		if task := item.Facets.Task; task != nil {
-			switch task.Kind {
-			case proto.TaskKindTimer:
-				out.timersSeen = true
-				updateTimer(timers, fired, i, *task)
-			case proto.TaskKindShell, proto.TaskKindMonitor, proto.TaskKindAgent, proto.TaskKindWorkflow:
-				out.BackgroundEnded = updateBackground(background, out.BackgroundEnded, i, item.TS, *task)
+func NewReducer() *Reducer {
+	return &Reducer{
+		background: make(map[string]backgroundTask),
+		timers:     make(map[string]timerTask),
+		fired:      make(map[string]int),
+		subagents:  make(map[string]int),
+		artifacts:  make(map[string]int),
+	}
+}
+
+// Reduce projects the typed state of an item slice.
+func Reduce(items []proto.Item) Snapshot {
+	r := NewReducer()
+	for _, item := range items {
+		r.Observe(item)
+	}
+	return r.Snapshot()
+}
+
+// Observe consumes one item; legacy records without facets do not change the state.
+func (r *Reducer) Observe(item proto.Item) {
+	if item.Facets == nil {
+		return
+	}
+	r.order++
+	out := &r.state
+	out.observePresentation(item, r.subagents, r.artifacts)
+	if plan := item.Facets.Plan; plan != nil {
+		switch plan.Mode {
+		case proto.TurnPlanModeReplace:
+			out.PlanEntries = append(out.PlanEntries[:0], plan.Entries...)
+			if out.PlanEntries == nil {
+				out.PlanEntries = []proto.PlanEntry{}
 			}
+			r.planAt = item.TS
+		case proto.TurnPlanModeMerge:
+			out.PlanEntries = mergePlan(out.PlanEntries, plan.Entries)
+			r.planAt = item.TS
 		}
 	}
-	if out.PlanEntries != nil {
-		out.Plan = projectPlan(out.PlanEntries, planAt)
+	if notice := item.Facets.Notice; notice != nil && notice.Code == proto.NoticeCodeServerRestart {
+		out.timersSeen = true
+		clear(r.timers)
+		clear(r.fired)
+		for _, running := range slices.SortedFunc(maps.Values(r.background), func(a, b backgroundTask) int { return cmp.Compare(a.order, b.order) }) {
+			task := proto.TaskFacet{ID: running.task.ID, Kind: running.task.Kind, Status: proto.TaskStatusCancelled}
+			out.BackgroundEnded = updateBackground(r.background, out.BackgroundEnded, r.order, item.TS, task)
+		}
 	}
-	for _, active := range slices.SortedFunc(maps.Values(background), func(a, b backgroundTask) int {
+
+	if task := item.Facets.Task; task != nil {
+		switch task.Kind {
+		case proto.TaskKindTimer:
+			out.timersSeen = true
+			updateTimer(r.timers, r.fired, r.order, *task)
+		case proto.TaskKindShell, proto.TaskKindMonitor, proto.TaskKindAgent, proto.TaskKindWorkflow:
+			out.BackgroundEnded = updateBackground(r.background, out.BackgroundEnded, r.order, item.TS, *task)
+		}
+	}
+}
+
+// Snapshot returns a copy of the currently known state.
+func (r *Reducer) Snapshot() Snapshot {
+	out := r.state
+	out.PlanEntries = slices.Clone(out.PlanEntries)
+	out.BackgroundEnded = slices.Clone(out.BackgroundEnded)
+	out.Artifacts = slices.Clone(out.Artifacts)
+	out.Subagents = slices.Clone(out.Subagents)
+	if out.Turn != nil {
+		out.Turn = new(*out.Turn)
+	}
+
+	if out.PlanEntries != nil {
+		out.Plan = projectPlan(out.PlanEntries, r.planAt)
+	}
+	for _, active := range slices.SortedFunc(maps.Values(r.background), func(a, b backgroundTask) int {
 		return cmp.Compare(a.order, b.order)
 	}) {
 		out.Background = append(out.Background, active.task)
 	}
-	for _, active := range slices.SortedFunc(maps.Values(timers), func(a, b timerTask) int {
+	for _, active := range slices.SortedFunc(maps.Values(r.timers), func(a, b timerTask) int {
 		return cmp.Compare(a.order, b.order)
 	}) {
 		task := active.task
@@ -106,7 +142,7 @@ func Reduce(items []proto.Item) Snapshot {
 	}
 	if len(out.Timers) > 0 {
 		latest := out.Timers[len(out.Timers)-1]
-		out.Loop = projectLoop(latest.Timer, fired[latest.ID])
+		out.Loop = projectLoop(latest.Timer, r.fired[latest.ID])
 	}
 	return out
 }

@@ -16,7 +16,7 @@ func itemFacets(item *proto.Item) *proto.ItemFacets {
 	return item.Facets
 }
 
-func (m *Meta) projectItemFacets(item *proto.Item, planChanged bool) {
+func (m *Meta) projectItemFacets(item *proto.Item, plan *proto.PlanFacet) {
 	f := itemFacets(item)
 	agent := m.facetAgent
 	if agent == "auto" {
@@ -117,13 +117,7 @@ func (m *Meta) projectItemFacets(item *proto.Item, planChanged bool) {
 		}
 		m.redactedThinkingMS = 0
 	}
-	if planChanged {
-		entries := make([]proto.PlanEntry, 0, len(m.planItems))
-		for _, entry := range m.planItems {
-			entries = append(entries, proto.PlanEntry{ID: entry.id, Title: entry.subject, Status: entry.status, ActiveForm: entry.activeForm})
-		}
-		f.Plan = &proto.PlanFacet{Mode: proto.TurnPlanModeReplace, Entries: entries}
-	}
+	f.Plan = plan
 	if task := item.Task; task != nil && task.TaskID != "" {
 		f.Task = taskFacet(task)
 		if task.Kind == proto.TaskKindAgent {

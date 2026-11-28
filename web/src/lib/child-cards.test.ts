@@ -68,11 +68,11 @@ describe("withChildSessions", () => {
   it("puts each card after the last step that started before it, in the order the children started", () => {
     const out = withChildSessions(steps, [{ sid: "k1", at: ts(5) }, { sid: "k2", at: ts(20) }, { sid: "k3", at: ts(25) }]);
     expect(ids(out)).toEqual(["a", "child:k1", "b", "child:k2", "child:k3", "c"]);
-    const card = out[1] as Extract<Step, { kind: "tool" }>;
+    const card = out[1] as Extract<Step, { kind: "child_session" }>;
     expect(isChildSessionStep(card)).toBe(true);
     expect(childSessionOf(card)).toBe("k1");
     // a card the chat's tool rows never draw, known by its own call (what a link brings into view)
-    expect(card.use).toMatchObject({ tool_name: "Agent", tool_use_id: childCall("k1"), seq: 1, ts: ts(0) });
+    expect(card).toMatchObject({ id: childCall("k1"), sid: "k1", seq: 1, ts: ts(0) });
     expect(isChildSessionStep(steps[0])).toBe(false);
   });
 
