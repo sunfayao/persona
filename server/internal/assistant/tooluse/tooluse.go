@@ -112,9 +112,10 @@ type Book struct {
 	changes int64 // increases with every change; Flush compares it with what it wrote
 	written int64
 
-	// draftsMu orders the read-modify-writes of the stored drafts (drafts.go).
+	// draftsMu orders the read-modify-writes of the stored drafts (drafts.go), the friction dream's too (dream.go).
 	draftsMu sync.Mutex
-	core     coreState // the adaptive core tools (core.go)
+	dream    dreamState // guarded by draftsMu
+	core     coreState  // the adaptive core tools (core.go)
 }
 
 // New makes a book; Load reads what was stored before.

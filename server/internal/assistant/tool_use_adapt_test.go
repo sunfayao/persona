@@ -109,3 +109,37 @@ func TestAdaptiveCoreToolsReachRunningConversations(t *testing.T) {
 		t.Fatal("a stored ranking just loaded woke no tool watch")
 	}
 }
+
+// Repeated friction in the main conversation becomes a draft at toolUseLoop's step (adaptToolUse), once whether a
+// retry cured it is known: three failed calls of a tool that does not exist are a fix suggestion naming the tool, the
+// failure and how often, with no value of the arguments.
+func TestFrictionDreamDraftsRepeatedFailures(t *testing.T) {
+	s, _, _ := roleContractStoredService(t)
+	ctx := context.Background()
+	now := time.Date(2026, 12, 1, 9, 0, 0, 0, time.UTC)
+	s.toolUse = tooluse.New(tooluse.Host{
+		Load: func(ctx context.Context, key string, out any) (bool, error) { return s.store().Setting(ctx, key, out) },
+		Save: func(ctx context.Context, key string, v any) error { return s.store().PutSetting(ctx, key, v) },
+		Now:  func() time.Time { return now },
+	})
+	for range 3 {
+		s.mcpCall(ctx, "server", "conv1", "no_such_tool", json.RawMessage(`{"note":"private words"}`), true)
+	}
+	s.adaptToolUse(ctx, false)
+	if drafts, err := s.toolUse.Drafts(ctx); err != nil || len(drafts) != 0 {
+		t.Fatalf("drafted before the retry window passed: %+v, %v", drafts, err)
+	}
+	now = now.Add(tooluse.RetryWindow)
+	s.adaptToolUse(ctx, false)
+	drafts, err := s.toolUse.Drafts(ctx)
+	if err != nil || len(drafts) != 1 {
+		t.Fatalf("drafts %+v, %v", drafts, err)
+	}
+	d := drafts[0]
+	want := "no_such_tool: {note:str} fails with unknown_tool, 3 times in 1 conversation on 2026-12-01 (UTC); no retry " +
+		"with other arguments worked."
+	if d.Kind != tooluse.DraftFix || d.Status != tooluse.DraftPending || d.Count != 3 || d.Text != want ||
+		len(d.Evidence) != 1 || d.Evidence[0].Session != "conv1" {
+		t.Fatalf("draft %+v\nwant the text %q", d, want)
+	}
+}

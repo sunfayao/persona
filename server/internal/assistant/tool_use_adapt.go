@@ -10,8 +10,9 @@ import (
 	"github.com/sunfayao/persona/server/internal/proto"
 )
 
-// What the tool record teaches (assistant/tooluse). toolUseLoop keeps the adaptive core tools of the main chat's
-// runtime, which withToolLoading marks (coreRanks) and the tool-list revision carries (coreToolsRevision).
+// What the tool record teaches (assistant/tooluse). toolUseLoop runs the friction dream, which drafts field notes and
+// fix suggestions from repeated friction, and keeps the adaptive core tools of the main chat's runtime, which
+// withToolLoading marks (coreRanks) and the tool-list revision carries (coreToolsRevision).
 
 // The declaration budgets of the runtimes that load only their core tools up front, in bytes of tooluse.DeclaredSize.
 // A ranked core set is cut to its runtime's budget; a runtime that loads every tool (Codex) has none, and the static
@@ -73,10 +74,13 @@ func (s *Service) coreToolsRevision(ctx context.Context, assistant bool) string 
 	return ":core=" + hex.EncodeToString(sum[:8])
 }
 
-// adaptToolUse is toolUseLoop's step once the record is loaded (loaded) and at each tick: the main chat's runtime's
-// core tools computed again when they are due. Every tool watch is woken when they change, and when a stored ranking
-// was just loaded: a list made before had the static ones.
+// adaptToolUse is toolUseLoop's step once the record is loaded (loaded) and at each tick: the friction dream, then the
+// main chat's runtime's core tools computed again when they are due. Every tool watch is woken when they change, and
+// when a stored ranking was just loaded: a list made before had the static ones.
 func (s *Service) adaptToolUse(ctx context.Context, loaded bool) {
+	if err := s.toolUse.Dream(ctx); err != nil {
+		s.logf("tool use: friction dream: %v", err)
+	}
 	runtime := s.callerRuntime(ctx)
 	changed, err := s.toolUse.RefreshCore(ctx, runtime, coreTools)
 	if err != nil {
